@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menú Principal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #0a0a0f;
+            --bg-card: #16161d;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #2d2d3a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-left p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .user-empresa {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .btn-logout {
+            padding: 0.6rem 1.2rem;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem;
+        }
+
+        .welcome {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .welcome h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .module-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+        }
+
+        .module-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(59, 130, 246, 0.2);
+            border-color: var(--primary);
+        }
+
+        .module-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 4px 10px rgba(59, 130, 246, 0.3));
+        }
+
+        .module-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .module-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .module-card.inventario::before {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        .module-card.contabilidad::before {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+
+        .module-card.tesoreria::before {
+            background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome h2 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1>🏢 Sistema de Gestión</h1>
+                <p id="headerSubtitle">Menú Principal</p>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-name" id="headerUsuario">Cargando...</div>
+                    <div class="user-empresa" id="headerEmpresa">...</div>
+                </div>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="welcome">
+            <h2>¡Bienvenido!</h2>
+            <p>Selecciona un módulo para comenzar</p>
+        </div>
+
+        <div class="modules-grid">
+            <div class="module-card inventario" onclick="abrirModulo('inventario.html')">
+                <div class="module-icon">📦</div>
+                <div class="module-title">Inventario</div>
+                <div class="module-description">
+                    Gestión de productos, stock, entradas y salidas por centro de costo
+                </div>
+            </div>
+
+            <div class="module-card contabilidad" onclick="abrirModulo('contabilidad.html')">
+                <div class="module-icon">📊</div>
+                <div class="module-title">Contabilidad</div>
+                <div class="module-description">
+                    Reportes financieros, balances y estados contables
+                </div>
+            </div>
+
+            <div class="module-card tesoreria" onclick="abrirModulo('tesoreria.html')">
+                <div class="module-icon">💰</div>
+                <div class="module-title">Tesorería</div>
+                <div class="module-description">
+                    Flujo de caja, pagos, cobros y conciliación bancaria
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sesion = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+        });
+
+        function verificarSesion() {
+            const sesionGuardada = localStorage.getItem('sesion');
+            
+            if (!sesionGuardada) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            sesion = JSON.parse(sesionGuardada);
+
+            // Verificar expiración
+            if (sesion.expiracion && new Date(sesion.expiracion) < new Date()) {
+                localStorage.removeItem('sesion');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Mostrar datos del usuario
+            document.getElementById('headerUsuario').textContent = sesion.nombre;
+            document.getElementById('headerEmpresa').textContent = sesion.empresaNombre;
+        }
+
+        function abrirModulo(modulo) {
+            window.location.href = modulo;
+        }
+
+        function logout() {
+            if (confirm('¿Cerrar sesión?')) {
+                localStorage.removeItem('sesion');
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Gestión</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --danger: #ef4444;
+            --bg: #0a0a0f;
+            --bg-card: #16161d;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #2d2d3a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 3rem 2.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .login-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN -->
+    <div id="loginScreen">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>🏢 Sistema de Gestión</h1>
+                <p>Ingresa tus credenciales</p>
+            </div>
+            <div id="loginMessage"></div>
+            <form onsubmit="event.preventDefault(); login();">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" id="loginUsuario" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="loginPassword" required autocomplete="current-password">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="recordarSesion" checked>
+                    <label for="recordarSesion">Mantener sesión por 30 días</label>
+                </div>
+                <button type="submit" class="btn" id="btnLogin">Iniciar Sesión</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SELECTOR DE EMPRESA -->
+    <div id="empresaScreen" class="hidden">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>🏢 Selecciona Empresa</h1>
+                <p id="empresaUsuarioNombre"></p>
+            </div>
+            <div class="form-group">
+                <label>Empresa</label>
+                <select id="empresaSelect" size="5" style="height: 200px;">
+                    <option value="">Cargando...</option>
+                </select>
+            </div>
+            <button class="btn" onclick="seleccionarEmpresa()">Continuar</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
+        let sesion = {
+            codigo: null,
+            usuario: null,
+            nombre: null,
+            empresa: null,
+            empresaNombre: null,
+            empresas: [],
+            expiracion: null
+        };
+
+        // Verificar sesión al cargar
+        window.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+        });
+
+        function verificarSesion() {
+            const sesionGuardada = localStorage.getItem('sesion');
+            if (sesionGuardada) {
+                sesion = JSON.parse(sesionGuardada);
+                
+                // Verificar si no ha expirado
+                if (sesion.expiracion && new Date(sesion.expiracion) > new Date()) {
+                    // Sesión válida - redirigir a principal
+                    window.location.href = 'principal.html';
+                } else {
+                    // Sesión expirada
+                    localStorage.removeItem('sesion');
+                }
+            }
+        }
+
+        async function login() {
+            const usuario = document.getElementById('loginUsuario').value;
+            const clave = document.getElementById('loginPassword').value;
+            const recordar = document.getElementById('recordarSesion').checked;
+            const msgDiv = document.getElementById('loginMessage');
+            const btnLogin = document.getElementById('btnLogin');
+
+            btnLogin.disabled = true;
+            btnLogin.textContent = 'Verificando...';
+            msgDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, clave })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    sesion.codigo = data.data.codigo;
+                    sesion.usuario = data.data.usuario;
+                    sesion.nombre = data.data.nombre;
+                    sesion.empresas = data.data.empresas;
+
+                    // Establecer expiración si marcó "recordar"
+                    if (recordar) {
+                        const expiracion = new Date();
+                        expiracion.setDate(expiracion.getDate() + 30);
+                        sesion.expiracion = expiracion.toISOString();
+                    }
+
+                    if (data.data.requiere_seleccion) {
+                        mostrarSelectorEmpresas();
+                    } else {
+                        sesion.empresa = data.data.empresas[0].empresa;
+                        sesion.empresaNombre = data.data.empresas[0].empresa_nombre;
+                        guardarSesion();
+                        window.location.href = 'principal.html';
+                    }
+                } else {
+                    msgDiv.innerHTML = `<div class="alert alert-error">❌ ${data.error}</div>`;
+                    btnLogin.disabled = false;
+                    btnLogin.textContent = 'Iniciar Sesión';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                msgDiv.innerHTML = `<div class="alert alert-error">❌ Error de conexión</div>`;
+                btnLogin.disabled = false;
+                btnLogin.textContent = 'Iniciar Sesión';
+            }
+        }
+
+        function mostrarSelectorEmpresas() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('empresaScreen').classList.remove('hidden');
+            document.getElementById('empresaUsuarioNombre').textContent = sesion.nombre;
+
+            const select = document.getElementById('empresaSelect');
+            let html = '';
+            sesion.empresas.forEach(emp => {
+                html += `<option value="${emp.empresa}">${emp.empresa} - ${emp.empresa_nombre}</option>`;
+            });
+            select.innerHTML = html;
+        }
+
+        function seleccionarEmpresa() {
+            const select = document.getElementById('empresaSelect');
+            const empresaId = select.value;
+
+            if (!empresaId) {
+                alert('Por favor selecciona una empresa');
+                return;
+            }
+
+            const empresaSeleccionada = sesion.empresas.find(e => e.empresa == empresaId);
+            sesion.empresa = empresaSeleccionada.empresa;
+            sesion.empresaNombre = empresaSeleccionada.empresa_nombre;
+
+            guardarSesion();
+            window.location.href = 'principal.html';
+        }
+
+        function guardarSesion() {
+            localStorage.setItem('sesion', JSON.stringify(sesion));
+        }
+    </script>
+</body>
+</html>
