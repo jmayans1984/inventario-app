@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Almacén</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #0a0a0f;
+            --bg-card: #16161d;
+            --bg-hover: #1f1f28;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #2d2d3a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+            overflow-x: hidden;
+        }
+
+        /* HEADER */
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: transparent;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem;
+            cursor: pointer;
+            color: var(--text);
+            font-size: 1.2rem;
+        }
+
+        .header-left h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #10b981, #059669);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn-back {
+            padding: 0.6rem 1.2rem;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--primary);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .btn-back:hover {
+            background: rgba(59, 130, 246, 0.25);
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+            color: var(--primary);
+        }
+
+        .user-empresa {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* LAYOUT */
+        .app-layout {
+            display: flex;
+            min-height: calc(100vh - 65px);
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 0;
+            overflow-y: auto;
+            transition: all 0.3s;
+        }
+
+        .sidebar-section {
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-section-title {
+            padding: 0 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu-item {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu-item:hover {
+            background: var(--bg-hover);
+            color: var(--text);
+        }
+
+        .sidebar-menu-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            border-left-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .sidebar-menu-icon {
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .content-header {
+            margin-bottom: 2rem;
+        }
+
+        .content-header h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .content-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .content-body {
+            display: none;
+        }
+
+        .content-body.active {
+            display: block;
+        }
+
+        /* WELCOME SCREEN */
+        .welcome-screen {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .welcome-screen h3 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-screen p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .welcome-icon {
+            font-size: 6rem;
+            margin-bottom: 2rem;
+            opacity: 0.3;
+        }
+
+        /* PLACEHOLDER CONTENT */
+        .placeholder-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .placeholder-content h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .placeholder-content p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .badge-coming-soon {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* MOBILE */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 65px;
+                height: calc(100vh - 65px);
+                z-index: 99;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+            }
+
+            .sidebar.mobile-open {
+                left: 0;
+            }
+
+            .header-right .user-info {
+                display: none;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .content-header h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <h1>📦 Almacén</h1>
+            </div>
+            <div class="header-right">
+                <a href="principal.html" class="btn-back">← Menú Principal</a>
+                <div class="user-info">
+                    <div class="user-name" id="headerUsuario">Cargando...</div>
+                    <div class="user-empresa" id="headerEmpresa">...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <!-- PROCESOS -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">⚙️ Procesos</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-menu-item" onclick="navigateTo('gestion-inventario')">
+                        <span class="sidebar-menu-icon">📝</span>
+                        <span>Gestión de Inventario</span>
+                    </li>
+                    <li class="sidebar-menu-item" onclick="navigateTo('toma-fisica')">
+                        <span class="sidebar-menu-icon">📋</span>
+                        <span>Toma Física</span>
+                    </li>
+                    <li class="sidebar-menu-item" onclick="navigateTo('ordenes-compra-proceso')">
+                        <span class="sidebar-menu-icon">🛒</span>
+                        <span>Órdenes de Compra</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- CONSULTAS -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">🔍 Consultas</div>
+                <ul class="sidebar-menu">
+                    <li class="sidebar-menu-item active" onclick="navigateTo('inventario-actual')">
+                        <span class="sidebar-menu-icon">📊</span>
+                        <span>Inventario Actual</span>
+                    </li>
+                    <li class="sidebar-menu-item" onclick="navigateTo('ordenes-compra-consulta')">
+                        <span class="sidebar-menu-icon">📑</span>
+                        <span>Órdenes de Compra</span>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <!-- INVENTARIO ACTUAL (viene desde inventario.html) -->
+            <div class="content-body active" id="inventario-actual">
+                <div class="content-header">
+                    <h2>Inventario Actual</h2>
+                    <p>Consulta de stock en tiempo real</p>
+                </div>
+                <div id="inventarioContent">
+                    <!-- Aquí va el contenido del inventario -->
+                </div>
+            </div>
+
+            <!-- GESTIÓN DE INVENTARIO -->
+            <div class="content-body" id="gestion-inventario">
+                <div class="content-header">
+                    <h2>Gestión de Inventario</h2>
+                    <p>Entradas, salidas y ajustes de inventario</p>
+                </div>
+                <div class="placeholder-content">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📝</div>
+                    <h3>Gestión de Inventario</h3>
+                    <p>Módulo en desarrollo para registrar movimientos de inventario</p>
+                    <span class="badge-coming-soon">Próximamente</span>
+                </div>
+            </div>
+
+            <!-- TOMA FÍSICA -->
+            <div class="content-body" id="toma-fisica">
+                <div class="content-header">
+                    <h2>Toma Física de Inventario</h2>
+                    <p>Conteo y ajuste de inventarios</p>
+                </div>
+                <div class="placeholder-content">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📋</div>
+                    <h3>Toma Física</h3>
+                    <p>Módulo en desarrollo para realizar conteos físicos de inventario</p>
+                    <span class="badge-coming-soon">Próximamente</span>
+                </div>
+            </div>
+
+            <!-- ÓRDENES DE COMPRA (PROCESO) -->
+            <div class="content-body" id="ordenes-compra-proceso">
+                <div class="content-header">
+                    <h2>Órdenes de Compra</h2>
+                    <p>Crear y gestionar órdenes de compra</p>
+                </div>
+                <div class="placeholder-content">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">🛒</div>
+                    <h3>Órdenes de Compra</h3>
+                    <p>Módulo en desarrollo para crear y gestionar órdenes de compra</p>
+                    <span class="badge-coming-soon">Próximamente</span>
+                </div>
+            </div>
+
+            <!-- ÓRDENES DE COMPRA (CONSULTA) -->
+            <div class="content-body" id="ordenes-compra-consulta">
+                <div class="content-header">
+                    <h2>Consulta de Órdenes de Compra</h2>
+                    <p>Historial y seguimiento de órdenes</p>
+                </div>
+                <div class="placeholder-content">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📑</div>
+                    <h3>Consulta de Órdenes</h3>
+                    <p>Módulo en desarrollo para consultar órdenes de compra</p>
+                    <span class="badge-coming-soon">Próximamente</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="almacen-inventario.js"></script>
+    <script>
+        let sesion = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+        });
+
+        function verificarSesion() {
+            const sesionGuardada = localStorage.getItem('sesion');
+            
+            if (!sesionGuardada) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            sesion = JSON.parse(sesionGuardada);
+
+            if (sesion.expiracion && new Date(sesion.expiracion) < new Date()) {
+                localStorage.removeItem('sesion');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('headerUsuario').textContent = sesion.usuario;
+            document.getElementById('headerEmpresa').textContent = sesion.empresaNombre;
+
+            // Cargar inventario actual por defecto
+            setTimeout(() => {
+                if (typeof cargarInventarioActual === 'function') {
+                    cargarInventarioActual();
+                }
+            }, 200);
+        }
+
+        function navigateTo(sectionId) {
+            // Remover active de todos los items del menú
+            document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Agregar active al item clickeado
+            if (event && event.target) {
+                event.target.closest('.sidebar-menu-item').classList.add('active');
+            }
+
+            // Ocultar todo el contenido
+            document.querySelectorAll('.content-body').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Mostrar el contenido seleccionado
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+
+            // Cerrar sidebar en móvil
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('mobile-open');
+            }
+
+            // Cargar contenido específico si es necesario
+            if (sectionId === 'inventario-actual') {
+                setTimeout(() => cargarInventarioActual(), 100);
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        }
+
+        // Esta función ahora está en almacen-inventario.js
+        // function cargarInventarioActual() { ... }
+    </script>
+</body>
+</html>
