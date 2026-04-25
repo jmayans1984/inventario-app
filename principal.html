@@ -73,6 +73,8 @@
         .user-name {
             font-weight: 700;
             font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+            color: var(--primary);
         }
 
         .user-empresa {
@@ -120,9 +122,9 @@
 
         .modules-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 2rem;
-            max-width: 1000px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -130,7 +132,7 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 16px;
-            padding: 2.5rem;
+            padding: 2rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
@@ -145,43 +147,85 @@
             left: 0;
             width: 100%;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary), #8b5cf6);
         }
 
-        .module-card:hover {
+        .module-card:hover:not(.disabled) {
             transform: translateY(-8px);
             box-shadow: 0 20px 60px rgba(59, 130, 246, 0.2);
             border-color: var(--primary);
         }
 
         .module-icon {
-            font-size: 4rem;
-            margin-bottom: 1.5rem;
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
             filter: drop-shadow(0 4px 10px rgba(59, 130, 246, 0.3));
         }
 
         .module-title {
-            font-size: 1.75rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
         .module-description {
             color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.6;
+            font-size: 0.85rem;
+            line-height: 1.5;
         }
 
-        .module-card.inventario::before {
-            background: linear-gradient(90deg, #10b981, #059669);
-        }
-
+        /* COLORES POR MÓDULO */
         .module-card.contabilidad::before {
             background: linear-gradient(90deg, #f59e0b, #d97706);
         }
 
         .module-card.tesoreria::before {
             background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+        }
+
+        .module-card.almacen::before {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        .module-card.nomina::before {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+        }
+
+        .module-card.facturacion::before {
+            background: linear-gradient(90deg, #ec4899, #db2777);
+        }
+
+        .module-card.plantillas::before {
+            background: linear-gradient(90deg, #6366f1, #4f46e5);
+        }
+
+        /* MÓDULO DESHABILITADO */
+        .module-card.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .module-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: var(--border);
+        }
+
+        .module-card.disabled .module-icon {
+            filter: none;
+        }
+
+        .badge-disabled {
+            display: inline-block;
+            margin-top: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
         }
 
         @media (max-width: 768px) {
@@ -224,14 +268,7 @@
         </div>
 
         <div class="modules-grid">
-            <div class="module-card inventario" onclick="abrirModulo('inventario.html')">
-                <div class="module-icon">📦</div>
-                <div class="module-title">Inventario</div>
-                <div class="module-description">
-                    Gestión de productos, stock, entradas y salidas por centro de costo
-                </div>
-            </div>
-
+            <!-- CONTABILIDAD -->
             <div class="module-card contabilidad" onclick="abrirModulo('contabilidad.html')">
                 <div class="module-icon">📊</div>
                 <div class="module-title">Contabilidad</div>
@@ -240,6 +277,7 @@
                 </div>
             </div>
 
+            <!-- TESORERÍA -->
             <div class="module-card tesoreria" onclick="abrirModulo('tesoreria.html')">
                 <div class="module-icon">💰</div>
                 <div class="module-title">Tesorería</div>
@@ -247,10 +285,48 @@
                     Flujo de caja, pagos, cobros y conciliación bancaria
                 </div>
             </div>
+
+            <!-- ALMACÉN (INVENTARIO) -->
+            <div class="module-card almacen" onclick="abrirModulo('inventario.html')">
+                <div class="module-icon">📦</div>
+                <div class="module-title">Almacén</div>
+                <div class="module-description">
+                    Gestión de productos, stock, entradas y salidas
+                </div>
+            </div>
+
+            <!-- NÓMINA -->
+            <div class="module-card nomina" onclick="abrirModulo('nomina.html')">
+                <div class="module-icon">👥</div>
+                <div class="module-title">Nómina</div>
+                <div class="module-description">
+                    Gestión de empleados, salarios y liquidaciones
+                </div>
+            </div>
+
+            <!-- FACTURACIÓN (condicional) -->
+            <div class="module-card facturacion" id="moduloFacturacion" onclick="abrirModulo('facturacion.html')">
+                <div class="module-icon">🧾</div>
+                <div class="module-title">Facturación</div>
+                <div class="module-description">
+                    Emisión de facturas, cotizaciones y notas
+                </div>
+                <div class="badge-disabled" id="badgeFacturacion" style="display: none;">No disponible</div>
+            </div>
+
+            <!-- PLANTILLAS -->
+            <div class="module-card plantillas" onclick="abrirModulo('plantillas.html')">
+                <div class="module-icon">📋</div>
+                <div class="module-title">Plantillas</div>
+                <div class="module-description">
+                    Configuración de formatos y documentos
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
         let sesion = null;
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -274,9 +350,37 @@
                 return;
             }
 
-            // Mostrar datos del usuario
-            document.getElementById('headerUsuario').textContent = sesion.nombre;
+            // Mostrar USUARIO (no nombre)
+            document.getElementById('headerUsuario').textContent = sesion.usuario;
             document.getElementById('headerEmpresa').textContent = sesion.empresaNombre;
+
+            // Verificar tipo de empresa para facturación
+            verificarTipoEmpresa();
+        }
+
+        async function verificarTipoEmpresa() {
+            try {
+                // Consultar el tipo de empresa
+                const response = await fetch(`${API_BASE}/empresa/tipo?empresa=${sesion.empresa}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const tipoEmpresa = data.data.tipo;
+
+                    // Si NO es proveedor, deshabilitar facturación
+                    if (tipoEmpresa !== 'PROVEEDOR') {
+                        const moduloFacturacion = document.getElementById('moduloFacturacion');
+                        const badge = document.getElementById('badgeFacturacion');
+                        
+                        moduloFacturacion.classList.add('disabled');
+                        moduloFacturacion.onclick = null;
+                        badge.style.display = 'inline-block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error verificando tipo de empresa:', error);
+                // Si falla, dejamos facturación habilitada por defecto
+            }
         }
 
         function abrirModulo(modulo) {

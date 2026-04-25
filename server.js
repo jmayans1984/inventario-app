@@ -157,6 +157,52 @@ app.get('/api/ccostos', async (req, res) => {
     }
 });
 
+// GET /api/empresa/tipo - Obtener tipo de empresa
+app.get('/api/empresa/tipo', async (req, res) => {
+    const { empresa } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        const query = `
+            SELECT codigo, nombre, tipo
+            FROM empresas
+            WHERE codigo = $1
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Empresa no encontrada'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: {
+                codigo: result.rows[0].codigo,
+                nombre: result.rows[0].nombre,
+                tipo: result.rows[0].tipo || 'CLIENTE'
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/empresa/tipo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener tipo de empresa',
+            details: error.message
+        });
+    }
+});
+
 // ================================================================
 // RUTAS - INVENTARIO
 // ================================================================
