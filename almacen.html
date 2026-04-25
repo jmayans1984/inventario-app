@@ -371,11 +371,8 @@
                     <h2>Gestión de Inventario</h2>
                     <p>Entradas, salidas y ajustes de inventario</p>
                 </div>
-                <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">📝</div>
-                    <h3>Gestión de Inventario</h3>
-                    <p>Módulo en desarrollo para registrar movimientos de inventario</p>
-                    <span class="badge-coming-soon">Próximamente</span>
+                <div id="gestionInventarioContent">
+                    <!-- Aquí va el contenido de gestión -->
                 </div>
             </div>
 
@@ -424,6 +421,7 @@
     </div>
 
     <script src="almacen-inventario.js"></script>
+    <script src="almacen-gestion.js"></script>
     <script>
         let sesion = null;
 
@@ -488,6 +486,8 @@
             // Cargar contenido específico si es necesario
             if (sectionId === 'inventario-actual') {
                 setTimeout(() => cargarInventarioActual(), 100);
+            } else if (sectionId === 'gestion-inventario') {
+                setTimeout(() => cargarGestionInventario(), 100);
             }
         }
 
