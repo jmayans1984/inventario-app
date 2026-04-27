@@ -370,6 +370,125 @@ app.post('/api/inventario/movimientos', async (req, res) => {
 });
 
 // ================================================================
+// RUTAS - TESORERÍA
+// ================================================================
+
+// GET /api/cuentas-bancarias - Obtener cuentas bancarias
+app.get('/api/cuentas-bancarias', async (req, res) => {
+    const { empresa } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        const query = `
+            SELECT codigo, nombre_banco, nombre_cta, tipo_cuenta
+            FROM cuentas_bancarias
+            WHERE empresa = $1
+            AND estado = 'ACTIVA'
+            ORDER BY nombre_cta
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/cuentas-bancarias:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener cuentas bancarias',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/movimientos-bancarios - Obtener movimientos bancarios
+app.get('/api/movimientos-bancarios', async (req, res) => {
+    const { empresa, cuenta, fecha_inicial, fecha_final } = req.query;
+    
+    if (!empresa || !cuenta || !fecha_inicial || !fecha_final) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetros empresa, cuenta, fecha_inicial y fecha_final requeridos'
+        });
+    }
+    
+    try {
+        // Calcular saldo inicial (antes de fecha_inicial)
+        const saldoInicialQuery = `
+            SELECT COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) as saldo
+            FROM moviban
+            WHERE empresa = $1
+            AND banco = $2
+            AND fecha < $3
+        `;
+        
+        const saldoInicialResult = await pool.query(saldoInicialQuery, [empresa, cuenta, fecha_inicial]);
+        const saldoInicial = parseFloat(saldoInicialResult.rows[0].saldo || 0);
+        
+        // Obtener movimientos del período
+        const movimientosQuery = `
+            SELECT 
+                m.fecha,
+                m.beneficia,
+                p.nombre as beneficiario,
+                m.concepto,
+                m.ingreso,
+                m.egreso
+            FROM moviban m
+            LEFT JOIN proveedores p ON m.beneficia = p.codigo
+            WHERE m.empresa = $1
+            AND m.banco = $2
+            AND m.fecha >= $3
+            AND m.fecha <= $4
+            ORDER BY m.fecha, m.numero
+        `;
+        
+        const movimientosResult = await pool.query(movimientosQuery, [empresa, cuenta, fecha_inicial, fecha_final]);
+        
+        // Calcular totales
+        let totalIngresos = 0;
+        let totalEgresos = 0;
+        
+        movimientosResult.rows.forEach(mov => {
+            totalIngresos += parseFloat(mov.ingreso || 0);
+            totalEgresos += parseFloat(mov.egreso || 0);
+        });
+        
+        const saldoFinal = saldoInicial + totalIngresos - totalEgresos;
+        
+        res.json({
+            success: true,
+            data: movimientosResult.rows,
+            resumen: {
+                saldo_inicial: saldoInicial,
+                total_ingresos: totalIngresos,
+                total_egresos: totalEgresos,
+                saldo_final: saldoFinal
+            },
+            total: movimientosResult.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/movimientos-bancarios:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener movimientos bancarios',
+            details: error.message
+        });
+    }
+});
+
+// ================================================================
 // HEALTH CHECK
 // ================================================================
 
