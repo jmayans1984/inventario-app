@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tesorería</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary: #8b5cf6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg: #0a0a0f;
+            --bg-card: #16161d;
+            --bg-hover: #1f1f28;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #2d2d3a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 13px;
+            overflow-x: hidden;
+        }
+
+        /* HEADER */
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .menu-toggle {
+            background: transparent;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            color: var(--text);
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .header-left h1 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-back {
+            padding: 0.5rem 0.75rem;
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        /* SIDEBAR */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 0;
+            overflow-y: auto;
+            transition: left 0.3s;
+        }
+
+        .sidebar-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-section-title {
+            padding: 0 1rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-menu-item.active {
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--primary);
+            border-left-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .sidebar-menu-icon {
+            font-size: 1.1rem;
+        }
+
+        /* MAIN CONTENT */
+        .app-layout {
+            display: flex;
+            min-height: calc(100vh - 52px);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 1rem;
+            padding-bottom: 2rem;
+        }
+
+        .content-header {
+            margin-bottom: 1rem;
+        }
+
+        .content-header h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .content-header p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .content-body {
+            display: none;
+        }
+
+        .content-body.active {
+            display: block;
+        }
+
+        /* FILTROS - RESPONSIVE */
+        .filtros {
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .filtro-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .filtro-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .filtro-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .filtro-group select,
+        .filtro-group input {
+            width: 100%;
+            padding: 0.7rem;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.85rem;
+        }
+
+        /* RESUMEN - GRID MÓVIL */
+        .resumen {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .resumen-item {
+            text-align: center;
+        }
+
+        .resumen-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+
+        .resumen-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* TABLA - RESPONSIVE */
+        .tabla-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .tabla-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+
+        .tabla-container th {
+            padding: 0.5rem 0.4rem;
+            text-align: left;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--bg-card);
+        }
+
+        .tabla-container td {
+            padding: 0.5rem 0.4rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .monospace {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        .placeholder-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+
+        .badge-coming-soon {
+            display: inline-block;
+            padding: 0.4rem 0.75rem;
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 52px;
+                height: calc(100vh - 52px);
+                z-index: 99;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+                padding-top: 1.5rem;
+            }
+
+            .sidebar.mobile-open {
+                left: 0;
+            }
+
+            .sidebar-overlay {
+                display: none;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .menu-toggle {
+                display: none;
+            }
+
+            .sidebar {
+                position: static;
+                left: 0;
+            }
+
+            .sidebar-overlay {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+                <h1>💰 Tesorería</h1>
+            </div>
+            <a href="principal.html" class="btn-back">← Menú</a>
+        </div>
+    </div>
+
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">📊 REPORTES</div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item active" onclick="navigateTo('movimientos-bancarios')">
+                    <span class="sidebar-menu-icon">🏦</span>
+                    <span>Movimientos Bancarios</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="navigateTo('flujo-caja')">
+                    <span class="sidebar-menu-icon">💸</span>
+                    <span>Flujo de Caja</span>
+                </li>
+                <li class="sidebar-menu-item" onclick="navigateTo('conciliacion')">
+                    <span class="sidebar-menu-icon">✅</span>
+                    <span>Conciliación Bancaria</span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">⚙️ GESTIÓN</div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item" onclick="navigateTo('cuentas')">
+                    <span class="sidebar-menu-icon">🏧</span>
+                    <span>Cuentas Bancarias</span>
+                </li>
+            </ul>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <!-- MOVIMIENTOS BANCARIOS -->
+        <div class="content-body active" id="movimientos-bancarios">
+            <div class="content-header">
+                <h2>Movimientos Bancarios</h2>
+                <p>Reporte por cuenta</p>
+            </div>
+            <div id="movibanContent"></div>
+        </div>
+
+        <!-- PLACEHOLDERS -->
+        <div class="content-body" id="flujo-caja">
+            <div class="content-header">
+                <h2>Flujo de Caja</h2>
+                <p>Ingresos y egresos</p>
+            </div>
+            <div class="placeholder-content">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">💸</div>
+                <h3 style="margin-bottom: 0.5rem;">Flujo de Caja</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Módulo en desarrollo</p>
+                <span class="badge-coming-soon">Próximamente</span>
+            </div>
+        </div>
+
+        <div class="content-body" id="conciliacion">
+            <div class="content-header">
+                <h2>Conciliación</h2>
+                <p>Validación de movimientos</p>
+            </div>
+            <div class="placeholder-content">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
+                <h3 style="margin-bottom: 0.5rem;">Conciliación</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Módulo en desarrollo</p>
+                <span class="badge-coming-soon">Próximamente</span>
+            </div>
+        </div>
+
+        <div class="content-body" id="cuentas">
+            <div class="content-header">
+                <h2>Cuentas Bancarias</h2>
+                <p>Gestión de cuentas</p>
+            </div>
+            <div class="placeholder-content">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">🏧</div>
+                <h3 style="margin-bottom: 0.5rem;">Cuentas Bancarias</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Módulo en desarrollo</p>
+                <span class="badge-coming-soon">Próximamente</span>
+            </div>
+        </div>
+    </main>
+    </div>
+
+    <script src="tesoreria-moviban-mobile.js"></script>
+    <script>
+        let sesion = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+        });
+
+        function verificarSesion() {
+            const sesionGuardada = localStorage.getItem('sesion');
+            
+            if (!sesionGuardada) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            sesion = JSON.parse(sesionGuardada);
+
+            if (sesion.expiracion && new Date(sesion.expiracion) < new Date()) {
+                localStorage.removeItem('sesion');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            setTimeout(() => {
+                if (typeof cargarMovimientosBancarios === 'function') {
+                    cargarMovimientosBancarios();
+                }
+            }, 200);
+        }
+
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('mobile-open');
+        }
+
+        function navigateTo(sectionId) {
+            // Cerrar menú
+            toggleMenu();
+
+            // Cambiar item activo
+            document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            if (event && event.target) {
+                event.target.closest('.sidebar-menu-item').classList.add('active');
+            }
+
+            // Cambiar contenido
+            document.querySelectorAll('.content-body').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+
+            if (sectionId === 'movimientos-bancarios') {
+                setTimeout(() => cargarMovimientosBancarios(), 100);
+            }
+        }
+    </script>
+</body>
+</html>
