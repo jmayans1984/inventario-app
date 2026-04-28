@@ -179,7 +179,7 @@ app.get('/api/empresa/tipo', async (req, res) => {
     
     try {
         const query = `
-            SELECT codigo, nombre, tipo
+            SELECT codigo, nombre
             FROM empresas
             WHERE codigo = $1
         `;
@@ -193,12 +193,30 @@ app.get('/api/empresa/tipo', async (req, res) => {
             });
         }
         
+        // Intentar obtener tipo si existe la columna
+        let tipo = 'CLIENTE'; // Default
+        try {
+            const tipoQuery = `
+                SELECT tipo
+                FROM empresas
+                WHERE codigo = $1
+            `;
+            const tipoResult = await pool.query(tipoQuery, [empresa]);
+            if (tipoResult.rows.length > 0 && tipoResult.rows[0].tipo) {
+                tipo = tipoResult.rows[0].tipo;
+            }
+        } catch (e) {
+            // Si no existe la columna tipo, usar default
+            console.log('Campo tipo no existe en empresas, usando CLIENTE por defecto');
+        }
+        
         res.json({
             success: true,
+            tipo: tipo,
             data: {
                 codigo: result.rows[0].codigo,
                 nombre: result.rows[0].nombre,
-                tipo: result.rows[0].tipo || 'CLIENTE'
+                tipo: tipo
             }
         });
         
