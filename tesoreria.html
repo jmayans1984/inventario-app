@@ -290,12 +290,7 @@
                     <h2>Facturas de Compra</h2>
                     <p>Gestión de facturas de compra</p>
                 </div>
-                <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">🧾</div>
-                    <h3>Facturas de Compra</h3>
-                    <p>Módulo en desarrollo</p>
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
+                <div id="facturasCompraContent"></div>
             </div>
 
             <!-- FACTURAS DE VENTA -->
@@ -325,6 +320,7 @@
 
     <script src="tesoreria-movimientos.js"></script>
     <script src="tesoreria-reporte.js"></script>
+    <script src="tesoreria-facturas-compra.js"></script>
     <script>
         let sesion = null;
 
@@ -407,6 +403,8 @@
                 setTimeout(() => cargarFormMovimientos(), 100);
             } else if (sectionId === 'movimientos-cuenta') {
                 setTimeout(() => cargarReporteMovimientos(), 100);
+            } else if (sectionId === 'facturas-compra') {
+                setTimeout(() => cargarFacturasCompra(), 100);
             }
         }
     </script>
