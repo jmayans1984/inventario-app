@@ -525,7 +525,8 @@ app.post('/api/movimientos-bancarios/crear', async (req, res) => {
             WHERE empresa = $1
         `;
         const consecutivoResult = await client.query(consecutivoQuery, [empresa]);
-        let numero = consecutivoResult.rows[0].siguiente.toString();
+        const numeroConsecutivo = consecutivoResult.rows[0].siguiente;
+        const numero = numeroConsecutivo.toString().padStart(10, '0');
         
         let registrosCreados = 0;
         
