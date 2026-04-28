@@ -488,6 +488,125 @@ app.get('/api/movimientos-bancarios', async (req, res) => {
     }
 });
 
+// POST /api/movimientos-bancarios/crear - Crear movimiento bancario
+app.post('/api/movimientos-bancarios/crear', async (req, res) => {
+    const { fecha, tipo, cuenta_origen, cuenta_destino, valor, concepto, empresa } = req.body;
+    
+    if (!fecha || !tipo || !cuenta_origen || !valor || !concepto || !empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan parámetros requeridos'
+        });
+    }
+    
+    if (valor <= 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'El valor debe ser mayor a cero'
+        });
+    }
+    
+    if (tipo === 'TRA' && !cuenta_destino) {
+        return res.status(400).json({
+            success: false,
+            error: 'Se requiere cuenta destino para transferencias'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Obtener consecutivo
+        const consecutivoQuery = `
+            SELECT COALESCE(MAX(CAST(numero AS INTEGER)), 0) + 1 as siguiente
+            FROM moviban
+            WHERE empresa = $1
+        `;
+        const consecutivoResult = await client.query(consecutivoQuery, [empresa]);
+        let numero = consecutivoResult.rows[0].siguiente.toString();
+        
+        let registrosCreados = 0;
+        
+        if (tipo === 'ING') {
+            // INGRESO
+            const query = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(query, [
+                tipo, numero, fecha, concepto, null, valor, 0, cuenta_origen, 'NO', empresa, null, null, null, null
+            ]);
+            
+            registrosCreados = 1;
+            
+        } else if (tipo === 'EGR') {
+            // EGRESO
+            const query = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(query, [
+                tipo, numero, fecha, concepto, null, 0, valor, cuenta_origen, 'NO', empresa, null, null, null, null
+            ]);
+            
+            registrosCreados = 1;
+            
+        } else if (tipo === 'TRA') {
+            // TRANSFERENCIA - 2 registros
+            
+            // 1. EGRESO de cuenta origen
+            const queryEgreso = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(queryEgreso, [
+                tipo, numero, fecha, concepto, null, 0, valor, cuenta_origen, 'NO', empresa, null, null, null, null
+            ]);
+            
+            // 2. INGRESO a cuenta destino (mismo número)
+            const queryIngreso = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(queryIngreso, [
+                tipo, numero, fecha, concepto, null, valor, 0, cuenta_destino, 'NO', empresa, null, null, null, null
+            ]);
+            
+            registrosCreados = 2;
+        }
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            message: `${tipo === 'ING' ? 'Ingreso' : tipo === 'EGR' ? 'Egreso' : 'Transferencia'} registrado exitosamente`,
+            registros_creados: registrosCreados,
+            numero: numero
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/movimientos-bancarios/crear:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al crear movimiento bancario',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
 // ================================================================
 // HEALTH CHECK
 // ================================================================

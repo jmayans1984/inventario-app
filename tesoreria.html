@@ -87,6 +87,11 @@
             font-size: 0.85rem;
             font-weight: 600;
             text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .btn-back:hover {
+            background: rgba(59, 130, 246, 0.25);
         }
 
         .app-layout {
@@ -131,6 +136,7 @@
             font-weight: 500;
             color: var(--text-secondary);
             border-left: 3px solid transparent;
+            transition: all 0.2s;
         }
 
         .sidebar-menu-item:hover {
@@ -178,111 +184,6 @@
             display: block;
         }
 
-        .filtros {
-            background: var(--bg-card);
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            border: 1px solid var(--border);
-        }
-
-        .filtro-group {
-            margin-bottom: 1rem;
-        }
-
-        .filtro-group:last-child {
-            margin-bottom: 0;
-        }
-
-        .filtro-group label {
-            display: block;
-            margin-bottom: 0.4rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-        }
-
-        .filtro-group select,
-        .filtro-group input {
-            width: 100%;
-            padding: 0.7rem;
-            background: var(--bg);
-            border: 2px solid var(--border);
-            border-radius: 6px;
-            color: var(--text);
-            font-size: 0.9rem;
-        }
-
-        .resumen {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 1.5rem;
-            border: 1px solid var(--border);
-            margin-bottom: 1rem;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
-        }
-
-        .resumen-item {
-            text-align: center;
-        }
-
-        .resumen-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-        }
-
-        .resumen-value {
-            font-size: 1.75rem;
-            font-weight: 800;
-            font-family: 'Courier New', monospace;
-        }
-
-        .tabla-container {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 1rem;
-            border: 1px solid var(--border);
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .tabla-container table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-            min-width: 600px;
-        }
-
-        .tabla-container th {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            font-weight: 700;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            border-bottom: 2px solid var(--border);
-        }
-
-        .tabla-container td {
-            padding: 0.65rem 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .monospace {
-            font-family: 'Courier New', monospace;
-            font-weight: 600;
-        }
-
         .placeholder-content {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -328,29 +229,6 @@
             .content-header h2 {
                 font-size: 1.5rem;
             }
-
-            .resumen {
-                grid-template-columns: 1fr 1fr;
-                gap: 1rem;
-            }
-
-            .resumen-value {
-                font-size: 1rem;
-            }
-
-            .tabla-container {
-                padding: 0.5rem;
-            }
-
-            .tabla-container table {
-                font-size: 0.7rem;
-                min-width: 700px;
-            }
-
-            .tabla-container th,
-            .tabla-container td {
-                padding: 0.5rem 0.3rem;
-            }
         }
     </style>
 </head>
@@ -368,85 +246,85 @@
     <div class="app-layout">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-section">
-                <div class="sidebar-section-title">📊 REPORTES</div>
+                <div class="sidebar-section-title">⚙️ GESTIÓN</div>
                 <ul class="sidebar-menu">
                     <li class="sidebar-menu-item active" onclick="navigateTo('movimientos-bancarios')">
                         <span class="sidebar-menu-icon">🏦</span>
                         <span>Movimientos Bancarios</span>
                     </li>
-                    <li class="sidebar-menu-item" onclick="navigateTo('flujo-caja')">
-                        <span class="sidebar-menu-icon">💸</span>
-                        <span>Flujo de Caja</span>
+                    <li class="sidebar-menu-item" id="menuFacturasCompra" style="display: none;" onclick="navigateTo('facturas-compra')">
+                        <span class="sidebar-menu-icon">🧾</span>
+                        <span>Facturas de Compra</span>
                     </li>
-                    <li class="sidebar-menu-item" onclick="navigateTo('conciliacion')">
-                        <span class="sidebar-menu-icon">✅</span>
-                        <span>Conciliación Bancaria</span>
+                    <li class="sidebar-menu-item" id="menuFacturasVenta" style="display: none;" onclick="navigateTo('facturas-venta')">
+                        <span class="sidebar-menu-icon">📄</span>
+                        <span>Facturas de Venta</span>
                     </li>
                 </ul>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-section-title">⚙️ GESTIÓN</div>
+                <div class="sidebar-section-title">📊 REPORTES</div>
                 <ul class="sidebar-menu">
-                    <li class="sidebar-menu-item" onclick="navigateTo('cuentas')">
-                        <span class="sidebar-menu-icon">🏧</span>
-                        <span>Cuentas Bancarias</span>
+                    <li class="sidebar-menu-item" onclick="navigateTo('movimientos-cuenta')">
+                        <span class="sidebar-menu-icon">📈</span>
+                        <span>Movimientos por Cuenta</span>
                     </li>
                 </ul>
             </div>
         </aside>
 
         <main class="main-content">
+            <!-- MOVIMIENTOS BANCARIOS (GESTIÓN) -->
             <div class="content-body active" id="movimientos-bancarios">
                 <div class="content-header">
                     <h2>Movimientos Bancarios</h2>
-                    <p>Reporte de movimientos por cuenta</p>
+                    <p>Registrar ingresos, egresos y transferencias</p>
                 </div>
-                <div id="movibanContent"></div>
+                <div id="movimientosContent"></div>
             </div>
 
-            <div class="content-body" id="flujo-caja">
+            <!-- FACTURAS DE COMPRA -->
+            <div class="content-body" id="facturas-compra">
                 <div class="content-header">
-                    <h2>Flujo de Caja</h2>
-                    <p>Análisis de ingresos y egresos</p>
+                    <h2>Facturas de Compra</h2>
+                    <p>Gestión de facturas de compra</p>
                 </div>
                 <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">💸</div>
-                    <h3>Flujo de Caja</h3>
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">🧾</div>
+                    <h3>Facturas de Compra</h3>
                     <p>Módulo en desarrollo</p>
                     <span class="badge-coming-soon">Próximamente</span>
                 </div>
             </div>
 
-            <div class="content-body" id="conciliacion">
+            <!-- FACTURAS DE VENTA -->
+            <div class="content-body" id="facturas-venta">
                 <div class="content-header">
-                    <h2>Conciliación Bancaria</h2>
-                    <p>Validación de movimientos</p>
+                    <h2>Facturas de Venta</h2>
+                    <p>Gestión de facturas de venta</p>
                 </div>
                 <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
-                    <h3>Conciliación</h3>
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📄</div>
+                    <h3>Facturas de Venta</h3>
                     <p>Módulo en desarrollo</p>
                     <span class="badge-coming-soon">Próximamente</span>
                 </div>
             </div>
 
-            <div class="content-body" id="cuentas">
+            <!-- MOVIMIENTOS POR CUENTA (REPORTE) -->
+            <div class="content-body" id="movimientos-cuenta">
                 <div class="content-header">
-                    <h2>Cuentas Bancarias</h2>
-                    <p>Gestión de cuentas</p>
+                    <h2>Movimientos por Cuenta</h2>
+                    <p>Reporte de movimientos bancarios</p>
                 </div>
-                <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">🏧</div>
-                    <h3>Cuentas Bancarias</h3>
-                    <p>Módulo en desarrollo</p>
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
+                <div id="reporteMovibanContent"></div>
             </div>
         </main>
     </div>
 
-    <script src="tesoreria-moviban.js"></script>
+    <script src="tesoreria-movimientos.js"></script>
+    <script src="tesoreria-reporte.js"></script>
     <script>
         let sesion = null;
 
@@ -454,7 +332,7 @@
             verificarSesion();
         });
 
-        function verificarSesion() {
+        async function verificarSesion() {
             const sesionGuardada = localStorage.getItem('sesion');
             
             if (!sesionGuardada) {
@@ -470,11 +348,33 @@
                 return;
             }
 
+            // Cargar tipo de empresa para menú condicional
+            await cargarTipoEmpresa();
+
             setTimeout(() => {
-                if (typeof cargarMovimientosBancarios === 'function') {
-                    cargarMovimientosBancarios();
+                if (typeof cargarFormMovimientos === 'function') {
+                    cargarFormMovimientos();
                 }
             }, 200);
+        }
+
+        async function cargarTipoEmpresa() {
+            try {
+                const response = await fetch(`https://inventario-app-production-e8c8.up.railway.app/api/empresa/tipo?empresa=${sesion.empresa}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const tipo = data.tipo;
+                    
+                    if (tipo === 'CLIENTE') {
+                        document.getElementById('menuFacturasCompra').style.display = 'flex';
+                    } else if (tipo === 'PROVEEDOR') {
+                        document.getElementById('menuFacturasVenta').style.display = 'flex';
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando tipo empresa:', error);
+            }
         }
 
         function toggleSidebar() {
@@ -499,13 +399,14 @@
                 section.classList.add('active');
             }
 
-            // Cerrar sidebar en móvil
             if (window.innerWidth <= 768) {
                 document.getElementById('sidebar').classList.remove('mobile-open');
             }
 
             if (sectionId === 'movimientos-bancarios') {
-                setTimeout(() => cargarMovimientosBancarios(), 100);
+                setTimeout(() => cargarFormMovimientos(), 100);
+            } else if (sectionId === 'movimientos-cuenta') {
+                setTimeout(() => cargarReporteMovimientos(), 100);
             }
         }
     </script>
