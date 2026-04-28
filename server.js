@@ -826,6 +826,107 @@ app.get('/api/facturas-compra/detalle', async (req, res) => {
     }
 });
 
+// POST /api/soporte-pago/subir - Subir soporte de pago
+app.post('/api/soporte-pago/subir', async (req, res) => {
+    const { factura, archivo_base64, nombre_archivo, empresa } = req.body;
+    
+    if (!factura || !archivo_base64 || !nombre_archivo) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetros factura, archivo_base64 y nombre_archivo requeridos'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Extraer extensión del archivo
+        const extension = nombre_archivo.split('.').pop().toLowerCase();
+        const tipoArchivo = `.${extension}`;
+        
+        // Insertar soporte de pago
+        const insertQuery = `
+            INSERT INTO soportes_pago (pago, nombre_archivo, archivo_data, tipo_archivo, fecha_subida)
+            VALUES ($1, $2, $3, $4, NOW())
+        `;
+        
+        await client.query(insertQuery, [factura, nombre_archivo, archivo_base64, tipoArchivo]);
+        
+        // Actualizar estado de factura a POR VERIFICAR
+        const updateQuery = `
+            UPDATE factura_venta
+            SET estado = 'POR VERIFICAR'
+            WHERE codigo = $1
+        `;
+        
+        await client.query(updateQuery, [factura]);
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            message: 'Soporte de pago subido exitosamente. Estado actualizado a POR VERIFICAR.'
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/soporte-pago/subir:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al subir soporte de pago',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// GET /api/soporte-pago/obtener - Obtener soporte de pago
+app.get('/api/soporte-pago/obtener', async (req, res) => {
+    const { factura } = req.query;
+    
+    if (!factura) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro factura requerido'
+        });
+    }
+    
+    try {
+        const query = `
+            SELECT id, pago, nombre_archivo, archivo_data, tipo_archivo, fecha_subida
+            FROM soportes_pago
+            WHERE pago = $1
+            ORDER BY fecha_subida DESC
+            LIMIT 1
+        `;
+        
+        const result = await pool.query(query, [factura]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'No se encontró soporte de pago para esta factura'
+            });
+        }
+        
+        res.json({
+            success: true,
+            soporte: result.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/soporte-pago/obtener:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener soporte de pago',
+            details: error.message
+        });
+    }
+});
+
 // ================================================================
 // HEALTH CHECK
 // ================================================================

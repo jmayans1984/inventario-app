@@ -186,11 +186,21 @@ function renderFacturasCompra() {
                 </div>
                 ` : ''}
 
-                <!-- BOTÓN VER -->
-                <div style="margin-top: 1rem;">
+                <!-- BOTONES -->
+                <div style="margin-top: 1rem; display: grid; grid-template-columns: ${factura.estado === 'PENDIENTE' ? '1fr 1fr' : factura.estado === 'POR VERIFICAR' ? '1fr 1fr' : '1fr'}; gap: 0.75rem;">
                     <button onclick="verDetalleFactura('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(139, 92, 246, 0.1); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
                         👁️ Ver Detalles
                     </button>
+                    ${factura.estado === 'PENDIENTE' ? `
+                    <button onclick="abrirSubirSoporte('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.2)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.1)'">
+                        📷 Subir Pago
+                    </button>
+                    ` : ''}
+                    ${factura.estado === 'POR VERIFICAR' ? `
+                    <button onclick="verSoportePago('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(96, 165, 250, 0.1); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(96, 165, 250, 0.2)'" onmouseout="this.style.background='rgba(96, 165, 250, 0.1)'">
+                        🖼️ Ver Soporte
+                    </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -344,6 +354,211 @@ function mostrarModalDetalle(factura, detalle) {
 function cerrarModalDetalle(event) {
     if (!event || event.target.id === 'modalDetalle') {
         const modal = document.getElementById('modalDetalle');
+        if (modal) modal.remove();
+    }
+}
+
+// ================================================================
+// SUBIR SOPORTE DE PAGO
+// ================================================================
+
+function abrirSubirSoporte(codigoFactura) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => procesarImagenSoporte(e.target.files[0], codigoFactura);
+    input.click();
+}
+
+async function procesarImagenSoporte(file, codigoFactura) {
+    if (!file) return;
+    
+    // Mostrar loading
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'loadingUpload';
+    loadingDiv.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+            <div style="background: var(--bg-card); padding: 2rem; border-radius: 12px; text-align: center; border: 1px solid var(--border);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">Procesando imagen...</p>
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">Convirtiendo a B&N y comprimiendo</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    try {
+        // Crear imagen
+        const img = new Image();
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            img.onload = async () => {
+                // Calcular nuevas dimensiones (max 800x600)
+                let width = img.width;
+                let height = img.height;
+                const maxWidth = 800;
+                const maxHeight = 600;
+                
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width = width * ratio;
+                    height = height * ratio;
+                }
+                
+                // Crear canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                
+                // Dibujar imagen redimensionada
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convertir a escala de grises
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const data = imageData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                    data[i] = gray;
+                    data[i + 1] = gray;
+                    data[i + 2] = gray;
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Convertir a base64 JPEG con 70% calidad
+                const base64 = canvas.toDataURL('image/jpeg', 0.7);
+                
+                // Subir al servidor
+                await subirSoporteAlServidor(codigoFactura, base64, file.name);
+                
+            };
+            img.src = e.target.result;
+        };
+        
+        reader.readAsDataURL(file);
+        
+    } catch (error) {
+        console.error('Error procesando imagen:', error);
+        document.getElementById('loadingUpload').remove();
+        alert('❌ Error al procesar la imagen');
+    }
+}
+
+async function subirSoporteAlServidor(factura, base64, nombreArchivo) {
+    try {
+        const response = await fetch(`${API_BASE_FACTURAS}/soporte-pago/subir`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                factura: factura,
+                archivo_base64: base64,
+                nombre_archivo: nombreArchivo,
+                empresa: sesion.empresa
+            })
+        });
+        
+        const data = await response.json();
+        
+        document.getElementById('loadingUpload').remove();
+        
+        if (data.success) {
+            alert('✅ Comprobante de pago subido exitosamente\n\nEstado cambiado a: POR VERIFICAR');
+            buscarFacturasCompra(); // Recargar facturas
+        } else {
+            alert(`❌ Error: ${data.error}`);
+        }
+        
+    } catch (error) {
+        console.error('Error subiendo soporte:', error);
+        document.getElementById('loadingUpload').remove();
+        alert('❌ Error al subir el comprobante');
+    }
+}
+
+// ================================================================
+// VER SOPORTE DE PAGO
+// ================================================================
+
+async function verSoportePago(codigoFactura) {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'loadingSoporte';
+    loadingDiv.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+            <div style="background: var(--bg-card); padding: 2rem; border-radius: 12px; text-align: center; border: 1px solid var(--border);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+                <p style="font-size: 1.1rem; font-weight: 600;">Cargando comprobante...</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    try {
+        const response = await fetch(`${API_BASE_FACTURAS}/soporte-pago/obtener?factura=${codigoFactura}`);
+        const data = await response.json();
+        
+        document.getElementById('loadingSoporte').remove();
+        
+        if (data.success && data.soporte) {
+            mostrarModalSoporte(data.soporte, codigoFactura);
+        } else {
+            alert('❌ No se encontró comprobante de pago para esta factura');
+        }
+        
+    } catch (error) {
+        console.error('Error cargando soporte:', error);
+        document.getElementById('loadingSoporte').remove();
+        alert('❌ Error al cargar el comprobante');
+    }
+}
+
+function mostrarModalSoporte(soporte, factura) {
+    const modalHTML = `
+        <div id="modalSoporte" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;" onclick="cerrarModalSoporte(event)">
+            <div style="background: var(--bg-card); border-radius: 12px; max-width: 1000px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border);" onclick="event.stopPropagation()">
+                
+                <div style="padding: 1.5rem; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 0.25rem;">Comprobante de Pago</div>
+                        <h2 style="font-size: 1.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary); margin: 0;">🖼️ ${factura}</h2>
+                    </div>
+                    <button onclick="cerrarModalSoporte()" style="background: transparent; border: 2px solid var(--border); color: var(--text-secondary); width: 40px; height: 40px; border-radius: 8px; font-size: 1.5rem; cursor: pointer;">✕</button>
+                </div>
+
+                <div style="padding: 1.5rem;">
+                    <div style="background: var(--bg); padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">📄 Archivo</div>
+                        <div style="font-size: 0.9rem; font-weight: 600;">${soporte.nombre_archivo}</div>
+                    </div>
+                    
+                    <div style="background: var(--bg); padding: 0.75rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">📅 Fecha de subida</div>
+                        <div style="font-size: 0.9rem; font-weight: 600;">${new Date(soporte.fecha_subida).toLocaleString('es-CO')}</div>
+                    </div>
+
+                    <div style="text-align: center; background: var(--bg); padding: 1rem; border-radius: 8px; border: 2px dashed var(--border);">
+                        <img src="${soporte.archivo_data}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);" alt="Comprobante de pago">
+                    </div>
+                </div>
+
+                <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); text-align: right;">
+                    <button onclick="cerrarModalSoporte()" style="padding: 0.75rem 2rem; background: var(--bg); color: var(--text); border: 2px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-weight: 700; cursor: pointer; text-transform: uppercase;">Cerrar</button>
+                </div>
+
+            </div>
+        </div>
+    `;
+    
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = modalHTML;
+    document.body.appendChild(modalDiv);
+}
+
+function cerrarModalSoporte(event) {
+    if (!event || event.target.id === 'modalSoporte') {
+        const modal = document.getElementById('modalSoporte');
         if (modal) modal.remove();
     }
 }
