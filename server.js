@@ -693,6 +693,139 @@ app.get('/api/facturas-compra', async (req, res) => {
     }
 });
 
+// GET /api/facturas-compra/detalle - Obtener detalle de una factura
+app.get('/api/facturas-compra/detalle', async (req, res) => {
+    const { factura } = req.query;
+    
+    if (!factura) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro factura requerido'
+        });
+    }
+    
+    try {
+        // Obtener datos de la factura
+        const facturaQuery = `
+            SELECT *
+            FROM factura_venta
+            WHERE codigo = $1
+        `;
+        
+        const facturaResult = await pool.query(facturaQuery, [factura]);
+        
+        if (facturaResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Factura no encontrada'
+            });
+        }
+        
+        // Obtener detalle con nombres de productos
+        const detalleQuery = `
+            SELECT 
+                d.id,
+                d.factura,
+                d.producto_venta,
+                pv.nombre as producto_nombre,
+                d.cantidad,
+                d.precio_unitario,
+                d.subtotal
+            FROM detalle_factura_venta d
+            LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
+            WHERE d.factura = $1
+            ORDER BY d.id
+        `;
+        
+        const detalleResult = await pool.query(detalleQuery, [factura]);
+        
+        res.json({
+            success: true,
+            factura: facturaResult.rows[0],
+            detalle: detalleResult.rows
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/facturas-compra/detalle:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener detalle de factura',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/facturas-compra/detalle - Obtener detalle de factura de compra
+app.get('/api/facturas-compra/detalle', async (req, res) => {
+    const { factura } = req.query;
+    
+    if (!factura) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro factura requerido'
+        });
+    }
+    
+    try {
+        // Obtener encabezado de factura
+        const facturaQuery = `
+            SELECT 
+                codigo,
+                fecha,
+                orden_compra,
+                subtotal,
+                impuestos,
+                total,
+                estado,
+                observaciones,
+                fecha_vencimiento
+            FROM factura_venta
+            WHERE codigo = $1
+        `;
+        
+        const facturaResult = await pool.query(facturaQuery, [factura]);
+        
+        if (facturaResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Factura no encontrada'
+            });
+        }
+        
+        // Obtener detalle de factura con nombres de productos
+        const detalleQuery = `
+            SELECT 
+                d.id,
+                d.factura,
+                d.producto_venta,
+                p.nombre as producto_nombre,
+                d.cantidad,
+                d.precio_unitario,
+                d.subtotal
+            FROM detalle_factura_venta d
+            LEFT JOIN productos_venta p ON d.producto_venta = p.codigo
+            WHERE d.factura = $1
+            ORDER BY d.id
+        `;
+        
+        const detalleResult = await pool.query(detalleQuery, [factura]);
+        
+        res.json({
+            success: true,
+            factura: facturaResult.rows[0],
+            detalle: detalleResult.rows
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/facturas-compra/detalle:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener detalle de factura',
+            details: error.message
+        });
+    }
+});
+
 // ================================================================
 // HEALTH CHECK
 // ================================================================
