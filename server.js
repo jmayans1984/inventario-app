@@ -1,237 +1,724 @@
 // ================================================================
-// TESORERÍA - FACTURAS DE COMPRA (CLIENTE)
+// API BACKEND - INVENTARIO CON AUTENTICACIÓN
+// Node.js + Express + PostgreSQL (Aiven)
 // ================================================================
 
-const API_BASE_FACTURAS = 'https://inventario-app-production-e8c8.up.railway.app/api';
-let facturasCompraData = [];
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+require('dotenv').config();
 
-function cargarFacturasCompra() {
-    const contentDiv = document.getElementById('facturasCompraContent');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// ================================================================
+// CONFIGURACIÓN DE BASE DE DATOS
+// ================================================================
+
+const pool = new Pool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    ssl: {
+        rejectUnauthorized: false
+    },
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+});
+
+pool.on('connect', () => {
+    console.log('✅ Conectado a PostgreSQL (Aiven)');
+});
+
+pool.on('error', (err) => {
+    console.error('❌ Error en PostgreSQL:', err);
+});
+
+// ================================================================
+// MIDDLEWARE
+// ================================================================
+
+app.use(cors({
+    origin: [
+        'https://jmayans1984.github.io',
+        'http://localhost:5500',
+        'http://127.0.0.1:5500'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
+
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+});
+
+// ================================================================
+// RUTAS - AUTENTICACIÓN
+// ================================================================
+
+// POST /api/auth/login - Login de usuario
+app.post('/api/auth/login', async (req, res) => {
+    const { usuario, clave } = req.body;
     
-    const hoy = new Date();
-    const primerDia = new Date(hoy.getFullYear(), 0, 1); // 1 de enero del año actual
-    const ultimoDia = new Date(hoy.getFullYear(), 11, 31); // 31 de diciembre
+    if (!usuario || !clave) {
+        return res.status(400).json({
+            success: false,
+            error: 'Usuario y contraseña requeridos'
+        });
+    }
     
-    const fechaDesdeStr = primerDia.toISOString().split('T')[0];
-    const fechaHastaStr = ultimoDia.toISOString().split('T')[0];
-    
-    contentDiv.innerHTML = `
-        <!-- FILTROS -->
-        <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                <div>
-                    <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Fecha Desde</label>
-                    <input type="date" id="fechaDesdeFC" value="${fechaDesdeStr}" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Fecha Hasta</label>
-                    <input type="date" id="fechaHastaFC" value="${fechaHastaStr}" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Estado</label>
-                    <select id="estadoFC" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-                        <option value="TODOS">TODOS</option>
-                        <option value="PENDIENTE" selected>PENDIENTE</option>
-                        <option value="PAGADA">PAGADA</option>
-                        <option value="POR VERIFICAR">POR VERIFICAR</option>
-                    </select>
-                </div>
-
-                <div style="display: flex; align-items: flex-end;">
-                    <button onclick="buscarFacturasCompra()" style="width: 100%; padding: 0.7rem 1.5rem; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.3s;">
-                        🔍 Buscar
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- GRID DE FACTURAS -->
-        <div id="gridFacturasCompra"></div>
-    `;
-
-    // Cargar facturas pendientes por defecto
-    buscarFacturasCompra();
-}
-
-async function buscarFacturasCompra() {
-    const fechaDesde = document.getElementById('fechaDesdeFC').value;
-    const fechaHasta = document.getElementById('fechaHastaFC').value;
-    const estado = document.getElementById('estadoFC').value;
-
     try {
-        const response = await fetch(
-            `${API_BASE_FACTURAS}/facturas-compra?empresa=${sesion.empresa}&fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}&estado=${estado}`
-        );
-        const data = await response.json();
-
-        if (data.success) {
-            facturasCompraData = data.data;
-            renderFacturasCompra();
+        // Buscar usuario
+        const query = `
+            SELECT codigo, usuario, nombre, clave, nivel, empresa
+            FROM usuarios
+            WHERE UPPER(usuario) = UPPER($1)
+            AND clave = $2
+        `;
+        
+        const result = await pool.query(query, [usuario, clave]);
+        
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                success: false,
+                error: 'Usuario o contraseña incorrectos'
+            });
         }
+        
+        // Usuario encontrado - obtener todas sus empresas
+        const empresasQuery = `
+            SELECT DISTINCT u.empresa, e.nombre as empresa_nombre
+            FROM usuarios u
+            INNER JOIN empresas e ON u.empresa = e.codigo
+            WHERE UPPER(u.usuario) = UPPER($1)
+            ORDER BY e.nombre
+        `;
+        
+        const empresasResult = await pool.query(empresasQuery, [usuario]);
+        
+        const userData = result.rows[0];
+        
+        res.json({
+            success: true,
+            data: {
+                codigo: userData.codigo,
+                usuario: userData.usuario,
+                nombre: userData.nombre,
+                nivel: userData.nivel,
+                empresas: empresasResult.rows,
+                requiere_seleccion: empresasResult.rows.length > 1
+            }
+        });
+        
     } catch (error) {
-        console.error('Error cargando facturas:', error);
+        console.error('Error en /api/auth/login:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error en el servidor',
+            details: error.message
+        });
     }
-}
+});
 
-function renderFacturasCompra() {
-    const gridDiv = document.getElementById('gridFacturasCompra');
+// ================================================================
+// RUTAS - CENTROS DE COSTO
+// ================================================================
 
-    if (facturasCompraData.length === 0) {
-        gridDiv.innerHTML = `
-            <div style="background: var(--bg-card); border-radius: 12px; padding: 3rem; border: 1px solid var(--border); text-align: center;">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
-                <h3 style="color: var(--text-secondary); font-weight: 600;">No se encontraron facturas</h3>
-                <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">Intenta con otros filtros</p>
-            </div>
+app.get('/api/ccostos', async (req, res) => {
+    const { empresa } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        const query = `
+            SELECT codigo, nombre
+            FROM ccostos
+            WHERE empresa = $1
+            ORDER BY nombre
         `;
-        return;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/ccostos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener centros de costo',
+            details: error.message
+        });
     }
+});
 
-    let htmlGrid = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
-    `;
-
-    facturasCompraData.forEach(factura => {
-        const fechaParts = factura.fecha.split('T')[0].split('-');
-        const fechaFactura = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`;
-
-        const venceParts = factura.fecha_vencimiento.split('T')[0].split('-');
-        const fechaVence = `${venceParts[2]}/${venceParts[1]}/${venceParts[0]}`;
-
-        // Calcular días vencidos
-        const hoy = new Date();
-        const vencimiento = new Date(factura.fecha_vencimiento);
-        const diffTime = hoy - vencimiento;
-        const diasVencidos = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-        // Color del estado
-        let estadoColor = '';
-        let estadoIcon = '';
-        if (factura.estado === 'PENDIENTE') {
-            estadoColor = diasVencidos > 0 ? 'var(--danger)' : 'var(--warning)';
-            estadoIcon = diasVencidos > 0 ? '🔴' : '🟡';
-        } else if (factura.estado === 'PAGADA') {
-            estadoColor = 'var(--success)';
-            estadoIcon = '🟢';
-        } else {
-            estadoColor = '#60a5fa';
-            estadoIcon = '🔵';
+// GET /api/empresa/tipo - Obtener tipo de empresa
+app.get('/api/empresa/tipo', async (req, res) => {
+    const { empresa } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        const query = `
+            SELECT codigo, nombre, tipo
+            FROM empresas
+            WHERE codigo = $1
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Empresa no encontrada'
+            });
         }
+        
+        res.json({
+            success: true,
+            data: {
+                codigo: result.rows[0].codigo,
+                nombre: result.rows[0].nombre,
+                tipo: result.rows[0].tipo || 'CLIENTE'
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/empresa/tipo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener tipo de empresa',
+            details: error.message
+        });
+    }
+});
 
-        htmlGrid += `
-            <div style="background: var(--bg-card); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); transition: all 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 24px rgba(139,92,246,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
-                <!-- HEADER -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
-                    <div>
-                        <div style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Factura</div>
-                        <div style="font-size: 1.1rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary);">${factura.codigo}</div>
-                    </div>
-                    <div style="background: ${estadoColor}15; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid ${estadoColor}30;">
-                        <div style="font-size: 0.85rem; font-weight: 700; color: ${estadoColor};">${estadoIcon} ${factura.estado}</div>
-                    </div>
-                </div>
+// ================================================================
+// RUTAS - INVENTARIO
+// ================================================================
 
-                <!-- DETALLES -->
-                <div style="display: grid; gap: 0.75rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1rem;">📅</span>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-secondary);">Fecha</div>
-                            <div style="font-size: 0.9rem; font-weight: 600;">${fechaFactura}</div>
-                        </div>
-                    </div>
-
-                    ${factura.orden_compra ? `
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1rem;">🧾</span>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-secondary);">Orden de Compra</div>
-                            <div style="font-size: 0.85rem; font-weight: 600; font-family: 'Courier New', monospace;">${factura.orden_compra}</div>
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1rem;">📆</span>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-secondary);">Fecha Vencimiento</div>
-                            <div style="font-size: 0.9rem; font-weight: 600;">${fechaVence}</div>
-                        </div>
-                    </div>
-
-                    ${diasVencidos > 0 && factura.estado === 'PENDIENTE' ? `
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1rem;">⏰</span>
-                        <div>
-                            <div style="font-size: 0.7rem; color: var(--text-secondary);">Días Vencidos</div>
-                            <div style="font-size: 0.9rem; font-weight: 700; color: var(--danger);">${diasVencidos} día${diasVencidos !== 1 ? 's' : ''}</div>
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    <div style="margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Total</div>
-                            <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary);">${formatMoneyFC(factura.total)}</div>
-                        </div>
-                    </div>
-                </div>
-
-                ${factura.observaciones ? `
-                <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
-                    <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.25rem; text-transform: uppercase;">Observaciones</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${factura.observaciones}</div>
-                </div>
-                ` : ''}
-
-                <!-- BOTÓN VER -->
-                <div style="margin-top: 1rem;">
-                    <button onclick="verDetalleFactura('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(139, 92, 246, 0.1); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
-                        👁️ Ver Detalles
-                    </button>
-                </div>
-            </div>
+app.get('/api/inventario', async (req, res) => {
+    const { empresa, ccosto } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        let query = `
+            SELECT 
+                p.codigo,
+                p.nombre,
+                p.und as unidad,
+                p.grupo,
+                gp.codigo as grupo_codigo,
+                gp.nombre as grupo_nombre,
+                SUM(COALESCE(di.entrada, 0)) as total_entradas,
+                SUM(COALESCE(di.salida, 0)) as total_salidas,
+                SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)) as stock_actual,
+                COUNT(*) as movimientos
+            FROM detalle_inventario di
+            INNER JOIN productos p ON di.codigo = p.codigo
+            LEFT JOIN grupo_productos gp ON p.grupo = gp.codigo
+            WHERE di.empresa = $1
+            AND UPPER(p.control) = 'SI'
         `;
+        
+        const params = [empresa];
+        
+        if (ccosto) {
+            params.push(ccosto);
+            query += ` AND di.ccosto = $2`;
+        }
+        
+        query += `
+            GROUP BY p.codigo, p.nombre, p.und, p.grupo, gp.codigo, gp.nombre
+            HAVING SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)) <> 0
+            ORDER BY gp.codigo, p.nombre
+        `;
+        
+        const result = await pool.query(query, params);
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/inventario:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener inventario',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/inventario/stats - Estadísticas básicas
+app.get('/api/inventario/stats', async (req, res) => {
+    const { empresa } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        const query = `
+            SELECT 
+                COUNT(DISTINCT p.codigo) as total_productos,
+                SUM(COALESCE(di.entrada, 0)) as total_entradas_global,
+                SUM(COALESCE(di.salida, 0)) as total_salidas_global,
+                COUNT(*) as total_movimientos
+            FROM detalle_inventario di
+            INNER JOIN productos p ON di.codigo = p.codigo
+            WHERE di.empresa = $1
+            AND UPPER(p.control) = 'SI'
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/inventario/stats:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener estadísticas',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/inventario/movimientos - Guardar movimientos de inventario
+app.post('/api/inventario/movimientos', async (req, res) => {
+    const { movimientos } = req.body;
+    
+    if (!movimientos || !Array.isArray(movimientos) || movimientos.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Se requiere un array de movimientos'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        let registrosCreados = 0;
+        
+        for (const mov of movimientos) {
+            const query = `
+                INSERT INTO detalle_inventario 
+                (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `;
+            
+            await client.query(query, [
+                mov.fecha,
+                mov.ccosto,
+                mov.codigo,
+                mov.entrada || 0,
+                mov.salida || 0,
+                mov.tipo,
+                mov.empresa,
+                mov.observaciones || ''
+            ]);
+            
+            registrosCreados++;
+        }
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            registros_creados: registrosCreados,
+            message: `${registrosCreados} movimiento(s) guardado(s) exitosamente`
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/inventario/movimientos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al guardar movimientos',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// ================================================================
+// RUTAS - TESORERÍA
+// ================================================================
+
+// GET /api/cuentas-bancarias - Obtener cuentas bancarias
+app.get('/api/cuentas-bancarias', async (req, res) => {
+    const { empresa } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        const query = `
+            SELECT codigo, nombre_banco, nombre_cta, tipo_cuenta
+            FROM cuentas_bancarias
+            WHERE empresa = $1
+            AND estado = 'ACTIVA'
+            ORDER BY nombre_cta
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/cuentas-bancarias:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener cuentas bancarias',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/movimientos-bancarios - Obtener movimientos bancarios
+app.get('/api/movimientos-bancarios', async (req, res) => {
+    const { empresa, cuenta, fecha_inicial, fecha_final } = req.query;
+    
+    if (!empresa || !cuenta || !fecha_inicial || !fecha_final) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetros empresa, cuenta, fecha_inicial y fecha_final requeridos'
+        });
+    }
+    
+    try {
+        // Calcular saldo inicial (antes de fecha_inicial)
+        const saldoInicialQuery = `
+            SELECT COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) as saldo
+            FROM moviban
+            WHERE empresa = $1
+            AND banco = $2
+            AND fecha < $3
+        `;
+        
+        const saldoInicialResult = await pool.query(saldoInicialQuery, [empresa, cuenta, fecha_inicial]);
+        const saldoInicial = parseFloat(saldoInicialResult.rows[0].saldo || 0);
+        
+        // Obtener movimientos del período
+        const movimientosQuery = `
+            SELECT 
+                m.fecha,
+                m.beneficia,
+                p.nombre as beneficiario,
+                m.concepto,
+                m.ingreso,
+                m.egreso
+            FROM moviban m
+            LEFT JOIN proveedores p ON m.beneficia = p.codigo
+            WHERE m.empresa = $1
+            AND m.banco = $2
+            AND m.fecha >= $3
+            AND m.fecha <= $4
+            ORDER BY m.fecha, m.numero
+        `;
+        
+        const movimientosResult = await pool.query(movimientosQuery, [empresa, cuenta, fecha_inicial, fecha_final]);
+        
+        // Calcular totales
+        let totalIngresos = 0;
+        let totalEgresos = 0;
+        
+        movimientosResult.rows.forEach(mov => {
+            totalIngresos += parseFloat(mov.ingreso || 0);
+            totalEgresos += parseFloat(mov.egreso || 0);
+        });
+        
+        const saldoFinal = saldoInicial + totalIngresos - totalEgresos;
+        
+        res.json({
+            success: true,
+            data: movimientosResult.rows,
+            resumen: {
+                saldo_inicial: saldoInicial,
+                total_ingresos: totalIngresos,
+                total_egresos: totalEgresos,
+                saldo_final: saldoFinal
+            },
+            total: movimientosResult.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/movimientos-bancarios:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener movimientos bancarios',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/movimientos-bancarios/crear - Crear movimiento bancario
+app.post('/api/movimientos-bancarios/crear', async (req, res) => {
+    const { fecha, tipo, cuenta_origen, cuenta_destino, valor, concepto, empresa } = req.body;
+    
+    if (!fecha || !tipo || !cuenta_origen || !valor || !concepto || !empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan parámetros requeridos'
+        });
+    }
+    
+    if (valor <= 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'El valor debe ser mayor a cero'
+        });
+    }
+    
+    if (tipo === 'TRA' && !cuenta_destino) {
+        return res.status(400).json({
+            success: false,
+            error: 'Se requiere cuenta destino para transferencias'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Obtener consecutivo
+        const consecutivoQuery = `
+            SELECT COALESCE(MAX(CAST(numero AS INTEGER)), 0) + 1 as siguiente
+            FROM moviban
+            WHERE empresa = $1
+        `;
+        const consecutivoResult = await client.query(consecutivoQuery, [empresa]);
+        const numeroConsecutivo = consecutivoResult.rows[0].siguiente;
+        const numero = numeroConsecutivo.toString().padStart(10, '0');
+        
+        let registrosCreados = 0;
+        
+        if (tipo === 'ING') {
+            // INGRESO
+            const query = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(query, [
+                tipo, numero, fecha, concepto, null, valor, 0, cuenta_origen, 'NO', empresa, null, null, null, null
+            ]);
+            
+            registrosCreados = 1;
+            
+        } else if (tipo === 'EGR') {
+            // EGRESO
+            const query = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(query, [
+                tipo, numero, fecha, concepto, null, 0, valor, cuenta_origen, 'NO', empresa, null, null, null, null
+            ]);
+            
+            registrosCreados = 1;
+            
+        } else if (tipo === 'TRA') {
+            // TRANSFERENCIA - 2 registros
+            
+            // 1. EGRESO de cuenta origen
+            const queryEgreso = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(queryEgreso, [
+                tipo, numero, fecha, concepto, null, 0, valor, cuenta_origen, 'NO', empresa, null, null, null, null
+            ]);
+            
+            // 2. INGRESO a cuenta destino (mismo número)
+            const queryIngreso = `
+                INSERT INTO moviban 
+                (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            `;
+            
+            await client.query(queryIngreso, [
+                tipo, numero, fecha, concepto, null, valor, 0, cuenta_destino, 'NO', empresa, null, null, null, null
+            ]);
+            
+            registrosCreados = 2;
+        }
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            message: `${tipo === 'ING' ? 'Ingreso' : tipo === 'EGR' ? 'Egreso' : 'Transferencia'} registrado exitosamente`,
+            registros_creados: registrosCreados,
+            numero: numero
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/movimientos-bancarios/crear:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al crear movimiento bancario',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// GET /api/facturas-compra - Obtener facturas de compra (cliente)
+app.get('/api/facturas-compra', async (req, res) => {
+    const { empresa, fecha_desde, fecha_hasta, estado } = req.query;
+    
+    if (!empresa || !fecha_desde || !fecha_hasta) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetros empresa, fecha_desde y fecha_hasta requeridos'
+        });
+    }
+    
+    try {
+        let query = `
+            SELECT 
+                codigo,
+                fecha,
+                orden_compra,
+                subtotal,
+                impuestos,
+                total,
+                estado,
+                observaciones,
+                fecha_vencimiento,
+                valor_pagado
+            FROM factura_venta
+            WHERE cliente = $1
+            AND fecha >= $2
+            AND fecha <= $3
+        `;
+        
+        const params = [empresa, fecha_desde, fecha_hasta];
+        
+        // Filtro de estado
+        if (estado && estado !== 'TODOS') {
+            query += ` AND estado = $4`;
+            params.push(estado);
+        }
+        
+        query += ` ORDER BY fecha DESC, codigo DESC`;
+        
+        const result = await pool.query(query, params);
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/facturas-compra:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener facturas de compra',
+            details: error.message
+        });
+    }
+});
+
+// ================================================================
+// HEALTH CHECK
+// ================================================================
+
+app.get('/health', async (req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        res.json({ 
+            status: 'OK', 
+            timestamp: new Date().toISOString(),
+            database: 'Connected'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            status: 'ERROR', 
+            error: error.message,
+            database: 'Disconnected'
+        });
+    }
+});
+
+app.get('/', (req, res) => {
+    res.json({
+        message: 'API de Inventario con Autenticación',
+        endpoints: {
+            health: '/health',
+            login: 'POST /api/auth/login',
+            ccostos: '/api/ccostos?empresa=123456789',
+            inventario: '/api/inventario?empresa=123456789&ccosto=002',
+            stats: '/api/inventario/stats?empresa=123456789'
+        }
     });
+});
 
-    htmlGrid += `</div>`;
+// ================================================================
+// INICIAR SERVIDOR
+// ================================================================
 
-    // Resumen
-    const totalFacturas = facturasCompraData.length;
-    const totalMonto = facturasCompraData.reduce((sum, f) => sum + parseFloat(f.total || 0), 0);
-    const pendientes = facturasCompraData.filter(f => f.estado === 'PENDIENTE').length;
+app.listen(PORT, () => {
+    console.log(`\n🚀 Servidor corriendo en puerto ${PORT}`);
+    console.log(`📊 API disponible en http://localhost:${PORT}`);
+    console.log(`❤️  Health check: http://localhost:${PORT}/health\n`);
+});
 
-    htmlGrid = `
-        <div style="background: var(--bg-card); border-radius: 12px; padding: 1rem; border: 1px solid var(--border); margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
-            <div style="text-align: center;">
-                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Total Facturas</div>
-                <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">${totalFacturas}</div>
-            </div>
-            <div style="text-align: center;">
-                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Pendientes</div>
-                <div style="font-size: 1.5rem; font-weight: 800; color: var(--warning);">${pendientes}</div>
-            </div>
-            <div style="text-align: center;">
-                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Monto Total</div>
-                <div style="font-size: 1.25rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--success);">${formatMoneyFC(totalMonto)}</div>
-            </div>
-        </div>
-    ` + htmlGrid;
-
-    gridDiv.innerHTML = htmlGrid;
-}
-
-function verDetalleFactura(codigo) {
-    alert(`Ver detalle de factura ${codigo}\n\n(Módulo de detalles en desarrollo)`);
-}
-
-function formatMoneyFC(value) {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(parseFloat(value || 0));
-}
+process.on('unhandledRejection', (err) => {
+    console.error('❌ Error no manejado:', err);
+});
