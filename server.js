@@ -846,13 +846,22 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
         const extension = nombre_archivo.split('.').pop().toLowerCase();
         const tipoArchivo = `.${extension}`;
         
-        // Insertar soporte de pago
+        // Extraer el base64 puro (sin el prefijo data:image/jpeg;base64,)
+        let base64Puro = archivo_base64;
+        if (archivo_base64.includes('base64,')) {
+            base64Puro = archivo_base64.split('base64,')[1];
+        }
+        
+        // Convertir base64 a Buffer para BYTEA
+        const buffer = Buffer.from(base64Puro, 'base64');
+        
+        // Insertar soporte de pago con BYTEA
         const insertQuery = `
             INSERT INTO soportes_pago (pago, nombre_archivo, archivo_data, tipo_archivo, fecha_subida)
             VALUES ($1, $2, $3, $4, NOW())
         `;
         
-        await client.query(insertQuery, [factura, nombre_archivo, archivo_base64, tipoArchivo]);
+        await client.query(insertQuery, [factura, nombre_archivo, buffer, tipoArchivo]);
         
         // Actualizar estado de factura a POR VERIFICAR
         const updateQuery = `
@@ -912,9 +921,32 @@ app.get('/api/soporte-pago/obtener', async (req, res) => {
             });
         }
         
+        const soporte = result.rows[0];
+        
+        // Convertir BYTEA a base64
+        let archivoBase64 = '';
+        if (soporte.archivo_data) {
+            // Si es un Buffer (BYTEA), convertir a base64
+            if (Buffer.isBuffer(soporte.archivo_data)) {
+                archivoBase64 = `data:image/jpeg;base64,${soporte.archivo_data.toString('base64')}`;
+            } else {
+                // Si ya es string, solo agregar prefijo si no lo tiene
+                archivoBase64 = soporte.archivo_data.startsWith('data:image') 
+                    ? soporte.archivo_data 
+                    : `data:image/jpeg;base64,${soporte.archivo_data}`;
+            }
+        }
+        
         res.json({
             success: true,
-            soporte: result.rows[0]
+            soporte: {
+                id: soporte.id,
+                pago: soporte.pago,
+                nombre_archivo: soporte.nombre_archivo,
+                archivo_data: archivoBase64,
+                tipo_archivo: soporte.tipo_archivo,
+                fecha_subida: soporte.fecha_subida
+            }
         });
         
     } catch (error) {
