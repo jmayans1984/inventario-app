@@ -51,7 +51,10 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+
+// ← AUMENTAR LÍMITE PARA ARCHIVOS GRANDES
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -693,68 +696,6 @@ app.get('/api/facturas-compra', async (req, res) => {
     }
 });
 
-// GET /api/facturas-compra/detalle - Obtener detalle de una factura
-app.get('/api/facturas-compra/detalle', async (req, res) => {
-    const { factura } = req.query;
-    
-    if (!factura) {
-        return res.status(400).json({
-            success: false,
-            error: 'Parámetro factura requerido'
-        });
-    }
-    
-    try {
-        // Obtener datos de la factura
-        const facturaQuery = `
-            SELECT *
-            FROM factura_venta
-            WHERE codigo = $1
-        `;
-        
-        const facturaResult = await pool.query(facturaQuery, [factura]);
-        
-        if (facturaResult.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Factura no encontrada'
-            });
-        }
-        
-        // Obtener detalle con nombres de productos
-        const detalleQuery = `
-            SELECT 
-                d.id,
-                d.factura,
-                d.producto_venta,
-                pv.nombre as producto_nombre,
-                d.cantidad,
-                d.precio_unitario,
-                d.subtotal
-            FROM detalle_factura_venta d
-            LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
-            WHERE d.factura = $1
-            ORDER BY d.id
-        `;
-        
-        const detalleResult = await pool.query(detalleQuery, [factura]);
-        
-        res.json({
-            success: true,
-            factura: facturaResult.rows[0],
-            detalle: detalleResult.rows
-        });
-        
-    } catch (error) {
-        console.error('Error en /api/facturas-compra/detalle:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Error al obtener detalle de factura',
-            details: error.message
-        });
-    }
-});
-
 // GET /api/facturas-compra/detalle - Obtener detalle de factura de compra
 app.get('/api/facturas-compra/detalle', async (req, res) => {
     const { factura } = req.query;
@@ -852,8 +793,22 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
             base64Puro = archivo_base64.split('base64,')[1];
         }
         
+        // ← LOG PARA DEBUG
+        console.log('📸 Subiendo archivo:', {
+            nombre: nombre_archivo,
+            tipo: tipoArchivo,
+            tamano_base64: base64Puro.length,
+            primeros_chars: base64Puro.substring(0, 50)
+        });
+        
         // Convertir base64 a Buffer para BYTEA
         const buffer = Buffer.from(base64Puro, 'base64');
+        
+        // ← LOG DEL BUFFER
+        console.log('💾 Buffer creado:', {
+            tamano_bytes: buffer.length,
+            primeros_bytes: buffer.slice(0, 10).toString('hex')
+        });
         
         // Insertar soporte de pago con BYTEA
         const insertQuery = `
@@ -874,6 +829,8 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
         
         await client.query('COMMIT');
         
+        console.log('✅ Archivo guardado exitosamente');
+        
         res.json({
             success: true,
             message: 'Soporte de pago subido exitosamente. Estado actualizado a POR VERIFICAR.'
@@ -881,7 +838,7 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
         
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Error en /api/soporte-pago/subir:', error);
+        console.error('❌ Error en /api/soporte-pago/subir:', error);
         res.status(500).json({
             success: false,
             error: 'Error al subir soporte de pago',
