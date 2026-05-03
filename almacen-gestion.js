@@ -1,373 +1,340 @@
 // ================================================================
 // ALMACÉN - GESTIÓN DE INVENTARIO
-// Módulo para entradas, salidas y transferencias
+// Actualización de cantidades por centro de costo
 // ================================================================
 
-let productosGestion = [];
-let movimientosTemporales = [];
+const API_BASE_ALMACEN = 'https://inventario-app-production-e8c8.up.railway.app/api';
+let productosActivos = [];
+
+// ================================================================
+// CARGAR MÓDULO DE GESTIÓN
+// ================================================================
 
 function cargarGestionInventario() {
-    const contentDiv = document.getElementById('gestionInventarioContent');
+    const contentDiv = document.getElementById('gestionContent');
     
     contentDiv.innerHTML = `
-        <!-- ENCABEZADO -->
-        <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid var(--border);">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                <!-- FECHA -->
-                <div>
-                    <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Fecha</label>
-                    <input type="date" id="fechaMovimiento" value="${new Date().toISOString().split('T')[0]}" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-                </div>
-
-                <!-- TIPO DE OPERACIÓN -->
-                <div>
-                    <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Tipo Operación</label>
-                    <select id="tipoOperacion" onchange="cambiarTipoOperacion()" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-                        <option value="">OPCIÓN...</option>
-                        <option value="ENTRADA A ALMACEN">ENTRADA A ALMACEN</option>
-                        <option value="SALIDA DE ALMACEN">SALIDA DE ALMACEN</option>
-                        <option value="TRANSFERENCIA ENTRE ALMACENES">TRANSFERENCIA ENTRE ALMACENES</option>
+        <div class="table-container">
+            <div class="filters-container">
+                <div class="filter-group">
+                    <label class="filter-label">Centro de Costo</label>
+                    <select id="ccostoGestion" onchange="cargarGrid()" class="filter-select">
+                        <option value="">Seleccione un centro de costo...</option>
                     </select>
                 </div>
-
-                <!-- C. COSTO ORIGEN -->
-                <div id="divCcostoOrigen">
-                    <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">C. Costo Origen</label>
-                    <select id="ccostoOrigen" onchange="cargarProductosGestion()" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-                        <option value="">OPCIÓN...</option>
-                    </select>
-                </div>
-
-                <!-- C. COSTO DESTINO (solo para transferencias) -->
-                <div id="divCcostoDestino" style="display: none;">
-                    <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">C. Costo Destino</label>
-                    <select id="ccostoDestino" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-                        <option value="">OPCIÓN...</option>
-                    </select>
+                <div class="filter-group">
+                    <label class="filter-label">Buscar Producto</label>
+                    <input type="text" id="buscarProducto" onkeyup="filtrarGrid(this.value)" class="filter-input" placeholder="Nombre o código...">
                 </div>
             </div>
 
-            <!-- OBSERVACIONES -->
-            <div>
-                <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Observaciones</label>
-                <input type="text" id="observaciones" placeholder="Observaciones del movimiento (opcional)" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
-            </div>
-        </div>
-
-        <!-- TABLA DE PRODUCTOS -->
-        <div style="background: var(--bg-card); border-radius: 12px; padding: 1rem; border: 1px solid var(--border); margin-bottom: 1rem;">
-            <div style="overflow-x: auto; border-radius: 8px; border: 1px solid var(--border);">
-                <table id="tablaGestion" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                    <thead style="background: var(--bg);">
+            <div style="overflow-x: auto;">
+                <table class="grid-table">
+                    <thead>
                         <tr>
-                            <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid var(--border);">Código</th>
-                            <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid var(--border);">Producto</th>
-                            <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid var(--border);">Unidad</th>
-                            <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid var(--border);">Stock Actual</th>
-                            <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid var(--border);">Cantidad</th>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Unidad</th>
+                            <th style="text-align: right;">Stock Actual</th>
+                            <th style="text-align: right;">Cantidad</th>
                         </tr>
                     </thead>
-                    <tbody id="gestionBody">
+                    <tbody id="gridBody">
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Selecciona tipo de operación y centro de costo</td>
+                            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                Seleccione un centro de costo para comenzar
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        <!-- BOTÓN GUARDAR -->
-        <div style="text-align: right;">
-            <button id="btnGuardarMovimientos" onclick="guardarMovimientos()" disabled style="padding: 1rem 2rem; background: var(--success); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; text-transform: uppercase; opacity: 0.5;">
-                💾 Guardar Movimientos
-            </button>
+            <div style="padding: 1.5rem; border-top: 2px solid var(--border); display: flex; justify-content: flex-end; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="limpiarGrid()">❌ Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarCambios()">💾 Guardar Cambios</button>
+            </div>
         </div>
     `;
-
+    
     cargarCCostosGestion();
 }
 
+// ================================================================
+// CARGAR CENTROS DE COSTO
+// ================================================================
+
 async function cargarCCostosGestion() {
     try {
-        const response = await fetch(`${API_BASE}/ccostos?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE_ALMACEN}/ccostos?empresa=${sesion.empresa}`);
         const data = await response.json();
-
-        if (data.success) {
-            const selectOrigen = document.getElementById('ccostoOrigen');
-            const selectDestino = document.getElementById('ccostoDestino');
-            
-            let html = '<option value="">OPCIÓN...</option>';
-            data.data.forEach(cc => {
-                html += `<option value="${cc.codigo}">${cc.codigo} - ${cc.nombre}</option>`;
+        
+        const select = document.getElementById('ccostoGestion');
+        select.innerHTML = '<option value="">Seleccione un centro de costo...</option>';
+        
+        if (data.success && data.ccostos) {
+            data.ccostos.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.codigo;
+                option.textContent = cc.nombre;
+                select.appendChild(option);
             });
-            
-            selectOrigen.innerHTML = html;
-            selectDestino.innerHTML = html;
         }
     } catch (error) {
-        console.error('Error cargando ccostos:', error);
+        console.error('Error cargando centros de costo:', error);
+        alert('❌ Error al cargar centros de costo');
     }
 }
 
-function cambiarTipoOperacion() {
-    const tipo = document.getElementById('tipoOperacion').value;
-    const divDestino = document.getElementById('divCcostoDestino');
-    const labelOrigen = document.querySelector('#divCcostoOrigen label');
+// ================================================================
+// CARGAR GRID CON TODOS LOS PRODUCTOS ACTIVOS
+// ================================================================
+
+async function cargarGrid() {
+    const ccosto = document.getElementById('ccostoGestion').value;
+    const gridBody = document.getElementById('gridBody');
     
-    // Limpiar productos
-    productosGestion = [];
-    movimientosTemporales = [];
-    document.getElementById('gestionBody').innerHTML = `
-        <tr>
-            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Selecciona centro de costo</td>
-        </tr>
-    `;
-    
-    if (tipo === 'TRANSFERENCIA ENTRE ALMACENES') {
-        divDestino.style.display = 'block';
-        labelOrigen.textContent = 'C. Costo Origen';
-    } else {
-        divDestino.style.display = 'none';
-        labelOrigen.textContent = 'C. Costo';
-    }
-    
-    habilitarBotonGuardar();
-}
-
-async function cargarProductosGestion() {
-    const tipoOp = document.getElementById('tipoOperacion').value;
-    const ccosto = document.getElementById('ccostoOrigen').value;
-    
-    if (!tipoOp || !ccosto) {
-        return;
-    }
-
-    try {
-        let url = `${API_BASE}/inventario?empresa=${sesion.empresa}&ccosto=${ccosto}`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.success) {
-            productosGestion = data.data;
-            renderProductosGestion();
-        }
-    } catch (error) {
-        console.error('Error cargando productos:', error);
-    }
-}
-
-function renderProductosGestion() {
-    const tbody = document.getElementById('gestionBody');
-
-    if (productosGestion.length === 0) {
-        tbody.innerHTML = `
-            <tr><td colspan="5" style="text-align: center; padding: 2rem;">
-                No hay productos en este centro de costo
-            </td></tr>
+    if (!ccosto) {
+        gridBody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    Seleccione un centro de costo para comenzar
+                </td>
+            </tr>
         `;
         return;
     }
-
-    let html = '';
-    let currentGrupo = null;
-    let grupoIndex = 0;
-
-    productosGestion.forEach((item, index) => {
-        if (item.grupo_codigo !== currentGrupo) {
-            currentGrupo = item.grupo_codigo;
-            grupoIndex = grupoIndex === 0 ? 1 : 0;
+    
+    gridBody.innerHTML = `
+        <tr>
+            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                Cargando productos...
+            </td>
+        </tr>
+    `;
+    
+    try {
+        // Cargar TODOS los productos ACTIVOS
+        const response = await fetch(`${API_BASE_ALMACEN}/productos?empresa=${sesion.empresa}&estado=ACTIVO`);
+        const data = await response.json();
+        
+        if (data.success && data.productos) {
+            productosActivos = data.productos;
+            
+            // Cargar stock actual del ccosto
+            const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccosto}`);
+            const stockData = await stockResponse.json();
+            
+            // Crear mapa de stock
+            const stockMap = {};
+            if (stockData.success && stockData.inventario) {
+                stockData.inventario.forEach(item => {
+                    stockMap[item.producto] = parseFloat(item.cantidad) || 0;
+                });
+            }
+            
+            // Renderizar grid
+            renderizarGrid(productosActivos, stockMap);
+        } else {
+            gridBody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        No se encontraron productos activos
+                    </td>
+                </tr>
+            `;
         }
+    } catch (error) {
+        console.error('Error cargando grid:', error);
+        alert('❌ Error al cargar productos');
+        gridBody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 3rem; color: var(--danger);">
+                    Error al cargar productos
+                </td>
+            </tr>
+        `;
+    }
+}
 
-        const bgGradient = grupoIndex === 0 
-            ? 'background: linear-gradient(90deg, rgba(30, 58, 138, 0.25) 0%, rgba(30, 58, 138, 0.15) 100%);'
-            : 'background: linear-gradient(90deg, rgba(124, 45, 18, 0.25) 0%, rgba(124, 45, 18, 0.15) 100%);';
+// ================================================================
+// RENDERIZAR GRID
+// ================================================================
 
-        const stockFormateado = parseFloat(item.stock_actual).toFixed(2);
-
+function renderizarGrid(productos, stockMap) {
+    const gridBody = document.getElementById('gridBody');
+    
+    if (productos.length === 0) {
+        gridBody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    No hay productos para mostrar
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    productos.forEach(producto => {
+        const stockActual = stockMap[producto.codigo] || 0;
+        
         html += `
-            <tr style="${bgGradient}">
-                <td style="padding: 0.65rem 1rem; border-bottom: 1px solid var(--border);"><strong>${item.codigo}</strong></td>
-                <td style="padding: 0.65rem 1rem; border-bottom: 1px solid var(--border);">${item.nombre}</td>
-                <td style="padding: 0.65rem 1rem; border-bottom: 1px solid var(--border);">${item.unidad || '-'}</td>
-                <td style="padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); text-align: right; font-family: 'Courier New', monospace; font-weight: 600;"><strong style="color: #60a5fa;">${stockFormateado}</strong></td>
-                <td style="padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); text-align: right;">
-                    <input type="number" 
-                           id="cant_${index}" 
-                           data-codigo="${item.codigo}"
-                           step="0.01" 
-                           min="0" 
-                           value="0.00"
-                           onchange="actualizarMovimiento(${index}, '${item.codigo}')"
-                           style="width: 120px; padding: 0.5rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); text-align: right; font-family: 'Courier New', monospace; font-weight: 600;">
+            <tr data-codigo="${producto.codigo}">
+                <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${producto.codigo}</td>
+                <td>${producto.descripcion}</td>
+                <td>${producto.unidad || '-'}</td>
+                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-secondary);">
+                    ${formatearNumero(stockActual)}
+                </td>
+                <td style="text-align: right;">
+                    <input 
+                        type="text" 
+                        class="input-cantidad" 
+                        data-codigo="${producto.codigo}"
+                        placeholder=""
+                        onblur="formatearInput(this)"
+                        onfocus="limpiarFormato(this)"
+                    >
                 </td>
             </tr>
         `;
     });
-
-    tbody.innerHTML = html;
+    
+    gridBody.innerHTML = html;
 }
 
-function actualizarMovimiento(index, codigo) {
-    const cantidad = parseFloat(document.getElementById(`cant_${index}`).value) || 0;
-    
-    // Buscar si ya existe este código en movimientos temporales
-    const existeIndex = movimientosTemporales.findIndex(m => m.codigo === codigo);
-    
-    if (cantidad > 0) {
-        if (existeIndex >= 0) {
-            movimientosTemporales[existeIndex].cantidad = cantidad;
-        } else {
-            movimientosTemporales.push({ codigo, cantidad });
-        }
-    } else {
-        if (existeIndex >= 0) {
-            movimientosTemporales.splice(existeIndex, 1);
-        }
-    }
-    
-    habilitarBotonGuardar();
-}
+// ================================================================
+// FORMATEAR INPUT AL SALIR (onblur)
+// ================================================================
 
-function habilitarBotonGuardar() {
-    const btn = document.getElementById('btnGuardarMovimientos');
-    const tieneMovimientos = movimientosTemporales.length > 0;
-    const tipoOp = document.getElementById('tipoOperacion').value;
-    const ccostoOrigen = document.getElementById('ccostoOrigen').value;
+function formatearInput(input) {
+    const value = input.value.trim();
     
-    let ccostoDestino = true;
-    if (tipoOp === 'TRANSFERENCIA ENTRE ALMACENES') {
-        ccostoDestino = document.getElementById('ccostoDestino').value !== '';
-    }
-    
-    if (tieneMovimientos && tipoOp && ccostoOrigen && ccostoDestino) {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.cursor = 'pointer';
-    } else {
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-        btn.style.cursor = 'not-allowed';
-    }
-}
-
-async function guardarMovimientos() {
-    const fecha = document.getElementById('fechaMovimiento').value;
-    const tipoOp = document.getElementById('tipoOperacion').value;
-    const ccostoOrigen = document.getElementById('ccostoOrigen').value;
-    const ccostoDestino = document.getElementById('ccostoDestino').value;
-    const observaciones = document.getElementById('observaciones').value || '';
-    
-    if (movimientosTemporales.length === 0) {
-        alert('No hay movimientos para guardar');
+    if (value === '' || value === '0' || value === '0.00') {
+        input.value = '';
         return;
     }
     
-    if (!confirm(`¿Guardar ${movimientosTemporales.length} movimiento(s)?`)) {
+    const numero = parseFloat(value);
+    
+    if (isNaN(numero)) {
+        input.value = '';
         return;
     }
     
-    const btn = document.getElementById('btnGuardarMovimientos');
-    btn.disabled = true;
-    btn.textContent = '⏳ Guardando...';
+    // Formato con 2 decimales
+    input.value = numero.toFixed(2);
+}
+
+// ================================================================
+// LIMPIAR FORMATO AL ENTRAR (onfocus)
+// ================================================================
+
+function limpiarFormato(input) {
+    // No hace nada, deja el valor tal cual para que el usuario lo edite
+}
+
+// ================================================================
+// FORMATEAR NÚMERO PARA DISPLAY
+// ================================================================
+
+function formatearNumero(value) {
+    const num = parseFloat(value);
+    if (isNaN(num)) return '0.00';
+    return num.toFixed(2);
+}
+
+// ================================================================
+// FILTRAR GRID
+// ================================================================
+
+function filtrarGrid(busqueda) {
+    const termino = busqueda.toLowerCase().trim();
+    const filas = document.querySelectorAll('#gridBody tr[data-codigo]');
     
-    try {
-        const movimientos = [];
+    filas.forEach(fila => {
+        const codigo = fila.querySelector('td:first-child').textContent.toLowerCase();
+        const nombre = fila.querySelector('td:nth-child(2)').textContent.toLowerCase();
         
-        movimientosTemporales.forEach(mov => {
-            if (tipoOp === 'ENTRADA A ALMACEN') {
-                movimientos.push({
-                    fecha,
-                    ccosto: ccostoOrigen,
-                    codigo: mov.codigo,
-                    entrada: mov.cantidad,
-                    salida: 0,
-                    tipo: tipoOp,
-                    empresa: sesion.empresa,
-                    observaciones
-                });
-            } else if (tipoOp === 'SALIDA DE ALMACEN') {
-                movimientos.push({
-                    fecha,
-                    ccosto: ccostoOrigen,
-                    codigo: mov.codigo,
-                    entrada: 0,
-                    salida: mov.cantidad,
-                    tipo: tipoOp,
-                    empresa: sesion.empresa,
-                    observaciones
-                });
-            } else if (tipoOp === 'TRANSFERENCIA ENTRE ALMACENES') {
-                // SALIDA del origen
-                movimientos.push({
-                    fecha,
-                    ccosto: ccostoOrigen,
-                    codigo: mov.codigo,
-                    entrada: 0,
-                    salida: mov.cantidad,
-                    tipo: 'TRANSFERENCIA (SALIDA)',
-                    empresa: sesion.empresa,
-                    observaciones: observaciones || `Transferencia a ${ccostoDestino}`
-                });
-                
-                // ENTRADA al destino
-                movimientos.push({
-                    fecha,
-                    ccosto: ccostoDestino,
-                    codigo: mov.codigo,
-                    entrada: mov.cantidad,
-                    salida: 0,
-                    tipo: 'TRANSFERENCIA (ENTRADA)',
-                    empresa: sesion.empresa,
-                    observaciones: observaciones || `Transferencia desde ${ccostoOrigen}`
+        if (codigo.includes(termino) || nombre.includes(termino)) {
+            fila.style.display = '';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+}
+
+// ================================================================
+// LIMPIAR GRID
+// ================================================================
+
+function limpiarGrid() {
+    const inputs = document.querySelectorAll('.input-cantidad');
+    inputs.forEach(input => {
+        input.value = '';
+    });
+}
+
+// ================================================================
+// GUARDAR CAMBIOS
+// ================================================================
+
+async function guardarCambios() {
+    const ccosto = document.getElementById('ccostoGestion').value;
+    
+    if (!ccosto) {
+        alert('❌ Debe seleccionar un centro de costo');
+        return;
+    }
+    
+    // Recolectar cambios
+    const inputs = document.querySelectorAll('.input-cantidad');
+    const cambios = [];
+    
+    inputs.forEach(input => {
+        const value = input.value.trim();
+        if (value !== '') {
+            const cantidad = parseFloat(value);
+            if (!isNaN(cantidad) && cantidad !== 0) {
+                cambios.push({
+                    producto: input.dataset.codigo,
+                    cantidad: cantidad
                 });
             }
-        });
-        
-        const response = await fetch(`${API_BASE}/inventario/movimientos`, {
+        }
+    });
+    
+    if (cambios.length === 0) {
+        alert('❌ No hay cambios para guardar');
+        return;
+    }
+    
+    if (!confirm(`¿Confirmas guardar ${cambios.length} cambio(s) en el inventario?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_ALMACEN}/inventario/actualizar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ movimientos })
+            body: JSON.stringify({
+                empresa: sesion.empresa,
+                ccosto: ccosto,
+                cambios: cambios
+            })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            alert(`✅ ${data.registros_creados} movimiento(s) guardado(s) exitosamente`);
-            limpiarFormulario();
+            alert(`✅ Inventario actualizado exitosamente\n\n${cambios.length} producto(s) actualizados`);
+            cargarGrid(); // Recargar grid
         } else {
             alert(`❌ Error: ${data.error}`);
-            btn.disabled = false;
-            btn.textContent = '💾 Guardar Movimientos';
         }
-        
     } catch (error) {
-        console.error('Error guardando movimientos:', error);
-        alert('❌ Error al guardar movimientos');
-        btn.disabled = false;
-        btn.textContent = '💾 Guardar Movimientos';
+        console.error('Error guardando cambios:', error);
+        alert('❌ Error al guardar cambios');
     }
-}
-
-function limpiarFormulario() {
-    document.getElementById('fechaMovimiento').value = new Date().toISOString().split('T')[0];
-    document.getElementById('tipoOperacion').value = '';
-    document.getElementById('ccostoOrigen').value = '';
-    document.getElementById('ccostoDestino').value = '';
-    document.getElementById('observaciones').value = '';
-    
-    movimientosTemporales = [];
-    productosGestion = [];
-    
-    document.getElementById('gestionBody').innerHTML = `
-        <tr>
-            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Selecciona tipo de operación y centro de costo</td>
-        </tr>
-    `;
-    
-    document.getElementById('divCcostoDestino').style.display = 'none';
-    
-    const btn = document.getElementById('btnGuardarMovimientos');
-    btn.disabled = true;
-    btn.style.opacity = '0.5';
-    btn.textContent = '💾 Guardar Movimientos';
 }

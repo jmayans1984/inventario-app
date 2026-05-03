@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almacén</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>📦 Almacén</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -13,490 +15,535 @@
         }
 
         :root {
-            --primary: #3b82f6;
-            --primary-dark: #2563eb;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --bg: #0a0a0f;
-            --bg-card: #16161d;
-            --bg-hover: #1f1f28;
-            --text: #f1f5f9;
+            --bg: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --bg-card-hover: #232340;
+            --text: #e0e7ff;
             --text-secondary: #94a3b8;
-            --border: #2d2d3a;
+            --border: #2d2d44;
+            --accent: #a78bfa;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Outfit', sans-serif;
             background: var(--bg);
             color: var(--text);
-            font-size: 14px;
-            overflow-x: hidden;
+            min-height: 100vh;
         }
 
-        /* HEADER */
-        .header {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 1.5rem;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-
-        .header-content {
+        .container {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .menu-toggle {
-            display: none;
-            background: transparent;
-            border: 2px solid var(--border);
-            border-radius: 6px;
-            padding: 0.5rem;
-            cursor: pointer;
-            color: var(--text);
-            font-size: 1.2rem;
-        }
-
-        .header-left h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #10b981, #059669);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .btn-back {
-            padding: 0.6rem 1.2rem;
-            background: rgba(59, 130, 246, 0.15);
-            color: var(--primary);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .btn-back:hover {
-            background: rgba(59, 130, 246, 0.25);
-        }
-
-        .user-info {
-            text-align: right;
-        }
-
-        .user-name {
-            font-weight: 700;
-            font-size: 0.9rem;
-            font-family: 'Courier New', monospace;
-            color: var(--primary);
-        }
-
-        .user-empresa {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
-
-        /* LAYOUT */
-        .app-layout {
-            display: flex;
-            min-height: calc(100vh - 65px);
+            min-height: 100vh;
         }
 
         /* SIDEBAR */
         .sidebar {
             width: 280px;
             background: var(--bg-card);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0;
+            border-right: 2px solid var(--border);
+            padding: 1.5rem;
+            position: fixed;
+            height: 100vh;
             overflow-y: auto;
-            transition: all 0.3s;
+            transition: transform 0.3s ease;
+            z-index: 100;
         }
 
-        .sidebar-section {
+        .sidebar.closed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
             margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
         }
 
-        .sidebar-section-title {
-            padding: 0 1.5rem;
-            margin-bottom: 0.75rem;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-secondary);
-        }
-
-        .sidebar-menu {
-            list-style: none;
-        }
-
-        .sidebar-menu-item {
-            padding: 0.75rem 1.5rem;
-            cursor: pointer;
-            transition: all 0.2s;
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            font-size: 0.9rem;
-            font-weight: 500;
+            gap: 0.5rem;
+        }
+
+        .sidebar-header p {
+            font-size: 0.85rem;
             color: var(--text-secondary);
-            border-left: 3px solid transparent;
+            margin-top: 0.5rem;
         }
 
-        .sidebar-menu-item:hover {
-            background: var(--bg-hover);
-            color: var(--text);
+        .menu-section {
+            margin-bottom: 1.5rem;
         }
 
-        .sidebar-menu-item.active {
-            background: rgba(59, 130, 246, 0.1);
-            color: var(--primary);
-            border-left-color: var(--primary);
+        .menu-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        .menu-item {
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
             font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        .sidebar-menu-icon {
-            font-size: 1.2rem;
-            width: 24px;
-            text-align: center;
+        .menu-item:hover {
+            background: var(--bg-card-hover);
+            transform: translateX(4px);
+        }
+
+        .menu-item.active {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+        }
+
+        .badge-coming-soon {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+            background: var(--warning);
+            color: #000;
+            border-radius: 4px;
+            font-weight: 700;
         }
 
         /* MAIN CONTENT */
         .main-content {
+            margin-left: 280px;
             flex: 1;
             padding: 2rem;
-            overflow-y: auto;
+            transition: margin-left 0.3s ease;
         }
 
-        .content-header {
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* HEADER */
+        .header {
+            background: var(--bg-card);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            padding: 0.7rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+        }
+
+        /* PANTALLA DE INICIO */
+        .pantalla-inicio {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+        }
+
+        .pantalla-inicio .icon {
+            font-size: 8rem;
+            animation: float 3s ease-in-out infinite;
             margin-bottom: 2rem;
         }
 
-        .content-header h2 {
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .pantalla-inicio h2 {
             font-size: 2rem;
             font-weight: 800;
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .content-header p {
+        .pantalla-inicio p {
+            font-size: 1.1rem;
             color: var(--text-secondary);
-            font-size: 0.95rem;
+            max-width: 600px;
         }
 
-        .content-body {
+        /* MÓDULOS */
+        .modulo-inventario,
+        .modulo-gestion {
             display: none;
         }
 
-        .content-body.active {
+        .modulo-inventario.active,
+        .modulo-gestion.active {
             display: block;
         }
 
-        /* WELCOME SCREEN */
-        .welcome-screen {
-            text-align: center;
-            padding: 4rem 2rem;
-        }
-
-        .welcome-screen h3 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .welcome-screen p {
-            font-size: 1.1rem;
-            color: var(--text-secondary);
+        .form-header {
             margin-bottom: 2rem;
         }
 
-        .welcome-icon {
-            font-size: 6rem;
-            margin-bottom: 2rem;
-            opacity: 0.3;
+        .form-header h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
         }
 
-        /* PLACEHOLDER CONTENT */
-        .placeholder-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 3rem;
-            text-align: center;
-        }
-
-        .placeholder-content h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .placeholder-content p {
+        .form-header p {
             color: var(--text-secondary);
-            margin-bottom: 1.5rem;
-        }
-
-        .badge-coming-soon {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background: rgba(245, 158, 11, 0.15);
-            color: var(--warning);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
+            font-size: 1rem;
         }
 
         /* MOBILE */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 101;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            color: var(--text);
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.5rem;
+        }
+
         @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+                padding-top: 4rem;
+            }
+
             .menu-toggle {
                 display: block;
             }
 
-            .sidebar {
-                position: fixed;
-                left: -280px;
-                top: 65px;
-                height: calc(100vh - 65px);
-                z-index: 99;
-                box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+            .header {
+                flex-direction: column;
+                gap: 1rem;
             }
+        }
 
-            .sidebar.mobile-open {
-                left: 0;
-            }
+        /* ESTILOS DEL GRID */
+        .table-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            overflow: hidden;
+        }
 
-            .header-right .user-info {
-                display: none;
-            }
+        .filters-container {
+            padding: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
 
-            .main-content {
-                padding: 1rem;
-            }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
 
-            .content-header h2 {
-                font-size: 1.5rem;
-            }
+        .filter-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .filter-select,
+        .filter-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .filter-select:focus,
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .grid-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .grid-table thead {
+            background: var(--bg);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .grid-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .grid-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .grid-table tbody tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .grid-table td {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .input-cantidad {
+            width: 100px;
+            padding: 0.5rem;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        .input-cantidad:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .input-cantidad:not(:placeholder-shown) {
+            color: var(--success);
+            font-weight: 700;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <div class="header-left">
-                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-                <h1>📦 Almacén</h1>
-            </div>
-            <div class="header-right">
-                <a href="principal.html" class="btn-back">← Menú Principal</a>
-                <div class="user-info">
-                    <div class="user-name" id="headerUsuario">Cargando...</div>
-                    <div class="user-empresa" id="headerEmpresa">...</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
 
-    <div class="app-layout">
+    <div class="container">
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
-            <!-- PROCESOS -->
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">⚙️ Procesos</div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-menu-item" onclick="navigateTo('gestion-inventario')">
-                        <span class="sidebar-menu-icon">📝</span>
-                        <span>Gestión de Inventario</span>
-                    </li>
-                    <li class="sidebar-menu-item" onclick="navigateTo('toma-fisica')">
-                        <span class="sidebar-menu-icon">📋</span>
-                        <span>Toma Física</span>
-                    </li>
-                    <li class="sidebar-menu-item" onclick="navigateTo('ordenes-compra-proceso')">
-                        <span class="sidebar-menu-icon">🛒</span>
-                        <span>Órdenes de Compra</span>
-                    </li>
-                </ul>
+            <div class="sidebar-header">
+                <h1>📦 Almacén</h1>
+                <p id="empresaNombre">Cargando...</p>
             </div>
 
-            <!-- CONSULTAS -->
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">🔍 Consultas</div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-menu-item active" onclick="navigateTo('inventario-actual')">
-                        <span class="sidebar-menu-icon">📊</span>
-                        <span>Inventario Actual</span>
-                    </li>
-                    <li class="sidebar-menu-item" onclick="navigateTo('ordenes-compra-consulta')">
-                        <span class="sidebar-menu-icon">📑</span>
-                        <span>Órdenes de Compra</span>
-                    </li>
-                </ul>
+            <div class="menu-section">
+                <div class="menu-section-title">⚙️ Gestión</div>
+                <div class="menu-item" onclick="cargarModulo('gestionInventario')">
+                    📝 Gestión Inventario
+                </div>
+                <div class="menu-item" onclick="alert('Módulo en desarrollo')">
+                    📋 Traslados
+                    <span class="badge-coming-soon">Próximamente</span>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-section-title">📊 Reportes</div>
+                <div class="menu-item" onclick="cargarModulo('inventarioActual')">
+                    📦 Inventario Actual
+                </div>
+                <div class="menu-item" onclick="alert('Módulo en desarrollo')">
+                    📈 Movimientos
+                    <span class="badge-coming-soon">Próximamente</span>
+                </div>
             </div>
         </aside>
 
         <!-- MAIN CONTENT -->
-        <main class="main-content">
-            <!-- INVENTARIO ACTUAL (viene desde inventario.html) -->
-            <div class="content-body active" id="inventario-actual">
-                <div class="content-header">
-                    <h2>Inventario Actual</h2>
-                    <p>Consulta de stock en tiempo real</p>
+        <main class="main-content" id="mainContent">
+            <div class="header">
+                <div class="user-info">
+                    <div class="user-avatar">J</div>
+                    <div>
+                        <div style="font-weight: 700;" id="usuarioNombre">JUAN.MAYANS</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Administrador</div>
+                    </div>
                 </div>
-                <div id="inventarioContent">
-                    <!-- Aquí va el contenido del inventario -->
-                </div>
+                <button class="btn btn-secondary" onclick="window.location.href='principal.html'">
+                    🏠 Menú Principal
+                </button>
             </div>
 
-            <!-- GESTIÓN DE INVENTARIO -->
-            <div class="content-body" id="gestion-inventario">
-                <div class="content-header">
-                    <h2>Gestión de Inventario</h2>
-                    <p>Entradas, salidas y ajustes de inventario</p>
-                </div>
-                <div id="gestionInventarioContent">
-                    <!-- Aquí va el contenido de gestión -->
-                </div>
+            <!-- PANTALLA DE INICIO -->
+            <div class="pantalla-inicio" id="pantallaInicio">
+                <div class="icon">📦</div>
+                <h2>Bienvenido al Almacén</h2>
+                <p>Gestiona tu inventario, realiza traslados y consulta reportes en tiempo real</p>
             </div>
 
-            <!-- TOMA FÍSICA -->
-            <div class="content-body" id="toma-fisica">
-                <div class="content-header">
-                    <h2>Toma Física de Inventario</h2>
-                    <p>Conteo y ajuste de inventarios</p>
+            <!-- MÓDULO GESTIÓN INVENTARIO -->
+            <div class="modulo-gestion" id="moduloGestionInventario">
+                <div class="form-header">
+                    <h2>📝 Gestión de Inventario</h2>
+                    <p>Actualiza cantidades de productos por centro de costo</p>
                 </div>
-                <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">📋</div>
-                    <h3>Toma Física</h3>
-                    <p>Módulo en desarrollo para realizar conteos físicos de inventario</p>
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
+
+                <div id="gestionContent"></div>
             </div>
 
-            <!-- ÓRDENES DE COMPRA (PROCESO) -->
-            <div class="content-body" id="ordenes-compra-proceso">
-                <div class="content-header">
-                    <h2>Órdenes de Compra</h2>
-                    <p>Crear y gestionar órdenes de compra</p>
+            <!-- MÓDULO INVENTARIO ACTUAL -->
+            <div class="modulo-inventario" id="moduloInventarioActual">
+                <div class="form-header">
+                    <h2>📦 Inventario Actual</h2>
+                    <p>Consulta el stock actual por centro de costo</p>
                 </div>
-                <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">🛒</div>
-                    <h3>Órdenes de Compra</h3>
-                    <p>Módulo en desarrollo para crear y gestionar órdenes de compra</p>
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
-            </div>
 
-            <!-- ÓRDENES DE COMPRA (CONSULTA) -->
-            <div class="content-body" id="ordenes-compra-consulta">
-                <div class="content-header">
-                    <h2>Consulta de Órdenes de Compra</h2>
-                    <p>Historial y seguimiento de órdenes</p>
-                </div>
-                <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">📑</div>
-                    <h3>Consulta de Órdenes</h3>
-                    <p>Módulo en desarrollo para consultar órdenes de compra</p>
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
+                <div id="inventarioContent"></div>
             </div>
         </main>
     </div>
 
-    <script src="almacen-inventario.js"></script>
-    <script src="almacen-gestion.js"></script>
     <script>
-        let sesion = null;
+        // ================================================================
+        // SESIÓN Y DATOS
+        // ================================================================
 
-        window.addEventListener('DOMContentLoaded', () => {
-            verificarSesion();
-        });
+        let sesion = JSON.parse(localStorage.getItem('sesionInventario'));
 
-        function verificarSesion() {
-            const sesionGuardada = localStorage.getItem('sesion');
+        if (!sesion || !sesion.empresa) {
+            alert('❌ No has iniciado sesión');
+            window.location.href = 'index.html';
+        }
+
+        document.getElementById('empresaNombre').textContent = sesion.empresa_nombre || sesion.empresa;
+        document.getElementById('usuarioNombre').textContent = sesion.nombre || sesion.usuario;
+
+        // ================================================================
+        // NAVEGACIÓN
+        // ================================================================
+
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        function cargarModulo(modulo) {
+            // Ocultar pantalla de inicio
+            document.getElementById('pantallaInicio').style.display = 'none';
             
-            if (!sesionGuardada) {
-                window.location.href = 'index.html';
-                return;
+            // Ocultar todos los módulos
+            document.getElementById('moduloGestionInventario').classList.remove('active');
+            document.getElementById('moduloInventarioActual').classList.remove('active');
+            
+            // Mostrar módulo seleccionado
+            if (modulo === 'gestionInventario') {
+                document.getElementById('moduloGestionInventario').classList.add('active');
+                cargarGestionInventario();
+            } else if (modulo === 'inventarioActual') {
+                document.getElementById('moduloInventarioActual').classList.add('active');
+                cargarInventarioActual();
             }
-
-            sesion = JSON.parse(sesionGuardada);
-
-            if (sesion.expiracion && new Date(sesion.expiracion) < new Date()) {
-                localStorage.removeItem('sesion');
-                window.location.href = 'index.html';
-                return;
-            }
-
-            document.getElementById('headerUsuario').textContent = sesion.usuario;
-            document.getElementById('headerEmpresa').textContent = sesion.empresaNombre;
-
-            // Cargar inventario actual por defecto
-            setTimeout(() => {
-                if (typeof cargarInventarioActual === 'function') {
-                    cargarInventarioActual();
-                }
-            }, 200);
-        }
-
-        function navigateTo(sectionId) {
-            // Remover active de todos los items del menú
-            document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-                item.classList.remove('active');
-            });
-
-            // Agregar active al item clickeado
-            if (event && event.target) {
-                event.target.closest('.sidebar-menu-item').classList.add('active');
-            }
-
-            // Ocultar todo el contenido
-            document.querySelectorAll('.content-body').forEach(content => {
-                content.classList.remove('active');
-            });
-
-            // Mostrar el contenido seleccionado
-            const section = document.getElementById(sectionId);
-            if (section) {
-                section.classList.add('active');
-            }
-
-            // Cerrar sidebar en móvil
+            
+            // Cerrar menú en móvil
             if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.remove('mobile-open');
-            }
-
-            // Cargar contenido específico si es necesario
-            if (sectionId === 'inventario-actual') {
-                setTimeout(() => cargarInventarioActual(), 100);
-            } else if (sectionId === 'gestion-inventario') {
-                setTimeout(() => cargarGestionInventario(), 100);
+                document.getElementById('sidebar').classList.remove('open');
             }
         }
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('mobile-open');
+        // Placeholder functions (se cargarán desde archivos JS externos)
+        function cargarGestionInventario() {
+            console.log('Cargando gestión de inventario...');
         }
 
-        // Esta función ahora está en almacen-inventario.js
-        // function cargarInventarioActual() { ... }
+        function cargarInventarioActual() {
+            console.log('Cargando inventario actual...');
+        }
     </script>
+
+    <script src="almacen-gestion.js"></script>
+    <script src="almacen-inventario.js"></script>
 </body>
 </html>
