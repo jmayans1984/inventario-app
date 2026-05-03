@@ -40,7 +40,7 @@ async function cargarProveedores() {
         if (data.success && data.proveedores) {
             data.proveedores.forEach(prov => {
                 const option = document.createElement('option');
-                option.value = prov.nombre;
+                option.value = prov.nombre;  // Muestra solo el nombre
                 datalist.appendChild(option);
                 
                 // Guardar mapeo nombre -> codigo
@@ -70,7 +70,7 @@ async function cargarCCostos() {
         if (data.success && data.ccostos) {
             data.ccostos.forEach(cc => {
                 const option = document.createElement('option');
-                option.value = cc.nombre;
+                option.value = cc.nombre;  // Muestra solo el nombre
                 datalist.appendChild(option);
                 
                 // Guardar mapeo nombre -> codigo
@@ -100,7 +100,7 @@ async function cargarCuentasContables() {
         if (data.success && data.cuentas) {
             data.cuentas.forEach(cuenta => {
                 const option = document.createElement('option');
-                option.value = cuenta.cuenta;
+                option.value = cuenta.cuenta;  // Muestra solo la cuenta
                 datalist.appendChild(option);
                 
                 // Guardar mapeo cuenta -> codigo
@@ -130,7 +130,7 @@ async function cargarCuentasBancarias() {
         if (data.success && data.cuentas) {
             data.cuentas.forEach(cta => {
                 const option = document.createElement('option');
-                option.value = cta.nombre_cta;
+                option.value = cta.nombre_cta;  // Muestra solo nombre_cta
                 datalist.appendChild(option);
                 
                 // Guardar mapeo nombre_cta -> codigo
@@ -196,22 +196,30 @@ async function guardarGasto() {
     
     // Validar que se encontraron los códigos
     if (!proveedorCodigo) {
-        alert('❌ Proveedor no válido. Por favor selecciona uno de la lista.');
+        alert(`❌ Proveedor no válido: "${proveedorNombre}"\n\nPor favor selecciona un proveedor de la lista desplegable.\nNo escribas texto libre.`);
+        document.getElementById('proveedor').value = '';
+        document.getElementById('proveedor').focus();
         return;
     }
     
     if (!ccostoCodigo) {
-        alert('❌ Centro de Costo no válido. Por favor selecciona uno de la lista.');
+        alert(`❌ Centro de Costo no válido: "${cCostoNombre}"\n\nPor favor selecciona un centro de costo de la lista desplegable.\nNo escribas texto libre.`);
+        document.getElementById('ccosto').value = '';
+        document.getElementById('ccosto').focus();
         return;
     }
     
     if (!cuentaCodigo) {
-        alert('❌ Cuenta no válida. Por favor selecciona una de la lista.');
+        alert(`❌ Cuenta no válida: "${cuentaNombre}"\n\nPor favor selecciona una cuenta de la lista desplegable.\nNo escribas texto libre.`);
+        document.getElementById('cuenta').value = '';
+        document.getElementById('cuenta').focus();
         return;
     }
     
     if (!codigoBanco) {
-        alert('❌ Forma de Pago no válida. Por favor selecciona una de la lista.');
+        alert(`❌ Forma de Pago no válida: "${formaPagoNombre}"\n\nPor favor selecciona una forma de pago de la lista desplegable.\nNo escribas texto libre.`);
+        document.getElementById('formaPago').value = '';
+        document.getElementById('formaPago').focus();
         return;
     }
     
@@ -233,7 +241,7 @@ async function guardarGasto() {
         impuestos: impuestos,
         total: total,
         ccosto: ccostoCodigo,
-        forma_pago: formaPagoNombre,
+        forma_pago: codigoBanco,  // Enviar el CÓDIGO de la cuenta bancaria
         codigo_banco: codigoBanco,
         empresa: sesion.empresa
     };
