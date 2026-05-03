@@ -137,29 +137,70 @@ function mostrarReporte(gastos, fechaInicial, fechaFinal) {
         return;
     }
     
-    // Ordenar por fecha
-    gastos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    // Ordenar por cuenta y luego por fecha
+    gastos.sort((a, b) => {
+        const cuentaCompare = (a.cuenta_nombre || a.cuenta).localeCompare(b.cuenta_nombre || b.cuenta);
+        if (cuentaCompare !== 0) return cuentaCompare;
+        return new Date(a.fecha) - new Date(b.fecha);
+    });
+    
+    // Agrupar por cuenta
+    const gastosPorCuenta = {};
+    gastos.forEach(gasto => {
+        const cuentaNombre = gasto.cuenta_nombre || gasto.cuenta;
+        if (!gastosPorCuenta[cuentaNombre]) {
+            gastosPorCuenta[cuentaNombre] = [];
+        }
+        gastosPorCuenta[cuentaNombre].push(gasto);
+    });
     
     let totalGeneral = 0;
     let tablaHTML = '';
     
-    gastos.forEach((gasto, index) => {
-        const bgColor = index % 2 === 0 ? 'rgba(30, 58, 138, 0.08)' : 'transparent';
-        const fechaParts = gasto.fecha.split('T')[0].split('-');
-        const fechaFormat = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`;
+    // Generar tabla agrupada por cuenta
+    Object.keys(gastosPorCuenta).forEach(cuenta => {
+        const gastosDeEstaCuenta = gastosPorCuenta[cuenta];
+        let subtotalCuenta = 0;
         
-        totalGeneral += parseFloat(gasto.total);
-        
+        // Header de la cuenta
         tablaHTML += `
-            <tr style="background: ${bgColor};">
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-family: 'Courier New', monospace;">${gasto.codigo}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${fechaFormat}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.proveedor_nombre || gasto.proveedor}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.concepto || '-'}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.cuenta_nombre || gasto.cuenta}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.forma_pago_nombre || gasto.forma_pago}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.ccosto_nombre || gasto.ccosto}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); text-align: right; font-family: 'Courier New', monospace; font-weight: 700; color: var(--danger);">${formatMoney(gasto.total)}</td>
+            <tr style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15)); border-top: 3px solid var(--primary); border-bottom: 2px solid var(--primary);">
+                <td colspan="7" style="padding: 1rem 1.5rem; font-weight: 800; font-size: 1.1rem; color: var(--primary); text-transform: uppercase;">
+                    📋 CUENTA: ${cuenta}
+                </td>
+            </tr>
+        `;
+        
+        // Gastos de esta cuenta
+        gastosDeEstaCuenta.forEach((gasto, index) => {
+            const bgColor = index % 2 === 0 ? 'rgba(30, 58, 138, 0.05)' : 'transparent';
+            const fechaParts = gasto.fecha.split('T')[0].split('-');
+            const fechaFormat = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`;
+            
+            subtotalCuenta += parseFloat(gasto.total);
+            totalGeneral += parseFloat(gasto.total);
+            
+            tablaHTML += `
+                <tr style="background: ${bgColor};">
+                    <td style="padding: 0.75rem 1rem 0.75rem 2rem; border-bottom: 1px solid var(--border); font-family: 'Courier New', monospace; font-size: 0.85rem;">${gasto.codigo}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;">${fechaFormat}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;">${gasto.proveedor_nombre || gasto.proveedor}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;">${gasto.concepto || '-'}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;">${gasto.forma_pago_nombre || gasto.forma_pago}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem;">${gasto.ccosto_nombre || gasto.ccosto}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: var(--danger); font-size: 0.9rem;">${formatMoney(gasto.total)}</td>
+                </tr>
+            `;
+        });
+        
+        // Subtotal de la cuenta
+        tablaHTML += `
+            <tr style="background: rgba(139, 92, 246, 0.08); border-bottom: 2px solid var(--border);">
+                <td colspan="6" style="padding: 0.75rem 1.5rem; text-align: right; font-weight: 700; font-size: 0.95rem; color: var(--text);">SUBTOTAL ${cuenta}:</td>
+                <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 800; font-size: 1.1rem; font-family: 'Courier New', monospace; color: var(--primary);">${formatMoney(subtotalCuenta)}</td>
+            </tr>
+            <tr style="height: 1rem;">
+                <td colspan="7"></td>
             </tr>
         `;
     });
@@ -189,7 +230,6 @@ function mostrarReporte(gastos, fechaInicial, fechaFinal) {
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">FECHA</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">PROVEEDOR</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">CONCEPTO</th>
-                            <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">CUENTA</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">F. PAGO</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">C. COSTO</th>
                             <th style="padding: 1rem; text-align: right; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">VALOR</th>
@@ -198,13 +238,13 @@ function mostrarReporte(gastos, fechaInicial, fechaFinal) {
                     <tbody>
                         ${tablaHTML}
                     </tbody>
-                    <tfoot style="background: var(--bg); border-top: 3px solid var(--primary);">
+                    <tfoot style="background: var(--bg); border-top: 4px solid var(--danger);">
                         <tr>
-                            <td colspan="7" style="padding: 1rem; text-align: right; font-weight: 800; font-size: 1rem; text-transform: uppercase; color: var(--text);">TOTAL:</td>
-                            <td style="padding: 1rem; text-align: right; font-weight: 800; font-size: 1.3rem; font-family: 'Courier New', monospace; color: var(--danger);">${formatMoney(totalGeneral)}</td>
+                            <td colspan="6" style="padding: 1.5rem 1rem; text-align: right; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; color: var(--text);">TOTAL GENERAL:</td>
+                            <td style="padding: 1.5rem 1rem; text-align: right; font-weight: 800; font-size: 1.5rem; font-family: 'Courier New', monospace; color: var(--danger);">${formatMoney(totalGeneral)}</td>
                         </tr>
                         <tr>
-                            <td colspan="7" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">REGISTROS TOTALES:</td>
+                            <td colspan="6" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">REGISTROS TOTALES:</td>
                             <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 700; font-size: 1rem; color: var(--text);">${gastos.length}</td>
                         </tr>
                     </tfoot>
