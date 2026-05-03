@@ -185,8 +185,8 @@ async function cargarGridGestion() {
         const response = await fetch(`${API_BASE_ALMACEN}/productos?empresa=${sesion.empresa}&estado=ACTIVO`);
         const data = await response.json();
         
-        if (data.success && data.productos) {
-            productosActivos = data.productos;
+        if (data.success && data.data) {
+            productosActivos = data.data;
             
             // Cargar stock actual del ccOrigen
             const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
@@ -194,9 +194,9 @@ async function cargarGridGestion() {
             
             // Crear mapa de stock
             const stockMap = {};
-            if (stockData.success && stockData.inventario) {
-                stockData.inventario.forEach(item => {
-                    stockMap[item.producto] = parseFloat(item.cantidad) || 0;
+            if (stockData.success && stockData.data) {
+                stockData.data.forEach(item => {
+                    stockMap[item.producto] = parseFloat(item.stock_actual || item.cantidad) || 0;
                 });
             }
             
@@ -250,7 +250,7 @@ function renderizarGridGestion(productos, stockMap) {
         html += `
             <tr data-codigo="${producto.codigo}">
                 <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${producto.codigo}</td>
-                <td>${producto.descripcion}</td>
+                <td>${producto.nombre || producto.descripcion}</td>
                 <td>${producto.unidad || '-'}</td>
                 <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-secondary);">
                     ${formatearNumeroGestion(stockActual)}
