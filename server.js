@@ -1176,12 +1176,6 @@ app.post('/api/gastos/crear', async (req, res) => {
         client.release();
     }
 });
-            details: error.message
-        });
-    } finally {
-        client.release();
-    }
-});
 
 // ================================================================
 // HEALTH CHECK
