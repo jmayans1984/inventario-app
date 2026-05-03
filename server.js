@@ -1200,6 +1200,7 @@ app.get('/api/gastos/reporte', async (req, res) => {
                 p.nombre as proveedor_nombre,
                 g.concepto,
                 g.cuenta,
+                cu.cuenta as cuenta_nombre,
                 g.factura,
                 g.subtotal,
                 g.impuestos,
@@ -1213,6 +1214,7 @@ app.get('/api/gastos/reporte', async (req, res) => {
             LEFT JOIN proveedores p ON g.proveedor = p.codigo AND g.empresa = p.empresa
             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND g.empresa = cc.empresa
             LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND g.empresa = cb.empresa
+            LEFT JOIN cuentas cu ON g.cuenta = cu.codigo AND g.empresa = cu.empresa
             WHERE g.empresa = $1
             AND g.fecha >= $2
             AND g.fecha <= $3

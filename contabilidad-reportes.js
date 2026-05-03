@@ -156,6 +156,7 @@ function mostrarReporte(gastos, fechaInicial, fechaFinal) {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${fechaFormat}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.proveedor_nombre || gasto.proveedor}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.concepto || '-'}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.cuenta_nombre || gasto.cuenta}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.forma_pago_nombre || gasto.forma_pago}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);">${gasto.ccosto_nombre || gasto.ccosto}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); text-align: right; font-family: 'Courier New', monospace; font-weight: 700; color: var(--danger);">${formatMoney(gasto.total)}</td>
@@ -188,6 +189,7 @@ function mostrarReporte(gastos, fechaInicial, fechaFinal) {
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">FECHA</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">PROVEEDOR</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">CONCEPTO</th>
+                            <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">CUENTA</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">F. PAGO</th>
                             <th style="padding: 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">C. COSTO</th>
                             <th style="padding: 1rem; text-align: right; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem;">VALOR</th>
@@ -198,11 +200,11 @@ function mostrarReporte(gastos, fechaInicial, fechaFinal) {
                     </tbody>
                     <tfoot style="background: var(--bg); border-top: 3px solid var(--primary);">
                         <tr>
-                            <td colspan="6" style="padding: 1rem; text-align: right; font-weight: 800; font-size: 1rem; text-transform: uppercase; color: var(--text);">TOTAL:</td>
+                            <td colspan="7" style="padding: 1rem; text-align: right; font-weight: 800; font-size: 1rem; text-transform: uppercase; color: var(--text);">TOTAL:</td>
                             <td style="padding: 1rem; text-align: right; font-weight: 800; font-size: 1.3rem; font-family: 'Courier New', monospace; color: var(--danger);">${formatMoney(totalGeneral)}</td>
                         </tr>
                         <tr>
-                            <td colspan="6" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">REGISTROS TOTALES:</td>
+                            <td colspan="7" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">REGISTROS TOTALES:</td>
                             <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 700; font-size: 1rem; color: var(--text);">${gastos.length}</td>
                         </tr>
                     </tfoot>
