@@ -25,10 +25,10 @@ function cargarGestionInventario() {
                     <label class="filter-label">Tipo de Operación *</label>
                     <select id="tipoOperacion" onchange="cambiarTipoOperacion()" class="filter-select">
                         <option value="">Seleccione...</option>
-                        <option value="ENTRADA">Entrada</option>
-                        <option value="SALIDA">Salida</option>
-                        <option value="AJUSTE">Ajuste</option>
-                        <option value="TRASLADO">Traslado</option>
+                        <option value="ENTRADA">ENTRADA</option>
+                        <option value="SALIDA">SALIDA</option>
+                        <option value="AJUSTE">AJUSTE</option>
+                        <option value="TRASLADO">TRASLADO</option>
                     </select>
                 </div>
                 
@@ -49,11 +49,6 @@ function cargarGestionInventario() {
                 <div class="filter-group full-width">
                     <label class="filter-label">Observaciones</label>
                     <input type="text" id="observaciones" class="filter-input" placeholder="Comentarios del movimiento...">
-                </div>
-                
-                <div class="filter-group">
-                    <label class="filter-label">Buscar Producto</label>
-                    <input type="text" id="buscarProductoGestion" onkeyup="filtrarGridGestion(this.value)" class="filter-input" placeholder="Nombre o código...">
                 </div>
             </div>
 
@@ -133,8 +128,8 @@ async function cargarCCostosGestion() {
         selectOrigen.innerHTML = '<option value="">Seleccione...</option>';
         selectDestino.innerHTML = '<option value="">Seleccione...</option>';
         
-        if (data.success && data.ccostos) {
-            data.ccostos.forEach(cc => {
+        if (data.success && data.data) {
+            data.data.forEach(cc => {
                 const optionOrigen = document.createElement('option');
                 optionOrigen.value = cc.codigo;
                 optionOrigen.textContent = cc.nombre;
