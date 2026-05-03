@@ -1101,9 +1101,10 @@ app.get('/api/gastos/siguiente-codigo', async (req, res) => {
 
 // POST /api/gastos/crear - Crear gasto y movimiento bancario
 app.post('/api/gastos/crear', async (req, res) => {
-    const { fecha, proveedor, concepto, cuenta, factura, subtotal, impuestos, total, ccosto, forma_pago, codigo_banco, empresa } = req.body;
+    const { fecha, proveedor, cuenta, factura, subtotal, impuestos, total, ccosto, forma_pago, codigo_banco, empresa } = req.body;
+    const concepto = req.body.concepto || ''; // Puede estar vacío
     
-    if (!fecha || !proveedor || !concepto || !cuenta || !ccosto || !forma_pago || !codigo_banco) {
+    if (!fecha || !proveedor || !cuenta || !ccosto || !forma_pago || !codigo_banco) {
         return res.status(400).json({
             success: false,
             error: 'Faltan campos obligatorios'
