@@ -146,9 +146,7 @@ async function cargarCuentasBancarias() {
 // GUARDAR GASTO
 // ================================================================
 
-document.getElementById('formGasto').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
+async function guardarGasto() {
     // Obtener valores
     const fecha = document.getElementById('fecha').value;
     const proveedorNombre = document.getElementById('proveedor').value.trim();
@@ -265,4 +263,4 @@ document.getElementById('formGasto').addEventListener('submit', async function(e
         console.error('Error guardando gasto:', error);
         alert('❌ Error al guardar el gasto');
     }
-});
+}

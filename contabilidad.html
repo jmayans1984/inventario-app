@@ -537,7 +537,7 @@
                 </div>
 
                 <div class="form-container">
-                    <form id="formGasto">
+                    <form id="formGasto" onsubmit="return false;">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Fecha *</label>
@@ -596,7 +596,7 @@
 
                         <div class="form-actions">
                             <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">❌ Cancelar</button>
-                            <button type="submit" class="btn btn-primary">💾 Guardar</button>
+                            <button type="button" class="btn btn-primary" onclick="guardarGasto()">💾 Guardar</button>
                         </div>
                     </form>
                 </div>
