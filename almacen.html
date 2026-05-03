@@ -315,14 +315,18 @@
         .filters-container {
             padding: 1.5rem;
             border-bottom: 2px solid var(--border);
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
-            flex-wrap: wrap;
         }
 
         .filter-group {
-            flex: 1;
-            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group.full-width {
+            grid-column: 1 / -1;
         }
 
         .filter-label {
@@ -496,10 +500,11 @@
         if (!sesion || !sesion.empresa) {
             alert('❌ No has iniciado sesión');
             window.location.href = 'index.html';
+            throw new Error('No hay sesión activa'); // Detener ejecución
+        } else {
+            document.getElementById('empresaNombre').textContent = sesion.empresa_nombre || sesion.empresa;
+            document.getElementById('usuarioNombre').textContent = sesion.nombre || sesion.usuario;
         }
-
-        document.getElementById('empresaNombre').textContent = sesion.empresa_nombre || sesion.empresa;
-        document.getElementById('usuarioNombre').textContent = sesion.nombre || sesion.usuario;
 
         // ================================================================
         // NAVEGACIÓN

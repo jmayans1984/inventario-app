@@ -1,6 +1,6 @@
 // ================================================================
 // ALMACÉN - GESTIÓN DE INVENTARIO
-// Actualización de cantidades por centro de costo
+// Registrar movimientos: Ajustes, Entradas, Salidas, Traslados
 // ================================================================
 
 const API_BASE_ALMACEN = 'https://inventario-app-production-e8c8.up.railway.app/api';
@@ -17,14 +17,43 @@ function cargarGestionInventario() {
         <div class="table-container">
             <div class="filters-container">
                 <div class="filter-group">
-                    <label class="filter-label">Centro de Costo</label>
-                    <select id="ccostoGestion" onchange="cargarGrid()" class="filter-select">
-                        <option value="">Seleccione un centro de costo...</option>
+                    <label class="filter-label">Fecha *</label>
+                    <input type="date" id="fechaMovimiento" class="filter-input">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Tipo de Operación *</label>
+                    <select id="tipoOperacion" onchange="cambiarTipoOperacion()" class="filter-select">
+                        <option value="">Seleccione...</option>
+                        <option value="ENTRADA">Entrada</option>
+                        <option value="SALIDA">Salida</option>
+                        <option value="AJUSTE">Ajuste</option>
+                        <option value="TRASLADO">Traslado</option>
                     </select>
                 </div>
+                
+                <div class="filter-group" id="ccOrigenGroup">
+                    <label class="filter-label">Centro de Costo Origen *</label>
+                    <select id="ccOrigen" onchange="cargarGridGestion()" class="filter-select">
+                        <option value="">Seleccione...</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group" id="ccDestinoGroup" style="display: none;">
+                    <label class="filter-label">Centro de Costo Destino *</label>
+                    <select id="ccDestino" class="filter-select">
+                        <option value="">Seleccione...</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group full-width">
+                    <label class="filter-label">Observaciones</label>
+                    <input type="text" id="observaciones" class="filter-input" placeholder="Comentarios del movimiento...">
+                </div>
+                
                 <div class="filter-group">
                     <label class="filter-label">Buscar Producto</label>
-                    <input type="text" id="buscarProducto" onkeyup="filtrarGrid(this.value)" class="filter-input" placeholder="Nombre o código...">
+                    <input type="text" id="buscarProductoGestion" onkeyup="filtrarGridGestion(this.value)" class="filter-input" placeholder="Nombre o código...">
                 </div>
             </div>
 
@@ -39,10 +68,10 @@ function cargarGestionInventario() {
                             <th style="text-align: right;">Cantidad</th>
                         </tr>
                     </thead>
-                    <tbody id="gridBody">
+                    <tbody id="gridBodyGestion">
                         <tr>
                             <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                                Seleccione un centro de costo para comenzar
+                                Seleccione fecha, tipo de operación y centro de costo para comenzar
                             </td>
                         </tr>
                     </tbody>
@@ -50,13 +79,43 @@ function cargarGestionInventario() {
             </div>
 
             <div style="padding: 1.5rem; border-top: 2px solid var(--border); display: flex; justify-content: flex-end; gap: 1rem;">
-                <button class="btn btn-secondary" onclick="limpiarGrid()">❌ Cancelar</button>
-                <button class="btn btn-primary" onclick="guardarCambios()">💾 Guardar Cambios</button>
+                <button class="btn btn-secondary" onclick="limpiarGridGestion()">❌ Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarMovimiento()">💾 Registrar Movimiento</button>
             </div>
         </div>
     `;
     
+    // Establecer fecha de hoy
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('fechaMovimiento').value = hoy;
+    
     cargarCCostosGestion();
+}
+
+// ================================================================
+// CAMBIAR TIPO DE OPERACIÓN
+// ================================================================
+
+function cambiarTipoOperacion() {
+    const tipo = document.getElementById('tipoOperacion').value;
+    const ccDestinoGroup = document.getElementById('ccDestinoGroup');
+    
+    // Mostrar CC Destino solo si es TRASLADO
+    if (tipo === 'TRASLADO') {
+        ccDestinoGroup.style.display = 'block';
+    } else {
+        ccDestinoGroup.style.display = 'none';
+    }
+    
+    // Limpiar grid
+    const gridBody = document.getElementById('gridBodyGestion');
+    gridBody.innerHTML = `
+        <tr>
+            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                Seleccione el centro de costo origen para cargar productos
+            </td>
+        </tr>
+    `;
 }
 
 // ================================================================
@@ -68,15 +127,23 @@ async function cargarCCostosGestion() {
         const response = await fetch(`${API_BASE_ALMACEN}/ccostos?empresa=${sesion.empresa}`);
         const data = await response.json();
         
-        const select = document.getElementById('ccostoGestion');
-        select.innerHTML = '<option value="">Seleccione un centro de costo...</option>';
+        const selectOrigen = document.getElementById('ccOrigen');
+        const selectDestino = document.getElementById('ccDestino');
+        
+        selectOrigen.innerHTML = '<option value="">Seleccione...</option>';
+        selectDestino.innerHTML = '<option value="">Seleccione...</option>';
         
         if (data.success && data.ccostos) {
             data.ccostos.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.codigo;
-                option.textContent = cc.nombre;
-                select.appendChild(option);
+                const optionOrigen = document.createElement('option');
+                optionOrigen.value = cc.codigo;
+                optionOrigen.textContent = cc.nombre;
+                selectOrigen.appendChild(optionOrigen);
+                
+                const optionDestino = document.createElement('option');
+                optionDestino.value = cc.codigo;
+                optionDestino.textContent = cc.nombre;
+                selectDestino.appendChild(optionDestino);
             });
         }
     } catch (error) {
@@ -89,15 +156,21 @@ async function cargarCCostosGestion() {
 // CARGAR GRID CON TODOS LOS PRODUCTOS ACTIVOS
 // ================================================================
 
-async function cargarGrid() {
-    const ccosto = document.getElementById('ccostoGestion').value;
-    const gridBody = document.getElementById('gridBody');
+async function cargarGridGestion() {
+    const tipo = document.getElementById('tipoOperacion').value;
+    const ccOrigen = document.getElementById('ccOrigen').value;
+    const gridBody = document.getElementById('gridBodyGestion');
     
-    if (!ccosto) {
+    if (!tipo) {
+        alert('❌ Debe seleccionar el tipo de operación');
+        return;
+    }
+    
+    if (!ccOrigen) {
         gridBody.innerHTML = `
             <tr>
                 <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                    Seleccione un centro de costo para comenzar
+                    Seleccione el centro de costo origen para cargar productos
                 </td>
             </tr>
         `;
@@ -120,8 +193,8 @@ async function cargarGrid() {
         if (data.success && data.productos) {
             productosActivos = data.productos;
             
-            // Cargar stock actual del ccosto
-            const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccosto}`);
+            // Cargar stock actual del ccOrigen
+            const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
             const stockData = await stockResponse.json();
             
             // Crear mapa de stock
@@ -133,7 +206,7 @@ async function cargarGrid() {
             }
             
             // Renderizar grid
-            renderizarGrid(productosActivos, stockMap);
+            renderizarGridGestion(productosActivos, stockMap);
         } else {
             gridBody.innerHTML = `
                 <tr>
@@ -160,8 +233,8 @@ async function cargarGrid() {
 // RENDERIZAR GRID
 // ================================================================
 
-function renderizarGrid(productos, stockMap) {
-    const gridBody = document.getElementById('gridBody');
+function renderizarGridGestion(productos, stockMap) {
+    const gridBody = document.getElementById('gridBodyGestion');
     
     if (productos.length === 0) {
         gridBody.innerHTML = `
@@ -185,7 +258,7 @@ function renderizarGrid(productos, stockMap) {
                 <td>${producto.descripcion}</td>
                 <td>${producto.unidad || '-'}</td>
                 <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-secondary);">
-                    ${formatearNumero(stockActual)}
+                    ${formatearNumeroGestion(stockActual)}
                 </td>
                 <td style="text-align: right;">
                     <input 
@@ -193,8 +266,8 @@ function renderizarGrid(productos, stockMap) {
                         class="input-cantidad" 
                         data-codigo="${producto.codigo}"
                         placeholder=""
-                        onblur="formatearInput(this)"
-                        onfocus="limpiarFormato(this)"
+                        onblur="formatearInputGestion(this)"
+                        onfocus="limpiarFormatoGestion(this)"
                     >
                 </td>
             </tr>
@@ -208,7 +281,7 @@ function renderizarGrid(productos, stockMap) {
 // FORMATEAR INPUT AL SALIR (onblur)
 // ================================================================
 
-function formatearInput(input) {
+function formatearInputGestion(input) {
     const value = input.value.trim();
     
     if (value === '' || value === '0' || value === '0.00') {
@@ -231,7 +304,7 @@ function formatearInput(input) {
 // LIMPIAR FORMATO AL ENTRAR (onfocus)
 // ================================================================
 
-function limpiarFormato(input) {
+function limpiarFormatoGestion(input) {
     // No hace nada, deja el valor tal cual para que el usuario lo edite
 }
 
@@ -239,7 +312,7 @@ function limpiarFormato(input) {
 // FORMATEAR NÚMERO PARA DISPLAY
 // ================================================================
 
-function formatearNumero(value) {
+function formatearNumeroGestion(value) {
     const num = parseFloat(value);
     if (isNaN(num)) return '0.00';
     return num.toFixed(2);
@@ -249,9 +322,9 @@ function formatearNumero(value) {
 // FILTRAR GRID
 // ================================================================
 
-function filtrarGrid(busqueda) {
+function filtrarGridGestion(busqueda) {
     const termino = busqueda.toLowerCase().trim();
-    const filas = document.querySelectorAll('#gridBody tr[data-codigo]');
+    const filas = document.querySelectorAll('#gridBodyGestion tr[data-codigo]');
     
     filas.forEach(fila => {
         const codigo = fila.querySelector('td:first-child').textContent.toLowerCase();
@@ -269,7 +342,7 @@ function filtrarGrid(busqueda) {
 // LIMPIAR GRID
 // ================================================================
 
-function limpiarGrid() {
+function limpiarGridGestion() {
     const inputs = document.querySelectorAll('.input-cantidad');
     inputs.forEach(input => {
         input.value = '';
@@ -277,27 +350,52 @@ function limpiarGrid() {
 }
 
 // ================================================================
-// GUARDAR CAMBIOS
+// GUARDAR MOVIMIENTO
 // ================================================================
 
-async function guardarCambios() {
-    const ccosto = document.getElementById('ccostoGestion').value;
+async function guardarMovimiento() {
+    const fecha = document.getElementById('fechaMovimiento').value;
+    const tipo = document.getElementById('tipoOperacion').value;
+    const ccOrigen = document.getElementById('ccOrigen').value;
+    const ccDestino = document.getElementById('ccDestino').value;
+    const observaciones = document.getElementById('observaciones').value.trim();
     
-    if (!ccosto) {
-        alert('❌ Debe seleccionar un centro de costo');
+    // Validar campos
+    if (!fecha) {
+        alert('❌ La fecha es obligatoria');
         return;
     }
     
-    // Recolectar cambios
+    if (!tipo) {
+        alert('❌ El tipo de operación es obligatorio');
+        return;
+    }
+    
+    if (!ccOrigen) {
+        alert('❌ El centro de costo origen es obligatorio');
+        return;
+    }
+    
+    if (tipo === 'TRASLADO' && !ccDestino) {
+        alert('❌ El centro de costo destino es obligatorio para traslados');
+        return;
+    }
+    
+    if (tipo === 'TRASLADO' && ccOrigen === ccDestino) {
+        alert('❌ El centro de costo origen y destino no pueden ser iguales');
+        return;
+    }
+    
+    // Recolectar productos con cantidad
     const inputs = document.querySelectorAll('.input-cantidad');
-    const cambios = [];
+    const productos = [];
     
     inputs.forEach(input => {
         const value = input.value.trim();
         if (value !== '') {
             const cantidad = parseFloat(value);
-            if (!isNaN(cantidad) && cantidad !== 0) {
-                cambios.push({
+            if (!isNaN(cantidad) && cantidad > 0) {
+                productos.push({
                     producto: input.dataset.codigo,
                     cantidad: cantidad
                 });
@@ -305,36 +403,41 @@ async function guardarCambios() {
         }
     });
     
-    if (cambios.length === 0) {
-        alert('❌ No hay cambios para guardar');
+    if (productos.length === 0) {
+        alert('❌ Debe ingresar al menos un producto con cantidad');
         return;
     }
     
-    if (!confirm(`¿Confirmas guardar ${cambios.length} cambio(s) en el inventario?`)) {
+    if (!confirm(`¿Confirmas registrar ${tipo} de ${productos.length} producto(s)?`)) {
         return;
     }
     
     try {
-        const response = await fetch(`${API_BASE_ALMACEN}/inventario/actualizar`, {
+        const response = await fetch(`${API_BASE_ALMACEN}/movimientos/registrar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 empresa: sesion.empresa,
-                ccosto: ccosto,
-                cambios: cambios
+                fecha: fecha,
+                tipo: tipo,
+                ccOrigen: ccOrigen,
+                ccDestino: ccDestino || null,
+                observaciones: observaciones,
+                productos: productos
             })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            alert(`✅ Inventario actualizado exitosamente\n\n${cambios.length} producto(s) actualizados`);
-            cargarGrid(); // Recargar grid
+            alert(`✅ Movimiento registrado exitosamente\n\nTipo: ${tipo}\nProductos: ${productos.length}`);
+            limpiarGridGestion();
+            cargarGridGestion(); // Recargar stock
         } else {
             alert(`❌ Error: ${data.error}`);
         }
     } catch (error) {
-        console.error('Error guardando cambios:', error);
-        alert('❌ Error al guardar cambios');
+        console.error('Error guardando movimiento:', error);
+        alert('❌ Error al registrar movimiento');
     }
 }
