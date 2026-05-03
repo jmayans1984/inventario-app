@@ -500,9 +500,8 @@
 
             <div class="menu-section">
                 <div class="menu-section-title">📊 Reportes</div>
-                <div class="menu-item" onclick="alert('Módulo en desarrollo')">
+                <div class="menu-item" onclick="cargarModulo('reporteGastos')">
                     💰 Reporte Gastos
-                    <span class="badge-coming-soon">Próximamente</span>
                 </div>
                 <div class="menu-item" onclick="alert('Módulo en desarrollo')">
                     📈 Balance
@@ -601,6 +600,49 @@
                     </form>
                 </div>
             </div>
+
+            <!-- MÓDULO REPORTE GASTOS -->
+            <div class="modulo-gastos" id="moduloReporteGastos">
+                <div class="form-header">
+                    <h2>📊 Reporte de Gastos</h2>
+                    <p>Consulta y filtra los gastos registrados en el sistema</p>
+                </div>
+
+                <div class="form-container" style="margin-bottom: 2rem;">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Fecha Inicial *</label>
+                            <input type="date" class="form-input" id="fechaInicial">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Fecha Final *</label>
+                            <input type="date" class="form-input" id="fechaFinal">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Centro de Costo</label>
+                            <select class="form-select" id="centroCosto">
+                                <option value="">TODOS LOS CENTROS DE COSTOS</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Cuenta Contable</label>
+                            <select class="form-select" id="cuentaContable">
+                                <option value="">TODAS LAS CUENTAS</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary" onclick="generarReporte()">📊 Generar Reporte</button>
+                    </div>
+                </div>
+
+                <!-- CONTENEDOR DEL REPORTE -->
+                <div id="reporteContainer"></div>
+            </div>
         </main>
     </div>
 
@@ -659,11 +701,15 @@
             
             // Ocultar todos los módulos
             document.getElementById('moduloGastos').classList.remove('active');
+            document.getElementById('moduloReporteGastos').classList.remove('active');
             
             // Mostrar módulo seleccionado
             if (modulo === 'gastos') {
                 document.getElementById('moduloGastos').classList.add('active');
                 cargarDatosGastos();
+            } else if (modulo === 'reporteGastos') {
+                document.getElementById('moduloReporteGastos').classList.add('active');
+                cargarDatosReporte();
             }
             
             // Cerrar menú en móvil
@@ -716,5 +762,6 @@
     </script>
 
     <script src="contabilidad-gastos.js"></script>
+    <script src="contabilidad-reportes.js"></script>
 </body>
 </html>

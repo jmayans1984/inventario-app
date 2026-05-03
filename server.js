@@ -1178,6 +1178,81 @@ app.post('/api/gastos/crear', async (req, res) => {
 });
 
 // ================================================================
+// GET /api/gastos/reporte - Obtener reporte de gastos filtrado
+// ================================================================
+
+app.get('/api/gastos/reporte', async (req, res) => {
+    const { empresa, fechaInicial, fechaFinal, centroCosto, cuentaContable } = req.query;
+    
+    if (!empresa || !fechaInicial || !fechaFinal) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan parámetros obligatorios'
+        });
+    }
+    
+    try {
+        let query = `
+            SELECT 
+                g.codigo,
+                g.fecha,
+                g.proveedor,
+                p.nombre as proveedor_nombre,
+                g.concepto,
+                g.cuenta,
+                g.factura,
+                g.subtotal,
+                g.impuestos,
+                g.total,
+                g.ccosto,
+                cc.nombre as ccosto_nombre,
+                g.forma_pago,
+                cb.nombre_cta as forma_pago_nombre,
+                g.estado
+            FROM gastos g
+            LEFT JOIN proveedores p ON g.proveedor = p.codigo AND g.empresa = p.empresa
+            LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND g.empresa = cc.empresa
+            LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND g.empresa = cb.empresa
+            WHERE g.empresa = $1
+            AND g.fecha >= $2
+            AND g.fecha <= $3
+        `;
+        
+        const params = [empresa, fechaInicial, fechaFinal];
+        let paramIndex = 4;
+        
+        if (centroCosto) {
+            query += ` AND g.ccosto = $${paramIndex}`;
+            params.push(centroCosto);
+            paramIndex++;
+        }
+        
+        if (cuentaContable) {
+            query += ` AND g.cuenta = $${paramIndex}`;
+            params.push(cuentaContable);
+            paramIndex++;
+        }
+        
+        query += ' ORDER BY g.fecha ASC';
+        
+        const result = await pool.query(query, params);
+        
+        res.json({
+            success: true,
+            gastos: result.rows
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/gastos/reporte:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener reporte',
+            details: error.message
+        });
+    }
+});
+
+// ================================================================
 // HEALTH CHECK
 // ================================================================
 
