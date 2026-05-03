@@ -331,6 +331,9 @@
             font-size: 1rem;
             font-weight: 600;
             transition: all 0.3s;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .form-input:focus, .form-select:focus {
@@ -451,8 +454,12 @@
                 grid-template-columns: 1fr;
             }
 
-            .total-value {
-                font-size: 2rem;
+            .main-content {
+                padding: 1rem;
+            }
+
+            .form-container {
+                padding: 1rem;
             }
         }
     </style>
@@ -525,7 +532,7 @@
             <!-- MÓDULO GASTOS -->
             <div class="modulo-gastos" id="moduloGastos">
                 <div class="form-header">
-                    <h2>💸 Crear Gasto</h2>
+                    <h2>💸 Gestión de Gastos</h2>
                     <p>Registra un nuevo gasto y genera automáticamente el movimiento bancario</p>
                 </div>
 
@@ -549,35 +556,31 @@
 
                             <div class="form-group">
                                 <label class="form-label">Proveedor *</label>
-                                <select class="form-select" id="proveedor" required>
-                                    <option value="">Seleccione...</option>
-                                </select>
+                                <input list="listaProveedores" class="form-input" id="proveedor" placeholder="Escribe para buscar..." required autocomplete="off">
+                                <datalist id="listaProveedores"></datalist>
                             </div>
 
                             <div class="form-group">
                                 <label class="form-label">C. Costos *</label>
-                                <select class="form-select" id="ccosto" required>
-                                    <option value="">Seleccione...</option>
-                                </select>
+                                <input list="listaCCostos" class="form-input" id="ccosto" placeholder="Escribe para buscar..." required autocomplete="off">
+                                <datalist id="listaCCostos"></datalist>
                             </div>
 
                             <div class="form-group">
                                 <label class="form-label">F. Pago *</label>
-                                <select class="form-select" id="formaPago" required>
-                                    <option value="">Seleccione...</option>
-                                </select>
+                                <input list="listaFormaPago" class="form-input" id="formaPago" placeholder="Escribe para buscar..." required autocomplete="off">
+                                <datalist id="listaFormaPago"></datalist>
                             </div>
 
                             <div class="form-group">
                                 <label class="form-label">Cuenta *</label>
-                                <select class="form-select" id="cuenta" required>
-                                    <option value="">Seleccione...</option>
-                                </select>
+                                <input list="listaCuentas" class="form-input" id="cuenta" placeholder="Escribe para buscar..." required autocomplete="off">
+                                <datalist id="listaCuentas"></datalist>
                             </div>
 
                             <div class="form-group full-width">
-                                <label class="form-label">Concepto *</label>
-                                <input type="text" class="form-input" id="concepto" placeholder="Descripción del gasto" required>
+                                <label class="form-label">Concepto</label>
+                                <input type="text" class="form-input" id="concepto" placeholder="Descripción del gasto">
                             </div>
 
                             <div class="form-group">
@@ -591,10 +594,8 @@
                             </div>
 
                             <div class="form-group">
-                                <div class="total-display">
-                                    <div class="total-label">Total</div>
-                                    <div class="total-value" id="totalDisplay">$0.00</div>
-                                </div>
+                                <label class="form-label">Total</label>
+                                <input type="text" class="form-input" id="totalDisplay" disabled style="font-size: 1.5rem; font-weight: 800; color: var(--success); font-family: 'Courier New', monospace; text-align: right;" value="$0.00">
                             </div>
                         </div>
 
@@ -693,7 +694,7 @@
             const impuestos = parseFloat(document.getElementById('impuestos').value) || 0;
             const total = subtotal + impuestos;
             
-            document.getElementById('totalDisplay').textContent = formatMoney(total);
+            document.getElementById('totalDisplay').value = formatMoney(total);
         }
 
         function formatMoney(value) {
@@ -710,7 +711,7 @@
                 document.getElementById('formGasto').reset();
                 const hoy = new Date().toISOString().split('T')[0];
                 document.getElementById('fecha').value = hoy;
-                document.getElementById('totalDisplay').textContent = '$0.00';
+                document.getElementById('totalDisplay').value = '$0.00';
                 document.getElementById('codigo').value = '';
             }
         }
