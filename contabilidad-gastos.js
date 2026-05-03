@@ -14,8 +14,7 @@ async function cargarDatosGastos() {
             cargarProveedores(),
             cargarCCostos(),
             cargarCuentasContables(),
-            cargarCuentasBancarias(),
-            generarCodigoGasto()
+            cargarCuentasBancarias()
         ]);
     } catch (error) {
         console.error('Error cargando datos:', error);
@@ -144,23 +143,6 @@ async function cargarCuentasBancarias() {
 }
 
 // ================================================================
-// GENERAR CÓDIGO GASTO
-// ================================================================
-
-async function generarCodigoGasto() {
-    try {
-        const response = await fetch(`${API_BASE_GASTOS}/siguiente-codigo?empresa=${sesion.empresa}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById('codigo').value = data.codigo;
-        }
-    } catch (error) {
-        console.error('Error generando código:', error);
-    }
-}
-
-// ================================================================
 // GUARDAR GASTO
 // ================================================================
 
@@ -169,13 +151,44 @@ document.getElementById('formGasto').addEventListener('submit', async function(e
     
     // Obtener valores
     const fecha = document.getElementById('fecha').value;
-    const proveedorNombre = document.getElementById('proveedor').value;
-    const cCostoNombre = document.getElementById('ccosto').value;
-    const formaPagoNombre = document.getElementById('formaPago').value;
-    const cuentaNombre = document.getElementById('cuenta').value;
-    const concepto = document.getElementById('concepto').value || '';
+    const proveedorNombre = document.getElementById('proveedor').value.trim();
+    const cCostoNombre = document.getElementById('ccosto').value.trim();
+    const formaPagoNombre = document.getElementById('formaPago').value.trim();
+    const cuentaNombre = document.getElementById('cuenta').value.trim();
+    const concepto = document.getElementById('concepto').value.trim() || '';
     const subtotal = parseFloat(document.getElementById('subtotal').value) || 0;
     const impuestos = parseFloat(document.getElementById('impuestos').value) || 0;
+    
+    // Validar campos obligatorios PRIMERO
+    if (!fecha) {
+        alert('❌ La fecha es obligatoria');
+        return;
+    }
+    
+    if (!proveedorNombre) {
+        alert('❌ El proveedor es obligatorio');
+        return;
+    }
+    
+    if (!cCostoNombre) {
+        alert('❌ El centro de costo es obligatorio');
+        return;
+    }
+    
+    if (!formaPagoNombre) {
+        alert('❌ La forma de pago es obligatoria');
+        return;
+    }
+    
+    if (!cuentaNombre) {
+        alert('❌ La cuenta es obligatoria');
+        return;
+    }
+    
+    if (subtotal <= 0) {
+        alert('❌ El valor base debe ser mayor a 0');
+        return;
+    }
     
     // Obtener códigos desde los mapeos
     const proveedorCodigo = proveedoresData[proveedorNombre];
@@ -201,11 +214,6 @@ document.getElementById('formGasto').addEventListener('submit', async function(e
     
     if (!codigoBanco) {
         alert('❌ Forma de Pago no válida. Por favor selecciona una de la lista.');
-        return;
-    }
-    
-    if (subtotal <= 0) {
-        alert('❌ El valor base debe ser mayor a 0');
         return;
     }
     
@@ -242,16 +250,13 @@ document.getElementById('formGasto').addEventListener('submit', async function(e
         const data = await response.json();
         
         if (data.success) {
-            alert(`✅ Gasto creado exitosamente\n\nCódigo Gasto: ${data.codigoGasto}\nMovimiento: ${data.numeroMovimiento}`);
+            alert(`✅ Gasto creado exitosamente\n\n📄 Código Gasto: ${data.codigoGasto}\n🏦 Movimiento: ${data.numeroMovimiento}`);
             
             // Limpiar formulario
             document.getElementById('formGasto').reset();
             const hoy = new Date().toISOString().split('T')[0];
             document.getElementById('fecha').value = hoy;
             document.getElementById('totalDisplay').value = '$0.00';
-            
-            // Generar nuevo código
-            generarCodigoGasto();
         } else {
             alert(`❌ Error: ${data.error}`);
         }
