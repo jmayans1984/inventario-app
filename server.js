@@ -51,10 +51,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-// ← AUMENTAR LÍMITE PARA ARCHIVOS GRANDES
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json());
 
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -696,6 +693,68 @@ app.get('/api/facturas-compra', async (req, res) => {
     }
 });
 
+// GET /api/facturas-compra/detalle - Obtener detalle de una factura
+app.get('/api/facturas-compra/detalle', async (req, res) => {
+    const { factura } = req.query;
+    
+    if (!factura) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro factura requerido'
+        });
+    }
+    
+    try {
+        // Obtener datos de la factura
+        const facturaQuery = `
+            SELECT *
+            FROM factura_venta
+            WHERE codigo = $1
+        `;
+        
+        const facturaResult = await pool.query(facturaQuery, [factura]);
+        
+        if (facturaResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Factura no encontrada'
+            });
+        }
+        
+        // Obtener detalle con nombres de productos
+        const detalleQuery = `
+            SELECT 
+                d.id,
+                d.factura,
+                d.producto_venta,
+                pv.nombre as producto_nombre,
+                d.cantidad,
+                d.precio_unitario,
+                d.subtotal
+            FROM detalle_factura_venta d
+            LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
+            WHERE d.factura = $1
+            ORDER BY d.id
+        `;
+        
+        const detalleResult = await pool.query(detalleQuery, [factura]);
+        
+        res.json({
+            success: true,
+            factura: facturaResult.rows[0],
+            detalle: detalleResult.rows
+        });
+        
+    } catch (error) {
+        console.error('Error en /api/facturas-compra/detalle:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener detalle de factura',
+            details: error.message
+        });
+    }
+});
+
 // GET /api/facturas-compra/detalle - Obtener detalle de factura de compra
 app.get('/api/facturas-compra/detalle', async (req, res) => {
     const { factura } = req.query;
@@ -793,22 +852,8 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
             base64Puro = archivo_base64.split('base64,')[1];
         }
         
-        // ← LOG PARA DEBUG
-        console.log('📸 Subiendo archivo:', {
-            nombre: nombre_archivo,
-            tipo: tipoArchivo,
-            tamano_base64: base64Puro.length,
-            primeros_chars: base64Puro.substring(0, 50)
-        });
-        
         // Convertir base64 a Buffer para BYTEA
         const buffer = Buffer.from(base64Puro, 'base64');
-        
-        // ← LOG DEL BUFFER
-        console.log('💾 Buffer creado:', {
-            tamano_bytes: buffer.length,
-            primeros_bytes: buffer.slice(0, 10).toString('hex')
-        });
         
         // Insertar soporte de pago con BYTEA
         const insertQuery = `
@@ -829,8 +874,6 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
         
         await client.query('COMMIT');
         
-        console.log('✅ Archivo guardado exitosamente');
-        
         res.json({
             success: true,
             message: 'Soporte de pago subido exitosamente. Estado actualizado a POR VERIFICAR.'
@@ -838,7 +881,7 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
         
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('❌ Error en /api/soporte-pago/subir:', error);
+        console.error('Error en /api/soporte-pago/subir:', error);
         res.status(500).json({
             success: false,
             error: 'Error al subir soporte de pago',
@@ -913,6 +956,223 @@ app.get('/api/soporte-pago/obtener', async (req, res) => {
             error: 'Error al obtener soporte de pago',
             details: error.message
         });
+    }
+});
+
+// ================================================================
+// MÓDULO GASTOS
+// ================================================================
+
+// GET /api/gastos/proveedores - Obtener proveedores
+app.get('/api/gastos/proveedores', async (req, res) => {
+    const { empresa } = req.query;
+    
+    try {
+        const query = `
+            SELECT codigo, nombre
+            FROM proveedores
+            WHERE empresa = $1
+            ORDER BY nombre
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            proveedores: result.rows
+        });
+    } catch (error) {
+        console.error('Error en /api/gastos/proveedores:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener proveedores'
+        });
+    }
+});
+
+// GET /api/gastos/ccostos - Obtener centros de costo
+app.get('/api/gastos/ccostos', async (req, res) => {
+    const { empresa } = req.query;
+    
+    try {
+        const query = `
+            SELECT codigo, nombre
+            FROM ccostos
+            WHERE empresa = $1
+            ORDER BY codigo
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            ccostos: result.rows
+        });
+    } catch (error) {
+        console.error('Error en /api/gastos/ccostos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener centros de costo'
+        });
+    }
+});
+
+// GET /api/gastos/cuentas-contables - Obtener cuentas contables
+app.get('/api/gastos/cuentas-contables', async (req, res) => {
+    const { empresa } = req.query;
+    
+    try {
+        const query = `
+            SELECT codigo, cuenta
+            FROM cuentas
+            WHERE empresa = $1
+            ORDER BY codigo
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            cuentas: result.rows
+        });
+    } catch (error) {
+        console.error('Error en /api/gastos/cuentas-contables:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener cuentas contables'
+        });
+    }
+});
+
+// GET /api/gastos/cuentas-bancarias - Obtener cuentas bancarias
+app.get('/api/gastos/cuentas-bancarias', async (req, res) => {
+    const { empresa } = req.query;
+    
+    try {
+        const query = `
+            SELECT codigo, nombre_banco, nombre_cta
+            FROM cuentas_bancarias
+            WHERE empresa = $1 AND estado = 'ACTIVA'
+            ORDER BY nombre_banco
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        
+        res.json({
+            success: true,
+            cuentas: result.rows
+        });
+    } catch (error) {
+        console.error('Error en /api/gastos/cuentas-bancarias:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener cuentas bancarias'
+        });
+    }
+});
+
+// GET /api/gastos/siguiente-codigo - Generar siguiente código de gasto
+app.get('/api/gastos/siguiente-codigo', async (req, res) => {
+    const { empresa } = req.query;
+    
+    try {
+        const query = `
+            SELECT COALESCE(MAX(CAST(codigo AS BIGINT)), 0) + 1 as siguiente
+            FROM gastos
+            WHERE empresa = $1
+        `;
+        
+        const result = await pool.query(query, [empresa]);
+        const siguiente = result.rows[0].siguiente;
+        const codigo = siguiente.toString().padStart(10, '0');
+        
+        res.json({
+            success: true,
+            codigo: codigo
+        });
+    } catch (error) {
+        console.error('Error en /api/gastos/siguiente-codigo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al generar código'
+        });
+    }
+});
+
+// POST /api/gastos/crear - Crear gasto y movimiento bancario
+app.post('/api/gastos/crear', async (req, res) => {
+    const { fecha, proveedor, concepto, cuenta, factura, subtotal, impuestos, total, ccosto, forma_pago, codigo_banco, empresa } = req.body;
+    
+    if (!fecha || !proveedor || !concepto || !cuenta || !ccosto || !forma_pago || !codigo_banco) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan campos obligatorios'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // 1. Generar código de gasto
+        const codigoQuery = `
+            SELECT COALESCE(MAX(CAST(codigo AS BIGINT)), 0) + 1 as siguiente
+            FROM gastos
+            WHERE empresa = $1
+        `;
+        const codigoResult = await client.query(codigoQuery, [empresa]);
+        const codigoGasto = codigoResult.rows[0].siguiente.toString().padStart(10, '0');
+        
+        // 2. Insertar gasto
+        const insertGastoQuery = `
+            INSERT INTO gastos (codigo, fecha, proveedor, concepto, cuenta, factura, subtotal, impuestos, total, ccosto, forma_pago, estado, empresa)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'PENDIENTE', $12)
+        `;
+        
+        await client.query(insertGastoQuery, [
+            codigoGasto, fecha, proveedor, concepto, cuenta, factura, 
+            subtotal, impuestos, total, ccosto, forma_pago, empresa
+        ]);
+        
+        // 3. Generar número de movimiento bancario
+        const numeroQuery = `
+            SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) + 1 as siguiente
+            FROM moviban
+            WHERE empresa = $1
+        `;
+        const numeroResult = await client.query(numeroQuery, [empresa]);
+        const numeroMovimiento = numeroResult.rows[0].siguiente.toString().padStart(10, '0');
+        
+        // 4. Insertar movimiento bancario
+        const insertMovibanQuery = `
+            INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+            VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, $7, $8, NULL, $9)
+        `;
+        
+        await client.query(insertMovibanQuery, [
+            numeroMovimiento, fecha, concepto, total, codigo_banco, empresa, codigoGasto, proveedor, ccosto
+        ]);
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            message: 'Gasto y movimiento bancario creados exitosamente',
+            codigoGasto: codigoGasto,
+            numeroMovimiento: numeroMovimiento
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/gastos/crear:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al crear gasto',
+            details: error.message
+        });
+    } finally {
+        client.release();
     }
 });
 
