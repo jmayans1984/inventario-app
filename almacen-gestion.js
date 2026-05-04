@@ -25,10 +25,9 @@ function cargarGestionInventario() {
                     <label class="filter-label">Tipo de Operación *</label>
                     <select id="tipoOperacion" onchange="cambiarTipoOperacion()" class="filter-select">
                         <option value="">Seleccione...</option>
-                        <option value="ENTRADA">ENTRADA</option>
-                        <option value="SALIDA">SALIDA</option>
-                        <option value="AJUSTE">AJUSTE</option>
-                        <option value="TRASLADO">TRASLADO</option>
+                        <option value="ENTRADA A ALMACEN">ENTRADA A ALMACEN</option>
+                        <option value="SALIDA DE ALMACEN">SALIDA DE ALMACEN</option>
+                        <option value="TRANSFERENCIA ENTRE ALMACENES">TRANSFERENCIA ENTRE ALMACENES</option>
                     </select>
                 </div>
                 
@@ -95,8 +94,8 @@ function cambiarTipoOperacion() {
     const tipo = document.getElementById('tipoOperacion').value;
     const ccDestinoGroup = document.getElementById('ccDestinoGroup');
     
-    // Mostrar CC Destino solo si es TRASLADO
-    if (tipo === 'TRASLADO') {
+    // Mostrar CC Destino solo si es TRANSFERENCIA
+    if (tipo === 'TRANSFERENCIA ENTRE ALMACENES') {
         ccDestinoGroup.style.display = 'block';
     } else {
         ccDestinoGroup.style.display = 'none';
@@ -181,24 +180,24 @@ async function cargarGridGestion() {
     `;
     
     try {
-        // Cargar TODOS los productos ACTIVOS
-        const response = await fetch(`${API_BASE_ALMACEN}/productos?empresa=${sesion.empresa}&estado=ACTIVO`);
-        const data = await response.json();
+        // Cargar inventario del ccOrigen (incluye todos los productos que tienen stock)
+        const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
+        const stockData = await stockResponse.json();
         
-        if (data.success && data.data) {
-            productosActivos = data.data;
-            
-            // Cargar stock actual del ccOrigen
-            const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
-            const stockData = await stockResponse.json();
+        if (stockData.success && stockData.data) {
+            // Crear array de productos desde el inventario
+            productosActivos = stockData.data.map(item => ({
+                codigo: item.producto,
+                nombre: item.nombre_producto || item.producto,
+                unidad: item.unidad || '',
+                stock_actual: parseFloat(item.stock_actual || item.cantidad) || 0
+            }));
             
             // Crear mapa de stock
             const stockMap = {};
-            if (stockData.success && stockData.data) {
-                stockData.data.forEach(item => {
-                    stockMap[item.producto] = parseFloat(item.stock_actual || item.cantidad) || 0;
-                });
-            }
+            stockData.data.forEach(item => {
+                stockMap[item.producto] = parseFloat(item.stock_actual || item.cantidad) || 0;
+            });
             
             // Renderizar grid
             renderizarGridGestion(productosActivos, stockMap);
@@ -206,7 +205,7 @@ async function cargarGridGestion() {
             gridBody.innerHTML = `
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                        No se encontraron productos activos
+                        No se encontraron productos en este centro de costo
                     </td>
                 </tr>
             `;
@@ -245,7 +244,7 @@ function renderizarGridGestion(productos, stockMap) {
     let html = '';
     
     productos.forEach(producto => {
-        const stockActual = stockMap[producto.codigo] || 0;
+        const stockActual = producto.stock_actual || stockMap[producto.codigo] || 0;
         
         html += `
             <tr data-codigo="${producto.codigo}">
@@ -371,12 +370,12 @@ async function guardarMovimiento() {
         return;
     }
     
-    if (tipo === 'TRASLADO' && !ccDestino) {
-        alert('❌ El centro de costo destino es obligatorio para traslados');
+    if (tipo === 'TRANSFERENCIA ENTRE ALMACENES' && !ccDestino) {
+        alert('❌ El centro de costo destino es obligatorio para transferencias');
         return;
     }
     
-    if (tipo === 'TRASLADO' && ccOrigen === ccDestino) {
+    if (tipo === 'TRANSFERENCIA ENTRE ALMACENES' && ccOrigen === ccDestino) {
         alert('❌ El centro de costo origen y destino no pueden ser iguales');
         return;
     }
