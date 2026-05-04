@@ -184,19 +184,19 @@ async function cargarGridGestion() {
         const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
         const stockData = await stockResponse.json();
         
-        if (stockData.success && stockData.data) {
+        if (stockData.success && stockData.data && stockData.data.length > 0) {
             // Crear array de productos desde el inventario
             productosActivos = stockData.data.map(item => ({
-                codigo: item.producto,
-                nombre: item.nombre_producto || item.producto,
-                unidad: item.unidad || '',
-                stock_actual: parseFloat(item.stock_actual || item.cantidad) || 0
+                codigo: item.codigo,
+                nombre: item.nombre,
+                unidad: item.unidad || 'UN',
+                stock_actual: parseFloat(item.stock_actual) || 0
             }));
             
             // Crear mapa de stock
             const stockMap = {};
             stockData.data.forEach(item => {
-                stockMap[item.producto] = parseFloat(item.stock_actual || item.cantidad) || 0;
+                stockMap[item.codigo] = parseFloat(item.stock_actual) || 0;
             });
             
             // Renderizar grid
