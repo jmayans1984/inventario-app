@@ -105,7 +105,6 @@ async function verDetalleOrden(codigo) {
     ordenActual = codigo;
     
     try {
-        // Cargar datos de la orden
         const response = await fetch(`${API_BASE}/ordenes-compra/${codigo}`);
         const data = await response.json();
         
@@ -252,33 +251,15 @@ async function subirSoporte(event) {
     try {
         // Leer archivo
         const arrayBuffer = await file.arrayBuffer();
-        let imageData;
         
         if (file.type === 'application/pdf') {
-            // Para PDF, enviar tal cual
-            imageData = arrayBuffer;
+            // Para PDF, convertir a base64 directamente
+            const base64 = arrayBufferToBase64(arrayBuffer);
+            await enviarSoporteAlServidor(base64, file.name, file.type);
         } else {
-            // Para imágenes, convertir a B&N y comprimir
-            imageData = await procesarImagen(arrayBuffer);
-        }
-        
-        // Enviar al backend
-        const formData = new FormData();
-        formData.append('orden', ordenActual);
-        formData.append('archivo', new Blob([imageData]), file.name);
-        
-        const response = await fetch(`${API_BASE}/soportes-entrega/subir`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert('✅ Soporte cargado exitosamente');
-            cargarSoporteEntrega(ordenActual);
-        } else {
-            alert(`❌ Error: ${data.error}`);
+            // Para imágenes, procesar (B&N + compresión) y convertir a base64
+            const base64 = await procesarImagenYConvertirBase64(arrayBuffer);
+            await enviarSoporteAlServidor(base64, file.name, 'image/jpeg');
         }
     } catch (error) {
         console.error('Error subiendo soporte:', error);
@@ -287,10 +268,23 @@ async function subirSoporte(event) {
 }
 
 // ================================================================
-// PROCESAR IMAGEN (Convertir a B&N y comprimir)
+// CONVERTIR ARRAYBUFFER A BASE64
 // ================================================================
 
-async function procesarImagen(arrayBuffer) {
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return 'data:application/pdf;base64,' + btoa(binary);
+}
+
+// ================================================================
+// PROCESAR IMAGEN Y CONVERTIR A BASE64
+// ================================================================
+
+async function procesarImagenYConvertirBase64(arrayBuffer) {
     return new Promise((resolve, reject) => {
         const blob = new Blob([arrayBuffer]);
         const url = URL.createObjectURL(blob);
@@ -329,10 +323,9 @@ async function procesarImagen(arrayBuffer) {
             
             ctx.putImageData(imageData, 0, 0);
             
-            // Convertir a blob comprimido
-            canvas.toBlob((blob) => {
-                blob.arrayBuffer().then(resolve).catch(reject);
-            }, 'image/jpeg', 0.7);
+            // Convertir a base64 JPEG con 70% calidad
+            const base64 = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(base64);
             
             URL.revokeObjectURL(url);
         };
@@ -340,6 +333,37 @@ async function procesarImagen(arrayBuffer) {
         img.onerror = reject;
         img.src = url;
     });
+}
+
+// ================================================================
+// ENVIAR SOPORTE AL SERVIDOR
+// ================================================================
+
+async function enviarSoporteAlServidor(base64, nombreArchivo, tipoArchivo) {
+    try {
+        const response = await fetch(`${API_BASE}/soportes-entrega/subir`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orden: ordenActual,
+                archivo_base64: base64,
+                nombre_archivo: nombreArchivo,
+                tipo_archivo: tipoArchivo
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Soporte cargado exitosamente');
+            cargarSoporteEntrega(ordenActual);
+        } else {
+            alert(`❌ Error: ${data.error}`);
+        }
+    } catch (error) {
+        console.error('Error enviando soporte:', error);
+        alert('❌ Error al subir soporte');
+    }
 }
 
 // ================================================================

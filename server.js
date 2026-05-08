@@ -1275,6 +1275,336 @@ app.get('/health', async (req, res) => {
     }
 });
 
+// ================================================================
+// RUTAS - ÓRDENES DE COMPRA Y RECEPCIÓN
+// ================================================================
+
+// GET /api/ordenes-compra - Listar órdenes de un cliente específico
+app.get('/api/ordenes-compra', async (req, res) => {
+    const { empresa, estado } = req.query;
+    
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+    
+    try {
+        let query = `
+            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.fecha_vencimiento,
+                   oc.cliente, oc.tipo_precio, oc.dias_credito, oc.estado,
+                   oc.total, oc.observaciones, oc.empresa,
+                   e.nombre as empresa_nombre
+            FROM ordenes_compra oc
+            LEFT JOIN empresas e ON oc.empresa = e.codigo
+            WHERE oc.empresa = $1
+        `;
+        
+        const params = [empresa];
+        
+        if (estado) {
+            query += ` AND oc.estado = $2`;
+            params.push(estado);
+        }
+        
+        query += ` ORDER BY oc.fecha DESC`;
+        
+        const result = await pool.query(query, params);
+        
+        res.json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error('Error obteniendo órdenes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener órdenes de compra'
+        });
+    }
+});
+
+// GET /api/ordenes-compra/todas - Listar TODAS las órdenes (para PROVEEDOR)
+app.get('/api/ordenes-compra/todas', async (req, res) => {
+    const { estado } = req.query;
+    
+    try {
+        let query = `
+            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.fecha_vencimiento,
+                   oc.cliente, oc.tipo_precio, oc.dias_credito, oc.estado,
+                   oc.total, oc.observaciones, oc.empresa,
+                   e.nombre as empresa_nombre
+            FROM ordenes_compra oc
+            LEFT JOIN empresas e ON oc.empresa = e.codigo
+        `;
+        
+        const params = [];
+        
+        if (estado) {
+            query += ` WHERE oc.estado = $1`;
+            params.push(estado);
+        }
+        
+        query += ` ORDER BY oc.fecha DESC`;
+        
+        const result = await pool.query(query, params);
+        
+        res.json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error('Error obteniendo todas las órdenes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener órdenes de compra'
+        });
+    }
+});
+
+// GET /api/ordenes-compra/:codigo - Detalle de una orden específica
+app.get('/api/ordenes-compra/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    
+    try {
+        const query = `
+            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.fecha_vencimiento,
+                   oc.cliente, oc.tipo_precio, oc.dias_credito, oc.estado,
+                   oc.total, oc.observaciones, oc.empresa,
+                   e.nombre as empresa_nombre
+            FROM ordenes_compra oc
+            LEFT JOIN empresas e ON oc.empresa = e.codigo
+            WHERE oc.codigo = $1
+        `;
+        
+        const result = await pool.query(query, [codigo]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Orden de compra no encontrada'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error obteniendo detalle de orden:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener detalle de orden'
+        });
+    }
+});
+
+// GET /api/ordenes-compra/:codigo/detalle - Productos de una orden
+app.get('/api/ordenes-compra/:codigo/detalle', async (req, res) => {
+    const { codigo } = req.params;
+    
+    try {
+        const query = `
+            SELECT d.id, d.orden, d.producto_venta, d.cantidad,
+                   d.precio_unitario, d.subtotal, d.empresa,
+                   p.nombre as nombre_producto
+            FROM detalle_ordenes d
+            LEFT JOIN productos p ON d.producto_venta = p.codigo
+            WHERE d.orden = $1
+            ORDER BY d.id
+        `;
+        
+        const result = await pool.query(query, [codigo]);
+        
+        res.json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error('Error obteniendo productos de orden:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener productos de la orden'
+        });
+    }
+});
+
+// POST /api/soportes-entrega/subir - Subir soporte de entrega
+app.post('/api/soportes-entrega/subir', async (req, res) => {
+    const { orden, archivo_base64, nombre_archivo, tipo_archivo } = req.body;
+    
+    if (!orden || !archivo_base64 || !nombre_archivo) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan parámetros: orden, archivo_base64 y nombre_archivo requeridos'
+        });
+    }
+    
+    try {
+        // Convertir base64 a buffer
+        const base64Data = archivo_base64.split(',')[1] || archivo_base64;
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Obtener empresa de la orden
+        const ordenQuery = await pool.query(
+            'SELECT empresa FROM ordenes_compra WHERE codigo = $1',
+            [orden]
+        );
+        
+        if (ordenQuery.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Orden de compra no encontrada'
+            });
+        }
+        
+        const empresa = ordenQuery.rows[0].empresa;
+        
+        // Verificar si ya existe un soporte
+        const existeQuery = await pool.query(
+            'SELECT id FROM soportes_entrega WHERE orden = $1',
+            [orden]
+        );
+        
+        if (existeQuery.rows.length > 0) {
+            // Actualizar soporte existente
+            await pool.query(
+                `UPDATE soportes_entrega 
+                 SET nombre_archivo = $1, tipo_archivo = $2, archivo_data = $3, fecha_subida = CURRENT_TIMESTAMP
+                 WHERE orden = $4`,
+                [nombre_archivo, tipo_archivo, buffer, orden]
+            );
+        } else {
+            // Insertar nuevo soporte
+            await pool.query(
+                `INSERT INTO soportes_entrega (orden, nombre_archivo, tipo_archivo, archivo_data, empresa)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [orden, nombre_archivo, tipo_archivo, buffer, empresa]
+            );
+        }
+        
+        res.json({
+            success: true,
+            message: 'Soporte cargado exitosamente'
+        });
+    } catch (error) {
+        console.error('Error subiendo soporte:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al guardar soporte de entrega'
+        });
+    }
+});
+
+// GET /api/soportes-entrega/:orden - Verificar si existe soporte
+app.get('/api/soportes-entrega/:orden', async (req, res) => {
+    const { orden } = req.params;
+    
+    try {
+        const query = `
+            SELECT id, orden, nombre_archivo, tipo_archivo, fecha_subida
+            FROM soportes_entrega
+            WHERE orden = $1
+        `;
+        
+        const result = await pool.query(query, [orden]);
+        
+        if (result.rows.length === 0) {
+            return res.json({
+                success: false,
+                message: 'No existe soporte para esta orden'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error verificando soporte:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al verificar soporte'
+        });
+    }
+});
+
+// GET /api/soportes-entrega/:orden/archivo - Descargar archivo del soporte
+app.get('/api/soportes-entrega/:orden/archivo', async (req, res) => {
+    const { orden } = req.params;
+    
+    try {
+        const query = `
+            SELECT archivo_data, tipo_archivo, nombre_archivo
+            FROM soportes_entrega
+            WHERE orden = $1
+        `;
+        
+        const result = await pool.query(query, [orden]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Soporte no encontrado'
+            });
+        }
+        
+        const { archivo_data, tipo_archivo, nombre_archivo } = result.rows[0];
+        
+        res.setHeader('Content-Type', tipo_archivo);
+        res.setHeader('Content-Disposition', `inline; filename="${nombre_archivo}"`);
+        res.send(archivo_data);
+    } catch (error) {
+        console.error('Error descargando soporte:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al descargar soporte'
+        });
+    }
+});
+
+// PUT /api/ordenes-compra/:codigo/marcar-recibida - Marcar orden como recibida
+app.put('/api/ordenes-compra/:codigo/marcar-recibida', async (req, res) => {
+    const { codigo } = req.params;
+    
+    try {
+        // Verificar que existe la orden
+        const ordenQuery = await pool.query(
+            'SELECT codigo, estado FROM ordenes_compra WHERE codigo = $1',
+            [codigo]
+        );
+        
+        if (ordenQuery.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Orden de compra no encontrada'
+            });
+        }
+        
+        // Actualizar estado
+        await pool.query(
+            'UPDATE ordenes_compra SET estado = $1 WHERE codigo = $2',
+            ['RECIBIDA', codigo]
+        );
+        
+        res.json({
+            success: true,
+            message: 'Orden marcada como recibida'
+        });
+    } catch (error) {
+        console.error('Error marcando orden como recibida:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al actualizar estado de la orden'
+        });
+    }
+});
+
+// ================================================================
+// RUTAS - RAÍZ
+// ================================================================
+
 app.get('/', (req, res) => {
     res.json({
         message: 'API de Inventario con Autenticación',
