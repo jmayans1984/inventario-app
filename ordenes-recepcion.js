@@ -419,12 +419,9 @@ async function marcarRecibida() {
     // Confirmar acción
     const mensaje = entregaCompleta
         ? '¿Confirmas que la orden fue entregada COMPLETA?\n\n' +
-          '✅ Se cambiará el estado a ENTREGADA\n' +
-          '✅ Se descargarán los productos del inventario\n' +
-          '✅ Se calculará la fecha de vencimiento'
+          '✅ Se cambiará el estado a ENTREGADA'
         : '¿Confirmas que la orden fue entregada INCOMPLETA?\n\n' +
           '⚠️ El estado seguirá como PENDIENTE\n' +
-          '⚠️ NO se descargará inventario\n' +
           '⚠️ Se marcará como [ORDEN INCOMPLETA]';
     
     if (!confirm(mensaje)) {
@@ -444,8 +441,7 @@ async function marcarRecibida() {
         
         if (data.success) {
             const mensajeExito = entregaCompleta
-                ? '✅ Orden marcada como ENTREGADA\n\n' +
-                  'Inventario descargado correctamente'
+                ? '✅ Orden marcada como ENTREGADA'
                 : '✅ Recepción registrada\n\n' +
                   'Orden marcada como INCOMPLETA\n' +
                   'Estado: PENDIENTE';
