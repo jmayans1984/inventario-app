@@ -196,19 +196,28 @@ async function cargarSoporteEntrega(codigo) {
         const response = await fetch(`${API_BASE}/soportes-entrega/${codigo}`);
         const data = await response.json();
         
+        console.log('Soportes cargados:', data);
+        
         const soporteDiv = document.getElementById('soporteActual');
         
         if (data.success && data.data && data.data.length > 0) {
             let html = '<div style="margin-top: 1rem;">';
             
             data.data.forEach((soporte, index) => {
+                console.log('Procesando soporte:', soporte);
+                
+                if (!soporte.id) {
+                    console.error('Soporte sin ID:', soporte);
+                    return;
+                }
+                
                 const fechaFormat = formatearFecha(soporte.fecha_subida);
                 html += `
                     <div style="margin-bottom: 0.75rem; padding: 1rem; background: var(--bg); border-radius: 8px; border: 1px solid var(--success);">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <div style="font-weight: 700; color: var(--success); margin-bottom: 0.25rem;">
-                                    ✅ Soporte #${soporte.numero_soporte}
+                                    ✅ Soporte #${soporte.numero_soporte || (index + 1)}
                                 </div>
                                 <div style="font-size: 0.85rem; color: var(--text-secondary);">
                                     ${soporte.nombre_archivo} - ${fechaFormat}
