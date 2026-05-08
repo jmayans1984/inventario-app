@@ -225,9 +225,25 @@ async function cargarSoporteEntrega(codigo) {
 async function verSoporte(codigo) {
     try {
         const response = await fetch(`${API_BASE}/soportes-entrega/${codigo}/archivo`);
+        
+        if (!response.ok) {
+            alert('❌ Error al cargar el soporte');
+            return;
+        }
+        
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        
+        // Detectar si es móvil
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // En móvil, abrir en la misma pestaña
+            window.location.href = url;
+        } else {
+            // En desktop, abrir en nueva pestaña
+            window.open(url, '_blank');
+        }
     } catch (error) {
         console.error('Error abriendo soporte:', error);
         alert('❌ Error al abrir soporte');
