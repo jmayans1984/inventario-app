@@ -1630,7 +1630,7 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
                 [codigo]
             );
             
-            // 1C. Registrar SALIDAS en detalle_inventario_venta
+            // 1C. Registrar SALIDAS en detalle_inventario_venta (sin campo empresa)
             for (const producto of productosQuery.rows) {
                 await client.query(
                     `INSERT INTO detalle_inventario_venta 
