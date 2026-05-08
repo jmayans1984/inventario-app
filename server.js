@@ -1662,9 +1662,18 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
             console.log('=== ENTREGA INCOMPLETA ===');
             console.log('Observaciones actuales:', orden.observaciones);
             
-            // 2A. Agregar [ORDEN INCOMPLETA] al inicio de observaciones
+            // 2A. Agregar [ORDEN INCOMPLETA] solo si NO existe ya
             const observacionesActuales = orden.observaciones || '';
-            const nuevasObservaciones = '[ORDEN INCOMPLETA] ' + observacionesActuales;
+            let nuevasObservaciones;
+            
+            if (observacionesActuales.startsWith('[ORDEN INCOMPLETA] ')) {
+                // Ya tiene [ORDEN INCOMPLETA], no agregarlo de nuevo
+                nuevasObservaciones = observacionesActuales;
+                console.log('Ya tiene [ORDEN INCOMPLETA], no se agrega de nuevo');
+            } else {
+                // No lo tiene, agregarlo
+                nuevasObservaciones = '[ORDEN INCOMPLETA] ' + observacionesActuales;
+            }
             
             console.log('Nuevas observaciones:', nuevasObservaciones);
             
