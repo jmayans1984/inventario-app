@@ -1567,40 +1567,117 @@ app.get('/api/soportes-entrega/:orden/archivo', async (req, res) => {
     }
 });
 
-// PUT /api/ordenes-compra/:codigo/marcar-recibida - Marcar orden como recibida
-app.put('/api/ordenes-compra/:codigo/marcar-recibida', async (req, res) => {
+// PUT /api/ordenes-compra/:codigo/procesar-recepcion - Procesar recepción completa o incompleta
+app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
     const { codigo } = req.params;
+    const { entrega_completa } = req.body;
+    
+    const client = await pool.connect();
     
     try {
-        // Verificar que existe la orden
-        const ordenQuery = await pool.query(
-            'SELECT codigo, estado FROM ordenes_compra WHERE codigo = $1',
+        await client.query('BEGIN');
+        
+        // 1. Obtener datos de la orden
+        const ordenQuery = await client.query(
+            `SELECT oc.codigo, oc.estado, oc.observaciones, oc.dias_credito, oc.empresa
+             FROM ordenes_compra oc
+             WHERE oc.codigo = $1`,
             [codigo]
         );
         
         if (ordenQuery.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({
                 success: false,
                 error: 'Orden de compra no encontrada'
             });
         }
         
-        // Actualizar estado
-        await pool.query(
-            'UPDATE ordenes_compra SET estado = $1 WHERE codigo = $2',
-            ['RECIBIDA', codigo]
-        );
+        const orden = ordenQuery.rows[0];
         
-        res.json({
-            success: true,
-            message: 'Orden marcada como recibida'
-        });
+        if (entrega_completa) {
+            // ============================================================
+            // CASO 1: ENTREGA COMPLETA
+            // ============================================================
+            
+            const fechaHoy = new Date().toISOString().split('T')[0];
+            
+            // 1A. Actualizar orden: estado ENTREGADA + calcular fecha_vencimiento
+            await client.query(
+                `UPDATE ordenes_compra 
+                 SET estado = 'ENTREGADA',
+                     fecha_entrega = $1,
+                     fecha_vencimiento = $1::date + dias_credito
+                 WHERE codigo = $2`,
+                [fechaHoy, codigo]
+            );
+            
+            // 1B. Obtener productos de la orden
+            const productosQuery = await client.query(
+                `SELECT producto_venta, cantidad 
+                 FROM detalle_ordenes 
+                 WHERE orden = $1`,
+                [codigo]
+            );
+            
+            // 1C. Registrar SALIDAS en detalle_inventario_venta
+            for (const producto of productosQuery.rows) {
+                await client.query(
+                    `INSERT INTO detalle_inventario_venta 
+                     (fecha, codigo, entrada, salida, tipo, referencia, observaciones)
+                     VALUES ($1, $2, 0, $3, $4, $5, $6)`,
+                    [
+                        fechaHoy,
+                        producto.producto_venta,
+                        producto.cantidad,
+                        'SALIDA POR VENTA',
+                        codigo,
+                        'Entrega de orden de compra'
+                    ]
+                );
+            }
+            
+            await client.query('COMMIT');
+            
+            res.json({
+                success: true,
+                message: 'Orden marcada como ENTREGADA e inventario descargado'
+            });
+            
+        } else {
+            // ============================================================
+            // CASO 2: ENTREGA INCOMPLETA
+            // ============================================================
+            
+            // 2A. Agregar [ORDEN INCOMPLETA] al inicio de observaciones
+            const nuevasObservaciones = '[ORDEN INCOMPLETA] ' + (orden.observaciones || '');
+            
+            await client.query(
+                `UPDATE ordenes_compra 
+                 SET observaciones = $1
+                 WHERE codigo = $2`,
+                [nuevasObservaciones, codigo]
+            );
+            
+            // Estado sigue siendo PENDIENTE (no se cambia)
+            
+            await client.query('COMMIT');
+            
+            res.json({
+                success: true,
+                message: 'Orden marcada como INCOMPLETA, estado sigue PENDIENTE'
+            });
+        }
+        
     } catch (error) {
-        console.error('Error marcando orden como recibida:', error);
+        await client.query('ROLLBACK');
+        console.error('Error procesando recepción:', error);
         res.status(500).json({
             success: false,
-            error: 'Error al actualizar estado de la orden'
+            error: 'Error al procesar la recepción: ' + error.message
         });
+    } finally {
+        client.release();
     }
 });
 

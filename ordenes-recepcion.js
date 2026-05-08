@@ -341,6 +341,13 @@ async function procesarImagenYConvertirBase64(arrayBuffer) {
 
 async function enviarSoporteAlServidor(base64, nombreArchivo, tipoArchivo) {
     try {
+        console.log('=== ENVIANDO SOPORTE ===');
+        console.log('Orden:', ordenActual);
+        console.log('Nombre archivo:', nombreArchivo);
+        console.log('Tipo archivo:', tipoArchivo);
+        console.log('Base64 length:', base64.length);
+        console.log('URL:', `${API_BASE}/soportes-entrega/subir`);
+        
         const response = await fetch(`${API_BASE}/soportes-entrega/subir`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -352,7 +359,10 @@ async function enviarSoporteAlServidor(base64, nombreArchivo, tipoArchivo) {
             })
         });
         
+        console.log('Response status:', response.status);
+        
         const data = await response.json();
+        console.log('Response data:', data);
         
         if (data.success) {
             alert('✅ Soporte cargado exitosamente');
@@ -361,38 +371,78 @@ async function enviarSoporteAlServidor(base64, nombreArchivo, tipoArchivo) {
             alert(`❌ Error: ${data.error}`);
         }
     } catch (error) {
-        console.error('Error enviando soporte:', error);
-        alert('❌ Error al subir soporte');
+        console.error('Error completo:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        alert('❌ Error al subir soporte: ' + error.message);
     }
 }
 
 // ================================================================
-// MARCAR ORDEN COMO RECIBIDA
+// MARCAR ORDEN COMO RECIBIDA O INCOMPLETA
 // ================================================================
 
 async function marcarRecibida() {
-    if (!confirm('¿Confirmas que se recibió toda la orden correctamente?')) {
+    const entregaCompleta = document.getElementById('checkEntregaCompleta').checked;
+    
+    // Verificar que tenga soporte subido
+    try {
+        const response = await fetch(`${API_BASE}/soportes-entrega/${ordenActual}`);
+        const data = await response.json();
+        
+        if (!data.success || !data.data) {
+            alert('⚠️ Primero debes subir el soporte de entrega');
+            return;
+        }
+    } catch (error) {
+        console.error('Error verificando soporte:', error);
+        alert('❌ Error al verificar soporte');
+        return;
+    }
+    
+    // Confirmar acción
+    const mensaje = entregaCompleta
+        ? '¿Confirmas que la orden fue entregada COMPLETA?\n\n' +
+          '✅ Se cambiará el estado a ENTREGADA\n' +
+          '✅ Se descargarán los productos del inventario\n' +
+          '✅ Se calculará la fecha de vencimiento'
+        : '¿Confirmas que la orden fue entregada INCOMPLETA?\n\n' +
+          '⚠️ El estado seguirá como PENDIENTE\n' +
+          '⚠️ NO se descargará inventario\n' +
+          '⚠️ Se marcará como [ORDEN INCOMPLETA]';
+    
+    if (!confirm(mensaje)) {
         return;
     }
     
     try {
-        const response = await fetch(`${API_BASE}/ordenes-compra/${ordenActual}/marcar-recibida`, {
+        const response = await fetch(`${API_BASE}/ordenes-compra/${ordenActual}/procesar-recepcion`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                entrega_completa: entregaCompleta
+            })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            alert('✅ Orden marcada como recibida');
+            const mensajeExito = entregaCompleta
+                ? '✅ Orden marcada como ENTREGADA\n\n' +
+                  'Inventario descargado correctamente'
+                : '✅ Recepción registrada\n\n' +
+                  'Orden marcada como INCOMPLETA\n' +
+                  'Estado: PENDIENTE';
+            
+            alert(mensajeExito);
             cerrarModal();
             cargarOrdenes();
         } else {
             alert(`❌ Error: ${data.error}`);
         }
     } catch (error) {
-        console.error('Error marcando orden:', error);
-        alert('❌ Error al marcar orden como recibida');
+        console.error('Error procesando recepción:', error);
+        alert('❌ Error al procesar la recepción');
     }
 }
 
