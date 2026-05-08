@@ -188,7 +188,7 @@ async function cargarProductosOrden(codigo) {
 }
 
 // ================================================================
-// CARGAR SOPORTE DE ENTREGA SI EXISTE
+// CARGAR SOPORTES DE ENTREGA SI EXISTEN
 // ================================================================
 
 async function cargarSoporteEntrega(codigo) {
@@ -198,23 +198,37 @@ async function cargarSoporteEntrega(codigo) {
         
         const soporteDiv = document.getElementById('soporteActual');
         
-        if (data.success && data.data) {
-            soporteDiv.innerHTML = `
-                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg); border-radius: 8px; border: 1px solid var(--success);">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-weight: 700; color: var(--success); margin-bottom: 0.25rem;">✅ Soporte Cargado</div>
-                            <div style="font-size: 0.85rem; color: var(--text-secondary);">${data.data.nombre_archivo}</div>
+        if (data.success && data.data && data.data.length > 0) {
+            let html = '<div style="margin-top: 1rem;">';
+            
+            data.data.forEach((soporte, index) => {
+                const fechaFormat = formatearFecha(soporte.fecha_subida);
+                html += `
+                    <div style="margin-bottom: 0.75rem; padding: 1rem; background: var(--bg); border-radius: 8px; border: 1px solid var(--success);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 700; color: var(--success); margin-bottom: 0.25rem;">
+                                    ✅ Soporte #${soporte.numero_soporte}
+                                </div>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                    ${soporte.nombre_archivo} - ${fechaFormat}
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" style="padding: 0.5rem 1rem;" onclick="verSoporte(${soporte.id})">
+                                👁️ Ver
+                            </button>
                         </div>
-                        <button class="btn btn-primary" onclick="verSoporte('${codigo}')">👁️ Ver</button>
                     </div>
-                </div>
-            `;
+                `;
+            });
+            
+            html += '</div>';
+            soporteDiv.innerHTML = html;
         } else {
             soporteDiv.innerHTML = '';
         }
     } catch (error) {
-        console.error('Error cargando soporte:', error);
+        console.error('Error cargando soportes:', error);
     }
 }
 
@@ -222,9 +236,9 @@ async function cargarSoporteEntrega(codigo) {
 // VER SOPORTE EXISTENTE
 // ================================================================
 
-async function verSoporte(codigo) {
+async function verSoporte(idSoporte) {
     try {
-        const response = await fetch(`${API_BASE}/soportes-entrega/${codigo}/archivo`);
+        const response = await fetch(`${API_BASE}/soportes-entrega/archivo/${idSoporte}`);
         
         if (!response.ok) {
             alert('❌ Error al cargar el soporte');
@@ -380,6 +394,11 @@ async function enviarSoporteAlServidor(base64, nombreArchivo, tipoArchivo) {
         const data = await response.json();
         console.log('Response data:', data);
         
+        if (response.status === 403) {
+            alert('⚠️ ' + data.error);
+            return;
+        }
+        
         if (data.success) {
             alert('✅ Soporte cargado exitosamente');
             cargarSoporteEntrega(ordenActual);
@@ -401,18 +420,18 @@ async function enviarSoporteAlServidor(base64, nombreArchivo, tipoArchivo) {
 async function marcarRecibida() {
     const entregaCompleta = document.getElementById('checkEntregaCompleta').checked;
     
-    // Verificar que tenga soporte subido
+    // Verificar que tenga al menos un soporte subido
     try {
         const response = await fetch(`${API_BASE}/soportes-entrega/${ordenActual}`);
         const data = await response.json();
         
-        if (!data.success || !data.data) {
-            alert('⚠️ Primero debes subir el soporte de entrega');
+        if (!data.success || !data.data || data.data.length === 0) {
+            alert('⚠️ Primero debes subir al menos un soporte de entrega');
             return;
         }
     } catch (error) {
-        console.error('Error verificando soporte:', error);
-        alert('❌ Error al verificar soporte');
+        console.error('Error verificando soportes:', error);
+        alert('❌ Error al verificar soportes');
         return;
     }
     
