@@ -1449,9 +1449,9 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
         const base64Data = archivo_base64.split(',')[1] || archivo_base64;
         const buffer = Buffer.from(base64Data, 'base64');
         
-        // Obtener empresa de la orden
+        // Obtener empresa y estado de la orden
         const ordenQuery = await pool.query(
-            'SELECT empresa FROM ordenes_compra WHERE codigo = $1',
+            'SELECT empresa, estado FROM ordenes_compra WHERE codigo = $1',
             [orden]
         );
         
@@ -1462,34 +1462,35 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
             });
         }
         
-        const empresa = ordenQuery.rows[0].empresa;
+        const { empresa, estado } = ordenQuery.rows[0];
         
-        // Verificar si ya existe un soporte
-        const existeQuery = await pool.query(
-            'SELECT id FROM soportes_entrega WHERE orden = $1',
+        // BLOQUEAR si la orden ya está ENTREGADA
+        if (estado === 'ENTREGADA') {
+            return res.status(403).json({
+                success: false,
+                error: 'No se pueden agregar soportes a órdenes ya ENTREGADAS'
+            });
+        }
+        
+        // Calcular número del soporte (siguiente número)
+        const maxNumQuery = await pool.query(
+            'SELECT COALESCE(MAX(numero_soporte), 0) + 1 as siguiente FROM soportes_entrega WHERE orden = $1',
             [orden]
         );
         
-        if (existeQuery.rows.length > 0) {
-            // Actualizar soporte existente
-            await pool.query(
-                `UPDATE soportes_entrega 
-                 SET nombre_archivo = $1, tipo_archivo = $2, archivo_data = $3, fecha_subida = CURRENT_TIMESTAMP
-                 WHERE orden = $4`,
-                [nombre_archivo, tipo_archivo, buffer, orden]
-            );
-        } else {
-            // Insertar nuevo soporte
-            await pool.query(
-                `INSERT INTO soportes_entrega (orden, nombre_archivo, tipo_archivo, archivo_data, empresa)
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [orden, nombre_archivo, tipo_archivo, buffer, empresa]
-            );
-        }
+        const numeroSoporte = maxNumQuery.rows[0].siguiente;
+        
+        // Insertar nuevo soporte (SIEMPRE insert, nunca update)
+        await pool.query(
+            `INSERT INTO soportes_entrega (orden, nombre_archivo, tipo_archivo, archivo_data, empresa, numero_soporte)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [orden, nombre_archivo, tipo_archivo, buffer, empresa, numeroSoporte]
+        );
         
         res.json({
             success: true,
-            message: 'Soporte cargado exitosamente'
+            message: 'Soporte cargado exitosamente',
+            numero_soporte: numeroSoporte
         });
     } catch (error) {
         console.error('Error subiendo soporte:', error);
@@ -1500,15 +1501,16 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
     }
 });
 
-// GET /api/soportes-entrega/:orden - Verificar si existe soporte
+// GET /api/soportes-entrega/:orden - Listar todos los soportes de una orden
 app.get('/api/soportes-entrega/:orden', async (req, res) => {
     const { orden } = req.params;
     
     try {
         const query = `
-            SELECT id, orden, nombre_archivo, tipo_archivo, fecha_subida
+            SELECT id, orden, nombre_archivo, tipo_archivo, fecha_subida, numero_soporte
             FROM soportes_entrega
             WHERE orden = $1
+            ORDER BY numero_soporte ASC
         `;
         
         const result = await pool.query(query, [orden]);
@@ -1516,35 +1518,36 @@ app.get('/api/soportes-entrega/:orden', async (req, res) => {
         if (result.rows.length === 0) {
             return res.json({
                 success: false,
-                message: 'No existe soporte para esta orden'
+                message: 'No existen soportes para esta orden',
+                data: []
             });
         }
         
         res.json({
             success: true,
-            data: result.rows[0]
+            data: result.rows
         });
     } catch (error) {
-        console.error('Error verificando soporte:', error);
+        console.error('Error verificando soportes:', error);
         res.status(500).json({
             success: false,
-            error: 'Error al verificar soporte'
+            error: 'Error al verificar soportes'
         });
     }
 });
 
-// GET /api/soportes-entrega/:orden/archivo - Descargar archivo del soporte
-app.get('/api/soportes-entrega/:orden/archivo', async (req, res) => {
-    const { orden } = req.params;
+// GET /api/soportes-entrega/archivo/:id - Descargar archivo específico del soporte
+app.get('/api/soportes-entrega/archivo/:id', async (req, res) => {
+    const { id } = req.params;
     
     try {
         const query = `
             SELECT archivo_data, tipo_archivo, nombre_archivo
             FROM soportes_entrega
-            WHERE orden = $1
+            WHERE id = $1
         `;
         
-        const result = await pool.query(query, [orden]);
+        const result = await pool.query(query, [id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -1602,14 +1605,21 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
             
             const fechaHoy = new Date().toISOString().split('T')[0];
             
-            // 1A. Actualizar orden: estado ENTREGADA + calcular fecha_vencimiento
+            // Limpiar observaciones si tiene [ORDEN INCOMPLETA]
+            let observacionesLimpias = orden.observaciones || '';
+            if (observacionesLimpias.startsWith('[ORDEN INCOMPLETA] ')) {
+                observacionesLimpias = observacionesLimpias.replace('[ORDEN INCOMPLETA] ', '');
+            }
+            
+            // 1A. Actualizar orden: estado ENTREGADA + calcular fecha_vencimiento + limpiar observaciones
             await client.query(
                 `UPDATE ordenes_compra 
                  SET estado = 'ENTREGADA',
                      fecha_entrega = $1,
-                     fecha_vencimiento = $1::date + dias_credito
-                 WHERE codigo = $2`,
-                [fechaHoy, codigo]
+                     fecha_vencimiento = $1::date + dias_credito,
+                     observaciones = $2
+                 WHERE codigo = $3`,
+                [fechaHoy, observacionesLimpias, codigo]
             );
             
             // 1B. Obtener productos de la orden
@@ -1649,15 +1659,24 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
             // CASO 2: ENTREGA INCOMPLETA
             // ============================================================
             
-            // 2A. Agregar [ORDEN INCOMPLETA] al inicio de observaciones
-            const nuevasObservaciones = '[ORDEN INCOMPLETA] ' + (orden.observaciones || '');
+            console.log('=== ENTREGA INCOMPLETA ===');
+            console.log('Observaciones actuales:', orden.observaciones);
             
-            await client.query(
+            // 2A. Agregar [ORDEN INCOMPLETA] al inicio de observaciones
+            const observacionesActuales = orden.observaciones || '';
+            const nuevasObservaciones = '[ORDEN INCOMPLETA] ' + observacionesActuales;
+            
+            console.log('Nuevas observaciones:', nuevasObservaciones);
+            
+            const updateResult = await client.query(
                 `UPDATE ordenes_compra 
                  SET observaciones = $1
-                 WHERE codigo = $2`,
+                 WHERE codigo = $2
+                 RETURNING observaciones`,
                 [nuevasObservaciones, codigo]
             );
+            
+            console.log('Update result:', updateResult.rows[0]);
             
             // Estado sigue siendo PENDIENTE (no se cambia)
             
