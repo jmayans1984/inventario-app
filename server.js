@@ -1856,12 +1856,13 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
 // ================================================================
 
 app.post('/api/movimientos/registrar', async (req, res) => {
-    const { movimientos } = req.body;
+    const { empresa, fecha, tipo, ccOrigen, ccDestino, observaciones, productos } = req.body;
     
-    if (!movimientos || !Array.isArray(movimientos) || movimientos.length === 0) {
+    // Validar datos
+    if (!empresa || !fecha || !tipo || !ccOrigen || !productos || productos.length === 0) {
         return res.status(400).json({
             success: false,
-            error: 'Se requiere un array de movimientos'
+            error: 'Faltan parámetros obligatorios'
         });
     }
     
@@ -1872,25 +1873,98 @@ app.post('/api/movimientos/registrar', async (req, res) => {
         
         let registrosCreados = 0;
         
-        for (const mov of movimientos) {
-            const query = `
-                INSERT INTO detalle_inventario 
-                (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            `;
+        // Procesar según tipo de operación
+        if (tipo === 'ENTRADA A ALMACEN') {
+            // ENTRADA: registrar en ccOrigen como ENTRADA
+            for (const prod of productos) {
+                const query = `
+                    INSERT INTO detalle_inventario 
+                    (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                    VALUES ($1, $2, $3, $4, 0, $5, $6, $7)
+                `;
+                
+                await client.query(query, [
+                    fecha,
+                    ccOrigen,
+                    prod.producto,
+                    prod.cantidad,
+                    'ENTRADA',
+                    empresa,
+                    observaciones || 'Entrada a almacén'
+                ]);
+                
+                registrosCreados++;
+            }
             
-            await client.query(query, [
-                mov.fecha,
-                mov.ccosto,
-                mov.codigo,
-                mov.entrada || 0,
-                mov.salida || 0,
-                mov.tipo,
-                mov.empresa,
-                mov.observaciones || ''
-            ]);
+        } else if (tipo === 'SALIDA DE ALMACEN') {
+            // SALIDA: registrar en ccOrigen como SALIDA
+            for (const prod of productos) {
+                const query = `
+                    INSERT INTO detalle_inventario 
+                    (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                    VALUES ($1, $2, $3, 0, $4, $5, $6, $7)
+                `;
+                
+                await client.query(query, [
+                    fecha,
+                    ccOrigen,
+                    prod.producto,
+                    prod.cantidad,
+                    'SALIDA',
+                    empresa,
+                    observaciones || 'Salida de almacén'
+                ]);
+                
+                registrosCreados++;
+            }
             
-            registrosCreados++;
+        } else if (tipo === 'TRANSFERENCIA ENTRE ALMACENES') {
+            // TRANSFERENCIA: SALIDA de ccOrigen + ENTRADA a ccDestino
+            if (!ccDestino) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    success: false,
+                    error: 'Se requiere centro de costo destino para transferencias'
+                });
+            }
+            
+            for (const prod of productos) {
+                // 1. SALIDA del origen
+                const querySalida = `
+                    INSERT INTO detalle_inventario 
+                    (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                    VALUES ($1, $2, $3, 0, $4, $5, $6, $7)
+                `;
+                
+                await client.query(querySalida, [
+                    fecha,
+                    ccOrigen,
+                    prod.producto,
+                    prod.cantidad,
+                    'TRANSFERENCIA',
+                    empresa,
+                    observaciones || `Transferencia a ${ccDestino}`
+                ]);
+                
+                // 2. ENTRADA al destino
+                const queryEntrada = `
+                    INSERT INTO detalle_inventario 
+                    (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                    VALUES ($1, $2, $3, $4, 0, $5, $6, $7)
+                `;
+                
+                await client.query(queryEntrada, [
+                    fecha,
+                    ccDestino,
+                    prod.producto,
+                    prod.cantidad,
+                    'TRANSFERENCIA',
+                    empresa,
+                    observaciones || `Transferencia desde ${ccOrigen}`
+                ]);
+                
+                registrosCreados += 2;
+            }
         }
         
         await client.query('COMMIT');
@@ -1898,7 +1972,7 @@ app.post('/api/movimientos/registrar', async (req, res) => {
         res.json({
             success: true,
             registros_creados: registrosCreados,
-            message: `${registrosCreados} movimiento(s) guardado(s) exitosamente`
+            message: `${tipo} registrado exitosamente`
         });
         
     } catch (error) {
