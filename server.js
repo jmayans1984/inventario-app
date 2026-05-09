@@ -1282,6 +1282,147 @@ app.get('/health', async (req, res) => {
 // RUTAS - ÓRDENES DE COMPRA Y RECEPCIÓN
 // ================================================================
 
+// POST /api/ordenes-compra - Crear nueva orden de compra
+app.post('/api/ordenes-compra', async (req, res) => {
+    const { empresa, fecha, dias_credito, observaciones, total, productos } = req.body;
+    
+    if (!empresa || !fecha || !productos || productos.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan datos obligatorios'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Generar consecutivo por empresa: OC-{empresa}-00001, OC-{empresa}-00002, etc.
+        const maxQuery = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM LENGTH($1) + 5) AS INT)), 0) + 1 as siguiente
+             FROM ordenes_compra 
+             WHERE codigo LIKE $2`,
+            [`OC-${empresa}`, `OC-${empresa}-%`]
+        );
+        
+        const siguiente = maxQuery.rows[0].siguiente;
+        const codigo = `OC-${empresa}-${String(siguiente).padStart(5, '0')}`;
+        
+        console.log(`Generando orden para empresa ${empresa}: ${codigo}`);
+        
+        // Insertar orden
+        await client.query(
+            `INSERT INTO ordenes_compra (codigo, fecha, empresa, dias_credito, observaciones, total, estado)
+             VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE')`,
+            [codigo, fecha, empresa, dias_credito, observaciones || null, total]
+        );
+        
+        // Insertar detalle
+        for (const producto of productos) {
+            await client.query(
+                `INSERT INTO detalle_ordenes (orden, producto_venta, cantidad, precio_unitario, subtotal)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [codigo, producto.producto_venta, producto.cantidad, producto.precio_unitario, producto.subtotal]
+            );
+        }
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            codigo: codigo,
+            message: 'Orden creada exitosamente'
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error creando orden:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al crear orden de compra'
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// PUT /api/ordenes-compra/:codigo - Editar orden de compra
+app.put('/api/ordenes-compra/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { empresa, fecha, dias_credito, observaciones, total, productos } = req.body;
+    
+    if (!empresa || !fecha || !productos || productos.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan datos obligatorios'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        // Verificar que esté PENDIENTE
+        const estadoQuery = await client.query(
+            'SELECT estado FROM ordenes_compra WHERE codigo = $1',
+            [codigo]
+        );
+        
+        if (estadoQuery.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                error: 'Orden no encontrada'
+            });
+        }
+        
+        if (estadoQuery.rows[0].estado !== 'PENDIENTE') {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                success: false,
+                error: 'Solo se pueden editar órdenes PENDIENTES'
+            });
+        }
+        
+        // Actualizar orden
+        await client.query(
+            `UPDATE ordenes_compra 
+             SET empresa = $1, fecha = $2, dias_credito = $3, observaciones = $4, total = $5
+             WHERE codigo = $6`,
+            [empresa, fecha, dias_credito, observaciones || null, total, codigo]
+        );
+        
+        // Borrar detalle anterior
+        await client.query('DELETE FROM detalle_ordenes WHERE orden = $1', [codigo]);
+        
+        // Insertar nuevo detalle
+        for (const producto of productos) {
+            await client.query(
+                `INSERT INTO detalle_ordenes (orden, producto_venta, cantidad, precio_unitario, subtotal)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [codigo, producto.producto_venta, producto.cantidad, producto.precio_unitario, producto.subtotal]
+            );
+        }
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            message: 'Orden actualizada exitosamente'
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error actualizando orden:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al actualizar orden de compra'
+        });
+    } finally {
+        client.release();
+    }
+});
+
 // GET /api/ordenes-compra - Listar órdenes de un cliente específico
 app.get('/api/ordenes-compra', async (req, res) => {
     const { empresa, estado } = req.query;
@@ -1703,6 +1844,70 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Error al procesar la recepción: ' + error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// ================================================================
+// ALIAS TEMPORAL - /api/movimientos/registrar
+// El frontend viejo llama a este endpoint, redirecciona a /api/inventario/movimientos
+// ================================================================
+
+app.post('/api/movimientos/registrar', async (req, res) => {
+    const { movimientos } = req.body;
+    
+    if (!movimientos || !Array.isArray(movimientos) || movimientos.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Se requiere un array de movimientos'
+        });
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+        await client.query('BEGIN');
+        
+        let registrosCreados = 0;
+        
+        for (const mov of movimientos) {
+            const query = `
+                INSERT INTO detalle_inventario 
+                (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `;
+            
+            await client.query(query, [
+                mov.fecha,
+                mov.ccosto,
+                mov.codigo,
+                mov.entrada || 0,
+                mov.salida || 0,
+                mov.tipo,
+                mov.empresa,
+                mov.observaciones || ''
+            ]);
+            
+            registrosCreados++;
+        }
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            registros_creados: registrosCreados,
+            message: `${registrosCreados} movimiento(s) guardado(s) exitosamente`
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/movimientos/registrar:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al guardar movimientos',
+            details: error.message
         });
     } finally {
         client.release();
