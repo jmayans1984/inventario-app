@@ -28,16 +28,16 @@ function cargarTomaFisica() {
                     </select>
                 </div>
 
-                <div class="filter-group">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" id="tomaFisicaParcial" checked onchange="">
-                        <span class="filter-label" style="margin: 0;">Toma Física de Inventario Parcial</span>
-                    </label>
-                </div>
-
                 <div class="filter-group full-width">
                     <label class="filter-label">Observaciones</label>
                     <input type="text" id="observacionesTomaFisica" class="filter-input" placeholder="Comentarios del conteo...">
+                </div>
+
+                <div class="filter-group full-width" style="padding-top: 0;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="tomaFisicaParcial" checked>
+                        <span style="font-size: 0.95rem; color: var(--text-primary);">Toma Física de Inventario Parcial</span>
+                    </label>
                 </div>
             </div>
 
