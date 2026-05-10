@@ -354,50 +354,58 @@ async function guardarTomaFisica() {
         return;
     }
 
-    // Recolectar productos con cantidad física
+    // Recolectar productos con diferencia y crear movimientos
     const inputs = document.querySelectorAll('.input-cantidad-fisica');
-    const productos = [];
+    const movimientos = [];
 
     inputs.forEach(input => {
         const value = input.value.trim();
         if (value !== '') {
             const cantidadFisica = parseFloat(value);
+            const stockSistema = parseFloat(input.dataset.stockSistema) || 0;
+
             if (!isNaN(cantidadFisica) && cantidadFisica >= 0) {
-                productos.push({
-                    producto: input.dataset.codigo,
-                    cantidad_fisica: cantidadFisica,
-                    stock_sistema: parseFloat(input.dataset.stockSistema) || 0
-                });
+                const diferencia = cantidadFisica - stockSistema;
+
+                // Si hay diferencia, crear movimiento
+                if (diferencia !== 0) {
+                    movimientos.push({
+                        fecha: fecha,
+                        ccosto: ccCosto,
+                        codigo: input.dataset.codigo,
+                        entrada: diferencia > 0 ? diferencia : 0,
+                        salida: diferencia < 0 ? Math.abs(diferencia) : 0,
+                        tipo: 'TOMA FISICA',
+                        empresa: sesion.empresa,
+                        observaciones: observaciones
+                    });
+                }
             }
         }
     });
 
-    if (productos.length === 0) {
-        alert('❌ Debe ingresar al menos un producto con cantidad');
+    if (movimientos.length === 0) {
+        alert('❌ Debe ingresar cantidades que generen diferencias');
         return;
     }
 
-    if (!confirm(`¿Confirmas registrar toma física de ${productos.length} producto(s)?`)) {
+    if (!confirm(`¿Confirmas registrar toma física con ${movimientos.length} movimiento(s)?`)) {
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE_TOMA}/toma-fisica/registrar`, {
+        const response = await fetch(`${API_BASE_TOMA}/inventario/movimientos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                empresa: sesion.empresa,
-                fecha: fecha,
-                ccosto: ccCosto,
-                observaciones: observaciones,
-                productos: productos
+                movimientos: movimientos
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            alert(`✅ Toma física registrada exitosamente\n\nProductos: ${productos.length}`);
+            alert(`✅ Toma física registrada exitosamente\n\nMovimientos: ${data.registros_creados}`);
             limpiarGridTomaFisica();
             cargarGridTomaFisica(); // Recargar grid
         } else {
