@@ -180,8 +180,12 @@ async function cargarGridGestion() {
     `;
     
     try {
-        // Cargar productos con control = SI
-        const response = await fetch(`${API_BASE_ALMACEN}/inventario`);
+        // Cargar productos con stock para el ccosto
+        const url = ccOrigen
+            ? `${API_BASE_ALMACEN}/inventario?ccosto=${ccOrigen}`
+            : `${API_BASE_ALMACEN}/inventario`;
+
+        const response = await fetch(url);
         const data = await response.json();
 
         if (data.success && data.data && data.data.length > 0) {
@@ -190,11 +194,19 @@ async function cargarGridGestion() {
                 codigo: item.codigo,
                 nombre: item.nombre,
                 unidad: item.und || 'UN',
-                stock_actual: 0
+                stock_actual: parseFloat(item.stock_actual) || 0,
+                grupo: item.grupo,
+                grupo_nombre: item.grupo_nombre
             }));
 
+            // Crear mapa de stock
+            const stockMap = {};
+            data.data.forEach(item => {
+                stockMap[item.codigo] = parseFloat(item.stock_actual) || 0;
+            });
+
             // Renderizar grid
-            renderizarGridGestion(productosActivos, {});
+            renderizarGridGestion(productosActivos, stockMap);
         } else {
             gridBody.innerHTML = `
                 <tr>

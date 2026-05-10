@@ -260,18 +260,39 @@ app.get('/api/empresas/all', async (req, res) => {
 // MÓDULO 3: INVENTARIO
 // ================================================================
 
-// GET /api/inventario - Obtener productos con control = SI
+// GET /api/inventario - Obtener productos con control = SI y stock por ccosto
 app.get('/api/inventario', async (req, res) => {
+    const { ccosto } = req.query;
+
     try {
-        const query = `
-            SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre as grupo_nombre
+        let query = `
+            SELECT
+                p.codigo,
+                p.nombre,
+                p.und,
+                p.grupo,
+                g.nombre as grupo_nombre,
+                COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0) as stock_actual
             FROM productos p
             LEFT JOIN grupo_productos g ON p.grupo = g.codigo
+        `;
+
+        const params = [];
+
+        if (ccosto) {
+            query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1`;
+            params.push(ccosto);
+        } else {
+            query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo`;
+        }
+
+        query += `
             WHERE UPPER(p.control) = 'SI'
+            GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.nombre
             ORDER BY g.nombre, p.nombre
         `;
 
-        const result = await pool.query(query);
+        const result = await pool.query(query, params);
 
         res.json({
             success: true,
