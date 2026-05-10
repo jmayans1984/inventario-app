@@ -260,50 +260,23 @@ app.get('/api/empresas/all', async (req, res) => {
 // MÓDULO 3: INVENTARIO
 // ================================================================
 
-// GET /api/inventario - Obtener inventario
+// GET /api/inventario - Obtener productos con control = SI
 app.get('/api/inventario', async (req, res) => {
-    const { empresa, ccosto } = req.query;
-    
-    if (!empresa) {
-        return res.status(400).json({
-            success: false,
-            error: 'Parámetro empresa requerido'
-        });
-    }
-    
     try {
-        let query = `
-            SELECT 
-                p.codigo,
-                p.nombre,
-                p.unidad,
-                COALESCE(SUM(d.entrada), 0) - COALESCE(SUM(d.salida), 0) as stock_actual
-            FROM productos p
-            LEFT JOIN detalle_inventario d ON p.codigo = d.codigo AND d.empresa = $1
+        const query = `
+            SELECT codigo, nombre, und
+            FROM productos
+            WHERE UPPER(control) = 'SI'
+            ORDER BY nombre
         `;
-        
-        const params = [empresa];
-        
-        if (ccosto) {
-            query += ` AND d.ccosto = $2`;
-            params.push(ccosto);
-        }
-        
-        query += `
-            WHERE p.empresa = $1
-            GROUP BY p.codigo, p.nombre, p.unidad
-            HAVING COALESCE(SUM(d.entrada), 0) - COALESCE(SUM(d.salida), 0) > 0
-            ORDER BY p.nombre
-        `;
-        
-        const result = await pool.query(query, params);
-        
+
+        const result = await pool.query(query);
+
         res.json({
             success: true,
-            data: result.rows,
-            total: result.rowCount
+            data: result.rows
         });
-        
+
     } catch (error) {
         console.error('Error en /api/inventario:', error);
         res.status(500).json({
