@@ -17,21 +17,21 @@ function cargarFacturasCompra() {
     
     contentDiv.innerHTML = `
         <!-- FILTROS -->
-        <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+        <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
                 <div>
                     <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Fecha Desde</label>
-                    <input type="date" id="fechaDesdeFC" value="${fechaDesdeStr}" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+                    <input type="date" id="fechaDesdeFC" value="${fechaDesdeStr}" style="width: 100%; padding: 0.7rem; background: var(--bg-primary); border: 2px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.9rem;">
                 </div>
 
                 <div>
                     <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Fecha Hasta</label>
-                    <input type="date" id="fechaHastaFC" value="${fechaHastaStr}" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+                    <input type="date" id="fechaHastaFC" value="${fechaHastaStr}" style="width: 100%; padding: 0.7rem; background: var(--bg-primary); border: 2px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.9rem;">
                 </div>
 
                 <div>
                     <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Estado</label>
-                    <select id="estadoFC" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+                    <select id="estadoFC" style="width: 100%; padding: 0.7rem; background: var(--bg-primary); border: 2px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.9rem;">
                         <option value="TODOS">TODOS</option>
                         <option value="PENDIENTE" selected>PENDIENTE</option>
                         <option value="PAGADA">PAGADA</option>
@@ -80,7 +80,7 @@ function renderFacturasCompra() {
 
     if (facturasCompraData.length === 0) {
         gridDiv.innerHTML = `
-            <div style="background: var(--bg-card); border-radius: 12px; padding: 3rem; border: 1px solid var(--border); text-align: center;">
+            <div style="background: var(--bg-secondary); border-radius: 12px; padding: 3rem; border: 1px solid var(--border); text-align: center;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
                 <h3 style="color: var(--text-secondary); font-weight: 600;">No se encontraron facturas</h3>
                 <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">Intenta con otros filtros</p>
@@ -124,17 +124,17 @@ function renderFacturasCompra() {
             estadoColor = 'var(--success)';
             estadoIcon = '🟢';
         } else {
-            estadoColor = '#60a5fa';
+            estadoColor = 'var(--info)';
             estadoIcon = '🔵';
         }
 
         htmlGrid += `
-            <div style="background: var(--bg-card); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); transition: all 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 24px rgba(139,92,246,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+            <div style="background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); transition: all 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 24px rgba(139,92,246,0.2)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
                 <!-- HEADER -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
                     <div>
                         <div style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Factura</div>
-                        <div style="font-size: 1.1rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary);">${factura.codigo}</div>
+                        <div style="font-size: 1.1rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--accent);">${factura.codigo}</div>
                     </div>
                     <div style="background: ${estadoColor}15; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid ${estadoColor}30;">
                         <div style="font-size: ${estadoTexto === 'VENCIDA' ? '1.1rem' : '0.85rem'}; font-weight: 800; color: ${estadoColor};">${estadoIcon} ${estadoTexto}</div>
@@ -182,13 +182,13 @@ function renderFacturasCompra() {
                     <div style="margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Total</div>
-                            <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary);">${formatMoneyFC(factura.total)}</div>
+                            <div style="font-size: 1.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--accent);">${formatMoneyFC(factura.total)}</div>
                         </div>
                     </div>
                 </div>
 
                 ${factura.observaciones ? `
-                <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);">
+                <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px; border: 1px solid var(--border);">
                     <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.25rem; text-transform: uppercase;">Observaciones</div>
                     <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">${factura.observaciones}</div>
                 </div>
@@ -196,7 +196,7 @@ function renderFacturasCompra() {
 
                 <!-- BOTONES -->
                 <div style="margin-top: 1rem; display: grid; grid-template-columns: ${factura.estado === 'PENDIENTE' ? '1fr 1fr' : '1fr 1fr'}; gap: 0.75rem;">
-                    <button onclick="verDetalleFactura('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(139, 92, 246, 0.1); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
+                    <button onclick="verDetalleFactura('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); color: var(--accent); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.2)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.1)'">
                         👁️ Ver Detalles
                     </button>
                     ${factura.estado === 'PENDIENTE' ? `
@@ -205,7 +205,7 @@ function renderFacturasCompra() {
                     </button>
                     ` : ''}
                     ${factura.estado === 'POR VERIFICAR' || factura.estado === 'PAGADA' ? `
-                    <button onclick="verSoportePago('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(96, 165, 250, 0.1); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(96, 165, 250, 0.2)'" onmouseout="this.style.background='rgba(96, 165, 250, 0.1)'">
+                    <button onclick="verSoportePago('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.2)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.1)'">
                         🖼️ Ver Soporte
                     </button>
                     ` : ''}
@@ -237,10 +237,10 @@ function renderFacturasCompra() {
     });
 
     htmlGrid = `
-        <div style="background: var(--bg-card); border-radius: 12px; padding: 1rem; border: 1px solid var(--border); margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+        <div style="background: var(--bg-secondary); border-radius: 12px; padding: 1rem; border: 1px solid var(--border); margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
             <div style="text-align: center;">
                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Total Facturas</div>
-                <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">${totalFacturas}</div>
+                <div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${totalFacturas}</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Monto Pendiente</div>
@@ -316,14 +316,18 @@ function mostrarModalDetalle(factura, detalle) {
     }
 
     const modalHTML = `
-        <div id="modalDetalle" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;" onclick="cerrarModalDetalle(event)">
-            <div style="background: var(--bg-card); border-radius: 12px; max-width: 900px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--border);" onclick="event.stopPropagation()">
+        <style>
+            #modalDetalle { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+            #modalDetalle > div { background: var(--bg-primary) !important; color: var(--text-primary) !important; }
+        </style>
+        <div id="modalDetalle" onclick="cerrarModalDetalle(event)">
+            <div style="background: var(--bg-primary); border-radius: 12px; max-width: 900px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--border);" onclick="event.stopPropagation()">
 
                 <!-- HEADER -->
                 <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">📋 Factura de Compra</div>
-                        <h2 style="font-size: 1.75rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary); margin: 0;">${factura.codigo}</h2>
+                        <h2 style="font-size: 1.75rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--accent); margin: 0;">${factura.codigo}</h2>
                     </div>
                     <button onclick="cerrarModalDetalle()" style="background: transparent; border: 2px solid var(--border); color: var(--text-secondary); width: 40px; height: 40px; border-radius: 6px; font-size: 1.5rem; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.color='var(--danger)'; this.style.borderColor='var(--danger)'" onmouseout="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'">✕</button>
                 </div>
@@ -345,7 +349,7 @@ function mostrarModalDetalle(factura, detalle) {
                             <div style="background: ${estadoColor}15; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid ${estadoColor}30; display: inline-block;"><span style="font-size: 0.85rem; font-weight: 700; color: ${estadoColor};">${estadoIcon} ${estadoTexto}</span></div>
                         </div>
                     </div>
-                    ${factura.observaciones ? `<div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);"><div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Observaciones</div><div style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.5;">${factura.observaciones}</div></div>` : ''}
+                    ${factura.observaciones ? `<div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border);"><div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Observaciones</div><div style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.5;">${factura.observaciones}</div></div>` : ''}
                 </div>
 
                 <!-- DETALLE DE PRODUCTOS -->
@@ -353,7 +357,7 @@ function mostrarModalDetalle(factura, detalle) {
                     <h3 style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 1rem 0;">Detalle de Productos</h3>
                     <div style="overflow-x: auto; border-radius: 6px; border: 1px solid var(--border);">
                         <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-                            <thead style="background: var(--bg);">
+                            <thead style="background: var(--bg-secondary);">
                                 <tr>
                                     <th style="padding: 0.75rem 1rem; text-align: left; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.7rem; border-bottom: 1px solid var(--border);">Producto</th>
                                     <th style="padding: 0.75rem 1rem; text-align: right; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 0.7rem; border-bottom: 1px solid var(--border);">Cantidad</th>
@@ -362,7 +366,7 @@ function mostrarModalDetalle(factura, detalle) {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${detalle.map((item, index) => `<tr style="background: ${index % 2 === 0 ? 'rgba(139, 92, 246, 0.05)' : 'transparent'}; border-bottom: 1px solid var(--border);"><td style="padding: 0.65rem 1rem;">${item.producto_nombre}</td><td style="padding: 0.65rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 600;">${parseFloat(item.cantidad).toFixed(2)}</td><td style="padding: 0.65rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 600;">${formatMoneyFC(item.precio_unitario)}</td><td style="padding: 0.65rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 700; color: var(--primary);">${formatMoneyFC(item.subtotal)}</td></tr>`).join('')}
+                                ${detalle.map((item, index) => `<tr style="background: ${index % 2 === 0 ? 'rgba(59, 130, 246, 0.05)' : 'transparent'}; border-bottom: 1px solid var(--border);"><td style="padding: 0.65rem 1rem;">${item.producto_nombre}</td><td style="padding: 0.65rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 600;">${parseFloat(item.cantidad).toFixed(2)}</td><td style="padding: 0.65rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 600;">${formatMoneyFC(item.precio_unitario)}</td><td style="padding: 0.65rem 1rem; text-align: right; font-family: 'Courier New', monospace; font-weight: 700; color: var(--accent);">${formatMoneyFC(item.subtotal)}</td></tr>`).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -372,13 +376,13 @@ function mostrarModalDetalle(factura, detalle) {
                 <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
                     <div style="max-width: 400px; margin-left: auto;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border);"><span style="color: var(--text-secondary); font-weight: 600;">Subtotal:</span><span style="font-weight: 700; font-family: 'Courier New', monospace; color: var(--text-primary);">${formatMoneyFC(factura.subtotal)}</span></div>
-                        <div style="display: flex; justify-content: space-between; padding: 1rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);"><span style="font-size: 1rem; font-weight: 800; text-transform: uppercase; color: var(--text-primary);">Total:</span><span style="font-size: 1.25rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary);">${formatMoneyFC(factura.total)}</span></div>
+                        <div style="display: flex; justify-content: space-between; padding: 1rem; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border);"><span style="font-size: 1rem; font-weight: 800; text-transform: uppercase; color: var(--text-primary);">Total:</span><span style="font-size: 1.25rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--accent);">${formatMoneyFC(factura.total)}</span></div>
                     </div>
                 </div>
 
                 <!-- BOTONES -->
                 <div style="padding: 1rem 1.5rem; text-align: right; display: flex; justify-content: flex-end; gap: 0.75rem;">
-                    <button onclick="cerrarModalDetalle()" style="padding: 0.75rem 1.5rem; background: var(--bg); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.3s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='var(--bg)'">Cerrar</button>
+                    <button onclick="cerrarModalDetalle()" style="padding: 0.75rem 1.5rem; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.3s;" onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='var(--bg-secondary)'">Cerrar</button>
                 </div>
 
             </div>
@@ -555,14 +559,18 @@ async function verSoportePago(codigoFactura) {
 
 function mostrarModalSoporte(soporte, factura) {
     const modalHTML = `
-        <div id="modalSoporte" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;" onclick="cerrarModalSoporte(event)">
-            <div style="background: var(--bg-card); border-radius: 12px; max-width: 900px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--border);" onclick="event.stopPropagation()">
+        <style>
+            #modalSoporte { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+            #modalSoporte > div { background: var(--bg-primary) !important; color: var(--text-primary) !important; }
+        </style>
+        <div id="modalSoporte" onclick="cerrarModalSoporte(event)">
+            <div style="background: var(--bg-primary); border-radius: 12px; max-width: 900px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--border);" onclick="event.stopPropagation()">
 
                 <!-- HEADER -->
                 <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">🖼️ Comprobante de Pago</div>
-                        <h2 style="font-size: 1.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary); margin: 0;">Factura ${factura}</h2>
+                        <h2 style="font-size: 1.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--accent); margin: 0;">Factura ${factura}</h2>
                     </div>
                     <button onclick="cerrarModalSoporte()" style="background: transparent; border: 2px solid var(--border); color: var(--text-secondary); width: 40px; height: 40px; border-radius: 6px; font-size: 1.5rem; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.color='var(--danger)'; this.style.borderColor='var(--danger)'" onmouseout="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'">✕</button>
                 </div>
@@ -582,14 +590,14 @@ function mostrarModalSoporte(soporte, factura) {
 
                 <!-- IMAGEN DEL SOPORTE -->
                 <div style="padding: 1.5rem; text-align: center;">
-                    <div style="background: var(--bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
                         <img src="${soporte.archivo_data}" style="max-width: 100%; max-height: 500px; height: auto; border-radius: 6px;" alt="Comprobante de pago">
                     </div>
                 </div>
 
                 <!-- BOTONES -->
                 <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); text-align: right;">
-                    <button onclick="cerrarModalSoporte()" style="padding: 0.75rem 1.5rem; background: var(--bg); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.3s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='var(--bg)'">Cerrar</button>
+                    <button onclick="cerrarModalSoporte()" style="padding: 0.75rem 1.5rem; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.3s;" onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='var(--bg-secondary)'">Cerrar</button>
                 </div>
 
             </div>
