@@ -73,25 +73,20 @@
 
             <!-- TABLA -->
             <div style="overflow-x: auto;">
-                <table class="grid-table">
+                <table class="grid-table" style="font-size: 0.85rem;">
                     <thead>
                         <tr>
-                            <th>Código</th>
-                            <th>Fecha</th>
-                            <th>Proveedor</th>
-                            <th>Concepto</th>
-                            <th>Cuenta</th>
-                            <th>Factura</th>
-                            <th style="text-align: right;">Subtotal</th>
-                            <th style="text-align: right;">Impuestos</th>
-                            <th style="text-align: right;">Total</th>
-                            <th>C. Costo</th>
-                            <th>Estado</th>
+                            <th style="min-width: 80px;">Código</th>
+                            <th style="min-width: 90px;">Fecha</th>
+                            <th style="min-width: 120px;">Proveedor</th>
+                            <th style="min-width: 150px;">Concepto</th>
+                            <th style="min-width: 100px;">C. Costo</th>
+                            <th style="text-align: right; min-width: 90px;">Total</th>
                         </tr>
                     </thead>
                     <tbody id="gridBody">
                         <tr>
-                            <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                                 Selecciona el rango de fechas y presiona Buscar
                             </td>
                         </tr>

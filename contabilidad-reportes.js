@@ -101,7 +101,7 @@ async function cargarReporte() {
     const gridBody = document.getElementById('gridBody');
     gridBody.innerHTML = `
         <tr>
-            <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                 Cargando...
             </td>
         </tr>
@@ -117,44 +117,61 @@ async function cargarReporte() {
         const data = await response.json();
         
         if (data.success && data.gastos.length > 0) {
+            // Agrupar por cuenta contable
+            const gastosPorCuenta = agruparPorCuenta(data.gastos);
+            
             let html = '';
             let totalGeneral = 0;
+            let cantidadTotal = 0;
             
-            data.gastos.forEach(gasto => {
-                totalGeneral += parseFloat(gasto.total || 0);
+            // Recorrer cada cuenta
+            for (const [codigoCuenta, datosGrupo] of Object.entries(gastosPorCuenta)) {
+                const nombreCuenta = datosGrupo.nombre;
+                const gastosGrupo = datosGrupo.gastos;
+                const totalCuenta = datosGrupo.total;
+                const cantidadCuenta = gastosGrupo.length;
                 
+                totalGeneral += totalCuenta;
+                cantidadTotal += cantidadCuenta;
+                
+                // Header de la cuenta
                 html += `
-                    <tr>
-                        <td style="font-family: var(--font-mono); font-weight: 600;">${gasto.codigo}</td>
-                        <td>${formatearFecha(gasto.fecha)}</td>
-                        <td>${gasto.proveedor_nombre || gasto.proveedor}</td>
-                        <td>${gasto.concepto || '-'}</td>
-                        <td style="font-size: 0.85rem;">${gasto.cuenta_nombre || gasto.cuenta}</td>
-                        <td>${gasto.factura || '-'}</td>
-                        <td style="text-align: right; font-family: var(--font-mono);">$${formatearNumero(gasto.subtotal)}</td>
-                        <td style="text-align: right; font-family: var(--font-mono);">$${formatearNumero(gasto.impuestos)}</td>
-                        <td style="text-align: right; font-family: var(--font-mono); font-weight: 600;">$${formatearNumero(gasto.total)}</td>
-                        <td style="font-size: 0.85rem;">${gasto.ccosto_nombre || gasto.ccosto}</td>
-                        <td>
-                            <span style="padding: 0.25rem 0.5rem; background-color: var(--${gasto.estado === 'PENDIENTE' ? 'warning' : 'success'}-light); color: var(--${gasto.estado === 'PENDIENTE' ? 'warning' : 'success'}); border-radius: 4px; font-size: 0.8rem; font-weight: 500;">
-                                ${gasto.estado}
+                    <tr style="background-color: var(--bg-tertiary); font-weight: 600;">
+                        <td colspan="6" style="padding: 0.75rem;">
+                            📁 ${codigoCuenta} - ${nombreCuenta}
+                            <span style="float: right;">
+                                ${cantidadCuenta} registro${cantidadCuenta !== 1 ? 's' : ''} | Total: $${formatearNumero(totalCuenta)}
                             </span>
                         </td>
                     </tr>
                 `;
-            });
+                
+                // Gastos de esta cuenta
+                gastosGrupo.forEach(gasto => {
+                    html += `
+                        <tr>
+                            <td style="font-family: var(--font-mono); font-size: 0.8rem;">${gasto.codigo}</td>
+                            <td style="font-size: 0.8rem;">${formatearFecha(gasto.fecha)}</td>
+                            <td style="font-size: 0.8rem;">${gasto.proveedor_nombre || gasto.proveedor}</td>
+                            <td style="font-size: 0.8rem;">${gasto.concepto || '-'}</td>
+                            <td style="font-size: 0.75rem;">${gasto.ccosto_nombre || gasto.ccosto}</td>
+                            <td style="text-align: right; font-family: var(--font-mono); font-weight: 600; font-size: 0.85rem;">$${formatearNumero(gasto.total)}</td>
+                        </tr>
+                    `;
+                });
+            }
             
             gridBody.innerHTML = html;
             
             // Mostrar totales
             document.getElementById('totales').style.display = 'block';
             document.getElementById('totalGastos').textContent = `$${formatearNumero(totalGeneral)}`;
-            document.getElementById('cantidadGastos').textContent = data.gastos.length;
+            document.getElementById('cantidadGastos').textContent = cantidadTotal;
             
         } else {
             gridBody.innerHTML = `
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                         No se encontraron gastos en el período seleccionado
                     </td>
                 </tr>
@@ -165,7 +182,7 @@ async function cargarReporte() {
         console.error('Error cargando reporte:', error);
         gridBody.innerHTML = `
             <tr>
-                <td colspan="11" style="text-align: center; padding: 3rem; color: var(--danger);">
+                <td colspan="6" style="text-align: center; padding: 3rem; color: var(--danger);">
                     ❌ Error al cargar el reporte
                 </td>
             </tr>
@@ -175,16 +192,57 @@ async function cargarReporte() {
 }
 
 // ================================================================
+// AGRUPAR GASTOS POR CUENTA CONTABLE
+// ================================================================
+
+function agruparPorCuenta(gastos) {
+    const grupos = {};
+    
+    gastos.forEach(gasto => {
+        const codigoCuenta = gasto.cuenta;
+        const nombreCuenta = gasto.cuenta_nombre || gasto.cuenta;
+        
+        if (!grupos[codigoCuenta]) {
+            grupos[codigoCuenta] = {
+                nombre: nombreCuenta,
+                gastos: [],
+                total: 0
+            };
+        }
+        
+        grupos[codigoCuenta].gastos.push(gasto);
+        grupos[codigoCuenta].total += parseFloat(gasto.total || 0);
+    });
+    
+    return grupos;
+}
+
+// ================================================================
 // UTILIDADES
 // ================================================================
 
 function formatearFecha(fecha) {
-    const date = new Date(fecha + 'T00:00:00');
-    return date.toLocaleDateString('es-ES', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-    });
+    if (!fecha) return '-';
+    
+    // Si la fecha ya tiene formato YYYY-MM-DD
+    const partes = fecha.split('-');
+    if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+    
+    // Fallback: intentar parsear normalmente
+    try {
+        const date = new Date(fecha + 'T00:00:00');
+        if (isNaN(date.getTime())) return fecha; // Si falla, devolver el string original
+        
+        return date.toLocaleDateString('es-ES', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit' 
+        });
+    } catch (e) {
+        return fecha;
+    }
 }
 
 function formatearNumero(numero) {
