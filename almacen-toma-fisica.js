@@ -28,6 +28,13 @@ function cargarTomaFisica() {
                     </select>
                 </div>
 
+                <div class="filter-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="tomaFisicaParcial" checked onchange="">
+                        <span class="filter-label" style="margin: 0;">Toma Física de Inventario Parcial</span>
+                    </label>
+                </div>
+
                 <div class="filter-group full-width">
                     <label class="filter-label">Observaciones</label>
                     <input type="text" id="observacionesTomaFisica" class="filter-input" placeholder="Comentarios del conteo...">
@@ -342,6 +349,7 @@ async function guardarTomaFisica() {
     const fecha = document.getElementById('fechaTomaFisica').value;
     const ccCosto = document.getElementById('ccCostoTomaFisica').value;
     const observaciones = document.getElementById('observacionesTomaFisica').value.trim();
+    const esTomaFisicaParcial = document.getElementById('tomaFisicaParcial').checked;
 
     // Validar campos
     if (!fecha) {
@@ -360,26 +368,37 @@ async function guardarTomaFisica() {
 
     inputs.forEach(input => {
         const value = input.value.trim();
-        if (value !== '') {
-            const cantidadFisica = parseFloat(value);
-            const stockSistema = parseFloat(input.dataset.stockSistema) || 0;
+        const stockSistema = parseFloat(input.dataset.stockSistema) || 0;
 
-            if (!isNaN(cantidadFisica) && cantidadFisica >= 0) {
-                const diferencia = cantidadFisica - stockSistema;
+        // Determinar cantidad física según tipo de toma
+        let cantidadFisica = null;
 
-                // Si hay diferencia, crear movimiento
-                if (diferencia !== 0) {
-                    movimientos.push({
-                        fecha: fecha,
-                        ccosto: ccCosto,
-                        codigo: input.dataset.codigo,
-                        entrada: diferencia > 0 ? diferencia : 0,
-                        salida: diferencia < 0 ? Math.abs(diferencia) : 0,
-                        tipo: 'TOMA FISICA',
-                        empresa: sesion.empresa,
-                        observaciones: observaciones
-                    });
-                }
+        if (esTomaFisicaParcial) {
+            // Toma parcial: solo procesa si tiene valor ingresado
+            if (value === '') {
+                return; // Salta este producto
+            }
+            cantidadFisica = parseFloat(value);
+        } else {
+            // Toma total: campos en blanco se asumen como 0
+            cantidadFisica = value === '' ? 0 : parseFloat(value);
+        }
+
+        if (!isNaN(cantidadFisica) && cantidadFisica >= 0) {
+            const diferencia = cantidadFisica - stockSistema;
+
+            // Si hay diferencia, crear movimiento
+            if (diferencia !== 0) {
+                movimientos.push({
+                    fecha: fecha,
+                    ccosto: ccCosto,
+                    codigo: input.dataset.codigo,
+                    entrada: diferencia > 0 ? diferencia : 0,
+                    salida: diferencia < 0 ? Math.abs(diferencia) : 0,
+                    tipo: 'TOMA FISICA',
+                    empresa: sesion.empresa,
+                    observaciones: observaciones
+                });
             }
         }
     });
@@ -389,7 +408,8 @@ async function guardarTomaFisica() {
         return;
     }
 
-    if (!confirm(`¿Confirmas registrar toma física con ${movimientos.length} movimiento(s)?`)) {
+    const tipoToma = esTomaFisicaParcial ? 'Parcial' : 'Total';
+    if (!confirm(`¿Confirmas registrar toma física ${tipoToma} con ${movimientos.length} movimiento(s)?`)) {
         return;
     }
 
@@ -405,7 +425,7 @@ async function guardarTomaFisica() {
         const data = await response.json();
 
         if (data.success) {
-            alert(`✅ Toma física registrada exitosamente\n\nMovimientos: ${data.registros_creados}`);
+            alert(`✅ Toma física ${tipoToma} registrada exitosamente\n\nMovimientos: ${data.registros_creados}`);
             limpiarGridTomaFisica();
             cargarGridTomaFisica(); // Recargar grid
         } else {
