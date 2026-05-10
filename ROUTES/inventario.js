@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
             SELECT
                 p.codigo,
                 p.nombre,
-                p.und as unidad,
+                p.und,
                 COALESCE(SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)), 0) as stock_actual
             FROM productos p
             LEFT JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1

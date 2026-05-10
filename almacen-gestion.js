@@ -193,7 +193,7 @@ async function cargarGridGestion() {
             productosActivos = stockData.data.map(item => ({
                 codigo: item.codigo,
                 nombre: item.nombre,
-                unidad: item.unidad || 'UN',
+                unidad: item.und || 'UN',
                 stock_actual: parseFloat(item.stock_actual) || 0
             }));
             
