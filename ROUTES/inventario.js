@@ -9,30 +9,23 @@ const pool = require('../config/database');
 // GET /api/inventario - Obtener inventario
 router.get('/', async (req, res) => {
     const { empresa, ccosto } = req.query;
-    
+
     if (!empresa) {
         return res.status(400).json({
             success: false,
             error: 'Parámetro empresa requerido'
         });
     }
-    
+
     try {
         let query = `
             SELECT
                 p.codigo,
                 p.nombre,
                 p.und as unidad,
-                p.grupo,
-                gp.codigo as grupo_codigo,
-                gp.nombre as grupo_nombre,
-                SUM(COALESCE(di.entrada, 0)) as total_entradas,
-                SUM(COALESCE(di.salida, 0)) as total_salidas,
-                SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)) as stock_actual,
-                COUNT(*) as movimientos
+                COALESCE(SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)), 0) as stock_actual
             FROM productos p
             LEFT JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
-            LEFT JOIN grupo_productos gp ON p.grupo = gp.codigo
             WHERE UPPER(p.control) = 'SI'
         `;
 
@@ -44,18 +37,18 @@ router.get('/', async (req, res) => {
         }
 
         query += `
-            GROUP BY p.codigo, p.nombre, p.und, p.grupo, gp.codigo, gp.nombre
-            ORDER BY gp.codigo, p.nombre
+            GROUP BY p.codigo, p.nombre, p.und
+            ORDER BY p.nombre
         `;
-        
+
         const result = await pool.query(query, params);
-        
+
         res.json({
             success: true,
             data: result.rows,
             total: result.rowCount
         });
-        
+
     } catch (error) {
         console.error('Error en /api/inventario:', error);
         res.status(500).json({
