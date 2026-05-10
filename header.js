@@ -13,11 +13,14 @@ async function inicializarHeader() {
     }
     
     // Buscar el nombre de la empresa en la lista de empresas del usuario
-    const empresaData = usuario.empresas.find(e => e.empresa === empresaCodigo);
+    const empresaData = usuario.empresas.find(e => String(e.empresa) === String(empresaCodigo));
     const empresaNombre = empresaData ? empresaData.empresa_nombre : empresaCodigo;
     
-    console.log('Empresa seleccionada:', empresaCodigo);
-    console.log('Nombre de empresa:', empresaNombre);
+    console.log('🔍 DEBUG Header:');
+    console.log('Código empresa:', empresaCodigo, typeof empresaCodigo);
+    console.log('Empresas disponibles:', usuario.empresas);
+    console.log('Empresa encontrada:', empresaData);
+    console.log('Nombre empresa:', empresaNombre);
     
     // Actualizar header
     const userNameElement = document.getElementById('userName');
