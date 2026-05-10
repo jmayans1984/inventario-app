@@ -69,7 +69,7 @@ async function cargarCuentasReporte() {
             const select = document.getElementById('cuentaBancariaReporte');
             let html = '<option value="">-- Seleccione una cuenta --</option>';
             data.data.forEach(cuenta => {
-                html += `<option value="${cuenta.codigo}">${cuenta.nombre_cta} (${cuenta.nombre_banco})</option>`;
+                html += `<option value="${cuenta.codigo}">${cuenta.nombre_cta}</option>`;
             });
             select.innerHTML = html;
         }

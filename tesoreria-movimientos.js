@@ -55,7 +55,7 @@ function cargarFormMovimientos() {
             <!-- CONCEPTO -->
             <div>
                 <label style="display: block; margin-bottom: 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Concepto</label>
-                <input type="text" id="conceptoMovimiento" placeholder="Descripción del movimiento" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem;">
+                <input type="text" id="conceptoMovimiento" placeholder="Descripción del movimiento" style="width: 100%; padding: 0.7rem; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem; text-transform: uppercase;" onchange="this.value = this.value.toUpperCase()">
             </div>
         </div>
 
@@ -81,7 +81,7 @@ async function cargarCuentasBancarias() {
             
             let html = '<option value="">-- Seleccione una cuenta --</option>';
             data.data.forEach(cuenta => {
-                html += `<option value="${cuenta.codigo}">${cuenta.nombre_cta} (${cuenta.nombre_banco})</option>`;
+                html += `<option value="${cuenta.codigo}">${cuenta.nombre_cta}</option>`;
             });
             
             selectOrigen.innerHTML = html;
