@@ -246,54 +246,67 @@ function renderizarGridGestion(productos, stockMap) {
         return;
     }
 
-    // Agrupar productos por grupo
+    // Agrupar productos por código de grupo
     const grupos = {};
     productos.forEach(producto => {
-        const grupoNombre = producto.grupo_nombre || 'Sin Grupo';
-        if (!grupos[grupoNombre]) {
-            grupos[grupoNombre] = [];
+        const codigoGrupo = producto.grupo || 'SIN_GRUPO';
+        const nombreGrupo = producto.grupo_nombre || 'Sin Grupo';
+
+        if (!grupos[codigoGrupo]) {
+            grupos[codigoGrupo] = {
+                nombre: nombreGrupo,
+                productos: []
+            };
         }
-        grupos[grupoNombre].push(producto);
+        grupos[codigoGrupo].productos.push(producto);
     });
 
     let html = '';
 
-    // Renderizar por grupo
-    Object.keys(grupos).sort().forEach(grupoNombre => {
-        html += `
-            <tr style="background: var(--bg-secondary); font-weight: 700; color: var(--text-primary);">
-                <td colspan="5" style="padding: 0.75rem 1rem; border-bottom: 2px solid var(--border);">
-                    📦 ${grupoNombre}
-                </td>
-            </tr>
-        `;
-
-        grupos[grupoNombre].forEach(producto => {
-            const stockActual = producto.stock_actual || stockMap[producto.codigo] || 0;
+    // Renderizar por grupo, ordenando por código de grupo numéricamente
+    Object.keys(grupos)
+        .sort((a, b) => {
+            if (a === 'SIN_GRUPO') return 1;
+            if (b === 'SIN_GRUPO') return -1;
+            return parseInt(a) - parseInt(b);
+        })
+        .forEach(codigoGrupo => {
+            const grupo = grupos[codigoGrupo];
 
             html += `
-                <tr data-codigo="${producto.codigo}" style="border-bottom: 1px solid var(--border);">
-                    <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600; padding: 0.5rem 1rem;">${producto.codigo}</td>
-                    <td style="padding: 0.5rem 1rem;">${producto.nombre}</td>
-                    <td style="padding: 0.5rem 1rem;">${producto.unidad || '-'}</td>
-                    <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-secondary); padding: 0.5rem 1rem;">
-                        ${formatearNumeroGestion(stockActual)}
-                    </td>
-                    <td style="text-align: right; padding: 0.5rem 1rem;">
-                        <input
-                            type="text"
-                            class="input-cantidad"
-                            data-codigo="${producto.codigo}"
-                            placeholder=""
-                            onblur="formatearInputGestion(this)"
-                            onfocus="limpiarFormatoGestion(this)"
-                            style="width: 80px; padding: 0.4rem; text-align: right;"
-                        >
+                <tr style="background: var(--bg-secondary); font-weight: 700; color: var(--text-primary);">
+                    <td colspan="5" style="padding: 0.75rem 1rem; border-bottom: 2px solid var(--border);">
+                        📦 ${grupo.nombre}
                     </td>
                 </tr>
             `;
+
+            grupo.productos.forEach(producto => {
+                const stockActual = producto.stock_actual || stockMap[producto.codigo] || 0;
+
+                html += `
+                    <tr data-codigo="${producto.codigo}" style="border-bottom: 1px solid var(--border);">
+                        <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600; padding: 0.5rem 1rem;">${producto.codigo}</td>
+                        <td style="padding: 0.5rem 1rem;">${producto.nombre}</td>
+                        <td style="padding: 0.5rem 1rem;">${producto.unidad || '-'}</td>
+                        <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-secondary); padding: 0.5rem 1rem;">
+                            ${formatearNumeroGestion(stockActual)}
+                        </td>
+                        <td style="text-align: right; padding: 0.5rem 1rem;">
+                            <input
+                                type="text"
+                                class="input-cantidad"
+                                data-codigo="${producto.codigo}"
+                                placeholder=""
+                                onblur="formatearInputGestion(this)"
+                                onfocus="limpiarFormatoGestion(this)"
+                                style="width: 80px; padding: 0.4rem; text-align: right;"
+                            >
+                        </td>
+                    </tr>
+                `;
+            });
         });
-    });
 
     gridBody.innerHTML = html;
 }
