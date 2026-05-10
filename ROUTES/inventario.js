@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
     
     try {
         let query = `
-            SELECT 
+            SELECT
                 p.codigo,
                 p.nombre,
                 p.und as unidad,
@@ -30,23 +30,21 @@ router.get('/', async (req, res) => {
                 SUM(COALESCE(di.salida, 0)) as total_salidas,
                 SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)) as stock_actual,
                 COUNT(*) as movimientos
-            FROM detalle_inventario di
-            INNER JOIN productos p ON di.codigo = p.codigo
+            FROM productos p
+            LEFT JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
             LEFT JOIN grupo_productos gp ON p.grupo = gp.codigo
-            WHERE di.empresa = $1
-            AND UPPER(p.control) = 'SI'
+            WHERE UPPER(p.control) = 'SI'
         `;
-        
+
         const params = [empresa];
-        
+
         if (ccosto) {
             params.push(ccosto);
-            query += ` AND di.ccosto = $2`;
+            query += ` AND (di.ccosto = $2 OR di.ccosto IS NULL)`;
         }
-        
+
         query += `
             GROUP BY p.codigo, p.nombre, p.und, p.grupo, gp.codigo, gp.nombre
-            HAVING SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)) <> 0
             ORDER BY gp.codigo, p.nombre
         `;
         

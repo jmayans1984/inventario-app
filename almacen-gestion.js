@@ -183,7 +183,11 @@ async function cargarGridGestion() {
         // Cargar inventario del ccosto con control = SI
         const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
         const stockData = await stockResponse.json();
-        
+
+        console.log('📦 Respuesta del API:', stockData);
+        console.log('📊 Empresa:', sesion.empresa);
+        console.log('📍 CCosto:', ccOrigen);
+
         if (stockData.success && stockData.data && stockData.data.length > 0) {
             // Crear array de productos desde el inventario
             productosActivos = stockData.data.map(item => ({
