@@ -91,7 +91,7 @@ async function cargarCuentasContables() {
             data.cuentas.forEach(cuenta => {
                 const option = document.createElement('option');
                 option.value = cuenta.codigo;
-                option.textContent = `${cuenta.codigo} - ${cuenta.cuenta}`;
+                option.textContent = cuenta.cuenta;
                 select.appendChild(option);
             });
         }
@@ -117,7 +117,7 @@ async function cargarCentrosCosto() {
             data.ccostos.forEach(cc => {
                 const option = document.createElement('option');
                 option.value = cc.codigo;
-                option.textContent = `${cc.codigo} - ${cc.nombre}`;
+                option.textContent = cc.nombre;
                 select.appendChild(option);
             });
         }
@@ -143,7 +143,7 @@ async function cargarCuentasBancarias() {
             data.cuentas.forEach(cuenta => {
                 const option = document.createElement('option');
                 option.value = cuenta.codigo;
-                option.textContent = `${cuenta.nombre_banco} - ${cuenta.nombre_cta}`;
+                option.textContent = cuenta.nombre_cta;
                 select.appendChild(option);
             });
         }
