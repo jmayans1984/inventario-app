@@ -184,9 +184,13 @@ async function cargarGridGestion() {
         const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
         const stockData = await stockResponse.json();
 
-        console.log('📦 Respuesta del API:', stockData);
+        console.log('📦 Respuesta del API COMPLETA:', JSON.stringify(stockData, null, 2));
         console.log('📊 Empresa:', sesion.empresa);
         console.log('📍 CCosto:', ccOrigen);
+
+        if (!stockResponse.ok) {
+            console.error('❌ Error HTTP:', stockResponse.status, stockResponse.statusText);
+        }
 
         if (stockData.success && stockData.data && stockData.data.length > 0) {
             // Crear array de productos desde el inventario
