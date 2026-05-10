@@ -3,7 +3,7 @@
 // ================================================================
 
 // Verificar sesión y cargar header
-function inicializarHeader() {
+async function inicializarHeader() {
     const usuario = JSON.parse(localStorage.getItem('usuario'));
     const empresaCodigo = localStorage.getItem('empresaActual');
     
@@ -15,6 +15,9 @@ function inicializarHeader() {
     // Buscar el nombre de la empresa en la lista de empresas del usuario
     const empresaData = usuario.empresas.find(e => e.empresa === empresaCodigo);
     const empresaNombre = empresaData ? empresaData.empresa_nombre : empresaCodigo;
+    
+    console.log('Empresa seleccionada:', empresaCodigo);
+    console.log('Nombre de empresa:', empresaNombre);
     
     // Actualizar header
     const userNameElement = document.getElementById('userName');
@@ -46,38 +49,9 @@ function cerrarSesion() {
     }
 }
 
-// Toggle menú hamburguesa
-function toggleMenu() {
-    const menu = document.getElementById('hamburgerMenu');
-    const overlay = document.getElementById('menuOverlay');
-    
-    if (menu && overlay) {
-        const isOpen = menu.classList.contains('open');
-        
-        if (isOpen) {
-            menu.classList.remove('open');
-            overlay.classList.remove('open');
-        } else {
-            menu.classList.add('open');
-            overlay.classList.add('open');
-        }
-    }
-}
-
-// Cerrar menú al hacer click en overlay
-function cerrarMenu() {
-    const menu = document.getElementById('hamburgerMenu');
-    const overlay = document.getElementById('menuOverlay');
-    
-    if (menu && overlay) {
-        menu.classList.remove('open');
-        overlay.classList.remove('open');
-    }
-}
-
 // Inicializar al cargar el DOM
-document.addEventListener('DOMContentLoaded', () => {
-    const sesion = inicializarHeader();
+document.addEventListener('DOMContentLoaded', async () => {
+    const sesion = await inicializarHeader();
     
     // Hacer sesión global
     if (sesion) {
