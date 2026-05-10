@@ -180,8 +180,8 @@ async function cargarGridGestion() {
     `;
     
     try {
-        // Cargar inventario del ccOrigen
-        const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
+        // Cargar productos con control = SI
+        const stockResponse = await fetch(`${API_BASE_ALMACEN}/productos?control=SI`);
         const stockData = await stockResponse.json();
         
         if (stockData.success && stockData.data && stockData.data.length > 0) {
