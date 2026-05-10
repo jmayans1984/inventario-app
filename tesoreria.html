@@ -2,410 +2,109 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>Tesorería</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        :root {
-            --primary: #8b5cf6;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --bg: #0a0a0f;
-            --bg-card: #16161d;
-            --bg-hover: #1f1f28;
-            --text: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border: #2d2d3a;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            font-size: 14px;
-            overflow-x: hidden;
-        }
-
-        .header {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 1.5rem;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .menu-toggle {
-            display: none;
-            background: transparent;
-            border: 2px solid var(--border);
-            border-radius: 6px;
-            padding: 0.5rem;
-            cursor: pointer;
-            color: var(--text);
-            font-size: 1.2rem;
-        }
-
-        .header-left h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .btn-back {
-            padding: 0.6rem 1.2rem;
-            background: rgba(59, 130, 246, 0.15);
-            color: #3b82f6;
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .btn-back:hover {
-            background: rgba(59, 130, 246, 0.25);
-        }
-
-        .app-layout {
-            display: flex;
-            min-height: calc(100vh - 65px);
-        }
-
-        .sidebar {
-            width: 280px;
-            background: var(--bg-card);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0;
-            overflow-y: auto;
-            transition: left 0.3s;
-        }
-
-        .sidebar-section {
-            margin-bottom: 2rem;
-        }
-
-        .sidebar-section-title {
-            padding: 0 1.5rem;
-            margin-bottom: 0.75rem;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-secondary);
-        }
-
-        .sidebar-menu {
-            list-style: none;
-        }
-
-        .sidebar-menu-item {
-            padding: 0.75rem 1.5rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-            border-left: 3px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .sidebar-menu-item:hover {
-            background: var(--bg-hover);
-            color: var(--text);
-        }
-
-        .sidebar-menu-item.active {
-            background: rgba(139, 92, 246, 0.1);
-            color: var(--primary);
-            border-left-color: var(--primary);
-            font-weight: 600;
-        }
-
-        .sidebar-menu-icon {
-            font-size: 1.2rem;
-        }
-
-        .main-content {
-            flex: 1;
-            padding: 2rem;
-            overflow-y: auto;
-        }
-
-        .content-header {
-            margin-bottom: 2rem;
-        }
-
-        .content-header h2 {
-            font-size: 2rem;
-            font-weight: 800;
-            margin-bottom: 0.5rem;
-        }
-
-        .content-header p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
-
-        .content-body {
-            display: none;
-        }
-
-        .content-body.active {
-            display: block;
-        }
-
-        .placeholder-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 3rem;
-            text-align: center;
-        }
-
-        .badge-coming-soon {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background: rgba(245, 158, 11, 0.15);
-            color: var(--warning);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        /* MODAL */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            padding: 1rem;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--bg-card);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            max-width: 900px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            animation: modalSlideIn 0.3s ease-out;
-        }
-
-        @keyframes modalSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .modal-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-close {
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            line-height: 1;
-            transition: all 0.3s;
-        }
-
-        .modal-close:hover {
-            color: var(--danger);
-            transform: rotate(90deg);
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        @media (max-width: 768px) {
-            .menu-toggle {
-                display: block;
-            }
-
-            .sidebar {
-                position: fixed;
-                left: -280px;
-                top: 65px;
-                height: calc(100vh - 65px);
-                z-index: 99;
-                box-shadow: 4px 0 20px rgba(0,0,0,0.5);
-            }
-
-            .sidebar.mobile-open {
-                left: 0;
-            }
-
-            .main-content {
-                padding: 1rem;
-            }
-
-            .content-header h2 {
-                font-size: 1.5rem;
-            }
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tesorería - RestManager Pro</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <div class="header-left">
-                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-                <h1>💰 Tesorería</h1>
+    <!-- HEADER UNIVERSAL -->
+    <header class="header">
+        <div class="header-info">
+            <div class="user-info">
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
             </div>
-            <a href="principal.html" class="btn-back">← Menú Principal</a>
-        </div>
-    </div>
-
-    <div class="app-layout">
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">⚙️ GESTIÓN</div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-menu-item active" onclick="navigateTo('movimientos-bancarios')">
-                        <span class="sidebar-menu-icon">🏦</span>
-                        <span>Movimientos Bancarios</span>
-                    </li>
-                    <li class="sidebar-menu-item" id="menuFacturasCompra" style="display: none;" onclick="navigateTo('facturas-compra')">
-                        <span class="sidebar-menu-icon">🧾</span>
-                        <span>Facturas de Compra</span>
-                    </li>
-                    <li class="sidebar-menu-item" id="menuFacturasVenta" style="display: none;" onclick="navigateTo('facturas-venta')">
-                        <span class="sidebar-menu-icon">📄</span>
-                        <span>Facturas de Venta</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">📊 REPORTES</div>
-                <ul class="sidebar-menu">
-                    <li class="sidebar-menu-item" onclick="navigateTo('movimientos-cuenta')">
-                        <span class="sidebar-menu-icon">📈</span>
-                        <span>Movimientos por Cuenta</span>
-                    </li>
-                </ul>
-            </div>
-        </aside>
-
-        <main class="main-content">
-            <!-- MOVIMIENTOS BANCARIOS (GESTIÓN) -->
-            <div class="content-body active" id="movimientos-bancarios">
-                <div class="content-header">
-                    <h2>Movimientos Bancarios</h2>
-                    <p>Registrar ingresos, egresos y transferencias</p>
-                </div>
-                <div id="movimientosContent"></div>
-            </div>
-
-            <!-- FACTURAS DE COMPRA -->
-            <div class="content-body" id="facturas-compra">
-                <div class="content-header">
-                    <h2>Facturas de Compra</h2>
-                    <p>Gestión de facturas de compra</p>
-                </div>
-                <div id="facturasCompraContent"></div>
-            </div>
-
-            <!-- FACTURAS DE VENTA -->
-            <div class="content-body" id="facturas-venta">
-                <div class="content-header">
-                    <h2>Facturas de Venta</h2>
-                    <p>Gestión de facturas de venta</p>
-                </div>
-                <div class="placeholder-content">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">📄</div>
-                    <h3>Facturas de Venta</h3>
-                    <p>Módulo en desarrollo</p>
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
-            </div>
-
-            <!-- MOVIMIENTOS POR CUENTA (REPORTE) -->
-            <div class="content-body" id="movimientos-cuenta">
-                <div class="content-header">
-                    <h2>Movimientos por Cuenta</h2>
-                    <p>Reporte de movimientos bancarios</p>
-                </div>
-                <div id="reporteMovibanContent"></div>
-            </div>
-        </main>
-    </div>
-
-    <!-- MODAL DETALLE FACTURA -->
-    <div class="modal-overlay" id="modalDetalleFactura" onclick="cerrarModalDetalle(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800;">Detalle de Factura</h2>
-                <button class="modal-close" onclick="cerrarModalDetalle()">✕</button>
-            </div>
-            <div class="modal-body" id="modalDetalleBody">
-                <!-- Aquí se carga el detalle -->
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
             </div>
         </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="window.location.href='principal.html'">
+                🏠 Inicio
+            </button>
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Salir
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- TÍTULO -->
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 700; letter-spacing: 0.05em;">
+                MÓDULO DE TESORERÍA
+            </h1>
+            <p style="color: var(--text-secondary);">Selecciona una opción</p>
+        </div>
+
+        <!-- TARJETAS PRINCIPALES -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
+
+            <!-- TARJETA: PROCESOS -->
+            <div class="menu-item" onclick="mostrarProcesos()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">PROCESOS</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Registrar operaciones bancarias</p>
+            </div>
+
+            <!-- TARJETA: REPORTES -->
+            <div class="menu-item" onclick="mostrarReportes()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">REPORTES</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Ver informes y análisis</p>
+            </div>
+
+        </div>
+
+        <!-- SUBMÓDULOS (ocultos por defecto) -->
+        <div id="submodulos" style="display: none; margin-top: 3rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <button class="btn btn-secondary" onclick="ocultarSubmodulos()">
+                    ← Volver
+                </button>
+            </div>
+
+            <!-- PROCESOS -->
+            <div id="procesos" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">⚙️ PROCESOS</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="irMovimientosBancarios()">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🏦</div>
+                        <h4>Movimientos Bancarios</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Registrar ingresos y egresos</p>
+                    </div>
+
+                    <div class="menu-item" id="tarjetaFacturas" onclick="irGestionFacturas()">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🧾</div>
+                        <h4 id="tituloFacturas">Gestión de Facturas de Compra</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Administrar facturas</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REPORTES -->
+            <div id="reportes" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 REPORTES</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="irMovimientosCuenta()">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📈</div>
+                        <h4>Movimientos por Cuenta Bancaria</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Consultar movimientos registrados</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
-    <script src="tesoreria-movimientos.js"></script>
-    <script src="tesoreria-reporte.js"></script>
-    <script src="tesoreria-facturas-compra.js"></script>
     <script>
         window.addEventListener('load', () => {
             if (!window.sesion) {
@@ -413,14 +112,8 @@
                 return;
             }
 
-            // Cargar tipo de empresa para menú condicional
+            // Cargar tipo de empresa para ajustar título de facturas
             cargarTipoEmpresa();
-
-            setTimeout(() => {
-                if (typeof cargarFormMovimientos === 'function') {
-                    cargarFormMovimientos();
-                }
-            }, 200);
         });
 
         async function cargarTipoEmpresa() {
@@ -432,9 +125,9 @@
                     const tipo = data.tipo;
 
                     if (tipo === 'CLIENTE') {
-                        document.getElementById('menuFacturasCompra').style.display = 'flex';
-                    } else if (tipo === 'PROVEEDOR') {
-                        document.getElementById('menuFacturasVenta').style.display = 'flex';
+                        document.getElementById('tituloFacturas').textContent = 'Gestión de Facturas de Compra';
+                    } else {
+                        document.getElementById('tituloFacturas').textContent = 'Facturas de Venta';
                     }
                 }
             } catch (error) {
@@ -442,39 +135,40 @@
             }
         }
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('mobile-open');
+        function mostrarProcesos() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('procesos').style.display = 'block';
+            document.getElementById('reportes').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
         }
 
-        function navigateTo(sectionId) {
-            document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-                item.classList.remove('active');
-            });
+        function mostrarReportes() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('reportes').style.display = 'block';
+            document.getElementById('procesos').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
+        }
 
-            if (event && event.target) {
-                event.target.closest('.sidebar-menu-item').classList.add('active');
-            }
+        function ocultarSubmodulos() {
+            document.getElementById('submodulos').style.display = 'none';
+            document.getElementById('procesos').style.display = 'none';
+            document.getElementById('reportes').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
 
-            document.querySelectorAll('.content-body').forEach(content => {
-                content.classList.remove('active');
-            });
+        function irMovimientosBancarios() {
+            // Redirigir a movimientos bancarios
+            window.location.href = 'tesoreria-movimientos.html';
+        }
 
-            const section = document.getElementById(sectionId);
-            if (section) {
-                section.classList.add('active');
-            }
+        function irGestionFacturas() {
+            // Redirigir a gestión de facturas
+            window.location.href = 'tesoreria-facturas.html';
+        }
 
-            if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.remove('mobile-open');
-            }
-
-            if (sectionId === 'movimientos-bancarios') {
-                setTimeout(() => cargarFormMovimientos(), 100);
-            } else if (sectionId === 'movimientos-cuenta') {
-                setTimeout(() => cargarReporteMovimientos(), 100);
-            } else if (sectionId === 'facturas-compra') {
-                setTimeout(() => cargarFacturasCompra(), 100);
-            }
+        function irMovimientosCuenta() {
+            // Redirigir a reporte de movimientos
+            window.location.href = 'tesoreria-reporte.html';
         }
     </script>
 </body>
