@@ -120,12 +120,17 @@ async function cargarReporte() {
             // Agrupar por cuenta contable
             const gastosPorCuenta = agruparPorCuenta(data.gastos);
             
+            // Ordenar alfabéticamente por nombre de cuenta
+            const cuentasOrdenadas = Object.entries(gastosPorCuenta).sort((a, b) => {
+                return a[1].nombre.localeCompare(b[1].nombre);
+            });
+            
             let html = '';
             let totalGeneral = 0;
             let cantidadTotal = 0;
             
             // Recorrer cada cuenta
-            for (const [codigoCuenta, datosGrupo] of Object.entries(gastosPorCuenta)) {
+            cuentasOrdenadas.forEach(([codigoCuenta, datosGrupo], index) => {
                 const nombreCuenta = datosGrupo.nombre;
                 const gastosGrupo = datosGrupo.gastos;
                 const totalCuenta = datosGrupo.total;
@@ -134,11 +139,14 @@ async function cargarReporte() {
                 totalGeneral += totalCuenta;
                 cantidadTotal += cantidadCuenta;
                 
-                // Header de la cuenta
+                const grupoId = `grupo-${index}`;
+                
+                // Header de la cuenta (clickeable para expandir/colapsar)
                 html += `
-                    <tr style="background-color: var(--bg-tertiary); font-weight: 600;">
+                    <tr style="background-color: var(--bg-tertiary); font-weight: 600; cursor: pointer;" onclick="toggleGrupo('${grupoId}')">
                         <td colspan="6" style="padding: 0.75rem;">
-                            📁 ${codigoCuenta} - ${nombreCuenta}
+                            <span id="icono-${grupoId}" style="display: inline-block; width: 20px; transition: transform 0.2s;">▶</span>
+                            📁 ${nombreCuenta}
                             <span style="float: right;">
                                 ${cantidadCuenta} registro${cantidadCuenta !== 1 ? 's' : ''} | Total: $${formatearNumero(totalCuenta)}
                             </span>
@@ -146,11 +154,14 @@ async function cargarReporte() {
                     </tr>
                 `;
                 
+                // Contenedor de gastos (oculto por defecto)
+                html += `<tbody id="${grupoId}" style="display: none;">`;
+                
                 // Gastos de esta cuenta
                 gastosGrupo.forEach(gasto => {
                     html += `
                         <tr>
-                            <td style="font-family: var(--font-mono); font-size: 0.8rem;">${gasto.codigo}</td>
+                            <td style="font-family: var(--font-mono); font-size: 0.8rem; padding-left: 2rem;">${gasto.codigo}</td>
                             <td style="font-size: 0.8rem;">${formatearFecha(gasto.fecha)}</td>
                             <td style="font-size: 0.8rem;">${gasto.proveedor_nombre || gasto.proveedor}</td>
                             <td style="font-size: 0.8rem;">${gasto.concepto || '-'}</td>
@@ -159,7 +170,9 @@ async function cargarReporte() {
                         </tr>
                     `;
                 });
-            }
+                
+                html += `</tbody>`;
+            });
             
             gridBody.innerHTML = html;
             
@@ -188,6 +201,23 @@ async function cargarReporte() {
             </tr>
         `;
         alert('❌ Error al cargar el reporte');
+    }
+}
+
+// ================================================================
+// TOGGLE GRUPO (EXPANDIR/COLAPSAR)
+// ================================================================
+
+function toggleGrupo(grupoId) {
+    const grupo = document.getElementById(grupoId);
+    const icono = document.getElementById(`icono-${grupoId}`);
+    
+    if (grupo.style.display === 'none') {
+        grupo.style.display = 'table-row-group';
+        icono.textContent = '▼';
+    } else {
+        grupo.style.display = 'none';
+        icono.textContent = '▶';
     }
 }
 
@@ -224,28 +254,41 @@ function agruparPorCuenta(gastos) {
 function formatearFecha(fecha) {
     if (!fecha) return '-';
     
-    // Si la fecha ya tiene formato YYYY-MM-DD
-    const partes = fecha.split('-');
-    if (partes.length === 3) {
-        return `${partes[2]}/${partes[1]}/${partes[0]}`;
-    }
-    
-    // Fallback: intentar parsear normalmente
     try {
-        const date = new Date(fecha + 'T00:00:00');
-        if (isNaN(date.getTime())) return fecha; // Si falla, devolver el string original
+        // Extraer solo la parte YYYY-MM-DD del string (ignorar la hora)
+        let fechaLimpia = fecha;
         
-        return date.toLocaleDateString('es-ES', { 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit' 
-        });
+        // Si tiene formato ISO (con T y Z), extraer solo la fecha
+        if (fecha.includes('T')) {
+            fechaLimpia = fecha.split('T')[0];
+        }
+        
+        // Separar por guiones: YYYY-MM-DD
+        const partes = fechaLimpia.split('-');
+        
+        if (partes.length === 3) {
+            const año = partes[0];
+            const mes = partes[1];
+            const dia = partes[2];
+            
+            // Retornar en formato MM/DD/YYYY
+            return `${mes}/${dia}/${año}`;
+        }
+        
+        return fecha; // Si no se pudo parsear, devolver original
+        
     } catch (e) {
+        console.error('Error formateando fecha:', fecha, e);
         return fecha;
     }
 }
 
 function formatearNumero(numero) {
     const num = parseFloat(numero);
-    return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    // Formato: 1.000,05 (punto para miles, coma para decimales)
+    return num.toLocaleString('es-ES', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+    });
 }
