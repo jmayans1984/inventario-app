@@ -4,30 +4,22 @@
 
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
-// Verificar sesión
-const usuario = JSON.parse(localStorage.getItem('usuario'));
-const empresa = localStorage.getItem('empresaActual');
-
-if (!usuario || !empresa) {
-    window.location.href = 'index.html';
-}
-
-// Mostrar datos del usuario
-document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
-document.getElementById('empresaCode').textContent = empresa;
-
-// Objeto de sesión global
-const sesion = {
-    usuario: usuario.usuario,
-    nombre: usuario.nombre,
-    empresa: empresa
-};
+// Esperar a que header.js inicialice la sesión
+window.addEventListener('load', () => {
+    if (!window.sesion) {
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    // Continuar con la inicialización
+    inicializarFormulario();
+});
 
 // ================================================================
-// INICIALIZACIÓN
+// INICIALIZACIÓN DEL FORMULARIO
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function inicializarFormulario() {
     // Establecer fecha de hoy
     const hoy = new Date().toISOString().split('T')[0];
     document.getElementById('fecha').value = hoy;
@@ -38,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await cargarCuentasContables();
     await cargarCentrosCosto();
     await cargarCuentasBancarias();
-});
+}
 
 // ================================================================
 // CARGAR SIGUIENTE CÓDIGO
@@ -46,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarSiguienteCodigo() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/siguiente-codigo?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/siguiente-codigo?empresa=${window.window.sesion.empresa}`);
         const data = await response.json();
         
         if (data.success) {
@@ -63,7 +55,7 @@ async function cargarSiguienteCodigo() {
 
 async function cargarProveedores() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/proveedores?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/proveedores?empresa=${window.sesion.empresa}`);
         const data = await response.json();
         
         if (data.success) {
@@ -89,7 +81,7 @@ async function cargarProveedores() {
 
 async function cargarCuentasContables() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/cuentas-contables?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/cuentas-contables?empresa=${window.sesion.empresa}`);
         const data = await response.json();
         
         if (data.success) {
@@ -115,7 +107,7 @@ async function cargarCuentasContables() {
 
 async function cargarCentrosCosto() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/ccostos?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/ccostos?empresa=${window.sesion.empresa}`);
         const data = await response.json();
         
         if (data.success) {
@@ -141,7 +133,7 @@ async function cargarCentrosCosto() {
 
 async function cargarCuentasBancarias() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/cuentas-bancarias?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/cuentas-bancarias?empresa=${window.sesion.empresa}`);
         const data = await response.json();
         
         if (data.success) {
@@ -192,7 +184,7 @@ document.getElementById('formGasto').addEventListener('submit', async (e) => {
         ccosto: document.getElementById('ccosto').value,
         forma_pago: document.getElementById('formaPago').value,
         codigo_banco: document.getElementById('formaPago').value,
-        empresa: sesion.empresa
+        empresa: window.sesion.empresa
     };
     
     if (!confirm(`¿Confirmar gasto por $${datos.total.toLocaleString()}?`)) {
@@ -219,15 +211,3 @@ document.getElementById('formGasto').addEventListener('submit', async (e) => {
         alert('❌ Error al guardar el gasto');
     }
 });
-
-// ================================================================
-// CERRAR SESIÓN
-// ================================================================
-
-function cerrarSesion() {
-    if (confirm('¿Estás seguro de cerrar sesión?')) {
-        localStorage.removeItem('usuario');
-        localStorage.removeItem('empresaActual');
-        window.location.href = 'index.html';
-    }
-}

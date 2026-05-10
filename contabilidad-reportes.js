@@ -4,30 +4,22 @@
 
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
-// Verificar sesión
-const usuario = JSON.parse(localStorage.getItem('usuario'));
-const empresa = localStorage.getItem('empresaActual');
-
-if (!usuario || !empresa) {
-    window.location.href = 'index.html';
-}
-
-// Mostrar datos del usuario
-document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
-document.getElementById('empresaCode').textContent = empresa;
-
-// Objeto de sesión global
-const sesion = {
-    usuario: usuario.usuario,
-    nombre: usuario.nombre,
-    empresa: empresa
-};
+// Esperar a que header.js inicialice la sesión
+window.addEventListener('load', () => {
+    if (!window.sesion) {
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    // Continuar con la inicialización
+    inicializarReporte();
+});
 
 // ================================================================
 // INICIALIZACIÓN
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function inicializarReporte() {
     // Establecer fechas del mes actual
     const hoy = new Date();
     const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -39,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Cargar filtros
     await cargarCentrosCosto();
     await cargarCuentasContables();
-});
+}
 
 // ================================================================
 // CARGAR CENTROS DE COSTO
@@ -47,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function cargarCentrosCosto() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/ccostos?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/ccostos?empresa=${window.sesion.empresa}`);
         const data = await response.json();
         
         if (data.success) {
@@ -72,7 +64,7 @@ async function cargarCentrosCosto() {
 
 async function cargarCuentasContables() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/cuentas-contables?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/cuentas-contables?empresa=${window.sesion.empresa}`);
         const data = await response.json();
         
         if (data.success) {
@@ -116,7 +108,7 @@ async function cargarReporte() {
     `;
     
     try {
-        let url = `${API_BASE}/gastos/reporte?empresa=${sesion.empresa}&fechaInicial=${fechaInicial}&fechaFinal=${fechaFinal}`;
+        let url = `${API_BASE}/gastos/reporte?empresa=${window.sesion.empresa}&fechaInicial=${fechaInicial}&fechaFinal=${fechaFinal}`;
         
         if (centroCosto) url += `&centroCosto=${centroCosto}`;
         if (cuentaContable) url += `&cuentaContable=${cuentaContable}`;
@@ -198,16 +190,4 @@ function formatearFecha(fecha) {
 function formatearNumero(numero) {
     const num = parseFloat(numero);
     return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// ================================================================
-// CERRAR SESIÓN
-// ================================================================
-
-function cerrarSesion() {
-    if (confirm('¿Estás seguro de cerrar sesión?')) {
-        localStorage.removeItem('usuario');
-        localStorage.removeItem('empresaActual');
-        window.location.href = 'index.html';
-    }
 }

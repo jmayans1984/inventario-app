@@ -86,27 +86,6 @@
     </div>
 
     <script src="theme.js"></script>
-    <script>
-        // Verificar sesión
-        const usuario = JSON.parse(localStorage.getItem('usuario'));
-        const empresa = localStorage.getItem('empresaActual');
-
-        if (!usuario || !empresa) {
-            window.location.href = 'index.html';
-        }
-
-        // Mostrar datos del usuario
-        document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
-        document.getElementById('empresaCode').textContent = empresa;
-
-        // Función para cerrar sesión
-        function cerrarSesion() {
-            if (confirm('¿Estás seguro de cerrar sesión?')) {
-                localStorage.removeItem('usuario');
-                localStorage.removeItem('empresaActual');
-                window.location.href = 'index.html';
-            }
-        }
-    </script>
+    <script src="header.js"></script>
 </body>
 </html>
