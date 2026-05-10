@@ -18,35 +18,44 @@ router.get('/', async (req, res) => {
     }
 
     try {
-        let query = `
-            SELECT
-                p.codigo,
-                p.nombre,
-                p.und,
-                COALESCE(SUM(COALESCE(di.entrada, 0)) - SUM(COALESCE(di.salida, 0)), 0) as stock_actual
-            FROM productos p
-            LEFT JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
-            WHERE UPPER(p.control) = 'SI'
+        // Primero obtener productos activos
+        const productosQuery = `
+            SELECT codigo, nombre, und
+            FROM productos
+            WHERE UPPER(control) = 'SI'
+            ORDER BY nombre
         `;
+        const productosResult = await pool.query(productosQuery);
 
-        const params = [empresa];
-
+        // Si hay ccosto, obtener el stock para ese ccosto
+        let stockMap = {};
         if (ccosto) {
-            params.push(ccosto);
-            query += ` AND (di.ccosto = $2 OR di.ccosto IS NULL)`;
+            const stockQuery = `
+                SELECT
+                    codigo,
+                    SUM(COALESCE(entrada, 0)) - SUM(COALESCE(salida, 0)) as stock_actual
+                FROM detalle_inventario
+                WHERE empresa = $1 AND ccosto = $2
+                GROUP BY codigo
+            `;
+            const stockResult = await pool.query(stockQuery, [empresa, ccosto]);
+            stockResult.rows.forEach(row => {
+                stockMap[row.codigo] = row.stock_actual || 0;
+            });
         }
 
-        query += `
-            GROUP BY p.codigo, p.nombre, p.und
-            ORDER BY p.nombre
-        `;
-
-        const result = await pool.query(query, params);
+        // Combinar datos
+        const data = productosResult.rows.map(producto => ({
+            codigo: producto.codigo,
+            nombre: producto.nombre,
+            und: producto.und,
+            stock_actual: stockMap[producto.codigo] || 0
+        }));
 
         res.json({
             success: true,
-            data: result.rows,
-            total: result.rowCount
+            data: data,
+            total: data.length
         });
 
     } catch (error) {
