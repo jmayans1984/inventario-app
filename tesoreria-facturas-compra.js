@@ -308,15 +308,15 @@ function mostrarModalDetalle(factura, detalle) {
     }
 
     const modalHTML = `
-        <div id="modalDetalle" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;" onclick="cerrarModalDetalle(event)">
-            <div style="background: var(--bg-card); border-radius: 12px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.5);" onclick="event.stopPropagation()">
+        <div id="modalDetalle" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 10, 15, 0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px);" onclick="cerrarModalDetalle(event)">
+            <div style="background: var(--bg-card); border-radius: 12px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; border: 2px solid var(--primary); box-shadow: 0 20px 60px rgba(139, 92, 246, 0.3);" onclick="event.stopPropagation()">
                 
-                <div style="padding: 1.5rem; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, rgba(139,92,246,0.1), transparent);">
+                <div style="padding: 1.5rem; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.05));">
                     <div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 0.25rem;">Factura de Compra</div>
-                        <h2 style="font-size: 1.75rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary); margin: 0;">📄 ${factura.codigo}</h2>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.5rem;">📋 Factura de Compra</div>
+                        <h2 style="font-size: 2rem; font-weight: 900; font-family: 'Courier New', monospace; color: var(--primary); margin: 0;">${factura.codigo}</h2>
                     </div>
-                    <button onclick="cerrarModalDetalle()" style="background: transparent; border: 2px solid var(--border); color: var(--text-secondary); width: 40px; height: 40px; border-radius: 8px; font-size: 1.5rem; cursor: pointer;">✕</button>
+                    <button onclick="cerrarModalDetalle()" style="background: rgba(139, 92, 246, 0.1); border: 2px solid var(--primary); color: var(--primary); width: 44px; height: 44px; border-radius: 8px; font-size: 1.5rem; cursor: pointer; font-weight: 700; transition: all 0.3s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">✕</button>
                 </div>
 
                 <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
@@ -365,8 +365,8 @@ function mostrarModalDetalle(factura, detalle) {
                     </div>
                 </div>
 
-                <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); text-align: right;">
-                    <button onclick="cerrarModalDetalle()" style="padding: 0.75rem 2rem; background: var(--bg); color: var(--text); border: 2px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-weight: 700; cursor: pointer; text-transform: uppercase;">Cerrar</button>
+                <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); text-align: right; background: linear-gradient(to top, rgba(139,92,246,0.05), transparent);">
+                    <button onclick="cerrarModalDetalle()" style="padding: 0.75rem 2rem; background: rgba(139, 92, 246, 0.1); color: var(--primary); border: 2px solid var(--primary); border-radius: 8px; font-size: 0.9rem; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: all 0.3s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">Cerrar</button>
                 </div>
 
             </div>
