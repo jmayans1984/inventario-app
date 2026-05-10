@@ -7,6 +7,33 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- OVERLAY DEL MENÚ -->
+    <div class="menu-overlay" id="menuOverlay" onclick="cerrarMenu()"></div>
+
+    <!-- MENÚ HAMBURGUESA -->
+    <nav class="hamburger-menu" id="hamburgerMenu">
+        <div class="menu-header">
+            <button class="menu-close" onclick="cerrarMenu()">✕</button>
+            <h3>📦 Almacén</h3>
+        </div>
+
+        <!-- PROCESOS -->
+        <div class="menu-section">
+            <div class="menu-section-title">⚙️ Procesos</div>
+            <a href="almacen-gestion.html" class="menu-item-link">
+                📝 Gestión de Inventario
+            </a>
+        </div>
+
+        <!-- CONSULTAS -->
+        <div class="menu-section">
+            <div class="menu-section-title">🔍 Consultas</div>
+            <a href="almacen-inventario.html" class="menu-item-link">
+                📋 Ver Inventario
+            </a>
+        </div>
+    </nav>
+
     <!-- HEADER UNIVERSAL -->
     <header class="header">
         <div class="header-info">
@@ -24,55 +51,56 @@
             </div>
         </div>
         <div class="header-actions">
+            <button class="btn-header hamburger-btn" onclick="toggleMenu()">
+                ☰ Menú
+            </button>
             <button class="btn-header" onclick="window.location.href='principal.html'">
-                ≡ Menú Principal
+                🏠 Inicio
             </button>
             <button class="btn-header" onclick="cerrarSesion()">
-                🚪 Cerrar Sesión
+                🚪 Salir
             </button>
         </div>
     </header>
 
-    <!-- CONTENIDO DEL MÓDULO -->
-    <div style="padding: 1rem;">
-        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">📦 Almacén</h1>
+    <!-- CONTENIDO -->
+    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary);">📦 Almacén</h1>
+            <p style="color: var(--text-secondary);">Usa el menú lateral para acceder a las opciones</p>
+        </div>
 
-        <!-- Aquí va el contenido del módulo -->
-        <div class="menu-grid">
-            <div class="menu-item" onclick="window.location.href='almacen-gestion.html'">
-                <div style="font-size: 2.5rem; margin-bottom: 1rem;">📝</div>
-                <h3>Gestión Inventario</h3>
+        <!-- Tarjetas informativas -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+            <div style="background-color: var(--bg-secondary); padding: 2rem; border-radius: 12px; border: 1px solid var(--border); text-align: center;">
+                <div style="font-size: 2.5rem; margin-bottom: 1rem;">⚙️</div>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Procesos</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Registrar movimientos de inventario</p>
+                <button class="btn btn-primary" onclick="toggleMenu()" style="margin-top: 1rem; width: 100%;">
+                    Ver Opciones
+                </button>
             </div>
 
-            <div class="menu-item" onclick="window.location.href='almacen-inventario.html'">
-                <div style="font-size: 2.5rem; margin-bottom: 1rem;">📋</div>
-                <h3>Ver Inventario</h3>
+            <div style="background-color: var(--bg-secondary); padding: 2rem; border-radius: 12px; border: 1px solid var(--border); text-align: center;">
+                <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔍</div>
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">Consultas</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Ver reportes e inventario actual</p>
+                <button class="btn btn-primary" onclick="toggleMenu()" style="margin-top: 1rem; width: 100%;">
+                    Ver Opciones
+                </button>
             </div>
+        </div>
+
+        <!-- Ayuda -->
+        <div style="margin-top: 3rem; padding: 1.5rem; background-color: var(--info-light); border-radius: 8px; border-left: 4px solid var(--info);">
+            <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">💡 Consejo</h4>
+            <p style="color: var(--text-secondary); margin: 0;">
+                Haz clic en el botón <strong>"☰ Menú"</strong> en la parte superior para ver todas las opciones disponibles del módulo de Almacén.
+            </p>
         </div>
     </div>
 
     <script src="theme.js"></script>
-    <script>
-        // Verificar sesión
-        const usuario = JSON.parse(localStorage.getItem('usuario'));
-        const empresa = localStorage.getItem('empresaActual');
-
-        if (!usuario || !empresa) {
-            window.location.href = 'index.html';
-        }
-
-        // Mostrar datos del usuario en el header
-        document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
-        document.getElementById('empresaCode').textContent = empresa;
-
-        // Función para cerrar sesión
-        function cerrarSesion() {
-            if (confirm('¿Estás seguro de cerrar sesión?')) {
-                localStorage.removeItem('usuario');
-                localStorage.removeItem('empresaActual');
-                window.location.href = 'index.html';
-            }
-        }
-    </script>
+    <script src="header.js"></script>
 </body>
 </html>

@@ -441,6 +441,135 @@ select:focus {
 .mt-3 { margin-top: 1.5rem; }
 
 /* ================================================================
+   MENÚ HAMBURGUESA
+   ================================================================ */
+
+.hamburger-btn {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.hamburger-btn:hover {
+    background-color: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+}
+
+.menu-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.hamburger-menu {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 280px;
+    height: 100%;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    z-index: 1000;
+    transition: left 0.3s;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+}
+
+.hamburger-menu.open {
+    left: 0;
+}
+
+.menu-header {
+    padding: 1.5rem;
+    background-color: var(--accent);
+    color: white;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.menu-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.menu-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.menu-section {
+    padding: 0.5rem 0;
+}
+
+.menu-section-title {
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    background-color: var(--bg-tertiary);
+}
+
+.menu-item-link {
+    display: block;
+    padding: 0.875rem 1.5rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.menu-item-link:hover {
+    background-color: var(--accent-light);
+    border-left-color: var(--accent);
+    color: var(--accent);
+}
+
+.menu-item-link:active {
+    background-color: var(--accent);
+    color: white;
+}
+
+/* ================================================================
    RESPONSIVE
    ================================================================ */
 
@@ -467,5 +596,10 @@ select:focus {
     
     .filters-container {
         grid-template-columns: 1fr;
+    }
+    
+    .hamburger-menu {
+        width: 85%;
+        max-width: 300px;
     }
 }
