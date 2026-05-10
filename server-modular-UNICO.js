@@ -260,9 +260,9 @@ app.get('/api/empresas/all', async (req, res) => {
 // MÓDULO 3: INVENTARIO
 // ================================================================
 
-// GET /api/inventario - Obtener productos con control = SI y stock por ccosto
+// GET /api/inventario - Obtener productos con control = SI y stock por ccosto y empresa
 app.get('/api/inventario', async (req, res) => {
-    const { ccosto } = req.query;
+    const { ccosto, empresa } = req.query;
 
     try {
         let query = `
@@ -279,7 +279,10 @@ app.get('/api/inventario', async (req, res) => {
 
         const params = [];
 
-        if (ccosto) {
+        if (ccosto && empresa) {
+            query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1 AND di.empresa = $2`;
+            params.push(ccosto, empresa);
+        } else if (ccosto) {
             query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1`;
             params.push(ccosto);
         } else {
@@ -289,7 +292,7 @@ app.get('/api/inventario', async (req, res) => {
         query += `
             WHERE UPPER(p.control) = 'SI'
             GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.nombre
-            ORDER BY g.nombre, p.nombre
+            ORDER BY p.grupo, p.nombre
         `;
 
         const result = await pool.query(query, params);

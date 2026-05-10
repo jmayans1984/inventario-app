@@ -180,9 +180,9 @@ async function cargarGridGestion() {
     `;
     
     try {
-        // Cargar productos con stock para el ccosto
+        // Cargar productos con stock para el ccosto y empresa
         const url = ccOrigen
-            ? `${API_BASE_ALMACEN}/inventario?ccosto=${ccOrigen}`
+            ? `${API_BASE_ALMACEN}/inventario?ccosto=${ccOrigen}&empresa=${sesion.empresa}`
             : `${API_BASE_ALMACEN}/inventario`;
 
         const response = await fetch(url);
