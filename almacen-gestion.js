@@ -180,47 +180,32 @@ async function cargarGridGestion() {
     `;
     
     try {
-        // Cargar inventario del ccosto con control = SI
-        const stockResponse = await fetch(`${API_BASE_ALMACEN}/inventario?empresa=${sesion.empresa}&ccosto=${ccOrigen}`);
-        const stockData = await stockResponse.json();
+        // Cargar productos con control = SI
+        const response = await fetch(`${API_BASE_ALMACEN}/inventario`);
+        const data = await response.json();
 
-        console.log('📦 Respuesta del API COMPLETA:', JSON.stringify(stockData, null, 2));
-        console.log('📊 Empresa:', sesion.empresa);
-        console.log('📍 CCosto:', ccOrigen);
-
-        if (!stockResponse.ok) {
-            console.error('❌ Error HTTP:', stockResponse.status, stockResponse.statusText);
-        }
-
-        if (stockData.success && stockData.data && stockData.data.length > 0) {
-            // Crear array de productos desde el inventario
-            productosActivos = stockData.data.map(item => ({
+        if (data.success && data.data && data.data.length > 0) {
+            // Crear array de productos
+            productosActivos = data.data.map(item => ({
                 codigo: item.codigo,
                 nombre: item.nombre,
                 unidad: item.und || 'UN',
-                stock_actual: parseFloat(item.stock_actual) || 0
+                stock_actual: 0
             }));
-            
-            // Crear mapa de stock
-            const stockMap = {};
-            stockData.data.forEach(item => {
-                stockMap[item.codigo] = parseFloat(item.stock_actual) || 0;
-            });
-            
+
             // Renderizar grid
-            renderizarGridGestion(productosActivos, stockMap);
+            renderizarGridGestion(productosActivos, {});
         } else {
             gridBody.innerHTML = `
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                        No se encontraron productos en este centro de costo
+                        No se encontraron productos
                     </td>
                 </tr>
             `;
         }
     } catch (error) {
         console.error('Error cargando grid:', error);
-        alert('❌ Error al cargar productos');
         gridBody.innerHTML = `
             <tr>
                 <td colspan="5" style="text-align: center; padding: 3rem; color: var(--danger);">

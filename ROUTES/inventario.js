@@ -6,56 +6,21 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
-// GET /api/inventario - Obtener inventario
+// GET /api/inventario - Obtener productos con control = SI
 router.get('/', async (req, res) => {
-    const { empresa, ccosto } = req.query;
-
-    if (!empresa) {
-        return res.status(400).json({
-            success: false,
-            error: 'Parámetro empresa requerido'
-        });
-    }
-
     try {
-        // Primero obtener productos activos
-        const productosQuery = `
+        const query = `
             SELECT codigo, nombre, und
             FROM productos
             WHERE UPPER(control) = 'SI'
             ORDER BY nombre
         `;
-        const productosResult = await pool.query(productosQuery);
 
-        // Si hay ccosto, obtener el stock para ese ccosto
-        let stockMap = {};
-        if (ccosto) {
-            const stockQuery = `
-                SELECT
-                    codigo,
-                    SUM(COALESCE(entrada, 0)) - SUM(COALESCE(salida, 0)) as stock_actual
-                FROM detalle_inventario
-                WHERE empresa = $1 AND ccosto = $2
-                GROUP BY codigo
-            `;
-            const stockResult = await pool.query(stockQuery, [empresa, ccosto]);
-            stockResult.rows.forEach(row => {
-                stockMap[row.codigo] = row.stock_actual || 0;
-            });
-        }
-
-        // Combinar datos
-        const data = productosResult.rows.map(producto => ({
-            codigo: producto.codigo,
-            nombre: producto.nombre,
-            und: producto.und,
-            stock_actual: stockMap[producto.codigo] || 0
-        }));
+        const result = await pool.query(query);
 
         res.json({
             success: true,
-            data: data,
-            total: data.length
+            data: result.rows
         });
 
     } catch (error) {
