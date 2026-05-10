@@ -285,7 +285,7 @@ function calcularDiferenciaTomaFisica(input) {
 function formatearInputTomaFisica(input) {
     const value = input.value.trim();
 
-    if (value === '' || value === '0' || value === '0.00') {
+    if (value === '') {
         input.value = '';
         calcularDiferenciaTomaFisica(input);
         return;
@@ -299,7 +299,7 @@ function formatearInputTomaFisica(input) {
         return;
     }
 
-    // Formato con 2 decimales
+    // Formato con 2 decimales (permite 0 como valor válido)
     input.value = numero.toFixed(2);
     calcularDiferenciaTomaFisica(input);
 }
