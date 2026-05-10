@@ -45,7 +45,7 @@
 
         <!-- TARJETAS PRINCIPALES -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
-            
+
             <!-- TARJETA: PROCESOS -->
             <div class="menu-item" onclick="mostrarProcesos()">
                 <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
@@ -53,11 +53,11 @@
                 <p style="font-size: 0.95rem; opacity: 0.8;">Registrar movimientos y operaciones</p>
             </div>
 
-            <!-- TARJETA: CONSULTAS -->
-            <div class="menu-item" onclick="mostrarConsultas()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">🔍</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">CONSULTAS</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Ver reportes e inventario</p>
+            <!-- TARJETA: INFORMES -->
+            <div class="menu-item" onclick="mostrarInformes()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">INFORMES</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Ver reportes y análisis</p>
             </div>
 
         </div>
@@ -79,17 +79,35 @@
                         <h4>Gestión de Inventario</h4>
                         <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Entradas, salidas y transferencias</p>
                     </div>
+
+                    <div class="menu-item" onclick="window.location.href='almacen-toma-fisica.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📦</div>
+                        <h4>Toma Física de Inventario</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Conteo y verificación de stock</p>
+                    </div>
+
+                    <div class="menu-item" onclick="window.location.href='almacen-ordenes-compra.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📋</div>
+                        <h4>Creación de Órdenes de Compra</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Registrar solicitudes de compra</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- CONSULTAS -->
-            <div id="consultas" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">🔍 CONSULTAS</h2>
+            <!-- INFORMES -->
+            <div id="informes" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 INFORMES</h2>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='almacen-inventario.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📋</div>
-                        <h4>Ver Inventario</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Stock actual por producto</p>
+                    <div class="menu-item" onclick="window.location.href='almacen-kardex.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📈</div>
+                        <h4>Kardex por Período</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Historial de movimientos por producto</p>
+                    </div>
+
+                    <div class="menu-item" onclick="window.location.href='almacen-reporte-ordenes.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🛒</div>
+                        <h4>Órdenes de Compra</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Consultar estado de órdenes</p>
                     </div>
                 </div>
             </div>
@@ -100,16 +118,23 @@
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script>
+        window.addEventListener('load', () => {
+            if (!window.sesion) {
+                window.location.href = 'index.html';
+                return;
+            }
+        });
+
         function mostrarProcesos() {
             document.getElementById('submodulos').style.display = 'block';
             document.getElementById('procesos').style.display = 'block';
-            document.getElementById('consultas').style.display = 'none';
+            document.getElementById('informes').style.display = 'none';
             window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
         }
 
-        function mostrarConsultas() {
+        function mostrarInformes() {
             document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('consultas').style.display = 'block';
+            document.getElementById('informes').style.display = 'block';
             document.getElementById('procesos').style.display = 'none';
             window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
         }
@@ -117,7 +142,7 @@
         function ocultarSubmodulos() {
             document.getElementById('submodulos').style.display = 'none';
             document.getElementById('procesos').style.display = 'none';
-            document.getElementById('consultas').style.display = 'none';
+            document.getElementById('informes').style.display = 'none';
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     </script>
