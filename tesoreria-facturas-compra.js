@@ -109,9 +109,17 @@ function renderFacturasCompra() {
         // Color del estado
         let estadoColor = '';
         let estadoIcon = '';
+        let estadoTexto = factura.estado;
+
         if (factura.estado === 'PENDIENTE') {
-            estadoColor = diasVencidos > 0 ? 'var(--danger)' : 'var(--warning)';
-            estadoIcon = diasVencidos > 0 ? '🔴' : '🟡';
+            if (diasVencidos > 0) {
+                estadoColor = 'var(--danger)';
+                estadoIcon = '🔴';
+                estadoTexto = 'VENCIDA';
+            } else {
+                estadoColor = 'var(--warning)';
+                estadoIcon = '🟡';
+            }
         } else if (factura.estado === 'PAGADA') {
             estadoColor = 'var(--success)';
             estadoIcon = '🟢';
@@ -129,7 +137,7 @@ function renderFacturasCompra() {
                         <div style="font-size: 1.1rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--primary);">${factura.codigo}</div>
                     </div>
                     <div style="background: ${estadoColor}15; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid ${estadoColor}30;">
-                        <div style="font-size: 0.85rem; font-weight: 700; color: ${estadoColor};">${estadoIcon} ${factura.estado}</div>
+                        <div style="font-size: ${estadoTexto === 'VENCIDA' ? '1.1rem' : '0.85rem'}; font-weight: 800; color: ${estadoColor};">${estadoIcon} ${estadoTexto}</div>
                     </div>
                 </div>
 
@@ -187,7 +195,7 @@ function renderFacturasCompra() {
                 ` : ''}
 
                 <!-- BOTONES -->
-                <div style="margin-top: 1rem; display: grid; grid-template-columns: ${factura.estado === 'PENDIENTE' ? '1fr 1fr' : factura.estado === 'POR VERIFICAR' ? '1fr 1fr' : '1fr'}; gap: 0.75rem;">
+                <div style="margin-top: 1rem; display: grid; grid-template-columns: ${factura.estado === 'PENDIENTE' ? '1fr 1fr' : '1fr 1fr'}; gap: 0.75rem;">
                     <button onclick="verDetalleFactura('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(139, 92, 246, 0.1); color: var(--primary); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
                         👁️ Ver Detalles
                     </button>
@@ -196,7 +204,7 @@ function renderFacturasCompra() {
                         📷 Subir Pago
                     </button>
                     ` : ''}
-                    ${factura.estado === 'POR VERIFICAR' ? `
+                    ${factura.estado === 'POR VERIFICAR' || factura.estado === 'PAGADA' ? `
                     <button onclick="verSoportePago('${factura.codigo}')" style="width: 100%; padding: 0.75rem; background: rgba(96, 165, 250, 0.1); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(96, 165, 250, 0.2)'" onmouseout="this.style.background='rgba(96, 165, 250, 0.1)'">
                         🖼️ Ver Soporte
                     </button>
@@ -213,6 +221,21 @@ function renderFacturasCompra() {
     const totalMonto = facturasCompraData.reduce((sum, f) => sum + parseFloat(f.total || 0), 0);
     const pendientes = facturasCompraData.filter(f => f.estado === 'PENDIENTE').length;
 
+    // Calcular monto pendiente y vencido
+    let montoPendiente = 0;
+    let montoVencido = 0;
+    const hoy = new Date();
+
+    facturasCompraData.forEach(f => {
+        if (f.estado === 'PENDIENTE') {
+            montoPendiente += parseFloat(f.total || 0);
+            const vencimiento = new Date(f.fecha_vencimiento);
+            if (hoy > vencimiento) {
+                montoVencido += parseFloat(f.total || 0);
+            }
+        }
+    });
+
     htmlGrid = `
         <div style="background: var(--bg-card); border-radius: 12px; padding: 1rem; border: 1px solid var(--border); margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
             <div style="text-align: center;">
@@ -220,12 +243,16 @@ function renderFacturasCompra() {
                 <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">${totalFacturas}</div>
             </div>
             <div style="text-align: center;">
-                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Pendientes</div>
-                <div style="font-size: 1.5rem; font-weight: 800; color: var(--warning);">${pendientes}</div>
+                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Monto Pendiente</div>
+                <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--warning);">${formatMoneyFC(montoPendiente)}</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Monto Vencido</div>
+                <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--danger);">${formatMoneyFC(montoVencido)}</div>
             </div>
             <div style="text-align: center;">
                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.25rem;">Monto Total</div>
-                <div style="font-size: 1.25rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--success);">${formatMoneyFC(totalMonto)}</div>
+                <div style="font-size: 1.2rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--success);">${formatMoneyFC(totalMonto)}</div>
             </div>
         </div>
     ` + htmlGrid;
