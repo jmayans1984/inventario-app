@@ -205,23 +205,6 @@ async function cargarReporte() {
 }
 
 // ================================================================
-// TOGGLE GRUPO (EXPANDIR/COLAPSAR)
-// ================================================================
-
-function toggleGrupo(grupoId) {
-    const grupo = document.getElementById(grupoId);
-    const icono = document.getElementById(`icono-${grupoId}`);
-    
-    if (grupo.style.display === 'none') {
-        grupo.style.display = 'table-row-group';
-        icono.textContent = '▼';
-    } else {
-        grupo.style.display = 'none';
-        icono.textContent = '▶';
-    }
-}
-
-// ================================================================
 // AGRUPAR GASTOS POR CUENTA CONTABLE
 // ================================================================
 
@@ -246,6 +229,38 @@ function agruparPorCuenta(gastos) {
     
     return grupos;
 }
+
+// ================================================================
+// TOGGLE GRUPO (EXPANDIR/COLAPSAR) - FUNCIÓN GLOBAL
+// ================================================================
+
+function toggleGrupo(grupoId) {
+    console.log('Toggle grupo:', grupoId);
+    
+    const grupo = document.getElementById(grupoId);
+    const icono = document.getElementById(`icono-${grupoId}`);
+    
+    console.log('Grupo encontrado:', grupo);
+    console.log('Icono encontrado:', icono);
+    
+    if (grupo && icono) {
+        const estaOculto = grupo.style.display === 'none' || grupo.style.display === '';
+        console.log('Está oculto:', estaOculto);
+        
+        if (estaOculto) {
+            grupo.style.display = 'table-row-group';
+            icono.textContent = '▼';
+        } else {
+            grupo.style.display = 'none';
+            icono.textContent = '▶';
+        }
+    } else {
+        console.error('No se encontró el grupo o icono');
+    }
+}
+
+// Hacer la función global
+window.toggleGrupo = toggleGrupo;
 
 // ================================================================
 // UTILIDADES
