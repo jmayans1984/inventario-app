@@ -264,10 +264,11 @@ app.get('/api/empresas/all', async (req, res) => {
 app.get('/api/inventario', async (req, res) => {
     try {
         const query = `
-            SELECT codigo, nombre, und
-            FROM productos
-            WHERE UPPER(control) = 'SI'
-            ORDER BY nombre
+            SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre as grupo_nombre
+            FROM productos p
+            LEFT JOIN grupo_productos g ON p.grupo = g.codigo
+            WHERE UPPER(p.control) = 'SI'
+            ORDER BY g.nombre, p.nombre
         `;
 
         const result = await pool.query(query);
