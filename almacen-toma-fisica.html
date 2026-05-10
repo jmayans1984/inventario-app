@@ -38,12 +38,13 @@
         <h1 style="margin-bottom: 2rem; color: var(--text-primary);">📦 Toma física de inventario</h1>
 
         <div class="table-container">
-            <div id="tomaFisicaContent"></div>
+            <div id="gestionContent"></div>
         </div>
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script src="almacen-toma-fisica.js"></script>
     <script>
         window.addEventListener('load', () => {
             if (!window.sesion) {
@@ -51,12 +52,11 @@
                 return;
             }
 
-            // Aquí se cargará el módulo cuando esté disponible
-            // setTimeout(() => {
-            //     if (typeof cargarTomaFisica === 'function') {
-            //         cargarTomaFisica();
-            //     }
-            // }, 100);
+            setTimeout(() => {
+                if (typeof cargarTomaFisica === 'function') {
+                    cargarTomaFisica();
+                }
+            }, 100);
         });
     </script>
 </body>
