@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Facturas de Compra - Tesorería</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- HEADER UNIVERSAL -->
+    <header class="header">
+        <div class="header-info">
+            <div class="user-info">
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
+            </div>
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="window.location.href='principal.html'">
+                🏠 Inicio
+            </button>
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Salir
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <div style="max-width: 800px; margin: 0 auto; padding: 2rem 1rem;">
+        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">🧾 Gestión de facturas de compra</h1>
+
+        <div class="table-container">
+            <div id="facturasCompraContent"></div>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
+    <script src="tesoreria-facturas-compra.js"></script>
+</body>
+</html>
