@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contabilidad - Sistema de Inventario</title>
+    <title>Contabilidad - RestManager Pro</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -25,37 +25,101 @@
         </div>
         <div class="header-actions">
             <button class="btn-header" onclick="window.location.href='principal.html'">
-                ≡ Menú Principal
+                🏠 Inicio
             </button>
             <button class="btn-header" onclick="cerrarSesion()">
-                🚪 Cerrar Sesión
+                🚪 Salir
             </button>
         </div>
     </header>
 
     <!-- CONTENIDO -->
     <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- TÍTULO -->
         <div style="text-align: center; margin-bottom: 3rem;">
-            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary);">📊 Contabilidad</h1>
-            <p style="color: var(--text-secondary);">Gestión de gastos y reportes contables</p>
+            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 700; letter-spacing: 0.05em;">
+                MÓDULO DE CONTABILIDAD
+            </h1>
+            <p style="color: var(--text-secondary);">Selecciona una opción</p>
         </div>
 
-        <div class="menu-grid">
-            <div class="menu-item" onclick="window.location.href='contabilidad-gastos.html'">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
-                <h3>Crear Gasto</h3>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Registrar nuevos gastos</p>
+        <!-- TARJETAS PRINCIPALES -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
+            
+            <!-- TARJETA: PROCESOS -->
+            <div class="menu-item" onclick="mostrarProcesos()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">PROCESOS</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Registrar operaciones contables</p>
             </div>
 
-            <div class="menu-item" onclick="window.location.href='contabilidad-reportes.html'">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📈</div>
-                <h3>Reporte de Gastos</h3>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Ver y filtrar gastos</p>
+            <!-- TARJETA: REPORTES -->
+            <div class="menu-item" onclick="mostrarReportes()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">REPORTES</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Ver informes y análisis</p>
+            </div>
+
+        </div>
+
+        <!-- SUBMÓDULOS (ocultos por defecto) -->
+        <div id="submodulos" style="display: none; margin-top: 3rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <button class="btn btn-secondary" onclick="ocultarSubmodulos()">
+                    ← Volver
+                </button>
+            </div>
+
+            <!-- PROCESOS -->
+            <div id="procesos" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">⚙️ PROCESOS</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="window.location.href='contabilidad-gastos.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">💰</div>
+                        <h4>Gestión de Gastos</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Registrar y administrar gastos</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REPORTES -->
+            <div id="reportes" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 REPORTES</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="window.location.href='contabilidad-reportes.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📈</div>
+                        <h4>Reporte de Gastos</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Consultar gastos registrados</p>
+                    </div>
+                </div>
             </div>
         </div>
+
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script>
+        function mostrarProcesos() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('procesos').style.display = 'block';
+            document.getElementById('reportes').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
+        }
+
+        function mostrarReportes() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('reportes').style.display = 'block';
+            document.getElementById('procesos').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
+        }
+
+        function ocultarSubmodulos() {
+            document.getElementById('submodulos').style.display = 'none';
+            document.getElementById('procesos').style.display = 'none';
+            document.getElementById('reportes').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
 </body>
 </html>
