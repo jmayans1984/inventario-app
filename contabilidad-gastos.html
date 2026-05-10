@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crear Gasto - Contabilidad</title>
+    <title>Gestión de Gastos</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -35,15 +35,15 @@
 
     <!-- CONTENIDO -->
     <div style="max-width: 800px; margin: 0 auto; padding: 2rem 1rem;">
-        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">💰 Crear Gasto</h1>
+        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">💰 Gestión de gastos</h1>
 
         <div class="table-container">
             <form id="formGasto" style="padding: 2rem;">
                 <div style="display: grid; gap: 1.5rem;">
                     <!-- Código (automático) -->
                     <div class="form-group">
-                        <label class="filter-label">Código Gasto *</label>
-                        <input type="text" id="codigoGasto" class="filter-input" readonly style="background-color: var(--bg-tertiary);">
+                        <label class="filter-label">Código *</label>
+                        <input type="text" id="codigoGasto" class="filter-input" readonly style="background-color: var(--bg-tertiary); text-transform: uppercase;">
                     </div>
 
                     <!-- Fecha -->
@@ -52,10 +52,40 @@
                         <input type="date" id="fecha" class="filter-input" required>
                     </div>
 
+                    <!-- Factura -->
+                    <div class="form-group">
+                        <label class="filter-label">Factura</label>
+                        <input type="text" id="factura" class="filter-input" placeholder="Ej: F-12345" style="text-transform: uppercase;" onchange="this.value = this.value.toUpperCase()">
+                    </div>
+
                     <!-- Proveedor -->
                     <div class="form-group">
                         <label class="filter-label">Proveedor *</label>
-                        <select id="proveedor" class="filter-select" required>
+                        <select id="proveedor" class="filter-select" required style="text-transform: uppercase;">
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+
+                    <!-- Centro de Costo -->
+                    <div class="form-group">
+                        <label class="filter-label">Centro de costo *</label>
+                        <select id="ccosto" class="filter-select" required style="text-transform: uppercase;">
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+
+                    <!-- Forma de Pago (Cuenta Bancaria) -->
+                    <div class="form-group">
+                        <label class="filter-label">Forma de pago *</label>
+                        <select id="formaPago" class="filter-select" required style="text-transform: uppercase;">
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+
+                    <!-- Cuenta Contable -->
+                    <div class="form-group">
+                        <label class="filter-label">Cuenta *</label>
+                        <select id="cuenta" class="filter-select" required style="text-transform: uppercase;">
                             <option value="">Seleccione...</option>
                         </select>
                     </div>
@@ -63,26 +93,12 @@
                     <!-- Concepto -->
                     <div class="form-group">
                         <label class="filter-label">Concepto</label>
-                        <input type="text" id="concepto" class="filter-input" placeholder="Descripción del gasto">
+                        <input type="text" id="concepto" class="filter-input" placeholder="Descripción del gasto" style="text-transform: uppercase;" onchange="this.value = this.value.toUpperCase()">
                     </div>
 
-                    <!-- Cuenta Contable -->
+                    <!-- VR. BASE (Subtotal) -->
                     <div class="form-group">
-                        <label class="filter-label">Cuenta Contable *</label>
-                        <select id="cuenta" class="filter-select" required>
-                            <option value="">Seleccione...</option>
-                        </select>
-                    </div>
-
-                    <!-- Factura -->
-                    <div class="form-group">
-                        <label class="filter-label">Número de Factura</label>
-                        <input type="text" id="factura" class="filter-input" placeholder="Ej: F-12345">
-                    </div>
-
-                    <!-- Subtotal -->
-                    <div class="form-group">
-                        <label class="filter-label">Subtotal *</label>
+                        <label class="filter-label">Vr. base *</label>
                         <input type="number" id="subtotal" class="filter-input" step="0.01" required placeholder="0.00" onblur="calcularTotal()">
                     </div>
 
@@ -96,22 +112,6 @@
                     <div class="form-group">
                         <label class="filter-label">Total *</label>
                         <input type="number" id="total" class="filter-input" step="0.01" required readonly style="background-color: var(--bg-tertiary); font-weight: 600; font-size: 1.2rem;">
-                    </div>
-
-                    <!-- Centro de Costo -->
-                    <div class="form-group">
-                        <label class="filter-label">Centro de Costo *</label>
-                        <select id="ccosto" class="filter-select" required>
-                            <option value="">Seleccione...</option>
-                        </select>
-                    </div>
-
-                    <!-- Forma de Pago (Cuenta Bancaria) -->
-                    <div class="form-group">
-                        <label class="filter-label">Forma de Pago *</label>
-                        <select id="formaPago" class="filter-select" required>
-                            <option value="">Seleccione...</option>
-                        </select>
                     </div>
                 </div>
 
