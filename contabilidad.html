@@ -3,765 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contabilidad - Sistema de Gestión</title>
-    
-    <!-- Anti-caché -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #8b5cf6;
-            --secondary: #3b82f6;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --info: #06b6d4;
-            
-            --bg: #0f172a;
-            --bg-card: #1e293b;
-            --bg-hover: #334155;
-            
-            --text: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border: #334155;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-
-        /* HEADER */
-        .header {
-            background: var(--bg-card);
-            border-bottom: 2px solid var(--border);
-            padding: 1rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .menu-toggle {
-            background: transparent;
-            border: 2px solid var(--border);
-            color: var(--text);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0.5rem 0.75rem;
-            border-radius: 8px;
-            transition: all 0.3s;
-            line-height: 1;
-        }
-
-        .menu-toggle:hover {
-            background: var(--bg-hover);
-            border-color: var(--primary);
-        }
-
-        .header-title {
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: rgba(139, 92, 246, 0.1);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 8px;
-        }
-
-        .user-name {
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        .btn-logout {
-            background: rgba(239, 68, 68, 0.1);
-            border: 2px solid rgba(239, 68, 68, 0.3);
-            color: var(--danger);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.9rem;
-        }
-
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: var(--danger);
-        }
-
-        /* CONTAINER */
-        .container {
-            display: flex;
-            height: calc(100vh - 70px);
-        }
-
-        /* SIDEBAR */
-        .sidebar {
-            width: 280px;
-            background: var(--bg-card);
-            border-right: 2px solid var(--border);
-            padding: 1.5rem;
-            overflow-y: auto;
-            transition: transform 0.3s;
-        }
-
-        .sidebar.closed {
-            transform: translateX(-100%);
-            position: absolute;
-            height: 100%;
-            z-index: 50;
-        }
-
-        .menu-section {
-            margin-bottom: 2rem;
-        }
-
-        .menu-section-title {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            margin-bottom: 0.75rem;
-            padding: 0 0.5rem;
-            letter-spacing: 0.5px;
-        }
-
-        .menu-item {
-            padding: 0.75rem 1rem;
-            margin-bottom: 0.5rem;
-            background: transparent;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .menu-item:hover {
-            background: var(--bg-hover);
-            border-color: var(--primary);
-            transform: translateX(4px);
-        }
-
-        .menu-item.active {
-            background: rgba(139, 92, 246, 0.15);
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        .badge-coming-soon {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            background: rgba(245, 158, 11, 0.15);
-            color: var(--warning);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            border-radius: 4px;
-            font-size: 0.65rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            margin-left: auto;
-        }
-
-        /* MAIN CONTENT */
-        .main-content {
-            flex: 1;
-            padding: 2rem;
-            overflow-y: auto;
-        }
-
-        /* PANTALLA BIENVENIDA */
-        .pantalla-bienvenida {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 70vh;
-        }
-
-        .welcome-container {
-            text-align: center;
-            max-width: 600px;
-        }
-
-        .welcome-icon {
-            font-size: 8rem;
-            margin-bottom: 1rem;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-
-        .welcome-container h1 {
-            font-size: 3rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 1rem;
-        }
-
-        .welcome-container p {
-            font-size: 1.25rem;
-            color: var(--text-secondary);
-            margin-bottom: 2rem;
-            line-height: 1.6;
-        }
-
-        .welcome-hint {
-            padding: 1rem 2rem;
-            background: rgba(139, 92, 246, 0.1);
-            border: 2px dashed rgba(139, 92, 246, 0.3);
-            border-radius: 12px;
-            color: var(--primary);
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        /* MÓDULO GASTOS */
-        .modulo-gastos {
-            display: none;
-        }
-
-        .modulo-gastos.active {
-            display: block;
-        }
-
-        .form-header {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), transparent);
-            padding: 1.5rem;
-            border-radius: 12px;
-            border: 2px solid var(--border);
-            margin-bottom: 2rem;
-        }
-
-        .form-header h2 {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .form-header p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
-
-        .form-container {
-            background: var(--bg-card);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            padding: 2rem;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .form-group.full-width {
-            grid-column: 1 / -1;
-        }
-
-        .form-label {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .form-input, .form-select {
-            padding: 0.75rem 1rem;
-            background: var(--bg);
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.3s;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-
-        .form-input:focus, .form-select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-        }
-
-        .form-input:disabled {
-            background: var(--bg-hover);
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .total-display {
-            padding: 1.5rem;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent);
-            border: 2px solid rgba(16, 185, 129, 0.3);
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .total-label {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-        }
-
-        .total-value {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: var(--success);
-            font-family: 'Courier New', monospace;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 2px solid var(--border);
-        }
-
-        .btn {
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: 2px solid;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #7c3aed;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            border-color: var(--border);
-            color: var(--text);
-        }
-
-        .btn-secondary:hover {
-            background: var(--bg-hover);
-            border-color: var(--text-secondary);
-        }
-
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                top: 70px;
-                left: 0;
-                height: calc(100vh - 70px);
-                z-index: 50;
-                box-shadow: 4px 0 12px rgba(0, 0, 0, 0.5);
-            }
-
-            .sidebar.closed {
-                transform: translateX(-100%);
-            }
-
-            .user-info {
-                display: none;
-            }
-
-            .header-title {
-                font-size: 1.2rem;
-            }
-
-            .welcome-icon {
-                font-size: 5rem;
-            }
-
-            .welcome-container h1 {
-                font-size: 2rem;
-            }
-
-            .welcome-container p {
-                font-size: 1rem;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .main-content {
-                padding: 1rem;
-            }
-
-            .form-container {
-                padding: 1rem;
-            }
-        }
-    </style>
+    <title>Contabilidad - Sistema de Inventario</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- HEADER -->
+    <!-- HEADER UNIVERSAL -->
     <header class="header">
-        <div class="header-left">
-            <button class="menu-toggle" onclick="toggleMenu()">☰</button>
-            <h1 class="header-title">📊 Contabilidad</h1>
-        </div>
-        <div class="header-right">
+        <div class="header-info">
             <div class="user-info">
-                👤 <span class="user-name" id="nombreUsuario">Usuario</span>
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
             </div>
-            <button class="btn-logout" onclick="volverMenuPrincipal()">🏠 Menú</button>
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="window.location.href='principal.html'">
+                ≡ Menú Principal
+            </button>
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Cerrar Sesión
+            </button>
         </div>
     </header>
 
-    <!-- CONTAINER -->
-    <div class="container">
-        <!-- SIDEBAR -->
-        <aside class="sidebar closed" id="sidebar">
-            <div class="menu-section">
-                <div class="menu-section-title">⚙️ Gestión</div>
-                <div class="menu-item" onclick="cargarModulo('gastos')">
-                    💸 Gastos
-                </div>
-                <div class="menu-item" onclick="alert('Módulo en desarrollo')">
-                    📝 Comprobantes
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
-                <div class="menu-item" onclick="alert('Módulo en desarrollo')">
-                    📒 Asientos
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
+    <!-- CONTENIDO -->
+    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary);">📊 Contabilidad</h1>
+            <p style="color: var(--text-secondary);">Gestión de gastos y reportes contables</p>
+        </div>
+
+        <div class="menu-grid">
+            <div class="menu-item" onclick="window.location.href='contabilidad-gastos.html'">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
+                <h3>Crear Gasto</h3>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Registrar nuevos gastos</p>
             </div>
 
-            <div class="menu-section">
-                <div class="menu-section-title">📊 Reportes</div>
-                <div class="menu-item" onclick="cargarModulo('reporteGastos')">
-                    💰 Reporte Gastos
-                </div>
-                <div class="menu-item" onclick="alert('Módulo en desarrollo')">
-                    📈 Balance
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
-                <div class="menu-item" onclick="alert('Módulo en desarrollo')">
-                    📊 P&G
-                    <span class="badge-coming-soon">Próximamente</span>
-                </div>
+            <div class="menu-item" onclick="window.location.href='contabilidad-reportes.html'">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📈</div>
+                <h3>Reporte de Gastos</h3>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Ver y filtrar gastos</p>
             </div>
-        </aside>
-
-        <!-- MAIN CONTENT -->
-        <main class="main-content">
-            <!-- PANTALLA BIENVENIDA -->
-            <div class="pantalla-bienvenida" id="pantallaInicio">
-                <div class="welcome-container">
-                    <div class="welcome-icon">📊</div>
-                    <h1>Contabilidad</h1>
-                    <p>Gestiona gastos, comprobantes y reportes contables de tu empresa</p>
-                    <div class="welcome-hint">
-                        👈 Selecciona una opción del menú para comenzar
-                    </div>
-                </div>
-            </div>
-
-            <!-- MÓDULO GASTOS -->
-            <div class="modulo-gastos" id="moduloGastos">
-                <div class="form-header">
-                    <h2>💸 Gestión de Gastos</h2>
-                    <p>Registra un nuevo gasto y genera automáticamente el movimiento bancario</p>
-                </div>
-
-                <div class="form-container">
-                    <form id="formGasto" onsubmit="return false;">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label">Fecha *</label>
-                                <input type="date" class="form-input" id="fecha">
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">Factura</label>
-                                <input type="text" class="form-input" id="factura" placeholder="Número de factura">
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">Proveedor *</label>
-                                <input list="listaProveedores" class="form-input" id="proveedor" placeholder="Escribe para buscar..." autocomplete="off">
-                                <datalist id="listaProveedores"></datalist>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">C. Costos *</label>
-                                <input list="listaCCostos" class="form-input" id="ccosto" placeholder="Escribe para buscar..." autocomplete="off">
-                                <datalist id="listaCCostos"></datalist>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">F. Pago *</label>
-                                <input list="listaFormaPago" class="form-input" id="formaPago" placeholder="Escribe para buscar..." autocomplete="off">
-                                <datalist id="listaFormaPago"></datalist>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">Cuenta *</label>
-                                <input list="listaCuentas" class="form-input" id="cuenta" placeholder="Escribe para buscar..." autocomplete="off">
-                                <datalist id="listaCuentas"></datalist>
-                            </div>
-
-                            <div class="form-group full-width">
-                                <label class="form-label">Concepto</label>
-                                <input type="text" class="form-input" id="concepto" placeholder="Descripción del gasto">
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">VR. Base *</label>
-                                <input type="number" class="form-input" id="subtotal" step="0.01" min="0" placeholder="0.00">
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">Impuestos</label>
-                                <input type="number" class="form-input" id="impuestos" step="0.01" min="0" placeholder="0.00" value="0">
-                            </div>
-
-                            <div class="form-group">
-                                <label class="form-label">Total</label>
-                                <input type="text" class="form-input" id="totalDisplay" disabled style="font-size: 1.5rem; font-weight: 800; color: var(--success); font-family: 'Courier New', monospace; text-align: right;" value="$0.00">
-                            </div>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">❌ Cancelar</button>
-                            <button type="button" class="btn btn-primary" onclick="guardarGasto()">💾 Guardar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- MÓDULO REPORTE GASTOS -->
-            <div class="modulo-gastos" id="moduloReporteGastos">
-                <div class="form-header">
-                    <h2>📊 Reporte de Gastos</h2>
-                    <p>Consulta y filtra los gastos registrados en el sistema</p>
-                </div>
-
-                <div class="form-container" style="margin-bottom: 2rem;">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Fecha Inicial *</label>
-                            <input type="date" class="form-input" id="fechaInicial">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Fecha Final *</label>
-                            <input type="date" class="form-input" id="fechaFinal">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Centro de Costo</label>
-                            <select class="form-select" id="centroCosto">
-                                <option value="">TODOS LOS CENTROS DE COSTOS</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Cuenta Contable</label>
-                            <select class="form-select" id="cuentaContable">
-                                <option value="">TODAS LAS CUENTAS</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="button" class="btn btn-primary" onclick="generarReporte()">📊 Generar Reporte</button>
-                    </div>
-                </div>
-
-                <!-- CONTENEDOR DEL REPORTE -->
-                <div id="reporteContainer"></div>
-            </div>
-        </main>
+        </div>
     </div>
 
+    <script src="theme.js"></script>
     <script>
-        // VARIABLES GLOBALES
-        let sesion = null;
-        const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
+        // Verificar sesión
+        const usuario = JSON.parse(localStorage.getItem('usuario'));
+        const empresa = localStorage.getItem('empresaActual');
 
-        // ================================================================
-        // INICIALIZACIÓN
-        // ================================================================
+        if (!usuario || !empresa) {
+            window.location.href = 'index.html';
+        }
 
-        window.onload = function() {
-            verificarSesion();
+        // Mostrar datos del usuario
+        document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
+        document.getElementById('empresaCode').textContent = empresa;
+
+        // Objeto de sesión global
+        const sesion = {
+            usuario: usuario.usuario,
+            nombre: usuario.nombre,
+            empresa: empresa
         };
 
-        function verificarSesion() {
-            const sesionGuardada = localStorage.getItem('sesion');
-            
-            if (!sesionGuardada) {
-                window.location.href = 'index.html';
-                return;
-            }
-            
-            sesion = JSON.parse(sesionGuardada);
-            document.getElementById('nombreUsuario').textContent = sesion.usuario;
-            
-            // Configurar fecha actual
-            const hoy = new Date().toISOString().split('T')[0];
-            document.getElementById('fecha').value = hoy;
-        }
-
+        // Función para cerrar sesión
         function cerrarSesion() {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                localStorage.removeItem('sesion');
+            if (confirm('¿Estás seguro de cerrar sesión?')) {
+                localStorage.removeItem('usuario');
+                localStorage.removeItem('empresaActual');
                 window.location.href = 'index.html';
-            }
-        }
-
-        function volverMenuPrincipal() {
-            window.location.href = 'principal.html';
-        }
-
-        // ================================================================
-        // MENÚ
-        // ================================================================
-
-        function toggleMenu() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('closed');
-        }
-
-        function cargarModulo(modulo) {
-            // Ocultar pantalla de inicio
-            document.getElementById('pantallaInicio').style.display = 'none';
-            
-            // Ocultar todos los módulos
-            document.getElementById('moduloGastos').classList.remove('active');
-            document.getElementById('moduloReporteGastos').classList.remove('active');
-            
-            // Mostrar módulo seleccionado
-            if (modulo === 'gastos') {
-                document.getElementById('moduloGastos').classList.add('active');
-                cargarDatosGastos();
-            } else if (modulo === 'reporteGastos') {
-                document.getElementById('moduloReporteGastos').classList.add('active');
-                cargarDatosReporte();
-            }
-            
-            // Cerrar menú en móvil
-            if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.add('closed');
-            }
-        }
-
-        // ================================================================
-        // CÁLCULO AUTOMÁTICO DE TOTAL
-        // ================================================================
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const subtotalInput = document.getElementById('subtotal');
-            const impuestosInput = document.getElementById('impuestos');
-            
-            if (subtotalInput) {
-                subtotalInput.addEventListener('input', calcularTotal);
-            }
-            if (impuestosInput) {
-                impuestosInput.addEventListener('input', calcularTotal);
-            }
-        });
-
-        function calcularTotal() {
-            const subtotal = parseFloat(document.getElementById('subtotal').value) || 0;
-            const impuestos = parseFloat(document.getElementById('impuestos').value) || 0;
-            const total = subtotal + impuestos;
-            
-            document.getElementById('totalDisplay').value = formatMoney(total);
-        }
-
-        function formatMoney(value) {
-            return new Intl.NumberFormat('es-CO', {
-                style: 'currency',
-                currency: 'COP',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(value);
-        }
-
-        function limpiarFormulario() {
-            if (confirm('¿Deseas cancelar y limpiar el formulario?')) {
-                document.getElementById('formGasto').reset();
-                const hoy = new Date().toISOString().split('T')[0];
-                document.getElementById('fecha').value = hoy;
-                document.getElementById('totalDisplay').value = '$0.00';
             }
         }
     </script>
-
-    <script src="contabilidad-gastos.js"></script>
-    <script src="contabilidad-reportes.js"></script>
 </body>
 </html>

@@ -3,393 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menú Principal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Menú Principal - Sistema de Inventario</title>
+    <link rel="stylesheet" href="styles.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #3b82f6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg: #0a0a0f;
-            --bg-card: #16161d;
-            --text: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border: #2d2d3a;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-
-        .header {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 1.5rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-left h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-left p {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-top: 0.25rem;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-        }
-
-        .user-info {
-            text-align: right;
-        }
-
-        .user-name {
-            font-weight: 700;
-            font-size: 0.9rem;
-            font-family: 'Courier New', monospace;
-            color: var(--primary);
-        }
-
-        .user-empresa {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
-
-        .btn-logout {
-            padding: 0.6rem 1.2rem;
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--danger);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.25);
-        }
-
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 3rem 1.5rem;
+            padding: 2rem 1rem;
         }
 
-        .welcome {
+        .welcome-section {
             text-align: center;
             margin-bottom: 3rem;
         }
 
-        .welcome h2 {
-            font-size: 2.5rem;
-            font-weight: 800;
+        .welcome-section h1 {
+            font-size: 2rem;
             margin-bottom: 0.5rem;
+            color: var(--text-primary);
         }
 
-        .welcome p {
-            font-size: 1.1rem;
+        .welcome-section p {
             color: var(--text-secondary);
-        }
-
-        .modules-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .module-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .module-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-        }
-
-        .module-card:hover:not(.disabled) {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 60px rgba(59, 130, 246, 0.2);
-            border-color: var(--primary);
-        }
-
-        .module-icon {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
-            filter: drop-shadow(0 4px 10px rgba(59, 130, 246, 0.3));
-        }
-
-        .module-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .module-description {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            line-height: 1.5;
-        }
-
-        /* COLORES POR MÓDULO */
-        .module-card.contabilidad::before {
-            background: linear-gradient(90deg, #f59e0b, #d97706);
-        }
-
-        .module-card.tesoreria::before {
-            background: linear-gradient(90deg, #8b5cf6, #7c3aed);
-        }
-
-        .module-card.almacen::before {
-            background: linear-gradient(90deg, #10b981, #059669);
-        }
-
-        .module-card.nomina::before {
-            background: linear-gradient(90deg, #3b82f6, #2563eb);
-        }
-
-        .module-card.facturacion::before {
-            background: linear-gradient(90deg, #ec4899, #db2777);
-        }
-
-        .module-card.plantillas::before {
-            background: linear-gradient(90deg, #6366f1, #4f46e5);
-        }
-
-        /* MÓDULO DESHABILITADO */
-        .module-card.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            filter: grayscale(1);
-        }
-
-        .module-card.disabled:hover {
-            transform: none;
-            box-shadow: none;
-            border-color: var(--border);
-        }
-
-        .module-card.disabled .module-icon {
-            filter: none;
-        }
-
-        .badge-disabled {
-            display: inline-block;
-            margin-top: 0.5rem;
-            padding: 0.25rem 0.75rem;
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--danger);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        @media (max-width: 768px) {
-            .header-content {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .modules-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .welcome h2 {
-                font-size: 2rem;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <div class="header-left">
-                <h1>🏢 Sistema de Gestión</h1>
-                <p id="headerSubtitle">Menú Principal</p>
+    <!-- HEADER UNIVERSAL -->
+    <header class="header">
+        <div class="header-info">
+            <div class="user-info">
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
             </div>
-            <div class="header-right">
-                <div class="user-info">
-                    <div class="user-name" id="headerUsuario">Cargando...</div>
-                    <div class="user-empresa" id="headerEmpresa">...</div>
-                </div>
-                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
             </div>
         </div>
-    </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Cerrar Sesión
+            </button>
+        </div>
+    </header>
 
     <div class="container">
-        <div class="welcome">
-            <h2>¡Bienvenido!</h2>
+        <div class="welcome-section">
+            <h1>Bienvenido al Sistema</h1>
             <p>Selecciona un módulo para comenzar</p>
         </div>
 
-        <div class="modules-grid">
-            <!-- CONTABILIDAD -->
-            <div class="module-card contabilidad" onclick="abrirModulo('contabilidad.html')">
-                <div class="module-icon">📊</div>
-                <div class="module-title">Contabilidad</div>
-                <div class="module-description">
-                    Reportes financieros, balances y estados contables
-                </div>
+        <div class="menu-grid">
+            <div class="menu-item" onclick="window.location.href='almacen.html'">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+                <h3>Almacén</h3>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Gestión de inventario y movimientos</p>
             </div>
 
-            <!-- TESORERÍA -->
-            <div class="module-card tesoreria" onclick="abrirModulo('tesoreria.html')">
-                <div class="module-icon">💰</div>
-                <div class="module-title">Tesorería</div>
-                <div class="module-description">
-                    Flujo de caja, pagos, cobros y conciliación bancaria
-                </div>
+            <div class="menu-item" onclick="window.location.href='contabilidad.html'">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                <h3>Contabilidad</h3>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Gastos y reportes contables</p>
             </div>
 
-            <!-- ALMACÉN (INVENTARIO) -->
-            <div class="module-card almacen" onclick="abrirModulo('almacen.html')">
-                <div class="module-icon">📦</div>
-                <div class="module-title">Almacén</div>
-                <div class="module-description">
-                    Gestión de productos, stock, entradas y salidas
-                </div>
+            <div class="menu-item" onclick="window.location.href='tesoreria.html'">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
+                <h3>Tesorería</h3>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Bancos, movimientos y facturas</p>
             </div>
 
-            <!-- NÓMINA -->
-            <div class="module-card nomina" onclick="abrirModulo('nomina.html')">
-                <div class="module-icon">👥</div>
-                <div class="module-title">Nómina</div>
-                <div class="module-description">
-                    Gestión de empleados, salarios y liquidaciones
-                </div>
-            </div>
-
-            <!-- FACTURACIÓN (condicional) -->
-            <div class="module-card facturacion" id="moduloFacturacion" onclick="abrirModulo('facturacion.html')">
-                <div class="module-icon">🧾</div>
-                <div class="module-title">Facturación</div>
-                <div class="module-description">
-                    Emisión de facturas, cotizaciones y notas
-                </div>
-                <div class="badge-disabled" id="badgeFacturacion" style="display: none;">No disponible</div>
-            </div>
-
-            <!-- PLANTILLAS -->
-            <div class="module-card plantillas" onclick="abrirModulo('plantillas.html')">
-                <div class="module-icon">📋</div>
-                <div class="module-title">Plantillas</div>
-                <div class="module-description">
-                    Configuración de formatos y documentos
-                </div>
+            <div class="menu-item" onclick="window.location.href='ordenes-recepcion.html'">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                <h3>Recepción Órdenes</h3>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Recibir y procesar órdenes</p>
             </div>
         </div>
     </div>
 
+    <script src="theme.js"></script>
     <script>
-        const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
-        let sesion = null;
+        // Verificar sesión
+        const usuario = JSON.parse(localStorage.getItem('usuario'));
+        const empresa = localStorage.getItem('empresaActual');
 
-        window.addEventListener('DOMContentLoaded', () => {
-            verificarSesion();
-        });
-
-        function verificarSesion() {
-            const sesionGuardada = localStorage.getItem('sesion');
-            
-            if (!sesionGuardada) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            sesion = JSON.parse(sesionGuardada);
-
-            // Verificar expiración
-            if (sesion.expiracion && new Date(sesion.expiracion) < new Date()) {
-                localStorage.removeItem('sesion');
-                window.location.href = 'index.html';
-                return;
-            }
-
-            // Mostrar USUARIO (no nombre)
-            document.getElementById('headerUsuario').textContent = sesion.usuario;
-            document.getElementById('headerEmpresa').textContent = sesion.empresaNombre;
-
-            // Verificar tipo de empresa para facturación
-            verificarTipoEmpresa();
+        if (!usuario || !empresa) {
+            window.location.href = 'index.html';
         }
 
-        async function verificarTipoEmpresa() {
-            try {
-                // Consultar el tipo de empresa
-                const response = await fetch(`${API_BASE}/empresa/tipo?empresa=${sesion.empresa}`);
-                const data = await response.json();
+        // Mostrar datos del usuario
+        document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
+        document.getElementById('empresaCode').textContent = empresa;
 
-                if (data.success) {
-                    const tipoEmpresa = data.data.tipo;
-
-                    // Si NO es proveedor, deshabilitar facturación
-                    if (tipoEmpresa !== 'PROVEEDOR') {
-                        const moduloFacturacion = document.getElementById('moduloFacturacion');
-                        const badge = document.getElementById('badgeFacturacion');
-                        
-                        moduloFacturacion.classList.add('disabled');
-                        moduloFacturacion.onclick = null;
-                        badge.style.display = 'inline-block';
-                    }
-                }
-            } catch (error) {
-                console.error('Error verificando tipo de empresa:', error);
-                // Si falla, dejamos facturación habilitada por defecto
-            }
-        }
-
-        function abrirModulo(modulo) {
-            window.location.href = modulo;
-        }
-
-        function logout() {
-            if (confirm('¿Cerrar sesión?')) {
-                localStorage.removeItem('sesion');
+        // Función para cerrar sesión
+        function cerrarSesion() {
+            if (confirm('¿Estás seguro de cerrar sesión?')) {
+                localStorage.removeItem('usuario');
+                localStorage.removeItem('empresaActual');
                 window.location.href = 'index.html';
             }
         }

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Gasto - Contabilidad</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- HEADER UNIVERSAL -->
+    <header class="header">
+        <div class="header-info">
+            <div class="user-info">
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
+            </div>
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="window.location.href='principal.html'">
+                ≡ Menú Principal
+            </button>
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Cerrar Sesión
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <div style="max-width: 800px; margin: 0 auto; padding: 2rem 1rem;">
+        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">💰 Crear Gasto</h1>
+
+        <div class="table-container">
+            <form id="formGasto" style="padding: 2rem;">
+                <div style="display: grid; gap: 1.5rem;">
+                    <!-- Código (automático) -->
+                    <div class="form-group">
+                        <label class="filter-label">Código Gasto *</label>
+                        <input type="text" id="codigoGasto" class="filter-input" readonly style="background-color: var(--bg-tertiary);">
+                    </div>
+
+                    <!-- Fecha -->
+                    <div class="form-group">
+                        <label class="filter-label">Fecha *</label>
+                        <input type="date" id="fecha" class="filter-input" required>
+                    </div>
+
+                    <!-- Proveedor -->
+                    <div class="form-group">
+                        <label class="filter-label">Proveedor *</label>
+                        <select id="proveedor" class="filter-select" required>
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+
+                    <!-- Concepto -->
+                    <div class="form-group">
+                        <label class="filter-label">Concepto</label>
+                        <input type="text" id="concepto" class="filter-input" placeholder="Descripción del gasto">
+                    </div>
+
+                    <!-- Cuenta Contable -->
+                    <div class="form-group">
+                        <label class="filter-label">Cuenta Contable *</label>
+                        <select id="cuenta" class="filter-select" required>
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+
+                    <!-- Factura -->
+                    <div class="form-group">
+                        <label class="filter-label">Número de Factura</label>
+                        <input type="text" id="factura" class="filter-input" placeholder="Ej: F-12345">
+                    </div>
+
+                    <!-- Subtotal -->
+                    <div class="form-group">
+                        <label class="filter-label">Subtotal *</label>
+                        <input type="number" id="subtotal" class="filter-input" step="0.01" required placeholder="0.00" onblur="calcularTotal()">
+                    </div>
+
+                    <!-- Impuestos -->
+                    <div class="form-group">
+                        <label class="filter-label">Impuestos</label>
+                        <input type="number" id="impuestos" class="filter-input" step="0.01" placeholder="0.00" onblur="calcularTotal()">
+                    </div>
+
+                    <!-- Total (calculado) -->
+                    <div class="form-group">
+                        <label class="filter-label">Total *</label>
+                        <input type="number" id="total" class="filter-input" step="0.01" required readonly style="background-color: var(--bg-tertiary); font-weight: 600; font-size: 1.2rem;">
+                    </div>
+
+                    <!-- Centro de Costo -->
+                    <div class="form-group">
+                        <label class="filter-label">Centro de Costo *</label>
+                        <select id="ccosto" class="filter-select" required>
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+
+                    <!-- Forma de Pago (Cuenta Bancaria) -->
+                    <div class="form-group">
+                        <label class="filter-label">Forma de Pago *</label>
+                        <select id="formaPago" class="filter-select" required>
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="window.location.href='contabilidad.html'" style="flex: 1;">
+                        ❌ Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        💾 Guardar Gasto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="contabilidad-gastos.js"></script>
+</body>
+</html>

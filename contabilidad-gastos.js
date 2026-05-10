@@ -1,24 +1,59 @@
 // ================================================================
-// CONTABILIDAD - MÓDULO GASTOS
+// CONTABILIDAD - CREAR GASTOS
 // ================================================================
 
-const API_BASE_GASTOS = 'https://inventario-app-production-e8c8.up.railway.app/api/gastos';
+const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
+
+// Verificar sesión
+const usuario = JSON.parse(localStorage.getItem('usuario'));
+const empresa = localStorage.getItem('empresaActual');
+
+if (!usuario || !empresa) {
+    window.location.href = 'index.html';
+}
+
+// Mostrar datos del usuario
+document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
+document.getElementById('empresaCode').textContent = empresa;
+
+// Objeto de sesión global
+const sesion = {
+    usuario: usuario.usuario,
+    nombre: usuario.nombre,
+    empresa: empresa
+};
 
 // ================================================================
-// CARGAR DATOS INICIALES
+// INICIALIZACIÓN
 // ================================================================
 
-async function cargarDatosGastos() {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Establecer fecha de hoy
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha').value = hoy;
+    
+    // Cargar datos
+    await cargarSiguienteCodigo();
+    await cargarProveedores();
+    await cargarCuentasContables();
+    await cargarCentrosCosto();
+    await cargarCuentasBancarias();
+});
+
+// ================================================================
+// CARGAR SIGUIENTE CÓDIGO
+// ================================================================
+
+async function cargarSiguienteCodigo() {
     try {
-        await Promise.all([
-            cargarProveedores(),
-            cargarCCostos(),
-            cargarCuentasContables(),
-            cargarCuentasBancarias()
-        ]);
+        const response = await fetch(`${API_BASE}/gastos/siguiente-codigo?empresa=${sesion.empresa}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('codigoGasto').value = data.codigo;
+        }
     } catch (error) {
-        console.error('Error cargando datos:', error);
-        alert('❌ Error al cargar datos iniciales');
+        console.error('Error cargando código:', error);
     }
 }
 
@@ -26,59 +61,25 @@ async function cargarDatosGastos() {
 // CARGAR PROVEEDORES
 // ================================================================
 
-let proveedoresData = {}; // Guardar mapeo nombre -> codigo
-
 async function cargarProveedores() {
     try {
-        const response = await fetch(`${API_BASE_GASTOS}/proveedores?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/proveedores?empresa=${sesion.empresa}`);
         const data = await response.json();
         
-        const datalist = document.getElementById('listaProveedores');
-        datalist.innerHTML = '';
-        proveedoresData = {};
-        
-        if (data.success && data.proveedores) {
+        if (data.success) {
+            const select = document.getElementById('proveedor');
+            select.innerHTML = '<option value="">Seleccione...</option>';
+            
             data.proveedores.forEach(prov => {
                 const option = document.createElement('option');
-                option.value = prov.nombre;  // Muestra solo el nombre
-                datalist.appendChild(option);
-                
-                // Guardar mapeo nombre -> codigo
-                proveedoresData[prov.nombre] = prov.codigo;
+                option.value = prov.codigo;
+                option.textContent = prov.nombre;
+                select.appendChild(option);
             });
         }
     } catch (error) {
         console.error('Error cargando proveedores:', error);
-    }
-}
-
-// ================================================================
-// CARGAR CENTROS DE COSTO
-// ================================================================
-
-let ccostosData = {}; // Guardar mapeo nombre -> codigo
-
-async function cargarCCostos() {
-    try {
-        const response = await fetch(`${API_BASE_GASTOS}/ccostos?empresa=${sesion.empresa}`);
-        const data = await response.json();
-        
-        const datalist = document.getElementById('listaCCostos');
-        datalist.innerHTML = '';
-        ccostosData = {};
-        
-        if (data.success && data.ccostos) {
-            data.ccostos.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.nombre;  // Muestra solo el nombre
-                datalist.appendChild(option);
-                
-                // Guardar mapeo nombre -> codigo
-                ccostosData[cc.nombre] = cc.codigo;
-            });
-        }
-    } catch (error) {
-        console.error('Error cargando centros de costo:', error);
+        alert('❌ Error al cargar proveedores');
     }
 }
 
@@ -86,189 +87,147 @@ async function cargarCCostos() {
 // CARGAR CUENTAS CONTABLES
 // ================================================================
 
-let cuentasData = {}; // Guardar mapeo cuenta -> codigo
-
 async function cargarCuentasContables() {
     try {
-        const response = await fetch(`${API_BASE_GASTOS}/cuentas-contables?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/cuentas-contables?empresa=${sesion.empresa}`);
         const data = await response.json();
         
-        const datalist = document.getElementById('listaCuentas');
-        datalist.innerHTML = '';
-        cuentasData = {};
-        
-        if (data.success && data.cuentas) {
+        if (data.success) {
+            const select = document.getElementById('cuenta');
+            select.innerHTML = '<option value="">Seleccione...</option>';
+            
             data.cuentas.forEach(cuenta => {
                 const option = document.createElement('option');
-                option.value = cuenta.cuenta;  // Muestra solo la cuenta
-                datalist.appendChild(option);
-                
-                // Guardar mapeo cuenta -> codigo
-                cuentasData[cuenta.cuenta] = cuenta.codigo;
+                option.value = cuenta.codigo;
+                option.textContent = `${cuenta.codigo} - ${cuenta.cuenta}`;
+                select.appendChild(option);
             });
         }
     } catch (error) {
-        console.error('Error cargando cuentas contables:', error);
+        console.error('Error cargando cuentas:', error);
+        alert('❌ Error al cargar cuentas contables');
     }
 }
 
 // ================================================================
-// CARGAR CUENTAS BANCARIAS (FORMA PAGO)
+// CARGAR CENTROS DE COSTO
 // ================================================================
 
-let cuentasBancariasData = {}; // Guardar mapeo nombre_cta -> codigo
+async function cargarCentrosCosto() {
+    try {
+        const response = await fetch(`${API_BASE}/gastos/ccostos?empresa=${sesion.empresa}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('ccosto');
+            select.innerHTML = '<option value="">Seleccione...</option>';
+            
+            data.ccostos.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.codigo;
+                option.textContent = `${cc.codigo} - ${cc.nombre}`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando centros de costo:', error);
+        alert('❌ Error al cargar centros de costo');
+    }
+}
+
+// ================================================================
+// CARGAR CUENTAS BANCARIAS
+// ================================================================
 
 async function cargarCuentasBancarias() {
     try {
-        const response = await fetch(`${API_BASE_GASTOS}/cuentas-bancarias?empresa=${sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/cuentas-bancarias?empresa=${sesion.empresa}`);
         const data = await response.json();
         
-        const datalist = document.getElementById('listaFormaPago');
-        datalist.innerHTML = '';
-        cuentasBancariasData = {};
-        
-        if (data.success && data.cuentas) {
-            data.cuentas.forEach(cta => {
+        if (data.success) {
+            const select = document.getElementById('formaPago');
+            select.innerHTML = '<option value="">Seleccione...</option>';
+            
+            data.cuentas.forEach(cuenta => {
                 const option = document.createElement('option');
-                option.value = cta.nombre_cta;  // Muestra solo nombre_cta
-                datalist.appendChild(option);
-                
-                // Guardar mapeo nombre_cta -> codigo
-                cuentasBancariasData[cta.nombre_cta] = cta.codigo;
+                option.value = cuenta.codigo;
+                option.textContent = `${cuenta.nombre_banco} - ${cuenta.nombre_cta}`;
+                select.appendChild(option);
             });
         }
     } catch (error) {
         console.error('Error cargando cuentas bancarias:', error);
+        alert('❌ Error al cargar cuentas bancarias');
     }
+}
+
+// ================================================================
+// CALCULAR TOTAL
+// ================================================================
+
+function calcularTotal() {
+    const subtotal = parseFloat(document.getElementById('subtotal').value) || 0;
+    const impuestos = parseFloat(document.getElementById('impuestos').value) || 0;
+    const total = subtotal + impuestos;
+    
+    document.getElementById('total').value = total.toFixed(2);
 }
 
 // ================================================================
 // GUARDAR GASTO
 // ================================================================
 
-async function guardarGasto() {
-    // Obtener valores
-    const fecha = document.getElementById('fecha').value;
-    const proveedorNombre = document.getElementById('proveedor').value.trim();
-    const cCostoNombre = document.getElementById('ccosto').value.trim();
-    const formaPagoNombre = document.getElementById('formaPago').value.trim();
-    const cuentaNombre = document.getElementById('cuenta').value.trim();
-    const concepto = document.getElementById('concepto').value.trim() || '';
-    const subtotal = parseFloat(document.getElementById('subtotal').value) || 0;
-    const impuestos = parseFloat(document.getElementById('impuestos').value) || 0;
+document.getElementById('formGasto').addEventListener('submit', async (e) => {
+    e.preventDefault();
     
-    // Validar campos obligatorios PRIMERO
-    if (!fecha) {
-        alert('❌ La fecha es obligatoria');
-        return;
-    }
-    
-    if (!proveedorNombre) {
-        alert('❌ El proveedor es obligatorio');
-        return;
-    }
-    
-    if (!cCostoNombre) {
-        alert('❌ El centro de costo es obligatorio');
-        return;
-    }
-    
-    if (!formaPagoNombre) {
-        alert('❌ La forma de pago es obligatoria');
-        return;
-    }
-    
-    if (!cuentaNombre) {
-        alert('❌ La cuenta es obligatoria');
-        return;
-    }
-    
-    if (subtotal <= 0) {
-        alert('❌ El valor base debe ser mayor a 0');
-        return;
-    }
-    
-    // Obtener códigos desde los mapeos
-    const proveedorCodigo = proveedoresData[proveedorNombre];
-    const ccostoCodigo = ccostosData[cCostoNombre];
-    const cuentaCodigo = cuentasData[cuentaNombre];
-    const codigoBanco = cuentasBancariasData[formaPagoNombre];
-    
-    // Validar que se encontraron los códigos
-    if (!proveedorCodigo) {
-        alert(`❌ Proveedor no válido: "${proveedorNombre}"\n\nPor favor selecciona un proveedor de la lista desplegable.\nNo escribas texto libre.`);
-        document.getElementById('proveedor').value = '';
-        document.getElementById('proveedor').focus();
-        return;
-    }
-    
-    if (!ccostoCodigo) {
-        alert(`❌ Centro de Costo no válido: "${cCostoNombre}"\n\nPor favor selecciona un centro de costo de la lista desplegable.\nNo escribas texto libre.`);
-        document.getElementById('ccosto').value = '';
-        document.getElementById('ccosto').focus();
-        return;
-    }
-    
-    if (!cuentaCodigo) {
-        alert(`❌ Cuenta no válida: "${cuentaNombre}"\n\nPor favor selecciona una cuenta de la lista desplegable.\nNo escribas texto libre.`);
-        document.getElementById('cuenta').value = '';
-        document.getElementById('cuenta').focus();
-        return;
-    }
-    
-    if (!codigoBanco) {
-        alert(`❌ Forma de Pago no válida: "${formaPagoNombre}"\n\nPor favor selecciona una forma de pago de la lista desplegable.\nNo escribas texto libre.`);
-        document.getElementById('formaPago').value = '';
-        document.getElementById('formaPago').focus();
-        return;
-    }
-    
-    const total = subtotal + impuestos;
-    
-    // Confirmar
-    if (!confirm(`¿Confirmas crear el gasto por ${formatMoney(total)}?`)) {
-        return;
-    }
-    
-    // Preparar datos
-    const datosGasto = {
-        fecha: fecha,
-        proveedor: proveedorCodigo,
-        concepto: concepto,
-        cuenta: cuentaCodigo,
-        factura: document.getElementById('factura').value || null,
-        subtotal: subtotal,
-        impuestos: impuestos,
-        total: total,
-        ccosto: ccostoCodigo,
-        forma_pago: codigoBanco,  // Enviar el CÓDIGO de la cuenta bancaria
-        codigo_banco: codigoBanco,
+    const datos = {
+        fecha: document.getElementById('fecha').value,
+        proveedor: document.getElementById('proveedor').value,
+        concepto: document.getElementById('concepto').value,
+        cuenta: document.getElementById('cuenta').value,
+        factura: document.getElementById('factura').value,
+        subtotal: parseFloat(document.getElementById('subtotal').value),
+        impuestos: parseFloat(document.getElementById('impuestos').value) || 0,
+        total: parseFloat(document.getElementById('total').value),
+        ccosto: document.getElementById('ccosto').value,
+        forma_pago: document.getElementById('formaPago').value,
+        codigo_banco: document.getElementById('formaPago').value,
         empresa: sesion.empresa
     };
     
+    if (!confirm(`¿Confirmar gasto por $${datos.total.toLocaleString()}?`)) {
+        return;
+    }
+    
     try {
-        const response = await fetch(`${API_BASE_GASTOS}/crear`, {
+        const response = await fetch(`${API_BASE}/gastos/crear`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datosGasto)
+            body: JSON.stringify(datos)
         });
         
         const data = await response.json();
         
         if (data.success) {
-            alert(`✅ Gasto creado exitosamente\n\n📄 Código Gasto: ${data.codigoGasto}\n🏦 Movimiento: ${data.numeroMovimiento}`);
-            
-            // Limpiar formulario
-            document.getElementById('formGasto').reset();
-            const hoy = new Date().toISOString().split('T')[0];
-            document.getElementById('fecha').value = hoy;
-            document.getElementById('totalDisplay').value = '$0.00';
+            alert(`✅ Gasto creado exitosamente\n\nCódigo: ${data.codigoGasto}\nMovimiento: ${data.numeroMovimiento}`);
+            window.location.href = 'contabilidad.html';
         } else {
             alert(`❌ Error: ${data.error}`);
         }
-        
     } catch (error) {
         console.error('Error guardando gasto:', error);
         alert('❌ Error al guardar el gasto');
+    }
+});
+
+// ================================================================
+// CERRAR SESIÓN
+// ================================================================
+
+function cerrarSesion() {
+    if (confirm('¿Estás seguro de cerrar sesión?')) {
+        localStorage.removeItem('usuario');
+        localStorage.removeItem('empresaActual');
+        window.location.href = 'index.html';
     }
 }

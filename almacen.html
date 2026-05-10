@@ -1,573 +1,78 @@
 <!DOCTYPE html>
-
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📦 Almacén</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-```
-    html {
-        background: #0f0f1a;
-    }
-
-    :root {
-        --primary: #6366f1;
-        --primary-dark: #4f46e5;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --bg: #0f0f1a;
-        --bg-card: #1a1a2e;
-        --bg-card-hover: #232340;
-        --text: #e0e7ff;
-        --text-secondary: #94a3b8;
-        --border: #2d2d44;
-        --accent: #a78bfa;
-    }
-
-    body {
-        font-family: 'Outfit', sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        min-height: 100vh;
-    }
-
-    .container {
-        display: flex;
-        min-height: 100vh;
-    }
-
-    /* SIDEBAR */
-    .sidebar {
-        width: 280px;
-        background: var(--bg-card);
-        border-right: 2px solid var(--border);
-        padding: 1.5rem;
-        position: fixed;
-        height: 100vh;
-        overflow-y: auto;
-        transition: transform 0.3s ease;
-        z-index: 100;
-    }
-
-    .sidebar.closed {
-        transform: translateX(-100%);
-    }
-
-    .sidebar-header {
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid var(--border);
-    }
-
-    .sidebar-header h1 {
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: var(--primary);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .sidebar-header p {
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        margin-top: 0.5rem;
-    }
-
-    .menu-section {
-        margin-bottom: 1.5rem;
-    }
-
-    .menu-section-title {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        margin-bottom: 0.75rem;
-        letter-spacing: 0.5px;
-    }
-
-    .menu-item {
-        padding: 0.75rem 1rem;
-        margin-bottom: 0.5rem;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-weight: 600;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .menu-item:hover {
-        background: var(--bg-card-hover);
-        transform: translateX(4px);
-    }
-
-    .menu-item.active {
-        background: linear-gradient(135deg, var(--primary), var(--accent));
-        color: white;
-    }
-
-    .badge-coming-soon {
-        font-size: 0.65rem;
-        padding: 0.2rem 0.5rem;
-        background: var(--warning);
-        color: #000;
-        border-radius: 4px;
-        font-weight: 700;
-    }
-
-    /* MAIN CONTENT */
-    .main-content {
-        margin-left: 280px;
-        flex: 1;
-        padding: 2rem;
-        transition: margin-left 0.3s ease;
-    }
-
-    .main-content.expanded {
-        margin-left: 0;
-    }
-
-    /* HEADER */
-    .header {
-        background: var(--bg-card);
-        padding: 1rem 1.5rem;
-        border-radius: 12px;
-        border: 2px solid var(--border);
-        margin-bottom: 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .user-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .user-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--primary), var(--accent));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 1.1rem;
-    }
-
-    .btn {
-        padding: 0.7rem 1.5rem;
-        border-radius: 8px;
-        border: none;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 0.9rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, var(--primary), var(--accent));
-        color: white;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
-    }
-
-    .btn-secondary {
-        background: transparent;
-        border: 2px solid var(--border);
-        color: var(--text);
-    }
-
-    .btn-secondary:hover {
-        background: var(--bg-card-hover);
-    }
-
-    /* PANTALLA DE INICIO */
-    .pantalla-inicio {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 60vh;
-        text-align: center;
-    }
-
-    .pantalla-inicio .icon {
-        font-size: 8rem;
-        animation: float 3s ease-in-out infinite;
-        margin-bottom: 2rem;
-    }
-
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-20px); }
-    }
-
-    .pantalla-inicio h2 {
-        font-size: 2rem;
-        font-weight: 800;
-        margin-bottom: 1rem;
-        background: linear-gradient(135deg, var(--primary), var(--accent));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    .pantalla-inicio p {
-        font-size: 1.1rem;
-        color: var(--text-secondary);
-        max-width: 600px;
-    }
-
-    /* MÓDULOS */
-    .modulo-inventario,
-    .modulo-gestion {
-        display: none;
-    }
-
-    .modulo-inventario.active,
-    .modulo-gestion.active {
-        display: block;
-    }
-
-    .form-header {
-        margin-bottom: 2rem;
-    }
-
-    .form-header h2 {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: var(--primary);
-        margin-bottom: 0.5rem;
-    }
-
-    .form-header p {
-        color: var(--text-secondary);
-        font-size: 1rem;
-    }
-
-    /* MOBILE */
-    .menu-toggle {
-        display: none;
-        position: fixed;
-        top: 1rem;
-        left: 1rem;
-        z-index: 101;
-        background: var(--bg-card);
-        border: 2px solid var(--border);
-        color: var(--text);
-        padding: 0.75rem;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 1.5rem;
-    }
-
-    @media (max-width: 768px) {
-        .sidebar {
-            transform: translateX(-100%);
-        }
-
-        .sidebar.open {
-            transform: translateX(0);
-        }
-
-        .main-content {
-            margin-left: 0;
-            padding: 1rem;
-            padding-top: 4rem;
-        }
-
-        .menu-toggle {
-            display: block;
-        }
-
-        .header {
-            flex-direction: column;
-            gap: 1rem;
-        }
-    }
-
-    /* ESTILOS DEL GRID */
-    .table-container {
-        background: var(--bg-card);
-        border-radius: 12px;
-        border: 2px solid var(--border);
-        overflow: hidden;
-    }
-
-    .filters-container {
-        padding: 1.5rem;
-        border-bottom: 2px solid var(--border);
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-    }
-
-    .filter-group {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .filter-group.full-width {
-        grid-column: 1 / -1;
-    }
-
-    .filter-label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-    }
-
-    .filter-select,
-    .filter-input {
-        width: 100%;
-        padding: 0.75rem;
-        background: var(--bg);
-        border: 2px solid var(--border);
-        border-radius: 8px;
-        color: var(--text);
-        font-size: 0.9rem;
-        font-family: 'Outfit', sans-serif;
-    }
-
-    .filter-select:focus,
-    .filter-input:focus {
-        outline: none;
-        border-color: var(--primary);
-    }
-
-    .grid-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .grid-table thead {
-        background: var(--bg);
-        border-bottom: 2px solid var(--border);
-    }
-
-    .grid-table th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 700;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        font-size: 0.75rem;
-    }
-
-    .grid-table tbody tr {
-        border-bottom: 1px solid var(--border);
-        transition: background 0.2s;
-    }
-
-    .grid-table tbody tr:hover {
-        background: var(--bg-card-hover);
-    }
-
-    .grid-table td {
-        padding: 0.75rem 1rem;
-        font-size: 0.9rem;
-    }
-
-    .input-cantidad {
-        width: 100px;
-        padding: 0.5rem;
-        background: var(--bg);
-        border: 2px solid var(--border);
-        border-radius: 6px;
-        color: var(--text);
-        text-align: right;
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 600;
-    }
-
-    .input-cantidad:focus {
-        outline: none;
-        border-color: var(--primary);
-    }
-
-    .input-cantidad:not(:placeholder-shown) {
-        color: var(--success);
-        font-weight: 700;
-    }
-</style>
-```
-
+    <title>Almacén - Sistema de Inventario</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
-
-```
-<div class="container">
-    <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h1>📦 Almacén</h1>
-            <p id="empresaNombre">Cargando...</p>
-        </div>
-
-        <div class="menu-section">
-            <div class="menu-section-title">⚙️ Gestión</div>
-            <div class="menu-item" onclick="cargarModulo('gestionInventario')">
-                📝 Gestión Inventario
-            </div>
-            <!-- TEMPORALMENTE DESHABILITADO - Pendiente de organizar acceso desde PC
-            <div class="menu-item" onclick="window.location.href='ordenes-compra.html'">
-                📋 Órdenes de Compra
-            </div>
-            -->
-            <div class="menu-item" onclick="window.location.href='ordenes-recepcion.html'">
-                📦 Recepción de Órdenes
-            </div>
-            <div class="menu-item" onclick="alert('Módulo en desarrollo')">
-                📋 Traslados
-                <span class="badge-coming-soon">Próximamente</span>
-            </div>
-        </div>
-
-        <div class="menu-section">
-            <div class="menu-section-title">📊 Reportes</div>
-            <div class="menu-item" onclick="cargarModulo('inventarioActual')">
-                📦 Inventario Actual
-            </div>
-            <div class="menu-item" onclick="alert('Módulo en desarrollo')">
-                📈 Movimientos
-                <span class="badge-coming-soon">Próximamente</span>
-            </div>
-        </div>
-    </aside>
-
-    <!-- MAIN CONTENT -->
-    <main class="main-content" id="mainContent">
-        <div class="header">
+    <!-- HEADER UNIVERSAL -->
+    <header class="header">
+        <div class="header-info">
             <div class="user-info">
-                <div class="user-avatar">J</div>
-                <div>
-                    <div style="font-weight: 700;" id="usuarioNombre">JUAN.MAYANS</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Administrador</div>
-                </div>
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
             </div>
-            <button class="btn btn-secondary" onclick="window.location.href='principal.html'">
-                🏠 Menú Principal
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="window.location.href='principal.html'">
+                ≡ Menú Principal
+            </button>
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Cerrar Sesión
             </button>
         </div>
+    </header>
 
-        <!-- PANTALLA DE INICIO -->
-        <div class="pantalla-inicio" id="pantallaInicio">
-            <div class="icon">📦</div>
-            <h2>Bienvenido al Almacén</h2>
-            <p>Gestiona tu inventario, realiza traslados y consulta reportes en tiempo real</p>
-        </div>
+    <!-- CONTENIDO DEL MÓDULO -->
+    <div style="padding: 1rem;">
+        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">📦 Almacén</h1>
 
-        <!-- MÓDULO GESTIÓN INVENTARIO -->
-        <div class="modulo-gestion" id="moduloGestionInventario">
-            <div class="form-header">
-                <h2>📝 Gestión de Inventario</h2>
-                <p>Actualiza cantidades de productos por centro de costo</p>
+        <!-- Aquí va el contenido del módulo -->
+        <div class="menu-grid">
+            <div class="menu-item" onclick="window.location.href='almacen-gestion.html'">
+                <div style="font-size: 2.5rem; margin-bottom: 1rem;">📝</div>
+                <h3>Gestión Inventario</h3>
             </div>
 
-            <div id="gestionContent"></div>
-        </div>
-
-        <!-- MÓDULO INVENTARIO ACTUAL -->
-        <div class="modulo-inventario" id="moduloInventarioActual">
-            <div class="form-header">
-                <h2>📦 Inventario Actual</h2>
-                <p>Consulta el stock actual por centro de costo</p>
+            <div class="menu-item" onclick="window.location.href='almacen-inventario.html'">
+                <div style="font-size: 2.5rem; margin-bottom: 1rem;">📋</div>
+                <h3>Ver Inventario</h3>
             </div>
-
-            <div id="inventarioContent"></div>
         </div>
-    </main>
-</div>
+    </div>
 
-<script>
-    // ================================================================
-    // SESIÓN Y DATOS
-    // ================================================================
+    <script src="theme.js"></script>
+    <script>
+        // Verificar sesión
+        const usuario = JSON.parse(localStorage.getItem('usuario'));
+        const empresa = localStorage.getItem('empresaActual');
 
-    let sesion = JSON.parse(localStorage.getItem('sesion'));
-
-    if (!sesion || !sesion.empresa) {
-        alert('❌ No has iniciado sesión');
-        window.location.href = 'index.html';
-        throw new Error('No hay sesión activa'); // Detener ejecución
-    } else {
-        document.getElementById('empresaNombre').textContent = sesion.empresa_nombre || sesion.empresa;
-        document.getElementById('usuarioNombre').textContent = sesion.nombre || sesion.usuario;
-    }
-
-    // ================================================================
-    // NAVEGACIÓN
-    // ================================================================
-
-    function toggleMenu() {
-        const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('open');
-    }
-
-    function cargarModulo(modulo) {
-        // Ocultar pantalla de inicio
-        document.getElementById('pantallaInicio').style.display = 'none';
-        
-        // Ocultar todos los módulos
-        document.getElementById('moduloGestionInventario').classList.remove('active');
-        document.getElementById('moduloInventarioActual').classList.remove('active');
-        
-        // Mostrar módulo seleccionado
-        if (modulo === 'gestionInventario') {
-            document.getElementById('moduloGestionInventario').classList.add('active');
-            cargarGestionInventario();
-        } else if (modulo === 'inventarioActual') {
-            document.getElementById('moduloInventarioActual').classList.add('active');
-            cargarInventarioActual();
+        if (!usuario || !empresa) {
+            window.location.href = 'index.html';
         }
-        
-        // Cerrar menú en móvil
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('open');
+
+        // Mostrar datos del usuario en el header
+        document.getElementById('userName').textContent = `👤 ${usuario.nombre}`;
+        document.getElementById('empresaCode').textContent = empresa;
+
+        // Función para cerrar sesión
+        function cerrarSesion() {
+            if (confirm('¿Estás seguro de cerrar sesión?')) {
+                localStorage.removeItem('usuario');
+                localStorage.removeItem('empresaActual');
+                window.location.href = 'index.html';
+            }
         }
-    }
-
-    // Placeholder functions (se cargarán desde archivos JS externos)
-    function cargarGestionInventario() {
-        console.log('Cargando gestión de inventario...');
-    }
-
-    function cargarInventarioActual() {
-        console.log('Cargando inventario actual...');
-    }
-</script>
-
-<script src="almacen-gestion.js"></script>
-<script src="almacen-inventario.js"></script>
-```
-
+    </script>
 </body>
 </html>

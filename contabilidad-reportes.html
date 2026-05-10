@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Gastos - Contabilidad</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- HEADER UNIVERSAL -->
+    <header class="header">
+        <div class="header-info">
+            <div class="user-info">
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
+            </div>
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="window.location.href='principal.html'">
+                ≡ Menú Principal
+            </button>
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Cerrar Sesión
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <div style="padding: 1rem;">
+        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">📈 Reporte de Gastos</h1>
+
+        <div class="table-container">
+            <!-- FILTROS -->
+            <div class="filters-container">
+                <div class="filter-group">
+                    <label class="filter-label">Fecha Inicial *</label>
+                    <input type="date" id="fechaInicial" class="filter-input">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Fecha Final *</label>
+                    <input type="date" id="fechaFinal" class="filter-input">
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Centro de Costo</label>
+                    <select id="centroCosto" class="filter-select">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Cuenta Contable</label>
+                    <select id="cuentaContable" class="filter-select">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+
+                <div class="filter-group full-width">
+                    <button class="btn btn-primary" onclick="cargarReporte()" style="width: 100%;">
+                        🔍 Buscar
+                    </button>
+                </div>
+            </div>
+
+            <!-- TABLA -->
+            <div style="overflow-x: auto;">
+                <table class="grid-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Fecha</th>
+                            <th>Proveedor</th>
+                            <th>Concepto</th>
+                            <th>Cuenta</th>
+                            <th>Factura</th>
+                            <th style="text-align: right;">Subtotal</th>
+                            <th style="text-align: right;">Impuestos</th>
+                            <th style="text-align: right;">Total</th>
+                            <th>C. Costo</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gridBody">
+                        <tr>
+                            <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                Selecciona el rango de fechas y presiona Buscar
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TOTALES -->
+            <div id="totales" style="display: none; padding: 1.5rem; background-color: var(--bg-secondary); border-top: 2px solid var(--border);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">Total Gastos:</div>
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary);" id="totalGastos">$0.00</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">Cantidad:</div>
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary);" id="cantidadGastos">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="contabilidad-reportes.js"></script>
+</body>
+</html>
