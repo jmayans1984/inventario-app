@@ -705,33 +705,41 @@
                     </html>
                 `;
 
-                // Abrir ventana de impresión
+                // Crear blob y abrir en nueva pestaña/ventana
                 try {
-                    const ventanaImpresion = window.open('', 'printWindow', 'height=900,width=1000');
+                    const blob = new Blob([contenidoImpresion], { type: 'text/html;charset=utf-8' });
+                    const urlBlob = URL.createObjectURL(blob);
 
-                    if (!ventanaImpresion) {
-                        alert('❌ No se pudo abrir la ventana de impresión. Verifica los permisos del navegador.');
-                        return;
+                    // Intenta abrir en nueva ventana
+                    const ventanaImpresion = window.open(urlBlob, 'printWindow');
+
+                    if (ventanaImpresion) {
+                        // Si se abrió la ventana, esperar a que cargue y luego imprimir
+                        setTimeout(() => {
+                            ventanaImpresion.print();
+                        }, 500);
+                    } else {
+                        // Si window.open falló, crear un iframe para imprimir
+                        const iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.src = urlBlob;
+                        document.body.appendChild(iframe);
+
+                        iframe.onload = () => {
+                            setTimeout(() => {
+                                iframe.contentWindow.print();
+                                // Limpiar después de un tiempo
+                                setTimeout(() => {
+                                    document.body.removeChild(iframe);
+                                    URL.revokeObjectURL(urlBlob);
+                                }, 1000);
+                            }, 500);
+                        };
                     }
 
-                    ventanaImpresion.document.write(contenidoImpresion);
-                    ventanaImpresion.document.close();
-
-                    // Esperar a que se cargue el documento antes de imprimir
-                    ventanaImpresion.onload = () => {
-                        ventanaImpresion.print();
-                    };
-
-                    // Fallback: si onload no se dispara, intentar imprimir después de un tiempo
-                    setTimeout(() => {
-                        if (ventanaImpresion && !ventanaImpresion.closed) {
-                            ventanaImpresion.print();
-                        }
-                    }, 500);
-
                 } catch (printError) {
-                    console.error('Error al abrir ventana de impresión:', printError);
-                    alert('❌ Error al imprimir. Intenta desde la vista previa del navegador.');
+                    console.error('Error al preparar impresión:', printError);
+                    alert('❌ Error al imprimir. Por favor intenta directamente desde tu navegador.');
                 }
 
             } catch (error) {
