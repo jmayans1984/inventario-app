@@ -403,7 +403,7 @@ function mostrarModalEditarOrden(orden, detalles) {
     // Generar filas de detalles editables
     let filasDetalles = '';
     detalles.forEach((det, idx) => {
-        const codigoProducto = det.producto_codigo || det.codigo || '';
+        const codigoProducto = det.producto_venta;
         filasDetalles += `
             <tr data-detalle-idx="${idx}" data-codigo="${codigoProducto}" style="border-bottom: 1px solid var(--border);">
                 <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${codigoProducto}</td>

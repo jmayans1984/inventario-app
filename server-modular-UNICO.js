@@ -1959,6 +1959,17 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
             console.log(`Insertando ${detalles.length} nuevos detalles`);
             for (const detalle of detalles) {
                 console.log(`Insertando detalle:`, detalle);
+
+                // Validar que el producto existe en productos_venta
+                const productoCheck = await client.query(
+                    `SELECT codigo FROM productos_venta WHERE codigo = $1`,
+                    [detalle.producto_venta]
+                );
+
+                if (productoCheck.rows.length === 0) {
+                    throw new Error(`Producto ${detalle.producto_venta} no existe en productos_venta`);
+                }
+
                 const insertDetalleQuery = `
                     INSERT INTO detalle_ordenes
                     (orden, producto_venta, cantidad, precio_unitario, subtotal)
