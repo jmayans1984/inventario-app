@@ -2064,9 +2064,20 @@ app.get('/api/soportes-entrega/:orden', async (req, res) => {
             });
         }
 
+        const soporte = result.rows[0];
+
+        // Convertir archivo_data (buffer) a base64 si es necesario
+        if (soporte.archivo_data && !soporte.archivo_data.startsWith('data:')) {
+            if (Buffer.isBuffer(soporte.archivo_data)) {
+                soporte.archivo_data = 'data:image/png;base64,' + soporte.archivo_data.toString('base64');
+            } else if (typeof soporte.archivo_data === 'string' && !soporte.archivo_data.startsWith('data:')) {
+                soporte.archivo_data = 'data:image/png;base64,' + soporte.archivo_data;
+            }
+        }
+
         res.json({
             success: true,
-            soporte: result.rows[0]
+            soporte: soporte
         });
     } catch (error) {
         console.error('Error en /api/soportes-entrega/:orden:', error);
