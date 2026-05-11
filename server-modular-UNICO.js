@@ -1709,21 +1709,159 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
 });
 
 // ================================================================
+// MÓDULO 5: ÓRDENES DE COMPRA
+// ================================================================
+
+// GET /api/productos-venta?control=SI - Obtener productos de venta
+app.get('/api/productos-venta', async (req, res) => {
+    const { control } = req.query;
+
+    try {
+        let query = `
+            SELECT
+                codigo,
+                nombre,
+                descripcion,
+                unidad,
+                grupo,
+                precio_costo,
+                precio_venta1,
+                precio_venta2,
+                precio_venta3
+            FROM productos_venta
+        `;
+
+        if (control) {
+            query += ` WHERE UPPER(control) = UPPER('${control}')`;
+        }
+
+        query += ` ORDER BY nombre`;
+
+        const result = await pool.query(query);
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error en /api/productos-venta:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener productos de venta',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/ordenes-compra/crear - Crear orden de compra con detalles
+app.post('/api/ordenes-compra/crear', async (req, res) => {
+    const { empresa, proveedor, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;
+
+    if (!empresa || !proveedor || !tipo_precio || !detalles || detalles.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan parámetros obligatorios'
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Obtener próximo código de orden
+        const codigoResult = await client.query(`
+            SELECT COUNT(*) + 1 as numero_orden
+            FROM ordenes_compra
+            WHERE cliente = $1 AND empresa = $2
+        `, [proveedor, empresa]);
+
+        const numeroOrden = String(codigoResult.rows[0].numero_orden).padStart(5, '0');
+        const codigoOrden = `OC-${proveedor}-${numeroOrden}`;
+
+        // Insertar orden de compra
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        const insertOrdenQuery = `
+            INSERT INTO ordenes_compra
+            (codigo, fecha, fecha_entrega, cliente, tipo_precio, dias_credito, estado, total, observaciones, empresa)
+            VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE', $7, $8, $9)
+            RETURNING codigo
+        `;
+
+        const ordenResult = await client.query(insertOrdenQuery, [
+            codigoOrden,
+            fechaHoy,
+            fecha_entrega || null,
+            proveedor,
+            tipo_precio,
+            dias_credito || 0,
+            total,
+            observaciones || '',
+            empresa
+        ]);
+
+        const codigoOrdenGuardado = ordenResult.rows[0].codigo;
+
+        // Insertar detalles de la orden
+        let detallesCreados = 0;
+        for (const detalle of detalles) {
+            const insertDetalleQuery = `
+                INSERT INTO detalle_ordenes
+                (orden, producto_venta, cantidad, precio_unitario, subtotal, empresa)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `;
+
+            await client.query(insertDetalleQuery, [
+                codigoOrdenGuardado,
+                detalle.producto_venta,
+                detalle.cantidad,
+                detalle.precio_unitario,
+                detalle.subtotal,
+                empresa
+            ]);
+
+            detallesCreados++;
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            codigo: codigoOrdenGuardado,
+            detalles_creados: detallesCreados,
+            message: `Orden de compra ${codigoOrdenGuardado} creada exitosamente`
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/ordenes-compra/crear:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al crear orden de compra',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// ================================================================
 // HEALTH CHECK
 // ================================================================
 
 app.get('/health', async (req, res) => {
     try {
         await pool.query('SELECT 1');
-        res.json({ 
-            status: 'OK', 
+        res.json({
+            status: 'OK',
             timestamp: new Date().toISOString(),
             database: 'Connected',
             architecture: 'Modular v2.0 - Archivo único'
         });
     } catch (error) {
-        res.status(500).json({ 
-            status: 'ERROR', 
+        res.status(500).json({
+            status: 'ERROR',
             error: error.message,
             database: 'Disconnected'
         });

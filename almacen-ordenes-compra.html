@@ -35,16 +35,16 @@
 
     <!-- CONTENIDO -->
     <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
-        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">📋 Creación de órdenes de compra</h1>
+        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">📋 Creación de Órdenes de Compra</h1>
 
         <div class="table-container">
-            <div id="ordenesContent"></div>
+            <div id="gestionContent"></div>
         </div>
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
-    <script src="ordenes-recepcion.js"></script>
+    <script src="almacen-ordenes-compra.js"></script>
     <script>
         window.addEventListener('load', () => {
             if (!window.sesion) {
@@ -53,8 +53,8 @@
             }
 
             setTimeout(() => {
-                if (typeof cargarOrdenes === 'function') {
-                    cargarOrdenes();
+                if (typeof cargarOrdenesCompra === 'function') {
+                    cargarOrdenesCompra();
                 }
             }, 100);
         });
