@@ -22,7 +22,7 @@ function cargarOrdenesCompra() {
 
                 <div class="filter-group">
                     <label class="filter-label">Tipo de Precio *</label>
-                    <select id="tipoPrecioOrden" onchange="cargarGridOrdenesCompra()" class="filter-select">
+                    <select id="tipoPrecioOrden" onchange="cargarGridOrdenesCompra(); cargarDiasCreditoOrden()" class="filter-select">
                         <option value="">Seleccione...</option>
                         <option value="precio_venta1">Precio Venta 1</option>
                         <option value="precio_venta2">Precio Venta 2</option>
@@ -81,6 +81,36 @@ function cargarOrdenesCompra() {
     `;
 
     cargarProductosOrdenesCompra();
+}
+
+// ================================================================
+// CARGAR DÍAS DE CRÉDITO POR TIPO DE PRECIO
+// ================================================================
+
+async function cargarDiasCreditoOrden() {
+    const tipoPrecio = document.getElementById('tipoPrecioOrden').value;
+
+    if (!tipoPrecio) {
+        document.getElementById('diasCreditoOrden').value = '0';
+        return;
+    }
+
+    try {
+        const tipoMapeado = tipoPrecio === 'precio_venta1' ? 'PRECIO1' :
+                            tipoPrecio === 'precio_venta2' ? 'PRECIO2' : 'PRECIO3';
+
+        const response = await fetch(`${API_BASE_ORDENES}/config-listas-precios/${tipoMapeado}`);
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('diasCreditoOrden').value = data.dias_credito || 0;
+        } else {
+            document.getElementById('diasCreditoOrden').value = '0';
+        }
+    } catch (error) {
+        console.error('Error cargando días de crédito:', error);
+        document.getElementById('diasCreditoOrden').value = '0';
+    }
 }
 
 // ================================================================

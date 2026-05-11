@@ -1754,6 +1754,42 @@ app.get('/api/productos-venta', async (req, res) => {
     }
 });
 
+// GET /api/config-listas-precios/:tipo - Obtener días de crédito por tipo de precio
+app.get('/api/config-listas-precios/:tipo', async (req, res) => {
+    const { tipo } = req.params;
+
+    try {
+        const query = `
+            SELECT dias_credito
+            FROM config_listas_precios
+            WHERE UPPER(lista) = UPPER($1)
+            AND UPPER(activo) = 'SI'
+        `;
+
+        const result = await pool.query(query, [tipo]);
+
+        if (result.rows.length === 0) {
+            return res.json({
+                success: true,
+                dias_credito: 0
+            });
+        }
+
+        res.json({
+            success: true,
+            dias_credito: result.rows[0].dias_credito
+        });
+
+    } catch (error) {
+        console.error('Error en /api/config-listas-precios/:tipo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener configuración de lista de precios',
+            details: error.message
+        });
+    }
+});
+
 // POST /api/ordenes-compra/crear - Crear orden de compra con detalles
 app.post('/api/ordenes-compra/crear', async (req, res) => {
     const { empresa, proveedor, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;
