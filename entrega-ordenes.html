@@ -443,7 +443,7 @@
                             .info-value {
                                 font-size: 11px;
                                 color: #000;
-                                border-bottom: 1px dotted #999;
+                                border-bottom: none;
                                 padding-bottom: 1px;
                             }
                             .observaciones-box {
@@ -504,7 +504,7 @@
                                 text-align: center;
                             }
                             .firma-section {
-                                margin-top: 20px;
+                                margin-top: 50px;
                                 display: grid;
                                 grid-template-columns: 1fr 1fr 1fr 1fr;
                                 gap: 10px;
@@ -547,6 +547,12 @@
                                         <span class="info-label">Teléfono:</span>
                                         <span class="info-value">-</span>
                                     </div>
+                                    ${orden.observaciones ? `
+                                    <div class="info-item" style="grid-column: 1 / -1; margin-top: 4px;">
+                                        <span class="info-label" style="grid-column: 1 / -1;">Observaciones:</span>
+                                        <span class="info-value" style="grid-column: 1 / -1; border-bottom: 1px dotted #999;">${orden.observaciones}</span>
+                                    </div>
+                                    ` : ''}
                                 </div>
 
                                 <div class="info-column">
@@ -561,13 +567,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            ${orden.observaciones ? `
-                            <div class="observaciones-box">
-                                <div class="observaciones-label">Observaciones</div>
-                                <div class="observaciones-value">${orden.observaciones}</div>
-                            </div>
-                            ` : ''}
 
                             <div class="separator-line"></div>
 
