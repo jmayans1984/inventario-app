@@ -1860,6 +1860,172 @@ app.get('/api/ordenes-compra', async (req, res) => {
     }
 });
 
+// GET /api/ordenes-compra/:codigo - Obtener orden específica
+app.get('/api/ordenes-compra/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+
+    try {
+        const query = `
+            SELECT
+                codigo,
+                fecha,
+                fecha_entrega,
+                cliente,
+                tipo_precio,
+                dias_credito,
+                estado,
+                total,
+                observaciones,
+                empresa
+            FROM ordenes_compra
+            WHERE codigo = $1
+        `;
+
+        const result = await pool.query(query, [codigo]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Orden no encontrada'
+            });
+        }
+
+        res.json({
+            success: true,
+            orden: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error en /api/ordenes-compra/:codigo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener orden',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/ordenes-compra/:codigo/detalles - Obtener detalles de orden
+app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
+    const { codigo } = req.params;
+
+    try {
+        const ordenQuery = `
+            SELECT
+                codigo,
+                fecha,
+                fecha_entrega,
+                cliente,
+                tipo_precio,
+                dias_credito,
+                estado,
+                total,
+                observaciones,
+                empresa
+            FROM ordenes_compra
+            WHERE codigo = $1
+        `;
+
+        const detallesQuery = `
+            SELECT
+                id,
+                orden,
+                producto_venta,
+                cantidad,
+                precio_unitario,
+                subtotal,
+                empresa
+            FROM detalle_ordenes
+            WHERE orden = $1
+            ORDER BY id
+        `;
+
+        const ordenResult = await pool.query(ordenQuery, [codigo]);
+        const detallesResult = await pool.query(detallesQuery, [codigo]);
+
+        if (ordenResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Orden no encontrada'
+            });
+        }
+
+        res.json({
+            success: true,
+            orden: ordenResult.rows[0],
+            detalles: detallesResult.rows
+        });
+
+    } catch (error) {
+        console.error('Error en /api/ordenes-compra/:codigo/detalles:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener detalles',
+            details: error.message
+        });
+    }
+});
+
+// PUT /api/ordenes-compra/:codigo - Actualizar orden (solo si estado=PENDIENTE)
+app.put('/api/ordenes-compra/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { fecha_entrega, estado, observaciones } = req.body;
+
+    try {
+        // Verificar que la orden existe y está en estado PENDIENTE
+        const checkQuery = `
+            SELECT estado
+            FROM ordenes_compra
+            WHERE codigo = $1
+        `;
+
+        const checkResult = await pool.query(checkQuery, [codigo]);
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Orden no encontrada'
+            });
+        }
+
+        if (checkResult.rows[0].estado !== 'PENDIENTE') {
+            return res.status(400).json({
+                success: false,
+                error: `No se puede editar una orden con estado ${checkResult.rows[0].estado}. Solo se pueden editar órdenes PENDIENTE.`
+            });
+        }
+
+        // Actualizar la orden
+        const updateQuery = `
+            UPDATE ordenes_compra
+            SET fecha_entrega = $1, estado = $2, observaciones = $3
+            WHERE codigo = $4
+            RETURNING codigo
+        `;
+
+        const result = await pool.query(updateQuery, [
+            fecha_entrega || null,
+            estado,
+            observaciones || '',
+            codigo
+        ]);
+
+        res.json({
+            success: true,
+            codigo: result.rows[0].codigo,
+            message: 'Orden actualizada correctamente'
+        });
+
+    } catch (error) {
+        console.error('Error en PUT /api/ordenes-compra/:codigo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al actualizar orden',
+            details: error.message
+        });
+    }
+});
+
 // POST /api/ordenes-compra/crear - Crear orden de compra con detalles
 app.post('/api/ordenes-compra/crear', async (req, res) => {
     const { empresa, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;
