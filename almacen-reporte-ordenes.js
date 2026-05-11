@@ -759,7 +759,7 @@ function mostrarSoporteEntrega(codigo) {
             </div>
 
             <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                <button onclick="document.getElementById('modalSoporteEntregaDiv').remove()" class="btn btn-secondary" style="flex: 1;">Cerrar</button>
+                <button onclick="document.getElementById('modalSoporteEntregaDiv').remove()" class="btn btn-danger" style="flex: 1; text-align: center;">Cerrar</button>
             </div>
         </div>
     `;

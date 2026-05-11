@@ -38,6 +38,7 @@ async function inicializarHeader() {
     return {
         usuario: usuario.usuario,
         nombre: usuario.nombre,
+        nivel: usuario.nivel,
         empresa: empresaCodigo,
         empresaNombre: empresaNombre
     };

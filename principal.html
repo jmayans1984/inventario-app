@@ -87,5 +87,15 @@
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script>
+        // Redirigir a delivery personnel si NIVEL = 999
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (window.sesion && window.sesion.nivel === 999) {
+                    window.location.href = 'entrega-ordenes.html';
+                }
+            }, 500);
+        });
+    </script>
 </body>
 </html>
