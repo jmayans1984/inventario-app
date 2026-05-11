@@ -403,9 +403,10 @@ function mostrarModalEditarOrden(orden, detalles) {
     // Generar filas de detalles editables
     let filasDetalles = '';
     detalles.forEach((det, idx) => {
+        const codigoProducto = det.producto_codigo || det.codigo || '';
         filasDetalles += `
-            <tr data-detalle-idx="${idx}" style="border-bottom: 1px solid var(--border);">
-                <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${det.producto_codigo || det.codigo || ''}</td>
+            <tr data-detalle-idx="${idx}" data-codigo="${codigoProducto}" style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${codigoProducto}</td>
                 <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${det.producto_nombre || det.nombre || ''}</td>
                 <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${det.unidad || ''}</td>
                 <td style="padding: 0.5rem 1rem; text-align: right; font-size: 0.9rem;">${parseFloat(det.precio_unitario || 0).toFixed(2)}</td>
@@ -618,7 +619,7 @@ async function guardarEdicionOrden(codigo) {
     const inputs = document.querySelectorAll('.input-cantidad-edit');
     inputs.forEach(input => {
         const fila = input.closest('tr');
-        const codigoProducto = fila.querySelector('td:first-child').textContent.trim();
+        const codigoProducto = fila.dataset.codigo;
         const cantidad = parseFloat(input.value) || 0;
         const precio = parseFloat(input.dataset.precio) || 0;
 
