@@ -2040,6 +2040,8 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
 app.get('/api/soportes-entrega/:orden', async (req, res) => {
     const { orden } = req.params;
 
+    console.log(`GET /api/soportes-entrega - Buscando orden: ${orden}`);
+
     try {
         const query = `
             SELECT id, orden, imagen_data, nombre_archivo, fecha_subida
@@ -2049,7 +2051,11 @@ app.get('/api/soportes-entrega/:orden', async (req, res) => {
             LIMIT 1
         `;
 
+        console.log(`Query: ${query}, Parámetro: ${orden}`);
+
         const result = await pool.query(query, [orden]);
+
+        console.log(`Resultado: ${result.rows.length} filas encontradas`);
 
         if (result.rows.length === 0) {
             return res.status(404).json({
