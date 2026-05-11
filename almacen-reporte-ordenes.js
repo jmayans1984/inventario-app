@@ -223,6 +223,8 @@ async function verDetallesOrden(codigo) {
 
 function mostrarModalDetallesOrden(orden, detalles) {
     const modal = document.createElement('div');
+    const modalId = 'modal-detalles-' + Date.now();
+    modal.id = modalId;
     modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -270,7 +272,7 @@ function mostrarModalDetallesOrden(orden, detalles) {
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                 <h2 style="color: var(--text-primary); margin: 0;">Detalles de Orden</h2>
-                <button onclick="this.closest('div').parentElement.remove()" style="
+                <button onclick="cerrarModalDetalles('${modalId}')" style="
                     background: none;
                     border: none;
                     font-size: 1.5rem;
@@ -319,12 +321,26 @@ function mostrarModalDetallesOrden(orden, detalles) {
             </div>
 
             <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                <button onclick="this.closest('div').parentElement.remove()" class="btn btn-secondary" style="flex: 1;">Cerrar</button>
+                <button onclick="cerrarModalDetalles('${modalId}')" class="btn btn-secondary" style="flex: 1;">Cerrar</button>
             </div>
         </div>
     `;
 
     document.body.appendChild(modal);
+
+    // Cerrar al hacer click en el fondo
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            cerrarModalDetalles(modalId);
+        }
+    });
+}
+
+function cerrarModalDetalles(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.remove();
+    }
 }
 
 function mostrarSoporteEntrega(codigo) {

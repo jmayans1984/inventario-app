@@ -1928,16 +1928,18 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
 
         const detallesQuery = `
             SELECT
-                id,
-                orden,
-                producto_venta,
-                cantidad,
-                precio_unitario,
-                subtotal,
-                empresa
-            FROM detalle_ordenes
-            WHERE orden = $1
-            ORDER BY id
+                d.id,
+                d.orden,
+                d.producto_venta,
+                d.cantidad,
+                d.precio_unitario,
+                d.subtotal,
+                d.empresa,
+                pv.nombre as producto_nombre
+            FROM detalle_ordenes d
+            LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
+            WHERE d.orden = $1
+            ORDER BY d.id
         `;
 
         const ordenResult = await pool.query(ordenQuery, [codigo]);
