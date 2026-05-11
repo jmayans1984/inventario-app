@@ -742,41 +742,48 @@
                     </html>
                 `;
 
-                // Crear blob y abrir en nueva pestaña/ventana
+                // Estrategia: crear iframe invisible con el contenido y imprimir desde ahí
                 try {
-                    const blob = new Blob([contenidoImpresion], { type: 'text/html;charset=utf-8' });
-                    const urlBlob = URL.createObjectURL(blob);
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.id = 'printFrame_' + Date.now();
 
-                    // Intenta abrir en nueva ventana
-                    const ventanaImpresion = window.open(urlBlob, 'printWindow');
+                    document.body.appendChild(iframe);
 
-                    if (ventanaImpresion) {
-                        // Si se abrió la ventana, esperar a que cargue y luego imprimir
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    iframeDoc.open();
+                    iframeDoc.write(contenidoImpresion);
+                    iframeDoc.close();
+
+                    // Esperar a que el contenido se cargue completamente
+                    iframe.onload = () => {
                         setTimeout(() => {
-                            ventanaImpresion.print();
-                        }, 500);
-                    } else {
-                        // Si window.open falló, crear un iframe para imprimir
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = urlBlob;
-                        document.body.appendChild(iframe);
-
-                        iframe.onload = () => {
-                            setTimeout(() => {
+                            try {
                                 iframe.contentWindow.print();
-                                // Limpiar después de un tiempo
-                                setTimeout(() => {
-                                    document.body.removeChild(iframe);
-                                    URL.revokeObjectURL(urlBlob);
-                                }, 1000);
-                            }, 500);
-                        };
-                    }
+                            } catch (e) {
+                                console.error('Error en print():', e);
+                            }
+                        }, 500);
+                    };
+
+                    // También intentar después de un tiempo fijo en caso de que onload no funcione
+                    setTimeout(() => {
+                        try {
+                            iframe.contentWindow.print();
+                        } catch (e) {
+                            console.error('Error en print() de fallback:', e);
+                        }
+                        // Limpiar el iframe después de 3 segundos
+                        setTimeout(() => {
+                            if (iframe && iframe.parentNode) {
+                                document.body.removeChild(iframe);
+                            }
+                        }, 3000);
+                    }, 800);
 
                 } catch (printError) {
                     console.error('Error al preparar impresión:', printError);
-                    alert('❌ Error al imprimir. Por favor intenta directamente desde tu navegador.');
+                    alert('❌ Error al imprimir. Intenta desde el navegador: Menú > Imprimir o presiona Ctrl+P');
                 }
 
             } catch (error) {
