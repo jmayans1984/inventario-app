@@ -1792,6 +1792,74 @@ app.get('/api/config-listas-precios/:tipo', async (req, res) => {
     }
 });
 
+// GET /api/ordenes-compra - Obtener órdenes de compra con filtros
+app.get('/api/ordenes-compra', async (req, res) => {
+    const { empresa, fechaDesde, fechaHasta, estado } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        let query = `
+            SELECT
+                codigo,
+                fecha,
+                fecha_entrega,
+                cliente,
+                tipo_precio,
+                dias_credito,
+                estado,
+                total,
+                observaciones,
+                empresa
+            FROM ordenes_compra
+            WHERE empresa = $1
+        `;
+
+        const params = [empresa];
+        let paramCount = 1;
+
+        if (fechaDesde) {
+            paramCount++;
+            query += ` AND fecha >= $${paramCount}`;
+            params.push(fechaDesde);
+        }
+
+        if (fechaHasta) {
+            paramCount++;
+            query += ` AND fecha <= $${paramCount}`;
+            params.push(fechaHasta);
+        }
+
+        if (estado) {
+            paramCount++;
+            query += ` AND UPPER(estado) = UPPER($${paramCount})`;
+            params.push(estado);
+        }
+
+        query += ` ORDER BY fecha DESC`;
+
+        const result = await pool.query(query, params);
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error en /api/ordenes-compra:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener órdenes de compra',
+            details: error.message
+        });
+    }
+});
+
 // POST /api/ordenes-compra/crear - Crear orden de compra con detalles
 app.post('/api/ordenes-compra/crear', async (req, res) => {
     const { empresa, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;

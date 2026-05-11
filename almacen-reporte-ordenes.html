@@ -34,16 +34,17 @@
     </header>
 
     <!-- CONTENIDO -->
-    <div style="padding: 1rem;">
-        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">🛒 Órdenes de compra</h1>
+    <div style="max-width: 1400px; margin: 0 auto; padding: 2rem 1rem;">
+        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">🛒 Órdenes de Compra</h1>
 
         <div class="table-container">
-            <div id="reporteOrdenesContent"></div>
+            <div id="gestionContent"></div>
         </div>
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script src="almacen-reporte-ordenes.js"></script>
     <script>
         window.addEventListener('load', () => {
             if (!window.sesion) {
@@ -51,12 +52,11 @@
                 return;
             }
 
-            // Aquí se cargará el módulo cuando esté disponible
-            // setTimeout(() => {
-            //     if (typeof cargarReporteOrdenes === 'function') {
-            //         cargarReporteOrdenes();
-            //     }
-            // }, 100);
+            setTimeout(() => {
+                if (typeof cargarReporteOrdenes === 'function') {
+                    cargarReporteOrdenes();
+                }
+            }, 100);
         });
     </script>
 </body>
