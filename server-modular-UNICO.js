@@ -1313,52 +1313,6 @@ app.get('/api/gastos/reporte', async (req, res) => {
 // MÓDULO 7: ÓRDENES DE COMPRA Y RECEPCIÓN
 // ================================================================
 
-// GET /api/ordenes-compra - Listar órdenes de un cliente
-app.get('/api/ordenes-compra', async (req, res) => {
-    const { empresa, estado } = req.query;
-    
-    if (!empresa) {
-        return res.status(400).json({
-            success: false,
-            error: 'Parámetro empresa requerido'
-        });
-    }
-    
-    try {
-        let query = `
-            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.fecha_vencimiento,
-                   oc.cliente, oc.tipo_precio, oc.dias_credito, oc.estado,
-                   oc.total, oc.observaciones, oc.empresa,
-                   e.nombre as empresa_nombre
-            FROM ordenes_compra oc
-            LEFT JOIN empresas e ON oc.empresa = e.codigo
-            WHERE oc.empresa = $1
-        `;
-        
-        const params = [empresa];
-        
-        if (estado) {
-            query += ` AND oc.estado = $2`;
-            params.push(estado);
-        }
-        
-        query += ` ORDER BY oc.fecha DESC`;
-        
-        const result = await pool.query(query, params);
-        
-        res.json({
-            success: true,
-            data: result.rows
-        });
-    } catch (error) {
-        console.error('Error obteniendo órdenes:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Error al obtener órdenes de compra'
-        });
-    }
-});
-
 // GET /api/ordenes-compra/todas - Listar TODAS las órdenes (para PROVEEDOR)
 app.get('/api/ordenes-compra/todas', async (req, res) => {
     const { estado } = req.query;
@@ -1397,42 +1351,6 @@ app.get('/api/ordenes-compra/todas', async (req, res) => {
     }
 });
 
-// GET /api/ordenes-compra/:codigo - Detalle de una orden
-app.get('/api/ordenes-compra/:codigo', async (req, res) => {
-    const { codigo } = req.params;
-    
-    try {
-        const query = `
-            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.fecha_vencimiento,
-                   oc.cliente, oc.tipo_precio, oc.dias_credito, oc.estado,
-                   oc.total, oc.observaciones, oc.empresa,
-                   e.nombre as empresa_nombre
-            FROM ordenes_compra oc
-            LEFT JOIN empresas e ON oc.empresa = e.codigo
-            WHERE oc.codigo = $1
-        `;
-        
-        const result = await pool.query(query, [codigo]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Orden de compra no encontrada'
-            });
-        }
-        
-        res.json({
-            success: true,
-            data: result.rows[0]
-        });
-    } catch (error) {
-        console.error('Error obteniendo detalle de orden:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Error al obtener detalle de orden'
-        });
-    }
-});
 
 // GET /api/ordenes-compra/:codigo/detalle - Productos de una orden
 app.get('/api/ordenes-compra/:codigo/detalle', async (req, res) => {
@@ -1864,6 +1782,8 @@ app.get('/api/ordenes-compra', async (req, res) => {
 app.get('/api/ordenes-compra/:codigo', async (req, res) => {
     const { codigo } = req.params;
 
+    console.log('GET /api/ordenes-compra - Buscando código:', codigo);
+
     try {
         const query = `
             SELECT
@@ -1883,10 +1803,12 @@ app.get('/api/ordenes-compra/:codigo', async (req, res) => {
 
         const result = await pool.query(query, [codigo]);
 
+        console.log('Resultado de query:', result.rows.length, 'filas encontradas');
+
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                error: 'Orden no encontrada'
+                error: `Orden ${codigo} no encontrada`
             });
         }
 
