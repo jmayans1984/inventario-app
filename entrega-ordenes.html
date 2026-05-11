@@ -792,6 +792,61 @@
             }
         }
 
+        function comprimirImagen(base64DataUrl) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const img = new Image();
+
+                    img.onload = () => {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+
+                            // Reducir resolución si la imagen es muy grande
+                            let maxWidth = 1200;
+                            let maxHeight = 1200;
+                            let width = img.width;
+                            let height = img.height;
+
+                            if (width > maxWidth || height > maxHeight) {
+                                const ratio = Math.min(maxWidth / width, maxHeight / height);
+                                width = Math.floor(width * ratio);
+                                height = Math.floor(height * ratio);
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+
+                            // Dibujar imagen en escala de grises
+                            ctx.filter = 'grayscale(100%)';
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            // Exportar como JPEG con calidad baja (40%)
+                            const imagenComprimida = canvas.toDataURL('image/jpeg', 0.4);
+
+                            // Extraer solo la parte base64
+                            const base64Data = imagenComprimida.split(',')[1];
+                            resolve(base64Data);
+
+                        } catch (error) {
+                            console.error('Error en compresión:', error);
+                            reject(error);
+                        }
+                    };
+
+                    img.onerror = () => {
+                        reject(new Error('No se pudo cargar la imagen'));
+                    };
+
+                    img.src = base64DataUrl;
+
+                } catch (error) {
+                    console.error('Error al comprimir imagen:', error);
+                    reject(error);
+                }
+            });
+        }
+
         async function subirSoporteEntrega(codigoOrden, inputElement) {
             const archivo = inputElement.files[0];
 
@@ -821,17 +876,17 @@
                 reader.onload = async (e) => {
                     try {
                         const base64DataUrl = e.target.result;
-                        console.log('Base64 URL generada:', base64DataUrl.substring(0, 50) + '...');
+                        console.log('Base64 URL generada, tamaño original:', base64DataUrl.length, 'bytes');
 
-                        // Extraer solo la parte base64 (sin el prefijo data:image/...)
-                        const base64Data = base64DataUrl.split(',')[1];
+                        // Comprimir la imagen
+                        const base64Comprimido = await comprimirImagen(base64DataUrl);
+                        console.log('Tamaño después de compresión:', base64Comprimido.length, 'bytes');
+                        console.log('Reducción:', Math.round((1 - base64Comprimido.length / base64DataUrl.length) * 100) + '%');
 
-                        if (!base64Data) {
+                        if (!base64Comprimido) {
                             alert('❌ Error al procesar la imagen. Por favor intenta nuevamente.');
                             return;
                         }
-
-                        console.log('Base64 extraído, longitud:', base64Data.length);
 
                         // Enviar al backend
                         const response = await fetch(`${API_BASE}/soportes-entrega/subir`, {
@@ -839,7 +894,7 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 orden: codigoOrden,
-                                imagen_base64: base64Data,
+                                imagen_base64: base64Comprimido,
                                 nombre_archivo: archivo.name,
                                 empresa: window.sesion.empresa
                             })
