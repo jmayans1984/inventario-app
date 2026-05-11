@@ -1895,6 +1895,14 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
     const { codigo } = req.params;
     const { fecha_entrega, estado, observaciones, detalles, total } = req.body;
 
+    console.log(`PUT /api/ordenes-compra/${codigo}`, {
+        fecha_entrega,
+        estado,
+        observaciones,
+        detalles,
+        total
+    });
+
     const client = await pool.connect();
 
     try {
@@ -1943,14 +1951,17 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
 
         // Si hay detalles, actualizar la tabla detalle_ordenes
         if (detalles && detalles.length > 0) {
+            console.log(`Eliminando detalles viejos para orden: ${codigo}`);
             // Eliminar detalles viejos
-            await client.query(`DELETE FROM detalle_ordenes WHERE orden_compra = $1`, [codigo]);
+            await client.query(`DELETE FROM detalle_ordenes WHERE orden = $1`, [codigo]);
 
             // Insertar nuevos detalles
+            console.log(`Insertando ${detalles.length} nuevos detalles`);
             for (const detalle of detalles) {
+                console.log(`Insertando detalle:`, detalle);
                 const insertDetalleQuery = `
                     INSERT INTO detalle_ordenes
-                    (orden_compra, producto_venta, cantidad, precio_unitario, subtotal)
+                    (orden, producto_venta, cantidad, precio_unitario, subtotal)
                     VALUES ($1, $2, $3, $4, $5)
                 `;
 
@@ -1963,6 +1974,7 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
                     subtotal
                 ]);
             }
+            console.log(`Detalles insertados correctamente`);
         }
 
         await client.query('COMMIT');

@@ -378,7 +378,12 @@ async function editarOrden(codigo) {
 }
 
 function mostrarModalEditarOrden(orden, detalles) {
+    // Remover cualquier modal anterior
+    const modalAnterior = document.getElementById('modalEditarOrdenDiv');
+    if (modalAnterior) modalAnterior.remove();
+
     const modal = document.createElement('div');
+    modal.id = 'modalEditarOrdenDiv';
     modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -447,7 +452,7 @@ function mostrarModalEditarOrden(orden, detalles) {
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                 <h2 style="color: var(--text-primary); margin: 0;">Editar Orden</h2>
-                <button onclick="this.closest('div').parentElement.remove()" style="
+                <button onclick="document.getElementById('modalEditarOrdenDiv').remove()" style="
                     background: none;
                     border: none;
                     font-size: 1.5rem;
@@ -545,7 +550,7 @@ function mostrarModalEditarOrden(orden, detalles) {
             </div>
 
             <div style="display: flex; gap: 1rem;">
-                <button onclick="this.closest('div').parentElement.remove()" class="btn btn-secondary" style="flex: 1;">Cancelar</button>
+                <button onclick="document.getElementById('modalEditarOrdenDiv').remove()" class="btn btn-secondary" style="flex: 1;">Cancelar</button>
                 <button onclick="guardarEdicionOrden('${orden.codigo}')" class="btn btn-primary" style="flex: 1;">💾 Guardar Cambios</button>
             </div>
         </div>
@@ -633,6 +638,15 @@ async function guardarEdicionOrden(codigo) {
 
     const total = detalles.reduce((sum, det) => sum + (det.cantidad * det.precio_unitario), 0);
 
+    console.log('Enviando datos al backend:', {
+        codigo,
+        fechaEntrega,
+        estado,
+        observaciones,
+        detalles,
+        total
+    });
+
     try {
         const response = await fetch(`${API_BASE_REPORTE_OC}/ordenes-compra/${codigo}`, {
             method: 'PUT',
@@ -648,16 +662,19 @@ async function guardarEdicionOrden(codigo) {
 
         const data = await response.json();
 
+        console.log('Respuesta del servidor:', data);
+
         if (data.success) {
             alert('✅ Orden actualizada correctamente');
-            document.querySelector('[style*="z-index: 1000"]').remove();
+            const modal = document.getElementById('modalEditarOrdenDiv');
+            if (modal) modal.remove();
             filtrarOrdenesCompra(); // Recargar lista
         } else {
             alert(`❌ Error: ${data.error}`);
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('❌ Error al guardar cambios');
+        console.error('Error al guardar:', error);
+        alert(`❌ Error al guardar cambios: ${error.message}`);
     }
 }
 
