@@ -269,7 +269,8 @@
             noOrdersContainer.style.display = 'none';
 
             try {
-                const response = await fetch(`${API_BASE}/ordenes-compra?empresa=${window.sesion.empresa}&estado=PENDIENTE`);
+                // Obtener todas las órdenes PENDIENTE sin filtro de empresa
+                const response = await fetch(`${API_BASE}/ordenes-compra/entrega/pendientes`);
                 const data = await response.json();
 
                 if (data.success && data.data && data.data.length > 0) {

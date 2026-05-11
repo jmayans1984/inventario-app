@@ -1578,6 +1578,43 @@ app.get('/api/config-listas-precios/:tipo', async (req, res) => {
     }
 });
 
+// GET /api/ordenes-compra/entrega/pendientes - Obtener órdenes PENDIENTE de TODAS las empresas cliente (para personal de entregas)
+app.get('/api/ordenes-compra/entrega/pendientes', async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                codigo,
+                fecha,
+                fecha_entrega,
+                cliente,
+                tipo_precio,
+                dias_credito,
+                estado,
+                total,
+                observaciones,
+                empresa
+            FROM ordenes_compra
+            WHERE estado = 'PENDIENTE'
+            ORDER BY fecha DESC
+        `;
+
+        const result = await pool.query(query);
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error en /api/ordenes-compra/entrega/pendientes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener órdenes',
+            details: error.message
+        });
+    }
+});
+
 // GET /api/ordenes-compra - Obtener órdenes de compra con filtros
 app.get('/api/ordenes-compra', async (req, res) => {
     const { empresa, fechaDesde, fechaHasta, estado } = req.query;
