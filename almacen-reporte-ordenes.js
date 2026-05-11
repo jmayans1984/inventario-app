@@ -776,11 +776,11 @@ async function cargarSoporteExistente(codigo) {
         const data = await response.json();
 
         if (data.success && data.soporte) {
-            document.getElementById('imagenPreview').src = data.soporte.imagen_data;
+            document.getElementById('imagenPreview').src = data.soporte.archivo_data;
             document.getElementById('previewSoporte').style.display = 'block';
             document.getElementById('sinSoporteDiv').style.display = 'none';
 
-            const tamanioKB = (data.soporte.imagen_data.length / 1024).toFixed(2);
+            const tamanioKB = (data.soporte.archivo_data.length / 1024).toFixed(2);
             document.getElementById('tamanoImagen').textContent = tamanioKB + ' KB';
 
             // Mostrar fecha formateada

@@ -2009,7 +2009,7 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
 
     try {
         const insertQuery = `
-            INSERT INTO soportes_entrega (orden, imagen_data, nombre_archivo, fecha_subida, empresa)
+            INSERT INTO soportes_entrega (orden, archivo_data, nombre_archivo, fecha_subida, empresa)
             VALUES ($1, $2, $3, NOW(), $4)
             RETURNING id
         `;
@@ -2044,7 +2044,7 @@ app.get('/api/soportes-entrega/:orden', async (req, res) => {
 
     try {
         const query = `
-            SELECT id, orden, imagen_data, nombre_archivo, fecha_subida
+            SELECT id, orden, archivo_data, nombre_archivo, fecha_subida
             FROM soportes_entrega
             WHERE orden = $1
             ORDER BY fecha_subida DESC
