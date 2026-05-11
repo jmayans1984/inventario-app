@@ -16,11 +16,6 @@ function cargarOrdenesCompra() {
         <div class="table-container">
             <div class="filters-container">
                 <div class="filter-group">
-                    <label class="filter-label">Proveedor *</label>
-                    <input type="text" id="proveedorOrden" class="filter-input" placeholder="Código o nombre del proveedor">
-                </div>
-
-                <div class="filter-group">
                     <label class="filter-label">Tipo de Precio *</label>
                     <select id="tipoPrecioOrden" onchange="cargarGridOrdenesCompra(); cargarDiasCreditoOrden()" class="filter-select">
                         <option value="">Seleccione...</option>
@@ -31,18 +26,18 @@ function cargarOrdenesCompra() {
                 </div>
 
                 <div class="filter-group">
-                    <label class="filter-label">Fecha Entrega Estimada</label>
+                    <label class="filter-label">Fecha de Entrega</label>
                     <input type="date" id="fechaEntregaOrden" class="filter-input">
                 </div>
 
                 <div class="filter-group">
                     <label class="filter-label">Días de Crédito</label>
-                    <input type="number" id="diasCreditoOrden" class="filter-input" min="0" value="0">
+                    <input type="number" id="diasCreditoOrden" class="filter-input" min="0" value="0" readonly style="background-color: var(--bg-secondary); cursor: not-allowed;">
                 </div>
 
                 <div class="filter-group full-width">
                     <label class="filter-label">Observaciones</label>
-                    <input type="text" id="observacionesOrden" class="filter-input" placeholder="Comentarios de la orden...">
+                    <input type="text" id="observacionesOrden" class="filter-input" placeholder="Comentarios de la orden..." style="text-transform: uppercase;">
                 </div>
             </div>
 
@@ -357,18 +352,12 @@ function limpiarGridOrdenesCompra() {
 // ================================================================
 
 async function guardarOrdenCompra() {
-    const proveedor = document.getElementById('proveedorOrden').value.trim();
     const tipoPrecio = document.getElementById('tipoPrecioOrden').value;
     const fechaEntrega = document.getElementById('fechaEntregaOrden').value;
     const diasCredito = parseInt(document.getElementById('diasCreditoOrden').value) || 0;
-    const observaciones = document.getElementById('observacionesOrden').value.trim();
+    const observaciones = document.getElementById('observacionesOrden').value.trim().toUpperCase();
 
     // Validar campos
-    if (!proveedor) {
-        alert('❌ El proveedor es obligatorio');
-        return;
-    }
-
     if (!tipoPrecio) {
         alert('❌ El tipo de precio es obligatorio');
         return;
@@ -412,7 +401,6 @@ async function guardarOrdenCompra() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 empresa: sesion.empresa,
-                proveedor: proveedor,
                 tipo_precio: tipoPrecio,
                 fecha_entrega: fechaEntrega || null,
                 dias_credito: diasCredito,
@@ -427,7 +415,6 @@ async function guardarOrdenCompra() {
         if (data.success) {
             alert(`✅ Orden de compra creada exitosamente\n\nCódigo: ${data.codigo}\nProductos: ${detalles.length}\nTotal: ${formatearNumeroOrden(total)}`);
             limpiarGridOrdenesCompra();
-            document.getElementById('proveedorOrden').value = '';
             document.getElementById('tipoPrecioOrden').value = '';
             document.getElementById('fechaEntregaOrden').value = '';
             document.getElementById('diasCreditoOrden').value = '0';

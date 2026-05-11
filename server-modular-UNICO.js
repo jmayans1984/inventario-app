@@ -1719,23 +1719,25 @@ app.get('/api/productos-venta', async (req, res) => {
     try {
         let query = `
             SELECT
-                codigo,
-                nombre,
-                descripcion,
-                unidad,
-                grupo,
-                precio_costo,
-                precio_venta1,
-                precio_venta2,
-                precio_venta3
-            FROM productos_venta
+                pv.codigo,
+                pv.nombre,
+                pv.descripcion,
+                pv.unidad,
+                pv.grupo,
+                gp.nombre as grupo_nombre,
+                pv.precio_costo,
+                pv.precio_venta1,
+                pv.precio_venta2,
+                pv.precio_venta3
+            FROM productos_venta pv
+            LEFT JOIN grupo_productos gp ON pv.grupo = gp.codigo
         `;
 
         if (control) {
-            query += ` WHERE UPPER(control) = UPPER('${control}')`;
+            query += ` WHERE UPPER(pv.control) = UPPER('${control}')`;
         }
 
-        query += ` ORDER BY nombre`;
+        query += ` ORDER BY pv.grupo, pv.nombre`;
 
         const result = await pool.query(query);
 
@@ -1792,9 +1794,9 @@ app.get('/api/config-listas-precios/:tipo', async (req, res) => {
 
 // POST /api/ordenes-compra/crear - Crear orden de compra con detalles
 app.post('/api/ordenes-compra/crear', async (req, res) => {
-    const { empresa, proveedor, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;
+    const { empresa, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;
 
-    if (!empresa || !proveedor || !tipo_precio || !detalles || detalles.length === 0) {
+    if (!empresa || !tipo_precio || !detalles || detalles.length === 0) {
         return res.status(400).json({
             success: false,
             error: 'Faltan parámetros obligatorios'
@@ -1810,18 +1812,18 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
         const codigoResult = await client.query(`
             SELECT COUNT(*) + 1 as numero_orden
             FROM ordenes_compra
-            WHERE cliente = $1 AND empresa = $2
-        `, [proveedor, empresa]);
+            WHERE empresa = $1
+        `, [empresa]);
 
         const numeroOrden = String(codigoResult.rows[0].numero_orden).padStart(5, '0');
-        const codigoOrden = `OC-${proveedor}-${numeroOrden}`;
+        const codigoOrden = `OC-${numeroOrden}`;
 
         // Insertar orden de compra
         const fechaHoy = new Date().toISOString().split('T')[0];
         const insertOrdenQuery = `
             INSERT INTO ordenes_compra
-            (codigo, fecha, fecha_entrega, cliente, tipo_precio, dias_credito, estado, total, observaciones, empresa)
-            VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE', $7, $8, $9)
+            (codigo, fecha, fecha_entrega, tipo_precio, dias_credito, estado, total, observaciones, empresa)
+            VALUES ($1, $2, $3, $4, $5, 'PENDIENTE', $6, $7, $8)
             RETURNING codigo
         `;
 
@@ -1829,7 +1831,6 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
             codigoOrden,
             fechaHoy,
             fecha_entrega || null,
-            proveedor,
             tipo_precio,
             dias_credito || 0,
             total,
