@@ -1808,22 +1808,31 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Obtener próximo código de orden
+        // Mapear tipo_precio a formato PRECIO1, PRECIO2, PRECIO3
+        const tipoPrecioMapeado = tipo_precio === 'precio_venta1' ? 'PRECIO1' :
+                                  tipo_precio === 'precio_venta2' ? 'PRECIO2' : 'PRECIO3';
+
+        // Obtener máximo consecutivo de orden para esta empresa
         const codigoResult = await client.query(`
-            SELECT COUNT(*) + 1 as numero_orden
+            SELECT COALESCE(MAX(CAST(SUBSTRING(codigo, -5) AS INTEGER)), 0) + 1 as numero_orden
             FROM ordenes_compra
-            WHERE empresa = $1
+            WHERE empresa = $1 AND codigo LIKE 'OC-%'
         `, [empresa]);
 
         const numeroOrden = String(codigoResult.rows[0].numero_orden).padStart(5, '0');
-        const codigoOrden = `OC-${numeroOrden}`;
+        const codigoOrden = `OC-${empresa}-${numeroOrden}`;
+
+        // Validar longitud del código
+        if (codigoOrden.length > 20) {
+            throw new Error('Código de orden excede longitud máxima (20 caracteres)');
+        }
 
         // Insertar orden de compra
         const fechaHoy = new Date().toISOString().split('T')[0];
         const insertOrdenQuery = `
             INSERT INTO ordenes_compra
-            (codigo, fecha, fecha_entrega, tipo_precio, dias_credito, estado, total, observaciones, empresa)
-            VALUES ($1, $2, $3, $4, $5, 'PENDIENTE', $6, $7, $8)
+            (codigo, fecha, fecha_entrega, cliente, tipo_precio, dias_credito, estado, total, observaciones, empresa)
+            VALUES ($1, $2, $3, $4, $5, $6, 'PENDIENTE', $7, $8, $9)
             RETURNING codigo
         `;
 
@@ -1831,7 +1840,8 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
             codigoOrden,
             fechaHoy,
             fecha_entrega || null,
-            tipo_precio,
+            empresa,
+            tipoPrecioMapeado,
             dias_credito || 0,
             total,
             observaciones || '',
@@ -1840,25 +1850,34 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
 
         const codigoOrdenGuardado = ordenResult.rows[0].codigo;
 
-        // Insertar detalles de la orden
+        // Insertar detalles de la orden (solo con cantidad > 0)
         let detallesCreados = 0;
         for (const detalle of detalles) {
-            const insertDetalleQuery = `
-                INSERT INTO detalle_ordenes
-                (orden, producto_venta, cantidad, precio_unitario, subtotal, empresa)
-                VALUES ($1, $2, $3, $4, $5, $6)
-            `;
+            const cantidad = parseFloat(detalle.cantidad) || 0;
 
-            await client.query(insertDetalleQuery, [
-                codigoOrdenGuardado,
-                detalle.producto_venta,
-                detalle.cantidad,
-                detalle.precio_unitario,
-                detalle.subtotal,
-                empresa
-            ]);
+            // Solo guardar si cantidad es diferente a 0, null o blanco
+            if (cantidad > 0) {
+                const insertDetalleQuery = `
+                    INSERT INTO detalle_ordenes
+                    (orden, producto_venta, cantidad, precio_unitario, subtotal, empresa)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `;
 
-            detallesCreados++;
+                await client.query(insertDetalleQuery, [
+                    codigoOrdenGuardado,
+                    detalle.producto_venta,
+                    cantidad,
+                    detalle.precio_unitario,
+                    detalle.subtotal,
+                    empresa
+                ]);
+
+                detallesCreados++;
+            }
+        }
+
+        if (detallesCreados === 0) {
+            throw new Error('No hay productos con cantidad válida para guardar');
         }
 
         await client.query('COMMIT');
