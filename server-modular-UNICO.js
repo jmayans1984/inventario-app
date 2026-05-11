@@ -1814,7 +1814,7 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
 
         // Obtener máximo consecutivo de orden para esta empresa
         const codigoResult = await client.query(`
-            SELECT COALESCE(MAX(CAST(SUBSTRING(codigo, -5) AS INTEGER)), 0) + 1 as numero_orden
+            SELECT COALESCE(MAX(CAST(SUBSTRING(codigo, LENGTH(codigo) - 4) AS INTEGER)), 0) + 1 as numero_orden
             FROM ordenes_compra
             WHERE empresa = $1 AND codigo LIKE 'OC-%'
         `, [empresa]);
