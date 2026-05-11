@@ -679,6 +679,124 @@ async function guardarEdicionOrden(codigo) {
     }
 }
 
+function mostrarSoporteEntrega(codigo) {
+    // Remover cualquier modal anterior
+    const modalAnterior = document.getElementById('modalSoporteEntregaDiv');
+    if (modalAnterior) modalAnterior.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modalSoporteEntregaDiv';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        overflow-y: auto;
+    `;
+
+    modal.innerHTML = `
+        <div style="
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="color: var(--text-primary); margin: 0;">Comprobante de Entrega</h2>
+                <button onclick="document.getElementById('modalSoporteEntregaDiv').remove()" style="
+                    background: none;
+                    border: none;
+                    font-size: 1.5rem;
+                    cursor: pointer;
+                    color: var(--text-secondary);
+                ">✕</button>
+            </div>
+
+            <div style="display: grid; gap: 1.5rem;">
+                <div>
+                    <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Orden</label>
+                    <input type="text" value="${codigo}" readonly style="
+                        width: 100%;
+                        padding: 0.75rem;
+                        border: 1px solid var(--border);
+                        border-radius: 6px;
+                        background: var(--bg-secondary);
+                        color: var(--text-primary);
+                        font-family: 'JetBrains Mono', monospace;
+                        font-weight: 600;
+                        cursor: not-allowed;
+                    ">
+                </div>
+
+                <div id="previewSoporte" style="display: none;">
+                    <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Comprobante</label>
+                    <img id="imagenPreview" style="
+                        width: 100%;
+                        max-height: 500px;
+                        border: 1px solid var(--border);
+                        border-radius: 6px;
+                        object-fit: contain;
+                        background: var(--bg-secondary);
+                    ">
+                    <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                        Fecha: <span id="fechaSoporte">-</span> | Tamaño: <span id="tamanoImagen">0 KB</span>
+                    </div>
+                </div>
+
+                <div id="sinSoporteDiv" style="display: none; text-align: center; padding: 2rem; background: var(--bg-secondary); border-radius: 6px; color: var(--text-secondary);">
+                    📭 Sin comprobante de entrega registrado
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button onclick="document.getElementById('modalSoporteEntregaDiv').remove()" class="btn btn-secondary" style="flex: 1;">Cerrar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Cargar soporte existente
+    cargarSoporteExistente(codigo);
+}
+
+async function cargarSoporteExistente(codigo) {
+    try {
+        const response = await fetch(`${API_BASE_REPORTE_OC}/soportes-entrega/${codigo}`);
+        const data = await response.json();
+
+        if (data.success && data.soporte) {
+            document.getElementById('imagenPreview').src = data.soporte.imagen_data;
+            document.getElementById('previewSoporte').style.display = 'block';
+            document.getElementById('sinSoporteDiv').style.display = 'none';
+
+            const tamanioKB = (data.soporte.imagen_data.length / 1024).toFixed(2);
+            document.getElementById('tamanoImagen').textContent = tamanioKB + ' KB';
+
+            // Mostrar fecha formateada
+            const fecha = new Date(data.soporte.fecha_subida).toLocaleString('es-ES');
+            document.getElementById('fechaSoporte').textContent = fecha;
+        } else {
+            document.getElementById('sinSoporteDiv').style.display = 'block';
+            document.getElementById('previewSoporte').style.display = 'none';
+        }
+    } catch (error) {
+        console.log('Sin comprobante:', error.message);
+        document.getElementById('sinSoporteDiv').style.display = 'block';
+        document.getElementById('previewSoporte').style.display = 'none';
+    }
+}
+
 function verFacturaOrden(codigo) {
     alert(`Ver factura de orden: ${codigo}\n\n(Funcionalidad pendiente)`);
 }

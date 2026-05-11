@@ -2125,6 +2125,86 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
 });
 
 // ================================================================
+// MÓDULO 8: SOPORTES DE ENTREGA
+// ================================================================
+
+// POST /api/soportes-entrega/subir - Subir comprobante de entrega
+app.post('/api/soportes-entrega/subir', async (req, res) => {
+    const { orden, imagen_base64, nombre_archivo, empresa } = req.body;
+
+    if (!orden || !imagen_base64) {
+        return res.status(400).json({
+            success: false,
+            error: 'Faltan parámetros: orden e imagen_base64'
+        });
+    }
+
+    try {
+        const insertQuery = `
+            INSERT INTO soportes_entrega (orden, imagen_data, nombre_archivo, fecha_subida, empresa)
+            VALUES ($1, $2, $3, NOW(), $4)
+            RETURNING id
+        `;
+
+        const result = await pool.query(insertQuery, [
+            orden,
+            imagen_base64,
+            nombre_archivo || `comprobante_${orden}_${Date.now()}.png`,
+            empresa
+        ]);
+
+        res.json({
+            success: true,
+            id: result.rows[0].id,
+            message: 'Comprobante de entrega guardado correctamente'
+        });
+    } catch (error) {
+        console.error('Error en /api/soportes-entrega/subir:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al guardar comprobante de entrega',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/soportes-entrega/:orden - Obtener comprobante de entrega
+app.get('/api/soportes-entrega/:orden', async (req, res) => {
+    const { orden } = req.params;
+
+    try {
+        const query = `
+            SELECT id, orden, imagen_data, nombre_archivo, fecha_subida
+            FROM soportes_entrega
+            WHERE orden = $1
+            ORDER BY fecha_subida DESC
+            LIMIT 1
+        `;
+
+        const result = await pool.query(query, [orden]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'No hay comprobante de entrega para esta orden'
+            });
+        }
+
+        res.json({
+            success: true,
+            soporte: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error en /api/soportes-entrega/:orden:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener comprobante de entrega',
+            details: error.message
+        });
+    }
+});
+
+// ================================================================
 // HEALTH CHECK
 // ================================================================
 
