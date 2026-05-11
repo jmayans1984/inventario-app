@@ -356,6 +356,18 @@
                 const orden = data.orden;
                 const detalles = data.detalles || [];
 
+                // Obtener nombre de la empresa cliente
+                let nombreCliente = orden.cliente;
+                try {
+                    const empresaResponse = await fetch(`${API_BASE}/empresa/tipo?empresa=${orden.cliente}`);
+                    const empresaData = await empresaResponse.json();
+                    if (empresaData.success && empresaData.data && empresaData.data.nombre) {
+                        nombreCliente = empresaData.data.nombre;
+                    }
+                } catch (e) {
+                    console.log('No se pudo obtener nombre de empresa cliente');
+                }
+
                 // Crear contenido para imprimir
                 const contenidoImpresion = `
                     <!DOCTYPE html>
@@ -364,179 +376,235 @@
                         <meta charset="UTF-8">
                         <title>Remisión ${orden.codigo}</title>
                         <style>
+                            * {
+                                margin: 0;
+                                padding: 0;
+                                box-sizing: border-box;
+                            }
                             body {
-                                font-family: Arial, sans-serif;
-                                margin: 15px;
+                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                                margin: 20px;
                                 color: #333;
-                                font-size: 11px;
+                                font-size: 12px;
+                                line-height: 1.4;
                             }
-                            .header {
+                            .container {
+                                max-width: 8.5in;
+                                margin: 0 auto;
+                            }
+                            .header-top {
                                 text-align: right;
-                                margin-bottom: 15px;
-                                border-bottom: 1px solid #000;
+                                margin-bottom: 10px;
                                 padding-bottom: 8px;
+                                border-bottom: 2px solid #000;
                             }
-                            .titulo {
-                                font-size: 14px;
+                            .remision-titulo {
+                                font-size: 16px;
                                 font-weight: bold;
-                                display: inline;
+                                color: #000;
                             }
-                            .codigo {
-                                font-size: 14px;
+                            .remision-numero {
+                                font-size: 18px;
                                 font-weight: bold;
-                                display: inline;
+                                color: #000;
                             }
-                            .cliente-section {
-                                margin-bottom: 15px;
+                            .section-header {
+                                color: #d32f2f;
+                                font-weight: bold;
+                                font-size: 13px;
+                                margin-top: 12px;
+                                margin-bottom: 8px;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                            }
+                            .info-grid {
                                 display: grid;
                                 grid-template-columns: 1fr 1fr;
-                                gap: 15px;
+                                gap: 20px;
+                                margin-bottom: 15px;
+                            }
+                            .info-column {
+                                display: flex;
+                                flex-direction: column;
+                                gap: 8px;
                             }
                             .info-item {
-                                margin-bottom: 6px;
+                                display: grid;
+                                grid-template-columns: 100px 1fr;
+                                gap: 8px;
+                                align-items: baseline;
                             }
                             .info-label {
-                                font-weight: bold;
-                                color: #666;
-                                font-size: 10px;
+                                font-weight: 600;
+                                color: #555;
+                                font-size: 11px;
+                                text-transform: uppercase;
                             }
                             .info-value {
-                                font-size: 11px;
+                                font-size: 12px;
                                 color: #000;
+                                border-bottom: 1px dotted #999;
+                                padding-bottom: 2px;
+                            }
+                            .observaciones-box {
+                                background-color: #f5f5f5;
+                                border: 1px solid #ddd;
+                                border-radius: 4px;
+                                padding: 10px;
+                                margin: 12px 0;
+                            }
+                            .observaciones-label {
+                                font-weight: 600;
+                                font-size: 11px;
+                                color: #555;
+                                text-transform: uppercase;
+                                margin-bottom: 4px;
+                            }
+                            .observaciones-value {
+                                font-size: 12px;
+                                color: #000;
+                                min-height: 30px;
+                            }
+                            .separator-line {
+                                border-top: 2px solid #000;
+                                margin: 15px 0;
                             }
                             table {
                                 width: 100%;
                                 border-collapse: collapse;
-                                margin: 12px 0;
+                                margin: 15px 0;
+                                font-size: 11px;
                             }
                             th {
-                                background-color: #f0f0f0;
-                                border: 1px solid #999;
-                                padding: 6px;
+                                background-color: #e8e8e8;
+                                border: 1px solid #666;
+                                padding: 8px;
                                 text-align: left;
-                                font-weight: bold;
+                                font-weight: 600;
+                                text-transform: uppercase;
                                 font-size: 10px;
+                                color: #333;
                             }
                             td {
-                                border: 1px solid #999;
-                                padding: 6px;
+                                border: 1px solid #ccc;
+                                padding: 8px;
                                 font-size: 11px;
+                            }
+                            tr:nth-child(even) {
+                                background-color: #f9f9f9;
                             }
                             .cantidad {
                                 text-align: center;
                             }
-                            .observaciones-section {
-                                margin: 15px 0;
-                                padding: 8px;
-                                border: 1px solid #999;
-                                background-color: #f9f9f9;
+                            .unidad {
+                                text-align: center;
                             }
-                            .observaciones-label {
-                                font-weight: bold;
-                                font-size: 10px;
-                            }
-                            .observaciones-value {
-                                font-size: 11px;
-                                margin-top: 4px;
-                            }
-                            .firma-footer {
-                                margin-top: 25px;
+                            .firma-section {
+                                margin-top: 35px;
                                 display: grid;
                                 grid-template-columns: 1fr 1fr 1fr 1fr;
-                                gap: 10px;
+                                gap: 15px;
                             }
-                            .firma-column {
+                            .firma-box {
                                 text-align: center;
-                                font-size: 10px;
                             }
                             .firma-line {
                                 border-top: 1px solid #000;
-                                height: 35px;
-                                margin-bottom: 2px;
+                                height: 40px;
                             }
                             .firma-label {
-                                font-weight: bold;
-                                font-size: 9px;
+                                font-weight: 600;
+                                font-size: 10px;
+                                color: #555;
+                                text-transform: uppercase;
+                                margin-top: 4px;
                             }
                         </style>
                     </head>
                     <body>
-                        <div class="header">
-                            <span class="titulo">REMISION No.:</span>
-                            <span class="codigo">${orden.codigo}</span>
-                        </div>
+                        <div class="container">
+                            <div class="header-top">
+                                <div class="remision-titulo">REMISIÓN No.:</div>
+                                <div class="remision-numero">${orden.codigo}</div>
+                            </div>
 
-                        <div class="cliente-section">
-                            <div>
-                                <div class="info-item">
-                                    <div class="info-label">CLIENTE</div>
-                                    <div class="info-value">${orden.cliente || '-'}</div>
+                            <div class="info-grid">
+                                <div class="info-column">
+                                    <div class="section-header">Información de Entrega</div>
+                                    <div class="info-item">
+                                        <span class="info-label">Cliente:</span>
+                                        <span class="info-value">${nombreCliente}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Dirección:</span>
+                                        <span class="info-value">-</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Teléfono:</span>
+                                        <span class="info-value">-</span>
+                                    </div>
                                 </div>
-                                <div class="info-item">
-                                    <div class="info-label">DIRECCIÓN</div>
-                                    <div class="info-value">-</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">TELÉFONO</div>
-                                    <div class="info-value">-</div>
+
+                                <div class="info-column">
+                                    <div class="section-header">Detalles de la Orden</div>
+                                    <div class="info-item">
+                                        <span class="info-label">Fecha Orden:</span>
+                                        <span class="info-value">${new Date(orden.fecha).toLocaleDateString('es-ES')}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Fecha Entrega:</span>
+                                        <span class="info-value">${orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-ES') : '-'}</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <div class="info-item">
-                                    <div class="info-label">FECHA</div>
-                                    <div class="info-value">${new Date(orden.fecha).toLocaleDateString('es-ES')}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">FECHA ENTREGA PROGRAMADA</div>
-                                    <div class="info-value">${orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-ES') : '-'}</div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="width: 12%;">CÓDIGO</th>
-                                    <th style="width: 60%;">PRODUCTO</th>
-                                    <th style="width: 15%;" class="cantidad">CANTIDAD</th>
-                                    <th style="width: 13%;">UNIDAD</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${detalles.map(d => `
+                            ${orden.observaciones ? `
+                            <div class="observaciones-box">
+                                <div class="observaciones-label">Observaciones</div>
+                                <div class="observaciones-value">${orden.observaciones}</div>
+                            </div>
+                            ` : ''}
+
+                            <div class="separator-line"></div>
+
+                            <table>
+                                <thead>
                                     <tr>
-                                        <td>${d.producto_codigo || d.codigo}</td>
-                                        <td>${d.producto_nombre || d.nombre}</td>
-                                        <td class="cantidad">${parseFloat(d.cantidad).toFixed(2)}</td>
-                                        <td>${d.unidad || 'UN'}</td>
+                                        <th style="width: 10%;">Código</th>
+                                        <th style="width: 60%;">Producto</th>
+                                        <th style="width: 15%;" class="cantidad">Cantidad</th>
+                                        <th style="width: 15%;" class="unidad">Unidad</th>
                                     </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    ${detalles.map(d => `
+                                        <tr>
+                                            <td>${d.producto_codigo || d.codigo}</td>
+                                            <td>${d.producto_nombre || d.nombre}</td>
+                                            <td class="cantidad">${parseFloat(d.cantidad).toFixed(2)}</td>
+                                            <td class="unidad">${d.unidad || 'UN'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
 
-                        ${orden.observaciones ? `
-                        <div class="observaciones-section">
-                            <div class="observaciones-label">OBSERVACIONES:</div>
-                            <div class="observaciones-value">${orden.observaciones}</div>
-                        </div>
-                        ` : ''}
-
-                        <div class="firma-footer">
-                            <div class="firma-column">
-                                <div class="firma-line"></div>
-                                <div class="firma-label">ENTREGADO POR</div>
-                            </div>
-                            <div class="firma-column">
-                                <div class="firma-line"></div>
-                                <div class="firma-label">RECIBIDO POR</div>
-                            </div>
-                            <div class="firma-column">
-                                <div class="firma-line"></div>
-                                <div class="firma-label">FECHA DE ENTREGA</div>
-                            </div>
-                            <div class="firma-column">
-                                <div></div>
-                                <div class="firma-label">OBSERVACIONES:</div>
+                            <div class="firma-section">
+                                <div class="firma-box">
+                                    <div class="firma-line"></div>
+                                    <div class="firma-label">Entregado Por</div>
+                                </div>
+                                <div class="firma-box">
+                                    <div class="firma-line"></div>
+                                    <div class="firma-label">Recibido Por</div>
+                                </div>
+                                <div class="firma-box">
+                                    <div class="firma-line"></div>
+                                    <div class="firma-label">Fecha de Entrega</div>
+                                </div>
+                                <div class="firma-box">
+                                    <div style="height: 40px;"></div>
+                                    <div class="firma-label">Observaciones</div>
+                                </div>
                             </div>
                         </div>
                     </body>
