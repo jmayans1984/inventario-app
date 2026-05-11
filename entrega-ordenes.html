@@ -362,106 +362,125 @@
                     <html lang="es">
                     <head>
                         <meta charset="UTF-8">
-                        <title>Orden de Compra ${orden.codigo}</title>
+                        <title>Remisión ${orden.codigo}</title>
                         <style>
                             body {
                                 font-family: Arial, sans-serif;
-                                margin: 20px;
+                                margin: 15px;
                                 color: #333;
+                                font-size: 11px;
                             }
                             .header {
-                                text-align: center;
-                                margin-bottom: 30px;
-                                border-bottom: 2px solid #000;
-                                padding-bottom: 10px;
+                                text-align: right;
+                                margin-bottom: 15px;
+                                border-bottom: 1px solid #000;
+                                padding-bottom: 8px;
                             }
                             .titulo {
-                                font-size: 24px;
+                                font-size: 14px;
                                 font-weight: bold;
-                                margin-bottom: 10px;
+                                display: inline;
                             }
                             .codigo {
-                                font-size: 18px;
-                                color: #666;
+                                font-size: 14px;
+                                font-weight: bold;
+                                display: inline;
                             }
-                            .info-section {
-                                margin-bottom: 20px;
+                            .cliente-section {
+                                margin-bottom: 15px;
                                 display: grid;
                                 grid-template-columns: 1fr 1fr;
-                                gap: 20px;
+                                gap: 15px;
                             }
                             .info-item {
-                                margin-bottom: 10px;
+                                margin-bottom: 6px;
                             }
                             .info-label {
                                 font-weight: bold;
                                 color: #666;
-                                font-size: 12px;
+                                font-size: 10px;
                             }
                             .info-value {
-                                font-size: 14px;
+                                font-size: 11px;
                                 color: #000;
                             }
                             table {
                                 width: 100%;
                                 border-collapse: collapse;
-                                margin: 20px 0;
+                                margin: 12px 0;
                             }
                             th {
                                 background-color: #f0f0f0;
                                 border: 1px solid #999;
-                                padding: 10px;
+                                padding: 6px;
                                 text-align: left;
                                 font-weight: bold;
+                                font-size: 10px;
                             }
                             td {
                                 border: 1px solid #999;
-                                padding: 10px;
+                                padding: 6px;
+                                font-size: 11px;
                             }
                             .cantidad {
-                                text-align: right;
-                            }
-                            .precio {
-                                text-align: right;
-                            }
-                            .subtotal {
-                                text-align: right;
-                            }
-                            .total-section {
-                                text-align: right;
-                                margin-top: 20px;
-                                padding-top: 10px;
-                                border-top: 2px solid #000;
-                            }
-                            .total-value {
-                                font-size: 18px;
-                                font-weight: bold;
-                            }
-                            .firma-section {
-                                margin-top: 40px;
-                                display: grid;
-                                grid-template-columns: 1fr 1fr;
-                                gap: 40px;
-                            }
-                            .firma-box {
                                 text-align: center;
+                            }
+                            .observaciones-section {
+                                margin: 15px 0;
+                                padding: 8px;
+                                border: 1px solid #999;
+                                background-color: #f9f9f9;
+                            }
+                            .observaciones-label {
+                                font-weight: bold;
+                                font-size: 10px;
+                            }
+                            .observaciones-value {
+                                font-size: 11px;
+                                margin-top: 4px;
+                            }
+                            .firma-footer {
+                                margin-top: 25px;
+                                display: grid;
+                                grid-template-columns: 1fr 1fr 1fr 1fr;
+                                gap: 10px;
+                            }
+                            .firma-column {
+                                text-align: center;
+                                font-size: 10px;
+                            }
+                            .firma-line {
                                 border-top: 1px solid #000;
-                                padding-top: 10px;
-                                margin-top: 40px;
+                                height: 35px;
+                                margin-bottom: 2px;
                             }
                             .firma-label {
-                                font-size: 12px;
-                                margin-top: 5px;
+                                font-weight: bold;
+                                font-size: 9px;
                             }
                         </style>
                     </head>
                     <body>
                         <div class="header">
-                            <div class="titulo">ORDEN DE COMPRA</div>
-                            <div class="codigo">${orden.codigo}</div>
+                            <span class="titulo">REMISION No.:</span>
+                            <span class="codigo">${orden.codigo}</span>
                         </div>
 
-                        <div class="info-section">
+                        <div class="cliente-section">
+                            <div>
+                                <div class="info-item">
+                                    <div class="info-label">CLIENTE</div>
+                                    <div class="info-value">${orden.cliente || '-'}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">DIRECCIÓN</div>
+                                    <div class="info-value">-</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">TELÉFONO</div>
+                                    <div class="info-value">-</div>
+                                </div>
+                            </div>
                             <div>
                                 <div class="info-item">
                                     <div class="info-label">FECHA</div>
@@ -472,35 +491,15 @@
                                     <div class="info-value">${orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-ES') : '-'}</div>
                                 </div>
                             </div>
-                            <div>
-                                <div class="info-item">
-                                    <div class="info-label">ESTADO</div>
-                                    <div class="info-value">${orden.estado}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">DÍAS CRÉDITO</div>
-                                    <div class="info-value">${orden.dias_credito}</div>
-                                </div>
-                            </div>
                         </div>
-
-                        ${orden.observaciones ? `
-                        <div class="info-section" style="grid-template-columns: 1fr;">
-                            <div class="info-item">
-                                <div class="info-label">OBSERVACIONES</div>
-                                <div class="info-value">${orden.observaciones}</div>
-                            </div>
-                        </div>
-                        ` : ''}
 
                         <table>
                             <thead>
                                 <tr>
-                                    <th>CÓDIGO</th>
-                                    <th>PRODUCTO</th>
-                                    <th class="cantidad">CANTIDAD</th>
-                                    <th class="precio">PRECIO UNITARIO</th>
-                                    <th class="subtotal">SUBTOTAL</th>
+                                    <th style="width: 12%;">CÓDIGO</th>
+                                    <th style="width: 60%;">PRODUCTO</th>
+                                    <th style="width: 15%;" class="cantidad">CANTIDAD</th>
+                                    <th style="width: 13%;">UNIDAD</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -509,23 +508,35 @@
                                         <td>${d.producto_codigo || d.codigo}</td>
                                         <td>${d.producto_nombre || d.nombre}</td>
                                         <td class="cantidad">${parseFloat(d.cantidad).toFixed(2)}</td>
-                                        <td class="precio">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
-                                        <td class="subtotal">$${parseFloat(d.subtotal).toFixed(2)}</td>
+                                        <td>${d.unidad || 'UN'}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
                         </table>
 
-                        <div class="total-section">
-                            <div class="total-value">TOTAL: $${parseFloat(orden.total).toFixed(2)}</div>
+                        ${orden.observaciones ? `
+                        <div class="observaciones-section">
+                            <div class="observaciones-label">OBSERVACIONES:</div>
+                            <div class="observaciones-value">${orden.observaciones}</div>
                         </div>
+                        ` : ''}
 
-                        <div class="firma-section">
-                            <div class="firma-box">
-                                <div class="firma-label">Entregar a:</div>
+                        <div class="firma-footer">
+                            <div class="firma-column">
+                                <div class="firma-line"></div>
+                                <div class="firma-label">ENTREGADO POR</div>
                             </div>
-                            <div class="firma-box">
-                                <div class="firma-label">Recibido por:</div>
+                            <div class="firma-column">
+                                <div class="firma-line"></div>
+                                <div class="firma-label">RECIBIDO POR</div>
+                            </div>
+                            <div class="firma-column">
+                                <div class="firma-line"></div>
+                                <div class="firma-label">FECHA DE ENTREGA</div>
+                            </div>
+                            <div class="firma-column">
+                                <div></div>
+                                <div class="firma-label">OBSERVACIONES:</div>
                             </div>
                         </div>
                     </body>
