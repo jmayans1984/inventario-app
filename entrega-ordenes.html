@@ -322,6 +322,18 @@
                     </div>
                 </div>
 
+                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px;">
+                    <input
+                        type="checkbox"
+                        id="incompleta_${orden.codigo}"
+                        class="delivery-incomplete-checkbox"
+                        data-codigo="${orden.codigo}"
+                    >
+                    <label for="incompleta_${orden.codigo}" style="font-size: 0.9rem; cursor: pointer; margin: 0; flex: 1;">
+                        ⚠️ Entrega Incompleta
+                    </label>
+                </div>
+
                 <div class="delivery-actions">
                     <button class="delivery-print-btn" onclick="imprimirOrden('${orden.codigo}')">
                         🖨️ Imprimir
@@ -657,6 +669,10 @@
             }
 
             try {
+                // Verificar si está marcado como entrega incompleta
+                const checkboxIncompleta = document.getElementById(`incompleta_${codigoOrden}`);
+                const esIncompleta = checkboxIncompleta ? checkboxIncompleta.checked : false;
+
                 // Leer archivo como base64
                 const reader = new FileReader();
                 reader.onload = async (e) => {
@@ -679,8 +695,8 @@
                     const data = await response.json();
 
                     if (data.success) {
-                        // Actualizar estado de la orden a ENTREGADA
-                        await actualizarEstadoOrden(codigoOrden);
+                        // Actualizar estado de la orden según si es incompleta o no
+                        await actualizarEstadoOrden(codigoOrden, esIncompleta);
                     } else {
                         alert(`❌ Error: ${data.error}`);
                     }
@@ -694,7 +710,7 @@
             }
         }
 
-        async function actualizarEstadoOrden(codigoOrden) {
+        async function actualizarEstadoOrden(codigoOrden, esIncompleta = false) {
             try {
                 // Primero obtener los datos actuales de la orden
                 const getResponse = await fetch(`${API_BASE}/ordenes-compra/${codigoOrden}/detalles`);
@@ -706,6 +722,30 @@
                 }
 
                 const orden = getData.orden;
+                let observacionesActualizadas = orden.observaciones || '';
+                let nuevoEstado = 'ENTREGADA';
+
+                if (esIncompleta) {
+                    // Entrega incompleta: mantener PENDIENTE y agregar "[ORDEN INCOMPLETA]"
+                    nuevoEstado = 'PENDIENTE';
+
+                    // Agregar "[ORDEN INCOMPLETA]" solo si no existe ya
+                    if (!observacionesActualizadas.startsWith('[ORDEN INCOMPLETA]')) {
+                        if (observacionesActualizadas.trim()) {
+                            observacionesActualizadas = '[ORDEN INCOMPLETA] ' + observacionesActualizadas;
+                        } else {
+                            observacionesActualizadas = '[ORDEN INCOMPLETA]';
+                        }
+                    }
+                } else {
+                    // Entrega completa: cambiar a ENTREGADA y remover "[ORDEN INCOMPLETA]"
+                    nuevoEstado = 'ENTREGADA';
+
+                    // Remover "[ORDEN INCOMPLETA]" si existe
+                    if (observacionesActualizadas.startsWith('[ORDEN INCOMPLETA]')) {
+                        observacionesActualizadas = observacionesActualizadas.replace(/^\[ORDEN INCOMPLETA\]\s*/, '').trim();
+                    }
+                }
 
                 // Actualizar con el nuevo estado
                 const putResponse = await fetch(`${API_BASE}/ordenes-compra/${codigoOrden}`, {
@@ -713,8 +753,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         fecha_entrega: orden.fecha_entrega,
-                        estado: 'ENTREGADA',
-                        observaciones: orden.observaciones,
+                        estado: nuevoEstado,
+                        observaciones: observacionesActualizadas,
                         total: orden.total
                     })
                 });
@@ -722,7 +762,11 @@
                 const putData = await putResponse.json();
 
                 if (putData.success) {
-                    alert(`✅ Orden ${codigoOrden} entregada exitosamente`);
+                    if (esIncompleta) {
+                        alert(`⚠️ Soporte registrado. Orden marcada como entrega incompleta`);
+                    } else {
+                        alert(`✅ Orden ${codigoOrden} entregada exitosamente`);
+                    }
                     // Recargar las tarjetas
                     await cargarOrdenesPendientes();
                 } else {
