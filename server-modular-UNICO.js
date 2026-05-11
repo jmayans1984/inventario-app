@@ -2066,13 +2066,16 @@ app.get('/api/soportes-entrega/:orden', async (req, res) => {
 
         const soporte = result.rows[0];
 
-        // Convertir archivo_data (buffer) a base64 si es necesario
-        if (soporte.archivo_data && !soporte.archivo_data.startsWith('data:')) {
-            if (Buffer.isBuffer(soporte.archivo_data)) {
-                soporte.archivo_data = 'data:image/png;base64,' + soporte.archivo_data.toString('base64');
-            } else if (typeof soporte.archivo_data === 'string' && !soporte.archivo_data.startsWith('data:')) {
-                soporte.archivo_data = 'data:image/png;base64,' + soporte.archivo_data;
+        // Convertir archivo_data (buffer) a base64
+        try {
+            if (soporte.archivo_data) {
+                const base64Data = Buffer.from(soporte.archivo_data).toString('base64');
+                soporte.archivo_data = 'data:image/png;base64,' + base64Data;
+                console.log('Imagen convertida a base64, tamaño:', base64Data.length);
             }
+        } catch (conversionError) {
+            console.error('Error convirtiendo a base64:', conversionError);
+            throw conversionError;
         }
 
         res.json({
