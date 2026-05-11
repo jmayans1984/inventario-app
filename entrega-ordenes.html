@@ -31,7 +31,7 @@
 
         .delivery-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
@@ -64,7 +64,7 @@
         .delivery-code {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 700;
-            font-size: 1rem;
+            font-size: 1.1rem;
             color: var(--accent);
         }
 
@@ -72,7 +72,7 @@
             display: inline-block;
             background: var(--success);
             color: white;
-            padding: 0.25rem 0.75rem;
+            padding: 0.3rem 0.75rem;
             border-radius: 6px;
             font-size: 0.8rem;
             font-weight: 600;
@@ -80,80 +80,65 @@
 
         .delivery-info {
             display: grid;
-            gap: 0.75rem;
+            gap: 0.6rem;
         }
 
         .delivery-info-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: grid;
+            gap: 0.3rem;
         }
 
         .delivery-info-label {
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 500;
         }
 
         .delivery-info-value {
             color: var(--text-primary);
             font-weight: 600;
-        }
-
-        .delivery-products {
-            background: var(--bg-primary);
-            border-radius: 6px;
-            padding: 0.75rem;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .delivery-product-item {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            padding: 0.25rem 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .delivery-product-item:last-child {
-            border-bottom: none;
+            font-size: 0.95rem;
         }
 
         .delivery-actions {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 0.75rem;
             margin-top: auto;
         }
 
-        .delivery-upload-label {
+        .delivery-upload-label,
+        .delivery-print-btn {
             display: block;
             width: 100%;
             padding: 0.75rem;
             background: var(--accent);
             color: white;
+            border: none;
             border-radius: 6px;
             text-align: center;
             cursor: pointer;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: all 0.2s;
+        }
+
+        .delivery-print-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
         }
 
         .delivery-upload-label:hover {
             background: var(--accent-hover);
         }
 
-        .delivery-upload-input {
-            display: none;
+        .delivery-print-btn:hover {
+            background: var(--border);
         }
 
-        .delivery-status-badge {
-            font-size: 0.8rem;
-            padding: 0.25rem 0.5rem;
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-            border-radius: 4px;
+        .delivery-upload-input {
+            display: none;
         }
 
         .no-orders {
@@ -312,20 +297,11 @@
             const div = document.createElement('div');
             div.className = 'delivery-card';
 
-            // Calcular total
-            const total = (parseFloat(orden.total) || 0).toFixed(2);
-
             // Formatear fecha
             const fecha = orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-ES') : '-';
 
-            // Obtener detalles
-            const detalles = orden.detalles || [];
-            const productosHtml = detalles.map(d => {
-                const nombre = d.producto_nombre || d.nombre || 'Producto sin nombre';
-                return `<div class="delivery-product-item">
-                    <strong>${d.producto_codigo || d.codigo}</strong> - ${nombre} (${d.cantidad})
-                </div>`;
-            }).join('');
+            // Observaciones
+            const observaciones = orden.observaciones || '-';
 
             const idInputFile = `upload_${orden.codigo}`;
 
@@ -337,27 +313,21 @@
 
                 <div class="delivery-info">
                     <div class="delivery-info-row">
-                        <span class="delivery-info-label">Fecha Entrega:</span>
+                        <span class="delivery-info-label">📅 Fecha Entrega Programada</span>
                         <span class="delivery-info-value">${fecha}</span>
                     </div>
                     <div class="delivery-info-row">
-                        <span class="delivery-info-label">Total:</span>
-                        <span class="delivery-info-value" style="color: var(--accent);">$${total}</span>
-                    </div>
-                </div>
-
-                <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px;">
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 600;">
-                        📦 PRODUCTOS (${detalles.length})
-                    </div>
-                    <div class="delivery-products">
-                        ${productosHtml || '<p style="color: var(--text-tertiary); font-size: 0.85rem;">Sin productos</p>'}
+                        <span class="delivery-info-label">📝 Observaciones</span>
+                        <span class="delivery-info-value">${observaciones}</span>
                     </div>
                 </div>
 
                 <div class="delivery-actions">
+                    <button class="delivery-print-btn" onclick="imprimirOrden('${orden.codigo}')">
+                        🖨️ Imprimir
+                    </button>
                     <label class="delivery-upload-label">
-                        📸 Subir Soporte de Entrega
+                        📸 Subir Soporte
                         <input
                             type="file"
                             id="${idInputFile}"
@@ -370,6 +340,208 @@
             `;
 
             return div;
+        }
+
+        async function imprimirOrden(codigoOrden) {
+            try {
+                // Obtener detalles completos de la orden
+                const response = await fetch(`${API_BASE}/ordenes-compra/${codigoOrden}/detalles`);
+                const data = await response.json();
+
+                if (!data.success || !data.orden) {
+                    alert('❌ Error al cargar la orden para imprimir');
+                    return;
+                }
+
+                const orden = data.orden;
+                const detalles = data.detalles || [];
+
+                // Crear contenido para imprimir
+                const contenidoImpresion = `
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Orden de Compra ${orden.codigo}</title>
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                margin: 20px;
+                                color: #333;
+                            }
+                            .header {
+                                text-align: center;
+                                margin-bottom: 30px;
+                                border-bottom: 2px solid #000;
+                                padding-bottom: 10px;
+                            }
+                            .titulo {
+                                font-size: 24px;
+                                font-weight: bold;
+                                margin-bottom: 10px;
+                            }
+                            .codigo {
+                                font-size: 18px;
+                                color: #666;
+                            }
+                            .info-section {
+                                margin-bottom: 20px;
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 20px;
+                            }
+                            .info-item {
+                                margin-bottom: 10px;
+                            }
+                            .info-label {
+                                font-weight: bold;
+                                color: #666;
+                                font-size: 12px;
+                            }
+                            .info-value {
+                                font-size: 14px;
+                                color: #000;
+                            }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                margin: 20px 0;
+                            }
+                            th {
+                                background-color: #f0f0f0;
+                                border: 1px solid #999;
+                                padding: 10px;
+                                text-align: left;
+                                font-weight: bold;
+                            }
+                            td {
+                                border: 1px solid #999;
+                                padding: 10px;
+                            }
+                            .cantidad {
+                                text-align: right;
+                            }
+                            .precio {
+                                text-align: right;
+                            }
+                            .subtotal {
+                                text-align: right;
+                            }
+                            .total-section {
+                                text-align: right;
+                                margin-top: 20px;
+                                padding-top: 10px;
+                                border-top: 2px solid #000;
+                            }
+                            .total-value {
+                                font-size: 18px;
+                                font-weight: bold;
+                            }
+                            .firma-section {
+                                margin-top: 40px;
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 40px;
+                            }
+                            .firma-box {
+                                text-align: center;
+                                border-top: 1px solid #000;
+                                padding-top: 10px;
+                                margin-top: 40px;
+                            }
+                            .firma-label {
+                                font-size: 12px;
+                                margin-top: 5px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <div class="titulo">ORDEN DE COMPRA</div>
+                            <div class="codigo">${orden.codigo}</div>
+                        </div>
+
+                        <div class="info-section">
+                            <div>
+                                <div class="info-item">
+                                    <div class="info-label">FECHA</div>
+                                    <div class="info-value">${new Date(orden.fecha).toLocaleDateString('es-ES')}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">FECHA ENTREGA PROGRAMADA</div>
+                                    <div class="info-value">${orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-ES') : '-'}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="info-item">
+                                    <div class="info-label">ESTADO</div>
+                                    <div class="info-value">${orden.estado}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">DÍAS CRÉDITO</div>
+                                    <div class="info-value">${orden.dias_credito}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${orden.observaciones ? `
+                        <div class="info-section" style="grid-template-columns: 1fr;">
+                            <div class="info-item">
+                                <div class="info-label">OBSERVACIONES</div>
+                                <div class="info-value">${orden.observaciones}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>CÓDIGO</th>
+                                    <th>PRODUCTO</th>
+                                    <th class="cantidad">CANTIDAD</th>
+                                    <th class="precio">PRECIO UNITARIO</th>
+                                    <th class="subtotal">SUBTOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${detalles.map(d => `
+                                    <tr>
+                                        <td>${d.producto_codigo || d.codigo}</td>
+                                        <td>${d.producto_nombre || d.nombre}</td>
+                                        <td class="cantidad">${parseFloat(d.cantidad).toFixed(2)}</td>
+                                        <td class="precio">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
+                                        <td class="subtotal">$${parseFloat(d.subtotal).toFixed(2)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+
+                        <div class="total-section">
+                            <div class="total-value">TOTAL: $${parseFloat(orden.total).toFixed(2)}</div>
+                        </div>
+
+                        <div class="firma-section">
+                            <div class="firma-box">
+                                <div class="firma-label">Entregar a:</div>
+                            </div>
+                            <div class="firma-box">
+                                <div class="firma-label">Recibido por:</div>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `;
+
+                // Abrir ventana de impresión
+                const ventanaImpresion = window.open('', '', 'height=900,width=1000');
+                ventanaImpresion.document.write(contenidoImpresion);
+                ventanaImpresion.document.close();
+                ventanaImpresion.print();
+
+            } catch (error) {
+                console.error('Error imprimiendo orden:', error);
+                alert('❌ Error al imprimir la orden');
+            }
         }
 
         async function subirSoporteEntrega(codigoOrden, inputElement) {
