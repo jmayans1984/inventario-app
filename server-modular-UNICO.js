@@ -2084,11 +2084,11 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
     }
 });
 
-// GET /api/soportes-entrega/:orden - Obtener comprobante de entrega
+// GET /api/soportes-entrega/:orden - Obtener TODOS los comprobantes de entrega para una orden
 app.get('/api/soportes-entrega/:orden', async (req, res) => {
     const { orden } = req.params;
 
-    console.log(`GET /api/soportes-entrega - Buscando orden: ${orden}`);
+    console.log(`GET /api/soportes-entrega - Buscando soportes para orden: ${orden}`);
 
     try {
         const query = `
@@ -2096,45 +2096,44 @@ app.get('/api/soportes-entrega/:orden', async (req, res) => {
             FROM soportes_entrega
             WHERE orden = $1
             ORDER BY fecha_subida DESC
-            LIMIT 1
         `;
 
         console.log(`Query: ${query}, Parámetro: ${orden}`);
 
         const result = await pool.query(query, [orden]);
 
-        console.log(`Resultado: ${result.rows.length} filas encontradas`);
+        console.log(`Resultado: ${result.rows.length} soportes encontrados`);
 
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                error: 'No hay comprobante de entrega para esta orden'
+                error: 'No hay comprobantes de entrega para esta orden'
             });
         }
 
-        const soporte = result.rows[0];
-
-        // Convertir archivo_data (buffer) a base64
-        try {
-            if (soporte.archivo_data) {
-                const base64Data = Buffer.from(soporte.archivo_data).toString('base64');
-                soporte.archivo_data = 'data:image/png;base64,' + base64Data;
-                console.log('Imagen convertida a base64, tamaño:', base64Data.length);
+        // Convertir archivo_data (buffer) a base64 para TODOS los soportes
+        const soportes = result.rows.map(soporte => {
+            try {
+                if (soporte.archivo_data) {
+                    const base64Data = Buffer.from(soporte.archivo_data).toString('base64');
+                    soporte.archivo_data = 'data:image/png;base64,' + base64Data;
+                    console.log(`Soporte ${soporte.id} - Imagen convertida a base64, tamaño:`, base64Data.length);
+                }
+            } catch (conversionError) {
+                console.error('Error convirtiendo a base64:', conversionError);
             }
-        } catch (conversionError) {
-            console.error('Error convirtiendo a base64:', conversionError);
-            throw conversionError;
-        }
+            return soporte;
+        });
 
         res.json({
             success: true,
-            soporte: soporte
+            data: soportes
         });
     } catch (error) {
         console.error('Error en /api/soportes-entrega/:orden:', error);
         res.status(500).json({
             success: false,
-            error: 'Error al obtener comprobante de entrega',
+            error: 'Error al obtener comprobantes de entrega',
             details: error.message
         });
     }
