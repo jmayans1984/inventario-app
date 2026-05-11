@@ -351,10 +351,13 @@ function mostrarSoporteEntrega(codigo) {
 
 async function editarOrden(codigo) {
     try {
+        console.log('Buscando orden:', codigo);
         const response = await fetch(`${API_BASE_REPORTE_OC}/ordenes-compra/${codigo}`);
         const data = await response.json();
 
-        if (data.success) {
+        console.log('Respuesta del servidor:', data);
+
+        if (data.success && data.orden) {
             mostrarModalEditarOrden(data.orden);
         } else {
             console.error('Error del servidor:', data);
