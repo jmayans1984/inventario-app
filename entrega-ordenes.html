@@ -335,10 +335,16 @@
                 </div>
 
                 <div class="delivery-actions">
-                    <button class="delivery-print-btn" onclick="imprimirOrden('${orden.codigo}')">
+                    <button class="delivery-print-btn" onclick="imprimirOrden('${orden.codigo}')" style="background: var(--accent); color: white; border: none;">
                         🖨️ Imprimir
                     </button>
-                    <label class="delivery-upload-label">
+                    <button class="delivery-print-btn" onclick="verSoportes('${orden.codigo}')">
+                        👁️ Ver Soportes
+                    </button>
+                </div>
+
+                <div style="width: 100%;">
+                    <label class="delivery-upload-label" style="width: 100%;">
                         📸 Subir Soporte
                         <input
                             type="file"
@@ -352,6 +358,82 @@
             `;
 
             return div;
+        }
+
+        async function verSoportes(codigoOrden) {
+            try {
+                const response = await fetch(`${API_BASE}/soportes-entrega/${codigoOrden}`);
+                const data = await response.json();
+
+                if (!data.success || !data.data) {
+                    alert('ℹ️ No hay soportes de entrega para esta orden');
+                    return;
+                }
+
+                const soportes = Array.isArray(data.data) ? data.data : [data.data];
+
+                if (soportes.length === 0) {
+                    alert('ℹ️ No hay soportes de entrega para esta orden');
+                    return;
+                }
+
+                // Crear modal para mostrar soportes
+                const modal = document.createElement('div');
+                modal.id = 'modalSoportesDiv';
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                `;
+
+                let contenidoHTML = `
+                    <div style="background: var(--bg-secondary); border-radius: 12px; padding: 2rem; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+                            <h2 style="margin: 0; color: var(--text-primary);">📸 Soportes de Entrega</h2>
+                            <h3 style="margin: 0; color: var(--accent);">${codigoOrden}</h3>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                `;
+
+                soportes.forEach((soporte, index) => {
+                    const fecha = soporte.fecha_subida ? new Date(soporte.fecha_subida).toLocaleString('es-ES') : '-';
+                    const imagenSrc = soporte.archivo_data.startsWith('data:') ? soporte.archivo_data : 'data:image/png;base64,' + soporte.archivo_data;
+
+                    contenidoHTML += `
+                        <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+                            <img src="${imagenSrc}" style="width: 100%; height: 200px; object-fit: cover; display: block;">
+                            <div style="padding: 0.75rem; background: var(--bg-tertiary);">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Soporte ${index + 1}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-tertiary);">${fecha}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                contenidoHTML += `
+                        </div>
+
+                        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                            <button class="btn btn-secondary" onclick="document.getElementById('modalSoportesDiv').remove()" style="padding: 0.75rem 1.5rem;">Cerrar</button>
+                        </div>
+                    </div>
+                `;
+
+                modal.innerHTML = contenidoHTML;
+                document.body.appendChild(modal);
+
+            } catch (error) {
+                console.error('Error cargando soportes:', error);
+                alert('❌ Error al cargar soportes de entrega');
+            }
         }
 
         async function imprimirOrden(codigoOrden) {
@@ -624,14 +706,37 @@
                 `;
 
                 // Abrir ventana de impresión
-                const ventanaImpresion = window.open('', '', 'height=900,width=1000');
-                ventanaImpresion.document.write(contenidoImpresion);
-                ventanaImpresion.document.close();
-                ventanaImpresion.print();
+                try {
+                    const ventanaImpresion = window.open('', 'printWindow', 'height=900,width=1000');
+
+                    if (!ventanaImpresion) {
+                        alert('❌ No se pudo abrir la ventana de impresión. Verifica los permisos del navegador.');
+                        return;
+                    }
+
+                    ventanaImpresion.document.write(contenidoImpresion);
+                    ventanaImpresion.document.close();
+
+                    // Esperar a que se cargue el documento antes de imprimir
+                    ventanaImpresion.onload = () => {
+                        ventanaImpresion.print();
+                    };
+
+                    // Fallback: si onload no se dispara, intentar imprimir después de un tiempo
+                    setTimeout(() => {
+                        if (ventanaImpresion && !ventanaImpresion.closed) {
+                            ventanaImpresion.print();
+                        }
+                    }, 500);
+
+                } catch (printError) {
+                    console.error('Error al abrir ventana de impresión:', printError);
+                    alert('❌ Error al imprimir. Intenta desde la vista previa del navegador.');
+                }
 
             } catch (error) {
                 console.error('Error imprimiendo orden:', error);
-                alert('❌ Error al imprimir la orden');
+                alert('❌ Error al imprimir la orden: ' + error.message);
             }
         }
 
