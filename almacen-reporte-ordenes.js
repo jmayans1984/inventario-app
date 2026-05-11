@@ -357,11 +357,12 @@ async function editarOrden(codigo) {
         if (data.success) {
             mostrarModalEditarOrden(data.orden);
         } else {
-            alert('❌ Error al obtener orden');
+            console.error('Error del servidor:', data);
+            alert(`❌ ${data.error || 'Error al obtener orden'}`);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('❌ Error al obtener orden');
+        alert(`❌ Error al obtener orden: ${error.message}`);
     }
 }
 
