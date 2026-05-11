@@ -1853,11 +1853,13 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
                 d.id,
                 d.orden,
                 d.producto_venta,
+                d.producto_venta as codigo,
                 d.cantidad,
                 d.precio_unitario,
                 d.subtotal,
                 d.empresa,
-                pv.nombre as producto_nombre
+                pv.nombre as producto_nombre,
+                pv.codigo as producto_codigo
             FROM detalle_ordenes d
             LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
             WHERE d.orden = $1
@@ -1866,6 +1868,9 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
 
         const ordenResult = await pool.query(ordenQuery, [codigo]);
         const detallesResult = await pool.query(detallesQuery, [codigo]);
+
+        console.log(`GET /api/ordenes-compra/${codigo}/detalles`);
+        console.log('Detalles obtenidos:', detallesResult.rows);
 
         if (ordenResult.rows.length === 0) {
             return res.status(404).json({
