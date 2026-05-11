@@ -1893,9 +1893,13 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
 // PUT /api/ordenes-compra/:codigo - Actualizar orden (solo si estado=PENDIENTE)
 app.put('/api/ordenes-compra/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { fecha_entrega, estado, observaciones } = req.body;
+    const { fecha_entrega, estado, observaciones, detalles, total } = req.body;
+
+    const client = await pool.connect();
 
     try {
+        await client.query('BEGIN');
+
         // Verificar que la orden existe y está en estado PENDIENTE
         const checkQuery = `
             SELECT estado
@@ -1903,9 +1907,10 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
             WHERE codigo = $1
         `;
 
-        const checkResult = await pool.query(checkQuery, [codigo]);
+        const checkResult = await client.query(checkQuery, [codigo]);
 
         if (checkResult.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({
                 success: false,
                 error: 'Orden no encontrada'
@@ -1913,6 +1918,7 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
         }
 
         if (checkResult.rows[0].estado !== 'PENDIENTE') {
+            await client.query('ROLLBACK');
             return res.status(400).json({
                 success: false,
                 error: `No se puede editar una orden con estado ${checkResult.rows[0].estado}. Solo se pueden editar órdenes PENDIENTE.`
@@ -1922,31 +1928,61 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
         // Actualizar la orden
         const updateQuery = `
             UPDATE ordenes_compra
-            SET fecha_entrega = $1, estado = $2, observaciones = $3
-            WHERE codigo = $4
+            SET fecha_entrega = $1, estado = $2, observaciones = $3, total = $4
+            WHERE codigo = $5
             RETURNING codigo
         `;
 
-        const result = await pool.query(updateQuery, [
+        await client.query(updateQuery, [
             fecha_entrega || null,
             estado,
             observaciones || '',
+            total || 0,
             codigo
         ]);
 
+        // Si hay detalles, actualizar la tabla detalle_ordenes
+        if (detalles && detalles.length > 0) {
+            // Eliminar detalles viejos
+            await client.query(`DELETE FROM detalle_ordenes WHERE orden_compra = $1`, [codigo]);
+
+            // Insertar nuevos detalles
+            for (const detalle of detalles) {
+                const insertDetalleQuery = `
+                    INSERT INTO detalle_ordenes
+                    (orden_compra, producto_venta, cantidad, precio_unitario, subtotal)
+                    VALUES ($1, $2, $3, $4, $5)
+                `;
+
+                const subtotal = detalle.cantidad * detalle.precio_unitario;
+                await client.query(insertDetalleQuery, [
+                    codigo,
+                    detalle.producto_venta,
+                    detalle.cantidad,
+                    detalle.precio_unitario,
+                    subtotal
+                ]);
+            }
+        }
+
+        await client.query('COMMIT');
+
         res.json({
             success: true,
-            codigo: result.rows[0].codigo,
+            codigo: codigo,
             message: 'Orden actualizada correctamente'
         });
 
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error en PUT /api/ordenes-compra/:codigo:', error);
         res.status(500).json({
             success: false,
             error: 'Error al actualizar orden',
             details: error.message
         });
+    } finally {
+        client.release();
     }
 });
 

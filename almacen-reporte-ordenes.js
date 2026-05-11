@@ -358,7 +358,15 @@ async function editarOrden(codigo) {
         console.log('Respuesta del servidor:', data);
 
         if (data.success && data.orden) {
-            mostrarModalEditarOrden(data.orden);
+            // Obtener detalles de la orden
+            const detallesResponse = await fetch(`${API_BASE_REPORTE_OC}/ordenes-compra/${codigo}/detalles`);
+            const detallesData = await detallesResponse.json();
+
+            if (detallesData.success && detallesData.detalles) {
+                mostrarModalEditarOrden(data.orden, detallesData.detalles);
+            } else {
+                alert('❌ Error al obtener detalles de la orden');
+            }
         } else {
             console.error('Error del servidor:', data);
             alert(`❌ ${data.error || 'Error al obtener orden'}`);
@@ -369,7 +377,7 @@ async function editarOrden(codigo) {
     }
 }
 
-function mostrarModalEditarOrden(orden) {
+function mostrarModalEditarOrden(orden, detalles) {
     const modal = document.createElement('div');
     modal.style.cssText = `
         position: fixed;
@@ -382,17 +390,59 @@ function mostrarModalEditarOrden(orden) {
         align-items: center;
         justify-content: center;
         z-index: 1000;
+        overflow-y: auto;
     `;
 
     const fechaEntrega = orden.fecha_entrega ? orden.fecha_entrega.split('T')[0] : '';
+
+    // Generar filas de detalles editables
+    let filasDetalles = '';
+    detalles.forEach((det, idx) => {
+        filasDetalles += `
+            <tr data-detalle-idx="${idx}" style="border-bottom: 1px solid var(--border);">
+                <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${det.producto_codigo || det.codigo || ''}</td>
+                <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${det.producto_nombre || det.nombre || ''}</td>
+                <td style="padding: 0.5rem 1rem; font-size: 0.9rem;">${det.unidad || ''}</td>
+                <td style="padding: 0.5rem 1rem; text-align: right; font-size: 0.9rem;">${parseFloat(det.precio_unitario || 0).toFixed(2)}</td>
+                <td style="padding: 0.5rem 1rem; text-align: right;">
+                    <input
+                        type="text"
+                        class="input-cantidad-edit"
+                        value="${parseFloat(det.cantidad).toFixed(2)}"
+                        data-precio="${det.precio_unitario}"
+                        data-idx="${idx}"
+                        onblur="formatearCantidadEdit(this)"
+                        oninput="recalcularTotalEdit()"
+                        style="width: 60px; padding: 0.4rem; text-align: right; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);"
+                    >
+                </td>
+                <td style="padding: 0.5rem 1rem; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-secondary);">
+                    <span class="subtotal-edit" data-idx="${idx}">${(parseFloat(det.cantidad) * parseFloat(det.precio_unitario)).toFixed(2)}</span>
+                </td>
+                <td style="padding: 0.5rem 1rem; text-align: center;">
+                    <button onclick="eliminarDetalleEdit(${idx})" style="
+                        background: var(--danger);
+                        color: white;
+                        border: none;
+                        padding: 0.4rem 0.8rem;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    ">✕</button>
+                </td>
+            </tr>
+        `;
+    });
 
     modal.innerHTML = `
         <div style="
             background: var(--bg-primary);
             border-radius: 8px;
             padding: 2rem;
-            max-width: 600px;
-            width: 90%;
+            max-width: 900px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -460,10 +510,37 @@ function mostrarModalEditarOrden(orden) {
                         background: var(--bg-secondary);
                         color: var(--text-primary);
                         font-family: monospace;
-                        min-height: 100px;
+                        min-height: 80px;
                         text-transform: uppercase;
                         resize: vertical;
                     ">${orden.observaciones || ''}</textarea>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Detalles de Productos</label>
+                    <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 6px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+                                    <th style="padding: 0.75rem 1rem; text-align: left; font-size: 0.9rem; color: var(--text-secondary);">Código</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: left; font-size: 0.9rem; color: var(--text-secondary);">Producto</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: left; font-size: 0.9rem; color: var(--text-secondary);">Unidad</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: right; font-size: 0.9rem; color: var(--text-secondary);">Precio Unit.</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: right; font-size: 0.9rem; color: var(--text-secondary);">Cantidad</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: right; font-size: 0.9rem; color: var(--text-secondary);">Subtotal</th>
+                                    <th style="padding: 0.75rem 1rem; text-align: center; font-size: 0.9rem; color: var(--text-secondary);">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detallesEditBody">
+                                ${filasDetalles}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-secondary); border-radius: 6px;">
+                    <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">Total:</span>
+                    <span id="totalEditOrden" style="font-size: 1.3rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace;">0.00</span>
                 </div>
             </div>
 
@@ -475,12 +552,86 @@ function mostrarModalEditarOrden(orden) {
     `;
 
     document.body.appendChild(modal);
+
+    // Recalcular total inicial
+    recalcularTotalEdit();
+}
+
+function formatearCantidadEdit(input) {
+    const value = input.value.trim();
+    if (value === '') {
+        input.value = '';
+        recalcularTotalEdit();
+        return;
+    }
+    const numero = parseFloat(value);
+    if (isNaN(numero)) {
+        input.value = '';
+        recalcularTotalEdit();
+        return;
+    }
+    input.value = numero.toFixed(2);
+    recalcularTotalEdit();
+}
+
+function recalcularTotalEdit() {
+    const inputs = document.querySelectorAll('.input-cantidad-edit');
+    let total = 0;
+
+    inputs.forEach(input => {
+        const idx = input.dataset.idx;
+        const cantidad = parseFloat(input.value) || 0;
+        const precio = parseFloat(input.dataset.precio) || 0;
+        const subtotal = cantidad * precio;
+
+        const spanSubtotal = document.querySelector(`.subtotal-edit[data-idx="${idx}"]`);
+        if (spanSubtotal) {
+            spanSubtotal.textContent = subtotal.toFixed(2);
+        }
+
+        total += subtotal;
+    });
+
+    document.getElementById('totalEditOrden').textContent = total.toFixed(2);
+}
+
+function eliminarDetalleEdit(idx) {
+    const fila = document.querySelector(`tr[data-detalle-idx="${idx}"]`);
+    if (fila) {
+        fila.remove();
+        recalcularTotalEdit();
+    }
 }
 
 async function guardarEdicionOrden(codigo) {
     const fechaEntrega = document.getElementById('editFechaEntrega').value;
     const estado = document.getElementById('editEstado').value;
     const observaciones = document.getElementById('editObservaciones').value.toUpperCase();
+
+    // Recolectar detalles modificados
+    const detalles = [];
+    const inputs = document.querySelectorAll('.input-cantidad-edit');
+    inputs.forEach(input => {
+        const fila = input.closest('tr');
+        const codigoProducto = fila.querySelector('td:first-child').textContent.trim();
+        const cantidad = parseFloat(input.value) || 0;
+        const precio = parseFloat(input.dataset.precio) || 0;
+
+        if (cantidad > 0) {
+            detalles.push({
+                producto_venta: codigoProducto,
+                cantidad: cantidad,
+                precio_unitario: precio
+            });
+        }
+    });
+
+    if (detalles.length === 0) {
+        alert('❌ La orden debe tener al menos un producto');
+        return;
+    }
+
+    const total = detalles.reduce((sum, det) => sum + (det.cantidad * det.precio_unitario), 0);
 
     try {
         const response = await fetch(`${API_BASE_REPORTE_OC}/ordenes-compra/${codigo}`, {
@@ -489,7 +640,9 @@ async function guardarEdicionOrden(codigo) {
             body: JSON.stringify({
                 fecha_entrega: fechaEntrega || null,
                 estado: estado,
-                observaciones: observaciones
+                observaciones: observaciones,
+                detalles: detalles,
+                total: total
             })
         });
 
