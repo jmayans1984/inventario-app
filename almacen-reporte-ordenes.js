@@ -222,31 +222,13 @@ async function verDetallesOrden(codigo) {
 }
 
 function mostrarModalDetallesOrden(orden, detalles) {
-    const modal = document.createElement('div');
-    const modalId = 'modal-detalles-' + Date.now();
-    modal.id = modalId;
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    `;
-
     const fechaFormato = new Date(orden.fecha).toLocaleDateString('es-CO');
     const fechaEntregaFormato = orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-CO') : '-';
 
     let detallesHTML = '';
-    let totalDetalles = 0;
 
     detalles.forEach(detalle => {
         const subtotal = parseFloat(detalle.subtotal) || 0;
-        totalDetalles += subtotal;
 
         detallesHTML += `
             <tr style="border-bottom: 1px solid var(--border);">
@@ -259,88 +241,89 @@ function mostrarModalDetallesOrden(orden, detalles) {
         `;
     });
 
-    modal.innerHTML = `
+    const modalHTML = `
         <div style="
-            background: var(--bg-primary);
-            border-radius: 8px;
-            padding: 2rem;
-            max-width: 900px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h2 style="color: var(--text-primary); margin: 0;">Detalles de Orden</h2>
-                <button onclick="cerrarModalDetalles('${modalId}')" style="
-                    background: none;
-                    border: none;
-                    font-size: 1.5rem;
-                    cursor: pointer;
-                    color: var(--text-secondary);
-                ">✕</button>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--border);">
-                <div>
-                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Código Orden</span>
-                    <div style="font-size: 1.1rem; font-weight: 700; color: var(--success); font-family: 'JetBrains Mono', monospace;">${orden.codigo}</div>
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        " onclick="if(event.target === this) this.remove();">
+            <div style="
+                background: var(--bg-primary);
+                border-radius: 8px;
+                padding: 2rem;
+                max-width: 900px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            " onclick="event.stopPropagation();">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="color: var(--text-primary); margin: 0;">Detalles de Orden</h2>
+                    <button onclick="this.closest('div').parentElement.remove()" style="
+                        background: none;
+                        border: none;
+                        font-size: 1.5rem;
+                        cursor: pointer;
+                        color: var(--text-secondary);
+                    ">✕</button>
                 </div>
-                <div>
-                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Fecha</span>
-                    <div style="font-weight: 600; color: var(--text-primary);">${fechaFormato}</div>
-                </div>
-                <div>
-                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Fecha Entrega</span>
-                    <div style="font-weight: 600; color: var(--text-primary);">${fechaEntregaFormato}</div>
-                </div>
-            </div>
 
-            <h3 style="color: var(--text-primary); margin: 1.5rem 0 1rem;">Productos</h3>
-            <div style="overflow-x: auto; margin-bottom: 1.5rem;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: var(--bg-secondary); font-weight: 700;">
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border);">Código</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border);">Producto</th>
-                            <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Cantidad</th>
-                            <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Precio</th>
-                            <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${detallesHTML}
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="text-align: right; padding-top: 1rem; border-top: 2px solid var(--border);">
-                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace;">
-                    Total: ${parseFloat(orden.total).toFixed(2)}
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--border);">
+                    <div>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">Código Orden</span>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: var(--success); font-family: 'JetBrains Mono', monospace;">${orden.codigo}</div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">Fecha</span>
+                        <div style="font-weight: 600; color: var(--text-primary);">${fechaFormato}</div>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">Fecha Entrega</span>
+                        <div style="font-weight: 600; color: var(--text-primary);">${fechaEntregaFormato}</div>
+                    </div>
                 </div>
-            </div>
 
-            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                <button onclick="cerrarModalDetalles('${modalId}')" class="btn btn-secondary" style="flex: 1;">Cerrar</button>
+                <h3 style="color: var(--text-primary); margin: 1.5rem 0 1rem;">Productos</h3>
+                <div style="overflow-x: auto; margin-bottom: 1.5rem;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--bg-secondary); font-weight: 700;">
+                                <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border);">Código</th>
+                                <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border);">Producto</th>
+                                <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Cantidad</th>
+                                <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Precio</th>
+                                <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${detallesHTML}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="text-align: right; padding-top: 1rem; border-top: 2px solid var(--border);">
+                    <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace;">
+                        Total: ${parseFloat(orden.total).toFixed(2)}
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button onclick="this.closest('div').parentElement.remove()" class="btn btn-secondary" style="flex: 1;">Cerrar</button>
+                </div>
             </div>
         </div>
     `;
 
-    document.body.appendChild(modal);
-
-    // Cerrar al hacer click en el fondo
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            cerrarModalDetalles(modalId);
-        }
-    });
-}
-
-function cerrarModalDetalles(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.remove();
-    }
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = modalHTML;
+    document.body.appendChild(tempDiv.firstElementChild);
 }
 
 function mostrarSoporteEntrega(codigo) {
