@@ -1724,13 +1724,13 @@ app.get('/api/productos-venta', async (req, res) => {
                 pv.descripcion,
                 pv.unidad,
                 pv.grupo,
-                gp.nombre as grupo_nombre,
+                gpv.nombre as grupo_nombre,
                 pv.precio_costo,
                 pv.precio_venta1,
                 pv.precio_venta2,
                 pv.precio_venta3
             FROM productos_venta pv
-            LEFT JOIN grupo_productos gp ON pv.grupo = gp.codigo
+            LEFT JOIN grupo_productos_venta gpv ON pv.grupo = gpv.codigo
         `;
 
         if (control) {
