@@ -2045,6 +2045,17 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
     }
 
     try {
+        // Decodificar base64 a Buffer
+        let archivoBuffer;
+        try {
+            archivoBuffer = Buffer.from(imagen_base64, 'base64');
+        } catch (e) {
+            return res.status(400).json({
+                success: false,
+                error: 'El base64 proporcionado no es válido'
+            });
+        }
+
         const insertQuery = `
             INSERT INTO soportes_entrega (orden, archivo_data, nombre_archivo, fecha_subida, empresa)
             VALUES ($1, $2, $3, NOW(), $4)
@@ -2053,7 +2064,7 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
 
         const result = await pool.query(insertQuery, [
             orden,
-            imagen_base64,
+            archivoBuffer,
             nombre_archivo || `comprobante_${orden}_${Date.now()}.png`,
             empresa
         ]);

@@ -767,29 +767,47 @@
                 // Leer archivo como base64
                 const reader = new FileReader();
                 reader.onload = async (e) => {
-                    const base64DataUrl = e.target.result;
-                    // Extraer solo la parte base64 (sin el prefijo data:image/...)
-                    const base64Data = base64DataUrl.split(',')[1];
+                    try {
+                        const base64DataUrl = e.target.result;
+                        console.log('Base64 URL generada:', base64DataUrl.substring(0, 50) + '...');
 
-                    // Enviar al backend
-                    const response = await fetch(`${API_BASE}/soportes-entrega/subir`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            orden: codigoOrden,
-                            imagen_base64: base64Data,
-                            nombre_archivo: archivo.name,
-                            empresa: window.sesion.empresa
-                        })
-                    });
+                        // Extraer solo la parte base64 (sin el prefijo data:image/...)
+                        const base64Data = base64DataUrl.split(',')[1];
 
-                    const data = await response.json();
+                        if (!base64Data) {
+                            alert('❌ Error al procesar la imagen. Por favor intenta nuevamente.');
+                            return;
+                        }
 
-                    if (data.success) {
-                        // Actualizar estado de la orden según si es incompleta o no
-                        await actualizarEstadoOrden(codigoOrden, esIncompleta);
-                    } else {
-                        alert(`❌ Error: ${data.error}`);
+                        console.log('Base64 extraído, longitud:', base64Data.length);
+
+                        // Enviar al backend
+                        const response = await fetch(`${API_BASE}/soportes-entrega/subir`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                orden: codigoOrden,
+                                imagen_base64: base64Data,
+                                nombre_archivo: archivo.name,
+                                empresa: window.sesion.empresa
+                            })
+                        });
+
+                        console.log('Respuesta del servidor:', response.status);
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            console.log('Soporte guardado exitosamente');
+                            // Actualizar estado de la orden según si es incompleta o no
+                            await actualizarEstadoOrden(codigoOrden, esIncompleta);
+                        } else {
+                            console.error('Error del servidor:', data.error);
+                            alert(`❌ Error: ${data.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Error en reader.onload:', error);
+                        alert(`❌ Error al procesar el archivo: ${error.message}`);
                     }
                 };
 
