@@ -360,6 +360,43 @@
             return div;
         }
 
+        function mostrarImagenGrande(imagenSrc, numero) {
+            const modal = document.createElement('div');
+            modal.id = 'modalImagenGrandeDiv';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10001;
+            `;
+
+            modal.innerHTML = `
+                <div style="position: relative; max-width: 90vw; max-height: 90vh;">
+                    <img src="${imagenSrc}" style="width: 100%; height: auto; display: block; border-radius: 8px;">
+                    <button onclick="document.getElementById('modalImagenGrandeDiv').remove()" style="position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.9); border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        ✕
+                    </button>
+                    <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.7); color: white; padding: 0.5rem 1rem; border-radius: 6px; font-size: 14px;">
+                        Soporte ${numero}
+                    </div>
+                </div>
+            `;
+
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            };
+
+            document.body.appendChild(modal);
+        }
+
         async function verSoportes(codigoOrden) {
             try {
                 const response = await fetch(`${API_BASE}/soportes-entrega/${codigoOrden}`);
@@ -408,7 +445,7 @@
                     const imagenSrc = soporte.archivo_data.startsWith('data:') ? soporte.archivo_data : 'data:image/png;base64,' + soporte.archivo_data;
 
                     contenidoHTML += `
-                        <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+                        <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="mostrarImagenGrande('${imagenSrc.replace(/'/g, "\\'")}', ${index + 1})">
                             <img src="${imagenSrc}" style="width: 100%; height: 200px; object-fit: cover; display: block;">
                             <div style="padding: 0.75rem; background: var(--bg-tertiary);">
                                 <div style="font-size: 0.8rem; color: var(--text-secondary);">Soporte ${index + 1}</div>
