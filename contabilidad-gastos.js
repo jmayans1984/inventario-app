@@ -4,13 +4,21 @@
 
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
+// Almacenar datos para autocomplete
+let autosearchData = {
+    proveedores: [],
+    ccostos: [],
+    formaPago: [],
+    cuentas: []
+};
+
 // Esperar a que header.js inicialice la sesión
 window.addEventListener('load', () => {
     if (!window.sesion) {
         window.location.href = 'index.html';
         return;
     }
-    
+
     // Continuar con la inicialización
     inicializarFormulario();
 });
@@ -38,9 +46,9 @@ async function inicializarFormulario() {
 
 async function cargarSiguienteCodigo() {
     try {
-        const response = await fetch(`${API_BASE}/gastos/siguiente-codigo?empresa=${window.window.sesion.empresa}`);
+        const response = await fetch(`${API_BASE}/gastos/siguiente-codigo?empresa=${window.sesion.empresa}`);
         const data = await response.json();
-        
+
         if (data.success) {
             document.getElementById('codigoGasto').value = data.codigo;
         }
@@ -57,17 +65,10 @@ async function cargarProveedores() {
     try {
         const response = await fetch(`${API_BASE}/gastos/proveedores?empresa=${window.sesion.empresa}`);
         const data = await response.json();
-        
+
         if (data.success) {
-            const select = document.getElementById('proveedor');
-            select.innerHTML = '<option value="">Seleccione...</option>';
-            
-            data.proveedores.forEach(prov => {
-                const option = document.createElement('option');
-                option.value = prov.codigo;
-                option.textContent = prov.nombre;
-                select.appendChild(option);
-            });
+            autosearchData.proveedores = data.proveedores;
+            inicializarAutocomplete('proveedor', 'proveedores', 'nombre', 'codigo');
         }
     } catch (error) {
         console.error('Error cargando proveedores:', error);
@@ -83,17 +84,10 @@ async function cargarCuentasContables() {
     try {
         const response = await fetch(`${API_BASE}/gastos/cuentas-contables?empresa=${window.sesion.empresa}`);
         const data = await response.json();
-        
+
         if (data.success) {
-            const select = document.getElementById('cuenta');
-            select.innerHTML = '<option value="">Seleccione...</option>';
-            
-            data.cuentas.forEach(cuenta => {
-                const option = document.createElement('option');
-                option.value = cuenta.codigo;
-                option.textContent = cuenta.cuenta;
-                select.appendChild(option);
-            });
+            autosearchData.cuentas = data.cuentas;
+            inicializarAutocomplete('cuenta', 'cuentas', 'cuenta', 'codigo');
         }
     } catch (error) {
         console.error('Error cargando cuentas:', error);
@@ -109,17 +103,10 @@ async function cargarCentrosCosto() {
     try {
         const response = await fetch(`${API_BASE}/gastos/ccostos?empresa=${window.sesion.empresa}`);
         const data = await response.json();
-        
+
         if (data.success) {
-            const select = document.getElementById('ccosto');
-            select.innerHTML = '<option value="">Seleccione...</option>';
-            
-            data.ccostos.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.codigo;
-                option.textContent = cc.nombre;
-                select.appendChild(option);
-            });
+            autosearchData.ccostos = data.ccostos;
+            inicializarAutocomplete('ccosto', 'ccostos', 'nombre', 'codigo');
         }
     } catch (error) {
         console.error('Error cargando centros de costo:', error);
@@ -135,22 +122,104 @@ async function cargarCuentasBancarias() {
     try {
         const response = await fetch(`${API_BASE}/gastos/cuentas-bancarias?empresa=${window.sesion.empresa}`);
         const data = await response.json();
-        
+
         if (data.success) {
-            const select = document.getElementById('formaPago');
-            select.innerHTML = '<option value="">Seleccione...</option>';
-            
-            data.cuentas.forEach(cuenta => {
-                const option = document.createElement('option');
-                option.value = cuenta.codigo;
-                option.textContent = cuenta.nombre_cta;
-                select.appendChild(option);
-            });
+            autosearchData.formaPago = data.cuentas;
+            inicializarAutocomplete('formaPago', 'formaPago', 'nombre_cta', 'codigo');
         }
     } catch (error) {
         console.error('Error cargando cuentas bancarias:', error);
         alert('❌ Error al cargar cuentas bancarias');
     }
+}
+
+// ================================================================
+// AUTOCOMPLETE FUNCTIONALITY
+// ================================================================
+
+function inicializarAutocomplete(fieldId, dataKey, displayField, valueField) {
+    const inputId = fieldId + 'Input';
+    const dropdownId = fieldId + 'Dropdown';
+
+    const inputElement = document.getElementById(inputId);
+    const hiddenElement = document.getElementById(fieldId);
+    const dropdownElement = document.getElementById(dropdownId);
+
+    if (!inputElement) return;
+
+    // Input event para filtrar
+    inputElement.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toUpperCase();
+        const data = autosearchData[dataKey] || [];
+
+        if (searchTerm.length === 0) {
+            dropdownElement.classList.remove('show');
+            dropdownElement.innerHTML = '';
+            return;
+        }
+
+        const filtered = data.filter(item => {
+            const displayValue = String(item[displayField]).toUpperCase();
+            return displayValue.includes(searchTerm);
+        });
+
+        mostrarResultados(filtered, dropdownElement, displayField, valueField, inputElement, hiddenElement, dropdownElement);
+    });
+
+    // Hacer la entrada requerida basada en el campo oculto
+    inputElement.addEventListener('blur', () => {
+        if (!hiddenElement.value) {
+            inputElement.value = '';
+        }
+    });
+
+    // Cerrar dropdown cuando se hace click fuera
+    document.addEventListener('click', (e) => {
+        if (!inputElement.contains(e.target) && !dropdownElement.contains(e.target)) {
+            dropdownElement.classList.remove('show');
+        }
+    });
+
+    // Mostrar todos los items si el input se enfoca y está vacío
+    inputElement.addEventListener('focus', () => {
+        if (inputElement.value.length === 0) {
+            const data = autosearchData[dataKey] || [];
+            mostrarResultados(data.slice(0, 20), dropdownElement, displayField, valueField, inputElement, hiddenElement, dropdownElement);
+        }
+    });
+}
+
+function mostrarResultados(items, dropdownElement, displayField, valueField, inputElement, hiddenElement, dropdownElement) {
+    if (items.length === 0) {
+        dropdownElement.innerHTML = '<div class="autocomplete-no-results">Sin resultados</div>';
+        dropdownElement.classList.add('show');
+        return;
+    }
+
+    dropdownElement.innerHTML = items.map(item => `
+        <div class="autocomplete-item" data-value="${item[valueField]}" data-display="${item[displayField]}">
+            ${item[displayField]}
+        </div>
+    `).join('');
+
+    dropdownElement.classList.add('show');
+
+    // Agregar event listeners a los items
+    dropdownElement.querySelectorAll('.autocomplete-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const value = item.getAttribute('data-value');
+            const display = item.getAttribute('data-display');
+
+            hiddenElement.value = value;
+            inputElement.value = display;
+            dropdownElement.classList.remove('show');
+        });
+
+        item.addEventListener('mouseover', () => {
+            dropdownElement.querySelectorAll('.autocomplete-item').forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+        });
+    });
 }
 
 // ================================================================

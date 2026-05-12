@@ -5,6 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Gastos</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 1rem;
+            text-transform: uppercase;
+        }
+        .autocomplete-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        .autocomplete-dropdown.show {
+            display: block;
+        }
+        .autocomplete-item {
+            padding: 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background-color 0.2s;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: var(--accent);
+            color: white;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-no-results {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+    </style>
 </head>
 <body>
     <!-- HEADER UNIVERSAL -->
@@ -61,33 +117,41 @@
                     <!-- Proveedor -->
                     <div class="form-group">
                         <label class="filter-label">Proveedor *</label>
-                        <select id="proveedor" class="filter-select" required style="text-transform: uppercase;">
-                            <option value="">Seleccione...</option>
-                        </select>
+                        <div class="autocomplete-container">
+                            <input type="text" id="proveedorInput" class="autocomplete-input" placeholder="Escriba para buscar..." required>
+                            <input type="hidden" id="proveedor" class="filter-select">
+                            <div id="proveedorDropdown" class="autocomplete-dropdown"></div>
+                        </div>
                     </div>
 
                     <!-- Centro de Costo -->
                     <div class="form-group">
                         <label class="filter-label">Centro de costo *</label>
-                        <select id="ccosto" class="filter-select" required style="text-transform: uppercase;">
-                            <option value="">Seleccione...</option>
-                        </select>
+                        <div class="autocomplete-container">
+                            <input type="text" id="ccostoInput" class="autocomplete-input" placeholder="Escriba para buscar..." required>
+                            <input type="hidden" id="ccosto" class="filter-select">
+                            <div id="ccostoDropdown" class="autocomplete-dropdown"></div>
+                        </div>
                     </div>
 
                     <!-- Forma de Pago (Cuenta Bancaria) -->
                     <div class="form-group">
                         <label class="filter-label">Forma de pago *</label>
-                        <select id="formaPago" class="filter-select" required style="text-transform: uppercase;">
-                            <option value="">Seleccione...</option>
-                        </select>
+                        <div class="autocomplete-container">
+                            <input type="text" id="formaPagoInput" class="autocomplete-input" placeholder="Escriba para buscar..." required>
+                            <input type="hidden" id="formaPago" class="filter-select">
+                            <div id="formaPagoDropdown" class="autocomplete-dropdown"></div>
+                        </div>
                     </div>
 
                     <!-- Cuenta Contable -->
                     <div class="form-group">
                         <label class="filter-label">Cuenta *</label>
-                        <select id="cuenta" class="filter-select" required style="text-transform: uppercase;">
-                            <option value="">Seleccione...</option>
-                        </select>
+                        <div class="autocomplete-container">
+                            <input type="text" id="cuentaInput" class="autocomplete-input" placeholder="Escriba para buscar..." required>
+                            <input type="hidden" id="cuenta" class="filter-select">
+                            <div id="cuentaDropdown" class="autocomplete-dropdown"></div>
+                        </div>
                     </div>
 
                     <!-- Concepto -->
