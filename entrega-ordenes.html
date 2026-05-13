@@ -963,12 +963,12 @@
                     }
                 }
 
-                // Actualizar con el nuevo estado
+                // Actualizar con el nuevo estado y fecha de entrega actual
                 const putResponse = await fetch(`${API_BASE}/ordenes-compra/${codigoOrden}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        fecha_entrega: orden.fecha_entrega,
+                        fecha_entrega: new Date().toISOString().split('T')[0],
                         estado: nuevoEstado,
                         observaciones: observacionesActualizadas,
                         total: orden.total
