@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Inventario</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .login-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .theme-section {
+            padding: 1rem;
+            background-color: var(--bg-tertiary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-login {
+            padding: 0.875rem;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-login:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+        }
+
+        #empresaSelector {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .empresa-option {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            background-color: var(--bg-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.5rem;
+        }
+
+        .empresa-option:hover {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* MODO SELECTOR */
+        .modo-section {
+            padding: 1rem;
+            background-color: var(--bg-tertiary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modo-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .modo-label-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .modo-label-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .modo-toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .modo-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .modo-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+
+        .modo-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .modo-slider {
+            background-color: var(--accent);
+        }
+
+        input:checked + .modo-slider:before {
+            transform: translateX(30px);
+        }
+
+        .modo-selector {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .modo-selector span {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .modo-selector span.active {
+            color: var(--accent);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>🏢 RestManager Pro</h1>
+                <p>Sistema de Gestión Empresarial</p>
+            </div>
+
+            <form class="login-form" onsubmit="iniciarSesion(event)">
+                <div class="form-group">
+                    <label for="usuario">Usuario</label>
+                    <input 
+                        type="text" 
+                        id="usuario" 
+                        placeholder="Ingresa tu usuario"
+                        required
+                        autocomplete="username"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="clave">Contraseña</label>
+                    <input
+                        type="password"
+                        id="clave"
+                        placeholder="Ingresa tu contraseña"
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <div class="modo-section">
+                    <div class="modo-label">
+                        <span class="modo-label-title">🚀 Versión</span>
+                        <div class="modo-selector">
+                            <span id="modoLightLabel" class="active">Light</span>
+                            <span>/</span>
+                            <span id="modoCompletoLabel">Completo</span>
+                        </div>
+                    </div>
+                    <label class="modo-toggle">
+                        <input type="checkbox" id="modoToggle" onchange="cambiarModo()">
+                        <span class="modo-slider"></span>
+                    </label>
+                </div>
+
+                <div class="theme-section">
+                    <span class="theme-label">🌙 Modo Oscuro</span>
+                    <label class="theme-switch">
+                        <input type="checkbox" onchange="cambiarTema()">
+                        <span class="theme-slider"></span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    Iniciar Sesión
+                </button>
+
+                <div id="empresaSelector"></div>
+            </form>
+
+            <div class="login-footer">
+                <p>Sistema de Gestión v2.0</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script>
+        const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
+
+        // Cargar modo guardado
+        window.addEventListener('DOMContentLoaded', () => {
+            const modoGuardado = localStorage.getItem('modoApp') || 'light';
+            const toggleElement = document.getElementById('modoToggle');
+
+            if (modoGuardado === 'completo') {
+                toggleElement.checked = true;
+                actualizarEtiquetaModo(true);
+            } else {
+                toggleElement.checked = false;
+                actualizarEtiquetaModo(false);
+            }
+        });
+
+        function cambiarModo() {
+            const isCompleto = document.getElementById('modoToggle').checked;
+            const modo = isCompleto ? 'completo' : 'light';
+            localStorage.setItem('modoApp', modo);
+            actualizarEtiquetaModo(isCompleto);
+            console.log('Modo seleccionado:', modo);
+        }
+
+        function actualizarEtiquetaModo(isCompleto) {
+            const labelLight = document.getElementById('modoLightLabel');
+            const labelCompleto = document.getElementById('modoCompletoLabel');
+
+            if (isCompleto) {
+                labelLight.classList.remove('active');
+                labelCompleto.classList.add('active');
+            } else {
+                labelLight.classList.add('active');
+                labelCompleto.classList.remove('active');
+            }
+        }
+
+        async function iniciarSesion(event) {
+            event.preventDefault();
+
+            const usuario = document.getElementById('usuario').value;
+            const clave = document.getElementById('clave').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, clave })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Guardar datos del usuario
+                    localStorage.setItem('usuario', JSON.stringify(data.data));
+
+                    if (data.data.requiere_seleccion && data.data.empresas.length > 1) {
+                        // Mostrar selector de empresas
+                        mostrarSelectorEmpresas(data.data.empresas);
+                    } else {
+                        // Una sola empresa, ir directo al principal
+                        const empresa = data.data.empresas[0].empresa;
+                        localStorage.setItem('empresaActual', empresa);
+                        irAlPrincipal(empresa);
+                    }
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error en login:', error);
+                alert('❌ Error al iniciar sesión');
+            }
+        }
+
+        function mostrarSelectorEmpresas(empresas) {
+            const selector = document.getElementById('empresaSelector');
+            selector.style.display = 'block';
+            
+            let html = '<p style="margin-bottom: 0.75rem; font-weight: 600; color: var(--text-primary);">Selecciona una empresa:</p>';
+            
+            empresas.forEach(emp => {
+                html += `
+                    <div class="empresa-option" onclick="seleccionarEmpresa('${emp.empresa}')">
+                        <strong>${emp.empresa_nombre}</strong><br>
+                        <small style="color: var(--text-tertiary);">NIT: ${emp.empresa}</small>
+                    </div>
+                `;
+            });
+            
+            selector.innerHTML = html;
+        }
+
+        function seleccionarEmpresa(empresa) {
+            localStorage.setItem('empresaActual', empresa);
+            irAlPrincipal(empresa);
+        }
+
+        function irAlPrincipal(empresa) {
+            const modo = localStorage.getItem('modoApp') || 'light';
+            const archivo = modo === 'completo' ? 'principal-vue.html' : 'principal.html';
+            window.location.href = archivo;
+        }
+    </script>
+</body>
+</html>
