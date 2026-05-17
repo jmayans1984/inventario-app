@@ -25,18 +25,17 @@
 
           <!-- CÓDIGO -->
           <v-col cols="12" sm="3">
-            <label class="field-label">CÓDIGO <span v-if="!esEdicion" class="required">*</span></label>
+            <label class="field-label">CÓDIGO</label>
             <v-text-field
               v-model="formData.codigo"
-              :readonly="esEdicion"
+              readonly
               placeholder="Auto-generado"
               prepend-inner-icon="mdi-barcode"
               variant="outlined"
               density="comfortable"
-              hide-details="auto"
-              :error-messages="formularioTocado.codigo ? errores.codigo : []"
-              bg-color="rgba(var(--v-theme-on-surface), 0.03)"
-              class="mt-1"
+              hide-details
+              bg-color="rgba(var(--v-theme-on-surface), 0.04)"
+              class="mt-1 field-readonly"
             />
           </v-col>
 
@@ -201,7 +200,7 @@ const formularioValido = computed(() => {
 
 watch(
   () => props.open,
-  (newVal) => {
+  async (newVal) => {
     if (newVal && props.proveedor) {
       formData.value = {
         codigo:    props.proveedor.codigo    || '',
@@ -217,8 +216,9 @@ watch(
         telefono1: false,
       }
     } else if (newVal) {
-      // Nuevo proveedor
       resetForm()
+      // Auto-generar código
+      formData.value.codigo = await store.getProximoCodigo()
     }
     errorGeneral.value = ''
     mensajeExito.value = ''
@@ -394,6 +394,12 @@ function cerrar() {
   color: rgba(var(--v-theme-on-surface), 0.35);
   margin-left: 4px;
   font-weight: 600;
+}
+
+/* Campo readonly */
+.field-readonly :deep(input) {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* ACCIONES */

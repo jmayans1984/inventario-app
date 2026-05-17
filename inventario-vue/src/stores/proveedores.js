@@ -324,10 +324,30 @@ export const useProveedoresStore = defineStore('proveedores', () => {
     selectedIds.value.length > 0
   )
 
-  // ─── INITIALIZATION ──────────────────────────────────
+  // ─── PRÓXIMO CÓDIGO ──────────────────────────────────
 
-  // Intentar cargar desde API al montar el store
-  // (se llamará explícitamente desde la vista)
+  async function getProximoCodigo() {
+    try {
+      const authStore = useAuthStore()
+      const empresa = authStore.empresa
+      const response = await proveedoresService.getProveedores({ empresa, limit: 200 })
+      const lista = Array.isArray(response) ? response : response?.data || proveedores.value
+      let maxNum = 0
+      lista.forEach(p => {
+        const n = parseInt(p.codigo) || 0
+        if (n > maxNum) maxNum = n
+      })
+      return String(maxNum + 1).padStart(3, '0')
+    } catch {
+      // Calcular desde los proveedores ya cargados
+      let maxNum = 0
+      proveedores.value.forEach(p => {
+        const n = parseInt(p.codigo) || 0
+        if (n > maxNum) maxNum = n
+      })
+      return String(maxNum + 1).padStart(3, '0')
+    }
+  }
 
   return {
     // State
@@ -340,6 +360,7 @@ export const useProveedoresStore = defineStore('proveedores', () => {
 
     // Actions
     fetchProveedores,
+    getProximoCodigo,
     crearProveedor,
     actualizarProveedor,
     eliminarProveedor,

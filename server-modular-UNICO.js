@@ -2281,6 +2281,28 @@ app.get('/api/contabilidad/proveedores/:codigo', async (req, res) => {
     }
 });
 
+// GET /api/contabilidad/proveedores/proximo-codigo
+app.get('/api/contabilidad/proveedores/proximo-codigo', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT codigo FROM proveedores WHERE empresa = $1 ORDER BY codigo DESC`,
+            [empresa]
+        );
+        let maxNum = 0;
+        result.rows.forEach(row => {
+            const n = parseInt(row.codigo) || 0;
+            if (n > maxNum) maxNum = n;
+        });
+        const proximoCodigo = String(maxNum + 1).padStart(3, '0');
+        res.json({ success: true, codigo: proximoCodigo });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/contabilidad/proveedores - Crear proveedor
 app.post('/api/contabilidad/proveedores', async (req, res) => {
     try {
@@ -2295,7 +2317,7 @@ app.post('/api/contabilidad/proveedores', async (req, res) => {
 
         const query = `
             INSERT INTO proveedores (codigo, nombre, direccion, telefono1, departamen, empresa)
-            VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVO')
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING codigo, nombre, direccion, telefono1, departamen, empresa
         `;
 
