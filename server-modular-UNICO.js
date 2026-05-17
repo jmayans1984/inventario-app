@@ -2509,6 +2509,168 @@ app.get('/api/contabilidad/proveedores/buscar', async (req, res) => {
 });
 
 // ================================================================
+// CONTABILIDAD - CENTROS DE COSTOS (CRUD)
+// ================================================================
+
+// GET /api/contabilidad/centrocostos - Listar
+app.get('/api/contabilidad/centrocostos', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const search  = req.query.search  || '';
+        const sortBy  = ['codigo', 'nombre'].includes(req.query.sortBy) ? req.query.sortBy : 'codigo';
+        const sortOrd = req.query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+        const limit   = Math.min(parseInt(req.query.limit)  || 50, 200);
+        const offset  = ((parseInt(req.query.page) || 1) - 1) * limit;
+
+        let whereClause = 'WHERE empresa = $1';
+        const params    = [empresa];
+
+        if (search) {
+            params.push(`%${search}%`);
+            whereClause += ` AND (codigo ILIKE $${params.length} OR nombre ILIKE $${params.length})`;
+        }
+
+        const countRes = await pool.query(
+            `SELECT COUNT(*) FROM ccostos ${whereClause}`, params
+        );
+        const total = parseInt(countRes.rows[0].count);
+
+        params.push(limit, offset);
+        const dataRes = await pool.query(
+            `SELECT codigo, nombre, empresa, square_location_id
+             FROM ccostos ${whereClause}
+             ORDER BY ${sortBy} ${sortOrd}
+             LIMIT $${params.length - 1} OFFSET $${params.length}`,
+            params
+        );
+
+        res.json({ success: true, data: dataRes.rows, total, page: parseInt(req.query.page) || 1, limit });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/centrocostos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/centrocostos/buscar - Búsqueda rápida
+app.get('/api/contabilidad/centrocostos/buscar', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const q = req.query.q || '';
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT codigo, nombre, empresa, square_location_id
+             FROM ccostos
+             WHERE empresa = $1 AND (codigo ILIKE $2 OR nombre ILIKE $2)
+             ORDER BY codigo ASC LIMIT 20`,
+            [empresa, `%${q}%`]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/centrocostos/:codigo - Obtener uno
+app.get('/api/contabilidad/centrocostos/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const result = await pool.query(
+            `SELECT codigo, nombre, empresa, square_location_id
+             FROM ccostos WHERE codigo = $1 AND empresa = $2`,
+            [codigo, empresa]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Centro de costos no encontrado' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/centrocostos - Crear
+app.post('/api/contabilidad/centrocostos', async (req, res) => {
+    try {
+        const { codigo, nombre, empresa, square_location_id } = req.body;
+        if (!codigo || !nombre || !empresa) {
+            return res.status(400).json({ success: false, error: 'codigo, nombre y empresa son requeridos' });
+        }
+        // Verificar duplicado
+        const existe = await pool.query(
+            'SELECT codigo FROM ccostos WHERE codigo = $1 AND empresa = $2',
+            [codigo.toUpperCase(), empresa]
+        );
+        if (existe.rows.length > 0) {
+            return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
+        }
+        const result = await pool.query(
+            `INSERT INTO ccostos (codigo, nombre, empresa, square_location_id)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [codigo.toUpperCase(), nombre.trim(), empresa, square_location_id || '']
+        );
+        res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/contabilidad/centrocostos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/contabilidad/centrocostos/:codigo - Actualizar
+app.put('/api/contabilidad/centrocostos/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { nombre, empresa, square_location_id } = req.body;
+        if (!nombre) return res.status(400).json({ success: false, error: 'nombre es requerido' });
+
+        const result = await pool.query(
+            `UPDATE ccostos SET nombre = $1, square_location_id = $2
+             WHERE codigo = $3 AND empresa = $4 RETURNING *`,
+            [nombre.trim(), square_location_id || '', codigo, empresa]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Centro de costos no encontrado' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/contabilidad/centrocostos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/contabilidad/centrocostos/:codigo - Eliminar
+app.delete('/api/contabilidad/centrocostos/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const result = await pool.query(
+            'DELETE FROM ccostos WHERE codigo = $1 AND empresa = $2 RETURNING codigo',
+            [codigo, empresa]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
+        res.json({ success: true, message: `Centro de costos ${codigo} eliminado` });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/centrocostos/batch/eliminar - Eliminar múltiples
+app.post('/api/contabilidad/centrocostos/batch/eliminar', async (req, res) => {
+    try {
+        const { codigos, empresa } = req.body;
+        if (!codigos || !codigos.length) return res.status(400).json({ success: false, error: 'codigos requeridos' });
+
+        const placeholders = codigos.map((_, i) => `$${i + 2}`).join(', ');
+        await pool.query(
+            `DELETE FROM ccostos WHERE empresa = $1 AND codigo IN (${placeholders})`,
+            [empresa, ...codigos]
+        );
+        res.json({ success: true, message: `${codigos.length} centros de costos eliminados` });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // HEALTH CHECK
 // ================================================================
 

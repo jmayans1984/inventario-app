@@ -100,6 +100,7 @@ const itemMap = {
   'cuentas-contables': 'Cuentas Contables',
   'cuentas-bancarias': 'Cuentas Bancarias',
   'centros-costos': 'Centros de Costos',
+  centrocostos: 'Centros de Costos',
   gastos: 'Gestión de Gastos',
   'estado-resultados': 'Estado de Resultados',
 }
@@ -125,9 +126,9 @@ const heroStats = [
 
 const moduleCards = [
   { title: 'Proveedores', desc: 'Gestión de proveedores y datos de contacto', icon: 'mdi-truck-outline', count: `${formatEntero(45)} registros`, path: '/contabilidad/configuracion/proveedores' },
+  { title: 'Centros de Costos', desc: 'Administra las unidades de negocio y centros de costos', icon: 'mdi-sitemap-outline', count: 'Ver registros', path: '/contabilidad/configuracion/centros-costos' },
   { title: 'Cuentas Bancarias', desc: 'Administración de cuentas bancarias activas', icon: 'mdi-bank-outline', count: `${formatEntero(4)} cuentas`, path: '/contabilidad/configuracion/cuentas-bancarias' },
   { title: 'Gestión de Gastos', desc: 'Registro y control de gastos del período', icon: 'mdi-receipt-text-outline', count: `${formatEntero(12)} este mes`, path: '/contabilidad/procesos/gastos' },
-  { title: 'Estado de Resultados', desc: 'Reporte financiero del período seleccionado', icon: 'mdi-trending-up', count: 'Ver reporte', path: '/contabilidad/reportes/estado-resultados' },
 ]
 </script>
 
