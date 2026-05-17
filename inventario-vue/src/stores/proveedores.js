@@ -104,14 +104,14 @@ export const useProveedoresStore = defineStore('proveedores', () => {
   /**
    * Actualizar un proveedor existente
    */
-  async function actualizarProveedor(id, data) {
+  async function actualizarProveedor(codigo, data) {
     loading.value = true
     error.value = null
     try {
-      const proveedorActualizado = await proveedoresService.actualizarProveedor(id, data)
+      const proveedorActualizado = await proveedoresService.actualizarProveedor(codigo, data)
 
       // Actualizar en la lista local
-      const index = proveedores.value.findIndex(p => p.id === id)
+      const index = proveedores.value.findIndex(p => p.codigo === codigo)
       if (index !== -1) {
         proveedores.value[index] = proveedorActualizado
 
@@ -132,14 +132,14 @@ export const useProveedoresStore = defineStore('proveedores', () => {
   /**
    * Eliminar un proveedor
    */
-  async function eliminarProveedor(id) {
+  async function eliminarProveedor(codigo) {
     loading.value = true
     error.value = null
     try {
-      await proveedoresService.eliminarProveedor(id)
+      await proveedoresService.eliminarProveedor(codigo)
 
       // Eliminar de la lista local
-      const index = proveedores.value.findIndex(p => p.id === id)
+      const index = proveedores.value.findIndex(p => p.codigo === codigo)
       if (index !== -1) {
         proveedores.value.splice(index, 1)
         total.value--
@@ -159,14 +159,14 @@ export const useProveedoresStore = defineStore('proveedores', () => {
   /**
    * Eliminar múltiples proveedores
    */
-  async function eliminarMultiples(ids) {
+  async function eliminarMultiples(codigos) {
     loading.value = true
     error.value = null
     try {
-      await proveedoresService.eliminarMultiples(ids)
+      await proveedoresService.eliminarMultiples(codigos)
 
       // Eliminar de la lista local
-      proveedores.value = proveedores.value.filter(p => !ids.includes(p.id))
+      proveedores.value = proveedores.value.filter(p => !codigos.includes(p.codigo))
       total.value = proveedores.value.length
       selectedIds.value = []
 

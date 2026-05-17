@@ -37,14 +37,15 @@ export const proveedoresService = {
   },
 
   /**
-   * Obtener un proveedor específico por ID
+   * Obtener un proveedor específico por código
    */
-  async getProveedor(id) {
+  async getProveedor(codigo) {
     try {
-      const response = await api.get(`${ENDPOINT}/${id}`)
+      const empresa = getEmpresaActiva()
+      const response = await api.get(`${ENDPOINT}/${codigo}`, { params: { empresa } })
       return response.data
     } catch (error) {
-      console.error(`Error obteniendo proveedor ${id}:`, error)
+      console.error(`Error obteniendo proveedor ${codigo}:`, error)
       throw error
     }
   },
@@ -110,12 +111,17 @@ export const proveedoresService = {
   /**
    * Actualizar un proveedor existente
    */
-  async actualizarProveedor(id, data) {
+  async actualizarProveedor(codigo, data) {
     try {
-      const response = await api.put(`${ENDPOINT}/${id}`, data)
+      const empresa = getEmpresaActiva()
+      const dataConEmpresa = {
+        ...data,
+        empresa: empresa
+      }
+      const response = await api.put(`${ENDPOINT}/${codigo}`, dataConEmpresa)
       return response.data
     } catch (error) {
-      console.error(`Error actualizando proveedor ${id}:`, error)
+      console.error(`Error actualizando proveedor ${codigo}:`, error)
       throw error
     }
   },
@@ -123,12 +129,13 @@ export const proveedoresService = {
   /**
    * Eliminar un proveedor
    */
-  async eliminarProveedor(id) {
+  async eliminarProveedor(codigo) {
     try {
-      const response = await api.delete(`${ENDPOINT}/${id}`)
+      const empresa = getEmpresaActiva()
+      const response = await api.delete(`${ENDPOINT}/${codigo}`, { params: { empresa } })
       return response.data
     } catch (error) {
-      console.error(`Error eliminando proveedor ${id}:`, error)
+      console.error(`Error eliminando proveedor ${codigo}:`, error)
       throw error
     }
   },
@@ -136,9 +143,10 @@ export const proveedoresService = {
   /**
    * Eliminar múltiples proveedores (batch delete)
    */
-  async eliminarMultiples(ids) {
+  async eliminarMultiples(codigos) {
     try {
-      const response = await api.post(`${ENDPOINT}/batch/eliminar`, { ids })
+      const empresa = getEmpresaActiva()
+      const response = await api.post(`${ENDPOINT}/batch/eliminar`, { codigos, empresa })
       return response.data
     } catch (error) {
       console.error('Error en eliminación en lote:', error)

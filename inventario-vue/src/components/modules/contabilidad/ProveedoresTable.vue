@@ -84,11 +84,11 @@
       </thead>
 
       <tbody>
-        <tr v-for="prov in store.proveedores" :key="prov.id" class="data-row">
+        <tr v-for="prov in store.proveedores" :key="prov.codigo" class="data-row">
           <td class="td-checkbox">
             <v-checkbox
-              :model-value="selectedIds.includes(prov.id)"
-              @update:model-value="(val) => toggleSeleccion(prov.id, val)"
+              :model-value="selectedIds.includes(prov.codigo)"
+              @update:model-value="(val) => toggleSeleccion(prov.codigo, val)"
               hide-details
             />
           </td>
@@ -139,7 +139,7 @@
                 size="x-small"
                 variant="text"
                 color="error"
-                @click="abrirConfirmacion(prov.id, prov.nombre)"
+                @click="abrirConfirmacion(prov.codigo, prov.nombre)"
                 title="Eliminar"
               />
             </div>
@@ -343,7 +343,7 @@ async function recargar() {
 
 function toggleTodos(val) {
   if (val) {
-    selectedIds.value = store.proveedores.map(p => p.id)
+    selectedIds.value = store.proveedores.map(p => p.codigo)
   } else {
     selectedIds.value = []
   }

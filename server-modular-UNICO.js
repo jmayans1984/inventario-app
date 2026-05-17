@@ -2198,7 +2198,7 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
         // Query principal
         const query = `
             SELECT
-                id, codigo, nombre, direccion, telefono1, departamen, empresa, estado
+                codigo, nombre, direccion, telefono1, departamen, empresa, estado
             FROM proveedores
             ${whereClause}
             ORDER BY ${sortByLimpio} ${sortOrderLimpio}
@@ -2234,10 +2234,10 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
     }
 });
 
-// GET /api/contabilidad/proveedores/:id - Obtener un proveedor
-app.get('/api/contabilidad/proveedores/:id', async (req, res) => {
+// GET /api/contabilidad/proveedores/:codigo - Obtener un proveedor
+app.get('/api/contabilidad/proveedores/:codigo', async (req, res) => {
     try {
-        const { id } = req.params;
+        const { codigo } = req.params;
         const { empresa } = req.query;
 
         if (!empresa) {
@@ -2248,12 +2248,12 @@ app.get('/api/contabilidad/proveedores/:id', async (req, res) => {
         }
 
         const query = `
-            SELECT id, codigo, nombre, direccion, telefono1, departamen, empresa, estado
+            SELECT codigo, nombre, direccion, telefono1, departamen, empresa, estado
             FROM proveedores
-            WHERE id = $1 AND empresa = $2
+            WHERE codigo = $1 AND empresa = $2
         `;
 
-        const result = await pool.query(query, [id, empresa]);
+        const result = await pool.query(query, [codigo, empresa]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -2292,7 +2292,7 @@ app.post('/api/contabilidad/proveedores', async (req, res) => {
         const query = `
             INSERT INTO proveedores (codigo, nombre, direccion, telefono1, departamen, empresa, estado)
             VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVO')
-            RETURNING *
+            RETURNING codigo, nombre, direccion, telefono1, departamen, empresa, estado
         `;
 
         const result = await pool.query(query, [
@@ -2320,11 +2320,11 @@ app.post('/api/contabilidad/proveedores', async (req, res) => {
     }
 });
 
-// PUT /api/contabilidad/proveedores/:id - Actualizar proveedor
-app.put('/api/contabilidad/proveedores/:id', async (req, res) => {
+// PUT /api/contabilidad/proveedores/:codigo - Actualizar proveedor
+app.put('/api/contabilidad/proveedores/:codigo', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { codigo, nombre, direccion, telefono1, departamen, empresa } = req.body;
+        const { codigo } = req.params;
+        const { nombre, direccion, telefono1, departamen, empresa } = req.body;
 
         if (!empresa) {
             return res.status(400).json({
@@ -2336,22 +2336,20 @@ app.put('/api/contabilidad/proveedores/:id', async (req, res) => {
         const query = `
             UPDATE proveedores
             SET
-                codigo = COALESCE($1, codigo),
-                nombre = COALESCE($2, nombre),
-                direccion = COALESCE($3, direccion),
-                telefono1 = COALESCE($4, telefono1),
-                departamen = COALESCE($5, departamen)
-            WHERE id = $6 AND empresa = $7
-            RETURNING *
+                nombre = COALESCE($1, nombre),
+                direccion = COALESCE($2, direccion),
+                telefono1 = COALESCE($3, telefono1),
+                departamen = COALESCE($4, departamen)
+            WHERE codigo = $5 AND empresa = $6
+            RETURNING codigo, nombre, direccion, telefono1, departamen, empresa, estado
         `;
 
         const result = await pool.query(query, [
-            codigo || null,
             nombre || null,
             direccion || null,
             telefono1 || null,
             departamen || null,
-            id,
+            codigo,
             empresa
         ]);
 
@@ -2379,9 +2377,9 @@ app.put('/api/contabilidad/proveedores/:id', async (req, res) => {
 });
 
 // DELETE /api/contabilidad/proveedores/:id - Eliminar proveedor
-app.delete('/api/contabilidad/proveedores/:id', async (req, res) => {
+app.delete('/api/contabilidad/proveedores/:codigo', async (req, res) => {
     try {
-        const { id } = req.params;
+        const { codigo } = req.params;
         const { empresa } = req.query;
 
         if (!empresa) {
@@ -2393,11 +2391,11 @@ app.delete('/api/contabilidad/proveedores/:id', async (req, res) => {
 
         const query = `
             DELETE FROM proveedores
-            WHERE id = $1 AND empresa = $2
-            RETURNING id
+            WHERE codigo = $1 AND empresa = $2
+            RETURNING codigo
         `;
 
-        const result = await pool.query(query, [id, empresa]);
+        const result = await pool.query(query, [codigo, empresa]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -2424,23 +2422,23 @@ app.delete('/api/contabilidad/proveedores/:id', async (req, res) => {
 // POST /api/contabilidad/proveedores/batch/eliminar - Eliminar múltiples
 app.post('/api/contabilidad/proveedores/batch/eliminar', async (req, res) => {
     try {
-        const { ids, empresa } = req.body;
+        const { codigos, empresa } = req.body;
 
-        if (!ids || !Array.isArray(ids) || ids.length === 0 || !empresa) {
+        if (!codigos || !Array.isArray(codigos) || codigos.length === 0 || !empresa) {
             return res.status(400).json({
                 success: false,
-                error: 'Se requieren: ids (array), empresa'
+                error: 'Se requieren: codigos (array), empresa'
             });
         }
 
-        const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+        const placeholders = codigos.map((_, i) => `$${i + 1}`).join(',');
         const query = `
             DELETE FROM proveedores
-            WHERE id IN (${placeholders}) AND empresa = $${ids.length + 1}
-            RETURNING id
+            WHERE codigo IN (${placeholders}) AND empresa = $${codigos.length + 1}
+            RETURNING codigo
         `;
 
-        const result = await pool.query(query, [...ids, empresa]);
+        const result = await pool.query(query, [...codigos, empresa]);
 
         res.json({
             success: true,
@@ -2479,7 +2477,7 @@ app.get('/api/contabilidad/proveedores/buscar', async (req, res) => {
 
         const searchParam = `%${q}%`;
         const query = `
-            SELECT id, codigo, nombre, direccion, telefono1, departamen, empresa
+            SELECT codigo, nombre, direccion, telefono1, departamen, empresa, estado
             FROM proveedores
             WHERE empresa = $1 AND (
                 UPPER(codigo) LIKE UPPER($2) OR

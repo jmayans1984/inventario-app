@@ -219,7 +219,7 @@ const departamentos = [
 
 // ─── COMPUTED ────────────────────────────────────────
 
-const esEdicion = computed(() => !!props.proveedor?.id)
+const esEdicion = computed(() => !!props.proveedor?.codigo)
 
 const formularioValido = computed(() => {
   return (
@@ -335,7 +335,7 @@ async function handleGuardar() {
 
     if (esEdicion.value) {
       // Actualizar
-      resultado = await store.actualizarProveedor(props.proveedor.id, {
+      resultado = await store.actualizarProveedor(props.proveedor.codigo, {
         ...formData.value,
       })
       mensajeExito.value = 'Proveedor actualizado correctamente'
