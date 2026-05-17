@@ -1,7 +1,7 @@
 // ================================================================
 // API BACKEND - INVENTARIO CON AUTENTICACIÓN (MODULAR)
 // Node.js + Express + PostgreSQL (Aiven)
-// Versión 2.0 - Arquitectura Modular
+// Versión 2.0 - Arquitectura Modular COMPLETA
 // ================================================================
 
 const express = require('express');
@@ -46,6 +46,7 @@ const movimientosRoutes = require('./ROUTES/movimientos'); // ALIAS TEMPORAL
 const tesoreriaRoutes = require('./ROUTES/tesoreria');
 const gastosRoutes = require('./ROUTES/gastos');
 const ordenesRoutes = require('./ROUTES/ordenes');
+const contabilidadRoutes = require('./ROUTES/contabilidad'); // NUEVO - Versión COMPLETA
 
 // ================================================================
 // USAR RUTAS
@@ -74,24 +75,27 @@ app.use('/api/gastos', gastosRoutes);
 // Órdenes de compra y recepción
 app.use('/api', ordenesRoutes);
 
+// Contabilidad (Proveedores, etc.) - NUEVO - Versión COMPLETA
+app.use('/api/contabilidad', contabilidadRoutes);
+
 // ================================================================
 // HEALTH CHECK
 // ================================================================
 
-const pool = require('./config/database');
+const pool = require('./CONFIG/database');
 
 app.get('/health', async (req, res) => {
     try {
         await pool.query('SELECT 1');
-        res.json({ 
-            status: 'OK', 
+        res.json({
+            status: 'OK',
             timestamp: new Date().toISOString(),
             database: 'Connected',
-            architecture: 'Modular v2.0'
+            architecture: 'Modular v2.0 COMPLETA'
         });
     } catch (error) {
-        res.status(500).json({ 
-            status: 'ERROR', 
+        res.status(500).json({
+            status: 'ERROR',
             error: error.message,
             database: 'Disconnected'
         });
@@ -104,8 +108,8 @@ app.get('/health', async (req, res) => {
 
 app.get('/', (req, res) => {
     res.json({
-        message: 'API de Inventario con Autenticación (Modular)',
-        version: '2.0',
+        message: 'API de Inventario con Autenticación (Modular COMPLETA)',
+        version: '2.0 COMPLETA',
         architecture: 'Modular - Separación por dominios',
         modules: {
             auth: '/api/auth/*',
@@ -114,14 +118,16 @@ app.get('/', (req, res) => {
             movimientos: '/api/movimientos/* (alias temporal)',
             tesoreria: '/api/cuentas-bancarias, /api/movimientos-bancarios, /api/facturas-compra, /api/soporte-pago',
             gastos: '/api/gastos/*',
-            ordenes: '/api/ordenes-compra/*, /api/soportes-entrega/*'
+            ordenes: '/api/ordenes-compra/*, /api/soportes-entrega/*',
+            contabilidad: '/api/contabilidad/proveedores* (NUEVO - VERSIÓN COMPLETA)'
         },
         endpoints: {
             health: '/health',
             login: 'POST /api/auth/login',
             inventario: 'GET /api/inventario?empresa=X&ccosto=Y',
             gastos: 'POST /api/gastos/crear',
-            ordenes: 'GET /api/ordenes-compra?empresa=X'
+            ordenes: 'GET /api/ordenes-compra?empresa=X',
+            proveedores: 'GET/POST/PUT/DELETE /api/contabilidad/proveedores (NUEVO)'
         }
     });
 });
@@ -131,11 +137,11 @@ app.get('/', (req, res) => {
 // ================================================================
 
 app.listen(PORT, () => {
-    console.log(`\n🚀 Servidor MODULAR corriendo en puerto ${PORT}`);
+    console.log(`\n🚀 Servidor MODULAR COMPLETO corriendo en puerto ${PORT}`);
     console.log(`📊 API disponible en http://localhost:${PORT}`);
     console.log(`❤️  Health check: http://localhost:${PORT}/health`);
-    console.log(`📦 Arquitectura: Modular v2.0`);
-    console.log(`📂 Módulos cargados: auth, ccostos, inventario, movimientos, tesoreria, gastos, ordenes\n`);
+    console.log(`📦 Arquitectura: Modular v2.0 COMPLETA`);
+    console.log(`📂 Módulos cargados: auth, ccostos, inventario, movimientos, tesoreria, gastos, ordenes, contabilidad\n`);
 });
 
 process.on('unhandledRejection', (err) => {

@@ -5,7 +5,10 @@ const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue'), meta: { requiresAuth: false } },
   { path: '/', name: 'Inicio', component: () => import('../views/DashboardView.vue'), meta: { requiresAuth: true } },
 
-  // CONTABILIDAD — captura /contabilidad, /contabilidad/configuracion/proveedores, etc.
+  // CONTABILIDAD ESPECÍFICAS
+  { path: '/contabilidad/configuracion/proveedores', component: () => import('../views/contabilidad/ProveedoresView.vue'), meta: { requiresAuth: true } },
+
+  // CONTABILIDAD — patrón general (captura /contabilidad, /contabilidad/configuracion, etc.)
   { path: '/contabilidad/:section?/:item?', component: () => import('../views/ContabilidadView.vue'), meta: { requiresAuth: true } },
 
   // TESORERÍA
