@@ -21,121 +21,104 @@
 
       <!-- FORMULARIO -->
       <v-card-text class="form-content">
-        <div class="form-grid">
-          <!-- CÓDIGO (solo lectura en edición) -->
-          <div class="form-field">
-            <label class="field-label">
-              CÓDIGO
-              <span v-if="!esEdicion" class="required">*</span>
-            </label>
+        <v-row dense class="mt-1">
+
+          <!-- CÓDIGO -->
+          <v-col cols="12" sm="3">
+            <label class="field-label">CÓDIGO <span v-if="!esEdicion" class="required">*</span></label>
             <v-text-field
               v-model="formData.codigo"
               :readonly="esEdicion"
               placeholder="Auto-generado"
               prepend-inner-icon="mdi-barcode"
               variant="outlined"
-              density="compact"
-              hide-details
-              :error="formularioTocado.codigo && errores.codigo"
+              density="comfortable"
+              hide-details="auto"
               :error-messages="formularioTocado.codigo ? errores.codigo : []"
-              @blur="formularioTocado.codigo = true"
+              bg-color="rgba(var(--v-theme-on-surface), 0.03)"
+              class="mt-1"
             />
-          </div>
+          </v-col>
 
           <!-- NOMBRE -->
-          <div class="form-field">
-            <label class="field-label">
-              NOMBRE
-              <span class="required">*</span>
-            </label>
+          <v-col cols="12" sm="9">
+            <label class="field-label">NOMBRE <span class="required">*</span></label>
             <v-text-field
               v-model="formData.nombre"
-              placeholder="Nombre del proveedor"
+              placeholder="NOMBRE DEL PROVEEDOR"
               prepend-inner-icon="mdi-building"
               variant="outlined"
-              density="compact"
-              hide-details
-              :error="formularioTocado.nombre && errores.nombre"
+              density="comfortable"
+              hide-details="auto"
               :error-messages="formularioTocado.nombre ? errores.nombre : []"
-              @blur="formularioTocado.nombre = true; validarNombre()"
-              @input="validarNombre"
               maxlength="100"
+              class="mt-1"
+              @input="formData.nombre = formData.nombre.toUpperCase(); validarNombre()"
+              @blur="formularioTocado.nombre = true; validarNombre()"
             />
-            <p class="char-count">{{ formData.nombre.length }}/100</p>
-          </div>
+          </v-col>
 
           <!-- DIRECCIÓN -->
-          <div class="form-field full-width">
-            <label class="field-label">
-              DIRECCIÓN
-              <span class="optional">(Opcional)</span>
-            </label>
+          <v-col cols="12" class="mt-2">
+            <label class="field-label">DIRECCIÓN <span class="optional">(Opcional)</span></label>
             <v-textarea
               v-model="formData.direccion"
-              placeholder="Calle, número, ciudad..."
+              placeholder="CALLE, NÚMERO, CIUDAD..."
               prepend-inner-icon="mdi-map-marker"
               variant="outlined"
-              density="compact"
+              density="comfortable"
               rows="2"
               hide-details
               maxlength="100"
-              @blur="formularioTocado.direccion = true"
+              no-resize
+              class="mt-1"
+              @input="formData.direccion = formData.direccion.toUpperCase()"
             />
-            <p class="char-count">{{ formData.direccion.length }}/100</p>
-          </div>
+          </v-col>
 
-          <!-- TELÉFONO 1 -->
-          <div class="form-field">
-            <label class="field-label">
-              TELÉFONO
-              <span class="optional">(Opcional)</span>
-            </label>
+          <!-- TELÉFONO -->
+          <v-col cols="12" sm="6" class="mt-2">
+            <label class="field-label">TELÉFONO <span class="optional">(Opcional)</span></label>
             <v-text-field
               v-model="formData.telefono1"
-              placeholder="ej: 0212-123-4567"
+              placeholder="EJ: 0212-123-4567"
               prepend-inner-icon="mdi-phone"
               variant="outlined"
-              density="compact"
-              hide-details
-              :error="formularioTocado.telefono1 && errores.telefono1"
+              density="comfortable"
+              hide-details="auto"
               :error-messages="formularioTocado.telefono1 ? errores.telefono1 : []"
-              @blur="formularioTocado.telefono1 = true; validarTelefono()"
-              @input="validarTelefono"
               maxlength="15"
+              class="mt-1"
+              @input="formData.telefono1 = formData.telefono1.toUpperCase(); validarTelefono()"
+              @blur="formularioTocado.telefono1 = true; validarTelefono()"
             />
-          </div>
+          </v-col>
 
-          <!-- DEPARTAMENTO -->
-          <div class="form-field">
-            <label class="field-label">
-              DEPARTAMENTO
-              <span class="optional">(Opcional)</span>
-            </label>
-            <v-select
-              v-model="formData.departamen"
-              :items="departamentos"
-              placeholder="Selecciona un departamento"
-              prepend-inner-icon="mdi-sitemap"
-              variant="outlined"
-              density="compact"
-              hide-details
-              clearable
-              @blur="formularioTocado.departamen = true"
-            />
-          </div>
-        </div>
+        </v-row>
 
-        <!-- MENSAJE DE ERROR GENERAL -->
-        <div v-if="errorGeneral" class="error-alert">
-          <v-icon size="20">mdi-alert-circle-outline</v-icon>
-          <span>{{ errorGeneral }}</span>
-        </div>
+        <!-- ERROR GENERAL -->
+        <v-alert
+          v-if="errorGeneral"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mt-4"
+          closable
+          @click:close="errorGeneral = ''"
+        >
+          {{ errorGeneral }}
+        </v-alert>
 
-        <!-- MENSAJE DE ÉXITO -->
-        <div v-if="mensajeExito" class="success-alert">
-          <v-icon size="20">mdi-check-circle-outline</v-icon>
-          <span>{{ mensajeExito }}</span>
-        </div>
+        <!-- ÉXITO -->
+        <v-alert
+          v-if="mensajeExito"
+          type="success"
+          variant="tonal"
+          density="compact"
+          class="mt-4"
+        >
+          {{ mensajeExito }}
+        </v-alert>
       </v-card-text>
 
       <!-- ACCIONES -->
@@ -186,7 +169,6 @@ const formularioTocado = ref({
   nombre: false,
   direccion: false,
   telefono1: false,
-  departamen: false,
 })
 
 const formData = ref({
@@ -194,8 +176,7 @@ const formData = ref({
   nombre: '',
   direccion: '',
   telefono1: '',
-  departamen: '',
-  empresa: 1, // Por ahora hardcodeado, después usaremos auth store
+  empresa: 1,
 })
 
 const errores = ref({
@@ -203,19 +184,7 @@ const errores = ref({
   nombre: [],
   direccion: [],
   telefono1: [],
-  departamen: [],
 })
-
-const departamentos = [
-  'Logística',
-  'Compras',
-  'Suministros',
-  'Almacén',
-  'Administración',
-  'Finanzas',
-  'Operaciones',
-  'Otro',
-]
 
 // ─── COMPUTED ────────────────────────────────────────
 
@@ -234,21 +203,18 @@ watch(
   () => props.open,
   (newVal) => {
     if (newVal && props.proveedor) {
-      // Cargar datos del proveedor
       formData.value = {
-        codigo: props.proveedor.codigo || '',
-        nombre: props.proveedor.nombre || '',
-        direccion: props.proveedor.direccion || '',
-        telefono1: props.proveedor.telefono1 || '',
-        departamen: props.proveedor.departamen || '',
-        empresa: props.proveedor.empresa || 1,
+        codigo:    props.proveedor.codigo    || '',
+        nombre:    (props.proveedor.nombre   || '').toUpperCase(),
+        direccion: (props.proveedor.direccion|| '').toUpperCase(),
+        telefono1: (props.proveedor.telefono1|| '').toUpperCase(),
+        empresa:   props.proveedor.empresa   || 1,
       }
       formularioTocado.value = {
         codigo: false,
         nombre: false,
         direccion: false,
         telefono1: false,
-        departamen: false,
       }
     } else if (newVal) {
       // Nuevo proveedor
@@ -267,7 +233,6 @@ function resetForm() {
     nombre: '',
     direccion: '',
     telefono1: '',
-    departamen: '',
     empresa: 1,
   }
   formularioTocado.value = {
@@ -275,14 +240,12 @@ function resetForm() {
     nombre: false,
     direccion: false,
     telefono1: false,
-    departamen: false,
   }
   errores.value = {
     codigo: [],
     nombre: [],
     direccion: [],
     telefono1: [],
-    departamen: [],
   }
   errorGeneral.value = ''
   mensajeExito.value = ''
@@ -315,7 +278,6 @@ async function handleGuardar() {
     nombre: true,
     direccion: true,
     telefono1: true,
-    departamen: true,
   }
 
   validarNombre()
@@ -409,34 +371,17 @@ function cerrar() {
 
 /* CONTENIDO */
 .form-content {
-  padding: 24px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-field.full-width {
-  grid-column: 1 / -1;
+  padding: 20px 24px 24px;
 }
 
 .field-label {
-  font-size: 11px;
+  display: block;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  margin-bottom: 4px;
 }
 
 .required {
@@ -445,40 +390,10 @@ function cerrar() {
 }
 
 .optional {
-  font-size: 10px;
-  color: rgba(var(--v-theme-on-surface), 0.4);
+  font-size: 9px;
+  color: rgba(var(--v-theme-on-surface), 0.35);
   margin-left: 4px;
-}
-
-.char-count {
-  font-size: 10px;
-  color: rgba(var(--v-theme-on-surface), 0.3);
-  text-align: right;
-  margin: 0;
-}
-
-/* ALERTAS */
-.error-alert,
-.success-alert {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  margin-bottom: 16px;
-}
-
-.error-alert {
-  background: rgba(#ef4444, 0.1);
-  color: #ef4444;
-  border-left: 3px solid #ef4444;
-}
-
-.success-alert {
-  background: rgba(#22c55e, 0.1);
-  color: #22c55e;
-  border-left: 3px solid #22c55e;
+  font-weight: 600;
 }
 
 /* ACCIONES */
@@ -486,15 +401,5 @@ function cerrar() {
   padding: 16px 24px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   gap: 12px;
-}
-
-@media (max-width: 600px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .form-field {
-    grid-column: 1 !important;
-  }
 }
 </style>
