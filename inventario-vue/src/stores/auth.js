@@ -34,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Persist to localStorage
     localStorage.setItem('empresaActual', empresaCod)
+    if (nombre) localStorage.setItem('empresaNombre', nombre)
   }
 
   function setModoApp(modo) {
@@ -49,6 +50,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     localStorage.removeItem('usuario')
     localStorage.removeItem('empresaActual')
+    localStorage.removeItem('empresaNombre')
   }
 
   function loadFromLocalStorage() {
@@ -67,6 +69,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     if (savedEmpresa) {
       empresa.value = savedEmpresa
+      const savedNombre = localStorage.getItem('empresaNombre')
+      if (savedNombre) empresaNombre.value = savedNombre
     }
 
     if (savedModo) {

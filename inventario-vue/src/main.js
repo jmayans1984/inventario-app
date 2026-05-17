@@ -12,25 +12,31 @@ const vuetify = createVuetify({
     themes: {
       light: {
         colors: {
-          primary: '#667eea',
-          secondary: '#764ba2',
-          success: '#22c55e',
-          warning: '#eab308',
-          error: '#ef4444',
-          info: '#3b82f6',
+          primary:    '#667eea',
+          secondary:  '#764ba2',
+          success:    '#22c55e',
+          warning:    '#f59e0b',
+          error:      '#ef4444',
+          info:       '#3b82f6',
+          background: '#f1f5f9',
+          surface:    '#ffffff',
         },
       },
       dark: {
         colors: {
-          primary: '#667eea',
-          secondary: '#764ba2',
+          primary:    '#667eea',
+          secondary:  '#764ba2',
+          success:    '#22c55e',
+          warning:    '#f59e0b',
+          error:      '#ef4444',
+          info:       '#3b82f6',
+          background: '#0f172a',
+          surface:    '#1e293b',
         },
       },
     },
   },
-  icons: {
-    defaultSet: 'mdi',
-  },
+  icons: { defaultSet: 'mdi' },
 })
 
 const app = createApp(App)

@@ -1,26 +1,32 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-// Helper para generar rutas de submódulo
-const subRoutes = (prefix, view) => [
-  { path: `/${prefix}`, component: view, meta: { requiresAuth: true } },
-  { path: `/${prefix}/configuracion`, component: view, meta: { requiresAuth: true } },
-  { path: `/${prefix}/procesos`, component: view, meta: { requiresAuth: true } },
-  { path: `/${prefix}/reportes`, component: view, meta: { requiresAuth: true } },
-]
-
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue'), meta: { requiresAuth: false } },
   { path: '/', name: 'Inicio', component: () => import('../views/DashboardView.vue'), meta: { requiresAuth: true } },
 
-  ...subRoutes('contabilidad', () => import('../views/ContabilidadView.vue')),
-  ...subRoutes('tesoreria', () => import('../views/TesoreriaView.vue')),
-  ...subRoutes('almacen', () => import('../views/AlmacenView.vue')),
-  ...subRoutes('produccion', () => import('../views/ProduccionView.vue')),
-  ...subRoutes('nomina', () => import('../views/NominaView.vue')),
-  ...subRoutes('gerencia', () => import('../views/GerenciaView.vue')),
+  // CONTABILIDAD — captura /contabilidad, /contabilidad/configuracion/proveedores, etc.
+  { path: '/contabilidad/:section?/:item?', component: () => import('../views/ContabilidadView.vue'), meta: { requiresAuth: true } },
 
+  // TESORERÍA
+  { path: '/tesoreria/:section?/:item?', component: () => import('../views/TesoreriaView.vue'), meta: { requiresAuth: true } },
+
+  // ALMACÉN
+  { path: '/almacen/:section?/:item?', component: () => import('../views/AlmacenView.vue'), meta: { requiresAuth: true } },
+
+  // PRODUCCIÓN
+  { path: '/produccion/:section?/:item?', component: () => import('../views/ProduccionView.vue'), meta: { requiresAuth: true } },
+
+  // NÓMINA
+  { path: '/nomina/:section?/:item?', component: () => import('../views/NominaView.vue'), meta: { requiresAuth: true } },
+
+  // GERENCIA
+  { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },
+
+  // CONFIGURACIÓN
   { path: '/configuracion', component: () => import('../views/ConfiguracionView.vue'), meta: { requiresAuth: true } },
+
+  // 404
   { path: '/:pathMatch(.*)*', component: () => import('../views/NotFoundView.vue') },
 ]
 

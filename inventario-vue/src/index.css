@@ -1,31 +1,36 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
   font-family: 'Inter', 'Segoe UI', sans-serif !important;
-  font-size: 14px;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* ── MAYÚSCULAS GLOBALES en todos los campos editables ── */
+input:not([type="password"]):not([type="email"]):not([type="search"]),
+textarea,
+.v-field__input,
+.v-select__selection-text {
+  text-transform: uppercase !important;
+}
+
+/* Placeholder en minúsculas para que sea legible */
+input::placeholder,
+textarea::placeholder,
+.v-field__input::placeholder {
+  text-transform: none !important;
+  opacity: 0.5;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.7); }
 
-.v-theme--dark ::-webkit-scrollbar-thumb { background: #334155; }
-.v-theme--dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+/* ── APP ── */
+#app { width: 100%; min-height: 100vh; }
 
-/* Force Inter in all Vuetify components */
-.v-application {
-  font-family: 'Inter', 'Segoe UI', sans-serif !important;
-}
-
-/* Make nav drawer text uppercase */
-:deep(.v-list-item-title) {
-  font-family: 'Inter', sans-serif !important;
-}
+/* ── Vuetify overrides ── */
+.v-application { font-family: 'Inter', 'Segoe UI', sans-serif !important; }
+.v-list-item-title { font-family: 'Inter', sans-serif !important; }
+.v-btn { font-family: 'Inter', sans-serif !important; letter-spacing: 0.5px !important; }

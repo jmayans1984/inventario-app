@@ -1,92 +1,110 @@
 <template>
   <MainLayout>
-    <!-- KPI Cards -->
-    <v-row class="mb-6">
-      <v-col v-for="kpi in kpis" :key="kpi.title" cols="12" sm="6" lg="3">
-        <v-card class="kpi-card" elevation="0" rounded="lg">
-          <div class="kpi-indicator" :style="{ background: kpi.color }"></div>
+
+    <!-- ── KPI CARDS ── -->
+    <v-row class="mb-5" dense>
+      <v-col v-for="kpi in kpis" :key="kpi.title" cols="12" sm="6" xl="3">
+        <v-card elevation="0" rounded="lg" class="kpi-card" :style="{ borderTop: `3px solid ${kpi.color}` }">
           <v-card-text class="pa-5">
-            <div class="d-flex justify-space-between align-start mb-4">
-              <div>
-                <p class="kpi-label">{{ kpi.title }}</p>
-                <p class="kpi-sublabel">{{ kpi.subtitle }}</p>
-              </div>
-              <div class="kpi-icon-bg" :style="{ background: kpi.color + '22' }">
-                <v-icon :color="kpi.color" size="22">{{ kpi.icon }}</v-icon>
+            <div class="d-flex justify-space-between align-start">
+              <p class="kpi-title">{{ kpi.title }}</p>
+              <div class="kpi-icon" :style="{ background: kpi.color + '18', color: kpi.color }">
+                <v-icon size="20">{{ kpi.icon }}</v-icon>
               </div>
             </div>
-            <v-divider class="mb-4 border-opacity-10"></v-divider>
-            <div class="d-flex gap-6">
-              <div v-for="stat in kpi.stats" :key="stat.label">
-                <p class="kpi-value" :style="{ color: kpi.color }">{{ stat.value }}</p>
-                <p class="kpi-stat-label">{{ stat.label }}</p>
+
+            <p class="kpi-subtitle">{{ kpi.subtitle }}</p>
+
+            <v-divider class="my-3 opacity-10"></v-divider>
+
+            <div class="kpi-stats">
+              <div v-for="s in kpi.stats" :key="s.label" class="kpi-stat">
+                <span class="kpi-val" :style="{ color: kpi.color }">{{ s.value }}</span>
+                <span class="kpi-lbl">{{ s.label }}</span>
               </div>
+            </div>
+
+            <div class="kpi-trend">
+              <v-icon size="13" :color="kpi.trend > 0 ? 'success' : 'error'">
+                {{ kpi.trend > 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
+              </v-icon>
+              <span :style="{ color: kpi.trend > 0 ? '#22c55e' : '#ef4444' }">
+                {{ Math.abs(kpi.trend) }}% vs mes anterior
+              </span>
             </div>
           </v-card-text>
         </v-card>
       </v-col>
     </v-row>
 
-    <!-- Acciones Rápidas -->
-    <v-card elevation="0" rounded="lg" class="mb-6">
-      <v-card-text class="pa-5">
-        <p class="section-title mb-4">Acciones Rápidas</p>
-        <v-row dense>
-          <v-col cols="6" md="3" v-for="action in quickActions" :key="action.label">
-            <v-btn
-              block
-              variant="tonal"
-              :color="action.color"
-              :prepend-icon="action.icon"
-              class="action-btn"
-              height="48"
-            >
-              {{ action.label }}
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <v-row dense>
+      <!-- ── ACCIONES RÁPIDAS ── -->
+      <v-col cols="12" md="4">
+        <v-card elevation="0" rounded="lg" class="fill-height">
+          <v-card-text class="pa-5">
+            <p class="section-label">ACCIONES RÁPIDAS</p>
+            <div class="actions-grid">
+              <div
+                v-for="a in quickActions"
+                :key="a.label"
+                class="action-card"
+                :style="{ '--ac': a.color }"
+                @click="a.action"
+              >
+                <div class="action-icon-wrap" :style="{ background: a.color + '18' }">
+                  <v-icon :color="a.color" size="22">{{ a.icon }}</v-icon>
+                </div>
+                <span class="action-label">{{ a.label }}</span>
+                <v-icon size="14" color="rgba(var(--v-theme-on-surface),0.3)">mdi-chevron-right</v-icon>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-    <!-- Tabla órdenes recientes -->
-    <v-card elevation="0" rounded="lg">
-      <v-card-text class="pa-5">
-        <div class="d-flex justify-space-between align-center mb-4">
-          <p class="section-title">Órdenes Recientes</p>
-          <v-btn variant="text" color="primary" size="small" append-icon="mdi-arrow-right">
-            Ver todas
-          </v-btn>
-        </div>
-        <v-table density="comfortable">
-          <thead>
-            <tr>
-              <th class="table-header">ORDEN</th>
-              <th class="table-header">CLIENTE</th>
-              <th class="table-header">FECHA</th>
-              <th class="table-header">TOTAL</th>
-              <th class="table-header">ESTADO</th>
-              <th class="table-header"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="orden in ordenes" :key="orden.id" class="table-row">
-              <td class="table-cell font-weight-bold">{{ orden.id }}</td>
-              <td class="table-cell">{{ orden.cliente }}</td>
-              <td class="table-cell text-medium-emphasis">{{ orden.fecha }}</td>
-              <td class="table-cell font-weight-bold">{{ orden.total }}</td>
-              <td class="table-cell">
-                <v-chip :color="orden.color" size="small" variant="tonal" label>
-                  {{ orden.estado }}
-                </v-chip>
-              </td>
-              <td class="table-cell">
-                <v-btn size="small" variant="text" icon="mdi-eye-outline" color="primary"></v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card-text>
-    </v-card>
+      <!-- ── TABLA ÓRDENES RECIENTES ── -->
+      <v-col cols="12" md="8">
+        <v-card elevation="0" rounded="lg">
+          <v-card-text class="pa-5">
+            <div class="d-flex justify-space-between align-center mb-4">
+              <p class="section-label">ÓRDENES RECIENTES</p>
+              <v-btn variant="text" color="primary" size="x-small" append-icon="mdi-arrow-right" class="font-weight-bold">
+                VER TODAS
+              </v-btn>
+            </div>
+
+            <v-table density="comfortable" class="orders-table">
+              <thead>
+                <tr>
+                  <th v-for="h in tableHeaders" :key="h" class="th">{{ h }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="o in ordenes" :key="o.id" class="order-row">
+                  <td class="td">
+                    <span class="order-id">{{ o.id }}</span>
+                  </td>
+                  <td class="td">{{ o.cliente }}</td>
+                  <td class="td text-medium-emphasis">{{ o.fecha }}</td>
+                  <td class="td">
+                    <span class="order-total">{{ o.total }}</span>
+                  </td>
+                  <td class="td">
+                    <v-chip :color="o.color" size="x-small" label variant="tonal" class="font-weight-bold">
+                      {{ o.estado }}
+                    </v-chip>
+                  </td>
+                  <td class="td" style="width:40px">
+                    <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="primary"></v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
   </MainLayout>
 </template>
 
@@ -96,19 +114,21 @@ import MainLayout from '../components/layouts/MainLayout.vue'
 const kpis = [
   {
     title: 'INVENTARIO',
-    subtitle: 'Gestión de productos',
+    subtitle: 'Gestión de productos y stock',
     icon: 'mdi-package-variant-closed',
     color: '#3b82f6',
+    trend: 8.4,
     stats: [
       { value: '1,250', label: 'Productos' },
-      { value: '45', label: 'Bajo Stock' },
+      { value: '45', label: 'Bajo stock' },
     ],
   },
   {
     title: 'ÓRDENES',
-    subtitle: 'Órdenes de compra',
+    subtitle: 'Órdenes de compra activas',
     icon: 'mdi-clipboard-list-outline',
     color: '#8b5cf6',
+    trend: 12.1,
     stats: [
       { value: '28', label: 'Pendientes' },
       { value: '156', label: 'Este mes' },
@@ -116,12 +136,13 @@ const kpis = [
   },
   {
     title: 'GASTOS',
-    subtitle: 'Registros contables',
-    icon: 'mdi-currency-usd',
+    subtitle: 'Registros contables del período',
+    icon: 'mdi-receipt-text-outline',
     color: '#22c55e',
+    trend: -3.2,
     stats: [
       { value: '$45K', label: 'Este mes' },
-      { value: '12', label: 'Transacciones' },
+      { value: '12', label: 'Registros' },
     ],
   },
   {
@@ -129,6 +150,7 @@ const kpis = [
     subtitle: 'Movimientos bancarios',
     icon: 'mdi-bank-outline',
     color: '#f59e0b',
+    trend: 5.7,
     stats: [
       { value: '$120K', label: 'Saldo total' },
       { value: '8', label: 'Cuentas' },
@@ -137,11 +159,13 @@ const kpis = [
 ]
 
 const quickActions = [
-  { label: 'Nueva Orden', icon: 'mdi-plus-circle-outline', color: 'primary' },
-  { label: 'Registrar Entrega', icon: 'mdi-truck-check-outline', color: 'success' },
-  { label: 'Nuevo Gasto', icon: 'mdi-receipt-text-plus-outline', color: 'warning' },
-  { label: 'Ver Reportes', icon: 'mdi-chart-bar', color: 'secondary' },
+  { label: 'Nueva Orden de Compra', icon: 'mdi-plus-circle-outline', color: '#3b82f6', action: () => {} },
+  { label: 'Registrar Entrega', icon: 'mdi-truck-check-outline', color: '#22c55e', action: () => {} },
+  { label: 'Nuevo Gasto', icon: 'mdi-receipt-text-plus-outline', color: '#f59e0b', action: () => {} },
+  { label: 'Reportes Gerenciales', icon: 'mdi-chart-areaspline', color: '#8b5cf6', action: () => {} },
 ]
+
+const tableHeaders = ['ORDEN', 'PROVEEDOR', 'FECHA', 'TOTAL', 'ESTADO', '']
 
 const ordenes = [
   { id: 'OC-2026-001', cliente: 'Empresa ABC', fecha: '15/05/2026', total: '$8,500.00', estado: 'PENDIENTE', color: 'warning' },
@@ -152,105 +176,142 @@ const ordenes = [
 </script>
 
 <style scoped>
-/* KPI Cards */
+/* ── KPI CARD ── */
 .kpi-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  position: relative;
-  overflow: hidden;
+  background: rgb(var(--v-theme-surface));
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important; }
 
-:deep(.v-theme--dark) .kpi-card {
-  background: #1e293b;
-  border-color: rgba(255,255,255,0.08);
-}
-
-.kpi-indicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  border-radius: 0;
-}
-
-.kpi-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: 0.8px;
+.kpi-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
-  margin-bottom: 2px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.9;
+  margin: 0;
 }
-
-.kpi-sublabel {
-  font-size: 12px;
-  color: #94a3b8;
+.kpi-subtitle {
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  margin-top: 4px;
 }
-
-.kpi-icon-bg {
-  width: 42px;
-  height: 42px;
+.kpi-icon {
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-
-.kpi-value {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
-  margin-bottom: 2px;
+.kpi-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 12px;
 }
-
-.kpi-stat-label {
-  font-size: 11px;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 500;
+.kpi-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-
-/* Section title */
-.section-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
+.kpi-val {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+.kpi-lbl {
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+.kpi-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
-:deep(.v-theme--dark) .section-title {
-  color: #f1f5f9;
+/* ── SECCIÓN ── */
+.section-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  margin-bottom: 16px;
+  margin-top: 0;
 }
 
-/* Action buttons */
-.action-btn {
+/* ── ACCIONES ── */
+.actions-grid { display: flex; flex-direction: column; gap: 8px; }
+
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  transition: all 0.2s;
+  background: transparent;
+}
+.action-card:hover {
+  border-color: var(--ac);
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  transform: translateX(3px);
+}
+
+.action-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.action-label {
+  flex: 1;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  color: rgb(var(--v-theme-on-surface));
+  letter-spacing: 0.2px;
 }
 
-/* Table */
-.table-header {
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  color: #94a3b8 !important;
+/* ── TABLA ── */
+.orders-table { background: transparent !important; }
+
+.th {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 1.2px !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.8px !important;
-  padding: 12px 16px !important;
+  color: rgba(var(--v-theme-on-surface), 0.4) !important;
+  padding: 10px 14px !important;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08) !important;
+  white-space: nowrap;
 }
 
-.table-cell {
+.td {
   font-size: 13px;
-  color: #334155;
-  padding: 14px 16px !important;
+  color: rgb(var(--v-theme-on-surface));
+  padding: 14px 14px !important;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06) !important;
 }
 
-:deep(.v-theme--dark) .table-cell {
-  color: #cbd5e1;
-}
+.order-row { transition: background 0.15s; }
+.order-row:hover td { background: rgba(var(--v-theme-primary), 0.04) !important; }
+.order-row:last-child td { border-bottom: none !important; }
+
+.order-id { font-weight: 700; font-size: 12px; letter-spacing: 0.5px; }
+.order-total { font-weight: 700; }
 </style>
