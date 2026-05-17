@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 import { proveedoresService } from '../services/proveedores.service'
+import { useAuthStore } from './auth'
 
 export const useProveedoresStore = defineStore('proveedores', () => {
   // ─── STATE ───────────────────────────────────────────
@@ -241,7 +242,6 @@ export const useProveedoresStore = defineStore('proveedores', () => {
    * Cargar datos de ejemplo si no hay API
    */
   function cargarDatosEjemplo() {
-    const { useAuthStore } = require('../stores/auth')
     const authStore = useAuthStore()
     const empresaActiva = authStore.empresa
 

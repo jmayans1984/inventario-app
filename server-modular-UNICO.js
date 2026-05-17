@@ -2155,7 +2155,10 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
             sortOrder = 'asc'
         } = req.query;
 
+        console.log('📋 GET /api/contabilidad/proveedores - Params:', { empresa, page, limit, search, sortBy, sortOrder });
+
         if (!empresa) {
+            console.log('⚠️  Parámetro "empresa" no proporcionado');
             return res.status(400).json({
                 success: false,
                 error: 'Parámetro "empresa" es requerido'
@@ -2184,7 +2187,9 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
 
         // Contar total
         const countQuery = `SELECT COUNT(*) as total FROM proveedores ${whereClause}`;
-        const countResult = await pool.query(countQuery, queryParams.slice(0, paramIndex > 2 ? paramIndex : 1));
+        console.log('📊 Count Query:', countQuery, 'Params:', queryParams.slice(0, search ? paramIndex : 1));
+
+        const countResult = await pool.query(countQuery, queryParams.slice(0, search ? paramIndex : 1));
         const total = parseInt(countResult.rows[0].total);
 
         // Calcular offset
@@ -2202,7 +2207,12 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
 
         queryParams.push(parseInt(limit), offset);
 
+        console.log('📝 Main Query:', query);
+        console.log('📌 Query Params:', queryParams);
+
         const result = await pool.query(query, queryParams);
+
+        console.log('✅ Found', result.rows.length, 'proveedores out of', total);
 
         res.json({
             success: true,
@@ -2214,7 +2224,8 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error en GET /api/contabilidad/proveedores:', error);
+        console.error('❌ Error en GET /api/contabilidad/proveedores:', error.message);
+        console.error('📋 Stack:', error.stack);
         res.status(500).json({
             success: false,
             error: 'Error al obtener proveedores',
