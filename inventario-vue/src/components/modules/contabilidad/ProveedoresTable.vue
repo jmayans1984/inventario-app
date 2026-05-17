@@ -96,14 +96,13 @@
             <span class="codigo-badge">{{ prov.codigo }}</span>
           </td>
           <td class="td nombre-col">
-            <div class="nombre-wrap">
-              <p class="nombre-text">{{ prov.nombre }}</p>
-              <p class="email-text">{{ prov.email || '—' }}</p>
-            </div>
+            <p class="nombre-text">{{ prov.nombre }}</p>
           </td>
           <td class="td direccion-col">
-            <v-icon size="12" class="addr-icon">mdi-map-marker</v-icon>
-            {{ prov.direccion || '—' }}
+            <div class="direccion-wrap">
+              <v-icon size="12" class="addr-icon">mdi-map-marker</v-icon>
+              <span>{{ prov.direccion || '—' }}</span>
+            </div>
           </td>
           <td class="td telefono-col">
             <a v-if="prov.telefono1" :href="`tel:${prov.telefono1}`" class="tel-link">
@@ -111,18 +110,6 @@
               {{ prov.telefono1 }}
             </a>
             <span v-else>—</span>
-          </td>
-          <td class="td departamen-col">
-            <v-chip
-              v-if="prov.departamen"
-              size="small"
-              label
-              variant="tonal"
-              color="primary"
-            >
-              {{ prov.departamen }}
-            </v-chip>
-            <span v-else class="text-muted">—</span>
           </td>
           <td class="td-acciones">
             <div class="action-buttons">
@@ -253,10 +240,9 @@ const idAEliminar = ref(null)
 
 const columnas = [
   { key: 'codigo', label: 'CÓDIGO', sortable: true },
-  { key: 'nombre', label: 'NOMBRE / EMAIL', sortable: true },
+  { key: 'nombre', label: 'NOMBRE', sortable: true },
   { key: 'direccion', label: 'DIRECCIÓN', sortable: false },
   { key: 'telefono1', label: 'TELÉFONO', sortable: false },
-  { key: 'departamen', label: 'DEPARTAMENTO', sortable: true },
 ]
 
 // ─── COMPUTED ────────────────────────────────────────
@@ -483,24 +469,12 @@ async function fetchProveedores() {
   letter-spacing: 0.5px;
 }
 
-.nombre-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .nombre-text {
   font-weight: 700;
   margin: 0;
 }
 
-.email-text {
-  font-size: 11px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  margin: 0;
-}
-
-.direccion-col {
+.direccion-wrap {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -527,10 +501,6 @@ async function fetchProveedores() {
 
 .tel-link:hover {
   text-decoration: underline;
-}
-
-.departamen-col {
-  text-align: center;
 }
 
 .text-muted {
