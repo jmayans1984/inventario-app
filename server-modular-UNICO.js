@@ -2198,7 +2198,7 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
         // Query principal
         const query = `
             SELECT
-                codigo, nombre, direccion, telefono1, departamen, empresa, estado
+                codigo, nombre, direccion, telefono1, departamen, empresa
             FROM proveedores
             ${whereClause}
             ORDER BY ${sortByLimpio} ${sortOrderLimpio}
@@ -2248,7 +2248,7 @@ app.get('/api/contabilidad/proveedores/:codigo', async (req, res) => {
         }
 
         const query = `
-            SELECT codigo, nombre, direccion, telefono1, departamen, empresa, estado
+            SELECT codigo, nombre, direccion, telefono1, departamen, empresa
             FROM proveedores
             WHERE codigo = $1 AND empresa = $2
         `;
@@ -2290,9 +2290,9 @@ app.post('/api/contabilidad/proveedores', async (req, res) => {
         }
 
         const query = `
-            INSERT INTO proveedores (codigo, nombre, direccion, telefono1, departamen, empresa, estado)
+            INSERT INTO proveedores (codigo, nombre, direccion, telefono1, departamen, empresa)
             VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVO')
-            RETURNING codigo, nombre, direccion, telefono1, departamen, empresa, estado
+            RETURNING codigo, nombre, direccion, telefono1, departamen, empresa
         `;
 
         const result = await pool.query(query, [
@@ -2341,7 +2341,7 @@ app.put('/api/contabilidad/proveedores/:codigo', async (req, res) => {
                 telefono1 = COALESCE($3, telefono1),
                 departamen = COALESCE($4, departamen)
             WHERE codigo = $5 AND empresa = $6
-            RETURNING codigo, nombre, direccion, telefono1, departamen, empresa, estado
+            RETURNING codigo, nombre, direccion, telefono1, departamen, empresa
         `;
 
         const result = await pool.query(query, [
@@ -2477,7 +2477,7 @@ app.get('/api/contabilidad/proveedores/buscar', async (req, res) => {
 
         const searchParam = `%${q}%`;
         const query = `
-            SELECT codigo, nombre, direccion, telefono1, departamen, empresa, estado
+            SELECT codigo, nombre, direccion, telefono1, departamen, empresa
             FROM proveedores
             WHERE empresa = $1 AND (
                 UPPER(codigo) LIKE UPPER($2) OR
