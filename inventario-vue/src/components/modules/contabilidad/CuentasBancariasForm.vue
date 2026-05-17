@@ -44,37 +44,18 @@
             </v-col>
 
             <!-- NOMBRE BANCO -->
-            <v-col cols="12" sm="5">
+            <v-col cols="12" sm="9">
               <v-text-field
                 v-model="form.nombre_banco"
                 label="Banco *"
                 variant="outlined"
                 density="comfortable"
                 :rules="[v => !!v || 'Requerido', v => v?.length <= 15 || 'Máx 15 chars']"
-                placeholder="Ej: Banesco"
+                placeholder="EJ: BANESCO"
                 maxlength="15"
                 counter="15"
+                @input="form.nombre_banco = form.nombre_banco.toUpperCase()"
               />
-            </v-col>
-
-            <!-- ESTADO -->
-            <v-col cols="12" sm="4">
-              <v-select
-                v-model="form.estado"
-                label="Estado *"
-                :items="['ACTIVA', 'INACTIVA']"
-                variant="outlined"
-                density="comfortable"
-                :rules="[v => !!v || 'Requerido']"
-              >
-                <template #item="{ item, props: itemProps }">
-                  <v-list-item v-bind="itemProps">
-                    <template #prepend>
-                      <v-icon :color="item.value === 'ACTIVA' ? 'success' : 'default'" size="14">mdi-circle</v-icon>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-select>
             </v-col>
 
             <!-- NOMBRE CTA -->
@@ -85,48 +66,51 @@
                 variant="outlined"
                 density="comfortable"
                 :rules="[v => !!v || 'Requerido', v => v?.length <= 25 || 'Máx 25 chars']"
-                placeholder="Ej: Cuenta Corriente Principal"
+                placeholder="EJ: CTA CORRIENTE PRINCIPAL"
                 maxlength="25"
                 counter="25"
+                @input="form.nombre_cta = form.nombre_cta.toUpperCase()"
               />
             </v-col>
 
             <!-- TIPO CUENTA -->
             <v-col cols="12" sm="4">
-              <v-select
+              <v-text-field
                 v-model="form.tipo_cuenta"
                 label="Tipo de Cuenta"
-                :items="tiposCuenta"
                 variant="outlined"
                 density="comfortable"
-                clearable
+                placeholder="EJ: CORRIENTE"
+                maxlength="15"
+                @input="form.tipo_cuenta = form.tipo_cuenta.toUpperCase()"
               />
             </v-col>
 
             <!-- NRO CTA -->
-            <v-col cols="12" sm="8">
+            <v-col cols="12" sm="9">
               <v-text-field
                 v-model="form.nro_cta"
                 label="Número de Cuenta"
                 variant="outlined"
                 density="comfortable"
-                placeholder="Ej: 0134-0123-45-1234567890"
+                placeholder="EJ: 0134-0123-45-1234567890"
                 maxlength="20"
                 :rules="[v => !v || v.length <= 20 || 'Máx 20 chars']"
                 prepend-inner-icon="mdi-credit-card-outline"
+                @input="form.nro_cta = form.nro_cta.toUpperCase()"
               />
             </v-col>
 
             <!-- CHEQUE -->
-            <v-col cols="12" sm="4">
-              <v-select
+            <v-col cols="12" sm="3">
+              <v-text-field
                 v-model="form.cheque"
-                label="Maneja Cheque"
-                :items="[{ title: 'Sí', value: 1 }, { title: 'No', value: 0 }]"
-                item-title="title"
-                item-value="value"
+                label="Cheque"
                 variant="outlined"
                 density="comfortable"
+                placeholder="0"
+                :rules="reglasCheque"
+                @input="sanitizarCheque"
               />
             </v-col>
 
@@ -173,21 +157,29 @@ import { useCuentasBancariasStore } from '../../../stores/cuentasbancarias'
 const props = defineProps({ open: Boolean, cuenta: Object })
 const emit  = defineEmits(['update:open', 'close', 'guardar'])
 
-const store   = useCuentasBancariasStore()
-const formRef = ref(null)
+const store    = useCuentasBancariasStore()
+const formRef  = ref(null)
 const errorMsg = ref('')
 
-const tiposCuenta = ['Corriente', 'Ahorro', 'Especial', 'Fideicomiso', 'Nómina']
+const reglasCheque = [
+  v => v === '' || v === null || v === undefined || Number.isInteger(Number(v)) || 'Solo números enteros',
+]
+
+function sanitizarCheque() {
+  // Eliminar todo lo que no sea dígito (ni signo negativo al inicio)
+  const limpio = String(form.value.cheque ?? '').replace(/[^0-9]/g, '')
+  form.value.cheque = limpio === '' ? '' : limpio
+}
 
 const formVacio = () => ({
   codigo: '',
   nombre_banco: '',
   nombre_cta: '',
-  tipo_cuenta: 'Corriente',
+  tipo_cuenta: '',
   nro_cta: '',
-  cheque: 0,
+  cheque: '',
   vr_transfe: 0,
-  estado: 'ACTIVA',
+  estado: 'ACTIVA',  // Siempre ACTIVA al crear
 })
 
 const form = ref(formVacio())
@@ -198,14 +190,14 @@ watch(() => props.open, async (val) => {
   errorMsg.value = ''
   if (props.cuenta) {
     form.value = {
-      codigo:      props.cuenta.codigo      ?? '',
-      nombre_banco:props.cuenta.nombre_banco ?? '',
-      nombre_cta:  props.cuenta.nombre_cta  ?? '',
-      tipo_cuenta: props.cuenta.tipo_cuenta  ?? 'Corriente',
-      nro_cta:     props.cuenta.nro_cta     ?? '',
-      cheque:      props.cuenta.cheque      ?? 0,
-      vr_transfe:  props.cuenta.vr_transfe  ?? 0,
-      estado:      props.cuenta.estado      ?? 'ACTIVA',
+      codigo:       props.cuenta.codigo       ?? '',
+      nombre_banco: (props.cuenta.nombre_banco ?? '').toUpperCase(),
+      nombre_cta:   (props.cuenta.nombre_cta  ?? '').toUpperCase(),
+      tipo_cuenta:  (props.cuenta.tipo_cuenta  ?? '').toUpperCase(),
+      nro_cta:      (props.cuenta.nro_cta     ?? '').toUpperCase(),
+      cheque:       props.cuenta.cheque != null ? String(parseInt(props.cuenta.cheque) || '') : '',
+      vr_transfe:   props.cuenta.vr_transfe   ?? 0,
+      estado:       props.cuenta.estado        ?? 'ACTIVA',
     }
   } else {
     form.value = formVacio()
@@ -219,7 +211,11 @@ async function handleSubmit() {
   if (!valid) return
   errorMsg.value = ''
   try {
-    const datos = { ...form.value }
+    const datos = {
+      ...form.value,
+      cheque:    form.value.cheque === '' ? 0 : parseInt(form.value.cheque) || 0,
+      estado:    form.value.estado || 'ACTIVA',
+    }
     let resultado
     if (esEdicion.value) {
       resultado = await store.actualizarCuenta(props.cuenta.codigo, datos)
