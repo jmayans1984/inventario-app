@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useAuthStore } from './stores/auth'
 import { useAppStore } from './stores/app'
 
@@ -10,19 +10,11 @@ onMounted(() => {
   // Load persisted state from localStorage
   authStore.loadFromLocalStorage()
   appStore.loadFromLocalStorage()
-
-  // Set initial theme
-  const htmlElement = document.documentElement
-  htmlElement.setAttribute('data-theme', appStore.tema)
 })
 </script>
 
 <template>
-  <div class="w-full min-h-screen" :data-theme="appStore.tema">
+  <v-app :theme="appStore.tema">
     <router-view />
-  </div>
+  </v-app>
 </template>
-
-<style scoped>
-/* Additional styling if needed */
-</style>

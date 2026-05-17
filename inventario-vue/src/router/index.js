@@ -1,67 +1,27 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
+// Helper para generar rutas de submódulo
+const subRoutes = (prefix, view) => [
+  { path: `/${prefix}`, component: view, meta: { requiresAuth: true } },
+  { path: `/${prefix}/configuracion`, component: view, meta: { requiresAuth: true } },
+  { path: `/${prefix}/procesos`, component: view, meta: { requiresAuth: true } },
+  { path: `/${prefix}/reportes`, component: view, meta: { requiresAuth: true } },
+]
+
 const routes = [
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('../views/LoginView.vue'),
-    meta: { requiresAuth: false, layout: 'auth' },
-  },
-  {
-    path: '/',
-    name: 'Dashboard',
-    component: () => import('../views/DashboardView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/almacen',
-    name: 'Almacen',
-    component: () => import('../views/AlmacenView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/contabilidad',
-    name: 'Contabilidad',
-    component: () => import('../views/ContabilidadView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/tesoreria',
-    name: 'Tesoreria',
-    component: () => import('../views/TesoreriaView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/produccion',
-    name: 'Produccion',
-    component: () => import('../views/ProduccionView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/nomina',
-    name: 'Nomina',
-    component: () => import('../views/NominaView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/gerencia',
-    name: 'Gerencia',
-    component: () => import('../views/GerenciaView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/configuracion',
-    name: 'Configuracion',
-    component: () => import('../views/ConfiguracionView.vue'),
-    meta: { requiresAuth: true, layout: 'main' },
-  },
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: () => import('../views/NotFoundView.vue'),
-    meta: { requiresAuth: false },
-  },
+  { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue'), meta: { requiresAuth: false } },
+  { path: '/', name: 'Inicio', component: () => import('../views/DashboardView.vue'), meta: { requiresAuth: true } },
+
+  ...subRoutes('contabilidad', () => import('../views/ContabilidadView.vue')),
+  ...subRoutes('tesoreria', () => import('../views/TesoreriaView.vue')),
+  ...subRoutes('almacen', () => import('../views/AlmacenView.vue')),
+  ...subRoutes('produccion', () => import('../views/ProduccionView.vue')),
+  ...subRoutes('nomina', () => import('../views/NominaView.vue')),
+  ...subRoutes('gerencia', () => import('../views/GerenciaView.vue')),
+
+  { path: '/configuracion', component: () => import('../views/ConfiguracionView.vue'), meta: { requiresAuth: true } },
+  { path: '/:pathMatch(.*)*', component: () => import('../views/NotFoundView.vue') },
 ]
 
 const router = createRouter({
@@ -69,23 +29,13 @@ const router = createRouter({
   routes,
 })
 
-// Navigation guard for authentication
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
+  if (!authStore.isAuthenticated) authStore.loadFromLocalStorage()
 
-  // Load from localStorage if not already loaded
-  if (!authStore.isAuthenticated && !authStore.usuario) {
-    authStore.loadFromLocalStorage()
-  }
-
-  const requiresAuth = to.meta.requiresAuth
-  const isAuthenticated = authStore.isAuthenticated
-
-  if (requiresAuth && !isAuthenticated) {
-    // Redirect to login if trying to access protected route
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
-  } else if (to.path === '/login' && isAuthenticated) {
-    // Redirect to dashboard if already logged in
+  } else if (to.path === '/login' && authStore.isAuthenticated) {
     next('/')
   } else {
     next()

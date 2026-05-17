@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api'
+// En desarrollo usa el proxy de Vite. En producción usa la URL real.
+const API_BASE = import.meta.env.PROD
+  ? 'https://inventario-app-production-e8c8.up.railway.app/api'
+  : '/api'
 
 const api = axios.create({
   baseURL: API_BASE,
