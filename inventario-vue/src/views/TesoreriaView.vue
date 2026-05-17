@@ -110,6 +110,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { formatMoneda, formatEntero } from '../utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -123,22 +124,22 @@ const itemLabel = computed(() => itemMap[route.params.item] || null)
 const pageIcon = computed(() => iconMap[route.params.item] || 'mdi-bank-outline')
 
 const heroStats = [
-  { value: '$120K', label: 'Saldo total' },
-  { value: '8', label: 'Cuentas activas' },
-  { value: '34', label: 'Movimientos mes' },
-  { value: '$18K', label: 'Egresos mes' },
+  { value: formatMoneda(120000, 0), label: 'Saldo total' },
+  { value: formatEntero(8),         label: 'Cuentas activas' },
+  { value: formatEntero(34),        label: 'Movimientos mes' },
+  { value: formatMoneda(18000, 0),  label: 'Egresos mes' },
 ]
 const moduleCards = [
-  { title: 'Movimientos', desc: 'Registro de ingresos y egresos bancarios', icon: 'mdi-swap-horizontal', count: '34 este mes', path: '/tesoreria/procesos/movimientos' },
+  { title: 'Movimientos', desc: 'Registro de ingresos y egresos bancarios', icon: 'mdi-swap-horizontal', count: `${formatEntero(34)} este mes`, path: '/tesoreria/procesos/movimientos' },
   { title: 'Estado de Cuenta', desc: 'Reporte de saldos por cuenta bancaria', icon: 'mdi-file-chart-outline', count: 'Ver reporte', path: '/tesoreria/reportes/estado-cuenta' },
   { title: 'Configuración', desc: 'Parámetros generales de tesorería', icon: 'mdi-tune', count: 'Configurar', path: '/tesoreria/configuracion' },
   { title: 'Flujo de Caja', desc: 'Proyección de entradas y salidas', icon: 'mdi-finance', count: 'Próximamente', path: '/tesoreria' },
 ]
 const cuentas = [
-  { numero: '001-123456', banco: 'Banco Nacional', tipo: 'CORRIENTE', saldo: '$45,200.00', color: 'success' },
-  { numero: '002-789012', banco: 'Banco Mercantil', tipo: 'AHORROS', saldo: '$28,500.00', color: 'info' },
-  { numero: '003-345678', banco: 'Banesco', tipo: 'CORRIENTE', saldo: '$31,750.00', color: 'success' },
-  { numero: '004-901234', banco: 'BOD', tipo: 'AHORROS', saldo: '$14,550.00', color: 'info' },
+  { numero: '001-123456', banco: 'Banco Nacional', tipo: 'CORRIENTE', saldo: formatMoneda(45200), color: 'success' },
+  { numero: '002-789012', banco: 'Banco Mercantil', tipo: 'AHORROS',  saldo: formatMoneda(28500), color: 'info' },
+  { numero: '003-345678', banco: 'Banesco',         tipo: 'CORRIENTE', saldo: formatMoneda(31750), color: 'success' },
+  { numero: '004-901234', banco: 'BOD',             tipo: 'AHORROS',  saldo: formatMoneda(14550), color: 'info' },
 ]
 </script>
 

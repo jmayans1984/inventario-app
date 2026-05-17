@@ -116,6 +116,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { formatMoneda, formatEntero } from '../utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -129,30 +130,30 @@ const itemLabel = computed(() => itemMap[route.params.item] || null)
 const pageIcon = computed(() => iconMap[route.params.item] || 'mdi-account-group-outline')
 
 const heroStats = [
-  { value: '87', label: 'Empleados activos' },
-  { value: '$95K', label: 'Nómina mensual' },
-  { value: '5', label: 'Departamentos' },
-  { value: '2', label: 'Liquidaciones pend.' },
+  { value: formatEntero(87),        label: 'Empleados activos' },
+  { value: formatMoneda(95100, 0),  label: 'Nómina mensual' },
+  { value: formatEntero(5),         label: 'Departamentos' },
+  { value: formatEntero(2),         label: 'Liquidaciones pend.' },
 ]
 const moduleCards = [
-  { title: 'Empleados', desc: 'Datos personales, cargos y contratos', icon: 'mdi-account-tie-outline', count: '87 activos', path: '/nomina/configuracion/empleados' },
-  { title: 'Conceptos de Pago', desc: 'Configuración de asignaciones y deducciones', icon: 'mdi-cash-multiple', count: 'Configurar', path: '/nomina/configuracion/conceptos' },
-  { title: 'Liquidación de Nómina', desc: 'Cálculo y procesamiento de nómina', icon: 'mdi-calculator', count: '2 pendientes', path: '/nomina/procesos/liquidacion' },
-  { title: 'Colilla de Pago', desc: 'Comprobantes individuales por empleado', icon: 'mdi-file-document-outline', count: 'Ver reporte', path: '/nomina/reportes/colilla' },
+  { title: 'Empleados',             desc: 'Datos personales, cargos y contratos',             icon: 'mdi-account-tie-outline',   count: `${formatEntero(87)} activos`,    path: '/nomina/configuracion/empleados' },
+  { title: 'Conceptos de Pago',     desc: 'Configuración de asignaciones y deducciones',      icon: 'mdi-cash-multiple',          count: 'Configurar',                     path: '/nomina/configuracion/conceptos' },
+  { title: 'Liquidación de Nómina', desc: 'Cálculo y procesamiento de nómina',                icon: 'mdi-calculator',             count: `${formatEntero(2)} pendientes`,  path: '/nomina/procesos/liquidacion' },
+  { title: 'Colilla de Pago',       desc: 'Comprobantes individuales por empleado',           icon: 'mdi-file-document-outline',  count: 'Ver reporte',                    path: '/nomina/reportes/colilla' },
 ]
 const departamentos = [
-  { nombre: 'Producción', cant: 32, pct: 37 },
-  { nombre: 'Ventas', cant: 18, pct: 21 },
+  { nombre: 'Producción',    cant: 32, pct: 37 },
+  { nombre: 'Ventas',        cant: 18, pct: 21 },
   { nombre: 'Administración', cant: 14, pct: 16 },
-  { nombre: 'Logística', cant: 12, pct: 14 },
-  { nombre: 'Tecnología', cant: 11, pct: 12 },
+  { nombre: 'Logística',     cant: 12, pct: 14 },
+  { nombre: 'Tecnología',    cant: 11, pct: 12 },
 ]
 const payrollSummary = [
-  { label: 'Salarios base', value: '$72,400', color: 'rgb(var(--v-theme-on-surface))' },
-  { label: 'Bonificaciones', value: '$8,200', color: '#22c55e' },
-  { label: 'Horas extra', value: '$3,100', color: '#3b82f6' },
-  { label: 'Deducciones', value: '-$12,600', color: '#ef4444' },
-  { label: 'Total neto', value: '$95,100', color: '#ec4899' },
+  { label: 'Salarios base',   value: formatMoneda(72400),  color: 'rgb(var(--v-theme-on-surface))' },
+  { label: 'Bonificaciones',  value: formatMoneda(8200),   color: '#22c55e' },
+  { label: 'Horas extra',     value: formatMoneda(3100),   color: '#3b82f6' },
+  { label: 'Deducciones',     value: '-' + formatMoneda(12600), color: '#ef4444' },
+  { label: 'Total neto',      value: formatMoneda(95100),  color: '#ec4899' },
 ]
 </script>
 

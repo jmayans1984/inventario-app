@@ -100,6 +100,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { formatEntero, formatPorcentaje } from '../utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -113,22 +114,22 @@ const itemLabel = computed(() => itemMap[route.params.item] || null)
 const pageIcon = computed(() => iconMap[route.params.item] || 'mdi-factory')
 
 const heroStats = [
-  { value: '14', label: 'Órdenes activas' },
-  { value: '38', label: 'Recetas' },
-  { value: '92%', label: 'Eficiencia' },
-  { value: '3', label: 'En pausa' },
+  { value: formatEntero(14),        label: 'Órdenes activas' },
+  { value: formatEntero(38),        label: 'Recetas' },
+  { value: formatPorcentaje(92, 0), label: 'Eficiencia' },
+  { value: formatEntero(3),         label: 'En pausa' },
 ]
 const moduleCards = [
-  { title: 'Recetas / Fórmulas', desc: 'Definición de ingredientes y proporciones', icon: 'mdi-flask-outline', count: '38 recetas', path: '/produccion/configuracion/recetas' },
-  { title: 'Órdenes de Producción', desc: 'Planificación y ejecución de lotes', icon: 'mdi-clipboard-play-outline', count: '14 activas', path: '/produccion/procesos/ordenes' },
-  { title: 'Producción del Período', desc: 'Reporte de rendimiento y costos de producción', icon: 'mdi-file-chart-outline', count: 'Ver reporte', path: '/produccion/reportes/periodo' },
+  { title: 'Recetas / Fórmulas',   desc: 'Definición de ingredientes y proporciones',        icon: 'mdi-flask-outline',          count: `${formatEntero(38)} recetas`, path: '/produccion/configuracion/recetas' },
+  { title: 'Órdenes de Producción', desc: 'Planificación y ejecución de lotes',              icon: 'mdi-clipboard-play-outline', count: `${formatEntero(14)} activas`, path: '/produccion/procesos/ordenes' },
+  { title: 'Producción del Período', desc: 'Reporte de rendimiento y costos de producción', icon: 'mdi-file-chart-outline',     count: 'Ver reporte',                  path: '/produccion/reportes/periodo' },
 ]
 const estadoOrdenes = [
-  { label: 'PLANIFICADAS', val: '5', pct: 40, color: '#3b82f6' },
-  { label: 'EN PROCESO', val: '14', pct: 100, color: '#10b981' },
-  { label: 'EN PAUSA', val: '3', pct: 25, color: '#f59e0b' },
-  { label: 'COMPLETADAS', val: '28', pct: 75, color: '#8b5cf6' },
-  { label: 'CANCELADAS', val: '1', pct: 10, color: '#ef4444' },
+  { label: 'PLANIFICADAS', val: formatEntero(5),  pct: 40,  color: '#3b82f6' },
+  { label: 'EN PROCESO',   val: formatEntero(14), pct: 100, color: '#10b981' },
+  { label: 'EN PAUSA',     val: formatEntero(3),  pct: 25,  color: '#f59e0b' },
+  { label: 'COMPLETADAS',  val: formatEntero(28), pct: 75,  color: '#8b5cf6' },
+  { label: 'CANCELADAS',   val: formatEntero(1),  pct: 10,  color: '#ef4444' },
 ]
 </script>
 

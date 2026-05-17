@@ -85,6 +85,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { formatMoneda, formatEntero } from '../utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -116,16 +117,16 @@ const itemLabel = computed(() => itemMap[route.params.item] || null)
 const pageIcon = computed(() => iconMap[route.params.item] || 'mdi-calculator-variant-outline')
 
 const heroStats = [
-  { value: '45', label: 'Proveedores' },
-  { value: '$45K', label: 'Gastos del mes' },
-  { value: '4', label: 'Cuentas bancarias' },
-  { value: '12', label: 'Registros hoy' },
+  { value: formatEntero(45),       label: 'Proveedores' },
+  { value: formatMoneda(45000, 0), label: 'Gastos del mes' },
+  { value: formatEntero(4),        label: 'Cuentas bancarias' },
+  { value: formatEntero(12),       label: 'Registros hoy' },
 ]
 
 const moduleCards = [
-  { title: 'Proveedores', desc: 'Gestión de proveedores y datos de contacto', icon: 'mdi-truck-outline', count: '45 registros', path: '/contabilidad/configuracion/proveedores' },
-  { title: 'Cuentas Bancarias', desc: 'Administración de cuentas bancarias activas', icon: 'mdi-bank-outline', count: '4 cuentas', path: '/contabilidad/configuracion/cuentas-bancarias' },
-  { title: 'Gestión de Gastos', desc: 'Registro y control de gastos del período', icon: 'mdi-receipt-text-outline', count: '12 este mes', path: '/contabilidad/procesos/gastos' },
+  { title: 'Proveedores', desc: 'Gestión de proveedores y datos de contacto', icon: 'mdi-truck-outline', count: `${formatEntero(45)} registros`, path: '/contabilidad/configuracion/proveedores' },
+  { title: 'Cuentas Bancarias', desc: 'Administración de cuentas bancarias activas', icon: 'mdi-bank-outline', count: `${formatEntero(4)} cuentas`, path: '/contabilidad/configuracion/cuentas-bancarias' },
+  { title: 'Gestión de Gastos', desc: 'Registro y control de gastos del período', icon: 'mdi-receipt-text-outline', count: `${formatEntero(12)} este mes`, path: '/contabilidad/procesos/gastos' },
   { title: 'Estado de Resultados', desc: 'Reporte financiero del período seleccionado', icon: 'mdi-trending-up', count: 'Ver reporte', path: '/contabilidad/reportes/estado-resultados' },
 ]
 </script>

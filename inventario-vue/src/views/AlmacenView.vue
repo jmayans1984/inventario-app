@@ -94,6 +94,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { formatEntero } from '../utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -107,22 +108,22 @@ const itemLabel = computed(() => itemMap[route.params.item] || null)
 const pageIcon = computed(() => iconMap[route.params.item] || 'mdi-warehouse')
 
 const heroStats = [
-  { value: '1,250', label: 'Productos' },
-  { value: '45', label: 'Bajo stock' },
-  { value: '28', label: 'Órdenes abiertas' },
-  { value: '7', label: 'Por recibir' },
+  { value: formatEntero(1250), label: 'Productos' },
+  { value: formatEntero(45),   label: 'Bajo stock' },
+  { value: formatEntero(28),   label: 'Órdenes abiertas' },
+  { value: formatEntero(7),    label: 'Por recibir' },
 ]
 const kpis = [
-  { label: 'Total Productos', value: '1,250', icon: 'mdi-package-variant', color: '#3b82f6' },
-  { label: 'Bajo Stock', value: '45', icon: 'mdi-alert-outline', color: '#ef4444' },
-  { label: 'Órdenes Abiertas', value: '28', icon: 'mdi-clipboard-list-outline', color: '#f59e0b' },
-  { label: 'Recepciones Pend.', value: '7', icon: 'mdi-truck-delivery-outline', color: '#22c55e' },
+  { label: 'Total Productos',   value: formatEntero(1250), icon: 'mdi-package-variant',      color: '#3b82f6' },
+  { label: 'Bajo Stock',        value: formatEntero(45),   icon: 'mdi-alert-outline',         color: '#ef4444' },
+  { label: 'Órdenes Abiertas', value: formatEntero(28),   icon: 'mdi-clipboard-list-outline', color: '#f59e0b' },
+  { label: 'Recepciones Pend.', value: formatEntero(7),   icon: 'mdi-truck-delivery-outline', color: '#22c55e' },
 ]
 const moduleCards = [
-  { title: 'Productos', desc: 'Catálogo completo de productos y materias primas', icon: 'mdi-package-variant', count: '1,250 registros', path: '/almacen/configuracion/productos' },
-  { title: 'Órdenes de Compra', desc: 'Emisión y seguimiento de órdenes de compra', icon: 'mdi-clipboard-list-outline', count: '28 abiertas', path: '/almacen/procesos/ordenes' },
-  { title: 'Recepciones', desc: 'Registro de entradas de mercancía al almacén', icon: 'mdi-truck-delivery-outline', count: '7 pendientes', path: '/almacen/procesos/recepciones' },
-  { title: 'Inventario Actual', desc: 'Reporte de existencias y valorización', icon: 'mdi-file-chart-outline', count: 'Ver reporte', path: '/almacen/reportes/inventario' },
+  { title: 'Productos',         desc: 'Catálogo completo de productos y materias primas', icon: 'mdi-package-variant',       count: `${formatEntero(1250)} registros`, path: '/almacen/configuracion/productos' },
+  { title: 'Órdenes de Compra', desc: 'Emisión y seguimiento de órdenes de compra',       icon: 'mdi-clipboard-list-outline', count: `${formatEntero(28)} abiertas`,   path: '/almacen/procesos/ordenes' },
+  { title: 'Recepciones',       desc: 'Registro de entradas de mercancía al almacén',     icon: 'mdi-truck-delivery-outline', count: `${formatEntero(7)} pendientes`,   path: '/almacen/procesos/recepciones' },
+  { title: 'Inventario Actual', desc: 'Reporte de existencias y valorización',             icon: 'mdi-file-chart-outline',    count: 'Ver reporte',                     path: '/almacen/reportes/inventario' },
 ]
 </script>
 

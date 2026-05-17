@@ -174,6 +174,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useAppStore } from '../../stores/app'
 import { MODULES } from '../../utils/constants'
+import { formatFechaLarga } from '../../utils/formatters'
 
 const router = useRouter()
 const route = useRoute()
@@ -201,9 +202,7 @@ const avatarInitials = computed(() => {
 })
 
 onMounted(() => {
-  currentDate.value = new Date().toLocaleDateString('es-ES', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  })
+  currentDate.value = formatFechaLarga()
   // Abrir automáticamente el módulo y la categoría activa
   MODULES.forEach(mod => {
     const modActive = mod.path !== '/' && (route.path === mod.path || route.path.startsWith(mod.path + '/'))

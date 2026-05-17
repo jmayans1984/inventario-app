@@ -110,6 +110,7 @@
 
 <script setup>
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { formatMoneda, formatEntero } from '../utils/formatters'
 
 const kpis = [
   {
@@ -119,8 +120,8 @@ const kpis = [
     color: '#3b82f6',
     trend: 8.4,
     stats: [
-      { value: '1,250', label: 'Productos' },
-      { value: '45', label: 'Bajo stock' },
+      { value: formatEntero(1250), label: 'Productos' },
+      { value: formatEntero(45),   label: 'Bajo stock' },
     ],
   },
   {
@@ -130,8 +131,8 @@ const kpis = [
     color: '#8b5cf6',
     trend: 12.1,
     stats: [
-      { value: '28', label: 'Pendientes' },
-      { value: '156', label: 'Este mes' },
+      { value: formatEntero(28),  label: 'Pendientes' },
+      { value: formatEntero(156), label: 'Este mes' },
     ],
   },
   {
@@ -141,8 +142,8 @@ const kpis = [
     color: '#22c55e',
     trend: -3.2,
     stats: [
-      { value: '$45K', label: 'Este mes' },
-      { value: '12', label: 'Registros' },
+      { value: formatMoneda(45000, 0), label: 'Este mes' },
+      { value: formatEntero(12),       label: 'Registros' },
     ],
   },
   {
@@ -152,8 +153,8 @@ const kpis = [
     color: '#f59e0b',
     trend: 5.7,
     stats: [
-      { value: '$120K', label: 'Saldo total' },
-      { value: '8', label: 'Cuentas' },
+      { value: formatMoneda(120000, 0), label: 'Saldo total' },
+      { value: formatEntero(8),         label: 'Cuentas' },
     ],
   },
 ]
@@ -168,10 +169,10 @@ const quickActions = [
 const tableHeaders = ['ORDEN', 'PROVEEDOR', 'FECHA', 'TOTAL', 'ESTADO', '']
 
 const ordenes = [
-  { id: 'OC-2026-001', cliente: 'Empresa ABC', fecha: '15/05/2026', total: '$8,500.00', estado: 'PENDIENTE', color: 'warning' },
-  { id: 'OC-2026-002', cliente: 'Distribuidora XYZ', fecha: '14/05/2026', total: '$12,300.00', estado: 'ENTREGADA', color: 'success' },
-  { id: 'OC-2026-003', cliente: 'Retail Store', fecha: '13/05/2026', total: '$5,600.00', estado: 'FACTURADA', color: 'info' },
-  { id: 'OC-2026-004', cliente: 'Tech Solutions', fecha: '12/05/2026', total: '$9,200.00', estado: 'PENDIENTE', color: 'warning' },
+  { id: 'OC-2026-001', cliente: 'Empresa ABC',       fecha: '05/15/2026', total: formatMoneda(8500),   estado: 'PENDIENTE', color: 'warning' },
+  { id: 'OC-2026-002', cliente: 'Distribuidora XYZ', fecha: '05/14/2026', total: formatMoneda(12300),  estado: 'ENTREGADA', color: 'success' },
+  { id: 'OC-2026-003', cliente: 'Retail Store',      fecha: '05/13/2026', total: formatMoneda(5600),   estado: 'FACTURADA', color: 'info' },
+  { id: 'OC-2026-004', cliente: 'Tech Solutions',    fecha: '05/12/2026', total: formatMoneda(9200),   estado: 'PENDIENTE', color: 'warning' },
 ]
 </script>
 

@@ -112,6 +112,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { formatMoneda, formatPorcentaje } from '../utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -125,16 +126,16 @@ const itemLabel = computed(() => itemMap[route.params.item] || null)
 const pageIcon = computed(() => iconMap[route.params.item] || 'mdi-chart-line')
 
 const heroStats = [
-  { value: '$892K', label: 'Ingresos YTD' },
-  { value: '18.4%', label: 'Margen neto' },
-  { value: '94%', label: 'Satisfacción' },
-  { value: '↑12%', label: 'Crecimiento' },
+  { value: formatMoneda(892000, 0),   label: 'Ingresos YTD' },
+  { value: formatPorcentaje(18.4, 1), label: 'Margen neto' },
+  { value: formatPorcentaje(94, 0),   label: 'Satisfacción' },
+  { value: '↑' + formatPorcentaje(12, 0), label: 'Crecimiento' },
 ]
 const executiveKpis = [
-  { title: 'Ingresos del Mes', value: '$142,500', icon: 'mdi-cash-multiple', color: '#22c55e', trend: 12.4 },
-  { title: 'Gastos Operativos', value: '$89,200', icon: 'mdi-trending-down', color: '#ef4444', trend: -3.1 },
-  { title: 'Utilidad Bruta', value: '$53,300', icon: 'mdi-chart-line', color: '#667eea', trend: 8.7 },
-  { title: 'ROI Período', value: '37.4%', icon: 'mdi-percent', color: '#f59e0b', trend: 5.2 },
+  { title: 'Ingresos del Mes',  value: formatMoneda(142500),      icon: 'mdi-cash-multiple',  color: '#22c55e', trend: 12.4 },
+  { title: 'Gastos Operativos', value: formatMoneda(89200),       icon: 'mdi-trending-down',  color: '#ef4444', trend: -3.1 },
+  { title: 'Utilidad Bruta',    value: formatMoneda(53300),       icon: 'mdi-chart-line',     color: '#667eea', trend: 8.7 },
+  { title: 'ROI Período',       value: formatPorcentaje(37.4, 1), icon: 'mdi-percent',        color: '#f59e0b', trend: 5.2 },
 ]
 const moduleCards = [
   { title: 'Dashboard Ejecutivo', desc: 'Resumen gerencial de todos los módulos', icon: 'mdi-view-dashboard-outline', count: 'Ver dashboard', path: '/gerencia/reportes/ejecutivo', color: '#667eea' },
