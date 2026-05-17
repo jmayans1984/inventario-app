@@ -131,6 +131,94 @@
             color: white;
             border-color: var(--accent);
         }
+
+        /* MODO SELECTOR */
+        .modo-section {
+            padding: 1rem;
+            background-color: var(--bg-tertiary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modo-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .modo-label-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .modo-label-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .modo-toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .modo-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .modo-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 30px;
+        }
+
+        .modo-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .modo-slider {
+            background-color: var(--accent);
+        }
+
+        input:checked + .modo-slider:before {
+            transform: translateX(30px);
+        }
+
+        .modo-selector {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .modo-selector span {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .modo-selector span.active {
+            color: var(--accent);
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -155,13 +243,28 @@
 
                 <div class="form-group">
                     <label for="clave">Contraseña</label>
-                    <input 
-                        type="password" 
-                        id="clave" 
+                    <input
+                        type="password"
+                        id="clave"
                         placeholder="Ingresa tu contraseña"
                         required
                         autocomplete="current-password"
                     >
+                </div>
+
+                <div class="modo-section">
+                    <div class="modo-label">
+                        <span class="modo-label-title">🚀 Versión</span>
+                        <div class="modo-selector">
+                            <span id="modoLightLabel" class="active">Light</span>
+                            <span>/</span>
+                            <span id="modoCompletoLabel">Completo</span>
+                        </div>
+                    </div>
+                    <label class="modo-toggle">
+                        <input type="checkbox" id="modoToggle" onchange="cambiarModo()">
+                        <span class="modo-slider"></span>
+                    </label>
                 </div>
 
                 <div class="theme-section">
@@ -189,6 +292,41 @@
     <script>
         const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
+        // Cargar modo guardado
+        window.addEventListener('DOMContentLoaded', () => {
+            const modoGuardado = localStorage.getItem('modoApp') || 'light';
+            const toggleElement = document.getElementById('modoToggle');
+
+            if (modoGuardado === 'completo') {
+                toggleElement.checked = true;
+                actualizarEtiquetaModo(true);
+            } else {
+                toggleElement.checked = false;
+                actualizarEtiquetaModo(false);
+            }
+        });
+
+        function cambiarModo() {
+            const isCompleto = document.getElementById('modoToggle').checked;
+            const modo = isCompleto ? 'completo' : 'light';
+            localStorage.setItem('modoApp', modo);
+            actualizarEtiquetaModo(isCompleto);
+            console.log('Modo seleccionado:', modo);
+        }
+
+        function actualizarEtiquetaModo(isCompleto) {
+            const labelLight = document.getElementById('modoLightLabel');
+            const labelCompleto = document.getElementById('modoCompletoLabel');
+
+            if (isCompleto) {
+                labelLight.classList.remove('active');
+                labelCompleto.classList.add('active');
+            } else {
+                labelLight.classList.add('active');
+                labelCompleto.classList.remove('active');
+            }
+        }
+
         async function iniciarSesion(event) {
             event.preventDefault();
 
@@ -215,7 +353,7 @@
                         // Una sola empresa, ir directo al principal
                         const empresa = data.data.empresas[0].empresa;
                         localStorage.setItem('empresaActual', empresa);
-                        window.location.href = 'principal.html';
+                        irAlPrincipal(empresa);
                     }
                 } else {
                     alert('❌ ' + data.error);
@@ -246,7 +384,13 @@
 
         function seleccionarEmpresa(empresa) {
             localStorage.setItem('empresaActual', empresa);
-            window.location.href = 'principal.html';
+            irAlPrincipal(empresa);
+        }
+
+        function irAlPrincipal(empresa) {
+            const modo = localStorage.getItem('modoApp') || 'light';
+            const archivo = modo === 'completo' ? 'principal-vue.html' : 'principal.html';
+            window.location.href = archivo;
         }
     </script>
 </body>

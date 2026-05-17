@@ -11,7 +11,10 @@ async function inicializarHeader() {
         window.location.href = 'index.html';
         return null;
     }
-    
+
+    // Guardar modo global para acceso desde otras páginas
+    window.modoApp = localStorage.getItem('modoApp') || 'light';
+
     // Buscar el nombre de la empresa en la lista de empresas del usuario
     const empresaData = usuario.empresas.find(e => String(e.empresa) === String(empresaCodigo));
     const empresaNombre = empresaData ? empresaData.empresa_nombre : empresaCodigo;
