@@ -90,12 +90,10 @@
 
           <!-- CHEQUE -->
           <td class="td td-center">
-            <v-icon
-              :color="cuenta.cheque ? 'success' : 'default'"
-              size="18"
-            >
-              {{ cuenta.cheque ? 'mdi-check-circle' : 'mdi-minus-circle-outline' }}
-            </v-icon>
+            <span v-if="cuenta.cheque !== null && cuenta.cheque !== undefined && cuenta.cheque !== '' && cuenta.cheque !== 0" class="cheque-num">
+              {{ cuenta.cheque }}
+            </span>
+            <span v-else class="text-muted">—</span>
           </td>
 
           <!-- ESTADO -->
@@ -339,6 +337,16 @@ async function recargar() {
   font-size: 13px;
   color: rgba(var(--v-theme-on-surface), 0.85);
 }
+
+/* Cheque */
+.cheque-num {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.text-muted { color: rgba(var(--v-theme-on-surface), 0.3); font-size: 13px; }
 
 /* Estado chip */
 .estado-chip { font-size: 10px !important; font-weight: 700 !important; letter-spacing: 0.5px; }

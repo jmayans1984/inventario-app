@@ -84,19 +84,18 @@ export const useCuentasBancariasStore = defineStore('cuentasbancarias', () => {
   }
 
   async function toggleEstado(codigo) {
-    const cuenta = cuentas.value.find(c => c.codigo === codigo)
-    if (!cuenta) return
-    const estadoAnterior = cuenta.estado
-    // Optimistic update
-    cuenta.estado = estadoAnterior === 'ACTIVA' ? 'INACTIVA' : 'ACTIVA'
+    const idx = cuentas.value.findIndex(c => c.codigo === codigo)
+    if (idx === -1) return
+    const estadoAnterior = cuentas.value[idx].estado
+    const nuevoEstado = estadoAnterior === 'ACTIVA' ? 'INACTIVA' : 'ACTIVA'
+    // Optimistic update — mutar el campo directamente para mantener reactividad
+    cuentas.value[idx].estado = nuevoEstado
     try {
-      const res = await cuentasBancariasService.toggleEstado(codigo, estadoAnterior)
-      const actualizada = res.data || res
-      const idx = cuentas.value.findIndex(c => c.codigo === codigo)
-      if (idx !== -1) { cuentas.value[idx] = { ...cuentas.value[idx], ...actualizada }; guardarCache() }
+      await cuentasBancariasService.toggleEstado(codigo, estadoAnterior)
+      guardarCache()
     } catch (err) {
-      // Revertir si falla
-      cuenta.estado = estadoAnterior
+      // Revertir si la API falla
+      cuentas.value[idx].estado = estadoAnterior
       error.value = 'Error al cambiar el estado'
     }
   }
