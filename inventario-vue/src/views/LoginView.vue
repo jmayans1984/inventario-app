@@ -75,20 +75,12 @@
             </div>
           </div>
 
-          <!-- Recordar + Versión -->
+          <!-- Recordar usuario -->
           <div class="form-options">
             <label class="remember-label">
               <input v-model="rememberUser" type="checkbox" class="remember-check" />
               <span>Recordar usuario</span>
             </label>
-
-            <div class="version-toggle">
-              <span :class="['ver-opt', !isModoCompleto ? 'ver-active' : '']">Light</span>
-              <div class="toggle-pill" @click="isModoCompleto = !isModoCompleto">
-                <div class="toggle-thumb" :class="{ 'toggle-on': isModoCompleto }"></div>
-              </div>
-              <span :class="['ver-opt', isModoCompleto ? 'ver-active' : '']">Completo</span>
-            </div>
           </div>
 
           <!-- Error -->
@@ -153,7 +145,6 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 
 const formData = ref({ usuario: '', clave: '' })
-const isModoCompleto = ref(localStorage.getItem('modoApp') === 'completo')
 const isDarkMode = ref(appStore.tema === 'dark')
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -201,10 +192,6 @@ const handleLogin = async () => {
 
     if (result.success) {
       authStore.setUsuario(result.data)
-      const modo = isModoCompleto.value ? 'completo' : 'light'
-      authStore.setModoApp(modo)
-      localStorage.setItem('modoApp', modo)
-
       if (result.data.requiere_seleccion && result.data.empresas.length > 1) {
         empresas.value = result.data.empresas
         showEmpresaSelector.value = true
@@ -231,9 +218,7 @@ const selectEmpresa = (cod, nombre) => {
 }
 
 const redirectToMain = () => {
-  const modo = localStorage.getItem('modoApp') || 'light'
-  if (modo === 'completo') router.push('/')
-  else window.location.href = '/principal.html'
+  router.push('/')
 }
 
 const toggleTema = () => {
@@ -439,41 +424,6 @@ const toggleTema = () => {
   accent-color: #667eea;
   cursor: pointer;
 }
-
-.version-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-}
-
-.ver-opt { color: #cbd5e1; font-weight: 500; transition: color 0.2s; }
-.ver-active { color: #667eea; font-weight: 700; }
-
-.toggle-pill {
-  width: 36px;
-  height: 20px;
-  background: #e2e8f0;
-  border-radius: 10px;
-  position: relative;
-  cursor: pointer;
-  transition: background 0.25s;
-}
-
-.toggle-thumb {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  background: white;
-  border-radius: 50%;
-  top: 3px;
-  left: 3px;
-  transition: transform 0.25s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.toggle-on { transform: translateX(16px); }
-.toggle-pill:has(.toggle-on) { background: #667eea; }
 
 /* ─── ERROR ─── */
 .error-box {

@@ -252,21 +252,6 @@
                     >
                 </div>
 
-                <div class="modo-section">
-                    <div class="modo-label">
-                        <span class="modo-label-title">🚀 Versión</span>
-                        <div class="modo-selector">
-                            <span id="modoLightLabel" class="active">Light</span>
-                            <span>/</span>
-                            <span id="modoCompletoLabel">Completo</span>
-                        </div>
-                    </div>
-                    <label class="modo-toggle">
-                        <input type="checkbox" id="modoToggle" onchange="cambiarModo()">
-                        <span class="modo-slider"></span>
-                    </label>
-                </div>
-
                 <div class="theme-section">
                     <span class="theme-label">🌙 Modo Oscuro</span>
                     <label class="theme-switch">
@@ -291,41 +276,6 @@
     <script src="theme.js"></script>
     <script>
         const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
-
-        // Cargar modo guardado
-        window.addEventListener('DOMContentLoaded', () => {
-            const modoGuardado = localStorage.getItem('modoApp') || 'light';
-            const toggleElement = document.getElementById('modoToggle');
-
-            if (modoGuardado === 'completo') {
-                toggleElement.checked = true;
-                actualizarEtiquetaModo(true);
-            } else {
-                toggleElement.checked = false;
-                actualizarEtiquetaModo(false);
-            }
-        });
-
-        function cambiarModo() {
-            const isCompleto = document.getElementById('modoToggle').checked;
-            const modo = isCompleto ? 'completo' : 'light';
-            localStorage.setItem('modoApp', modo);
-            actualizarEtiquetaModo(isCompleto);
-            console.log('Modo seleccionado:', modo);
-        }
-
-        function actualizarEtiquetaModo(isCompleto) {
-            const labelLight = document.getElementById('modoLightLabel');
-            const labelCompleto = document.getElementById('modoCompletoLabel');
-
-            if (isCompleto) {
-                labelLight.classList.remove('active');
-                labelCompleto.classList.add('active');
-            } else {
-                labelLight.classList.add('active');
-                labelCompleto.classList.remove('active');
-            }
-        }
 
         async function iniciarSesion(event) {
             event.preventDefault();
@@ -388,9 +338,7 @@
         }
 
         function irAlPrincipal(empresa) {
-            const modo = localStorage.getItem('modoApp') || 'light';
-            const archivo = modo === 'completo' ? 'principal-vue.html' : 'principal.html';
-            window.location.href = archivo;
+            window.location.href = 'principal.html';
         }
     </script>
 </body>
