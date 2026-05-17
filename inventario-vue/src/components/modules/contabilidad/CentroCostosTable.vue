@@ -98,15 +98,6 @@
             </div>
           </td>
 
-          <!-- SQUARE LOCATION ID -->
-          <td class="td">
-            <span v-if="cc.square_location_id" class="location-id">
-              <v-icon size="12" class="mr-1" style="opacity:0.5">mdi-identifier</v-icon>
-              {{ cc.square_location_id }}
-            </span>
-            <span v-else class="text-muted">—</span>
-          </td>
-
           <!-- ACCIONES -->
           <td class="td-acciones">
             <div class="action-buttons">
@@ -212,9 +203,8 @@ const codigoAEliminar = ref(null)
 const nombreAEliminar = ref('')
 
 const columnas = [
-  { key: 'codigo', label: 'CÓDIGO',    sortable: true  },
-  { key: 'nombre', label: 'NOMBRE',    sortable: true  },
-  { key: 'square_location_id', label: 'SQUARE LOCATION ID', sortable: false },
+  { key: 'codigo', label: 'CÓDIGO', sortable: true },
+  { key: 'nombre', label: 'NOMBRE', sortable: true },
 ]
 
 const todosSeleccionados = computed(

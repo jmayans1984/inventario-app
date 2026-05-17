@@ -31,7 +31,7 @@
 
     <!-- KPI CARDS -->
     <v-row class="mb-5" dense>
-      <v-col v-for="kpi in kpis" :key="kpi.label" cols="12" sm="6" lg="3">
+      <v-col v-for="kpi in kpis" :key="kpi.label" cols="12" sm="4">
         <v-card elevation="0" rounded="lg" class="kpi-card" :style="{ borderTop: `3px solid ${kpi.color}` }">
           <v-card-text class="pa-4">
             <div class="d-flex justify-space-between align-start">
@@ -91,28 +91,22 @@ const ccEditando = ref(null)
 
 const kpis = computed(() => [
   {
-    label: 'Total Centros',
+    label: 'Total Centros de Costos',
     value: store.totalCentrosCostos,
     icon: 'mdi-sitemap-outline',
     color: '#667eea',
   },
   {
-    label: 'Con Square ID',
-    value: store.centrosCostos.filter(c => c.square_location_id).length,
-    icon: 'mdi-identifier',
+    label: 'Total Activos',
+    value: store.totalCentrosCostos,
+    icon: 'mdi-check-circle-outline',
     color: '#22c55e',
   },
   {
-    label: 'Sin Square ID',
-    value: store.centrosCostos.filter(c => !c.square_location_id).length,
+    label: 'Total Inactivos',
+    value: 0,
     icon: 'mdi-minus-circle-outline',
-    color: '#f59e0b',
-  },
-  {
-    label: 'Empresa Activa',
-    value: store.centrosCostos[0]?.empresa ?? '—',
-    icon: 'mdi-domain',
-    color: '#3b82f6',
+    color: '#94a3b8',
   },
 ])
 
