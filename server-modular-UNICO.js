@@ -2509,6 +2509,172 @@ app.get('/api/contabilidad/proveedores/buscar', async (req, res) => {
 });
 
 // ================================================================
+// CONTABILIDAD - CUENTAS BANCARIAS (CRUD)
+// ================================================================
+
+// GET /api/contabilidad/cuentas-bancarias/proximo-codigo
+app.get('/api/contabilidad/cuentas-bancarias/proximo-codigo', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT codigo FROM cuentas_bancarias WHERE empresa = $1 ORDER BY codigo DESC`,
+            [empresa]
+        );
+        // Encontrar el máximo numérico y sumar 1
+        let maxNum = 0;
+        result.rows.forEach(row => {
+            const n = parseInt(row.codigo) || 0;
+            if (n > maxNum) maxNum = n;
+        });
+        const proximoCodigo = String(maxNum + 1).padStart(3, '0');
+        res.json({ success: true, codigo: proximoCodigo });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/cuentas-bancarias/buscar
+app.get('/api/contabilidad/cuentas-bancarias/buscar', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const q = req.query.q || '';
+        const result = await pool.query(
+            `SELECT codigo, nombre_banco, nombre_cta, tipo_cuenta, nro_cta, cheque, vr_transfe, empresa, estado
+             FROM cuentas_bancarias
+             WHERE empresa = $1 AND (codigo ILIKE $2 OR nombre_banco ILIKE $2 OR nombre_cta ILIKE $2)
+             ORDER BY codigo ASC LIMIT 20`,
+            [empresa, `%${q}%`]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/cuentas-bancarias
+app.get('/api/contabilidad/cuentas-bancarias', async (req, res) => {
+    try {
+        const empresa  = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const search   = req.query.search || '';
+        const estado   = req.query.estado;
+        const sortBy   = ['codigo','nombre_banco','nombre_cta','estado'].includes(req.query.sortBy) ? req.query.sortBy : 'codigo';
+        const sortOrd  = req.query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+        const limit    = Math.min(parseInt(req.query.limit) || 50, 200);
+        const offset   = ((parseInt(req.query.page) || 1) - 1) * limit;
+
+        const params = [empresa];
+        let where = 'WHERE empresa = $1';
+
+        if (estado && estado !== 'TODOS') {
+            params.push(estado);
+            where += ` AND estado = $${params.length}`;
+        }
+        if (search) {
+            params.push(`%${search}%`);
+            where += ` AND (codigo ILIKE $${params.length} OR nombre_banco ILIKE $${params.length} OR nombre_cta ILIKE $${params.length})`;
+        }
+
+        const countRes = await pool.query(`SELECT COUNT(*) FROM cuentas_bancarias ${where}`, params);
+        const total    = parseInt(countRes.rows[0].count);
+
+        params.push(limit, offset);
+        const dataRes = await pool.query(
+            `SELECT codigo, nombre_banco, nombre_cta, tipo_cuenta, nro_cta, cheque, vr_transfe, empresa, estado
+             FROM cuentas_bancarias ${where}
+             ORDER BY ${sortBy} ${sortOrd}
+             LIMIT $${params.length - 1} OFFSET $${params.length}`,
+            params
+        );
+
+        res.json({ success: true, data: dataRes.rows, total, page: parseInt(req.query.page) || 1, limit });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/cuentas-bancarias:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/cuentas-bancarias/:codigo
+app.get('/api/contabilidad/cuentas-bancarias/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const result = await pool.query(
+            `SELECT codigo, nombre_banco, nombre_cta, tipo_cuenta, nro_cta, cheque, vr_transfe, empresa, estado
+             FROM cuentas_bancarias WHERE codigo = $1 AND empresa = $2`,
+            [codigo, empresa]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/cuentas-bancarias
+app.post('/api/contabilidad/cuentas-bancarias', async (req, res) => {
+    try {
+        const { codigo, nombre_banco, nombre_cta, tipo_cuenta, nro_cta, cheque, vr_transfe, empresa, estado } = req.body;
+        if (!codigo || !nombre_banco || !nombre_cta || !empresa) {
+            return res.status(400).json({ success: false, error: 'codigo, nombre_banco, nombre_cta y empresa son requeridos' });
+        }
+        const existe = await pool.query('SELECT codigo FROM cuentas_bancarias WHERE codigo = $1 AND empresa = $2', [codigo, empresa]);
+        if (existe.rows.length) return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
+
+        const result = await pool.query(
+            `INSERT INTO cuentas_bancarias (codigo, nombre_banco, nombre_cta, tipo_cuenta, nro_cta, cheque, vr_transfe, empresa, estado)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [codigo, nombre_banco.trim(), nombre_cta.trim(), tipo_cuenta || '', nro_cta || '', cheque ?? 0, vr_transfe ?? 0, empresa, estado || 'ACTIVA']
+        );
+        res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/contabilidad/cuentas-bancarias:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/contabilidad/cuentas-bancarias/:codigo
+app.put('/api/contabilidad/cuentas-bancarias/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { nombre_banco, nombre_cta, tipo_cuenta, nro_cta, cheque, vr_transfe, empresa, estado } = req.body;
+        const result = await pool.query(
+            `UPDATE cuentas_bancarias
+             SET nombre_banco=$1, nombre_cta=$2, tipo_cuenta=$3, nro_cta=$4, cheque=$5, vr_transfe=$6, estado=$7
+             WHERE codigo=$8 AND empresa=$9 RETURNING *`,
+            [nombre_banco, nombre_cta, tipo_cuenta || '', nro_cta || '', cheque ?? 0, vr_transfe ?? 0, estado || 'ACTIVA', codigo, empresa]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/contabilidad/cuentas-bancarias:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PATCH /api/contabilidad/cuentas-bancarias/:codigo/estado - Toggle estado
+app.patch('/api/contabilidad/cuentas-bancarias/:codigo/estado', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { estado, empresa } = req.body;
+        if (!['ACTIVA','INACTIVA'].includes(estado)) {
+            return res.status(400).json({ success: false, error: 'estado debe ser ACTIVA o INACTIVA' });
+        }
+        const result = await pool.query(
+            `UPDATE cuentas_bancarias SET estado=$1 WHERE codigo=$2 AND empresa=$3 RETURNING *`,
+            [estado, codigo, empresa]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // CONTABILIDAD - CENTROS DE COSTOS (CRUD)
 // ================================================================
 
