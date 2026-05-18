@@ -629,7 +629,7 @@ async function generarPDF() {
         margin: { left: ML, right: MR, top: HDR_H + 0.8 + 3, bottom: FTR_H + 2 },
         head: [['CUENTA', 'DESCRIPCION', 'REGISTROS', 'SUBTOTAL']],
         body: grupos.value.map(g => [
-          { content: g.cuenta,              styles: { fontStyle: 'bold', textColor: C_PURPLE } },
+          { content: g.cuenta,              styles: { fontStyle: 'bold', textColor: C_DARK } },
           g.cuenta_nombre,
           { content: g.items.length,        styles: { halign: 'center' } },
           { content: formatMoneda(g.subtotal), styles: { halign: 'right', fontStyle: 'bold' } },
@@ -650,10 +650,12 @@ async function generarPDF() {
       })
     }
 
-    // ── Reemplazar placeholder de total páginas y guardar ─────────
+    // ── Reemplazar placeholder de total páginas y abrir en ventana ─
     drawFooter()
     doc.putTotalPages(TOTAL_PGS)
-    doc.save(`Reporte_Gastos_${filtros.value.fechaInicial}_${filtros.value.fechaFinal}.pdf`)
+    const blob = doc.output('blob')
+    const url  = URL.createObjectURL(blob)
+    window.open(url, '_blank')
 
   } catch (err) {
     console.error('Error generando PDF:', err)
