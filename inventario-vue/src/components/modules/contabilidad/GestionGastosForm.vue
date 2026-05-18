@@ -345,7 +345,7 @@ watch(() => props.open, async (val) => {
         console.log('✓ Gasto cargado:', gasto)
         form.value = {
           codigo: gasto.codigo || '',
-          fecha: gasto.fecha || '',
+          fecha: (gasto.fecha || '').split('T')[0],
           factura: gasto.factura || '',
           proveedor: gasto.proveedor || '',
           ccosto: gasto.ccosto || '',
