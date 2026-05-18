@@ -61,6 +61,7 @@
                 density="comfortable"
                 placeholder="Ej: FAC-2026-001"
                 maxlength="50"
+                @input="form.numero_factura = form.numero_factura.toUpperCase()"
               />
             </v-col>
 
@@ -117,19 +118,21 @@
               />
             </v-col>
 
-            <!-- CUENTA CONTABLE -->
+            <!-- CUENTA CONTABLE (AUTOCOMPLETE) -->
             <v-col cols="12" sm="4">
-              <v-select
+              <v-autocomplete
                 v-model="form.cuenta_contable_id"
                 label="Cuenta Contable *"
                 variant="outlined"
                 density="comfortable"
                 :rules="reglaCuenta"
                 :items="cuentasContablesOptions"
+                :search-input.sync="searchCuenta"
                 item-title="nombre"
                 item-value="codigo"
-                placeholder="Selecciona una cuenta"
+                placeholder="Escribe para buscar..."
                 class="mb-1"
+                no-data-text="No hay cuentas contables"
               />
             </v-col>
 
@@ -251,6 +254,7 @@ const formasPagoOptions = ref([])
 
 const searchProveedor = ref('')
 const searchCentroCostos = ref('')
+const searchCuenta = ref('')
 
 const formVacio = () => ({
   codigo: '',
@@ -288,10 +292,11 @@ onMounted(async () => {
     if (cuentas.data) cuentasContablesOptions.value = cuentas.data
     else if (Array.isArray(cuentas)) cuentasContablesOptions.value = cuentas
 
-    // Formas de Pago desde Cuentas Bancarias
-    const cuentasBank = await cuentasBancariasService.getCuentasBancarias({ limit: 500 })
+    // Formas de Pago desde Cuentas Bancarias (filtrado por empresa)
+    const cuentasBank = await cuentasBancariasService.getCuentas({ limit: 500 })
     if (cuentasBank.data) formasPagoOptions.value = cuentasBank.data
     else if (Array.isArray(cuentasBank)) formasPagoOptions.value = cuentasBank
+    else if (cuentasBank) formasPagoOptions.value = cuentasBank
   } catch (err) {
     console.error('Error cargando opciones:', err)
   }
@@ -303,6 +308,7 @@ watch(() => props.open, async (val) => {
     errorMsg.value = ''
     searchProveedor.value = ''
     searchCentroCostos.value = ''
+    searchCuenta.value = ''
     if (props.gasto) {
       form.value = {
         codigo: props.gasto.codigo || '',
