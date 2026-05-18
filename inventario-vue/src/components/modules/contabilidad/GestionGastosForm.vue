@@ -249,6 +249,7 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import { useGestionGastosStore } from '../../../stores/gestiongastos'
+import { gestionGastosService } from '../../../services/gestiongastos.service'
 import { proveedoresService } from '../../../services/proveedores.service'
 import { centroCostosService } from '../../../services/centrocostos.service'
 import { cuentasContablesService } from '../../../services/cuentascontables.service'
