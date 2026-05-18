@@ -3202,14 +3202,12 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
         console.log(`  Total registros encontrados: ${total}`);
 
         params.push(limit, offset);
-        const query = `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
-                    g.centro_costos_id, cc.nombre as centro_costos_nombre, g.forma_pago,
-                    g.cuenta_contable_id, c.nombre as cuenta_contable_nombre,
+        // Intentar primero con JOINs simples
+        const query = `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id,
+                    g.centro_costos_id, g.forma_pago,
+                    g.cuenta_contable_id,
                     g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
              FROM gastos g
-             LEFT JOIN proveedores p ON g.proveedor_id = p.id
-             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
-             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
              ${where}
              ORDER BY g.fecha DESC, g.codigo DESC
              LIMIT $${params.length - 1} OFFSET $${params.length}`;
