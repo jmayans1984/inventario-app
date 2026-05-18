@@ -3170,7 +3170,7 @@ app.get('/', (req, res) => {
 // CONTABILIDAD - GESTIÓN DE GASTOS (CRUD) + MOVIBAN
 // ================================================================
 
-// GET /api/contabilidad/gastos - Listar gastos con JOINs
+// GET /api/contabilidad/gastos - Listar gastos (sin JOINs por ahora)
 app.get('/api/contabilidad/gastos', async (req, res) => {
     try {
         const empresa = req.query.empresa || req.headers['x-empresa'];
@@ -3178,27 +3178,23 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
 
         console.log(`[DEBUG] GET /api/contabilidad/gastos - Empresa: ${empresa}`);
 
-        // Consulta con JOINs a PROVEEDORES y CCOSTOS
+        // Consulta con LEFT JOINs para obtener nombres
         const dataRes = await pool.query(
             `SELECT
                 g.codigo,
                 g.fecha,
                 g.numero_factura,
                 g.proveedor_id,
-                COALESCE(prov.nombre, 'N/A') as proveedor_nombre,
+                COALESCE(p.nombre, g.proveedor_id::text) as proveedor_nombre,
                 g.centro_costos_id,
-                COALESCE(cc.nombre, 'N/A') as centro_costos_nombre,
-                g.forma_pago,
-                g.cuenta_contable_id,
+                COALESCE(cc.nombre, g.centro_costos_id::text) as centro_costos_nombre,
                 g.concepto,
-                g.valor_base,
-                g.impuestos,
                 g.total,
                 g.empresa,
                 g.created_at
              FROM gastos g
-             LEFT JOIN proveedores prov ON g.proveedor_id = prov.codigo
-             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
+             LEFT JOIN proveedores p ON g.proveedor_id::text = p.codigo
+             LEFT JOIN ccostos cc ON g.centro_costos_id::text = cc.codigo
              WHERE g.empresa = $1
              ORDER BY g.fecha DESC
              LIMIT 300`,

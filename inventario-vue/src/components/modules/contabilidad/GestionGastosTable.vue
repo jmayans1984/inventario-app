@@ -30,9 +30,9 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width: 8%">CÓDIGO</th>
+            <th style="width: 10%">CÓDIGO</th>
             <th style="width: 10%">FECHA</th>
-            <th style="width: 12%">FACTURA</th>
+            <th style="width: 10%">FACTURA</th>
             <th style="width: 15%">PROVEEDOR</th>
             <th style="width: 15%">CENTRO COSTOS</th>
             <th style="width: 25%">CONCEPTO</th>
@@ -58,10 +58,10 @@
               {{ gasto.numero_factura || '-' }}
             </td>
             <td class="cell-proveedor">
-              <span class="nombre-text">{{ gasto.proveedor_nombre }}</span>
+              <span class="nombre-text">{{ gasto.proveedor_nombre || gasto.proveedor_id }}</span>
             </td>
             <td class="cell-centro">
-              <span class="badge-centro">{{ gasto.centro_costos_nombre }}</span>
+              <span class="badge-centro">{{ gasto.centro_costos_nombre || gasto.centro_costos_id }}</span>
             </td>
             <td class="cell-concepto">
               <span class="concepto-text">{{ gasto.concepto || '-' }}</span>
@@ -71,6 +71,13 @@
             </td>
             <td class="cell-acciones">
               <div class="action-buttons">
+                <v-btn
+                  icon="mdi-pencil-outline"
+                  size="x-small"
+                  variant="text"
+                  @click="$emit('edit', gasto)"
+                  title="Editar"
+                />
                 <v-btn
                   icon="mdi-trash-outline"
                   size="x-small"
@@ -131,7 +138,8 @@ const filteredGastos = computed(() => {
   return store.gastos.filter(gasto =>
     gasto.codigo.toLowerCase().includes(query) ||
     (gasto.numero_factura && gasto.numero_factura.toLowerCase().includes(query)) ||
-    (gasto.proveedor_nombre && gasto.proveedor_nombre.toLowerCase().includes(query))
+    (gasto.proveedor_nombre && gasto.proveedor_nombre.toLowerCase().includes(query)) ||
+    (gasto.centro_costos_nombre && gasto.centro_costos_nombre.toLowerCase().includes(query))
   )
 })
 
