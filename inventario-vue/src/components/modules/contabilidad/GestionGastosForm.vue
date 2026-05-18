@@ -58,18 +58,6 @@
                   @input="form.factura = form.factura.toUpperCase()"
                 />
               </v-col>
-              <v-col cols="12" sm="4">
-                <v-text-field
-                  v-model="form.concepto"
-                  label="Concepto / Descripción"
-                  variant="outlined"
-                  density="comfortable"
-                  placeholder="Opcional"
-                  maxlength="100"
-                  prepend-inner-icon="mdi-text-short"
-                  @input="form.concepto = form.concepto.toUpperCase()"
-                />
-              </v-col>
             </v-row>
           </div>
 
@@ -154,6 +142,18 @@
                   clearable
                 />
               </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="form.concepto"
+                  label="Concepto / Descripción"
+                  variant="outlined"
+                  density="comfortable"
+                  placeholder="Opcional"
+                  maxlength="100"
+                  prepend-inner-icon="mdi-text-short"
+                  @input="form.concepto = form.concepto.toUpperCase()"
+                />
+              </v-col>
             </v-row>
           </div>
 
@@ -187,13 +187,13 @@
                   type="number"
                   step="0.01"
                   min="0"
-                  prepend-inner-icon="mdi-percent"
+                  prepend-inner-icon="mdi-currency-usd"
                   @input="calcularTotal"
                 />
               </v-col>
               <v-col cols="12" sm="4">
                 <div class="total-display">
-                  <div class="total-label">TOTAL A PAGAR</div>
+                  <div class="total-label">TOTAL PAGADO</div>
                   <div class="total-value">{{ formatMoneda(form.total) }}</div>
                 </div>
               </v-col>
@@ -218,7 +218,7 @@
 
       <!-- ══ FOOTER ═══════════════════════════════════════════════════════ -->
       <div class="form-footer">
-        <v-btn variant="text" color="default" size="large" @click="cerrar" prepend-icon="mdi-close">
+        <v-btn variant="text" color="error" size="large" @click="cerrar" prepend-icon="mdi-close">
           Cancelar
         </v-btn>
         <v-btn
@@ -496,7 +496,7 @@ function cerrar() {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.07);
   border-left: 3px solid #667eea;
   border-radius: 10px;
-  padding: 16px 18px 14px;
+  padding: 10px 14px 8px;
 }
 
 .section-label {
