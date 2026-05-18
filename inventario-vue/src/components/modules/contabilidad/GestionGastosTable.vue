@@ -79,13 +79,14 @@
                   title="Editar"
                 />
                 <v-btn
-                  icon="mdi-trash-outline"
-                  size="x-small"
+                  icon="mdi-delete"
+                  size="small"
                   variant="text"
                   color="error"
                   @click="eliminar(gasto.codigo)"
                   :loading="store.loading"
                   title="Eliminar"
+                  class="btn-delete"
                 />
               </div>
             </td>
@@ -329,6 +330,10 @@ async function exportarExcel() {
   display: flex;
   gap: 4px;
   justify-content: flex-end;
+}
+
+.btn-delete {
+  color: #ef5350 !important;
 }
 
 .table-footer {
