@@ -311,30 +311,27 @@ async function exportarExcel() {
   letter-spacing: 0.5px;
   text-transform: uppercase;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  white-space: nowrap;
-  overflow: visible;
 }
 
 .sortable-header {
   cursor: pointer;
   user-select: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
+  display: block;
   transition: background-color 0.2s;
-  width: 100%;
+  padding: 4px;
+  margin: -4px;
+  border-radius: 4px;
 }
 
 .sortable-header:hover {
   background-color: rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 4px;
 }
 
 .sort-arrow {
   color: #667eea;
-  flex-shrink: 0;
-  margin-left: 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+  display: inline-block;
 }
 
 .data-table tbody tr {
