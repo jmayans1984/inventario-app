@@ -3203,8 +3203,8 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
              WHERE g.empresa = $1
-             ORDER BY g.fecha DESC
-             LIMIT 300`,
+             ORDER BY g.fecha DESC, g.codigo DESC
+             LIMIT 1000`,
             [empresa]
         );
 
