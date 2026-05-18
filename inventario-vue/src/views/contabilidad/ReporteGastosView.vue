@@ -359,16 +359,14 @@ async function generarPDF() {
     const HDR_H  = 22   // altura del header
     const FTR_H  = 10   // espacio reservado para pie de página
 
-    // ── Paleta ───────────────────────────────────────────────────
-    const C_PURPLE  = [102, 126, 234]
-    const C_DARK    = [22,  22,  40 ]
-    const C_DVIOL   = [35,  28,  60 ]   // fondo sección derecha header
-    const C_GREY    = [110, 110, 130]
-    const C_LIGHT   = [248, 248, 252]
+    // ── Paleta cuerpo del documento ──────────────────────────────
+    const C_PURPLE  = [102, 126, 234]   // badges código y totales
+    const C_DARK    = [22,  22,  40 ]   // texto oscuro
+    const C_GREY    = [110, 110, 130]   // texto gris (footer, labels)
+    const C_LIGHT   = [248, 248, 252]   // filas alternas
     const C_WHITE   = [255, 255, 255]
-    const C_ACCENT  = [235, 235, 250]
-    const C_GREEN   = [80,  200, 140]
-    const C_SUBGREY = [160, 165, 200]   // texto secundario en header oscuro
+    const C_ACCENT  = [235, 235, 250]   // fondo subtotal
+    const C_GREEN   = [80,  200, 140]   // total general
 
     // ── Datos empresa y usuario ───────────────────────────────────
     const emp       = empresaInfo.value
@@ -398,95 +396,105 @@ async function generarPDF() {
     // ── PIE DE PÁGINA ─────────────────────────────────────────────
     function drawFooter() {
       const pg  = doc.internal.getCurrentPageInfo().pageNumber
-      const yL  = PH - FTR_H + 1.5   // línea separadora
-      const yTx = PH - FTR_H + 6     // línea de texto
+      const yL  = PH - FTR_H + 1.5
+      const yTx = PH - FTR_H + 6
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6)
       doc.setTextColor(...C_GREY)
       doc.setDrawColor(200, 200, 215)
       doc.setLineWidth(0.2)
       doc.line(ML, yL, PW - MR, yL)
-      // Izquierda: generado por
+      // Izquierda
       doc.text(`Informe generado por ${usuario} el ${fechaHoraGen}`, ML, yTx)
-      // Derecha: numero de página — alineado al borde derecho del contenido
-      doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, ML + TW, yTx, { align: 'right' })
+      // Derecha — se ancla a PW-3 para quedar al borde de la hoja
+      doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, PW - 3, yTx, { align: 'right' })
     }
 
-    // ── ENCABEZADO PROFESIONAL (HDR_H = 22mm) ────────────────────
-    const HDR_RIGHT_W = 88    // ancho de la sección derecha del header
+    // ── ENCABEZADO — paleta navy + dorado ejecutiva ───────────────
+    // HDR_H = 22mm
+    // Izquierda: info empresa  |  Derecha: título + período
+    const C_NAVY   = [8,   28,  56 ]   // fondo principal
+    const C_NAVY2  = [14,  46,  90 ]   // fondo sección derecha
+    const C_GOLD   = [212, 160,  23]   // acento dorado
+    const C_SILVER = [160, 185, 215]   // texto secundario
+
+    const HDR_RIGHT_W = 90
     const HDR_LEFT_W  = PW - HDR_RIGHT_W
 
     function drawHeader(isFirstPage = false) {
-      // ── Fondo completo oscuro
-      doc.setFillColor(...C_DARK)
+      // Fondo completo navy
+      doc.setFillColor(...C_NAVY)
       doc.rect(0, 0, PW, HDR_H, 'F')
 
-      // ── Barra superior de acento (2mm)
-      doc.setFillColor(...C_PURPLE)
-      doc.rect(0, 0, PW, 2, 'F')
+      // Sección derecha más clara
+      doc.setFillColor(...C_NAVY2)
+      doc.rect(HDR_LEFT_W, 0, HDR_RIGHT_W, HDR_H, 'F')
 
-      // ── Franja izquierda de acento (4mm)
-      doc.setFillColor(...C_PURPLE)
-      doc.rect(0, 2, 4, HDR_H - 2, 'F')
+      // Barra dorada superior (2.5mm)
+      doc.setFillColor(...C_GOLD)
+      doc.rect(0, 0, PW, 2.5, 'F')
 
-      // ── Sección derecha: fondo violeta oscuro
-      doc.setFillColor(...C_DVIOL)
-      doc.rect(HDR_LEFT_W, 2, HDR_RIGHT_W, HDR_H - 2, 'F')
+      // Franja dorada izquierda (4mm)
+      doc.setFillColor(...C_GOLD)
+      doc.rect(0, 2.5, 4, HDR_H - 2.5, 'F')
 
-      // ── Línea separadora vertical izquierda/derecha
-      doc.setDrawColor(...C_PURPLE)
-      doc.setLineWidth(0.5)
-      doc.line(HDR_LEFT_W, 3, HDR_LEFT_W, HDR_H - 1)
+      // Separador vertical dorado entre secciones
+      doc.setDrawColor(...C_GOLD)
+      doc.setLineWidth(0.6)
+      doc.line(HDR_LEFT_W, 4, HDR_LEFT_W, HDR_H - 1)
 
-      // ── EMPRESA: nombre (izquierda)
+      // ── Izquierda: empresa ────────────────────────────────────
+      // Nombre empresa
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
+      doc.setFontSize(11.5)
       doc.setTextColor(...C_WHITE)
-      doc.text(empNombre, 4 + 6, 11)
+      doc.text(empNombre, 4 + 7, 11.5)
 
-      // ── EMPRESA: dirección y teléfono
-      const contactLine = [empDir, empTel].filter(Boolean).join('   •   ')
+      // Línea decorativa dorada bajo el nombre
+      const nameW = doc.getTextWidth(empNombre)
+      doc.setDrawColor(...C_GOLD)
+      doc.setLineWidth(0.3)
+      doc.line(4 + 7, 13, 4 + 7 + nameW, 13)
+
+      // Dirección y teléfono
+      const contactLine = [empDir, empTel].filter(Boolean).join('   |   ')
       if (contactLine) {
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(6.5)
-        doc.setTextColor(...C_SUBGREY)
-        doc.text(contactLine, 4 + 6, 17)
+        doc.setTextColor(...C_SILVER)
+        doc.text(contactLine, 4 + 7, 18)
       }
 
-      // ── DERECHA: título del reporte (centrado en sección derecha)
-      const rCX = HDR_LEFT_W + HDR_RIGHT_W / 2   // centro de la sección derecha
+      // ── Derecha: título del reporte ───────────────────────────
+      const rCX = HDR_LEFT_W + HDR_RIGHT_W / 2
+
+      // Badge/etiqueta "REPORTE DE GASTOS"
+      const badgeW = 74
+      const badgeX = rCX - badgeW / 2
+      doc.setFillColor(...C_GOLD)
+      doc.roundedRect(badgeX, 4.5, badgeW, 8, 1.5, 1.5, 'F')
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9.5)
-      doc.setTextColor(...C_WHITE)
-      doc.text('REPORTE DE GASTOS', rCX, 9.5, { align: 'center' })
+      doc.setFontSize(8.5)
+      doc.setTextColor(...C_NAVY)
+      doc.text('REPORTE DE GASTOS', rCX, 10.2, { align: 'center' })
 
-      // Línea decorativa bajo el título
-      doc.setDrawColor(102, 126, 234, 0.6)
-      doc.setLineWidth(0.3)
-      doc.line(HDR_LEFT_W + 8, 11, PW - 6, 11)
-
-      // ── DERECHA: período
+      // Período
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.5)
-      doc.setTextColor(...C_SUBGREY)
-      doc.text(`Periodo: ${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`, rCX, 15, { align: 'center' })
+      doc.setFontSize(7)
+      doc.setTextColor(...C_SILVER)
+      doc.text(`${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`, rCX, 17.5, { align: 'center' })
 
-      // ── DERECHA: emitido
-      doc.setFontSize(6)
-      doc.setTextColor(140, 145, 180)
-      doc.text(`Emitido: ${fechaHoraGen}`, rCX, 19.5, { align: 'center' })
+      // Línea dorada inferior del header
+      doc.setFillColor(...C_GOLD)
+      doc.rect(0, HDR_H - 0.8, PW, 0.8, 'F')
 
-      // ── Línea inferior del header (acento)
-      doc.setFillColor(...C_PURPLE)
-      doc.rect(0, HDR_H, PW, 0.8, 'F')
+      y = HDR_H + 3
 
-      y = HDR_H + 0.8 + 3
-
-      // ── Bloque de filtros SOLO primera página
+      // ── Bloque de filtros SOLO primera página ─────────────────
       if (isFirstPage) {
-        doc.setFillColor(...C_LIGHT)
+        doc.setFillColor(240, 244, 252)
         doc.rect(ML, y, TW, 7, 'F')
-        doc.setDrawColor(210, 210, 230)
+        doc.setDrawColor(200, 210, 230)
         doc.setLineWidth(0.15)
         doc.rect(ML, y, TW, 7, 'S')
 
