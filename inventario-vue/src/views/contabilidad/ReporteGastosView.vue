@@ -356,17 +356,18 @@ async function generarPDF() {
     const TW  = PW - ML - MR   // 263mm
 
     // ── Constantes de diseño ──────────────────────────────────────
-    const HDR_H  = 22   // altura del header
+    const HDR_H  = 20   // altura del header
     const FTR_H  = 10   // espacio reservado para pie de página
 
-    // ── Paleta cuerpo del documento ──────────────────────────────
-    const C_PURPLE  = [102, 126, 234]   // badges código y totales
-    const C_DARK    = [22,  22,  40 ]   // texto oscuro
-    const C_GREY    = [110, 110, 130]   // texto gris (footer, labels)
-    const C_LIGHT   = [248, 248, 252]   // filas alternas
+    // ── Paleta blanco / negro / gris ─────────────────────────────
+    const C_BLACK   = [15,  15,  15 ]   // casi negro
+    const C_DARK    = [35,  35,  35 ]   // encabezados de grupo
+    const C_MID     = [80,  80,  80 ]   // texto secundario tabla
+    const C_GREY    = [130, 130, 130]   // footer labels
+    const C_LGREY   = [210, 210, 210]   // bordes
+    const C_ALTROW  = [247, 247, 247]   // fila alterna
+    const C_SUBTOT  = [225, 225, 225]   // fondo subtotal
     const C_WHITE   = [255, 255, 255]
-    const C_ACCENT  = [235, 235, 250]   // fondo subtotal
-    const C_GREEN   = [80,  200, 140]   // total general
 
     // ── Datos empresa y usuario ───────────────────────────────────
     const emp       = empresaInfo.value
@@ -396,106 +397,71 @@ async function generarPDF() {
     // ── PIE DE PÁGINA ─────────────────────────────────────────────
     function drawFooter() {
       const pg  = doc.internal.getCurrentPageInfo().pageNumber
-      const yL  = PH - FTR_H + 1.5
-      const yTx = PH - FTR_H + 6
+      const yL  = PH - FTR_H + 2
+      const yTx = PH - FTR_H + 6.5
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6)
       doc.setTextColor(...C_GREY)
-      doc.setDrawColor(200, 200, 215)
-      doc.setLineWidth(0.2)
+      doc.setDrawColor(...C_LGREY)
+      doc.setLineWidth(0.3)
       doc.line(ML, yL, PW - MR, yL)
-      // Izquierda
       doc.text(`Informe generado por ${usuario} el ${fechaHoraGen}`, ML, yTx)
-      // Derecha — se ancla a PW-3 para quedar al borde de la hoja
       doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, PW - 3, yTx, { align: 'right' })
     }
 
-    // ── ENCABEZADO — paleta navy + dorado ejecutiva ───────────────
-    // HDR_H = 22mm
-    // Izquierda: info empresa  |  Derecha: título + período
-    const C_NAVY   = [8,   28,  56 ]   // fondo principal
-    const C_NAVY2  = [14,  46,  90 ]   // fondo sección derecha
-    const C_GOLD   = [212, 160,  23]   // acento dorado
-    const C_SILVER = [160, 185, 215]   // texto secundario
-
-    const HDR_RIGHT_W = 90
-    const HDR_LEFT_W  = PW - HDR_RIGHT_W
-
+    // ── ENCABEZADO BLANCO/NEGRO — tipografía limpia ───────────────
+    // Estructura: barra negra superior | texto empresa izq | título der | línea negra inferior
     function drawHeader(isFirstPage = false) {
-      // Fondo completo navy
-      doc.setFillColor(...C_NAVY)
-      doc.rect(0, 0, PW, HDR_H, 'F')
+      // Barra negra superior (4mm)
+      doc.setFillColor(...C_BLACK)
+      doc.rect(0, 0, PW, 4, 'F')
 
-      // Sección derecha más clara
-      doc.setFillColor(...C_NAVY2)
-      doc.rect(HDR_LEFT_W, 0, HDR_RIGHT_W, HDR_H, 'F')
-
-      // Barra dorada superior (2.5mm)
-      doc.setFillColor(...C_GOLD)
-      doc.rect(0, 0, PW, 2.5, 'F')
-
-      // Franja dorada izquierda (4mm)
-      doc.setFillColor(...C_GOLD)
-      doc.rect(0, 2.5, 4, HDR_H - 2.5, 'F')
-
-      // Separador vertical dorado entre secciones
-      doc.setDrawColor(...C_GOLD)
-      doc.setLineWidth(0.6)
-      doc.line(HDR_LEFT_W, 4, HDR_LEFT_W, HDR_H - 1)
+      // Fondo blanco del cuerpo del header
+      doc.setFillColor(...C_WHITE)
+      doc.rect(0, 4, PW, HDR_H - 4, 'F')
 
       // ── Izquierda: empresa ────────────────────────────────────
-      // Nombre empresa
+      // Nombre empresa — negro, bold, grande
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11.5)
-      doc.setTextColor(...C_WHITE)
-      doc.text(empNombre, 4 + 7, 11.5)
+      doc.setFontSize(12)
+      doc.setTextColor(...C_BLACK)
+      doc.text(empNombre, ML, 13)
 
-      // Línea decorativa dorada bajo el nombre
-      const nameW = doc.getTextWidth(empNombre)
-      doc.setDrawColor(...C_GOLD)
-      doc.setLineWidth(0.3)
-      doc.line(4 + 7, 13, 4 + 7 + nameW, 13)
-
-      // Dirección y teléfono
+      // Dirección y teléfono — gris medio
       const contactLine = [empDir, empTel].filter(Boolean).join('   |   ')
       if (contactLine) {
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(6.5)
-        doc.setTextColor(...C_SILVER)
-        doc.text(contactLine, 4 + 7, 18)
+        doc.setTextColor(...C_MID)
+        doc.text(contactLine, ML, 18)
       }
 
       // ── Derecha: título del reporte ───────────────────────────
-      const rCX = HDR_LEFT_W + HDR_RIGHT_W / 2
-
-      // Badge/etiqueta "REPORTE DE GASTOS"
-      const badgeW = 74
-      const badgeX = rCX - badgeW / 2
-      doc.setFillColor(...C_GOLD)
-      doc.roundedRect(badgeX, 4.5, badgeW, 8, 1.5, 1.5, 'F')
+      // "REPORTE DE GASTOS" — bold, negro, alineado derecha
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8.5)
-      doc.setTextColor(...C_NAVY)
-      doc.text('REPORTE DE GASTOS', rCX, 10.2, { align: 'center' })
+      doc.setFontSize(11)
+      doc.setTextColor(...C_BLACK)
+      doc.text('REPORTE DE GASTOS', PW - MR, 12, { align: 'right' })
 
-      // Período
+      // Período — gris, alineado derecha
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
-      doc.setTextColor(...C_SILVER)
-      doc.text(`${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`, rCX, 17.5, { align: 'center' })
+      doc.setTextColor(...C_MID)
+      doc.text(`${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`, PW - MR, 18, { align: 'right' })
 
-      // Línea dorada inferior del header
-      doc.setFillColor(...C_GOLD)
-      doc.rect(0, HDR_H - 0.8, PW, 0.8, 'F')
+      // Línea inferior del header — negra sólida
+      doc.setDrawColor(...C_BLACK)
+      doc.setLineWidth(0.8)
+      doc.line(0, HDR_H, PW, HDR_H)
 
-      y = HDR_H + 3
+      y = HDR_H + 4
 
       // ── Bloque de filtros SOLO primera página ─────────────────
       if (isFirstPage) {
-        doc.setFillColor(240, 244, 252)
+        doc.setFillColor(...C_ALTROW)
         doc.rect(ML, y, TW, 7, 'F')
-        doc.setDrawColor(200, 210, 230)
-        doc.setLineWidth(0.15)
+        doc.setDrawColor(...C_LGREY)
+        doc.setLineWidth(0.2)
         doc.rect(ML, y, TW, 7, 'S')
 
         doc.setFont('helvetica', 'bold')
@@ -555,20 +521,17 @@ async function generarPDF() {
       }
 
       // ── Barra de encabezado del grupo ────────────────────────
-      doc.setFillColor(238, 240, 252)
+      doc.setFillColor(...C_DARK)
       doc.rect(ML, y, TW, 6, 'F')
-      doc.setFillColor(...C_PURPLE)
-      doc.rect(ML, y, 2, 6, 'F')
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(7.5)
-      doc.setTextColor(...C_DARK)
-      doc.text(`${grupo.cuenta}  -  ${grupo.cuenta_nombre}`, ML + 5, y + 4.1)
+      doc.setTextColor(...C_WHITE)
+      doc.text(`${grupo.cuenta}  —  ${grupo.cuenta_nombre}`, ML + 5, y + 4.1)
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6.5)
-      doc.setTextColor(...C_GREY)
-      // Alineado al ancho exacto de la tabla (ML + TW)
+      doc.setTextColor(180, 180, 180)
       doc.text(`${grupo.items.length} registros`, ML + TW, y + 4.1, { align: 'right' })
 
       y += 6
@@ -587,38 +550,38 @@ async function generarPDF() {
           { content: 'VALOR',      styles: { halign: 'right'  } },
         ]],
         body: grupo.items.map(g => [
-          { content: g.codigo,                                   styles: { halign: 'center', fontStyle: 'bold', textColor: C_PURPLE } },
+          { content: g.codigo,                                   styles: { halign: 'center', fontStyle: 'bold', textColor: C_DARK } },
           { content: fmtF(g.fecha),                              styles: { halign: 'center' } },
           { content: g.proveedor_nombre  || g.proveedor  || '-', styles: { halign: 'left'   } },
           { content: g.concepto          || '-',                 styles: { halign: 'left'   } },
           { content: g.forma_pago_nombre || g.forma_pago || '-', styles: { halign: 'center' } },
           { content: g.ccosto_nombre     || g.ccosto     || '-', styles: { halign: 'center' } },
-          { content: formatMoneda(g.total),                      styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: formatMoneda(g.total),                      styles: { halign: 'right', fontStyle: 'bold', textColor: C_BLACK } },
         ]),
         foot: [[
           { content: `SUBTOTAL  ${grupo.cuenta_nombre.toUpperCase()}`,
             colSpan: 6,
             styles: { halign: 'right', fontStyle: 'bold', fontSize: 6.5,
-                      fillColor: C_ACCENT, textColor: C_DARK, cellPadding: cellPad }
+                      fillColor: C_SUBTOT, textColor: C_DARK, cellPadding: cellPad }
           },
           { content: formatMoneda(grupo.subtotal),
             styles: { halign: 'right', fontStyle: 'bold', fontSize: 6.5,
-                      fillColor: C_ACCENT, textColor: C_PURPLE, cellPadding: cellPad }
+                      fillColor: C_SUBTOT, textColor: C_BLACK, cellPadding: cellPad }
           },
         ]],
         showFoot: 'lastPage',
         headStyles: {
-          fillColor: [45, 45, 65],
-          textColor: [190, 195, 220],
+          fillColor: C_DARK,
+          textColor: C_WHITE,
           fontStyle: 'bold',
           fontSize: 6,
           cellPadding: { top: 2, right: 2.5, bottom: 2, left: 2.5 },
         },
         bodyStyles: { fontSize: 6.5, textColor: C_DARK, cellPadding: cellPad },
-        alternateRowStyles: { fillColor: C_LIGHT },
+        alternateRowStyles: { fillColor: C_ALTROW },
         columnStyles: colStyles,
-        tableLineColor: [215, 215, 232],
-        tableLineWidth: 0.1,
+        tableLineColor: C_LGREY,
+        tableLineWidth: 0.15,
         didDrawPage: (data) => {
           ensureHeader()   // Header en páginas creadas por autoTable
           drawFooter()
@@ -636,16 +599,14 @@ async function generarPDF() {
       headerPages.add(doc.internal.getCurrentPageInfo().pageNumber)
     }
 
-    doc.setFillColor(...C_DARK)
+    doc.setFillColor(...C_BLACK)
     doc.rect(ML, y, TW, 8, 'F')
-    doc.setFillColor(...C_PURPLE)
-    doc.rect(ML, y, 2, 8, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8)
     doc.setTextColor(...C_WHITE)
     doc.text('TOTAL GENERAL', ML + 5, y + 5.3)
     doc.setFontSize(9)
-    doc.setTextColor(...C_GREEN)
+    doc.setTextColor(...C_WHITE)
     doc.text(formatMoneda(totalGeneral.value), ML + TW, y + 5.3, { align: 'right' })
 
     // ── RESUMEN POR CUENTA CONTABLE ───────────────────────────────
@@ -673,18 +634,18 @@ async function generarPDF() {
           { content: g.items.length,        styles: { halign: 'center' } },
           { content: formatMoneda(g.subtotal), styles: { halign: 'right', fontStyle: 'bold' } },
         ]),
-        headStyles: { fillColor: [45, 45, 65], textColor: [190, 195, 220], fontSize: 6,
+        headStyles: { fillColor: C_DARK, textColor: C_WHITE, fontSize: 6,
                       cellPadding: { top: 2, right: 2.5, bottom: 2, left: 2.5 } },
         bodyStyles: { fontSize: 6.5, textColor: C_DARK, cellPadding: cellPad },
-        alternateRowStyles: { fillColor: C_LIGHT },
+        alternateRowStyles: { fillColor: C_ALTROW },
         columnStyles: {
           0: { cellWidth: 22 },
           1: { cellWidth: 'auto' },
           2: { cellWidth: 20, halign: 'center' },
           3: { cellWidth: 32, halign: 'right' },
         },
-        tableLineColor: [215, 215, 232],
-        tableLineWidth: 0.1,
+        tableLineColor: C_LGREY,
+        tableLineWidth: 0.15,
         didDrawPage: () => { ensureHeader(); drawFooter() },
       })
     }
