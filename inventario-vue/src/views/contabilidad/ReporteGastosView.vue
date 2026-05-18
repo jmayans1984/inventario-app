@@ -349,148 +349,174 @@ async function generarPDF() {
 
   try {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-    const PW = doc.internal.pageSize.getWidth()   // 279mm
-    const PH = doc.internal.pageSize.getHeight()  // 216mm
-    const ML = 8   // margin left
-    const MR = 8   // margin right
-    const TW = PW - ML - MR  // usable width
+    const PW  = doc.internal.pageSize.getWidth()   // 279mm
+    const PH  = doc.internal.pageSize.getHeight()  // 216mm
+    const ML  = 8
+    const MR  = 8
+    const TW  = PW - ML - MR   // 263mm
+
+    // ── Constantes de diseño ──────────────────────────────────────
+    const HDR_H  = 19   // altura del header (compacto)
+    const FTR_H  = 8    // espacio reservado para pie de página
 
     // ── Paleta ───────────────────────────────────────────────────
-    const C_PURPLE  = [102, 126, 234]
-    const C_VIOLET  = [80,  50, 140]
-    const C_DARK    = [28,  28,  42]
-    const C_GREY    = [110, 110, 130]
-    const C_LIGHT   = [248, 248, 252]
-    const C_WHITE   = [255, 255, 255]
-    const C_ACCENT  = [235, 235, 250]
-    const C_GREEN   = [80,  200, 140]
+    const C_PURPLE = [102, 126, 234]
+    const C_VIOLET = [80,  50,  140]
+    const C_DARK   = [28,  28,   42]
+    const C_GREY   = [110, 110, 130]
+    const C_LIGHT  = [248, 248, 252]
+    const C_WHITE  = [255, 255, 255]
+    const C_ACCENT = [235, 235, 250]
+    const C_GREEN  = [80,  200, 140]
 
-    // ── Datos empresa ─────────────────────────────────────────────
-    const emp = empresaInfo.value
-    const empNombre   = (emp.nombre   || auth.empresaNombre || 'EMPRESA').toUpperCase()
-    const empDir      = emp.direccion || emp.dir || ''
-    const empTel      = emp.telefono1 || emp.telefono || emp.tel || ''
+    // ── Datos empresa y usuario ───────────────────────────────────
+    const emp       = empresaInfo.value
+    const empNombre = (emp.nombre    || auth.empresaNombre || 'EMPRESA').toUpperCase()
+    const empDir    = emp.direccion  || emp.dir || ''
+    const empTel    = emp.telefono1  || emp.telefono || emp.tel || ''
+
+    const usuario   = auth.userNombre || auth.userName || 'Usuario'
+
+    // ── Helper: formato fecha MM/DD/AAAA ─────────────────────────
+    function fmtF(isoStr) {
+      const d = (isoStr || '').split('T')[0]
+      const p = d.split('-')
+      return p.length === 3 ? `${p[1]}/${p[2]}/${p[0]}` : d
+    }
+
+    // ── Helper: fecha+hora actual MM/DD/AAAA HH:MM ───────────────
+    const ahora = new Date()
+    const fechaHoraGen = `${String(ahora.getMonth()+1).padStart(2,'0')}/${String(ahora.getDate()).padStart(2,'0')}/${ahora.getFullYear()} ${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`
+
+    // ── Placeholder para total de páginas ─────────────────────────
+    const TOTAL_PGS = '{total_pages_count_string}'
 
     let y = 0
 
-    // ── Función: pie de página ────────────────────────────────────
+    // ── PIE DE PÁGINA ─────────────────────────────────────────────
     function drawFooter() {
       const pg = doc.internal.getCurrentPageInfo().pageNumber
-      const total = doc.internal.getNumberOfPages()
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6)
       doc.setTextColor(...C_GREY)
-      doc.setDrawColor(...C_GREY)
+      doc.setDrawColor(200, 200, 215)
       doc.setLineWidth(0.2)
-      doc.line(ML, PH - 7, PW - MR, PH - 7)
-      doc.text(`${empNombre}  |  Reporte de Gastos`, ML, PH - 4)
-      doc.text(`Pagina ${pg} de ${total}`, PW - MR, PH - 4, { align: 'right' })
+      doc.line(ML, PH - FTR_H + 1, PW - MR, PH - FTR_H + 1)
+      doc.text(`Informe generado por ${usuario} el ${fechaHoraGen}`, ML, PH - FTR_H + 4.5)
+      doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, PW - MR, PH - FTR_H + 4.5, { align: 'right' })
     }
 
-    // ── Función: encabezado de página ────────────────────────────
+    // ── ENCABEZADO DE PÁGINA (compacto, HDR_H = 19mm) ────────────
+    // Se llama en primera página y en todas las páginas nuevas.
     function drawHeader(isFirstPage = false) {
-      // Barra izquierda de acento
-      doc.setFillColor(...C_PURPLE)
-      doc.rect(0, 0, 3, PH, 'F')
-
-      // Fondo del header
+      // Fondo oscuro izquierda
       doc.setFillColor(...C_DARK)
-      doc.rect(0, 0, PW, 22, 'F')
-
-      // Franja decorativa derecha
+      doc.rect(0, 0, PW - 80, HDR_H, 'F')
+      // Franja violeta derecha
       doc.setFillColor(...C_VIOLET)
-      doc.rect(PW - 80, 0, 80, 22, 'F')
+      doc.rect(PW - 80, 0, 80, HDR_H, 'F')
+      // Barra de acento izquierda
+      doc.setFillColor(...C_PURPLE)
+      doc.rect(0, 0, 3, HDR_H, 'F')
 
-      // ── Nombre de empresa (izquierda) ─────────────────────────
+      // Empresa — nombre
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
+      doc.setFontSize(10)
       doc.setTextColor(...C_WHITE)
-      doc.text(empNombre, ML + 3, 9)
+      doc.text(empNombre, ML + 3, 7)
 
-      // Dirección + teléfono
+      // Empresa — dirección + teléfono en una línea
       const contactLine = [empDir, empTel].filter(Boolean).join('   |   ')
-      if (contactLine) {
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(6.5)
-        doc.setTextColor(180, 185, 220)
-        doc.text(contactLine, ML + 3, 15)
-      }
-
-      // ── Título del reporte (derecha) ──────────────────────────
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
-      doc.setTextColor(...C_WHITE)
-      doc.text('REPORTE DE GASTOS', PW - MR - 3, 8, { align: 'right' })
-
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.5)
-      doc.setTextColor(180, 185, 220)
-      const fi = filtros.value.fechaInicial
-      const ff = filtros.value.fechaFinal
-      doc.text(`Periodo: ${fi}  al  ${ff}`, PW - MR - 3, 14, { align: 'right' })
+      doc.setFontSize(6)
+      doc.setTextColor(175, 180, 215)
+      if (contactLine) doc.text(contactLine, ML + 3, 12)
 
-      const hoy2 = new Date()
-      const fechaEmision = `${String(hoy2.getDate()).padStart(2,'0')}/${String(hoy2.getMonth()+1).padStart(2,'0')}/${hoy2.getFullYear()}`
-      doc.text(`Emitido: ${fechaEmision}`, PW - MR - 3, 19, { align: 'right' })
+      // Título del reporte (derecha)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8.5)
+      doc.setTextColor(...C_WHITE)
+      doc.text('REPORTE DE GASTOS', PW - MR - 3, 7, { align: 'right' })
 
-      // Línea separadora
+      // Período
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6)
+      doc.setTextColor(175, 180, 215)
+      doc.text(`Periodo: ${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`, PW - MR - 3, 12, { align: 'right' })
+      doc.text(`Emitido: ${fechaHoraGen}`, PW - MR - 3, 16.5, { align: 'right' })
+
+      // Línea separadora inferior del header
       doc.setDrawColor(...C_PURPLE)
-      doc.setLineWidth(0.4)
-      doc.line(0, 22, PW, 22)
+      doc.setLineWidth(0.5)
+      doc.line(0, HDR_H, PW, HDR_H)
 
-      y = 25
+      y = HDR_H + 3
 
-      // ── Primera página: bloque de filtros ────────────────────
+      // Bloque de filtros SOLO en la primera página
       if (isFirstPage) {
         doc.setFillColor(...C_LIGHT)
-        doc.rect(ML, y, TW, 8, 'F')
+        doc.rect(ML, y, TW, 7, 'F')
         doc.setDrawColor(210, 210, 230)
         doc.setLineWidth(0.15)
-        doc.rect(ML, y, TW, 8, 'S')
+        doc.rect(ML, y, TW, 7, 'S')
 
         doc.setFont('helvetica', 'bold')
-        doc.setFontSize(5.5)
+        doc.setFontSize(5)
         doc.setTextColor(...C_GREY)
-        doc.text('FILTROS APLICADOS', ML + 2, y + 3)
+        doc.text('FILTROS APLICADOS', ML + 2, y + 2.8)
 
         doc.setFont('helvetica', 'normal')
-        doc.setFontSize(6.5)
+        doc.setFontSize(6)
         doc.setTextColor(...C_DARK)
         const cw = TW / 3
-        doc.text(`Proveedor: ${filtroProveedorLabel()}`,    ML + 2,       y + 6.5)
-        doc.text(`Banco: ${filtroBancoLabel()}`,            ML + 2 + cw,  y + 6.5)
-        doc.text(`Cuenta: ${filtroCuentaLabel()}`,          ML + 2 + cw*2, y + 6.5)
-
-        y += 11
+        doc.text(`Proveedor: ${filtroProveedorLabel()}`,    ML + 2,        y + 5.5)
+        doc.text(`Banco: ${filtroBancoLabel()}`,            ML + 2 + cw,   y + 5.5)
+        doc.text(`Cuenta: ${filtroCuentaLabel()}`,          ML + 2 + cw*2, y + 5.5)
+        y += 9
       }
     }
 
-    // ── Dibujar primera página ────────────────────────────────────
-    drawHeader(true)
+    // ── SET de páginas donde ya se dibujó el header ───────────────
+    const headerPages = new Set()
 
-    // ── Columnas de la tabla de datos ────────────────────────────
+    function ensureHeader() {
+      const pg = doc.internal.getCurrentPageInfo().pageNumber
+      if (!headerPages.has(pg)) {
+        drawHeader(false)
+        headerPages.add(pg)
+      }
+    }
+
+    // ── PÁGINA 1: header con filtros ──────────────────────────────
+    drawHeader(true)
+    headerPages.add(1)
+
+    // ── Configuración de celdas ───────────────────────────────────
+    // Columnas: suman exactamente TW = 263mm
     const colStyles = {
       0: { cellWidth: 22, halign: 'center' },   // CODIGO
       1: { cellWidth: 18, halign: 'center' },   // FECHA
       2: { cellWidth: 48, halign: 'left'   },   // PROVEEDOR
-      3: { cellWidth: 60, halign: 'left'   },   // CONCEPTO
+      3: { cellWidth: 70, halign: 'left'   },   // CONCEPTO
       4: { cellWidth: 42, halign: 'center' },   // FORMA PAGO
       5: { cellWidth: 36, halign: 'center' },   // C.COSTO
       6: { cellWidth: 27, halign: 'right'  },   // VALOR
-    }
+    }                                            // Total: 263 ✓
     const cellPad = { top: 1.5, right: 2.5, bottom: 1.5, left: 2.5 }
 
-    // ── Iterar grupos ─────────────────────────────────────────────
+    // ── ITERAR GRUPOS ─────────────────────────────────────────────
     for (let gi = 0; gi < grupos.value.length; gi++) {
       const grupo = grupos.value[gi]
 
-      if (y > PH - 30) {
+      // Si no hay espacio (< 28mm) para barra de grupo + cabecera de tabla + 1 fila
+      if (y > PH - FTR_H - 28) {
         drawFooter()
         doc.addPage()
         drawHeader(false)
+        headerPages.add(doc.internal.getCurrentPageInfo().pageNumber)
       }
 
-      // ── Barra de grupo: fondo con borde izquierdo de acento ──
+      // ── Barra de encabezado del grupo ────────────────────────
       doc.setFillColor(238, 240, 252)
       doc.rect(ML, y, TW, 6, 'F')
       doc.setFillColor(...C_PURPLE)
@@ -499,19 +525,20 @@ async function generarPDF() {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(7.5)
       doc.setTextColor(...C_DARK)
-      doc.text(`${grupo.cuenta}  -  ${grupo.cuenta_nombre}`, ML + 5, y + 4.2)
+      doc.text(`${grupo.cuenta}  -  ${grupo.cuenta_nombre}`, ML + 5, y + 4.1)
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6.5)
       doc.setTextColor(...C_GREY)
-      doc.text(`${grupo.items.length} registros`, PW - MR, y + 4.2, { align: 'right' })
+      // Alineado al ancho exacto de la tabla (ML + TW)
+      doc.text(`${grupo.items.length} registros`, ML + TW, y + 4.1, { align: 'right' })
 
-      y += 7
+      y += 6
 
       // ── Tabla del grupo ──────────────────────────────────────
       autoTable(doc, {
         startY: y,
-        margin: { left: ML, right: MR },
+        margin: { left: ML, right: MR, top: HDR_H + 3, bottom: FTR_H + 2 },
         head: [[
           { content: 'CODIGO',     styles: { halign: 'center' } },
           { content: 'FECHA',      styles: { halign: 'center' } },
@@ -523,7 +550,7 @@ async function generarPDF() {
         ]],
         body: grupo.items.map(g => [
           { content: g.codigo,                                   styles: { halign: 'center', fontStyle: 'bold', textColor: C_PURPLE } },
-          { content: (g.fecha || '').split('T')[0],              styles: { halign: 'center' } },
+          { content: fmtF(g.fecha),                              styles: { halign: 'center' } },
           { content: g.proveedor_nombre  || g.proveedor  || '-', styles: { halign: 'left'   } },
           { content: g.concepto          || '-',                 styles: { halign: 'left'   } },
           { content: g.forma_pago_nombre || g.forma_pago || '-', styles: { halign: 'center' } },
@@ -531,14 +558,12 @@ async function generarPDF() {
           { content: formatMoneda(g.total),                      styles: { halign: 'right', fontStyle: 'bold' } },
         ]),
         foot: [[
-          {
-            content: `SUBTOTAL  ${grupo.cuenta_nombre.toUpperCase()}`,
+          { content: `SUBTOTAL  ${grupo.cuenta_nombre.toUpperCase()}`,
             colSpan: 6,
             styles: { halign: 'right', fontStyle: 'bold', fontSize: 6.5,
                       fillColor: C_ACCENT, textColor: C_DARK, cellPadding: cellPad }
           },
-          {
-            content: formatMoneda(grupo.subtotal),
+          { content: formatMoneda(grupo.subtotal),
             styles: { halign: 'right', fontStyle: 'bold', fontSize: 6.5,
                       fillColor: C_ACCENT, textColor: C_PURPLE, cellPadding: cellPad }
           },
@@ -556,41 +581,44 @@ async function generarPDF() {
         columnStyles: colStyles,
         tableLineColor: [215, 215, 232],
         tableLineWidth: 0.1,
-        didDrawPage: () => { drawFooter() },
+        didDrawPage: (data) => {
+          ensureHeader()   // Header en páginas creadas por autoTable
+          drawFooter()
+        },
       })
 
       y = doc.lastAutoTable.finalY + 5
     }
 
     // ── TOTAL GENERAL ─────────────────────────────────────────────
-    if (y > PH - 18) {
+    if (y > PH - FTR_H - 18) {
       drawFooter()
       doc.addPage()
       drawHeader(false)
+      headerPages.add(doc.internal.getCurrentPageInfo().pageNumber)
     }
 
     doc.setFillColor(...C_DARK)
     doc.rect(ML, y, TW, 8, 'F')
     doc.setFillColor(...C_PURPLE)
     doc.rect(ML, y, 2, 8, 'F')
-
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8)
     doc.setTextColor(...C_WHITE)
     doc.text('TOTAL GENERAL', ML + 5, y + 5.3)
     doc.setFontSize(9)
     doc.setTextColor(...C_GREEN)
-    doc.text(formatMoneda(totalGeneral.value), PW - MR, y + 5.3, { align: 'right' })
+    doc.text(formatMoneda(totalGeneral.value), ML + TW, y + 5.3, { align: 'right' })
 
     // ── RESUMEN POR CUENTA CONTABLE ───────────────────────────────
     if (grupos.value.length > 1) {
       y += 12
-      if (y > PH - 30) {
+      if (y > PH - FTR_H - 30) {
         drawFooter()
         doc.addPage()
         drawHeader(false)
+        headerPages.add(doc.internal.getCurrentPageInfo().pageNumber)
       }
-
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(6.5)
       doc.setTextColor(...C_GREY)
@@ -599,7 +627,7 @@ async function generarPDF() {
 
       autoTable(doc, {
         startY: y,
-        margin: { left: ML, right: MR },
+        margin: { left: ML, right: MR, top: HDR_H + 3, bottom: FTR_H + 2 },
         head: [['CUENTA', 'DESCRIPCION', 'REGISTROS', 'SUBTOTAL']],
         body: grupos.value.map(g => [
           { content: g.cuenta,              styles: { fontStyle: 'bold', textColor: C_PURPLE } },
@@ -619,11 +647,13 @@ async function generarPDF() {
         },
         tableLineColor: [215, 215, 232],
         tableLineWidth: 0.1,
-        didDrawPage: () => { drawFooter() },
+        didDrawPage: () => { ensureHeader(); drawFooter() },
       })
     }
 
+    // ── Reemplazar placeholder de total páginas y guardar ─────────
     drawFooter()
+    doc.putTotalPages(TOTAL_PGS)
     doc.save(`Reporte_Gastos_${filtros.value.fechaInicial}_${filtros.value.fechaFinal}.pdf`)
 
   } catch (err) {
