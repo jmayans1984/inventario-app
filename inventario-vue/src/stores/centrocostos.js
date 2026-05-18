@@ -178,20 +178,42 @@ export const useCentroCostosStore = defineStore('centrocostos', () => {
     const empresa = authStore.empresa
 
     const datos = [
-      { codigo: 'ADM', nombre: 'Administración',        empresa, square_location_id: '' },
-      { codigo: 'VEN', nombre: 'Ventas',                empresa, square_location_id: '' },
-      { codigo: 'PRO', nombre: 'Producción',            empresa, square_location_id: '' },
-      { codigo: 'LOG', nombre: 'Logística',             empresa, square_location_id: '' },
-      { codigo: 'MKT', nombre: 'Marketing',             empresa, square_location_id: '' },
-      { codigo: 'RRH', nombre: 'Recursos Humanos',      empresa, square_location_id: '' },
-      { codigo: 'TIC', nombre: 'Tecnología',            empresa, square_location_id: '' },
-      { codigo: 'FIN', nombre: 'Finanzas',              empresa, square_location_id: '' },
+      { codigo: '001', nombre: 'ADMINISTRACIÓN',        empresa, square_location_id: '' },
+      { codigo: '002', nombre: 'VENTAS',                empresa, square_location_id: '' },
+      { codigo: '003', nombre: 'PRODUCCIÓN',            empresa, square_location_id: '' },
+      { codigo: '004', nombre: 'LOGÍSTICA',             empresa, square_location_id: '' },
+      { codigo: '005', nombre: 'MARKETING',             empresa, square_location_id: '' },
+      { codigo: '006', nombre: 'RECURSOS HUMANOS',      empresa, square_location_id: '' },
+      { codigo: '007', nombre: 'TECNOLOGÍA',            empresa, square_location_id: '' },
+      { codigo: '008', nombre: 'FINANZAS',              empresa, square_location_id: '' },
     ]
 
     centrosCostos.value = datos
     total.value = datos.length
     guardarEnCache()
     error.value = null
+  }
+
+  async function getProximoCodigo() {
+    try {
+      const authStore = useAuthStore()
+      const empresa = authStore.empresa
+      const response = await centroCostosService.getCentrosCostos({ empresa, limit: 200 })
+      const lista = Array.isArray(response) ? response : response?.data || centrosCostos.value
+      let maxNum = 0
+      lista.forEach(c => {
+        const n = parseInt(c.codigo) || 0
+        if (n > maxNum) maxNum = n
+      })
+      return String(maxNum + 1).padStart(3, '0')
+    } catch {
+      let maxNum = 0
+      centrosCostos.value.forEach(c => {
+        const n = parseInt(c.codigo) || 0
+        if (n > maxNum) maxNum = n
+      })
+      return String(maxNum + 1).padStart(3, '0')
+    }
   }
 
   // ─── COMPUTED ────────────────────────────────────────
@@ -209,6 +231,7 @@ export const useCentroCostosStore = defineStore('centrocostos', () => {
     filters,
 
     fetchCentrosCostos,
+    getProximoCodigo,
     crearCentroCostos,
     actualizarCentroCostos,
     eliminarCentroCostos,

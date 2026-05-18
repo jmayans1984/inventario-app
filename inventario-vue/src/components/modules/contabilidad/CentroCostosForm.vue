@@ -52,26 +52,11 @@
                 variant="outlined"
                 density="comfortable"
                 :rules="reglaNombre"
-                placeholder="Ej: Administración"
+                placeholder="Ej: ADMINISTRACIÓN"
                 maxlength="30"
                 counter="30"
                 class="mb-1"
-              />
-            </v-col>
-
-            <!-- SQUARE LOCATION ID -->
-            <v-col cols="12">
-              <v-text-field
-                v-model="form.square_location_id"
-                label="Square Location ID"
-                variant="outlined"
-                density="comfortable"
-                placeholder="Opcional - ID de ubicación en Square"
-                maxlength="100"
-                prepend-inner-icon="mdi-identifier"
-                hint="Integración con sistema Square (opcional)"
-                persistent-hint
-                clearable
+                @input="form.nombre = form.nombre.toUpperCase()"
               />
             </v-col>
 
@@ -138,17 +123,19 @@ const form = ref(formVacio())
 const esEdicion = computed(() => !!props.centroCostos?.codigo)
 
 // Sincronizar cuando se abre el modal
-watch(() => props.open, (val) => {
+watch(() => props.open, async (val) => {
   if (val) {
     errorMsg.value = ''
     if (props.centroCostos) {
       form.value = {
         codigo: props.centroCostos.codigo || '',
-        nombre: props.centroCostos.nombre || '',
+        nombre: (props.centroCostos.nombre || '').toUpperCase(),
         square_location_id: props.centroCostos.square_location_id || '',
       }
     } else {
       form.value = formVacio()
+      // Auto-generar código para crear
+      form.value.codigo = await store.getProximoCodigo()
     }
   }
 })
