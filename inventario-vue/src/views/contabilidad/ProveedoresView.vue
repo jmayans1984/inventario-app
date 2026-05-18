@@ -133,8 +133,13 @@ function handleEditar(proveedor) {
 }
 
 async function handleGuardarProveedor() {
-  // Recargar lista para reflejar cambios
-  await store.fetchProveedores()
+  try {
+    // Recargar lista para reflejar cambios
+    await store.fetchProveedores()
+  } catch (error) {
+    console.error('Error recargando proveedores:', error)
+    // Aunque hay error, la lista local debería estar actualizada del store
+  }
 }
 
 async function cargarDatos() {

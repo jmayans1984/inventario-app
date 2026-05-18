@@ -342,7 +342,7 @@ export const useProveedoresStore = defineStore('proveedores', () => {
         const n = parseInt(p.codigo) || 0
         if (n > maxNum) maxNum = n
       })
-      return String(maxNum + 1).padStart(3, '0')
+      return String(maxNum + 1).padStart(10, '0')
     } catch {
       // Calcular desde los proveedores ya cargados
       let maxNum = 0
@@ -350,7 +350,7 @@ export const useProveedoresStore = defineStore('proveedores', () => {
         const n = parseInt(p.codigo) || 0
         if (n > maxNum) maxNum = n
       })
-      return String(maxNum + 1).padStart(3, '0')
+      return String(maxNum + 1).padStart(10, '0')
     }
   }
 

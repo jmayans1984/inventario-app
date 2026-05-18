@@ -2359,6 +2359,8 @@ app.put('/api/contabilidad/proveedores/:codigo', async (req, res) => {
             });
         }
 
+        console.log('[PUT proveedores] Actualizando:', { codigo, nombre, direccion, telefono1, departamen, empresa });
+
         const query = `
             UPDATE proveedores
             SET
@@ -2379,7 +2381,10 @@ app.put('/api/contabilidad/proveedores/:codigo', async (req, res) => {
             empresa
         ]);
 
+        console.log('[PUT proveedores] Resultado:', { rowCount: result.rowCount, returned: result.rows[0] });
+
         if (result.rows.length === 0) {
+            console.warn('[PUT proveedores] No encontrado:', { codigo, empresa });
             return res.status(404).json({
                 success: false,
                 error: 'Proveedor no encontrado'
