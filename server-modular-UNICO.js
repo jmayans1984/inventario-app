@@ -2716,7 +2716,7 @@ app.patch('/api/contabilidad/cuentas-bancarias/:codigo/estado', async (req, res)
 app.get('/api/contabilidad/grupos-gastos', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT codigo, nombre FROM grupos_gastos ORDER BY codigo ASC`
+            `SELECT codigo, nombre FROM grupo_gastos ORDER BY codigo ASC`
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {
