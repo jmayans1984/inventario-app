@@ -3237,7 +3237,11 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
 
         await client.query('BEGIN');
 
-        // 1. Obtener próximo código (10 dígitos)
+        // 1. Bloquear la tabla para evitar códigos duplicados entre usuarios concurrentes
+        //    SHARE ROW EXCLUSIVE impide que otra transacción haga INSERT simultáneo
+        await client.query('LOCK TABLE gastos IN SHARE ROW EXCLUSIVE MODE');
+
+        // 2. Obtener próximo código (10 dígitos) — seguro porque la tabla está bloqueada
         const codigoRes = await client.query(
             'SELECT MAX(CAST(codigo AS INTEGER)) as max_codigo FROM gastos WHERE empresa = $1',
             [empresa]

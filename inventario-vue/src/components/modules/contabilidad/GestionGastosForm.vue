@@ -26,16 +26,17 @@
         <v-form ref="formRef" @submit.prevent="handleSubmit">
           <v-row dense>
 
-            <!-- CÓDIGO (READ-ONLY) -->
+            <!-- CÓDIGO -->
             <v-col cols="12" sm="3">
               <v-text-field
-                v-model="form.codigo"
-                label="Código *"
+                :model-value="esEdicion ? form.codigo : 'AUTO'"
+                :label="esEdicion ? 'Código' : 'Código'"
                 variant="outlined"
                 density="comfortable"
                 :disabled="true"
-                hint="Auto-generado"
+                :hint="esEdicion ? `Código: ${form.codigo}` : 'Se asigna al guardar'"
                 persistent-hint
+                :placeholder="esEdicion ? '' : 'Automático'"
               />
             </v-col>
 
@@ -324,9 +325,9 @@ watch(() => props.open, async (val) => {
         total: props.gasto.total || 0,
       }
     } else {
+      // No pre-generar el código — se asigna en el servidor al guardar
+      // Esto evita que múltiples usuarios vean el mismo código
       form.value = formVacio()
-      // Auto-generar código
-      form.value.codigo = await store.getProximoCodigo()
     }
   }
 })
