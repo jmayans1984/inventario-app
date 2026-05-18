@@ -3454,17 +3454,17 @@ app.get('/api/contabilidad/gastos/export/excel', async (req, res) => {
 
         if (search) {
             params.push(`%${search}%`);
-            where += ` AND (g.codigo ILIKE $${params.length} OR g.numero_factura ILIKE $${params.length} OR p.nombre ILIKE $${params.length})`;
+            where += ` AND (g.codigo ILIKE $${params.length} OR g.factura ILIKE $${params.length} OR p.nombre ILIKE $${params.length})`;
         }
 
         const result = await pool.query(
-            `SELECT g.codigo, g.fecha, g.numero_factura, p.nombre as proveedor,
+            `SELECT g.codigo, g.fecha, g.factura, p.nombre as proveedor,
                     cc.nombre as centro_costos, g.forma_pago,
-                    c.nombre as cuenta_contable, g.concepto, g.valor_base, g.impuestos, g.total
+                    cta.nombre as cuenta_contable, g.concepto, g.subtotal, g.impuestos, g.total
              FROM gastos g
-             LEFT JOIN proveedores p ON g.proveedor_id = p.id
-             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
-             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
+             LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             LEFT JOIN cuentas_contables cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
              ${where}
              ORDER BY g.fecha DESC`,
             params
@@ -3500,7 +3500,7 @@ app.get('/api/contabilidad/gastos/debug', async (req, res) => {
 
         // Obtener algunos datos de ejemplo
         const ejemplos = await pool.query(
-            'SELECT codigo, fecha, proveedor_id, empresa FROM gastos ORDER BY fecha DESC LIMIT 5'
+            'SELECT codigo, fecha, proveedor, empresa FROM gastos ORDER BY fecha DESC LIMIT 5'
         );
 
         res.json({
