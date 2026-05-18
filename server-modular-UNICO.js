@@ -2784,21 +2784,21 @@ app.get('/api/contabilidad/cuentas-contables', async (req, res) => {
 
         if (estado && estado !== 'TODOS') {
             params.push(estado);
-            where += ` AND estado = $${params.length}`;
+            where += ` AND contable = $${params.length}`;
         }
         if (search) {
             params.push(`%${search}%`);
-            where += ` AND (codigo ILIKE $${params.length} OR nombre ILIKE $${params.length} OR grupo_gastos_codigo ILIKE $${params.length})`;
+            where += ` AND (codigo ILIKE $${params.length} OR cuenta ILIKE $${params.length} OR grupo ILIKE $${params.length})`;
         }
 
-        const countRes = await pool.query(`SELECT COUNT(*) FROM cuentas_contables ${where}`, params);
+        const countRes = await pool.query(`SELECT COUNT(*) FROM cuentas ${where}`, params);
         const total    = parseInt(countRes.rows[0].count);
 
         params.push(limit, offset);
         const dataRes = await pool.query(
-            `SELECT codigo, nombre, grupo_gastos_codigo, estado, empresa, iva_descontable
-             FROM cuentas_contables ${where}
-             ORDER BY ${sortBy} ${sortOrd}
+            `SELECT codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable
+             FROM cuentas ${where}
+             ORDER BY ${sortBy === 'nombre' ? 'cuenta' : sortBy === 'grupo_gastos_codigo' ? 'grupo' : sortBy === 'estado' ? 'contable' : 'codigo'} ${sortOrd}
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
             params
         );
@@ -2816,8 +2816,8 @@ app.get('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
         const { codigo } = req.params;
         const empresa = req.query.empresa || req.headers['x-empresa'];
         const result = await pool.query(
-            `SELECT codigo, nombre, grupo_gastos_codigo, estado, empresa, iva_descontable
-             FROM cuentas_contables WHERE codigo = $1 AND empresa = $2`,
+            `SELECT codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable
+             FROM cuentas WHERE codigo = $1 AND empresa = $2`,
             [codigo, empresa]
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
@@ -2834,12 +2834,12 @@ app.post('/api/contabilidad/cuentas-contables', async (req, res) => {
         if (!codigo || !nombre || !grupo_gastos_codigo || !empresa) {
             return res.status(400).json({ success: false, error: 'codigo, nombre, grupo_gastos_codigo y empresa son requeridos' });
         }
-        const existe = await pool.query('SELECT codigo FROM cuentas_contables WHERE codigo = $1 AND empresa = $2', [codigo, empresa]);
+        const existe = await pool.query('SELECT codigo FROM cuentas WHERE codigo = $1 AND empresa = $2', [codigo, empresa]);
         if (existe.rows.length) return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
 
         const result = await pool.query(
-            `INSERT INTO cuentas_contables (codigo, nombre, grupo_gastos_codigo, empresa, estado, iva_descontable)
-             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            `INSERT INTO cuentas (codigo, cuenta, grupo, empresa, contable, iva_descontable)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable`,
             [codigo, nombre.trim(), grupo_gastos_codigo, empresa, 'ACTIVA', null]
         );
         res.status(201).json({ success: true, data: result.rows[0] });
@@ -2855,9 +2855,9 @@ app.put('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
         const { codigo } = req.params;
         const { nombre, grupo_gastos_codigo, empresa, estado } = req.body;
         const result = await pool.query(
-            `UPDATE cuentas_contables
-             SET nombre=$1, grupo_gastos_codigo=$2, estado=$3
-             WHERE codigo=$4 AND empresa=$5 RETURNING *`,
+            `UPDATE cuentas
+             SET cuenta=$1, grupo=$2, contable=$3
+             WHERE codigo=$4 AND empresa=$5 RETURNING codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable`,
             [nombre, grupo_gastos_codigo, estado || 'ACTIVA', codigo, empresa]
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
@@ -2877,7 +2877,7 @@ app.patch('/api/contabilidad/cuentas-contables/:codigo/estado', async (req, res)
             return res.status(400).json({ success: false, error: 'estado debe ser ACTIVA o INACTIVA' });
         }
         const result = await pool.query(
-            `UPDATE cuentas_contables SET estado=$1 WHERE codigo=$2 AND empresa=$3 RETURNING *`,
+            `UPDATE cuentas SET contable=$1 WHERE codigo=$2 AND empresa=$3 RETURNING codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable`,
             [estado, codigo, empresa]
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
@@ -2893,7 +2893,7 @@ app.delete('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
         const { codigo } = req.params;
         const empresa = req.query.empresa || req.headers['x-empresa'];
         const result = await pool.query(
-            'DELETE FROM cuentas_contables WHERE codigo = $1 AND empresa = $2 RETURNING codigo',
+            'DELETE FROM cuentas WHERE codigo = $1 AND empresa = $2 RETURNING codigo',
             [codigo, empresa]
         );
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
@@ -2911,7 +2911,7 @@ app.post('/api/contabilidad/cuentas-contables/batch/eliminar', async (req, res) 
 
         const placeholders = codigos.map((_, i) => `$${i + 2}`).join(', ');
         await pool.query(
-            `DELETE FROM cuentas_contables WHERE empresa = $1 AND codigo IN (${placeholders})`,
+            `DELETE FROM cuentas WHERE empresa = $1 AND codigo IN (${placeholders})`,
             [empresa, ...codigos]
         );
         res.json({ success: true, message: `${codigos.length} cuentas contables eliminadas` });
