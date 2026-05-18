@@ -2379,16 +2379,16 @@ app.put('/api/contabilidad/proveedores/:codigo', async (req, res) => {
         const updateQuery = `
             UPDATE proveedores
             SET
-                nombre = $1,
-                direccion = $2,
-                telefono1 = $3,
-                departamen = $4
+                nombre = COALESCE($1, nombre),
+                direccion = COALESCE($2, direccion),
+                telefono1 = COALESCE($3, telefono1),
+                departamen = COALESCE($4, departamen)
             WHERE codigo = $5 AND empresa = $6
             RETURNING codigo, nombre, direccion, telefono1, departamen, empresa
         `;
 
         const result = await pool.query(updateQuery, [
-            nombre,
+            nombre || null,
             direccion || null,
             telefono1 || null,
             departamen || null,
