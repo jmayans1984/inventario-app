@@ -336,23 +336,30 @@ watch(() => props.open, async (val) => {
     searchProveedor.value = ''
     searchCentroCostos.value = ''
     searchCuenta.value = ''
-    if (props.gasto) {
-      form.value = {
-        codigo: props.gasto.codigo || '',
-        fecha: props.gasto.fecha || '',
-        factura: props.gasto.factura || '',
-        proveedor: props.gasto.proveedor || '',
-        ccosto: props.gasto.ccosto || '',
-        forma_pago: props.gasto.forma_pago || '',
-        cuenta: props.gasto.cuenta || '',
-        concepto: (props.gasto.concepto || '').toUpperCase(),
-        subtotal: parseFloat((props.gasto.subtotal || 0).toFixed(2)),
-        impuestos: parseFloat((props.gasto.impuestos || 0).toFixed(2)),
-        total: parseFloat((props.gasto.total || 0).toFixed(2)),
+    if (props.gasto?.codigo) {
+      // En modo edición: cargar datos frescos del servidor
+      try {
+        const gastoFresco = await gestionGastosService.getGasto(props.gasto.codigo)
+        const gasto = gastoFresco.data || gastoFresco
+        form.value = {
+          codigo: gasto.codigo || '',
+          fecha: gasto.fecha || '',
+          factura: gasto.factura || '',
+          proveedor: gasto.proveedor || '',
+          ccosto: gasto.ccosto || '',
+          forma_pago: gasto.forma_pago || '',
+          cuenta: gasto.cuenta || '',
+          concepto: (gasto.concepto || '').toUpperCase(),
+          subtotal: parseFloat((gasto.subtotal || 0).toFixed(2)),
+          impuestos: parseFloat((gasto.impuestos || 0).toFixed(2)),
+          total: parseFloat((gasto.total || 0).toFixed(2)),
+        }
+      } catch (err) {
+        console.error('Error cargando gasto:', err)
+        errorMsg.value = 'No se pudo cargar el gasto'
       }
     } else {
-      // No pre-generar el código — se asigna en el servidor al guardar
-      // Esto evita que múltiples usuarios vean el mismo código
+      // Modo creación: form vacío
       form.value = formVacio()
     }
   }
