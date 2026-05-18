@@ -3167,6 +3167,330 @@ app.get('/', (req, res) => {
 });
 
 // ================================================================
+// CONTABILIDAD - GESTIÓN DE GASTOS (CRUD) + MOVIBAN
+// ================================================================
+
+// GET /api/contabilidad/gastos - Listar gastos
+app.get('/api/contabilidad/gastos', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const search   = req.query.search || '';
+        const limit    = Math.min(parseInt(req.query.limit) || 50, 200);
+        const offset   = ((parseInt(req.query.page) || 1) - 1) * limit;
+
+        let where = 'WHERE g.empresa = $1';
+        const params = [empresa];
+
+        if (search) {
+            params.push(`%${search}%`);
+            where += ` AND (g.codigo ILIKE $${params.length} OR g.numero_factura ILIKE $${params.length} OR p.nombre ILIKE $${params.length})`;
+        }
+
+        const countRes = await pool.query(`SELECT COUNT(*) FROM gastos g ${where}`, params);
+        const total = parseInt(countRes.rows[0].count);
+
+        params.push(limit, offset);
+        const dataRes = await pool.query(
+            `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
+                    g.centro_costos_id, cc.nombre as centro_costos_nombre, g.forma_pago,
+                    g.cuenta_contable_id, c.nombre as cuenta_contable_nombre,
+                    g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
+             FROM gastos g
+             LEFT JOIN proveedores p ON g.proveedor_id = p.id
+             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
+             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
+             ${where}
+             ORDER BY g.fecha DESC
+             LIMIT $${params.length - 1} OFFSET $${params.length}`,
+            params
+        );
+
+        res.json({ success: true, data: dataRes.rows, total, page: parseInt(req.query.page) || 1, limit });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/gastos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/gastos - Crear gasto + registrar MOVIBAN
+app.post('/api/contabilidad/gastos', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { fecha, numero_factura, proveedor_id, centro_costos_id, forma_pago,
+                cuenta_contable_id, concepto, valor_base, impuestos, total, empresa } = req.body;
+
+        if (!fecha || !proveedor_id || !centro_costos_id || !forma_pago || !cuenta_contable_id || !concepto || !valor_base || !empresa) {
+            return res.status(400).json({ success: false, error: 'Campos requeridos faltantes' });
+        }
+
+        await client.query('BEGIN');
+
+        // 1. Obtener próximo código
+        const codigoRes = await client.query(
+            'SELECT MAX(CAST(codigo AS INTEGER)) as max_codigo FROM gastos WHERE empresa = $1',
+            [empresa]
+        );
+        const proximoCodigo = String((parseInt(codigoRes.rows[0].max_codigo) || 0) + 1).padStart(3, '0');
+
+        // 2. Insertar gasto
+        const gastoRes = await client.query(
+            `INSERT INTO gastos (codigo, fecha, numero_factura, proveedor_id, centro_costos_id,
+                                forma_pago, cuenta_contable_id, concepto, valor_base, impuestos, total, empresa)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             RETURNING *`,
+            [proximoCodigo, fecha, numero_factura || null, proveedor_id, centro_costos_id,
+             forma_pago, cuenta_contable_id, concepto.toUpperCase(), valor_base, impuestos || 0, total, empresa]
+        );
+
+        // 3. Crear entry en MOVIBAN (solo si forma_pago es CONTADO o si hay cuenta bancaria asociada)
+        if (forma_pago === 'CONTADO' && total > 0) {
+            // Aquí necesitamos saber qué cuenta bancaria usar
+            // Por ahora, registramos el movimiento del gasto
+            await client.query(
+                `INSERT INTO movimientos (fecha, tipo_movimiento, descripcion, valor, gasto_codigo, empresa)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [fecha, 'EGRESO', `Pago gasto: ${concepto}`, total, proximoCodigo, empresa]
+            );
+        }
+
+        await client.query('COMMIT');
+
+        res.status(201).json({ success: true, data: gastoRes.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/contabilidad/gastos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PUT /api/contabilidad/gastos/:codigo - Actualizar gasto
+app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { fecha, numero_factura, proveedor_id, centro_costos_id, forma_pago,
+                cuenta_contable_id, concepto, valor_base, impuestos, total, empresa } = req.body;
+
+        const result = await pool.query(
+            `UPDATE gastos
+             SET fecha=$1, numero_factura=$2, proveedor_id=$3, centro_costos_id=$4, forma_pago=$5,
+                 cuenta_contable_id=$6, concepto=$7, valor_base=$8, impuestos=$9, total=$10
+             WHERE codigo=$11 AND empresa=$12
+             RETURNING *`,
+            [fecha, numero_factura || null, proveedor_id, centro_costos_id, forma_pago,
+             cuenta_contable_id, concepto.toUpperCase(), valor_base, impuestos || 0, total, codigo, empresa]
+        );
+
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/contabilidad/gastos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/contabilidad/gastos/:codigo - Eliminar gasto
+app.delete('/api/contabilidad/gastos/:codigo', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { codigo } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+
+        await client.query('BEGIN');
+
+        // 1. Eliminar movimientos asociados
+        await client.query(
+            'DELETE FROM movimientos WHERE gasto_codigo = $1 AND empresa = $2',
+            [codigo, empresa]
+        );
+
+        // 2. Eliminar gasto
+        const result = await client.query(
+            'DELETE FROM gastos WHERE codigo = $1 AND empresa = $2 RETURNING codigo',
+            [codigo, empresa]
+        );
+
+        if (!result.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: `Gasto ${codigo} eliminado` });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error DELETE /api/contabilidad/gastos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// GET /api/contabilidad/gastos/:codigo - Obtener un gasto específico
+app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
+                    g.centro_costos_id, cc.nombre as centro_costos_nombre, g.forma_pago,
+                    g.cuenta_contable_id, c.nombre as cuenta_contable_nombre,
+                    g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
+             FROM gastos g
+             LEFT JOIN proveedores p ON g.proveedor_id = p.id
+             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
+             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
+             WHERE g.codigo = $1 AND g.empresa = $2`,
+            [codigo, empresa]
+        );
+
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/gastos/:codigo:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/gastos/buscar - Búsqueda rápida
+app.get('/api/contabilidad/gastos/buscar', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const q = req.query.q || '';
+
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+        if (!q) return res.json({ success: true, data: [] });
+
+        const result = await pool.query(
+            `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
+                    g.centro_costos_id, cc.nombre as centro_costos_nombre, g.forma_pago,
+                    g.cuenta_contable_id, c.nombre as cuenta_contable_nombre,
+                    g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
+             FROM gastos g
+             LEFT JOIN proveedores p ON g.proveedor_id = p.id
+             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
+             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
+             WHERE g.empresa = $1 AND (g.codigo ILIKE $2 OR g.numero_factura ILIKE $2 OR p.nombre ILIKE $2 OR g.concepto ILIKE $2)
+             ORDER BY g.fecha DESC
+             LIMIT 20`,
+            [empresa, `%${q}%`]
+        );
+
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/gastos/buscar:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/gastos/batch/eliminar - Eliminar múltiples gastos
+app.post('/api/contabilidad/gastos/batch/eliminar', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { codigos, empresa } = req.body;
+
+        if (!Array.isArray(codigos) || codigos.length === 0) {
+            return res.status(400).json({ success: false, error: 'Códigos requeridos (array)' });
+        }
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        await client.query('BEGIN');
+
+        // 1. Eliminar movimientos asociados
+        const placeholders = codigos.map((_, i) => `$${i + 1}`).join(',');
+        await client.query(
+            `DELETE FROM movimientos WHERE gasto_codigo IN (${placeholders}) AND empresa = $${codigos.length + 1}`,
+            [...codigos, empresa]
+        );
+
+        // 2. Eliminar gastos
+        const result = await client.query(
+            `DELETE FROM gastos WHERE codigo IN (${placeholders}) AND empresa = $${codigos.length + 1} RETURNING codigo`,
+            [...codigos, empresa]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `${result.rows.length} gasto(s) eliminado(s)`,
+            eliminados: result.rows.length
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/contabilidad/gastos/batch/eliminar:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// GET /api/contabilidad/gastos/export/excel - Exportar a Excel
+app.get('/api/contabilidad/gastos/export/excel', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const search = req.query.search || '';
+
+        let where = 'WHERE g.empresa = $1';
+        const params = [empresa];
+
+        if (search) {
+            params.push(`%${search}%`);
+            where += ` AND (g.codigo ILIKE $${params.length} OR g.numero_factura ILIKE $${params.length} OR p.nombre ILIKE $${params.length})`;
+        }
+
+        const result = await pool.query(
+            `SELECT g.codigo, g.fecha, g.numero_factura, p.nombre as proveedor,
+                    cc.nombre as centro_costos, g.forma_pago,
+                    c.nombre as cuenta_contable, g.concepto, g.valor_base, g.impuestos, g.total
+             FROM gastos g
+             LEFT JOIN proveedores p ON g.proveedor_id = p.id
+             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
+             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
+             ${where}
+             ORDER BY g.fecha DESC`,
+            params
+        );
+
+        // Formatos simples para Excel (sin librerías externas, responder como JSON)
+        // El frontend se encargará de convertir a Excel con SheetJS o similar
+        res.json({
+            success: true,
+            data: result.rows,
+            filename: `gastos-${new Date().toISOString().split('T')[0]}.xlsx`
+        });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/gastos/export/excel:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/gastos/proximo-codigo
+app.get('/api/contabilidad/gastos/proximo-codigo', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const result = await pool.query(
+            'SELECT MAX(CAST(codigo AS INTEGER)) as max_codigo FROM gastos WHERE empresa = $1',
+            [empresa]
+        );
+
+        const proximoCodigo = String((parseInt(result.rows[0].max_codigo) || 0) + 1).padStart(3, '0');
+        res.json({ success: true, codigo: proximoCodigo });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // INICIAR SERVIDOR
 // ================================================================
 
