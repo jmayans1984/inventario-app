@@ -3179,6 +3179,7 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
         console.log(`[DEBUG] GET /api/contabilidad/gastos - Empresa: ${empresa}`);
 
         // Consulta con LEFT JOINs para obtener nombres de proveedores y centros de costos
+        // Filtrar JOINs por empresa para obtener los nombres correctos de cada empresa
         const dataRes = await pool.query(
             `SELECT
                 g.codigo,
@@ -3199,8 +3200,8 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
                 g.entrada_almacen,
                 g.origen
              FROM gastos g
-             LEFT JOIN proveedores p ON g.proveedor = p.codigo
-             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo
+             LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
              WHERE g.empresa = $1
              ORDER BY g.fecha DESC
              LIMIT 300`,
