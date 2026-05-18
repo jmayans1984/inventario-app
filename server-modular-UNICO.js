@@ -3395,7 +3395,7 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
-             LEFT JOIN cuentas_contables cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
+             LEFT JOIN cuentas cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
              WHERE g.codigo = $1 AND g.empresa = $2`,
             [codigo, empresa]
         );
@@ -3425,7 +3425,7 @@ app.get('/api/contabilidad/gastos/buscar', async (req, res) => {
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
-             LEFT JOIN cuentas_contables cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
+             LEFT JOIN cuentas cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
              WHERE g.empresa = $1 AND (g.codigo ILIKE $2 OR g.factura ILIKE $2 OR p.nombre ILIKE $2 OR g.concepto ILIKE $2)
              ORDER BY g.fecha DESC
              LIMIT 20`,
@@ -3504,7 +3504,7 @@ app.get('/api/contabilidad/gastos/export/excel', async (req, res) => {
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
-             LEFT JOIN cuentas_contables cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
+             LEFT JOIN cuentas cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
              ${where}
              ORDER BY g.fecha DESC`,
             params
