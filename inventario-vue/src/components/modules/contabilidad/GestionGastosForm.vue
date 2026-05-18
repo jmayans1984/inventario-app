@@ -1,198 +1,204 @@
 <template>
   <v-dialog
     :model-value="open"
-    max-width="800"
+    max-width="860"
     persistent
     @update:model-value="$emit('update:open', $event)"
   >
     <v-card rounded="xl" elevation="0" class="form-card">
-      <!-- HEADER -->
+
+      <!-- ══ HEADER ══════════════════════════════════════════════════════ -->
       <div class="form-header">
         <div class="form-header-icon">
-          <v-icon size="22" color="white">mdi-receipt-text-outline</v-icon>
+          <v-icon size="24" color="white">mdi-receipt-text-outline</v-icon>
         </div>
-        <div>
+        <div class="form-header-text">
           <p class="form-header-title">{{ esEdicion ? 'Editar Gasto' : 'Nuevo Gasto' }}</p>
-          <p class="form-header-sub">{{ esEdicion ? `Código: ${form.codigo}` : 'Completa los campos requeridos' }}</p>
+          <p class="form-header-sub">
+            {{ esEdicion ? `Modificando comprobante #${form.codigo}` : 'Registra un nuevo comprobante de gasto' }}
+          </p>
         </div>
         <v-spacer />
-        <v-btn icon="mdi-close" variant="text" size="small" @click="cerrar" />
+        <span v-if="esEdicion" class="codigo-badge"># {{ form.codigo }}</span>
+        <span v-else class="codigo-badge auto">AUTO</span>
+        <v-btn icon="mdi-close" variant="text" size="small" color="white" @click="cerrar" class="ml-2" />
       </div>
 
-      <v-divider />
-
-      <!-- FORMULARIO -->
-      <v-card-text class="pa-6">
+      <!-- ══ BODY ═════════════════════════════════════════════════════════ -->
+      <v-card-text class="form-body">
         <v-form ref="formRef" @submit.prevent="handleSubmit">
-          <v-row dense>
 
-            <!-- CÓDIGO -->
-            <v-col cols="12" sm="3">
-              <v-text-field
-                :model-value="esEdicion ? form.codigo : 'AUTO'"
-                :label="esEdicion ? 'Código' : 'Código'"
-                variant="outlined"
-                density="comfortable"
-                :disabled="true"
-                :hint="esEdicion ? `Código: ${form.codigo}` : 'Se asigna al guardar'"
-                persistent-hint
-                :placeholder="esEdicion ? '' : 'Automático'"
-              />
-            </v-col>
+          <!-- ── SECCIÓN 1: Comprobante ─────────────────────────────── -->
+          <div class="form-section">
+            <div class="section-label">
+              <v-icon size="15" color="#667eea">mdi-calendar-check-outline</v-icon>
+              <span>Comprobante</span>
+            </div>
+            <v-row dense class="mt-1">
+              <v-col cols="12" sm="4">
+                <v-text-field
+                  v-model="form.fecha"
+                  label="Fecha *"
+                  type="date"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="reglaFecha"
+                  prepend-inner-icon="mdi-calendar"
+                />
+              </v-col>
+              <v-col cols="12" sm="4">
+                <v-text-field
+                  v-model="form.factura"
+                  label="N° Factura"
+                  variant="outlined"
+                  density="comfortable"
+                  placeholder="FAC-2026-001"
+                  maxlength="50"
+                  prepend-inner-icon="mdi-file-document-outline"
+                  @input="form.factura = form.factura.toUpperCase()"
+                />
+              </v-col>
+              <v-col cols="12" sm="4">
+                <v-text-field
+                  v-model="form.concepto"
+                  label="Concepto / Descripción"
+                  variant="outlined"
+                  density="comfortable"
+                  placeholder="Opcional"
+                  maxlength="100"
+                  prepend-inner-icon="mdi-text-short"
+                  @input="form.concepto = form.concepto.toUpperCase()"
+                />
+              </v-col>
+            </v-row>
+          </div>
 
-            <!-- FECHA -->
-            <v-col cols="12" sm="4">
-              <v-text-field
-                v-model="form.fecha"
-                label="Fecha *"
-                type="date"
-                variant="outlined"
-                density="comfortable"
-                :rules="reglaFecha"
-                class="mb-1"
-              />
-            </v-col>
+          <!-- ── SECCIÓN 2: Proveedor ──────────────────────────────── -->
+          <div class="form-section">
+            <div class="section-label">
+              <v-icon size="15" color="#667eea">mdi-truck-outline</v-icon>
+              <span>Proveedor & Clasificación</span>
+            </div>
+            <v-row dense class="mt-1">
+              <v-col cols="12" sm="7">
+                <v-autocomplete
+                  v-model="form.proveedor"
+                  label="Proveedor *"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="reglaProveedor"
+                  :items="proveedoresOptions"
+                  item-title="nombre"
+                  item-value="codigo"
+                  placeholder="Escribe para buscar..."
+                  prepend-inner-icon="mdi-account-tie-outline"
+                  no-data-text="No hay proveedores"
+                  clearable
+                />
+              </v-col>
+              <v-col cols="12" sm="5">
+                <v-autocomplete
+                  v-model="form.ccosto"
+                  label="Centro de Costos *"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="reglaCentroCostos"
+                  :items="centrosCostosOptions"
+                  item-title="nombre"
+                  item-value="codigo"
+                  placeholder="Selecciona..."
+                  prepend-inner-icon="mdi-office-building-outline"
+                  no-data-text="No hay centros de costos"
+                  clearable
+                />
+              </v-col>
+            </v-row>
+          </div>
 
-            <!-- FACTURA -->
-            <v-col cols="12" sm="5">
-              <v-text-field
-                v-model="form.factura"
-                label="Número Factura"
-                variant="outlined"
-                density="comfortable"
-                placeholder="Ej: FAC-2026-001"
-                maxlength="50"
-                @input="form.factura = form.factura.toUpperCase()"
-              />
-            </v-col>
+          <!-- ── SECCIÓN 3: Contabilización ────────────────────────── -->
+          <div class="form-section">
+            <div class="section-label">
+              <v-icon size="15" color="#667eea">mdi-bank-outline</v-icon>
+              <span>Contabilización</span>
+            </div>
+            <v-row dense class="mt-1">
+              <v-col cols="12" sm="6">
+                <v-autocomplete
+                  v-model="form.forma_pago"
+                  label="Forma de Pago *"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="reglaFormaPago"
+                  :items="formasPagoOptions"
+                  item-title="nombre_cta"
+                  item-value="id"
+                  placeholder="Selecciona cuenta bancaria..."
+                  prepend-inner-icon="mdi-credit-card-outline"
+                  no-data-text="No hay formas de pago"
+                  clearable
+                />
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-autocomplete
+                  v-model="form.cuenta"
+                  label="Cuenta Contable *"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="reglaCuenta"
+                  :items="cuentasContablesOptions"
+                  item-title="nombre"
+                  item-value="codigo"
+                  placeholder="Escribe para buscar..."
+                  prepend-inner-icon="mdi-book-open-outline"
+                  no-data-text="No hay cuentas"
+                  clearable
+                />
+              </v-col>
+            </v-row>
+          </div>
 
-            <!-- PROVEEDOR (AUTOCOMPLETE) -->
-            <v-col cols="12" sm="6">
-              <v-autocomplete
-                v-model="form.proveedor"
-                label="Proveedor *"
-                variant="outlined"
-                density="comfortable"
-                :rules="reglaProveedor"
-                :items="proveedoresOptions"
-                :search-input.sync="searchProveedor"
-                item-title="nombre"
-                item-value="codigo"
-                placeholder="Escribe para buscar..."
-                class="mb-1"
-                no-data-text="No hay proveedores"
-              />
-            </v-col>
-
-            <!-- CENTRO DE COSTOS (AUTOCOMPLETE) -->
-            <v-col cols="12" sm="6">
-              <v-autocomplete
-                v-model="form.ccosto"
-                label="Centro de Costos *"
-                variant="outlined"
-                density="comfortable"
-                :rules="reglaCentroCostos"
-                :items="centrosCostosOptions"
-                :search-input.sync="searchCentroCostos"
-                item-title="nombre"
-                item-value="codigo"
-                placeholder="Escribe para buscar..."
-                class="mb-1"
-                no-data-text="No hay centros de costos"
-              />
-            </v-col>
-
-            <!-- FORMA DE PAGO -->
-            <v-col cols="12" sm="4">
-              <v-autocomplete
-                v-model="form.forma_pago"
-                label="Forma de Pago *"
-                variant="outlined"
-                density="comfortable"
-                :rules="reglaFormaPago"
-                :items="formasPagoOptions"
-                item-title="nombre_cta"
-                item-value="id"
-                placeholder="Escribe para buscar..."
-                class="mb-1"
-                no-data-text="No hay formas de pago"
-              />
-            </v-col>
-
-            <!-- CUENTA (AUTOCOMPLETE) -->
-            <v-col cols="12" sm="4">
-              <v-autocomplete
-                v-model="form.cuenta"
-                label="Cuenta *"
-                variant="outlined"
-                density="comfortable"
-                :rules="reglaCuenta"
-                :items="cuentasContablesOptions"
-                :search-input.sync="searchCuenta"
-                item-title="nombre"
-                item-value="codigo"
-                placeholder="Escribe para buscar..."
-                class="mb-1"
-                no-data-text="No hay cuentas"
-              />
-            </v-col>
-
-            <!-- CONCEPTO (OPCIONAL) -->
-            <v-col cols="12" sm="4">
-              <v-text-field
-                v-model="form.concepto"
-                label="Concepto"
-                variant="outlined"
-                density="comfortable"
-                placeholder="Descripción del gasto (opcional)"
-                maxlength="100"
-                counter="100"
-                @input="form.concepto = form.concepto.toUpperCase()"
-              />
-            </v-col>
-
-            <!-- SUBTOTAL -->
-            <v-col cols="12" sm="4">
-              <v-text-field
-                v-model.number="form.subtotal"
-                label="Subtotal *"
-                variant="outlined"
-                density="comfortable"
-                :rules="reglaSubtotal"
-                type="number"
-                step="0.01"
-                min="0"
-                @input="calcularTotal"
-              />
-            </v-col>
-
-            <!-- IMPUESTOS -->
-            <v-col cols="12" sm="4">
-              <v-text-field
-                v-model.number="form.impuestos"
-                label="Impuestos"
-                variant="outlined"
-                density="comfortable"
-                type="number"
-                step="0.01"
-                min="0"
-                @input="calcularTotal"
-              />
-            </v-col>
-
-            <!-- TOTAL (READ-ONLY) -->
-            <v-col cols="12" sm="4">
-              <v-text-field
-                v-model.number="form.total"
-                label="Total"
-                variant="outlined"
-                density="comfortable"
-                :disabled="true"
-                type="number"
-              />
-            </v-col>
-
-          </v-row>
+          <!-- ── SECCIÓN 4: Montos ──────────────────────────────────── -->
+          <div class="form-section montos-section">
+            <div class="section-label">
+              <v-icon size="15" color="#667eea">mdi-cash-multiple</v-icon>
+              <span>Montos</span>
+            </div>
+            <v-row dense align="center" class="mt-1">
+              <v-col cols="12" sm="4">
+                <v-text-field
+                  v-model.number="form.subtotal"
+                  label="Subtotal *"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="reglaSubtotal"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  prepend-inner-icon="mdi-currency-usd"
+                  @input="calcularTotal"
+                />
+              </v-col>
+              <v-col cols="12" sm="4">
+                <v-text-field
+                  v-model.number="form.impuestos"
+                  label="Impuestos / Tax"
+                  variant="outlined"
+                  density="comfortable"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  prepend-inner-icon="mdi-percent"
+                  @input="calcularTotal"
+                />
+              </v-col>
+              <v-col cols="12" sm="4">
+                <div class="total-display">
+                  <div class="total-label">TOTAL A PAGAR</div>
+                  <div class="total-value">{{ formatMoneda(form.total) }}</div>
+                </div>
+              </v-col>
+            </v-row>
+          </div>
 
           <!-- ERROR -->
           <v-alert
@@ -200,31 +206,34 @@
             type="error"
             variant="tonal"
             density="compact"
-            class="mt-3"
+            class="mt-2"
             closable
             @click:close="errorMsg = ''"
           >
             {{ errorMsg }}
           </v-alert>
+
         </v-form>
       </v-card-text>
 
-      <v-divider />
-
-      <!-- ACCIONES -->
-      <v-card-actions class="pa-4 gap-3">
-        <v-btn variant="text" color="default" @click="cerrar">Cancelar</v-btn>
-        <v-spacer />
+      <!-- ══ FOOTER ═══════════════════════════════════════════════════════ -->
+      <div class="form-footer">
+        <v-btn variant="text" color="default" size="large" @click="cerrar" prepend-icon="mdi-close">
+          Cancelar
+        </v-btn>
         <v-btn
           color="primary"
           variant="elevated"
+          size="large"
           :loading="store.loading"
           prepend-icon="mdi-content-save-outline"
           @click="handleSubmit"
+          class="btn-save"
         >
-          {{ esEdicion ? 'Actualizar' : 'Guardar' }}
+          {{ esEdicion ? 'Actualizar Gasto' : 'Guardar Gasto' }}
         </v-btn>
-      </v-card-actions>
+      </div>
+
     </v-card>
   </v-dialog>
 </template>
@@ -236,6 +245,7 @@ import { proveedoresService } from '../../../services/proveedores.service'
 import { centroCostosService } from '../../../services/centrocostos.service'
 import { cuentasContablesService } from '../../../services/cuentascontables.service'
 import { cuentasBancariasService } from '../../../services/cuentasbancarias.service'
+import { formatMoneda } from '../../../utils/formatters'
 
 const props = defineProps({
   open: Boolean,
@@ -412,28 +422,33 @@ function cerrar() {
 </script>
 
 <style scoped>
+/* ═══ CARD ═══════════════════════════════════════════════════════════ */
 .form-card {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  overflow: hidden;
 }
 
+/* ═══ HEADER ═════════════════════════════════════════════════════════ */
 .form-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 20px;
+  padding: 20px 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .form-header-icon {
   width: 48px;
   height: 48px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
+
+.form-header-text { flex: 1; }
 
 .form-header-title {
   color: white;
@@ -444,8 +459,104 @@ function cerrar() {
 }
 
 .form-header-sub {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
-  margin-top: 4px;
+  margin: 3px 0 0;
+}
+
+.codigo-badge {
+  background: rgba(255,255,255,0.18);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255,255,255,0.3);
+  white-space: nowrap;
+}
+.codigo-badge.auto {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  font-style: italic;
+  letter-spacing: 1px;
+}
+
+/* ═══ BODY ════════════════════════════════════════════════════════════ */
+.form-body {
+  padding: 24px 28px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ═══ SECCIONES ══════════════════════════════════════════════════════ */
+.form-section {
+  background: rgba(var(--v-theme-on-surface), 0.02);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  border-left: 3px solid #667eea;
+  border-radius: 10px;
+  padding: 16px 18px 14px;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #667eea;
+  margin-bottom: 4px;
+}
+
+/* ═══ TOTAL DISPLAY ══════════════════════════════════════════════════ */
+.montos-section { border-left-color: #764ba2; }
+
+.total-display {
+  background: linear-gradient(135deg, rgba(102,126,234,0.12) 0%, rgba(118,75,162,0.12) 100%);
+  border: 2px solid rgba(102,126,234,0.35);
+  border-radius: 10px;
+  padding: 14px 20px;
+  text-align: center;
+  height: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.total-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #667eea;
+  margin-bottom: 2px;
+}
+
+.total-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: #667eea;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* ═══ FOOTER ═════════════════════════════════════════════════════════ */
+.form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--v-theme-on-surface), 0.01);
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  min-width: 160px;
 }
 </style>
