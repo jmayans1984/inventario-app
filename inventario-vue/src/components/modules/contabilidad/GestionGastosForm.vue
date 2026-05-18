@@ -342,6 +342,7 @@ watch(() => props.open, async (val) => {
       try {
         const gastoFresco = await gestionGastosService.getGasto(props.gasto.codigo)
         const gasto = gastoFresco.data || gastoFresco
+        console.log('✓ Gasto cargado:', gasto)
         form.value = {
           codigo: gasto.codigo || '',
           fecha: gasto.fecha || '',
@@ -355,6 +356,7 @@ watch(() => props.open, async (val) => {
           impuestos: parseFloat((gasto.impuestos || 0).toFixed(2)),
           total: parseFloat((gasto.total || 0).toFixed(2)),
         }
+        console.log('✓ Form actualizado:', form.value)
       } catch (err) {
         console.error('Error cargando gasto:', err)
         errorMsg.value = 'No se pudo cargar el gasto'
