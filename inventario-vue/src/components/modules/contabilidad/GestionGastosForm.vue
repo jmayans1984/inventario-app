@@ -55,20 +55,20 @@
             <!-- FACTURA -->
             <v-col cols="12" sm="5">
               <v-text-field
-                v-model="form.numero_factura"
+                v-model="form.factura"
                 label="Número Factura"
                 variant="outlined"
                 density="comfortable"
                 placeholder="Ej: FAC-2026-001"
                 maxlength="50"
-                @input="form.numero_factura = form.numero_factura.toUpperCase()"
+                @input="form.factura = form.factura.toUpperCase()"
               />
             </v-col>
 
             <!-- PROVEEDOR (AUTOCOMPLETE) -->
             <v-col cols="12" sm="6">
               <v-autocomplete
-                v-model="form.proveedor_id"
+                v-model="form.proveedor"
                 label="Proveedor *"
                 variant="outlined"
                 density="comfortable"
@@ -76,7 +76,7 @@
                 :items="proveedoresOptions"
                 :search-input.sync="searchProveedor"
                 item-title="nombre"
-                item-value="id"
+                item-value="codigo"
                 placeholder="Escribe para buscar..."
                 class="mb-1"
                 no-data-text="No hay proveedores"
@@ -86,7 +86,7 @@
             <!-- CENTRO DE COSTOS (AUTOCOMPLETE) -->
             <v-col cols="12" sm="6">
               <v-autocomplete
-                v-model="form.centro_costos_id"
+                v-model="form.ccosto"
                 label="Centro de Costos *"
                 variant="outlined"
                 density="comfortable"
@@ -118,11 +118,11 @@
               />
             </v-col>
 
-            <!-- CUENTA CONTABLE (AUTOCOMPLETE) -->
+            <!-- CUENTA (AUTOCOMPLETE) -->
             <v-col cols="12" sm="4">
               <v-autocomplete
-                v-model="form.cuenta_contable_id"
-                label="Cuenta Contable *"
+                v-model="form.cuenta"
+                label="Cuenta *"
                 variant="outlined"
                 density="comfortable"
                 :rules="reglaCuenta"
@@ -132,7 +132,7 @@
                 item-value="codigo"
                 placeholder="Escribe para buscar..."
                 class="mb-1"
-                no-data-text="No hay cuentas contables"
+                no-data-text="No hay cuentas"
               />
             </v-col>
 
@@ -150,14 +150,14 @@
               />
             </v-col>
 
-            <!-- VALOR BASE -->
+            <!-- SUBTOTAL -->
             <v-col cols="12" sm="4">
               <v-text-field
-                v-model.number="form.valor_base"
-                label="Valor Base *"
+                v-model.number="form.subtotal"
+                label="Subtotal *"
                 variant="outlined"
                 density="comfortable"
-                :rules="reglaValorBase"
+                :rules="reglaSubtotal"
                 type="number"
                 step="0.01"
                 min="0"
@@ -259,13 +259,13 @@ const searchCuenta = ref('')
 const formVacio = () => ({
   codigo: '',
   fecha: new Date().toISOString().split('T')[0],
-  numero_factura: '',
-  proveedor_id: '',
-  centro_costos_id: '',
+  factura: '',
+  proveedor: '',
+  ccosto: '',
   forma_pago: '',
-  cuenta_contable_id: '',
+  cuenta: '',
   concepto: '',
-  valor_base: 0,
+  subtotal: 0,
   impuestos: 0,
   total: 0,
 })
@@ -313,13 +313,13 @@ watch(() => props.open, async (val) => {
       form.value = {
         codigo: props.gasto.codigo || '',
         fecha: props.gasto.fecha || '',
-        numero_factura: props.gasto.numero_factura || '',
-        proveedor_id: props.gasto.proveedor_id || '',
-        centro_costos_id: props.gasto.centro_costos_id || '',
+        factura: props.gasto.factura || '',
+        proveedor: props.gasto.proveedor || '',
+        ccosto: props.gasto.ccosto || '',
         forma_pago: props.gasto.forma_pago || '',
-        cuenta_contable_id: props.gasto.cuenta_contable_id || '',
+        cuenta: props.gasto.cuenta || '',
         concepto: (props.gasto.concepto || '').toUpperCase(),
-        valor_base: props.gasto.valor_base || 0,
+        subtotal: props.gasto.subtotal || 0,
         impuestos: props.gasto.impuestos || 0,
         total: props.gasto.total || 0,
       }
@@ -357,15 +357,15 @@ const reglaConcepto = [
   // Concepto es opcional - sin validación requerida
 ]
 
-const reglaValorBase = [
-  v => v !== null && v !== undefined && v !== '' || 'El valor base es requerido',
+const reglaSubtotal = [
+  v => v !== null && v !== undefined && v !== '' || 'El subtotal es requerido',
   v => v >= 0 || 'El valor debe ser mayor a 0',
 ]
 
 // ─── MÉTODOS ─────────────────────────────────────────
 
 function calcularTotal() {
-  form.value.total = (form.value.valor_base || 0) + (form.value.impuestos || 0)
+  form.value.total = (form.value.subtotal || 0) + (form.value.impuestos || 0)
 }
 
 async function handleSubmit() {
@@ -376,13 +376,13 @@ async function handleSubmit() {
   try {
     const datos = {
       fecha: form.value.fecha,
-      numero_factura: form.value.numero_factura.trim() || null,
-      proveedor_id: form.value.proveedor_id,
-      centro_costos_id: form.value.centro_costos_id,
+      factura: form.value.factura.trim() || null,
+      proveedor: form.value.proveedor,
+      ccosto: form.value.ccosto,
       forma_pago: form.value.forma_pago,
-      cuenta_contable_id: form.value.cuenta_contable_id,
+      cuenta: form.value.cuenta,
       concepto: form.value.concepto.trim(),
-      valor_base: form.value.valor_base,
+      subtotal: form.value.subtotal,
       impuestos: form.value.impuestos || 0,
       total: form.value.total,
     }

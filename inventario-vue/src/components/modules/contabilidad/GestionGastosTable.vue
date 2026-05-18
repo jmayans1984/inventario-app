@@ -55,13 +55,13 @@
               {{ formatFecha(gasto.fecha) }}
             </td>
             <td class="cell-factura">
-              {{ gasto.numero_factura || '-' }}
+              {{ gasto.factura || '-' }}
             </td>
             <td class="cell-proveedor">
-              <span class="nombre-text">{{ gasto.proveedor_nombre || gasto.proveedor_id }}</span>
+              <span class="nombre-text">{{ gasto.proveedor_nombre || gasto.proveedor }}</span>
             </td>
             <td class="cell-centro">
-              <span class="badge-centro">{{ gasto.centro_costos_nombre || gasto.centro_costos_id }}</span>
+              <span class="badge-centro">{{ gasto.ccosto_nombre || gasto.ccosto }}</span>
             </td>
             <td class="cell-concepto">
               <span class="concepto-text">{{ gasto.concepto || '-' }}</span>
@@ -137,9 +137,9 @@ const filteredGastos = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return store.gastos.filter(gasto =>
     gasto.codigo.toLowerCase().includes(query) ||
-    (gasto.numero_factura && gasto.numero_factura.toLowerCase().includes(query)) ||
+    (gasto.factura && gasto.factura.toLowerCase().includes(query)) ||
     (gasto.proveedor_nombre && gasto.proveedor_nombre.toLowerCase().includes(query)) ||
-    (gasto.centro_costos_nombre && gasto.centro_costos_nombre.toLowerCase().includes(query))
+    (gasto.ccosto_nombre && gasto.ccosto_nombre.toLowerCase().includes(query))
   )
 })
 

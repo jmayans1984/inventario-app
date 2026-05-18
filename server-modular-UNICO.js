@@ -3178,21 +3178,31 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
 
         console.log(`[DEBUG] GET /api/contabilidad/gastos - Empresa: ${empresa}`);
 
-        // Primero probar si la tabla existe y qué columnas tiene
-        try {
-            const tableTest = await pool.query(
-                `SELECT column_name FROM information_schema.columns WHERE table_name = 'gastos' LIMIT 20`
-            );
-            console.log(`  Columnas en tabla gastos:`, tableTest.rows.map(r => r.column_name));
-        } catch(e) {
-            console.log(`  Error checking columns:`, e.message);
-        }
-
-        // Consulta simple: Solo SELECT * de gastos para obtener todas las columnas
+        // Consulta con LEFT JOINs para obtener nombres de proveedores y centros de costos
         const dataRes = await pool.query(
-            `SELECT * FROM gastos
-             WHERE empresa = $1
-             ORDER BY fecha DESC
+            `SELECT
+                g.codigo,
+                g.fecha,
+                g.factura,
+                g.proveedor,
+                COALESCE(p.nombre, g.proveedor) as proveedor_nombre,
+                g.ccosto,
+                COALESCE(cc.nombre, g.ccosto) as ccosto_nombre,
+                g.concepto,
+                g.total,
+                g.empresa,
+                g.subtotal,
+                g.impuestos,
+                g.cuenta,
+                g.forma_pago,
+                g.estado,
+                g.entrada_almacen,
+                g.origen
+             FROM gastos g
+             LEFT JOIN proveedores p ON g.proveedor = p.codigo
+             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo
+             WHERE g.empresa = $1
+             ORDER BY g.fecha DESC
              LIMIT 300`,
             [empresa]
         );
@@ -3217,10 +3227,10 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
 app.post('/api/contabilidad/gastos', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { fecha, numero_factura, proveedor_id, centro_costos_id, forma_pago,
-                cuenta_contable_id, concepto, valor_base, impuestos, total, empresa } = req.body;
+        const { fecha, factura, proveedor, ccosto, forma_pago,
+                cuenta, concepto, subtotal, impuestos, total, empresa } = req.body;
 
-        if (!fecha || !proveedor_id || !centro_costos_id || !forma_pago || !cuenta_contable_id || !concepto || !valor_base || !empresa) {
+        if (!fecha || !proveedor || !ccosto || !forma_pago || !cuenta || !subtotal || !empresa) {
             return res.status(400).json({ success: false, error: 'Campos requeridos faltantes' });
         }
 
@@ -3235,12 +3245,12 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
 
         // 2. Insertar gasto
         const gastoRes = await client.query(
-            `INSERT INTO gastos (codigo, fecha, numero_factura, proveedor_id, centro_costos_id,
-                                forma_pago, cuenta_contable_id, concepto, valor_base, impuestos, total, empresa)
+            `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
+                                forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING *`,
-            [proximoCodigo, fecha, numero_factura || null, proveedor_id, centro_costos_id,
-             forma_pago, cuenta_contable_id, concepto.toUpperCase(), valor_base, impuestos || 0, total, empresa]
+            [proximoCodigo, fecha, factura || null, proveedor, ccosto,
+             forma_pago, cuenta, concepto.toUpperCase(), subtotal, impuestos || 0, total, empresa]
         );
 
         // 3. Crear entry en MOVIBAN (solo si forma_pago es CONTADO o si hay cuenta bancaria asociada)
@@ -3270,17 +3280,17 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
 app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
     try {
         const { codigo } = req.params;
-        const { fecha, numero_factura, proveedor_id, centro_costos_id, forma_pago,
-                cuenta_contable_id, concepto, valor_base, impuestos, total, empresa } = req.body;
+        const { fecha, factura, proveedor, ccosto, forma_pago,
+                cuenta, concepto, subtotal, impuestos, total, empresa } = req.body;
 
         const result = await pool.query(
             `UPDATE gastos
-             SET fecha=$1, numero_factura=$2, proveedor_id=$3, centro_costos_id=$4, forma_pago=$5,
-                 cuenta_contable_id=$6, concepto=$7, valor_base=$8, impuestos=$9, total=$10
+             SET fecha=$1, factura=$2, proveedor=$3, ccosto=$4, forma_pago=$5,
+                 cuenta=$6, concepto=$7, subtotal=$8, impuestos=$9, total=$10
              WHERE codigo=$11 AND empresa=$12
              RETURNING *`,
-            [fecha, numero_factura || null, proveedor_id, centro_costos_id, forma_pago,
-             cuenta_contable_id, concepto.toUpperCase(), valor_base, impuestos || 0, total, codigo, empresa]
+            [fecha, factura || null, proveedor, ccosto, forma_pago,
+             cuenta, concepto.toUpperCase(), subtotal, impuestos || 0, total, codigo, empresa]
         );
 
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
