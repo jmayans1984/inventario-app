@@ -3249,19 +3249,45 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
         );
         const proximoCodigo = String((parseInt(codigoRes.rows[0].max_codigo) || 0) + 1).padStart(10, '0');
 
-        // 3. Insertar gasto
-        const gastoRes = await client.query(
+        // 3. Insertar gasto (siempre con estado = PENDIENTE)
+        await client.query(
             `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
-                                forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-             RETURNING *`,
+                                forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
             [proximoCodigo, fecha, factura || null, proveedor, ccosto,
-             forma_pago, cuenta, (concepto || '').toUpperCase(), subtotal, impuestos || 0, total, empresa]
+             forma_pago, cuenta, (concepto || '').toUpperCase(), subtotal, impuestos || 0, total, empresa, 'PENDIENTE']
+        );
+
+        // 4. Obtener el gasto con JOINs para devolver nombres
+        const gastoConNombresRes = await client.query(
+            `SELECT
+                g.codigo,
+                g.fecha,
+                g.factura,
+                g.proveedor,
+                COALESCE(p.nombre, g.proveedor) as proveedor_nombre,
+                g.ccosto,
+                COALESCE(cc.nombre, g.ccosto) as ccosto_nombre,
+                g.concepto,
+                g.total,
+                g.empresa,
+                g.subtotal,
+                g.impuestos,
+                g.cuenta,
+                g.forma_pago,
+                g.estado,
+                g.entrada_almacen,
+                g.origen
+             FROM gastos g
+             LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             WHERE g.codigo = $1 AND g.empresa = $2`,
+            [proximoCodigo, empresa]
         );
 
         await client.query('COMMIT');
 
-        res.status(201).json({ success: true, data: gastoRes.rows[0] });
+        res.status(201).json({ success: true, data: gastoConNombresRes.rows[0] });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error POST /api/contabilidad/gastos:', error.message);
@@ -3278,14 +3304,40 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
         const { fecha, factura, proveedor, ccosto, forma_pago,
                 cuenta, concepto, subtotal, impuestos, total, empresa } = req.body;
 
-        const result = await pool.query(
+        await pool.query(
             `UPDATE gastos
              SET fecha=$1, factura=$2, proveedor=$3, ccosto=$4, forma_pago=$5,
                  cuenta=$6, concepto=$7, subtotal=$8, impuestos=$9, total=$10
-             WHERE codigo=$11 AND empresa=$12
-             RETURNING *`,
+             WHERE codigo=$11 AND empresa=$12`,
             [fecha, factura || null, proveedor, ccosto, forma_pago,
-             cuenta, concepto.toUpperCase(), subtotal, impuestos || 0, total, codigo, empresa]
+             cuenta, (concepto || '').toUpperCase(), subtotal, impuestos || 0, total, codigo, empresa]
+        );
+
+        // Obtener el gasto actualizado con JOINs para devolver nombres
+        const result = await pool.query(
+            `SELECT
+                g.codigo,
+                g.fecha,
+                g.factura,
+                g.proveedor,
+                COALESCE(p.nombre, g.proveedor) as proveedor_nombre,
+                g.ccosto,
+                COALESCE(cc.nombre, g.ccosto) as ccosto_nombre,
+                g.concepto,
+                g.total,
+                g.empresa,
+                g.subtotal,
+                g.impuestos,
+                g.cuenta,
+                g.forma_pago,
+                g.estado,
+                g.entrada_almacen,
+                g.origen
+             FROM gastos g
+             LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             WHERE g.codigo = $1 AND g.empresa = $2`,
+            [codigo, empresa]
         );
 
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
