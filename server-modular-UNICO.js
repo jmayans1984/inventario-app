@@ -3227,12 +3227,12 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
 
         await client.query('BEGIN');
 
-        // 1. Obtener próximo código
+        // 1. Obtener próximo código (10 dígitos)
         const codigoRes = await client.query(
             'SELECT MAX(CAST(codigo AS INTEGER)) as max_codigo FROM gastos WHERE empresa = $1',
             [empresa]
         );
-        const proximoCodigo = String((parseInt(codigoRes.rows[0].max_codigo) || 0) + 1).padStart(3, '0');
+        const proximoCodigo = String((parseInt(codigoRes.rows[0].max_codigo) || 0) + 1).padStart(10, '0');
 
         // 2. Insertar gasto
         const gastoRes = await client.query(
@@ -3483,7 +3483,7 @@ app.get('/api/contabilidad/gastos/proximo-codigo', async (req, res) => {
             [empresa]
         );
 
-        const proximoCodigo = String((parseInt(result.rows[0].max_codigo) || 0) + 1).padStart(3, '0');
+        const proximoCodigo = String((parseInt(result.rows[0].max_codigo) || 0) + 1).padStart(10, '0');
         res.json({ success: true, codigo: proximoCodigo });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

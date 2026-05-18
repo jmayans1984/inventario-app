@@ -64,49 +64,56 @@
               />
             </v-col>
 
-            <!-- PROVEEDOR -->
+            <!-- PROVEEDOR (AUTOCOMPLETE) -->
             <v-col cols="12" sm="6">
-              <v-select
+              <v-autocomplete
                 v-model="form.proveedor_id"
                 label="Proveedor *"
                 variant="outlined"
                 density="comfortable"
                 :rules="reglaProveedor"
                 :items="proveedoresOptions"
+                :search-input.sync="searchProveedor"
                 item-title="nombre"
                 item-value="id"
-                placeholder="Selecciona un proveedor"
+                placeholder="Escribe para buscar..."
                 class="mb-1"
+                no-data-text="No hay proveedores"
               />
             </v-col>
 
-            <!-- CENTRO DE COSTOS -->
+            <!-- CENTRO DE COSTOS (AUTOCOMPLETE) -->
             <v-col cols="12" sm="6">
-              <v-select
+              <v-autocomplete
                 v-model="form.centro_costos_id"
                 label="Centro de Costos *"
                 variant="outlined"
                 density="comfortable"
                 :rules="reglaCentroCostos"
                 :items="centrosCostosOptions"
+                :search-input.sync="searchCentroCostos"
                 item-title="nombre"
                 item-value="codigo"
-                placeholder="Selecciona un centro"
+                placeholder="Escribe para buscar..."
                 class="mb-1"
+                no-data-text="No hay centros de costos"
               />
             </v-col>
 
             <!-- FORMA DE PAGO -->
             <v-col cols="12" sm="4">
-              <v-select
+              <v-autocomplete
                 v-model="form.forma_pago"
                 label="Forma de Pago *"
                 variant="outlined"
                 density="comfortable"
                 :rules="reglaFormaPago"
                 :items="formasPagoOptions"
-                placeholder="Selecciona forma de pago"
+                item-title="nombre_cta"
+                item-value="id"
+                placeholder="Escribe para buscar..."
                 class="mb-1"
+                no-data-text="No hay formas de pago"
               />
             </v-col>
 
@@ -126,15 +133,14 @@
               />
             </v-col>
 
-            <!-- CONCEPTO -->
+            <!-- CONCEPTO (OPCIONAL) -->
             <v-col cols="12" sm="4">
               <v-text-field
                 v-model="form.concepto"
-                label="Concepto *"
+                label="Concepto"
                 variant="outlined"
                 density="comfortable"
-                :rules="reglaConcepto"
-                placeholder="Descripción del gasto"
+                placeholder="Descripción del gasto (opcional)"
                 maxlength="100"
                 counter="100"
                 @input="form.concepto = form.concepto.toUpperCase()"
@@ -225,6 +231,7 @@ import { useGestionGastosStore } from '../../../stores/gestiongastos'
 import { proveedoresService } from '../../../services/proveedores.service'
 import { centroCostosService } from '../../../services/centrocostos.service'
 import { cuentasContablesService } from '../../../services/cuentascontables.service'
+import { cuentasBancariasService } from '../../../services/cuentasbancarias.service'
 
 const props = defineProps({
   open: Boolean,
@@ -240,15 +247,10 @@ const errorMsg = ref('')
 const proveedoresOptions = ref([])
 const centrosCostosOptions = ref([])
 const cuentasContablesOptions = ref([])
+const formasPagoOptions = ref([])
 
-const formasPagoOptions = [
-  { value: 'CONTADO', name: 'Contado' },
-  { value: 'CREDITO_15', name: 'Crédito 15 días' },
-  { value: 'CREDITO_30', name: 'Crédito 30 días' },
-  { value: 'CREDITO_60', name: 'Crédito 60 días' },
-  { value: 'TARJETA', name: 'Tarjeta de Crédito' },
-  { value: 'TRANSFERENCIA', name: 'Transferencia Bancaria' },
-]
+const searchProveedor = ref('')
+const searchCentroCostos = ref('')
 
 const formVacio = () => ({
   codigo: '',
@@ -271,13 +273,13 @@ const esEdicion = computed(() => !!props.gasto?.codigo)
 // Cargar opciones al montar
 onMounted(async () => {
   try {
-    // Proveedores
-    const prov = await proveedoresService.getProveedores({ limit: 500 })
+    // Proveedores (cargar todos)
+    const prov = await proveedoresService.getProveedores({ limit: 2000 })
     if (prov.data) proveedoresOptions.value = prov.data
     else if (Array.isArray(prov)) proveedoresOptions.value = prov
 
-    // Centros de Costos
-    const centros = await centroCostosService.getCentrosCostos({ limit: 500 })
+    // Centros de Costos (cargar todos)
+    const centros = await centroCostosService.getCentrosCostos({ limit: 2000 })
     if (centros.data) centrosCostosOptions.value = centros.data
     else if (Array.isArray(centros)) centrosCostosOptions.value = centros
 
@@ -285,6 +287,11 @@ onMounted(async () => {
     const cuentas = await cuentasContablesService.getCuentasContables({ limit: 500 })
     if (cuentas.data) cuentasContablesOptions.value = cuentas.data
     else if (Array.isArray(cuentas)) cuentasContablesOptions.value = cuentas
+
+    // Formas de Pago desde Cuentas Bancarias
+    const cuentasBank = await cuentasBancariasService.getCuentasBancarias({ limit: 500 })
+    if (cuentasBank.data) formasPagoOptions.value = cuentasBank.data
+    else if (Array.isArray(cuentasBank)) formasPagoOptions.value = cuentasBank
   } catch (err) {
     console.error('Error cargando opciones:', err)
   }
@@ -294,6 +301,8 @@ onMounted(async () => {
 watch(() => props.open, async (val) => {
   if (val) {
     errorMsg.value = ''
+    searchProveedor.value = ''
+    searchCentroCostos.value = ''
     if (props.gasto) {
       form.value = {
         codigo: props.gasto.codigo || '',
@@ -339,8 +348,7 @@ const reglaCuenta = [
 ]
 
 const reglaConcepto = [
-  v => !!v || 'El concepto es requerido',
-  v => (v && v.length >= 3) || 'Mínimo 3 caracteres',
+  // Concepto es opcional - sin validación requerida
 ]
 
 const reglaValorBase = [

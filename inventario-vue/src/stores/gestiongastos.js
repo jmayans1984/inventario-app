@@ -44,20 +44,29 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
         gastos.value = response.gastos
         total.value = response.total || response.gastos.length
       }
+
+      // Guardar en cache si hay datos
+      if (gastos.value.length > 0) {
+        guardarEnCache()
+      }
     } catch (err) {
       console.error('Error cargando gastos:', err)
-      error.value = 'API no disponible. Cargando datos de ejemplo...'
+      // Intentar cargar desde localStorage
       const cached = localStorage.getItem('gastos_cache')
       if (cached) {
         try {
           gastos.value = JSON.parse(cached)
           total.value = gastos.value.length
-          error.value = null
+          error.value = 'Mostrando datos guardados (offline)'
         } catch (e) {
-          cargarDatosEjemplo()
+          gastos.value = []
+          total.value = 0
+          error.value = 'Error al cargar gastos. Intenta más tarde.'
         }
       } else {
-        cargarDatosEjemplo()
+        gastos.value = []
+        total.value = 0
+        error.value = 'Error al cargar gastos. Intenta más tarde.'
       }
     } finally {
       loading.value = false
@@ -126,10 +135,10 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
       return await gestionGastosService.getProximoCodigo()
     } catch (err) {
       console.error('Error obteniendo próximo código:', err)
-      // Generar uno local como fallback
-      if (gastos.value.length === 0) return '001'
+      // Generar uno local como fallback (10 dígitos)
+      if (gastos.value.length === 0) return '0000000001'
       const maxCodigo = Math.max(...gastos.value.map(g => parseInt(g.codigo) || 0))
-      return String(maxCodigo + 1).padStart(3, '0')
+      return String(maxCodigo + 1).padStart(10, '0')
     }
   }
 
@@ -145,33 +154,8 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
     localStorage.setItem('gastos_cache', JSON.stringify(gastos.value))
   }
 
-  function cargarDatosEjemplo() {
-    const authStore = useAuthStore()
-    const empresa = authStore.empresa
-    const hoy = new Date()
-
-    gastos.value = [
-      {
-        codigo: '001',
-        fecha: hoy.toISOString().split('T')[0],
-        numero_factura: 'FAC-2026-0001',
-        proveedor_id: 1,
-        proveedor_nombre: 'Distribuidora ABC',
-        centro_costos_id: 'CC001',
-        centro_costos_nombre: 'Centro Principal',
-        forma_pago: 'CREDITO_30',
-        cuenta_contable_id: '002',
-        cuenta_contable_nombre: 'Gastos de Personal',
-        concepto: 'COMPRA MATERIA PRIMA',
-        valor_base: 1500000,
-        impuestos: 300000,
-        total: 1800000,
-        empresa: empresa,
-        created_at: new Date().toISOString(),
-      },
-    ]
-    total.value = gastos.value.length
-  }
+  // Datos de ejemplo deshabilitados - solo mostrar datos reales de BD
+  // function cargarDatosEjemplo() { ... }
 
   // ─── COMPUTED ──────────────────────────────────────────
 
