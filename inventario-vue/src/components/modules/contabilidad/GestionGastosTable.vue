@@ -42,6 +42,9 @@
             <th class="col-centro" @click="ordenar('ccosto')">
               <div class="th-inner">CENTRO COSTOS <v-icon v-if="sortBy==='ccosto'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
+            <th class="col-forma-pago" @click="ordenar('forma_pago')">
+              <div class="th-inner">FORMA PAGO <v-icon v-if="sortBy==='forma_pago'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
+            </th>
             <th class="col-concepto" @click="ordenar('concepto')">
               <div class="th-inner">CONCEPTO <v-icon v-if="sortBy==='concepto'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
@@ -58,7 +61,7 @@
         </thead>
         <tbody>
           <tr v-if="paginatedGastos.length === 0">
-            <td colspan="8" class="table-empty">
+            <td colspan="9" class="table-empty">
               <v-icon size="32" class="empty-icon">mdi-inbox-outline</v-icon>
               <p class="empty-text">No hay gastos registrados</p>
             </td>
@@ -76,6 +79,9 @@
             </td>
             <td class="td-centro">
               <span class="badge-centro">{{ gasto.ccosto_nombre || gasto.ccosto }}</span>
+            </td>
+            <td class="td-forma-pago">
+              <span class="badge-forma-pago">{{ gasto.forma_pago_nombre || gasto.forma_pago || '-' }}</span>
             </td>
             <td class="td-concepto">{{ gasto.concepto || '-' }}</td>
             <td class="td-factura">{{ gasto.factura || '-' }}</td>
@@ -254,8 +260,9 @@ async function exportarExcel() {
 .col-codigo   { width: 130px; }
 .col-fecha    { width: 100px; }
 .col-proveedor{ width: 16%; }
-.col-centro   { width: 14%; }
-.col-concepto { width: 22%; }
+.col-centro   { width: 13%; }
+.col-forma-pago { width: 12%; }
+.col-concepto { width: 18%; }
 .col-factura  { width: 100px; }
 .col-total    { width: 110px; }
 .col-acciones { width: 80px; }
@@ -334,6 +341,15 @@ async function exportarExcel() {
 .badge-centro {
   background: rgba(118, 75, 162, 0.15);
   color: #764ba2;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 11px;
+}
+.td-forma-pago { text-align: center; }
+.badge-forma-pago {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
   padding: 3px 8px;
   border-radius: 6px;
   font-weight: 600;
