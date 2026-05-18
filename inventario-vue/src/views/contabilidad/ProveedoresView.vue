@@ -132,10 +132,9 @@ function handleEditar(proveedor) {
   dialogForm.value = true
 }
 
-async function handleGuardarProveedor(proveedor) {
-  // El store ya actualizó los datos
-  // Aquí podemos hacer algo adicional si es necesario
-  console.log('Proveedor guardado:', proveedor)
+async function handleGuardarProveedor() {
+  // Recargar lista para reflejar cambios
+  await store.fetchProveedores()
 }
 
 async function cargarDatos() {

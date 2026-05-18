@@ -80,18 +80,20 @@ export const useProveedoresStore = defineStore('proveedores', () => {
     loading.value = true
     error.value = null
     try {
-      const nuevoProveedor = await proveedoresService.crearProveedor(data)
+      const response = await proveedoresService.crearProveedor(data)
 
-      // Agregar a la lista local
-      if (nuevoProveedor.id) {
+      // API devuelve { success: true, data: {...} } o el objeto directo
+      const nuevoProveedor = response?.data || response
+
+      if (nuevoProveedor?.codigo) {
         proveedores.value.unshift(nuevoProveedor)
         total.value++
 
         // Guardar en localStorage como respaldo
         guardarEnCache()
-
-        return nuevoProveedor
       }
+
+      return nuevoProveedor
     } catch (err) {
       console.error('Error creando proveedor:', err)
       error.value = err.response?.data?.message || 'Error al crear el proveedor'
@@ -108,18 +110,21 @@ export const useProveedoresStore = defineStore('proveedores', () => {
     loading.value = true
     error.value = null
     try {
-      const proveedorActualizado = await proveedoresService.actualizarProveedor(codigo, data)
+      const response = await proveedoresService.actualizarProveedor(codigo, data)
+
+      // API devuelve { success: true, data: {...} } o el objeto directo
+      const proveedorActualizado = response?.data || response
 
       // Actualizar en la lista local
       const index = proveedores.value.findIndex(p => p.codigo === codigo)
       if (index !== -1) {
-        proveedores.value[index] = proveedorActualizado
+        proveedores.value[index] = { ...proveedores.value[index], ...proveedorActualizado }
 
         // Guardar en localStorage como respaldo
         guardarEnCache()
-
-        return proveedorActualizado
       }
+
+      return proveedorActualizado
     } catch (err) {
       console.error('Error actualizando proveedor:', err)
       error.value = err.response?.data?.message || 'Error al actualizar el proveedor'
