@@ -14,7 +14,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
   const filters = reactive({
     search: '',
     page: 1,
-    limit: 50,
+    limit: 300,
     sortBy: 'fecha',
     sortOrder: 'desc',
   })

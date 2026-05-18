@@ -3170,14 +3170,15 @@ app.get('/', (req, res) => {
 // CONTABILIDAD - GESTIÓN DE GASTOS (CRUD) + MOVIBAN
 // ================================================================
 
-// GET /api/contabilidad/gastos - Listar gastos
+// GET /api/contabilidad/gastos - Listar gastos (ordenado por fecha DESC, máx 300)
 app.get('/api/contabilidad/gastos', async (req, res) => {
     try {
         const empresa = req.query.empresa || req.headers['x-empresa'];
         if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
         const search   = req.query.search || '';
-        const limit    = Math.min(parseInt(req.query.limit) || 50, 200);
+        // Máximo 300 registros, default 50 si no se especifica
+        const limit    = Math.min(parseInt(req.query.limit) || 50, 300);
         const offset   = ((parseInt(req.query.page) || 1) - 1) * limit;
 
         let where = 'WHERE g.empresa = $1';
@@ -3202,7 +3203,7 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
              LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
              LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
              ${where}
-             ORDER BY g.fecha DESC
+             ORDER BY g.fecha DESC, g.codigo DESC
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
             params
         );
