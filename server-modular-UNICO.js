@@ -3389,7 +3389,7 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
         const result = await pool.query(
             `SELECT g.codigo, g.fecha, g.factura, g.proveedor, p.nombre as proveedor_nombre,
                     g.ccosto, cc.nombre as ccosto_nombre, g.forma_pago,
-                    g.cuenta, cta.nombre as cuenta_nombre,
+                    g.cuenta, cta.cuenta as cuenta_nombre,
                     g.concepto, g.subtotal, g.impuestos, g.total, g.empresa, g.created_at,
                     g.estado, g.entrada_almacen, g.origen
              FROM gastos g
@@ -3420,7 +3420,7 @@ app.get('/api/contabilidad/gastos/buscar', async (req, res) => {
         const result = await pool.query(
             `SELECT g.codigo, g.fecha, g.factura, g.proveedor, p.nombre as proveedor_nombre,
                     g.ccosto, cc.nombre as ccosto_nombre, g.forma_pago,
-                    g.cuenta, cta.nombre as cuenta_nombre,
+                    g.cuenta, cta.cuenta as cuenta_nombre,
                     g.concepto, g.subtotal, g.impuestos, g.total, g.empresa, g.created_at
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
@@ -3500,7 +3500,7 @@ app.get('/api/contabilidad/gastos/export/excel', async (req, res) => {
         const result = await pool.query(
             `SELECT g.codigo, g.fecha, g.factura, p.nombre as proveedor,
                     cc.nombre as centro_costos, g.forma_pago,
-                    cta.nombre as cuenta_contable, g.concepto, g.subtotal, g.impuestos, g.total
+                    cta.cuenta as cuenta_contable, g.concepto, g.subtotal, g.impuestos, g.total
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
