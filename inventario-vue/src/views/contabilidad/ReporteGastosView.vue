@@ -632,7 +632,7 @@ async function generarPDF() {
 
     // ── RESUMEN POR CUENTA CONTABLE ───────────────────────────────
     if (grupos.value.length > 1) {
-      y += 12
+      y += 20
       if (y > PH - FTR_H - 30) {
         drawFooter()
         doc.addPage()
@@ -663,7 +663,7 @@ async function generarPDF() {
           0: { cellWidth: 22 },
           1: { cellWidth: 'auto' },
           2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 32, halign: 'right' },
+          3: { cellWidth: 27, halign: 'right' },   // mismo ancho que columna VALOR
         },
         tableLineColor: C_LGREY,
         tableLineWidth: 0.15,
