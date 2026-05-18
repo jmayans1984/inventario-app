@@ -118,10 +118,14 @@ export const proveedoresService = {
         ...data,
         empresa: empresa
       }
+      console.log('🔵 [Service] Enviando PUT a:', `${ENDPOINT}/${codigo}`)
+      console.log('🔵 [Service] Datos:', dataConEmpresa)
       const response = await api.put(`${ENDPOINT}/${codigo}`, dataConEmpresa)
+      console.log('🟢 [Service] Respuesta:', response.data)
       return response.data
     } catch (error) {
-      console.error(`Error actualizando proveedor ${codigo}:`, error)
+      console.error(`❌ Error actualizando proveedor ${codigo}:`, error)
+      console.error('🔴 [Service] Status:', error.response?.status, 'Data:', error.response?.data)
       throw error
     }
   },
