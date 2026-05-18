@@ -163,13 +163,14 @@
               <v-icon size="15" color="#667eea">mdi-cash-multiple</v-icon>
               <span>Montos</span>
             </div>
-            <v-row dense align="center" class="mt-1">
+            <v-row dense class="mt-1">
               <v-col cols="12" sm="4">
                 <v-text-field
                   v-model.number="form.subtotal"
                   label="Subtotal *"
                   variant="outlined"
                   density="comfortable"
+                  hide-details="auto"
                   :rules="reglaSubtotal"
                   type="number"
                   step="0.01"
@@ -184,6 +185,7 @@
                   label="Impuestos / Tax"
                   variant="outlined"
                   density="comfortable"
+                  hide-details
                   type="number"
                   step="0.01"
                   min="0"
@@ -192,10 +194,16 @@
                 />
               </v-col>
               <v-col cols="12" sm="4">
-                <div class="total-display">
-                  <div class="total-label">TOTAL PAGADO</div>
-                  <div class="total-value">{{ formatMoneda(form.total) }}</div>
-                </div>
+                <v-text-field
+                  :model-value="formatMoneda(form.total)"
+                  label="Total Pagado"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  readonly
+                  prepend-inner-icon="mdi-cash-check"
+                  class="total-readonly-field"
+                />
               </v-col>
             </v-row>
           </div>
@@ -484,10 +492,10 @@ function cerrar() {
 
 /* ═══ BODY ════════════════════════════════════════════════════════════ */
 .form-body {
-  padding: 24px 28px !important;
+  padding: 16px 24px !important;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 /* ═══ SECCIONES ══════════════════════════════════════════════════════ */
@@ -511,36 +519,31 @@ function cerrar() {
   margin-bottom: 4px;
 }
 
-/* ═══ TOTAL DISPLAY ══════════════════════════════════════════════════ */
+/* ═══ TOTAL READONLY FIELD ═══════════════════════════════════════════ */
 .montos-section { border-left-color: #764ba2; }
 
-.total-display {
-  background: linear-gradient(135deg, rgba(102,126,234,0.12) 0%, rgba(118,75,162,0.12) 100%);
-  border: 2px solid rgba(102,126,234,0.35);
-  border-radius: 10px;
-  padding: 14px 20px;
-  text-align: center;
-  height: 56px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.total-readonly-field :deep(.v-field) {
+  background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%) !important;
 }
-
-.total-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #667eea;
-  margin-bottom: 2px;
+.total-readonly-field :deep(.v-field__outline__start),
+.total-readonly-field :deep(.v-field__outline__notch),
+.total-readonly-field :deep(.v-field__outline__end) {
+  border-color: rgba(102,126,234,0.6) !important;
+  border-width: 2px !important;
 }
-
-.total-value {
-  font-size: 20px;
+.total-readonly-field :deep(.v-field__input) {
+  font-size: 18px;
   font-weight: 800;
   color: #667eea;
   font-family: 'Courier New', monospace;
   letter-spacing: 0.5px;
+}
+.total-readonly-field :deep(.v-label) {
+  color: #667eea !important;
+  font-weight: 600;
+}
+.total-readonly-field :deep(.v-icon) {
+  color: #667eea !important;
 }
 
 /* ═══ FOOTER ═════════════════════════════════════════════════════════ */
