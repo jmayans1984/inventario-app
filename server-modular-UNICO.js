@@ -3178,6 +3178,16 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
 
         console.log(`[DEBUG] GET /api/contabilidad/gastos - Empresa: ${empresa}`);
 
+        // Primero probar si la tabla existe y qué columnas tiene
+        try {
+            const tableTest = await pool.query(
+                `SELECT column_name FROM information_schema.columns WHERE table_name = 'gastos' LIMIT 20`
+            );
+            console.log(`  Columnas en tabla gastos:`, tableTest.rows.map(r => r.column_name));
+        } catch(e) {
+            console.log(`  Error checking columns:`, e.message);
+        }
+
         // Consulta simple: Solo SELECT * de gastos para obtener todas las columnas
         const dataRes = await pool.query(
             `SELECT * FROM gastos
