@@ -3390,7 +3390,7 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
             `SELECT g.codigo, g.fecha, g.factura, g.proveedor, p.nombre as proveedor_nombre,
                     g.ccosto, cc.nombre as ccosto_nombre, g.forma_pago,
                     g.cuenta, cta.cuenta as cuenta_nombre,
-                    g.concepto, g.subtotal, g.impuestos, g.total, g.empresa, g.created_at,
+                    g.concepto, g.subtotal, g.impuestos, g.total, g.empresa,
                     g.estado, g.entrada_almacen, g.origen
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
@@ -3421,7 +3421,7 @@ app.get('/api/contabilidad/gastos/buscar', async (req, res) => {
             `SELECT g.codigo, g.fecha, g.factura, g.proveedor, p.nombre as proveedor_nombre,
                     g.ccosto, cc.nombre as ccosto_nombre, g.forma_pago,
                     g.cuenta, cta.cuenta as cuenta_nombre,
-                    g.concepto, g.subtotal, g.impuestos, g.total, g.empresa, g.created_at
+                    g.concepto, g.subtotal, g.impuestos, g.total, g.empresa
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
