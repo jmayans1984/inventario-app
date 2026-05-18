@@ -2359,21 +2359,36 @@ app.put('/api/contabilidad/proveedores/:codigo', async (req, res) => {
             });
         }
 
-        console.log('[PUT proveedores] Actualizando:', { codigo, nombre, direccion, telefono1, departamen, empresa });
+        console.log('[PUT proveedores] INICIO - Parámetros:', { codigo, nombre, direccion, telefono1, departamen, empresa });
 
-        const query = `
+        // Primero verificar si el registro existe
+        const checkQuery = `SELECT * FROM proveedores WHERE codigo = $1 AND empresa = $2`;
+        const checkResult = await pool.query(checkQuery, [codigo, empresa]);
+        console.log('[PUT proveedores] Búsqueda inicial:', { existe: checkResult.rows.length > 0, registro: checkResult.rows[0] });
+
+        if (checkResult.rows.length === 0) {
+            console.error('[PUT proveedores] ❌ REGISTRO NO ENCONTRADO en BD:', { codigo, empresa });
+            return res.status(404).json({
+                success: false,
+                error: 'Proveedor no encontrado en la base de datos',
+                debug: { codigo, empresa, buscado: `codigo=${codigo} AND empresa=${empresa}` }
+            });
+        }
+
+        // Ahora actualizar
+        const updateQuery = `
             UPDATE proveedores
             SET
-                nombre = COALESCE($1, nombre),
-                direccion = COALESCE($2, direccion),
-                telefono1 = COALESCE($3, telefono1),
-                departamen = COALESCE($4, departamen)
+                nombre = $1,
+                direccion = $2,
+                telefono1 = $3,
+                departamen = $4
             WHERE codigo = $5 AND empresa = $6
             RETURNING codigo, nombre, direccion, telefono1, departamen, empresa
         `;
 
-        const result = await pool.query(query, [
-            nombre || null,
+        const result = await pool.query(updateQuery, [
+            nombre,
             direccion || null,
             telefono1 || null,
             departamen || null,
@@ -2381,15 +2396,7 @@ app.put('/api/contabilidad/proveedores/:codigo', async (req, res) => {
             empresa
         ]);
 
-        console.log('[PUT proveedores] Resultado:', { rowCount: result.rowCount, returned: result.rows[0] });
-
-        if (result.rows.length === 0) {
-            console.warn('[PUT proveedores] No encontrado:', { codigo, empresa });
-            return res.status(404).json({
-                success: false,
-                error: 'Proveedor no encontrado'
-            });
-        }
+        console.log('[PUT proveedores] ✅ ACTUALIZACIÓN EXITOSA:', { rowCount: result.rowCount, updated: result.rows[0] });
 
         res.json({
             success: true,

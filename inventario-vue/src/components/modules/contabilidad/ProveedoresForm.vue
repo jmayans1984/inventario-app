@@ -297,15 +297,19 @@ async function handleGuardar() {
 
     if (esEdicion.value) {
       // Actualizar
+      console.log('📤 Enviando UPDATE:', { codigo: props.proveedor.codigo, data: formData.value })
       resultado = await store.actualizarProveedor(props.proveedor.codigo, {
         ...formData.value,
       })
+      console.log('✅ Respuesta UPDATE:', resultado)
       mensajeExito.value = 'Proveedor actualizado correctamente'
     } else {
       // Crear
+      console.log('📤 Enviando CREATE:', formData.value)
       resultado = await store.crearProveedor({
         ...formData.value,
       })
+      console.log('✅ Respuesta CREATE:', resultado)
       mensajeExito.value = 'Proveedor creado correctamente'
     }
 
@@ -315,8 +319,13 @@ async function handleGuardar() {
       cerrar()
     }, 1000)
   } catch (error) {
-    errorGeneral.value = error.message || 'Error al guardar el proveedor'
-    console.error('Error guardando:', error)
+    console.error('❌ Error guardando:', error)
+    console.error('📋 Detalles del error:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    })
+    errorGeneral.value = error.response?.data?.error || error.message || 'Error al guardar el proveedor'
   } finally {
     guardando.value = false
   }
