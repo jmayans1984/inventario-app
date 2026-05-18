@@ -3177,8 +3177,8 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
         if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
         const search   = req.query.search || '';
-        // Máximo 300 registros, default 50 si no se especifica
-        const limit    = Math.min(parseInt(req.query.limit) || 50, 300);
+        // Máximo 300 registros, default 300 si no se especifica
+        const limit    = Math.min(parseInt(req.query.limit) || 300, 300);
         const offset   = ((parseInt(req.query.page) || 1) - 1) * limit;
 
         let where = 'WHERE g.empresa = $1';
@@ -3189,12 +3189,20 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
             where += ` AND (g.codigo ILIKE $${params.length} OR g.numero_factura ILIKE $${params.length} OR p.nombre ILIKE $${params.length})`;
         }
 
+        // DEBUG: Log de la consulta
+        console.log(`[DEBUG] GET /api/contabilidad/gastos`);
+        console.log(`  Empresa: ${empresa}`);
+        console.log(`  Search: ${search}`);
+        console.log(`  Limit: ${limit}, Offset: ${offset}`);
+        console.log(`  WHERE clause: ${where}`);
+        console.log(`  Params: ${JSON.stringify(params)}`);
+
         const countRes = await pool.query(`SELECT COUNT(*) FROM gastos g ${where}`, params);
         const total = parseInt(countRes.rows[0].count);
+        console.log(`  Total registros encontrados: ${total}`);
 
         params.push(limit, offset);
-        const dataRes = await pool.query(
-            `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
+        const query = `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
                     g.centro_costos_id, cc.nombre as centro_costos_nombre, g.forma_pago,
                     g.cuenta_contable_id, c.nombre as cuenta_contable_nombre,
                     g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
@@ -3204,13 +3212,16 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
              LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
              ${where}
              ORDER BY g.fecha DESC, g.codigo DESC
-             LIMIT $${params.length - 1} OFFSET $${params.length}`,
-            params
-        );
+             LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+        console.log(`  Query: ${query}`);
+        const dataRes = await pool.query(query, params);
+        console.log(`  Registros retornados: ${dataRes.rows.length}`);
 
         res.json({ success: true, data: dataRes.rows, total, page: parseInt(req.query.page) || 1, limit });
     } catch (error) {
         console.error('Error GET /api/contabilidad/gastos:', error.message);
+        console.error('Stack:', error.stack);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -3469,6 +3480,41 @@ app.get('/api/contabilidad/gastos/export/excel', async (req, res) => {
         });
     } catch (error) {
         console.error('Error GET /api/contabilidad/gastos/export/excel:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DEBUG: GET /api/contabilidad/gastos/debug - Verificar datos en BD
+app.get('/api/contabilidad/gastos/debug', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+
+        // Verificar tabla gastos
+        const countGastos = await pool.query('SELECT COUNT(*) FROM gastos');
+        const totalGastos = parseInt(countGastos.rows[0].count);
+
+        const countGastosEmpresa = await pool.query(
+            'SELECT COUNT(*) FROM gastos WHERE empresa = $1',
+            [empresa]
+        );
+        const totalGastosEmpresa = parseInt(countGastosEmpresa.rows[0].count);
+
+        // Obtener algunos datos de ejemplo
+        const ejemplos = await pool.query(
+            'SELECT codigo, fecha, proveedor_id, empresa FROM gastos ORDER BY fecha DESC LIMIT 5'
+        );
+
+        res.json({
+            success: true,
+            debug: {
+                total_gastos_bd: totalGastos,
+                total_gastos_empresa: totalGastosEmpresa,
+                empresa_buscada: empresa,
+                ultimos_5_gastos: ejemplos.rows
+            }
+        });
+    } catch (error) {
+        console.error('Error DEBUG:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
