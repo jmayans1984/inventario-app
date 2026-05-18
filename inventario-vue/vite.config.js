@@ -4,6 +4,10 @@ import vuetify from 'vite-plugin-vuetify'
 
 export default defineConfig({
   base: '/inventario-app/completa/',
+  build: {
+    outDir: '../completa',
+    emptyOutDir: true,
+  },
   plugins: [
     vue(),
     vuetify({ autoImport: true }),
