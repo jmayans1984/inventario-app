@@ -102,6 +102,16 @@ export const gestionGastosService = {
     }
   },
 
+  async getReporte(params = {}) {
+    try {
+      const response = await api.get('/gastos/reporte', { params })
+      return response.data
+    } catch (error) {
+      console.error('Error obteniendo reporte de gastos:', error)
+      throw error
+    }
+  },
+
   async exportarExcel(filters = {}) {
     try {
       const empresa = getEmpresaActiva()

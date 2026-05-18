@@ -11,6 +11,7 @@ const routes = [
   { path: '/contabilidad/configuracion/cuentas-bancarias', component: () => import('../views/contabilidad/CuentasBancariasView.vue'), meta: { requiresAuth: true } },
   { path: '/contabilidad/configuracion/cuentas-contables', component: () => import('../views/contabilidad/CuentasContablesView.vue'), meta: { requiresAuth: true } },
   { path: '/contabilidad/procesos/gastos',                 component: () => import('../views/contabilidad/GestionGastosView.vue'),     meta: { requiresAuth: true } },
+  { path: '/contabilidad/reportes/gastos',                 component: () => import('../views/contabilidad/ReporteGastosView.vue'),      meta: { requiresAuth: true } },
 
   // CONTABILIDAD — patrón general (captura /contabilidad, /contabilidad/configuracion, etc.)
   { path: '/contabilidad/:section?/:item?', component: () => import('../views/ContabilidadView.vue'), meta: { requiresAuth: true } },
