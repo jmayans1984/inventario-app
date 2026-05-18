@@ -3347,14 +3347,15 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
         if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
         const result = await pool.query(
-            `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
-                    g.centro_costos_id, cc.nombre as centro_costos_nombre, g.forma_pago,
-                    g.cuenta_contable_id, c.nombre as cuenta_contable_nombre,
-                    g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
+            `SELECT g.codigo, g.fecha, g.factura, g.proveedor, p.nombre as proveedor_nombre,
+                    g.ccosto, cc.nombre as ccosto_nombre, g.forma_pago,
+                    g.cuenta, cta.nombre as cuenta_nombre,
+                    g.concepto, g.subtotal, g.impuestos, g.total, g.empresa, g.created_at,
+                    g.estado, g.entrada_almacen, g.origen
              FROM gastos g
-             LEFT JOIN proveedores p ON g.proveedor_id = p.id
-             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
-             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
+             LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             LEFT JOIN cuentas_contables cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
              WHERE g.codigo = $1 AND g.empresa = $2`,
             [codigo, empresa]
         );
@@ -3377,15 +3378,15 @@ app.get('/api/contabilidad/gastos/buscar', async (req, res) => {
         if (!q) return res.json({ success: true, data: [] });
 
         const result = await pool.query(
-            `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id, p.nombre as proveedor_nombre,
-                    g.centro_costos_id, cc.nombre as centro_costos_nombre, g.forma_pago,
-                    g.cuenta_contable_id, c.nombre as cuenta_contable_nombre,
-                    g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
+            `SELECT g.codigo, g.fecha, g.factura, g.proveedor, p.nombre as proveedor_nombre,
+                    g.ccosto, cc.nombre as ccosto_nombre, g.forma_pago,
+                    g.cuenta, cta.nombre as cuenta_nombre,
+                    g.concepto, g.subtotal, g.impuestos, g.total, g.empresa, g.created_at
              FROM gastos g
-             LEFT JOIN proveedores p ON g.proveedor_id = p.id
-             LEFT JOIN ccostos cc ON g.centro_costos_id = cc.codigo
-             LEFT JOIN cuentas c ON g.cuenta_contable_id = c.codigo
-             WHERE g.empresa = $1 AND (g.codigo ILIKE $2 OR g.numero_factura ILIKE $2 OR p.nombre ILIKE $2 OR g.concepto ILIKE $2)
+             LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+             LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             LEFT JOIN cuentas_contables cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
+             WHERE g.empresa = $1 AND (g.codigo ILIKE $2 OR g.factura ILIKE $2 OR p.nombre ILIKE $2 OR g.concepto ILIKE $2)
              ORDER BY g.fecha DESC
              LIMIT 20`,
             [empresa, `%${q}%`]
