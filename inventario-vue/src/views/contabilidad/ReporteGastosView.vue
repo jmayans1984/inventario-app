@@ -46,17 +46,9 @@
             <span>Período</span>
           </div>
           <div class="dates-row">
-            <div class="date-field">
-              <span class="date-tag">DESDE</span>
-              <input v-model="filtros.fechaInicial" type="date" class="date-input" />
-            </div>
-            <div class="dates-arrow">
-              <v-icon size="18" color="rgba(255,255,255,0.3)">mdi-arrow-right</v-icon>
-            </div>
-            <div class="date-field">
-              <span class="date-tag">HASTA</span>
-              <input v-model="filtros.fechaFinal" type="date" class="date-input" />
-            </div>
+            <input v-model="filtros.fechaInicial" type="date" class="date-input" title="Fecha inicial" />
+            <v-icon size="16" color="rgba(255,255,255,0.3)">mdi-arrow-right</v-icon>
+            <input v-model="filtros.fechaFinal" type="date" class="date-input" title="Fecha final" />
           </div>
         </div>
 
@@ -97,7 +89,7 @@
           <select v-model="filtros.cuentaContable" class="filter-select">
             <option value="">TODAS LAS CUENTAS</option>
             <option v-for="c in cuentasContables" :key="c.codigo" :value="c.codigo">
-              {{ c.cuenta }}
+              {{ c.nombre }}
             </option>
           </select>
         </div>
@@ -143,15 +135,6 @@
           <span class="kpi-label">Cuentas Contables</span>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: rgba(245,158,11,0.15)">
-          <v-icon size="20" color="#f59e0b">mdi-calculator</v-icon>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-val">{{ formatMoneda(totalImpuestos) }}</span>
-          <span class="kpi-label">Total Impuestos</span>
-        </div>
-      </div>
     </div>
 
     <!-- ── PREVIEW DE DATOS ───────────────────────────────────────── -->
@@ -174,6 +157,15 @@
         <!-- Tabla del grupo -->
         <div class="grupo-table-wrap">
           <table class="preview-table">
+            <colgroup>
+              <col style="width: 130px" />
+              <col style="width: 100px" />
+              <col style="width: 18%" />
+              <col style="width: auto" />
+              <col style="width: 15%" />
+              <col style="width: 14%" />
+              <col style="width: 120px" />
+            </colgroup>
             <thead>
               <tr>
                 <th>CÓDIGO</th>
@@ -198,7 +190,7 @@
             </tbody>
             <tfoot>
               <tr class="subtotal-row">
-                <td colspan="6" class="subtotal-label">Subtotal {{ grupo.cuenta_nombre }}</td>
+                <td colspan="6" class="subtotal-label">SUBTOTAL {{ grupo.cuenta_nombre.toUpperCase() }}</td>
                 <td class="subtotal-val">{{ formatMoneda(grupo.subtotal) }}</td>
               </tr>
             </tfoot>
@@ -630,7 +622,7 @@ async function generarPDF() {
   display: grid;
   grid-template-columns: 1.4fr 1fr 1fr 1fr;
   gap: 20px;
-  align-items: start;
+  align-items: end;
   margin-bottom: 18px;
 }
 
@@ -653,18 +645,6 @@ async function generarPDF() {
   align-items: center;
   gap: 8px;
 }
-.date-field {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.date-tag {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #667eea;
-}
 .date-input {
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(102,126,234,0.35);
@@ -682,7 +662,6 @@ async function generarPDF() {
   border-color: #667eea;
   background: rgba(102,126,234,0.12);
 }
-.dates-arrow { flex-shrink: 0; padding-top: 22px; }
 
 /* Select */
 .filter-select {
@@ -728,7 +707,7 @@ async function generarPDF() {
 /* ── KPI Cards ──────────────────────────────────────────────────── */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
 .kpi-card {
@@ -792,6 +771,7 @@ async function generarPDF() {
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
+  table-layout: fixed;
 }
 .preview-table thead th {
   background: rgba(var(--v-theme-on-surface), 0.04);
