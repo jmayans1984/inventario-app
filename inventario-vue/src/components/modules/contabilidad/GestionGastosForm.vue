@@ -343,9 +343,19 @@ watch(() => props.open, async (val) => {
         const gastoFresco = await gestionGastosService.getGasto(props.gasto.codigo)
         const gasto = gastoFresco.data || gastoFresco
         console.log('✓ Gasto cargado:', gasto)
+        // Convertir fecha ISO a fecha local
+        let fechaLocal = ''
+        if (gasto.fecha) {
+          const date = new Date(gasto.fecha)
+          const year = date.getFullYear()
+          const month = String(date.getMonth() + 1).padStart(2, '0')
+          const day = String(date.getDate()).padStart(2, '0')
+          fechaLocal = `${year}-${month}-${day}`
+        }
+
         form.value = {
           codigo: gasto.codigo || '',
-          fecha: (gasto.fecha || '').split('T')[0],
+          fecha: fechaLocal,
           factura: gasto.factura || '',
           proveedor: gasto.proveedor || '',
           ccosto: gasto.ccosto || '',
