@@ -3178,8 +3178,7 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
 
         console.log(`[DEBUG] GET /api/contabilidad/gastos - Empresa: ${empresa}`);
 
-        // Consulta con LEFT JOINs para obtener nombres de proveedores y centros de costos
-        // Filtrar JOINs por empresa para obtener los nombres correctos de cada empresa
+        // Consulta con LEFT JOINs para obtener nombres de proveedores, centros de costos y forma de pago
         const dataRes = await pool.query(
             `SELECT
                 g.codigo,
@@ -3196,12 +3195,14 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
                 g.impuestos,
                 g.cuenta,
                 g.forma_pago,
+                COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                 g.estado,
                 g.entrada_almacen,
                 g.origen
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
              WHERE g.empresa = $1
              ORDER BY g.fecha DESC, g.codigo DESC
              LIMIT 1000`,
@@ -3258,7 +3259,39 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
              forma_pago, cuenta, (concepto || '').toUpperCase(), subtotal, impuestos || 0, total, empresa, 'PENDIENTE']
         );
 
-        // 4. Obtener el gasto con JOINs para devolver nombres
+        // 4. Registrar movimiento bancario en moviban
+        await client.query('LOCK TABLE moviban IN SHARE ROW EXCLUSIVE MODE');
+
+        const movibanNumRes = await client.query(
+            `SELECT MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END) as max_numero
+             FROM moviban WHERE empresa = $1`,
+            [empresa]
+        );
+        const proximoNumMoviban = String((parseInt(movibanNumRes.rows[0].max_numero) || 0) + 1).padStart(10, '0');
+
+        await client.query(
+            `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
+                                  banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            [
+                'GTO',
+                proximoNumMoviban,
+                fecha,
+                ('GASTO DE COMPRA: ' + proximoCodigo).substring(0, 60),
+                null,
+                0,
+                total,
+                forma_pago,
+                'NO',
+                empresa,
+                proximoCodigo,
+                proveedor,
+                null,
+                ccosto
+            ]
+        );
+
+        // 5. Obtener el gasto con JOINs para devolver nombres
         const gastoConNombresRes = await client.query(
             `SELECT
                 g.codigo,
@@ -3275,12 +3308,14 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
                 g.impuestos,
                 g.cuenta,
                 g.forma_pago,
+                COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                 g.estado,
                 g.entrada_almacen,
                 g.origen
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
              WHERE g.codigo = $1 AND g.empresa = $2`,
             [proximoCodigo, empresa]
         );
@@ -3388,13 +3423,15 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
 
         const result = await pool.query(
             `SELECT g.codigo, g.fecha, g.factura, g.proveedor, p.nombre as proveedor_nombre,
-                    g.ccosto, cc.nombre as ccosto_nombre, g.forma_pago,
+                    g.ccosto, cc.nombre as ccosto_nombre,
+                    g.forma_pago, COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                     g.cuenta, cta.cuenta as cuenta_nombre,
                     g.concepto, g.subtotal, g.impuestos, g.total, g.empresa,
                     g.estado, g.entrada_almacen, g.origen
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
              LEFT JOIN cuentas cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
              WHERE g.codigo = $1 AND g.empresa = $2`,
             [codigo, empresa]
