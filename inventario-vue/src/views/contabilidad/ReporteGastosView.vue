@@ -356,26 +356,28 @@ async function generarPDF() {
     const TW  = PW - ML - MR   // 263mm
 
     // ── Constantes de diseño ──────────────────────────────────────
-    const HDR_H  = 19   // altura del header (compacto)
-    const FTR_H  = 8    // espacio reservado para pie de página
+    const HDR_H  = 22   // altura del header
+    const FTR_H  = 10   // espacio reservado para pie de página
 
     // ── Paleta ───────────────────────────────────────────────────
-    const C_PURPLE = [102, 126, 234]
-    const C_VIOLET = [80,  50,  140]
-    const C_DARK   = [28,  28,   42]
-    const C_GREY   = [110, 110, 130]
-    const C_LIGHT  = [248, 248, 252]
-    const C_WHITE  = [255, 255, 255]
-    const C_ACCENT = [235, 235, 250]
-    const C_GREEN  = [80,  200, 140]
+    const C_PURPLE  = [102, 126, 234]
+    const C_DARK    = [22,  22,  40 ]
+    const C_DVIOL   = [35,  28,  60 ]   // fondo sección derecha header
+    const C_GREY    = [110, 110, 130]
+    const C_LIGHT   = [248, 248, 252]
+    const C_WHITE   = [255, 255, 255]
+    const C_ACCENT  = [235, 235, 250]
+    const C_GREEN   = [80,  200, 140]
+    const C_SUBGREY = [160, 165, 200]   // texto secundario en header oscuro
 
     // ── Datos empresa y usuario ───────────────────────────────────
     const emp       = empresaInfo.value
-    const empNombre = (emp.nombre    || auth.empresaNombre || 'EMPRESA').toUpperCase()
-    const empDir    = emp.direccion  || emp.dir || ''
-    const empTel    = emp.telefono1  || emp.telefono || emp.tel || ''
+    const empNombre = (emp.nombre   || auth.empresaNombre || 'EMPRESA').toUpperCase()
+    const empDir    = emp.direccion || emp.dir || ''
+    const empTel    = emp.telefono1 || emp.telefono || emp.tel || ''
 
-    const usuario   = auth.userNombre || auth.userName || 'Usuario'
+    // PIE DE PÁGINA: mostrar USUARIO de login, no nombre completo
+    const usuario   = auth.userName || auth.userNombre || 'Usuario'
 
     // ── Helper: formato fecha MM/DD/AAAA ─────────────────────────
     function fmtF(isoStr) {
@@ -384,7 +386,7 @@ async function generarPDF() {
       return p.length === 3 ? `${p[1]}/${p[2]}/${p[0]}` : d
     }
 
-    // ── Helper: fecha+hora actual MM/DD/AAAA HH:MM ───────────────
+    // ── Fecha+hora actual MM/DD/AAAA HH:MM ───────────────────────
     const ahora = new Date()
     const fechaHoraGen = `${String(ahora.getMonth()+1).padStart(2,'0')}/${String(ahora.getDate()).padStart(2,'0')}/${ahora.getFullYear()} ${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`
 
@@ -395,64 +397,92 @@ async function generarPDF() {
 
     // ── PIE DE PÁGINA ─────────────────────────────────────────────
     function drawFooter() {
-      const pg = doc.internal.getCurrentPageInfo().pageNumber
+      const pg  = doc.internal.getCurrentPageInfo().pageNumber
+      const yL  = PH - FTR_H + 1.5   // línea separadora
+      const yTx = PH - FTR_H + 6     // línea de texto
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6)
       doc.setTextColor(...C_GREY)
       doc.setDrawColor(200, 200, 215)
       doc.setLineWidth(0.2)
-      doc.line(ML, PH - FTR_H + 1, PW - MR, PH - FTR_H + 1)
-      doc.text(`Informe generado por ${usuario} el ${fechaHoraGen}`, ML, PH - FTR_H + 4.5)
-      doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, PW - MR, PH - FTR_H + 4.5, { align: 'right' })
+      doc.line(ML, yL, PW - MR, yL)
+      // Izquierda: generado por
+      doc.text(`Informe generado por ${usuario} el ${fechaHoraGen}`, ML, yTx)
+      // Derecha: numero de página — alineado al borde derecho del contenido
+      doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, ML + TW, yTx, { align: 'right' })
     }
 
-    // ── ENCABEZADO DE PÁGINA (compacto, HDR_H = 19mm) ────────────
-    // Se llama en primera página y en todas las páginas nuevas.
+    // ── ENCABEZADO PROFESIONAL (HDR_H = 22mm) ────────────────────
+    const HDR_RIGHT_W = 88    // ancho de la sección derecha del header
+    const HDR_LEFT_W  = PW - HDR_RIGHT_W
+
     function drawHeader(isFirstPage = false) {
-      // Fondo oscuro izquierda
+      // ── Fondo completo oscuro
       doc.setFillColor(...C_DARK)
-      doc.rect(0, 0, PW - 80, HDR_H, 'F')
-      // Franja violeta derecha
-      doc.setFillColor(...C_VIOLET)
-      doc.rect(PW - 80, 0, 80, HDR_H, 'F')
-      // Barra de acento izquierda
+      doc.rect(0, 0, PW, HDR_H, 'F')
+
+      // ── Barra superior de acento (2mm)
       doc.setFillColor(...C_PURPLE)
-      doc.rect(0, 0, 3, HDR_H, 'F')
+      doc.rect(0, 0, PW, 2, 'F')
 
-      // Empresa — nombre
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      doc.setTextColor(...C_WHITE)
-      doc.text(empNombre, ML + 3, 7)
+      // ── Franja izquierda de acento (4mm)
+      doc.setFillColor(...C_PURPLE)
+      doc.rect(0, 2, 4, HDR_H - 2, 'F')
 
-      // Empresa — dirección + teléfono en una línea
-      const contactLine = [empDir, empTel].filter(Boolean).join('   |   ')
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6)
-      doc.setTextColor(175, 180, 215)
-      if (contactLine) doc.text(contactLine, ML + 3, 12)
+      // ── Sección derecha: fondo violeta oscuro
+      doc.setFillColor(...C_DVIOL)
+      doc.rect(HDR_LEFT_W, 2, HDR_RIGHT_W, HDR_H - 2, 'F')
 
-      // Título del reporte (derecha)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8.5)
-      doc.setTextColor(...C_WHITE)
-      doc.text('REPORTE DE GASTOS', PW - MR - 3, 7, { align: 'right' })
-
-      // Período
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6)
-      doc.setTextColor(175, 180, 215)
-      doc.text(`Periodo: ${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`, PW - MR - 3, 12, { align: 'right' })
-      doc.text(`Emitido: ${fechaHoraGen}`, PW - MR - 3, 16.5, { align: 'right' })
-
-      // Línea separadora inferior del header
+      // ── Línea separadora vertical izquierda/derecha
       doc.setDrawColor(...C_PURPLE)
       doc.setLineWidth(0.5)
-      doc.line(0, HDR_H, PW, HDR_H)
+      doc.line(HDR_LEFT_W, 3, HDR_LEFT_W, HDR_H - 1)
 
-      y = HDR_H + 3
+      // ── EMPRESA: nombre (izquierda)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...C_WHITE)
+      doc.text(empNombre, 4 + 6, 11)
 
-      // Bloque de filtros SOLO en la primera página
+      // ── EMPRESA: dirección y teléfono
+      const contactLine = [empDir, empTel].filter(Boolean).join('   •   ')
+      if (contactLine) {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.5)
+        doc.setTextColor(...C_SUBGREY)
+        doc.text(contactLine, 4 + 6, 17)
+      }
+
+      // ── DERECHA: título del reporte (centrado en sección derecha)
+      const rCX = HDR_LEFT_W + HDR_RIGHT_W / 2   // centro de la sección derecha
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9.5)
+      doc.setTextColor(...C_WHITE)
+      doc.text('REPORTE DE GASTOS', rCX, 9.5, { align: 'center' })
+
+      // Línea decorativa bajo el título
+      doc.setDrawColor(102, 126, 234, 0.6)
+      doc.setLineWidth(0.3)
+      doc.line(HDR_LEFT_W + 8, 11, PW - 6, 11)
+
+      // ── DERECHA: período
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(...C_SUBGREY)
+      doc.text(`Periodo: ${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`, rCX, 15, { align: 'center' })
+
+      // ── DERECHA: emitido
+      doc.setFontSize(6)
+      doc.setTextColor(140, 145, 180)
+      doc.text(`Emitido: ${fechaHoraGen}`, rCX, 19.5, { align: 'center' })
+
+      // ── Línea inferior del header (acento)
+      doc.setFillColor(...C_PURPLE)
+      doc.rect(0, HDR_H, PW, 0.8, 'F')
+
+      y = HDR_H + 0.8 + 3
+
+      // ── Bloque de filtros SOLO primera página
       if (isFirstPage) {
         doc.setFillColor(...C_LIGHT)
         doc.rect(ML, y, TW, 7, 'F')
@@ -538,7 +568,7 @@ async function generarPDF() {
       // ── Tabla del grupo ──────────────────────────────────────
       autoTable(doc, {
         startY: y,
-        margin: { left: ML, right: MR, top: HDR_H + 3, bottom: FTR_H + 2 },
+        margin: { left: ML, right: MR, top: HDR_H + 0.8 + 3, bottom: FTR_H + 2 },
         head: [[
           { content: 'CODIGO',     styles: { halign: 'center' } },
           { content: 'FECHA',      styles: { halign: 'center' } },
@@ -627,7 +657,7 @@ async function generarPDF() {
 
       autoTable(doc, {
         startY: y,
-        margin: { left: ML, right: MR, top: HDR_H + 3, bottom: FTR_H + 2 },
+        margin: { left: ML, right: MR, top: HDR_H + 0.8 + 3, bottom: FTR_H + 2 },
         head: [['CUENTA', 'DESCRIPCION', 'REGISTROS', 'SUBTOTAL']],
         body: grupos.value.map(g => [
           { content: g.cuenta,              styles: { fontStyle: 'bold', textColor: C_PURPLE } },
