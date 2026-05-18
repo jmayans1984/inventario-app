@@ -119,7 +119,7 @@
                   :rules="reglaFormaPago"
                   :items="formasPagoOptions"
                   item-title="nombre_cta"
-                  item-value="id"
+                  item-value="codigo"
                   placeholder="Selecciona cuenta bancaria..."
                   prepend-inner-icon="mdi-credit-card-outline"
                   no-data-text="No hay formas de pago"
