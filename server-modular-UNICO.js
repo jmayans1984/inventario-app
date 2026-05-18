@@ -3241,33 +3241,23 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
         //    SHARE ROW EXCLUSIVE impide que otra transacción haga INSERT simultáneo
         await client.query('LOCK TABLE gastos IN SHARE ROW EXCLUSIVE MODE');
 
-        // 2. Obtener próximo código (10 dígitos) — seguro porque la tabla está bloqueada
+        // 2. Obtener próximo código (10 dígitos) — solo considera códigos puramente numéricos
         const codigoRes = await client.query(
-            'SELECT MAX(CAST(codigo AS INTEGER)) as max_codigo FROM gastos WHERE empresa = $1',
+            `SELECT MAX(CASE WHEN codigo ~ '^[0-9]+$' THEN CAST(codigo AS BIGINT) ELSE 0 END) as max_codigo
+             FROM gastos WHERE empresa = $1`,
             [empresa]
         );
         const proximoCodigo = String((parseInt(codigoRes.rows[0].max_codigo) || 0) + 1).padStart(10, '0');
 
-        // 2. Insertar gasto
+        // 3. Insertar gasto
         const gastoRes = await client.query(
             `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
                                 forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING *`,
             [proximoCodigo, fecha, factura || null, proveedor, ccosto,
-             forma_pago, cuenta, concepto.toUpperCase(), subtotal, impuestos || 0, total, empresa]
+             forma_pago, cuenta, (concepto || '').toUpperCase(), subtotal, impuestos || 0, total, empresa]
         );
-
-        // 3. Crear entry en MOVIBAN (solo si forma_pago es CONTADO o si hay cuenta bancaria asociada)
-        if (forma_pago === 'CONTADO' && total > 0) {
-            // Aquí necesitamos saber qué cuenta bancaria usar
-            // Por ahora, registramos el movimiento del gasto
-            await client.query(
-                `INSERT INTO movimientos (fecha, tipo_movimiento, descripcion, valor, gasto_codigo, empresa)
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [fecha, 'EGRESO', `Pago gasto: ${concepto}`, total, proximoCodigo, empresa]
-            );
-        }
 
         await client.query('COMMIT');
 
