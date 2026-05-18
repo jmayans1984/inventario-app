@@ -257,18 +257,21 @@ const gastos              = ref([])
 const loading             = ref(false)
 const generandoPdf        = ref(false)
 const consultado          = ref(false)
+const empresaInfo         = ref({})
 
 // ── Cargar listas de selectores al montar ────────────────────────
 onMounted(async () => {
   try {
-    const [prov, cb, cc] = await Promise.all([
+    const [prov, cb, cc, emp] = await Promise.all([
       proveedoresService.getProveedores({ limit: 2000 }),
       cuentasBancariasService.getCuentas({ limit: 500 }),
       cuentasContablesService.getCuentasContables({ limit: 500 }),
+      import('../../services/api').then(m => m.default.get('/empresa/info', { params: { empresa: auth.empresa } })),
     ])
     proveedores.value      = Array.isArray(prov)      ? prov      : (prov.data      || [])
     cuentasBancarias.value = Array.isArray(cb)        ? cb        : (cb.data        || [])
     cuentasContables.value = Array.isArray(cc)        ? cc        : (cc.data        || [])
+    empresaInfo.value      = emp.data?.data || {}
   } catch (err) {
     console.error('Error cargando opciones:', err)
   }
@@ -346,105 +349,171 @@ async function generarPDF() {
 
   try {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-    const PW = doc.internal.pageSize.getWidth()
-    const PH = doc.internal.pageSize.getHeight()
-    const PURPLE = [102, 126, 234]
-    const DARK   = [30, 30, 47]
-    const GREY   = [100, 100, 120]
-    const LIGHT  = [245, 245, 252]
+    const PW = doc.internal.pageSize.getWidth()   // 279mm
+    const PH = doc.internal.pageSize.getHeight()  // 216mm
+    const ML = 8   // margin left
+    const MR = 8   // margin right
+    const TW = PW - ML - MR  // usable width
+
+    // ── Paleta ───────────────────────────────────────────────────
+    const C_PURPLE  = [102, 126, 234]
+    const C_VIOLET  = [80,  50, 140]
+    const C_DARK    = [28,  28,  42]
+    const C_GREY    = [110, 110, 130]
+    const C_LIGHT   = [248, 248, 252]
+    const C_WHITE   = [255, 255, 255]
+    const C_ACCENT  = [235, 235, 250]
+    const C_GREEN   = [80,  200, 140]
+
+    // ── Datos empresa ─────────────────────────────────────────────
+    const emp = empresaInfo.value
+    const empNombre   = (emp.nombre   || auth.empresaNombre || 'EMPRESA').toUpperCase()
+    const empDir      = emp.direccion || emp.dir || ''
+    const empTel      = emp.telefono1 || emp.telefono || emp.tel || ''
 
     let y = 0
 
-    // ── Función para dibujar encabezado de página ────────────────
-    function drawHeader(isFirstPage = false) {
-      // Fondo degradado del header
-      doc.setFillColor(...PURPLE)
-      doc.rect(0, 0, PW, 28, 'F')
-      doc.setFillColor(118, 75, 162)
-      doc.rect(PW - 60, 0, 60, 28, 'F')
-
-      // Título
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(16)
-      doc.setTextColor(255, 255, 255)
-      doc.text('REPORTE DE GASTOS', 12, 11)
-
-      // Subtítulo
+    // ── Función: pie de página ────────────────────────────────────
+    function drawFooter() {
+      const pg = doc.internal.getCurrentPageInfo().pageNumber
+      const total = doc.internal.getNumberOfPages()
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(200, 200, 230)
-      doc.text('Agrupado por Cuenta Contable', 12, 17)
+      doc.setFontSize(6)
+      doc.setTextColor(...C_GREY)
+      doc.setDrawColor(...C_GREY)
+      doc.setLineWidth(0.2)
+      doc.line(ML, PH - 7, PW - MR, PH - 7)
+      doc.text(`${empNombre}  |  Reporte de Gastos`, ML, PH - 4)
+      doc.text(`Pagina ${pg} de ${total}`, PW - MR, PH - 4, { align: 'right' })
+    }
 
-      // Período
+    // ── Función: encabezado de página ────────────────────────────
+    function drawHeader(isFirstPage = false) {
+      // Barra izquierda de acento
+      doc.setFillColor(...C_PURPLE)
+      doc.rect(0, 0, 3, PH, 'F')
+
+      // Fondo del header
+      doc.setFillColor(...C_DARK)
+      doc.rect(0, 0, PW, 22, 'F')
+
+      // Franja decorativa derecha
+      doc.setFillColor(...C_VIOLET)
+      doc.rect(PW - 80, 0, 80, 22, 'F')
+
+      // ── Nombre de empresa (izquierda) ─────────────────────────
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...C_WHITE)
+      doc.text(empNombre, ML + 3, 9)
+
+      // Dirección + teléfono
+      const contactLine = [empDir, empTel].filter(Boolean).join('   |   ')
+      if (contactLine) {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.5)
+        doc.setTextColor(180, 185, 220)
+        doc.text(contactLine, ML + 3, 15)
+      }
+
+      // ── Título del reporte (derecha) ──────────────────────────
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(9)
-      doc.setTextColor(255, 255, 255)
-      const periodoText = `${filtros.value.fechaInicial}  →  ${filtros.value.fechaFinal}`
-      doc.text(periodoText, PW - 12, 11, { align: 'right' })
+      doc.setTextColor(...C_WHITE)
+      doc.text('REPORTE DE GASTOS', PW - MR - 3, 8, { align: 'right' })
 
-      // Fecha de emisión
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7)
-      doc.setTextColor(200, 200, 230)
-      doc.text(`Emitido: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}`, PW - 12, 17, { align: 'right' })
+      doc.setFontSize(6.5)
+      doc.setTextColor(180, 185, 220)
+      const fi = filtros.value.fechaInicial
+      const ff = filtros.value.fechaFinal
+      doc.text(`Periodo: ${fi}  al  ${ff}`, PW - MR - 3, 14, { align: 'right' })
 
-      // Línea decorativa
-      doc.setFillColor(255, 255, 255)
-      doc.rect(0, 28, PW, 0.5, 'F')
+      const hoy2 = new Date()
+      const fechaEmision = `${String(hoy2.getDate()).padStart(2,'0')}/${String(hoy2.getMonth()+1).padStart(2,'0')}/${hoy2.getFullYear()}`
+      doc.text(`Emitido: ${fechaEmision}`, PW - MR - 3, 19, { align: 'right' })
 
-      y = 32
+      // Línea separadora
+      doc.setDrawColor(...C_PURPLE)
+      doc.setLineWidth(0.4)
+      doc.line(0, 22, PW, 22)
 
+      y = 25
+
+      // ── Primera página: bloque de filtros ────────────────────
       if (isFirstPage) {
-        // ── Bloque de filtros aplicados ──────────────────────────
-        doc.setFillColor(...LIGHT)
-        doc.roundedRect(10, y, PW - 20, 16, 2, 2, 'F')
+        doc.setFillColor(...C_LIGHT)
+        doc.rect(ML, y, TW, 8, 'F')
+        doc.setDrawColor(210, 210, 230)
+        doc.setLineWidth(0.15)
+        doc.rect(ML, y, TW, 8, 'S')
 
         doc.setFont('helvetica', 'bold')
-        doc.setFontSize(7)
-        doc.setTextColor(...GREY)
-        doc.text('FILTROS APLICADOS', 15, y + 5)
+        doc.setFontSize(5.5)
+        doc.setTextColor(...C_GREY)
+        doc.text('FILTROS APLICADOS', ML + 2, y + 3)
 
         doc.setFont('helvetica', 'normal')
-        doc.setFontSize(7.5)
-        doc.setTextColor(...DARK)
-        const colW = (PW - 30) / 3
-        doc.text(`Proveedor: ${filtroProveedorLabel()}`,    15,           y + 11)
-        doc.text(`Cuenta Bancaria: ${filtroBancoLabel()}`,  15 + colW,    y + 11)
-        doc.text(`Cuenta Contable: ${filtroCuentaLabel()}`, 15 + colW*2,  y + 11)
+        doc.setFontSize(6.5)
+        doc.setTextColor(...C_DARK)
+        const cw = TW / 3
+        doc.text(`Proveedor: ${filtroProveedorLabel()}`,    ML + 2,       y + 6.5)
+        doc.text(`Banco: ${filtroBancoLabel()}`,            ML + 2 + cw,  y + 6.5)
+        doc.text(`Cuenta: ${filtroCuentaLabel()}`,          ML + 2 + cw*2, y + 6.5)
 
-        y += 20
+        y += 11
       }
     }
 
-    // ── Primera página ───────────────────────────────────────────
+    // ── Dibujar primera página ────────────────────────────────────
     drawHeader(true)
 
-    // ── Iterar grupos ────────────────────────────────────────────
+    // ── Columnas de la tabla de datos ────────────────────────────
+    const colStyles = {
+      0: { cellWidth: 22, halign: 'center' },   // CODIGO
+      1: { cellWidth: 18, halign: 'center' },   // FECHA
+      2: { cellWidth: 48, halign: 'left'   },   // PROVEEDOR
+      3: { cellWidth: 60, halign: 'left'   },   // CONCEPTO
+      4: { cellWidth: 42, halign: 'center' },   // FORMA PAGO
+      5: { cellWidth: 36, halign: 'center' },   // C.COSTO
+      6: { cellWidth: 27, halign: 'right'  },   // VALOR
+    }
+    const cellPad = { top: 1.5, right: 2.5, bottom: 1.5, left: 2.5 }
+
+    // ── Iterar grupos ─────────────────────────────────────────────
     for (let gi = 0; gi < grupos.value.length; gi++) {
       const grupo = grupos.value[gi]
 
-      // Verificar espacio — si queda poco, nueva página
-      if (y > PH - 40) {
+      if (y > PH - 30) {
+        drawFooter()
         doc.addPage()
         drawHeader(false)
       }
 
-      // ── Encabezado del grupo ─────────────────────────────────
-      doc.setFillColor(...PURPLE)
-      doc.roundedRect(10, y, PW - 20, 8, 1.5, 1.5, 'F')
+      // ── Barra de grupo: fondo con borde izquierdo de acento ──
+      doc.setFillColor(238, 240, 252)
+      doc.rect(ML, y, TW, 6, 'F')
+      doc.setFillColor(...C_PURPLE)
+      doc.rect(ML, y, 2, 6, 'F')
+
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8.5)
-      doc.setTextColor(255, 255, 255)
-      doc.text(`${grupo.cuenta}  —  ${grupo.cuenta_nombre}`, 15, y + 5.5)
-      doc.text(`${grupo.items.length} reg.`, PW - 60, y + 5.5, { align: 'right' })
-      y += 10
+      doc.setFontSize(7.5)
+      doc.setTextColor(...C_DARK)
+      doc.text(`${grupo.cuenta}  -  ${grupo.cuenta_nombre}`, ML + 5, y + 4.2)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(...C_GREY)
+      doc.text(`${grupo.items.length} registros`, PW - MR, y + 4.2, { align: 'right' })
+
+      y += 7
 
       // ── Tabla del grupo ──────────────────────────────────────
       autoTable(doc, {
         startY: y,
-        margin: { left: 10, right: 10 },
+        margin: { left: ML, right: MR },
         head: [[
-          { content: 'CÓDIGO',     styles: { halign: 'center' } },
+          { content: 'CODIGO',     styles: { halign: 'center' } },
           { content: 'FECHA',      styles: { halign: 'center' } },
           { content: 'PROVEEDOR',  styles: { halign: 'left'   } },
           { content: 'CONCEPTO',   styles: { halign: 'left'   } },
@@ -453,111 +522,109 @@ async function generarPDF() {
           { content: 'VALOR',      styles: { halign: 'right'  } },
         ]],
         body: grupo.items.map(g => [
-          { content: g.codigo,                                          styles: { halign: 'center', fontStyle: 'bold', textColor: PURPLE } },
-          { content: (g.fecha || '').split('T')[0],                     styles: { halign: 'center' } },
-          { content: g.proveedor_nombre || g.proveedor || '-',          styles: { halign: 'left'   } },
-          { content: g.concepto || '-',                                 styles: { halign: 'left'   } },
-          { content: g.forma_pago_nombre || g.forma_pago || '-',        styles: { halign: 'center' } },
-          { content: g.ccosto_nombre || g.ccosto || '-',                styles: { halign: 'center' } },
-          { content: formatMoneda(g.total),                             styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: g.codigo,                                   styles: { halign: 'center', fontStyle: 'bold', textColor: C_PURPLE } },
+          { content: (g.fecha || '').split('T')[0],              styles: { halign: 'center' } },
+          { content: g.proveedor_nombre  || g.proveedor  || '-', styles: { halign: 'left'   } },
+          { content: g.concepto          || '-',                 styles: { halign: 'left'   } },
+          { content: g.forma_pago_nombre || g.forma_pago || '-', styles: { halign: 'center' } },
+          { content: g.ccosto_nombre     || g.ccosto     || '-', styles: { halign: 'center' } },
+          { content: formatMoneda(g.total),                      styles: { halign: 'right', fontStyle: 'bold' } },
         ]),
         foot: [[
-          { content: `Subtotal — ${grupo.cuenta_nombre}`, colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fillColor: [235,235,250], textColor: DARK } },
-          { content: formatMoneda(grupo.subtotal),                      styles: { halign: 'right', fontStyle: 'bold', fillColor: [235,235,250], textColor: PURPLE } },
+          {
+            content: `SUBTOTAL  ${grupo.cuenta_nombre.toUpperCase()}`,
+            colSpan: 6,
+            styles: { halign: 'right', fontStyle: 'bold', fontSize: 6.5,
+                      fillColor: C_ACCENT, textColor: C_DARK, cellPadding: cellPad }
+          },
+          {
+            content: formatMoneda(grupo.subtotal),
+            styles: { halign: 'right', fontStyle: 'bold', fontSize: 6.5,
+                      fillColor: C_ACCENT, textColor: C_PURPLE, cellPadding: cellPad }
+          },
         ]],
         showFoot: 'lastPage',
         headStyles: {
-          fillColor: [50, 50, 70],
-          textColor: [200, 200, 220],
+          fillColor: [45, 45, 65],
+          textColor: [190, 195, 220],
           fontStyle: 'bold',
-          fontSize: 7,
+          fontSize: 6,
+          cellPadding: { top: 2, right: 2.5, bottom: 2, left: 2.5 },
         },
-        bodyStyles: { fontSize: 7.5, textColor: DARK },
-        alternateRowStyles: { fillColor: LIGHT },
-        columnStyles: {
-          0: { cellWidth: 24 },
-          1: { cellWidth: 22 },
-          2: { cellWidth: 52 },
-          3: { cellWidth: 62 },
-          4: { cellWidth: 38 },
-          5: { cellWidth: 28 },
-          6: { cellWidth: 30 },
-        },
-        tableLineColor: [220, 220, 235],
+        bodyStyles: { fontSize: 6.5, textColor: C_DARK, cellPadding: cellPad },
+        alternateRowStyles: { fillColor: C_LIGHT },
+        columnStyles: colStyles,
+        tableLineColor: [215, 215, 232],
         tableLineWidth: 0.1,
-        didDrawPage: () => {
-          // Footer en cada página
-          const pageCount = doc.internal.getNumberOfPages()
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(7)
-          doc.setTextColor(...GREY)
-          doc.text(`Página ${doc.internal.getCurrentPageInfo().pageNumber} de ${pageCount}`, PW - 12, PH - 5, { align: 'right' })
-          doc.text('Reporte de Gastos — Generado por el sistema', 12, PH - 5)
-        },
+        didDrawPage: () => { drawFooter() },
       })
 
-      y = doc.lastAutoTable.finalY + 8
-
-      // Separador entre grupos
-      if (gi < grupos.value.length - 1) {
-        doc.setDrawColor(220, 220, 235)
-        doc.setLineWidth(0.3)
-        doc.line(10, y - 4, PW - 10, y - 4)
-      }
+      y = doc.lastAutoTable.finalY + 5
     }
 
-    // ── BARRA TOTAL GENERAL ──────────────────────────────────────
-    if (y > PH - 25) {
+    // ── TOTAL GENERAL ─────────────────────────────────────────────
+    if (y > PH - 18) {
+      drawFooter()
       doc.addPage()
       drawHeader(false)
     }
 
-    doc.setFillColor(...DARK)
-    doc.roundedRect(10, y, PW - 20, 10, 2, 2, 'F')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.setTextColor(255, 255, 255)
-    doc.text('TOTAL GENERAL', 18, y + 6.8)
-    doc.setFontSize(11)
-    doc.setTextColor(102, 234, 162)
-    doc.text(formatMoneda(totalGeneral.value), PW - 18, y + 6.8, { align: 'right' })
+    doc.setFillColor(...C_DARK)
+    doc.rect(ML, y, TW, 8, 'F')
+    doc.setFillColor(...C_PURPLE)
+    doc.rect(ML, y, 2, 8, 'F')
 
-    // ── Resumen final de grupos ──────────────────────────────────
-    y += 14
-    if (grupos.value.length > 1 && y < PH - 20) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...C_WHITE)
+    doc.text('TOTAL GENERAL', ML + 5, y + 5.3)
+    doc.setFontSize(9)
+    doc.setTextColor(...C_GREEN)
+    doc.text(formatMoneda(totalGeneral.value), PW - MR, y + 5.3, { align: 'right' })
+
+    // ── RESUMEN POR CUENTA CONTABLE ───────────────────────────────
+    if (grupos.value.length > 1) {
+      y += 12
+      if (y > PH - 30) {
+        drawFooter()
+        doc.addPage()
+        drawHeader(false)
+      }
+
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(7.5)
-      doc.setTextColor(...GREY)
-      doc.text('RESUMEN POR CUENTA CONTABLE', 12, y)
-      y += 5
+      doc.setFontSize(6.5)
+      doc.setTextColor(...C_GREY)
+      doc.text('RESUMEN POR CUENTA CONTABLE', ML, y)
+      y += 3
 
       autoTable(doc, {
         startY: y,
-        margin: { left: 10, right: 10 },
-        head: [['CUENTA', 'NOMBRE', 'REGISTROS', 'TOTAL']],
+        margin: { left: ML, right: MR },
+        head: [['CUENTA', 'DESCRIPCION', 'REGISTROS', 'SUBTOTAL']],
         body: grupos.value.map(g => [
-          { content: g.cuenta,                         styles: { fontStyle: 'bold', textColor: PURPLE } },
+          { content: g.cuenta,              styles: { fontStyle: 'bold', textColor: C_PURPLE } },
           g.cuenta_nombre,
-          { content: g.items.length,                   styles: { halign: 'center' } },
-          { content: formatMoneda(g.subtotal),          styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: g.items.length,        styles: { halign: 'center' } },
+          { content: formatMoneda(g.subtotal), styles: { halign: 'right', fontStyle: 'bold' } },
         ]),
-        headStyles: { fillColor: [50, 50, 70], textColor: [200, 200, 220], fontSize: 7 },
-        bodyStyles: { fontSize: 7.5, textColor: DARK },
-        alternateRowStyles: { fillColor: LIGHT },
+        headStyles: { fillColor: [45, 45, 65], textColor: [190, 195, 220], fontSize: 6,
+                      cellPadding: { top: 2, right: 2.5, bottom: 2, left: 2.5 } },
+        bodyStyles: { fontSize: 6.5, textColor: C_DARK, cellPadding: cellPad },
+        alternateRowStyles: { fillColor: C_LIGHT },
         columnStyles: {
-          0: { cellWidth: 25 },
+          0: { cellWidth: 22 },
           1: { cellWidth: 'auto' },
-          2: { cellWidth: 25, halign: 'center' },
-          3: { cellWidth: 35, halign: 'right' },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 32, halign: 'right' },
         },
-        tableLineColor: [220, 220, 235],
+        tableLineColor: [215, 215, 232],
         tableLineWidth: 0.1,
+        didDrawPage: () => { drawFooter() },
       })
     }
 
-    // Guardar
-    const nombreArchivo = `Reporte_Gastos_${filtros.value.fechaInicial}_${filtros.value.fechaFinal}.pdf`
-    doc.save(nombreArchivo)
+    drawFooter()
+    doc.save(`Reporte_Gastos_${filtros.value.fechaInicial}_${filtros.value.fechaFinal}.pdf`)
 
   } catch (err) {
     console.error('Error generando PDF:', err)

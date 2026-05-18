@@ -234,6 +234,20 @@ app.get('/api/empresa/tipo', async (req, res) => {
     }
 });
 
+// GET /api/empresa/info - Info completa de la empresa activa
+app.get('/api/empresa/info', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const result = await pool.query('SELECT * FROM empresas WHERE codigo = $1', [empresa]);
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error /api/empresa/info:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/empresas/all - Obtener todas las empresas
 app.get('/api/empresas/all', async (req, res) => {
     try {
