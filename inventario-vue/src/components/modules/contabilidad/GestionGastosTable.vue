@@ -30,102 +30,62 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width: 10%" @click="ordenar('codigo')" class="sortable-header">
-              CÓDIGO
-              <v-icon size="16" v-if="store.filters.sortBy === 'codigo'" class="sort-arrow">
-                {{ store.filters.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-              </v-icon>
+            <th class="col-codigo" @click="ordenar('codigo')">
+              <div class="th-inner">CÓDIGO <v-icon v-if="sortBy==='codigo'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
-            <th style="width: 10%" @click="ordenar('fecha')" class="sortable-header">
-              FECHA
-              <v-icon size="16" v-if="store.filters.sortBy === 'fecha'" class="sort-arrow">
-                {{ store.filters.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-              </v-icon>
+            <th class="col-fecha" @click="ordenar('fecha')">
+              <div class="th-inner">FECHA <v-icon v-if="sortBy==='fecha'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
-            <th style="width: 15%" @click="ordenar('proveedor')" class="sortable-header">
-              PROVEEDOR
-              <v-icon size="16" v-if="store.filters.sortBy === 'proveedor'" class="sort-arrow">
-                {{ store.filters.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-              </v-icon>
+            <th class="col-proveedor" @click="ordenar('proveedor')">
+              <div class="th-inner">PROVEEDOR <v-icon v-if="sortBy==='proveedor'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
-            <th style="width: 15%" @click="ordenar('ccosto')" class="sortable-header">
-              CENTRO COSTOS
-              <v-icon size="16" v-if="store.filters.sortBy === 'ccosto'" class="sort-arrow">
-                {{ store.filters.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-              </v-icon>
+            <th class="col-centro" @click="ordenar('ccosto')">
+              <div class="th-inner">CENTRO COSTOS <v-icon v-if="sortBy==='ccosto'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
-            <th style="width: 20%" @click="ordenar('concepto')" class="sortable-header">
-              CONCEPTO
-              <v-icon size="16" v-if="store.filters.sortBy === 'concepto'" class="sort-arrow">
-                {{ store.filters.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-              </v-icon>
+            <th class="col-concepto" @click="ordenar('concepto')">
+              <div class="th-inner">CONCEPTO <v-icon v-if="sortBy==='concepto'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
-            <th style="width: 10%" @click="ordenar('factura')" class="sortable-header">
-              FACTURA
-              <v-icon size="16" v-if="store.filters.sortBy === 'factura'" class="sort-arrow">
-                {{ store.filters.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-              </v-icon>
+            <th class="col-factura" @click="ordenar('factura')">
+              <div class="th-inner">FACTURA <v-icon v-if="sortBy==='factura'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
-            <th style="width: 10%" @click="ordenar('total')" class="sortable-header">
-              TOTAL
-              <v-icon size="16" v-if="store.filters.sortBy === 'total'" class="sort-arrow">
-                {{ store.filters.sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-              </v-icon>
+            <th class="col-total" @click="ordenar('total')">
+              <div class="th-inner">TOTAL <v-icon v-if="sortBy==='total'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
-            <th style="width: 5%">ACCIONES</th>
+            <th class="col-acciones">
+              <div class="th-inner">ACCIONES</div>
+            </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="filteredGastos.length === 0">
-            <td colspan="9" class="table-empty">
+          <tr v-if="paginatedGastos.length === 0">
+            <td colspan="8" class="table-empty">
               <v-icon size="32" class="empty-icon">mdi-inbox-outline</v-icon>
               <p class="empty-text">No hay gastos registrados</p>
             </td>
           </tr>
-          <tr v-for="gasto in paginatedGastos" :key="gasto.codigo" class="table-row">
-            <td class="cell-codigo">
+          <tr v-for="gasto in paginatedGastos" :key="gasto.codigo + '_' + gasto.fecha" class="table-row">
+            <td class="td-codigo">
               <span class="badge-codigo">{{ gasto.codigo }}</span>
             </td>
-            <td class="cell-fecha">
-              {{ formatFecha(gasto.fecha) }}
-            </td>
-            <td class="cell-proveedor">
-              <span class="nombre-text" v-if="gasto.proveedor !== '0'">
+            <td class="td-fecha">{{ formatFecha(gasto.fecha) }}</td>
+            <td class="td-proveedor">
+              <span v-if="gasto.proveedor && gasto.proveedor !== '0'">
                 {{ gasto.proveedor_nombre || gasto.proveedor }}
               </span>
-              <span class="nombre-text" v-else>-</span>
+              <span v-else class="text-muted">-</span>
             </td>
-            <td class="cell-centro">
+            <td class="td-centro">
               <span class="badge-centro">{{ gasto.ccosto_nombre || gasto.ccosto }}</span>
             </td>
-            <td class="cell-concepto">
-              <span class="concepto-text">{{ gasto.concepto || '-' }}</span>
-            </td>
-            <td class="cell-factura">
-              {{ gasto.factura || '-' }}
-            </td>
-            <td class="cell-total">
+            <td class="td-concepto">{{ gasto.concepto || '-' }}</td>
+            <td class="td-factura">{{ gasto.factura || '-' }}</td>
+            <td class="td-total">
               <span class="total-bold">{{ formatMoneda(gasto.total) }}</span>
             </td>
-            <td class="cell-acciones">
+            <td class="td-acciones">
               <div class="action-buttons">
-                <v-btn
-                  icon="mdi-pencil-outline"
-                  size="x-small"
-                  variant="text"
-                  @click="$emit('edit', gasto)"
-                  title="Editar"
-                />
-                <v-btn
-                  icon="mdi-delete"
-                  size="small"
-                  variant="text"
-                  color="error"
-                  @click="eliminar(gasto.codigo)"
-                  :loading="store.loading"
-                  title="Eliminar"
-                  class="btn-delete"
-                />
+                <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" @click="$emit('edit', gasto)" title="Editar" />
+                <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="eliminar(gasto.codigo)" :loading="store.loading" title="Eliminar" />
               </div>
             </td>
           </tr>
@@ -134,28 +94,14 @@
     </div>
 
     <!-- PAGINACIÓN -->
-    <div v-if="Math.ceil(filteredGastos.length / ITEMS_PER_PAGE) > 1" class="table-footer">
+    <div v-if="totalPages > 1" class="table-footer">
       <div class="pagination">
-        <v-btn
-          icon="mdi-chevron-left"
-          size="small"
-          variant="text"
-          :disabled="store.filters.page <= 1"
-          @click="irAPagina(store.filters.page - 1)"
-        />
+        <v-btn icon="mdi-chevron-left" size="small" variant="text" :disabled="currentPage <= 1" @click="irAPagina(currentPage - 1)" />
         <span class="page-info">
-          Página {{ store.filters.page }} de {{ Math.ceil(filteredGastos.length / ITEMS_PER_PAGE) }}
-          <span style="font-size: 12px; opacity: 0.7; margin-left: 8px;">
-            ({{ filteredGastos.length }} registros totales)
-          </span>
+          Página {{ currentPage }} de {{ totalPages }}
+          <span class="records-info">({{ filteredGastos.length }} registros)</span>
         </span>
-        <v-btn
-          icon="mdi-chevron-right"
-          size="small"
-          variant="text"
-          :disabled="store.filters.page >= Math.ceil(filteredGastos.length / ITEMS_PER_PAGE)"
-          @click="irAPagina(store.filters.page + 1)"
-        />
+        <v-btn icon="mdi-chevron-right" size="small" variant="text" :disabled="currentPage >= totalPages" @click="irAPagina(currentPage + 1)" />
       </div>
     </div>
   </div>
@@ -168,50 +114,75 @@ import { gestionGastosService } from '../../../services/gestiongastos.service'
 import { formatMoneda, formatFecha } from '../../../utils/formatters'
 
 const emit = defineEmits(['edit'])
-
 const store = useGestionGastosStore()
-const searchQuery = ref('')
-const ITEMS_PER_PAGE = 10
 
+const searchQuery = ref('')
+const currentPage = ref(1)
+const ITEMS_PER_PAGE = 10
+const sortBy = ref('fecha')
+const sortOrder = ref('desc')
+
+// Filtrado
 const filteredGastos = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return store.gastos
+  let list = [...store.gastos]
+
+  // Filtro de búsqueda
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(g =>
+      g.codigo?.toLowerCase().includes(q) ||
+      g.factura?.toLowerCase().includes(q) ||
+      g.proveedor_nombre?.toLowerCase().includes(q) ||
+      g.ccosto_nombre?.toLowerCase().includes(q) ||
+      g.concepto?.toLowerCase().includes(q)
+    )
   }
-  const query = searchQuery.value.toLowerCase()
-  return store.gastos.filter(gasto =>
-    gasto.codigo.toLowerCase().includes(query) ||
-    (gasto.factura && gasto.factura.toLowerCase().includes(query)) ||
-    (gasto.proveedor_nombre && gasto.proveedor_nombre.toLowerCase().includes(query)) ||
-    (gasto.ccosto_nombre && gasto.ccosto_nombre.toLowerCase().includes(query))
-  )
+
+  // Ordenamiento local
+  list.sort((a, b) => {
+    let valA = a[sortBy.value] ?? ''
+    let valB = b[sortBy.value] ?? ''
+    if (sortBy.value === 'total') {
+      valA = parseFloat(valA) || 0
+      valB = parseFloat(valB) || 0
+    } else if (sortBy.value === 'fecha') {
+      valA = new Date(valA)
+      valB = new Date(valB)
+    } else {
+      valA = String(valA).toLowerCase()
+      valB = String(valB).toLowerCase()
+    }
+    if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
+    if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
+    return 0
+  })
+
+  return list
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredGastos.value.length / ITEMS_PER_PAGE)))
 
 const paginatedGastos = computed(() => {
-  const startIndex = (store.filters.page - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  return filteredGastos.value.slice(startIndex, endIndex)
-})
-
-computed(() => {
-  // Actualizar paginasTotales en el store cuando filteredGastos cambia
-  const totalPages = Math.ceil(filteredGastos.value.length / ITEMS_PER_PAGE) || 1
-  store.setFilters({ totalPages })
+  const start = (currentPage.value - 1) * ITEMS_PER_PAGE
+  return filteredGastos.value.slice(start, start + ITEMS_PER_PAGE)
 })
 
 function handleSearch() {
-  store.setFilters({ page: 1 }) // Volver a página 1 cuando se busca
+  currentPage.value = 1
 }
 
 function ordenar(campo) {
-  if (store.filters.sortBy === campo) {
-    // Si ya estamos ordenando por este campo, invertir el orden
-    const newOrder = store.filters.sortOrder === 'asc' ? 'desc' : 'asc'
-    store.setFilters({ sortOrder: newOrder })
+  if (sortBy.value === campo) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   } else {
-    // Si es un nuevo campo, ordenar ascendente
-    store.setFilters({ sortBy: campo, sortOrder: 'asc' })
+    sortBy.value = campo
+    sortOrder.value = 'asc'
   }
-  store.fetchGastos()
+  currentPage.value = 1
+}
+
+function irAPagina(p) {
+  currentPage.value = p
 }
 
 async function eliminar(codigo) {
@@ -224,10 +195,6 @@ async function eliminar(codigo) {
   }
 }
 
-function irAPagina(pagina) {
-  store.setFilters({ page: pagina })
-}
-
 async function exportarExcel() {
   try {
     await gestionGastosService.exportarExcel()
@@ -238,6 +205,7 @@ async function exportarExcel() {
 </script>
 
 <style scoped>
+/* ── Contenedor ── */
 .table-container {
   background: rgb(var(--v-theme-surface));
   border-radius: 12px;
@@ -245,6 +213,7 @@ async function exportarExcel() {
   overflow: hidden;
 }
 
+/* ── Header búsqueda ── */
 .table-header {
   display: flex;
   align-items: center;
@@ -253,7 +222,6 @@ async function exportarExcel() {
   padding: 16px 20px;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
-
 .search-bar {
   display: flex;
   align-items: center;
@@ -264,182 +232,139 @@ async function exportarExcel() {
   border-radius: 8px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
-
-.search-icon {
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  flex-shrink: 0;
-}
-
+.search-icon { color: rgba(var(--v-theme-on-surface), 0.4); flex-shrink: 0; }
 .search-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 14px;
-  color: rgb(var(--v-theme-on-surface));
+  flex: 1; border: none; background: transparent; outline: none;
+  font-size: 14px; color: rgb(var(--v-theme-on-surface));
 }
+.search-input::placeholder { color: rgba(var(--v-theme-on-surface), 0.4); }
+.header-actions { display: flex; gap: 8px; }
 
-.search-input::placeholder {
-  color: rgba(var(--v-theme-on-surface), 0.4);
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.table-wrapper {
-  overflow-x: auto;
-}
+/* ── Tabla ── */
+.table-wrapper { overflow-x: auto; }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 
+/* Anchos de columnas */
+.col-codigo   { width: 130px; }
+.col-fecha    { width: 100px; }
+.col-proveedor{ width: 16%; }
+.col-centro   { width: 14%; }
+.col-concepto { width: 22%; }
+.col-factura  { width: 100px; }
+.col-total    { width: 110px; }
+.col-acciones { width: 80px; }
+
+/* ── ENCABEZADOS ── */
 .data-table thead {
   background: rgba(var(--v-theme-on-surface), 0.04);
 }
-
 .data-table thead th {
-  padding: 12px 16px;
-  text-align: center;
-  font-weight: 700;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  padding: 0;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 
-.sortable-header {
+.th-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 10px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  white-space: nowrap;
   cursor: pointer;
   user-select: none;
-  display: block;
-  transition: background-color 0.2s;
-  padding: 4px;
-  margin: -4px;
-  border-radius: 4px;
+  transition: background 0.15s;
 }
-
-.sortable-header:hover {
-  background-color: rgba(var(--v-theme-on-surface), 0.08);
+.th-inner:hover {
+  background: rgba(var(--v-theme-on-surface), 0.08);
 }
+.col-acciones .th-inner { cursor: default; }
+.col-acciones .th-inner:hover { background: none; }
 
-.sort-arrow {
-  color: #667eea;
-  margin-left: 4px;
-  vertical-align: middle;
-  display: inline-block;
-}
+.sort-icon { color: #667eea; }
+.sort-icon-inactive { color: rgba(var(--v-theme-on-surface), 0.2); }
 
+/* ── FILAS ── */
 .data-table tbody tr {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
+.data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
 
-.data-table tbody tr:hover {
-  background: rgba(var(--v-theme-on-surface), 0.02);
-}
-
-.table-row td {
-  padding: 12px 16px;
+.data-table tbody td {
+  padding: 11px 10px;
   color: rgb(var(--v-theme-on-surface));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Empty state */
 .table-empty {
-  text-align: center;
-  padding: 40px 20px !important;
+  text-align: center !important;
+  padding: 40px !important;
+  white-space: normal !important;
 }
+.empty-icon { color: rgba(var(--v-theme-on-surface), 0.2); display: block; margin: 0 auto 8px; }
+.empty-text { color: rgba(var(--v-theme-on-surface), 0.4); font-size: 14px; margin: 0; }
 
-.empty-icon {
-  color: rgba(var(--v-theme-on-surface), 0.2);
-  margin-bottom: 8px;
-}
-
-.empty-text {
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  font-size: 14px;
-  margin: 0;
-}
-
-.cell-codigo {
-  font-weight: 600;
-}
-
+/* Celdas específicas */
+.td-codigo { text-align: center; }
 .badge-codigo {
   background: rgba(102, 126, 234, 0.15);
   color: #667eea;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
   font-weight: 600;
   font-size: 12px;
 }
-
+.td-fecha { text-align: center; }
+.td-proveedor { text-align: left; }
+.td-centro { text-align: center; }
 .badge-centro {
   background: rgba(118, 75, 162, 0.15);
   color: #764ba2;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
   font-weight: 600;
   font-size: 11px;
 }
+.td-concepto { text-align: left; }
+.td-factura { text-align: center; }
+.td-total { text-align: right; }
+.total-bold { font-weight: 700; color: #667eea; font-family: 'Courier New', monospace; }
+.td-acciones { text-align: center; }
+.action-buttons { display: flex; gap: 2px; justify-content: center; }
+.text-muted { color: rgba(var(--v-theme-on-surface), 0.35); }
 
-.nombre-text {
-  color: rgb(var(--v-theme-on-surface));
-  display: inline-block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.cell-valor,
-.cell-impuestos,
-.cell-total {
-  text-align: right;
-  font-family: 'Courier New', monospace;
-  font-weight: 500;
-}
-
-.total-bold {
-  font-weight: 700;
-  color: #667eea;
-}
-
-.cell-acciones {
-  text-align: right;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 4px;
-  justify-content: flex-end;
-}
-
-.btn-delete {
-  color: #ef5350 !important;
-}
-
+/* ── Paginación ── */
 .table-footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
-
-.pagination {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+.pagination { display: flex; align-items: center; gap: 12px; }
 .page-info {
   font-size: 13px;
   color: rgba(var(--v-theme-on-surface), 0.6);
-  min-width: 120px;
+  min-width: 160px;
   text-align: center;
+}
+.records-info {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-left: 6px;
 }
 </style>
