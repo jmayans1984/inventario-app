@@ -2732,7 +2732,7 @@ app.get('/api/contabilidad/cuentas-contables/proximo-codigo', async (req, res) =
         if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
         const result = await pool.query(
-            `SELECT codigo FROM cuentas_contables WHERE empresa = $1 ORDER BY codigo DESC`,
+            `SELECT codigo FROM cuentas WHERE empresa = $1 ORDER BY codigo DESC`,
             [empresa]
         );
         // Encontrar el máximo numérico y sumar 1
@@ -2754,10 +2754,11 @@ app.get('/api/contabilidad/cuentas-contables/buscar', async (req, res) => {
         const empresa = req.query.empresa || req.headers['x-empresa'];
         const q = req.query.q || '';
         const result = await pool.query(
-            `SELECT codigo, nombre, grupo_gastos_codigo, estado, empresa
-             FROM cuentas_contables
-             WHERE empresa = $1 AND (codigo ILIKE $2 OR nombre ILIKE $2 OR grupo_gastos_codigo ILIKE $2)
-             ORDER BY codigo ASC LIMIT 20`,
+            `SELECT c.codigo, c.cuenta as nombre, c.grupo as grupo_gastos_codigo, g.nombre as grupo_gastos_nombre, c.contable as estado, c.empresa
+             FROM cuentas c
+             LEFT JOIN grupo_gastos g ON c.grupo = g.codigo
+             WHERE c.empresa = $1 AND (c.codigo ILIKE $2 OR c.cuenta ILIKE $2 OR c.grupo ILIKE $2)
+             ORDER BY c.codigo ASC LIMIT 20`,
             [empresa, `%${q}%`]
         );
         res.json(result.rows);
@@ -2796,9 +2797,11 @@ app.get('/api/contabilidad/cuentas-contables', async (req, res) => {
 
         params.push(limit, offset);
         const dataRes = await pool.query(
-            `SELECT codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable
-             FROM cuentas ${where}
-             ORDER BY ${sortBy === 'nombre' ? 'cuenta' : sortBy === 'grupo_gastos_codigo' ? 'grupo' : sortBy === 'estado' ? 'contable' : 'codigo'} ${sortOrd}
+            `SELECT c.codigo, c.cuenta as nombre, c.grupo as grupo_gastos_codigo, g.nombre as grupo_gastos_nombre, c.contable as estado, c.empresa, c.iva_descontable
+             FROM cuentas c
+             LEFT JOIN grupo_gastos g ON c.grupo = g.codigo
+             ${where}
+             ORDER BY ${sortBy === 'nombre' ? 'c.cuenta' : sortBy === 'grupo_gastos_codigo' ? 'c.grupo' : sortBy === 'estado' ? 'c.contable' : 'c.codigo'} ${sortOrd}
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
             params
         );
@@ -2816,8 +2819,10 @@ app.get('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
         const { codigo } = req.params;
         const empresa = req.query.empresa || req.headers['x-empresa'];
         const result = await pool.query(
-            `SELECT codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable
-             FROM cuentas WHERE codigo = $1 AND empresa = $2`,
+            `SELECT c.codigo, c.cuenta as nombre, c.grupo as grupo_gastos_codigo, g.nombre as grupo_gastos_nombre, c.contable as estado, c.empresa, c.iva_descontable
+             FROM cuentas c
+             LEFT JOIN grupo_gastos g ON c.grupo = g.codigo
+             WHERE c.codigo = $1 AND c.empresa = $2`,
             [codigo, empresa]
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
@@ -2837,12 +2842,20 @@ app.post('/api/contabilidad/cuentas-contables', async (req, res) => {
         const existe = await pool.query('SELECT codigo FROM cuentas WHERE codigo = $1 AND empresa = $2', [codigo, empresa]);
         if (existe.rows.length) return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
 
-        const result = await pool.query(
+        await pool.query(
             `INSERT INTO cuentas (codigo, cuenta, grupo, empresa, contable, iva_descontable)
-             VALUES ($1,$2,$3,$4,$5,$6) RETURNING codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable`,
+             VALUES ($1,$2,$3,$4,$5,$6)`,
             [codigo, nombre.trim(), grupo_gastos_codigo, empresa, 'ACTIVA', null]
         );
-        res.status(201).json({ success: true, data: result.rows[0] });
+        // Obtener los datos con el nombre del grupo
+        const fullResult = await pool.query(
+            `SELECT c.codigo, c.cuenta as nombre, c.grupo as grupo_gastos_codigo, g.nombre as grupo_gastos_nombre, c.contable as estado, c.empresa, c.iva_descontable
+             FROM cuentas c
+             LEFT JOIN grupo_gastos g ON c.grupo = g.codigo
+             WHERE c.codigo = $1 AND c.empresa = $2`,
+            [codigo, empresa]
+        );
+        res.status(201).json({ success: true, data: fullResult.rows[0] });
     } catch (error) {
         console.error('Error POST /api/contabilidad/cuentas-contables:', error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -2853,12 +2866,21 @@ app.post('/api/contabilidad/cuentas-contables', async (req, res) => {
 app.put('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
     try {
         const { codigo } = req.params;
-        const { nombre, grupo_gastos_codigo, empresa, estado } = req.body;
-        const result = await pool.query(
+        const { nombre, grupo_gastos_codigo, empresa } = req.body;
+        // NO actualizar el estado en PUT - solo nombre y grupo
+        await pool.query(
             `UPDATE cuentas
-             SET cuenta=$1, grupo=$2, contable=$3
-             WHERE codigo=$4 AND empresa=$5 RETURNING codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable`,
-            [nombre, grupo_gastos_codigo, estado || 'ACTIVA', codigo, empresa]
+             SET cuenta=$1, grupo=$2
+             WHERE codigo=$3 AND empresa=$4`,
+            [nombre, grupo_gastos_codigo, codigo, empresa]
+        );
+        // Obtener los datos actualizados con el nombre del grupo
+        const result = await pool.query(
+            `SELECT c.codigo, c.cuenta as nombre, c.grupo as grupo_gastos_codigo, g.nombre as grupo_gastos_nombre, c.contable as estado, c.empresa, c.iva_descontable
+             FROM cuentas c
+             LEFT JOIN grupo_gastos g ON c.grupo = g.codigo
+             WHERE c.codigo = $1 AND c.empresa = $2`,
+            [codigo, empresa]
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
         res.json({ success: true, data: result.rows[0] });
@@ -2876,9 +2898,17 @@ app.patch('/api/contabilidad/cuentas-contables/:codigo/estado', async (req, res)
         if (!['ACTIVA','INACTIVA'].includes(estado)) {
             return res.status(400).json({ success: false, error: 'estado debe ser ACTIVA o INACTIVA' });
         }
-        const result = await pool.query(
-            `UPDATE cuentas SET contable=$1 WHERE codigo=$2 AND empresa=$3 RETURNING codigo, cuenta as nombre, grupo as grupo_gastos_codigo, contable as estado, empresa, iva_descontable`,
+        await pool.query(
+            `UPDATE cuentas SET contable=$1 WHERE codigo=$2 AND empresa=$3`,
             [estado, codigo, empresa]
+        );
+        // Obtener los datos actualizados con el nombre del grupo
+        const result = await pool.query(
+            `SELECT c.codigo, c.cuenta as nombre, c.grupo as grupo_gastos_codigo, g.nombre as grupo_gastos_nombre, c.contable as estado, c.empresa, c.iva_descontable
+             FROM cuentas c
+             LEFT JOIN grupo_gastos g ON c.grupo = g.codigo
+             WHERE c.codigo = $1 AND c.empresa = $2`,
+            [codigo, empresa]
         );
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
         res.json({ success: true, data: result.rows[0] });

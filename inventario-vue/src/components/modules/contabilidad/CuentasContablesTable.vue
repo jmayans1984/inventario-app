@@ -30,11 +30,11 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width: 10%">CÓDIGO</th>
-            <th style="width: 15%">GRUPO GASTOS</th>
-            <th style="width: 45%">NOMBRE</th>
-            <th style="width: 15%">ESTADO</th>
-            <th style="width: 15%">ACCIONES</th>
+            <th style="width: 10%" class="sortable-header" @click="toggleSort('codigo')">CÓDIGO</th>
+            <th style="width: 18%" class="sortable-header" @click="toggleSort('grupo_gastos_codigo')">GRUPO</th>
+            <th style="width: 40%" class="sortable-header" @click="toggleSort('nombre')">NOMBRE</th>
+            <th style="width: 12%">ESTADO</th>
+            <th style="width: 20%">ACCIONES</th>
           </tr>
         </thead>
         <tbody>
@@ -44,12 +44,12 @@
               <p class="empty-text">No hay cuentas contables registradas</p>
             </td>
           </tr>
-          <tr v-for="cuenta in filteredCuentas" :key="cuenta.codigo" class="table-row">
+          <tr v-for="cuenta in sortedCuentas" :key="cuenta.codigo" class="table-row" :class="{ 'row-inactive': cuenta.estado === 'INACTIVA' }">
             <td class="cell-codigo">
               <span class="badge-codigo">{{ cuenta.codigo }}</span>
             </td>
             <td class="cell-grupo">
-              <span class="badge-grupo">{{ cuenta.grupo_gastos_codigo }}</span>
+              <span class="badge-grupo">{{ cuenta.grupo_gastos_nombre || cuenta.grupo_gastos_codigo }}</span>
             </td>
             <td class="cell-nombre">
               <span class="nombre-text">{{ cuenta.nombre }}</span>
@@ -123,6 +123,8 @@ const emit = defineEmits(['edit'])
 
 const store = useCuentasContablesStore()
 const searchQuery = ref('')
+const sortField = ref('codigo')
+const sortDir = ref('asc')
 
 const filteredCuentas = computed(() => {
   if (!searchQuery.value.trim()) {
@@ -132,9 +134,43 @@ const filteredCuentas = computed(() => {
   return store.cuentasContables.filter(cuenta =>
     cuenta.codigo.toLowerCase().includes(query) ||
     cuenta.nombre.toLowerCase().includes(query) ||
-    cuenta.grupo_gastos_codigo.toLowerCase().includes(query)
+    cuenta.grupo_gastos_codigo.toLowerCase().includes(query) ||
+    (cuenta.grupo_gastos_nombre && cuenta.grupo_gastos_nombre.toLowerCase().includes(query))
   )
 })
+
+const sortedCuentas = computed(() => {
+  const arr = [...filteredCuentas.value]
+  arr.sort((a, b) => {
+    let aVal = a[sortField.value]
+    let bVal = b[sortField.value]
+
+    // Si sortField es grupo_gastos_codigo, usar el nombre en lugar del código
+    if (sortField.value === 'grupo_gastos_codigo') {
+      aVal = a.grupo_gastos_nombre || a.grupo_gastos_codigo
+      bVal = b.grupo_gastos_nombre || b.grupo_gastos_codigo
+    }
+
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase()
+      bVal = bVal.toLowerCase()
+    }
+
+    if (aVal < bVal) return sortDir.value === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDir.value === 'asc' ? 1 : -1
+    return 0
+  })
+  return arr
+})
+
+function toggleSort(field) {
+  if (sortField.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortDir.value = 'asc'
+  }
+}
 
 function handleSearch() {
   // Búsqueda en tiempo real mediante computed property
@@ -336,5 +372,28 @@ async function exportarExcel() {
   color: rgba(var(--v-theme-on-surface), 0.6);
   min-width: 120px;
   text-align: center;
+}
+
+/* Sortable Headers */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.sortable-header:hover {
+  background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+/* Inactive Rows */
+.row-inactive {
+  opacity: 0.5;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.row-inactive .cell-codigo,
+.row-inactive .cell-grupo,
+.row-inactive .cell-nombre {
+  color: rgba(var(--v-theme-on-surface), 0.4);
 }
 </style>
