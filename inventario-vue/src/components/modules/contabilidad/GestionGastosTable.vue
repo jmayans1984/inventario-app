@@ -33,12 +33,11 @@
             <th style="width: 8%">CÓDIGO</th>
             <th style="width: 10%">FECHA</th>
             <th style="width: 12%">FACTURA</th>
-            <th style="width: 20%">PROVEEDOR</th>
-            <th style="width: 12%">CENTRO COSTOS</th>
-            <th style="width: 12%">VALOR BASE</th>
-            <th style="width: 10%">IMPUESTOS</th>
+            <th style="width: 15%">PROVEEDOR</th>
+            <th style="width: 15%">CENTRO COSTOS</th>
+            <th style="width: 25%">CONCEPTO</th>
             <th style="width: 10%">TOTAL</th>
-            <th style="width: 6%">ACCIONES</th>
+            <th style="width: 5%">ACCIONES</th>
           </tr>
         </thead>
         <tbody>
@@ -59,29 +58,19 @@
               {{ gasto.numero_factura || '-' }}
             </td>
             <td class="cell-proveedor">
-              <span class="nombre-text">{{ gasto.proveedor_nombre || gasto.proveedor_id }}</span>
+              <span class="nombre-text">{{ gasto.proveedor_nombre }}</span>
             </td>
             <td class="cell-centro">
-              <span class="badge-centro">{{ gasto.centro_costos_nombre || gasto.centro_costos_id }}</span>
+              <span class="badge-centro">{{ gasto.centro_costos_nombre }}</span>
             </td>
-            <td class="cell-valor">
-              {{ formatMoneda(gasto.valor_base) }}
-            </td>
-            <td class="cell-impuestos">
-              {{ formatMoneda(gasto.impuestos) }}
+            <td class="cell-concepto">
+              <span class="concepto-text">{{ gasto.concepto || '-' }}</span>
             </td>
             <td class="cell-total">
               <span class="total-bold">{{ formatMoneda(gasto.total) }}</span>
             </td>
             <td class="cell-acciones">
               <div class="action-buttons">
-                <v-btn
-                  icon="mdi-pencil-outline"
-                  size="x-small"
-                  variant="text"
-                  @click="$emit('edit', gasto)"
-                  title="Editar"
-                />
                 <v-btn
                   icon="mdi-trash-outline"
                   size="x-small"
