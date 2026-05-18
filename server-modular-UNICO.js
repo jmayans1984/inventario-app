@@ -3357,13 +3357,7 @@ app.delete('/api/contabilidad/gastos/:codigo', async (req, res) => {
 
         await client.query('BEGIN');
 
-        // 1. Eliminar movimientos asociados
-        await client.query(
-            'DELETE FROM movimientos WHERE gasto_codigo = $1 AND empresa = $2',
-            [codigo, empresa]
-        );
-
-        // 2. Eliminar gasto
+        // Eliminar gasto (validando que pertenece a la empresa)
         const result = await client.query(
             'DELETE FROM gastos WHERE codigo = $1 AND empresa = $2 RETURNING codigo',
             [codigo, empresa]

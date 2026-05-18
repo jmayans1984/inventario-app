@@ -275,19 +275,27 @@ const searchProveedor = ref('')
 const searchCentroCostos = ref('')
 const searchCuenta = ref('')
 
-const formVacio = () => ({
-  codigo: '',
-  fecha: new Date().toISOString().split('T')[0],
-  factura: '',
-  proveedor: '',
-  ccosto: '',
-  forma_pago: '',
-  cuenta: '',
-  concepto: '',
-  subtotal: 0,
-  impuestos: 0,
-  total: 0,
-})
+const formVacio = () => {
+  // Fecha local sin conversión a UTC
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+
+  return {
+    codigo: '',
+    fecha: `${year}-${month}-${day}`,
+    factura: '',
+    proveedor: '',
+    ccosto: '',
+    forma_pago: '',
+    cuenta: '',
+    concepto: '',
+    subtotal: 0,
+    impuestos: 0,
+    total: 0,
+  }
+}
 
 const form = ref(formVacio())
 
@@ -338,9 +346,9 @@ watch(() => props.open, async (val) => {
         forma_pago: props.gasto.forma_pago || '',
         cuenta: props.gasto.cuenta || '',
         concepto: (props.gasto.concepto || '').toUpperCase(),
-        subtotal: props.gasto.subtotal || 0,
-        impuestos: props.gasto.impuestos || 0,
-        total: props.gasto.total || 0,
+        subtotal: parseFloat((props.gasto.subtotal || 0).toFixed(2)),
+        impuestos: parseFloat((props.gasto.impuestos || 0).toFixed(2)),
+        total: parseFloat((props.gasto.total || 0).toFixed(2)),
       }
     } else {
       // No pre-generar el código — se asigna en el servidor al guardar
