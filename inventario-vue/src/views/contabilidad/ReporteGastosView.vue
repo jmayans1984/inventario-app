@@ -89,7 +89,7 @@
           <select v-model="filtros.cuentaContable" class="filter-select">
             <option value="">TODAS LAS CUENTAS</option>
             <option v-for="c in cuentasContables" :key="c.codigo" :value="c.codigo">
-              {{ c.nombre }}
+              {{ c.nombre_cta || c.nombre || c.cuenta }}
             </option>
           </select>
         </div>
@@ -148,9 +148,6 @@
             <div class="cuenta-badge">{{ grupo.cuenta }}</div>
             <span class="cuenta-nombre">{{ grupo.cuenta_nombre }}</span>
             <span class="grupo-count">{{ grupo.items.length }} registros</span>
-          </div>
-          <div class="grupo-subtotal">
-            {{ formatMoneda(grupo.subtotal) }}
           </div>
         </div>
 
