@@ -2709,6 +2709,218 @@ app.patch('/api/contabilidad/cuentas-bancarias/:codigo/estado', async (req, res)
 });
 
 // ================================================================
+// CONTABILIDAD - CUENTAS CONTABLES (CRUD)
+// ================================================================
+
+// GET /api/contabilidad/grupos-gastos - Obtener todos los grupos de gastos (GLOBAL, sin empresa)
+app.get('/api/contabilidad/grupos-gastos', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT codigo, nombre FROM grupos_gastos ORDER BY codigo ASC`
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/grupos-gastos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/cuentas-contables/proximo-codigo
+app.get('/api/contabilidad/cuentas-contables/proximo-codigo', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT codigo FROM cuentas_contables WHERE empresa = $1 ORDER BY codigo DESC`,
+            [empresa]
+        );
+        // Encontrar el máximo numérico y sumar 1
+        let maxNum = 0;
+        result.rows.forEach(row => {
+            const n = parseInt(row.codigo) || 0;
+            if (n > maxNum) maxNum = n;
+        });
+        const proximoCodigo = String(maxNum + 1).padStart(3, '0');
+        res.json({ success: true, codigo: proximoCodigo });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/cuentas-contables/buscar
+app.get('/api/contabilidad/cuentas-contables/buscar', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const q = req.query.q || '';
+        const result = await pool.query(
+            `SELECT codigo, nombre, grupo_gastos_codigo, estado, empresa
+             FROM cuentas_contables
+             WHERE empresa = $1 AND (codigo ILIKE $2 OR nombre ILIKE $2 OR grupo_gastos_codigo ILIKE $2)
+             ORDER BY codigo ASC LIMIT 20`,
+            [empresa, `%${q}%`]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/cuentas-contables
+app.get('/api/contabilidad/cuentas-contables', async (req, res) => {
+    try {
+        const empresa  = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const search   = req.query.search || '';
+        const estado   = req.query.estado;
+        const sortBy   = ['codigo','nombre','grupo_gastos_codigo','estado'].includes(req.query.sortBy) ? req.query.sortBy : 'codigo';
+        const sortOrd  = req.query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+        const limit    = Math.min(parseInt(req.query.limit) || 50, 200);
+        const offset   = ((parseInt(req.query.page) || 1) - 1) * limit;
+
+        const params = [empresa];
+        let where = 'WHERE empresa = $1';
+
+        if (estado && estado !== 'TODOS') {
+            params.push(estado);
+            where += ` AND estado = $${params.length}`;
+        }
+        if (search) {
+            params.push(`%${search}%`);
+            where += ` AND (codigo ILIKE $${params.length} OR nombre ILIKE $${params.length} OR grupo_gastos_codigo ILIKE $${params.length})`;
+        }
+
+        const countRes = await pool.query(`SELECT COUNT(*) FROM cuentas_contables ${where}`, params);
+        const total    = parseInt(countRes.rows[0].count);
+
+        params.push(limit, offset);
+        const dataRes = await pool.query(
+            `SELECT codigo, nombre, grupo_gastos_codigo, estado, empresa, iva_descontable
+             FROM cuentas_contables ${where}
+             ORDER BY ${sortBy} ${sortOrd}
+             LIMIT $${params.length - 1} OFFSET $${params.length}`,
+            params
+        );
+
+        res.json({ success: true, data: dataRes.rows, total, page: parseInt(req.query.page) || 1, limit });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/cuentas-contables:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/cuentas-contables/:codigo
+app.get('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const result = await pool.query(
+            `SELECT codigo, nombre, grupo_gastos_codigo, estado, empresa, iva_descontable
+             FROM cuentas_contables WHERE codigo = $1 AND empresa = $2`,
+            [codigo, empresa]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/cuentas-contables
+app.post('/api/contabilidad/cuentas-contables', async (req, res) => {
+    try {
+        const { codigo, nombre, grupo_gastos_codigo, empresa } = req.body;
+        if (!codigo || !nombre || !grupo_gastos_codigo || !empresa) {
+            return res.status(400).json({ success: false, error: 'codigo, nombre, grupo_gastos_codigo y empresa son requeridos' });
+        }
+        const existe = await pool.query('SELECT codigo FROM cuentas_contables WHERE codigo = $1 AND empresa = $2', [codigo, empresa]);
+        if (existe.rows.length) return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
+
+        const result = await pool.query(
+            `INSERT INTO cuentas_contables (codigo, nombre, grupo_gastos_codigo, empresa, estado, iva_descontable)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [codigo, nombre.trim(), grupo_gastos_codigo, empresa, 'ACTIVA', null]
+        );
+        res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/contabilidad/cuentas-contables:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/contabilidad/cuentas-contables/:codigo
+app.put('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { nombre, grupo_gastos_codigo, empresa, estado } = req.body;
+        const result = await pool.query(
+            `UPDATE cuentas_contables
+             SET nombre=$1, grupo_gastos_codigo=$2, estado=$3
+             WHERE codigo=$4 AND empresa=$5 RETURNING *`,
+            [nombre, grupo_gastos_codigo, estado || 'ACTIVA', codigo, empresa]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/contabilidad/cuentas-contables:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PATCH /api/contabilidad/cuentas-contables/:codigo/estado - Toggle estado
+app.patch('/api/contabilidad/cuentas-contables/:codigo/estado', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { estado, empresa } = req.body;
+        if (!['ACTIVA','INACTIVA'].includes(estado)) {
+            return res.status(400).json({ success: false, error: 'estado debe ser ACTIVA o INACTIVA' });
+        }
+        const result = await pool.query(
+            `UPDATE cuentas_contables SET estado=$1 WHERE codigo=$2 AND empresa=$3 RETURNING *`,
+            [estado, codigo, empresa]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/contabilidad/cuentas-contables/:codigo - Eliminar
+app.delete('/api/contabilidad/cuentas-contables/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const result = await pool.query(
+            'DELETE FROM cuentas_contables WHERE codigo = $1 AND empresa = $2 RETURNING codigo',
+            [codigo, empresa]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
+        res.json({ success: true, message: `Cuenta contable ${codigo} eliminada` });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/cuentas-contables/batch/eliminar - Eliminar múltiples
+app.post('/api/contabilidad/cuentas-contables/batch/eliminar', async (req, res) => {
+    try {
+        const { codigos, empresa } = req.body;
+        if (!codigos || !codigos.length) return res.status(400).json({ success: false, error: 'codigos requeridos' });
+
+        const placeholders = codigos.map((_, i) => `$${i + 2}`).join(', ');
+        await pool.query(
+            `DELETE FROM cuentas_contables WHERE empresa = $1 AND codigo IN (${placeholders})`,
+            [empresa, ...codigos]
+        );
+        res.json({ success: true, message: `${codigos.length} cuentas contables eliminadas` });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // CONTABILIDAD - CENTROS DE COSTOS (CRUD)
 // ================================================================
 
