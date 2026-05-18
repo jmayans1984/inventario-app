@@ -352,9 +352,9 @@ watch(() => props.open, async (val) => {
           forma_pago: gasto.forma_pago || '',
           cuenta: gasto.cuenta || '',
           concepto: (gasto.concepto || '').toUpperCase(),
-          subtotal: parseFloat((gasto.subtotal || 0).toFixed(2)),
-          impuestos: parseFloat((gasto.impuestos || 0).toFixed(2)),
-          total: parseFloat((gasto.total || 0).toFixed(2)),
+          subtotal: Math.round(parseFloat(gasto.subtotal || 0) * 100) / 100,
+          impuestos: Math.round(parseFloat(gasto.impuestos || 0) * 100) / 100,
+          total: Math.round(parseFloat(gasto.total || 0) * 100) / 100,
         }
         console.log('✓ Form actualizado:', form.value)
       } catch (err) {
