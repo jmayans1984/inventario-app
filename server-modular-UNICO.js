@@ -3332,14 +3332,18 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
     }
 });
 
-// PUT /api/contabilidad/gastos/:codigo - Actualizar gasto
+// PUT /api/contabilidad/gastos/:codigo - Actualizar gasto + moviban
 app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
+    const client = await pool.connect();
     try {
         const { codigo } = req.params;
         const { fecha, factura, proveedor, ccosto, forma_pago,
                 cuenta, concepto, subtotal, impuestos, total, empresa } = req.body;
 
-        await pool.query(
+        await client.query('BEGIN');
+
+        // 1. Actualizar gasto
+        await client.query(
             `UPDATE gastos
              SET fecha=$1, factura=$2, proveedor=$3, ccosto=$4, forma_pago=$5,
                  cuenta=$6, concepto=$7, subtotal=$8, impuestos=$9, total=$10
@@ -3348,7 +3352,17 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
              cuenta, (concepto || '').toUpperCase(), subtotal, impuestos || 0, total, codigo, empresa]
         );
 
-        // Obtener el gasto actualizado con JOINs para devolver nombres
+        // 2. Actualizar moviban asociado (identificado por gasto = codigo)
+        await client.query(
+            `UPDATE moviban
+             SET fecha=$1, egreso=$2, banco=$3, beneficia=$4, ccosto=$5
+             WHERE gasto=$6 AND empresa=$7`,
+            [fecha, total, forma_pago, proveedor, ccosto, codigo, empresa]
+        );
+
+        await client.query('COMMIT');
+
+        // 3. Obtener el gasto actualizado con JOINs para devolver nombres
         const result = await pool.query(
             `SELECT
                 g.codigo,
@@ -3365,12 +3379,14 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
                 g.impuestos,
                 g.cuenta,
                 g.forma_pago,
+                COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                 g.estado,
                 g.entrada_almacen,
                 g.origen
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
+             LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
              WHERE g.codigo = $1 AND g.empresa = $2`,
             [codigo, empresa]
         );
@@ -3378,12 +3394,15 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
         if (!result.rows.length) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error PUT /api/contabilidad/gastos:', error.message);
         res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
     }
 });
 
-// DELETE /api/contabilidad/gastos/:codigo - Eliminar gasto
+// DELETE /api/contabilidad/gastos/:codigo - Eliminar gasto + moviban asociado
 app.delete('/api/contabilidad/gastos/:codigo', async (req, res) => {
     const client = await pool.connect();
     try {
@@ -3392,7 +3411,13 @@ app.delete('/api/contabilidad/gastos/:codigo', async (req, res) => {
 
         await client.query('BEGIN');
 
-        // Eliminar gasto (validando que pertenece a la empresa)
+        // 1. Eliminar moviban asociado al gasto
+        await client.query(
+            'DELETE FROM moviban WHERE gasto = $1 AND empresa = $2',
+            [codigo, empresa]
+        );
+
+        // 2. Eliminar gasto (validando que pertenece a la empresa)
         const result = await client.query(
             'DELETE FROM gastos WHERE codigo = $1 AND empresa = $2 RETURNING codigo',
             [codigo, empresa]
