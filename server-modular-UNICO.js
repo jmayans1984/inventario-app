@@ -3170,53 +3170,32 @@ app.get('/', (req, res) => {
 // CONTABILIDAD - GESTIÓN DE GASTOS (CRUD) + MOVIBAN
 // ================================================================
 
-// GET /api/contabilidad/gastos - Listar gastos (ordenado por fecha DESC, máx 300)
+// GET /api/contabilidad/gastos - Listar gastos básicos (sin JOINs por ahora)
 app.get('/api/contabilidad/gastos', async (req, res) => {
     try {
         const empresa = req.query.empresa || req.headers['x-empresa'];
         if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
-        const search   = req.query.search || '';
-        // Máximo 300 registros, default 300 si no se especifica
-        const limit    = Math.min(parseInt(req.query.limit) || 300, 300);
-        const offset   = ((parseInt(req.query.page) || 1) - 1) * limit;
+        console.log(`[DEBUG] GET /api/contabilidad/gastos - Empresa: ${empresa}`);
 
-        let where = 'WHERE g.empresa = $1';
-        const params = [empresa];
+        // Consulta SIMPLE: solo tabla gastos, sin JOINs
+        const dataRes = await pool.query(
+            `SELECT * FROM gastos
+             WHERE empresa = $1
+             ORDER BY fecha DESC
+             LIMIT 300`,
+            [empresa]
+        );
 
-        if (search) {
-            params.push(`%${search}%`);
-            where += ` AND (g.codigo ILIKE $${params.length} OR g.numero_factura ILIKE $${params.length} OR p.nombre ILIKE $${params.length})`;
-        }
+        console.log(`  Registros encontrados: ${dataRes.rows.length}`);
 
-        // DEBUG: Log de la consulta
-        console.log(`[DEBUG] GET /api/contabilidad/gastos`);
-        console.log(`  Empresa: ${empresa}`);
-        console.log(`  Search: ${search}`);
-        console.log(`  Limit: ${limit}, Offset: ${offset}`);
-        console.log(`  WHERE clause: ${where}`);
-        console.log(`  Params: ${JSON.stringify(params)}`);
-
-        const countRes = await pool.query(`SELECT COUNT(*) FROM gastos g ${where}`, params);
-        const total = parseInt(countRes.rows[0].count);
-        console.log(`  Total registros encontrados: ${total}`);
-
-        params.push(limit, offset);
-        // Intentar primero con JOINs simples
-        const query = `SELECT g.codigo, g.fecha, g.numero_factura, g.proveedor_id,
-                    g.centro_costos_id, g.forma_pago,
-                    g.cuenta_contable_id,
-                    g.concepto, g.valor_base, g.impuestos, g.total, g.empresa, g.created_at
-             FROM gastos g
-             ${where}
-             ORDER BY g.fecha DESC, g.codigo DESC
-             LIMIT $${params.length - 1} OFFSET $${params.length}`;
-
-        console.log(`  Query: ${query}`);
-        const dataRes = await pool.query(query, params);
-        console.log(`  Registros retornados: ${dataRes.rows.length}`);
-
-        res.json({ success: true, data: dataRes.rows, total, page: parseInt(req.query.page) || 1, limit });
+        res.json({
+            success: true,
+            data: dataRes.rows,
+            total: dataRes.rows.length,
+            page: 1,
+            limit: 300
+        });
     } catch (error) {
         console.error('Error GET /api/contabilidad/gastos:', error.message);
         console.error('Stack:', error.stack);
