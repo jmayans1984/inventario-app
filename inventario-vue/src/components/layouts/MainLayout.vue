@@ -40,17 +40,28 @@
           <!-- Con submenús -->
           <div v-else>
             <!-- Módulo principal -->
-            <div
-              class="menu-item"
-              :class="{ 'menu-item-open': openModules[mod.id] }"
-              @click="toggleModule(mod.id)"
+            <router-link
+              :to="mod.path"
+              custom
+              v-slot="{ isActive, navigate }"
             >
-              <v-icon size="17" class="menu-icon">{{ mod.icon }}</v-icon>
-              <span class="menu-label">{{ mod.name }}</span>
-              <v-icon size="14" class="menu-chevron" :class="{ rotated: openModules[mod.id] }">
-                mdi-chevron-down
-              </v-icon>
-            </div>
+              <div
+                class="menu-item"
+                :class="{ 'menu-item-active': isActive, 'menu-item-open': openModules[mod.id] }"
+                @click="navigate"
+              >
+                <v-icon size="17" class="menu-icon">{{ mod.icon }}</v-icon>
+                <span class="menu-label">{{ mod.name }}</span>
+                <v-icon
+                  size="14"
+                  class="menu-chevron"
+                  :class="{ rotated: openModules[mod.id] }"
+                  @click.stop="toggleModule(mod.id)"
+                >
+                  mdi-chevron-down
+                </v-icon>
+              </div>
+            </router-link>
 
             <!-- Categorías (nivel 2) -->
             <div v-show="openModules[mod.id]">
