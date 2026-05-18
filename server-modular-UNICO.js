@@ -3178,29 +3178,9 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
 
         console.log(`[DEBUG] GET /api/contabilidad/gastos - Empresa: ${empresa}`);
 
-        // DEBUG: First test what columns exist in gastos table
-        const columnsTest = await pool.query(
-            `SELECT * FROM gastos WHERE empresa = $1 LIMIT 1`,
-            [empresa]
-        );
-
-        if (columnsTest.rows.length > 0) {
-            console.log('  Available columns in gastos:', Object.keys(columnsTest.rows[0]));
-        }
-
-        // Consulta con LEFT JOINs para obtener nombres
+        // Consulta simple: Solo SELECT * de gastos para obtener todas las columnas
         const dataRes = await pool.query(
-            `SELECT
-                codigo,
-                fecha,
-                numero_factura,
-                proveedor_id,
-                centro_costos_id,
-                concepto,
-                total,
-                empresa,
-                created_at
-             FROM gastos
+            `SELECT * FROM gastos
              WHERE empresa = $1
              ORDER BY fecha DESC
              LIMIT 300`,
