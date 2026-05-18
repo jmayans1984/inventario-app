@@ -414,30 +414,32 @@ async function generarPDF() {
     }
 
     // ── ENCABEZADO ────────────────────────────────────────────────
-    // Alineado con márgenes ML/MR — mismo ancho que las tablas (TW)
+    // Alineado con márgenes ML/MR, con margen superior MT
     function drawHeader(isFirstPage = false) {
-      const SPLIT_LW = TW * 0.58          // ancho bloque izquierdo
-      const SPLIT_RW = TW * 0.42          // ancho bloque derecho
-      const SPLIT_X  = ML + SPLIT_LW      // x donde empieza el bloque derecho
-      const rCX      = SPLIT_X + SPLIT_RW / 2   // centro del bloque derecho
+      const MT       = 5              // margen superior (espacio en blanco arriba)
+      const SPLIT_LW = TW * 0.58
+      const SPLIT_RW = TW * 0.42
+      const SPLIT_X  = ML + SPLIT_LW
+      const rCX      = SPLIT_X + SPLIT_RW / 2
+      const BH       = HDR_H - MT    // altura real del bloque de color
 
-      // ── Bloque izquierdo: índigo profundo (alineado al margen) ─
+      // ── Bloque izquierdo (empieza en MT, no en 0) ────────────
       doc.setFillColor(...C_INDIGO)
-      doc.rect(ML, 0, SPLIT_LW, HDR_H, 'F')
+      doc.rect(ML, MT, SPLIT_LW, BH, 'F')
 
-      // ── Bloque derecho: índigo vivo ───────────────────────────
+      // ── Bloque derecho ────────────────────────────────────────
       doc.setFillColor(...C_IND2)
-      doc.rect(SPLIT_X, 0, SPLIT_RW, HDR_H, 'F')
+      doc.rect(SPLIT_X, MT, SPLIT_RW, BH, 'F')
 
-      // ── Barra inferior: indigo claro (dentro de márgenes) ─────
+      // ── Barra inferior: indigo claro ──────────────────────────
       doc.setFillColor(...C_IND3)
-      doc.rect(ML, HDR_H - 2, TW, 2, 'F')
+      doc.rect(ML, MT + BH - 2, TW, 2, 'F')
 
       // ── Nombre empresa ────────────────────────────────────────
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(11.5)
       doc.setTextColor(...C_WHITE)
-      doc.text(empNombre, ML + 5, 11)
+      doc.text(empNombre, ML + 5, MT + 7)
 
       // Dirección y teléfono
       const contactLine = [empDir, empTel].filter(Boolean).join('   |   ')
@@ -445,14 +447,14 @@ async function generarPDF() {
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(6.5)
         doc.setTextColor(180, 190, 230)
-        doc.text(contactLine, ML + 5, 17)
+        doc.text(contactLine, ML + 5, MT + 13)
       }
 
-      // ── Título del reporte (centrado en bloque derecho) ───────
+      // ── Título del reporte ────────────────────────────────────
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
       doc.setTextColor(...C_WHITE)
-      doc.text('REPORTE DE GASTOS', rCX, 10.5, { align: 'center' })
+      doc.text('REPORTE DE GASTOS', rCX, MT + 7, { align: 'center' })
 
       // Período
       doc.setFont('helvetica', 'normal')
@@ -460,7 +462,7 @@ async function generarPDF() {
       doc.setTextColor(200, 210, 255)
       doc.text(
         `${fmtF(filtros.value.fechaInicial)}  al  ${fmtF(filtros.value.fechaFinal)}`,
-        rCX, 16.5, { align: 'center' }
+        rCX, MT + 13, { align: 'center' }
       )
 
       y = HDR_H + 5
