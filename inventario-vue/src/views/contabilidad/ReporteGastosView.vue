@@ -178,7 +178,7 @@
               <tr v-for="g in grupo.items" :key="g.codigo">
                 <td><span class="badge-cod">{{ g.codigo }}</span></td>
                 <td class="td-center">{{ formatFecha(g.fecha) }}</td>
-                <td>{{ g.proveedor_nombre || g.proveedor || '-' }}</td>
+                <td>{{ (!g.proveedor || g.proveedor === '0') ? '' : (g.proveedor_nombre || g.proveedor) }}</td>
                 <td class="td-concepto">{{ g.concepto || '-' }}</td>
                 <td class="td-center">{{ g.forma_pago_nombre || g.forma_pago || '-' }}</td>
                 <td class="td-center">{{ g.ccosto_nombre || g.ccosto || '-' }}</td>
@@ -571,7 +571,7 @@ async function generarPDF() {
         body: grupo.items.map(g => [
           { content: g.codigo,                                   styles: { halign: 'center', fontStyle: 'bold', textColor: C_IND2 } },
           { content: fmtF(g.fecha),                              styles: { halign: 'center' } },
-          { content: g.proveedor_nombre  || g.proveedor  || '-', styles: { halign: 'left'   } },
+          { content: (!g.proveedor || g.proveedor === '0') ? '' : (g.proveedor_nombre || g.proveedor), styles: { halign: 'left' } },
           { content: g.concepto          || '-',                 styles: { halign: 'left'   } },
           { content: g.forma_pago_nombre || g.forma_pago || '-', styles: { halign: 'center' } },
           { content: g.ccosto_nombre     || g.ccosto     || '-', styles: { halign: 'center' } },
