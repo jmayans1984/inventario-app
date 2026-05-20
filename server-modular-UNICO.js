@@ -1047,6 +1047,162 @@ app.get('/api/tesoreria/movimientos/resumen', async (req, res) => {
     }
 });
 
+// ================================================================
+// TESORERÍA - FACTURAS (COMPRA Y VENTA)
+// ================================================================
+
+// GET /api/tesoreria/facturas-compra - Obtener facturas de compra
+app.get('/api/tesoreria/facturas-compra', async (req, res) => {
+    const { empresa, estado, proveedor, fecha_inicio, fecha_fin } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        let query = `
+            SELECT
+                codigo,
+                numero,
+                fecha,
+                proveedor,
+                concepto,
+                monto,
+                impuesto,
+                total,
+                estado,
+                fecha_vencimiento,
+                numero_comprobante
+            FROM factura_compra
+            WHERE empresa = $1
+        `;
+
+        const params = [empresa];
+        let paramIndex = 2;
+
+        if (estado && estado !== 'TODOS') {
+            query += ` AND estado = $${paramIndex}`;
+            params.push(estado);
+            paramIndex++;
+        }
+
+        if (proveedor) {
+            query += ` AND proveedor = $${paramIndex}`;
+            params.push(proveedor);
+            paramIndex++;
+        }
+
+        if (fecha_inicio) {
+            query += ` AND fecha >= $${paramIndex}`;
+            params.push(fecha_inicio);
+            paramIndex++;
+        }
+
+        if (fecha_fin) {
+            query += ` AND fecha <= $${paramIndex}`;
+            params.push(fecha_fin);
+            paramIndex++;
+        }
+
+        query += ` ORDER BY fecha DESC, codigo DESC`;
+
+        const result = await pool.query(query, params);
+
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-compra:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener facturas de compra',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/facturas-venta - Obtener facturas de venta
+app.get('/api/tesoreria/facturas-venta', async (req, res) => {
+    const { empresa, estado, cliente, fecha_inicio, fecha_fin } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        let query = `
+            SELECT
+                codigo,
+                numero,
+                fecha,
+                cliente,
+                concepto,
+                monto,
+                impuesto,
+                total,
+                estado,
+                fecha_vencimiento,
+                numero_comprobante
+            FROM factura_venta
+            WHERE empresa = $1
+        `;
+
+        const params = [empresa];
+        let paramIndex = 2;
+
+        if (estado && estado !== 'TODOS') {
+            query += ` AND estado = $${paramIndex}`;
+            params.push(estado);
+            paramIndex++;
+        }
+
+        if (cliente) {
+            query += ` AND cliente = $${paramIndex}`;
+            params.push(cliente);
+            paramIndex++;
+        }
+
+        if (fecha_inicio) {
+            query += ` AND fecha >= $${paramIndex}`;
+            params.push(fecha_inicio);
+            paramIndex++;
+        }
+
+        if (fecha_fin) {
+            query += ` AND fecha <= $${paramIndex}`;
+            params.push(fecha_fin);
+            paramIndex++;
+        }
+
+        query += ` ORDER BY fecha DESC, codigo DESC`;
+
+        const result = await pool.query(query, params);
+
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-venta:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener facturas de venta',
+            details: error.message
+        });
+    }
+});
+
 // GET /api/facturas-compra - Obtener facturas de compra
 app.get('/api/facturas-compra', async (req, res) => {
     const { empresa, fecha_desde, fecha_hasta, estado } = req.query;
