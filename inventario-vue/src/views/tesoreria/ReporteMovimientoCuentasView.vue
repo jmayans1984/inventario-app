@@ -1,28 +1,117 @@
 <template>
   <MainLayout>
     <div class="view-container">
-      <div class="breadcrumb"><span class="bc-root">TESORERÍA</span><v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon><span class="bc-cat">Reportes</span><v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon><span class="bc-current">Movimiento por Cuentas</span></div>
-      <div class="page-header"><div class="header-left"><div class="header-icon-wrap"><v-icon size="22" color="white">mdi-chart-timeline-variant</v-icon></div><div><h1 class="page-title">MOVIMIENTO POR CUENTAS</h1><p class="page-sub">Detalle de movimientos agrupados por cuenta bancaria</p></div></div><v-btn class="btn-nuevo" prepend-icon="mdi-file-pdf-box">Generar PDF</v-btn></div>
-      <div class="wip-card"><v-icon size="56" class="wip-icon">mdi-chart-timeline-variant</v-icon><h2 class="wip-title">Módulo en Desarrollo</h2><p class="wip-sub">El reporte de movimiento por cuentas estará disponible próximamente.</p><v-chip color="teal" variant="tonal" size="small" class="mt-4">TESORERÍA · Reportes</v-chip></div>
+      <div class="breadcrumb">
+        <span class="bc-root">TESORERÍA</span>
+        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
+        <span class="bc-cat">Reportes</span>
+        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
+        <span class="bc-current">Movimiento por Cuentas</span>
+      </div>
+
+      <div class="page-header">
+        <div class="header-left">
+          <div class="header-icon-wrap">
+            <v-icon size="22" color="white">mdi-chart-timeline-variant</v-icon>
+          </div>
+          <div>
+            <h1 class="page-title">MOVIMIENTO POR CUENTAS</h1>
+            <p class="page-sub">Detalle de movimientos agrupados por cuenta bancaria</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <v-btn variant="outlined" prepend-icon="mdi-file-pdf-box" color="error" size="small">
+            PDF
+          </v-btn>
+          <v-btn variant="outlined" prepend-icon="mdi-file-excel-box" color="success" size="small">
+            Excel
+          </v-btn>
+        </div>
+      </div>
+
+      <div class="filtros-bar">
+        <v-text-field
+          label="Fecha Inicio"
+          type="date"
+          variant="outlined"
+          size="small"
+        />
+        <v-text-field
+          label="Fecha Fin"
+          type="date"
+          variant="outlined"
+          size="small"
+        />
+        <v-btn variant="text" prepend-icon="mdi-refresh" size="small">
+          Actualizar
+        </v-btn>
+      </div>
+
+      <div class="info-card">
+        <v-icon size="48" class="info-icon">mdi-chart-timeline-variant</v-icon>
+        <h3>Reporte de Movimientos por Cuenta</h3>
+        <p>Este reporte muestra el detalle de ingresos y egresos agrupados por cuenta bancaria, permitiendo analizar el comportamiento de cada cuenta.</p>
+        <div class="features-list">
+          <div class="feature-item">
+            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
+            <span>Detalle de movimientos por cuenta</span>
+          </div>
+          <div class="feature-item">
+            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
+            <span>Totales de ingresos y egresos</span>
+          </div>
+          <div class="feature-item">
+            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
+            <span>Saldo acumulado por fecha</span>
+          </div>
+          <div class="feature-item">
+            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
+            <span>Exportación a PDF y Excel</span>
+          </div>
+        </div>
+      </div>
     </div>
   </MainLayout>
 </template>
-<script setup>import MainLayout from '../../components/layouts/MainLayout.vue'</script>
+
+<script setup>
+import MainLayout from '../../components/layouts/MainLayout.vue'
+</script>
+
 <style scoped>
 .view-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
+
 .bc-root { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; }
+
 .bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
+
 .bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
+
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
+
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+
 .header-left { display: flex; align-items: center; gap: 16px; }
+
 .header-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,0.35); }
+
 .page-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; margin: 0; }
+
 .page-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
-.btn-nuevo { background: linear-gradient(135deg,#06b6d4,#0891b2); color: white !important; font-weight: 600; border-radius: 10px; text-transform: none; box-shadow: 0 4px 14px rgba(6,182,212,0.35); }
-.wip-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.08); border-radius: 16px; padding: 64px 32px; text-align: center; }
-.wip-icon { color: rgba(6,182,212,0.4); display: block; margin: 0 auto 20px; }
-.wip-title { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
-.wip-sub { font-size: 14px; color: rgba(var(--v-theme-on-surface),0.5); margin: 0; }
+
+.filtros-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+
+.info-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.08); border-radius: 16px; padding: 40px 32px; text-align: center; }
+
+.info-icon { color: rgba(6,182,212,0.4); margin-bottom: 16px; }
+
+.info-card h3 { font-size: 18px; font-weight: 700; margin: 16px 0 8px; }
+
+.info-card p { font-size: 14px; color: rgba(var(--v-theme-on-surface),0.6); margin: 0 0 24px; max-width: 600px; }
+
+.features-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+
+.feature-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(var(--v-theme-on-surface),0.08); border-radius: 8px; }
 </style>
