@@ -16,7 +16,19 @@ const routes = [
   // CONTABILIDAD — patrón general (captura /contabilidad, /contabilidad/configuracion, etc.)
   { path: '/contabilidad/:section?/:item?', component: () => import('../views/ContabilidadView.vue'), meta: { requiresAuth: true } },
 
-  // TESORERÍA
+  // TESORERÍA ESPECÍFICAS
+  { path: '/tesoreria/configuracion/cuentas-bancarias',          component: () => import('../views/tesoreria/CuentasBancariasView.vue'),          meta: { requiresAuth: true } },
+  { path: '/tesoreria/procesos/importar-ventas',                 component: () => import('../views/tesoreria/ImportarVentasView.vue'),             meta: { requiresAuth: true } },
+  { path: '/tesoreria/procesos/conciliacion-cuentas',            component: () => import('../views/tesoreria/ConciliacionCuentasView.vue'),        meta: { requiresAuth: true } },
+  { path: '/tesoreria/procesos/movimientos-bancarios',           component: () => import('../views/tesoreria/MovimientosBancariosView.vue'),       meta: { requiresAuth: true } },
+  { path: '/tesoreria/procesos/facturas-compra',                 component: () => import('../views/tesoreria/FacturasCompraView.vue'),             meta: { requiresAuth: true } },
+  { path: '/tesoreria/procesos/facturas-venta',                  component: () => import('../views/tesoreria/FacturasVentaView.vue'),              meta: { requiresAuth: true } },
+  { path: '/tesoreria/reportes/conciliacion-bancaria',           component: () => import('../views/tesoreria/ReporteConciliacionView.vue'),        meta: { requiresAuth: true } },
+  { path: '/tesoreria/reportes/movimiento-cuentas',              component: () => import('../views/tesoreria/ReporteMovimientoCuentasView.vue'),   meta: { requiresAuth: true } },
+  { path: '/tesoreria/reportes/ventas-periodo',                  component: () => import('../views/tesoreria/ReporteVentasPeriodoView.vue'),       meta: { requiresAuth: true } },
+  { path: '/tesoreria/reportes/ventas-productos-periodo',        component: () => import('../views/tesoreria/ReporteVentasProductosView.vue'),     meta: { requiresAuth: true } },
+
+  // TESORERÍA — patrón general
   { path: '/tesoreria/:section?/:item?', component: () => import('../views/TesoreriaView.vue'), meta: { requiresAuth: true } },
 
   // ALMACÉN
