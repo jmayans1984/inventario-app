@@ -788,6 +788,265 @@ app.post('/api/movimientos-bancarios/crear', async (req, res) => {
     }
 });
 
+// ================================================================
+// TESORERÍA - CONCILIACIÓN BANCARIA
+// ================================================================
+
+// GET /api/tesoreria/movimientos - Obtener movimientos bancarios para conciliación
+app.get('/api/tesoreria/movimientos', async (req, res) => {
+    const { empresa, estado } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        let query = `
+            SELECT
+                m.numero as id,
+                m.numero,
+                m.fecha,
+                m.concepto,
+                m.beneficia as referencia,
+                m.ingreso,
+                m.egreso,
+                m.monto as monto,
+                CASE
+                    WHEN m.conciliado = true THEN 'CONCILIADO'
+                    ELSE 'PENDIENTE'
+                END as estado,
+                m.banco,
+                m.tipo,
+                m.cheque,
+                m.gasto,
+                m.empresa
+            FROM moviban m
+            WHERE m.empresa = $1
+        `;
+
+        const params = [empresa];
+        let paramIndex = 2;
+
+        if (estado && estado !== 'TODOS') {
+            if (estado === 'CONCILIADO') {
+                query += ` AND m.conciliado = true`;
+            } else if (estado === 'PENDIENTE') {
+                query += ` AND m.conciliado = false`;
+            }
+        }
+
+        query += ` ORDER BY m.fecha DESC, m.numero DESC`;
+
+        const result = await pool.query(query, params);
+
+        // Transform data to match frontend expectations
+        const movimientos = result.rows.map(row => ({
+            id: row.numero,
+            numero: row.numero,
+            fecha: row.fecha,
+            concepto: row.concepto,
+            referencia: row.referencia,
+            monto: parseFloat(row.ingreso || 0) + parseFloat(row.egreso || 0),
+            estado: row.estado,
+            banco: row.banco,
+            tipo: row.tipo,
+            cheque: row.cheque,
+            gasto: row.gasto,
+            empresa: row.empresa
+        }));
+
+        res.json({
+            success: true,
+            data: movimientos,
+            total: result.rowCount
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/movimientos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener movimientos',
+            details: error.message
+        });
+    }
+});
+
+// PUT /api/tesoreria/movimientos/:id - Marcar movimiento como conciliado/pendiente
+app.put('/api/tesoreria/movimientos/:id', async (req, res) => {
+    const { id } = req.params;
+    const { estado, empresa } = req.body;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    if (!estado || !['CONCILIADO', 'PENDIENTE'].includes(estado)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Estado debe ser CONCILIADO o PENDIENTE'
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const conciliado = estado === 'CONCILIADO';
+
+        const updateQuery = `
+            UPDATE moviban
+            SET conciliado = $1
+            WHERE numero = $2 AND empresa = $3
+            RETURNING numero, conciliado, fecha, concepto, beneficia
+        `;
+
+        const result = await client.query(updateQuery, [conciliado, id, empresa]);
+
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                error: 'Movimiento no encontrado'
+            });
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `Movimiento marcado como ${estado}`,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en PUT /api/tesoreria/movimientos/:id:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al actualizar movimiento',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// POST /api/tesoreria/movimientos/batch/conciliar - Marcar múltiples como conciliados
+app.post('/api/tesoreria/movimientos/batch/conciliar', async (req, res) => {
+    const { ids, empresa } = req.body;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'ids debe ser un array no vacío'
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Build dynamic query for multiple IDs
+        const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+        const params = [...ids, empresa];
+
+        const updateQuery = `
+            UPDATE moviban
+            SET conciliado = true
+            WHERE numero IN (${placeholders}) AND empresa = $${ids.length + 1}
+            RETURNING numero, conciliado
+        `;
+
+        const result = await client.query(updateQuery, params);
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `${result.rowCount} movimientos marcados como conciliados`,
+            updated: result.rowCount,
+            data: result.rows
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en POST /api/tesoreria/movimientos/batch/conciliar:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error en conciliación en lote',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// GET /api/tesoreria/movimientos/resumen - Obtener resumen de conciliación
+app.get('/api/tesoreria/movimientos/resumen', async (req, res) => {
+    const { empresa } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        const query = `
+            SELECT
+                COUNT(*) FILTER (WHERE conciliado = false) as pendientes,
+                COUNT(*) FILTER (WHERE conciliado = true) as conciliados,
+                COUNT(*) as total,
+                COALESCE(SUM(ingreso) FILTER (WHERE conciliado = false), 0) as total_pendiente_ingreso,
+                COALESCE(SUM(egreso) FILTER (WHERE conciliado = false), 0) as total_pendiente_egreso,
+                COALESCE(SUM(ingreso) FILTER (WHERE conciliado = true), 0) as total_conciliado_ingreso,
+                COALESCE(SUM(egreso) FILTER (WHERE conciliado = true), 0) as total_conciliado_egreso
+            FROM moviban
+            WHERE empresa = $1
+        `;
+
+        const result = await pool.query(query, [empresa]);
+        const row = result.rows[0];
+
+        res.json({
+            success: true,
+            data: {
+                pendientes: parseInt(row.pendientes) || 0,
+                conciliados: parseInt(row.conciliados) || 0,
+                total: parseInt(row.total) || 0,
+                total_pendiente_ingreso: parseFloat(row.total_pendiente_ingreso) || 0,
+                total_pendiente_egreso: parseFloat(row.total_pendiente_egreso) || 0,
+                total_conciliado_ingreso: parseFloat(row.total_conciliado_ingreso) || 0,
+                total_conciliado_egreso: parseFloat(row.total_conciliado_egreso) || 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/movimientos/resumen:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener resumen',
+            details: error.message
+        });
+    }
+});
+
 // GET /api/facturas-compra - Obtener facturas de compra
 app.get('/api/facturas-compra', async (req, res) => {
     const { empresa, fecha_desde, fecha_hasta, estado } = req.query;
