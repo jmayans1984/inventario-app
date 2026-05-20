@@ -47,34 +47,15 @@ export const MODULES = [
     icon: 'mdi-bank-outline',
     path: '/tesoreria',
     children: [
-      {
-        name: 'Configuración',
-        icon: 'mdi-cog-outline',
-        items: [
-          { name: 'Cuentas Bancarias', icon: 'mdi-bank-outline', path: '/tesoreria/configuracion/cuentas-bancarias' },
-        ],
-      },
-      {
-        name: 'Procesos',
-        icon: 'mdi-cogs',
-        items: [
-          { name: 'Importar Ventas',         icon: 'mdi-file-import-outline',        path: '/tesoreria/procesos/importar-ventas' },
-          { name: 'Conciliación de Cuentas', icon: 'mdi-bank-check',                 path: '/tesoreria/procesos/conciliacion-cuentas' },
-          { name: 'Movimientos Bancarios',   icon: 'mdi-swap-horizontal',             path: '/tesoreria/procesos/movimientos-bancarios' },
-          { name: 'Facturas de Compra',      icon: 'mdi-receipt-text-outline',        path: '/tesoreria/procesos/facturas-compra',  requiredTipo: 'CLIENTE' },
-          { name: 'Facturas de Venta',       icon: 'mdi-receipt-outline',             path: '/tesoreria/procesos/facturas-venta',   requiredTipo: 'PROVEEDOR' },
-        ],
-      },
-      {
-        name: 'Reportes',
-        icon: 'mdi-chart-bar',
-        items: [
-          { name: 'Conciliación Bancaria',              icon: 'mdi-file-chart-outline',        path: '/tesoreria/reportes/conciliacion-bancaria' },
-          { name: 'Movimiento por Cuentas',             icon: 'mdi-chart-timeline-variant',    path: '/tesoreria/reportes/movimiento-cuentas' },
-          { name: 'Ventas por Período',                 icon: 'mdi-trending-up',               path: '/tesoreria/reportes/ventas-periodo' },
-          { name: 'Ventas de Productos por Período',    icon: 'mdi-package-variant-closed',    path: '/tesoreria/reportes/ventas-productos-periodo' },
-        ],
-      },
+      { name: 'Configuración', icon: 'mdi-cog-outline', items: [
+        { name: 'Configuración General', icon: 'mdi-tune', path: '/tesoreria/configuracion' },
+      ]},
+      { name: 'Procesos', icon: 'mdi-cogs', items: [
+        { name: 'Movimientos', icon: 'mdi-swap-horizontal', path: '/tesoreria/procesos/movimientos' },
+      ]},
+      { name: 'Reportes', icon: 'mdi-chart-bar', items: [
+        { name: 'Estado de Cuenta', icon: 'mdi-file-chart-outline', path: '/tesoreria/reportes/estado-cuenta' },
+      ]},
     ],
   },
   {
