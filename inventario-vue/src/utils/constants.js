@@ -102,17 +102,22 @@ export const MODULES = [
   {
     id: 'produccion',
     name: 'PRODUCCIÓN',
-    icon: 'mdi-factory',
+    icon: 'mdi-store',
     path: '/produccion',
+    requiredTipo: 'PROVEEDOR',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Recetas / Fórmulas', icon: 'mdi-flask-outline', path: '/produccion/configuracion/recetas' },
+        { name: 'Productos para Venta', icon: 'mdi-package-variant', path: '/produccion/configuracion/productos-venta' },
+        { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/produccion/configuracion/grupo-productos' },
+        { name: 'Lista de Precios', icon: 'mdi-list-box-outline', path: '/produccion/configuracion/lista-precios' },
+        { name: 'Términos de Crédito', icon: 'mdi-file-document-outline', path: '/produccion/configuracion/terminos-credito' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
-        { name: 'Órdenes de Producción', icon: 'mdi-clipboard-play-outline', path: '/produccion/procesos/ordenes' },
+        { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/produccion/procesos/ordenes-compra' },
       ]},
-      { name: 'Reportes', icon: 'mdi-chart-bar', items: [
-        { name: 'Producción del Período', icon: 'mdi-file-chart-outline', path: '/produccion/reportes/periodo' },
+      { name: 'Informes', icon: 'mdi-chart-bar', items: [
+        { name: 'Lista de Precios', icon: 'mdi-file-chart-outline', path: '/produccion/informes/lista-precios' },
+        { name: 'Órdenes de Compra', icon: 'mdi-file-text-outline', path: '/produccion/informes/ordenes-compra' },
       ]},
     ],
   },
