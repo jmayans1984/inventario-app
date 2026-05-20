@@ -31,7 +31,17 @@ const routes = [
   // TESORERÍA — patrón general
   { path: '/tesoreria/:section?/:item?', component: () => import('../views/TesoreriaView.vue'), meta: { requiresAuth: true } },
 
-  // ALMACÉN
+  // ALMACÉN ESPECÍFICAS
+  { path: '/almacen/configuracion/productos',          component: () => import('../views/almacen/ProductosView.vue'),          meta: { requiresAuth: true } },
+  { path: '/almacen/configuracion/control-inventario', component: () => import('../views/almacen/ControlInventarioView.vue'),   meta: { requiresAuth: true } },
+  { path: '/almacen/procesos/gestion-inventario',      component: () => import('../views/almacen/GestionInventarioView.vue'),  meta: { requiresAuth: true } },
+  { path: '/almacen/procesos/toma-fisica',             component: () => import('../views/almacen/TomaFisicaView.vue'),        meta: { requiresAuth: true } },
+  { path: '/almacen/procesos/valoracion',              component: () => import('../views/almacen/ValoracionView.vue'),        meta: { requiresAuth: true } },
+  { path: '/almacen/procesos/ordenes-compra',          component: () => import('../views/almacen/OrdenesCompraView.vue'),     meta: { requiresAuth: true } },
+  { path: '/almacen/reportes/kardex',                  component: () => import('../views/almacen/ReporteKardexView.vue'),     meta: { requiresAuth: true } },
+  { path: '/almacen/reportes/consumos',                component: () => import('../views/almacen/ReporteConsumosView.vue'),   meta: { requiresAuth: true } },
+
+  // ALMACÉN — patrón general
   { path: '/almacen/:section?/:item?', component: () => import('../views/AlmacenView.vue'), meta: { requiresAuth: true } },
 
   // PRODUCCIÓN

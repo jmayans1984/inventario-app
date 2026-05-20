@@ -85,15 +85,17 @@ export const MODULES = [
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
         { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos' },
-        { name: 'Categorías', icon: 'mdi-tag-outline', path: '/almacen/configuracion/categorias' },
+        { name: 'Control de Inventario', icon: 'mdi-warehouse', path: '/almacen/configuracion/control-inventario' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
-        { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/almacen/procesos/ordenes' },
-        { name: 'Recepciones', icon: 'mdi-truck-delivery-outline', path: '/almacen/procesos/recepciones' },
+        { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },
+        { name: 'Toma Física', icon: 'mdi-counter', path: '/almacen/procesos/toma-fisica' },
+        { name: 'Valoración Mensual', icon: 'mdi-calculator-variant', path: '/almacen/procesos/valoracion' },
+        { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/almacen/procesos/ordenes-compra' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
-        { name: 'Inventario Actual', icon: 'mdi-file-chart-outline', path: '/almacen/reportes/inventario' },
-        { name: 'Movimientos', icon: 'mdi-swap-horizontal', path: '/almacen/reportes/movimientos' },
+        { name: 'Kardex por Período', icon: 'mdi-file-chart-outline', path: '/almacen/reportes/kardex' },
+        { name: 'Consumos de Productos', icon: 'mdi-trending-down', path: '/almacen/reportes/consumos' },
       ]},
     ],
   },
