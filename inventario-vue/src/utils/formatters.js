@@ -22,6 +22,16 @@ const NUM_LOCALE = 'de-DE'  // punto = miles, coma = decimal
  */
 export function formatFecha(value) {
   if (!value) return ''
+  // Si es string tipo "YYYY-MM-DD..." extraer partes sin pasar por Date
+  // para evitar desfase de zona horaria
+  const str = typeof value === 'string' ? value : value.toISOString?.() ?? String(value)
+  const datePart = str.split('T')[0]   // "YYYY-MM-DD"
+  const parts = datePart.split('-')
+  if (parts.length === 3) {
+    const [aaaa, mm, dd] = parts
+    return `${mm}/${dd}/${aaaa}`
+  }
+  // Fallback para objetos Date ya construidos
   const d = value instanceof Date ? value : new Date(value)
   if (isNaN(d.getTime())) return ''
   const mm = String(d.getMonth() + 1).padStart(2, '0')
