@@ -1101,7 +1101,7 @@ app.get('/api/tesoreria/movimientos/next-numero', async (req, res) => {
 
 // POST /api/tesoreria/movimientos - Crear nuevo movimiento bancario
 app.post('/api/tesoreria/movimientos', async (req, res) => {
-    const { tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, gasto, ccosto, origen, empresa } = req.body;
+    const { tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, gasto, ccosto, origen, empresa, banco_destino } = req.body;
 
     if (!empresa) {
         return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
@@ -1115,6 +1115,9 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
     if (!fecha) {
         return res.status(400).json({ success: false, error: 'Parámetro fecha requerido' });
     }
+    if (tipo === 'TRA' && !banco_destino) {
+        return res.status(400).json({ success: false, error: 'Para TRANSFERENCIA se requiere banco_destino' });
+    }
 
     const client = await pool.connect();
     try {
@@ -1123,7 +1126,7 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
         // Obtener próximo número (con lock para evitar duplicados)
         const numRes = await client.query(
             `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) + 1 AS next_num
-             FROM moviban WHERE empresa = $1`,
+             FROM moviban WHERE empresa = $1 FOR UPDATE`,
             [empresa]
         );
         const nextNum = numRes.rows[0].next_num || 1;
@@ -1156,6 +1159,26 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
             empresa
         ]);
 
+        // Si es TRANSFERENCIA, crear asiento en cuenta destino
+        if (tipo === 'TRA') {
+            const numDest = String(nextNum + 1).padStart(10, '0');
+            await client.query(insertQuery, [
+                numDest,
+                'TRA',
+                fecha,
+                concepto || '',
+                beneficia || '',
+                cheque || '',
+                egresoVal,  // Lo que egresa de origen es ingreso en destino
+                ingresoVal,
+                banco_destino,
+                gasto || null,
+                ccosto || null,
+                origen || null,
+                empresa
+            ]);
+        }
+
         await client.query('COMMIT');
 
         res.status(201).json({
@@ -1174,6 +1197,45 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
         });
     } finally {
         client.release();
+    }
+});
+
+// GET /api/tesoreria/proveedores/buscar - Buscar proveedores por nombre
+app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
+    const { empresa, q } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+    }
+    if (!q || q.trim().length < 2) {
+        return res.json({ success: true, data: [] });
+    }
+
+    try {
+        const busqueda = `%${q.toLowerCase()}%`;
+        const result = await pool.query(
+            `SELECT codigo, nombre, telefono, email
+             FROM proveedores
+             WHERE empresa = $1
+               AND estado = 'ACTIVO'
+               AND LOWER(nombre) LIKE $2
+             ORDER BY nombre
+             LIMIT 10`,
+            [empresa, busqueda]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/proveedores/buscar:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al buscar proveedores',
+            details: error.message
+        });
     }
 });
 

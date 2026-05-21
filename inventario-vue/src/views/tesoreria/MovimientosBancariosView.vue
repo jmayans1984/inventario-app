@@ -247,7 +247,7 @@
     </div>
 
     <!-- MODAL NUEVO MOVIMIENTO -->
-    <v-dialog v-model="dialogOpen" max-width="560" persistent>
+    <v-dialog v-model="dialogOpen" max-width="580" persistent>
       <v-card class="form-card">
         <div class="form-header">
           <div class="form-header-left">
@@ -262,17 +262,14 @@
         </div>
 
         <div class="form-body">
-          <!-- Número (solo lectura) -->
+          <!-- Número (Auto) + Fecha -->
           <div class="form-row">
             <div class="form-field">
               <label class="field-label">NÚMERO</label>
-              <input
-                :value="form.numero"
-                type="text"
-                class="field-input readonly"
-                readonly
-                placeholder="Generando..."
-              />
+              <div class="numero-auto">
+                <v-icon size="14">mdi-auto-fix</v-icon>
+                <span>Auto generado</span>
+              </div>
             </div>
             <div class="form-field">
               <label class="field-label">FECHA <span class="req">*</span></label>
@@ -307,17 +304,36 @@
             </div>
           </div>
 
-          <!-- Beneficiario -->
+          <!-- Beneficiario con búsqueda -->
           <div class="form-row">
             <div class="form-field full-width">
               <label class="field-label">BENEFICIARIO / PAGADOR <span class="req">*</span></label>
-              <input
-                v-model="form.beneficia"
-                type="text"
-                class="field-input"
-                :class="{ error: formErrors.beneficia }"
-                placeholder="Nombre del beneficiario o pagador"
-              />
+              <div class="autocomplete-wrap">
+                <input
+                  v-model="form.beneficiaText"
+                  type="text"
+                  class="field-input"
+                  :class="{ error: formErrors.beneficia }"
+                  placeholder="Busca por nombre del proveedor..."
+                  @input="onBeneficiaInput"
+                  @keydown.escape="cerrarSugerencias"
+                  @keydown.down="seleccionarSiguiente"
+                  @keydown.up="seleccionarAnterior"
+                  @keydown.enter="aceptarSugerencia"
+                />
+                <div v-if="mostrarSugerencias && store.proveedoresOptions.length" class="autocomplete-options">
+                  <div
+                    v-for="(prov, idx) in store.proveedoresOptions"
+                    :key="prov.codigo"
+                    class="option-item"
+                    :class="{ selected: indexSugerencia === idx }"
+                    @click="selectBeneficiario(prov)"
+                  >
+                    <div class="option-name">{{ prov.nombre }}</div>
+                    <div class="option-details">{{ prov.codigo }} • {{ prov.email || 'Sin email' }}</div>
+                  </div>
+                </div>
+              </div>
               <span v-if="formErrors.beneficia" class="field-error">{{ formErrors.beneficia }}</span>
             </div>
           </div>
@@ -363,13 +379,32 @@
             </div>
           </div>
 
+          <!-- Cuenta Destino (solo si TRANSFERENCIA) -->
+          <div v-if="form.tipo === 'TRA'" class="form-row">
+            <div class="form-field full-width">
+              <label class="field-label">CUENTA DESTINO <span class="req">*</span></label>
+              <v-select
+                v-model="form.banco_destino"
+                :items="store.cuentasBancarias"
+                item-title="nombre_cta"
+                item-value="codigo"
+                placeholder="Selecciona la cuenta destino..."
+                hide-details
+                density="compact"
+                variant="outlined"
+                :rules="form.tipo === 'TRA' ? [v => v || 'Requerido para transferencia'] : []"
+              />
+              <span v-if="formErrors.banco_destino" class="field-error">{{ formErrors.banco_destino }}</span>
+            </div>
+          </div>
+
           <!-- Info tipo -->
           <div v-if="form.tipo" class="tipo-info">
             <v-icon size="14" :color="getTipoColor(form.tipo)">mdi-information-outline</v-icon>
             <span>
               {{ form.tipo === 'ING' ? 'El monto se registrará como INGRESO (+)' :
                  form.tipo === 'EGR' ? 'El monto se registrará como EGRESO (-)' :
-                 'El monto se registrará como TRANSFERENCIA (egreso de esta cuenta)' }}
+                 form.tipo === 'TRA' ? 'Se creará un egreso en esta cuenta y un ingreso en la cuenta destino' : '' }}
             </span>
           </div>
         </div>
@@ -442,47 +477,96 @@ async function onCuentaChange(codigo) {
 const dialogOpen = ref(false)
 const guardando  = ref(false)
 const formErrors = ref({})
+const mostrarSugerencias = ref(false)
+const indexSugerencia = ref(-1)
 
 const todayISO = new Date().toISOString().slice(0, 10)
 
 const form = ref({
-  numero:   '',
-  tipo:     'ING',
-  fecha:    todayISO,
-  beneficia:'',
-  concepto: '',
-  cheque:   '',
-  monto:    '',
+  tipo:           'ING',
+  fecha:          todayISO,
+  beneficia:      '',       // Código proveedor guardado
+  beneficiaText:  '',       // Texto para búsqueda
+  concepto:       '',
+  cheque:         '',
+  monto:          '',
+  banco_destino:  null,
 })
 
-async function abrirFormulario() {
+function abrirFormulario() {
   formErrors.value = {}
   form.value = {
-    numero:   '',
-    tipo:     'ING',
-    fecha:    todayISO,
-    beneficia:'',
-    concepto: '',
-    cheque:   '',
-    monto:    '',
+    tipo:           'ING',
+    fecha:          todayISO,
+    beneficia:      '',
+    beneficiaText:  '',
+    concepto:       '',
+    cheque:         '',
+    monto:          '',
+    banco_destino:  null,
   }
+  indexSugerencia.value = -1
+  mostrarSugerencias.value = false
   dialogOpen.value = true
-  // Obtener próximo número
-  form.value.numero = await store.getNextNumero()
 }
 
 function cerrarFormulario() {
   dialogOpen.value = false
+  mostrarSugerencias.value = false
+}
+
+// Autocomplete beneficiario
+function onBeneficiaInput() {
+  indexSugerencia.value = -1
+  if (form.value.beneficiaText.length >= 2) {
+    store.buscarProveedores(form.value.beneficiaText)
+    mostrarSugerencias.value = true
+  } else {
+    mostrarSugerencias.value = false
+    store.proveedoresOptions = []
+  }
+}
+
+function selectBeneficiario(proveedor) {
+  form.value.beneficia = proveedor.codigo
+  form.value.beneficiaText = proveedor.nombre
+  mostrarSugerencias.value = false
+  indexSugerencia.value = -1
+}
+
+function cerrarSugerencias() {
+  mostrarSugerencias.value = false
+}
+
+function seleccionarSiguiente() {
+  if (!mostrarSugerencias.value) return
+  if (indexSugerencia.value < store.proveedoresOptions.length - 1) {
+    indexSugerencia.value++
+  }
+}
+
+function seleccionarAnterior() {
+  if (!mostrarSugerencias.value) return
+  if (indexSugerencia.value > 0) {
+    indexSugerencia.value--
+  }
+}
+
+function aceptarSugerencia() {
+  if (mostrarSugerencias.value && indexSugerencia.value >= 0) {
+    selectBeneficiario(store.proveedoresOptions[indexSugerencia.value])
+  }
 }
 
 function validarForm() {
   const errs = {}
   if (!form.value.fecha)              errs.fecha     = 'La fecha es requerida'
   if (!form.value.tipo)               errs.tipo      = 'El tipo es requerido'
-  if (!form.value.beneficia?.trim())  errs.beneficia = 'El beneficiario es requerido'
+  if (!form.value.beneficia?.trim())  errs.beneficia = 'Selecciona un beneficiario válido'
   if (!form.value.concepto?.trim())   errs.concepto  = 'El concepto es requerido'
   const monto = parseFloat(form.value.monto)
   if (!form.value.monto || isNaN(monto) || monto <= 0) errs.monto = 'El monto debe ser mayor a 0'
+  if (form.value.tipo === 'TRA' && !form.value.banco_destino) errs.banco_destino = 'La cuenta destino es requerida'
   formErrors.value = errs
   return Object.keys(errs).length === 0
 }
@@ -493,14 +577,17 @@ async function guardarMovimiento() {
   try {
     const monto = parseFloat(form.value.monto)
     const datos = {
-      tipo:      form.value.tipo,
-      fecha:     form.value.fecha,
-      beneficia: form.value.beneficia.trim(),
-      concepto:  form.value.concepto.trim(),
-      cheque:    form.value.cheque?.trim() || '',
-      ingreso:   form.value.tipo === 'ING' ? monto : 0,
-      egreso:    form.value.tipo === 'EGR' || form.value.tipo === 'TRA' ? monto : 0,
-      banco:     store.bancoSeleccionado,
+      tipo:          form.value.tipo,
+      fecha:         form.value.fecha,
+      beneficia:     form.value.beneficia,  // Código proveedor
+      concepto:      form.value.concepto.trim(),
+      cheque:        form.value.cheque?.trim() || '',
+      ingreso:       form.value.tipo === 'ING' ? monto : 0,
+      egreso:        form.value.tipo === 'EGR' || form.value.tipo === 'TRA' ? monto : 0,
+      banco:         store.bancoSeleccionado,
+    }
+    if (form.value.tipo === 'TRA') {
+      datos.banco_destino = form.value.banco_destino
     }
     await store.crearMovimiento(datos)
     dialogOpen.value = false
@@ -781,6 +868,53 @@ onMounted(async () => {
   padding: 8px 12px; border-radius: 8px;
   background: rgba(var(--v-theme-on-surface), 0.04);
   font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+/* Número Auto */
+.numero-auto {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  font-size: 12px;
+  color: #06b6d4;
+  font-weight: 600;
+}
+
+/* Autocomplete */
+.autocomplete-wrap {
+  position: relative;
+}
+.autocomplete-options {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.option-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
+  transition: background 0.1s;
+}
+.option-item:last-child { border-bottom: none; }
+.option-item:hover, .option-item.selected {
+  background: rgba(6, 182, 212, 0.08);
+}
+.option-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 2px;
+}
+.option-details {
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface), 0.5);
 }
 
 .form-footer {

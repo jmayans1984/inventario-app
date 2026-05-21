@@ -36,21 +36,21 @@ export const movimientosBancariosService = {
     }
   },
 
-  // Obtener próximo número de movimiento
-  async getNextNumero() {
+  // Buscar proveedores por nombre
+  async buscarProveedores(busqueda) {
     try {
       const empresa = getEmpresaActiva()
-      const response = await api.get(`${ENDPOINT}/next-numero`, {
-        params: { empresa }
+      const response = await api.get('/tesoreria/proveedores/buscar', {
+        params: { empresa, q: busqueda }
       })
       return response.data
     } catch (error) {
-      console.error('Error obteniendo próximo número:', error)
-      throw error
+      console.error('Error buscando proveedores:', error)
+      return { success: true, data: [] }
     }
   },
 
-  // Crear nuevo movimiento
+  // Crear nuevo movimiento (número se genera en el backend)
   async crearMovimiento(datos) {
     try {
       const empresa = getEmpresaActiva()

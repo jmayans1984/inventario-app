@@ -7,6 +7,7 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
   const movimientos = ref([])
   const cuentasBancarias = ref([])
   const bancoSeleccionado = ref(null)
+  const proveedoresOptions = ref([])
   const loading = ref(false)
   const error = ref(null)
   const filtros = ref({
@@ -84,13 +85,17 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     }
   }
 
-  async function getNextNumero() {
+  async function buscarProveedores(busqueda) {
+    if (!busqueda || busqueda.length < 2) {
+      proveedoresOptions.value = []
+      return
+    }
     try {
-      const data = await movimientosBancariosService.getNextNumero()
-      return data?.data?.numero || '0000000001'
+      const data = await movimientosBancariosService.buscarProveedores(busqueda)
+      proveedoresOptions.value = Array.isArray(data) ? data : (data.data || [])
     } catch (err) {
-      console.error('Error getNextNumero:', err)
-      return '0000000001'
+      console.error('Error buscarProveedores:', err)
+      proveedoresOptions.value = []
     }
   }
 
@@ -128,6 +133,7 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     movimientos,
     cuentasBancarias,
     bancoSeleccionado,
+    proveedoresOptions,
     loading,
     error,
     filtros,
@@ -144,7 +150,7 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     // Actions
     fetchCuentasBancarias,
     fetchMovimientos,
-    getNextNumero,
+    buscarProveedores,
     crearMovimiento,
     setBanco,
     setFiltros,
