@@ -9,7 +9,7 @@ function getEmpresaActiva() {
 }
 
 export const movimientosBancariosService = {
-  // Obtener todos los movimientos
+  // Obtener todos los movimientos (banco opcional, conciliado opcional)
   async getMovimientos(params = {}) {
     try {
       const empresa = getEmpresaActiva()
@@ -22,31 +22,42 @@ export const movimientosBancariosService = {
     }
   },
 
-  // Obtener un movimiento específico
-  async getMovimiento(id) {
+  // Obtener cuentas bancarias activas
+  async getCuentasBancarias() {
     try {
       const empresa = getEmpresaActiva()
-      const response = await api.get(`${ENDPOINT}/${id}`, {
-        params: { empresa }
+      const response = await api.get('/cuentas-bancarias', {
+        params: { empresa, estado: 'ACTIVA' }
       })
       return response.data
     } catch (error) {
-      console.error(`Error obteniendo movimiento ${id}:`, error)
+      console.error('Error obteniendo cuentas bancarias:', error)
       throw error
     }
   },
 
-  // Obtener resumen de movimientos
-  async getResumen(params = {}) {
+  // Obtener próximo número de movimiento
+  async getNextNumero() {
     try {
       const empresa = getEmpresaActiva()
-      const paramsConEmpresa = { ...params, empresa }
-      const response = await api.get(`${ENDPOINT}/resumen`, {
-        params: paramsConEmpresa
+      const response = await api.get(`${ENDPOINT}/next-numero`, {
+        params: { empresa }
       })
       return response.data
     } catch (error) {
-      console.error('Error obteniendo resumen:', error)
+      console.error('Error obteniendo próximo número:', error)
+      throw error
+    }
+  },
+
+  // Crear nuevo movimiento
+  async crearMovimiento(datos) {
+    try {
+      const empresa = getEmpresaActiva()
+      const response = await api.post(ENDPOINT, { ...datos, empresa })
+      return response.data
+    } catch (error) {
+      console.error('Error creando movimiento:', error)
       throw error
     }
   },

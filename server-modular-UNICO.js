@@ -803,16 +803,9 @@ app.get('/api/tesoreria/movimientos', async (req, res) => {
         });
     }
 
-    if (!banco) {
-        return res.status(400).json({
-            success: false,
-            error: 'Parámetro banco requerido'
-        });
-    }
-
     try {
-        const params = [empresa, banco];
-        let paramIndex = 3;
+        const params = [empresa];
+        let paramIndex = 2;
 
         let query = `
             SELECT
@@ -831,8 +824,14 @@ app.get('/api/tesoreria/movimientos', async (req, res) => {
                 m.empresa
             FROM moviban m
             WHERE m.empresa = $1
-              AND m.banco = $2
         `;
+
+        // Filtro por banco (opcional)
+        if (banco) {
+            query += ` AND m.banco = $${paramIndex}`;
+            params.push(banco);
+            paramIndex++;
+        }
 
         // Filtro por conciliado (varchar: 'NO' o 'SI')
         if (conciliado === 'NO') {
@@ -1059,6 +1058,122 @@ app.get('/api/tesoreria/movimientos/resumen', async (req, res) => {
             error: 'Error al obtener resumen',
             details: error.message
         });
+    }
+});
+
+// GET /api/tesoreria/movimientos/next-numero - Obtener próximo número de movimiento
+app.get('/api/tesoreria/movimientos/next-numero', async (req, res) => {
+    const { empresa } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) + 1 AS next_num
+             FROM moviban
+             WHERE empresa = $1`,
+            [empresa]
+        );
+
+        const nextNum = result.rows[0].next_num || 1;
+        // Pad to 10 digits
+        const numeroPadded = String(nextNum).padStart(10, '0');
+
+        res.json({
+            success: true,
+            data: { numero: numeroPadded }
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/movimientos/next-numero:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener próximo número',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/tesoreria/movimientos - Crear nuevo movimiento bancario
+app.post('/api/tesoreria/movimientos', async (req, res) => {
+    const { tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, gasto, ccosto, origen, empresa } = req.body;
+
+    if (!empresa) {
+        return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+    }
+    if (!tipo || !['ING', 'EGR', 'TRA'].includes(tipo)) {
+        return res.status(400).json({ success: false, error: 'tipo debe ser ING, EGR o TRA' });
+    }
+    if (!banco) {
+        return res.status(400).json({ success: false, error: 'Parámetro banco requerido' });
+    }
+    if (!fecha) {
+        return res.status(400).json({ success: false, error: 'Parámetro fecha requerido' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Obtener próximo número (con lock para evitar duplicados)
+        const numRes = await client.query(
+            `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) + 1 AS next_num
+             FROM moviban WHERE empresa = $1`,
+            [empresa]
+        );
+        const nextNum = numRes.rows[0].next_num || 1;
+        const numero = String(nextNum).padStart(10, '0');
+
+        const ingresoVal = parseFloat(ingreso || 0);
+        const egresoVal  = parseFloat(egreso  || 0);
+
+        const insertQuery = `
+            INSERT INTO moviban
+                (numero, tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, conciliado, gasto, ccosto, origen, empresa)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'NO', $10, $11, $12, $13)
+            RETURNING *
+        `;
+
+        const result = await client.query(insertQuery, [
+            numero,
+            tipo,
+            fecha,
+            concepto || '',
+            beneficia || '',
+            cheque || '',
+            ingresoVal,
+            egresoVal,
+            banco,
+            gasto || null,
+            ccosto || null,
+            origen || null,
+            empresa
+        ]);
+
+        await client.query('COMMIT');
+
+        res.status(201).json({
+            success: true,
+            message: 'Movimiento creado exitosamente',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en POST /api/tesoreria/movimientos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al crear movimiento',
+            details: error.message
+        });
+    } finally {
+        client.release();
     }
 });
 

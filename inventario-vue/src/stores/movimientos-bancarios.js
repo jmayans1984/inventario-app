@@ -5,36 +5,33 @@ import { movimientosBancariosService } from '../services/movimientos-bancarios.s
 export const useMovimientosBancariosStore = defineStore('movimientosBancarios', () => {
   // Estado
   const movimientos = ref([])
+  const cuentasBancarias = ref([])
+  const bancoSeleccionado = ref(null)
   const loading = ref(false)
   const error = ref(null)
   const filtros = ref({
-    tipo: 'TODOS',           // TODOS, ING (ingresos), EGR (egresos)
-    banco: '',              // Filtrar por banco
-    busqueda: '',           // Búsqueda por concepto/beneficiario
-    fechaInicio: null,
-    fechaFin: null
+    tipo: 'TODOS',     // TODOS, ING, EGR, TRA
+    busqueda: '',      // búsqueda por concepto o beneficiario
   })
 
   // Getters
   const movimientosIngresos = computed(() =>
-    movimientos.value.filter(m => parseFloat(m.ingreso || 0) > 0)
+    movimientos.value.filter(m => m.tipo === 'ING' || parseFloat(m.ingreso || 0) > 0)
   )
 
   const movimientosEgresos = computed(() =>
-    movimientos.value.filter(m => parseFloat(m.egreso || 0) > 0)
+    movimientos.value.filter(m => m.tipo === 'EGR' || parseFloat(m.egreso || 0) > 0)
   )
 
   const totalMovimientos = computed(() => movimientos.value.length)
 
-  const totalIngresos = computed(() => {
-    return movimientos.value
-      .reduce((sum, m) => sum + parseFloat(m.ingreso || 0), 0)
-  })
+  const totalIngresos = computed(() =>
+    movimientos.value.reduce((sum, m) => sum + parseFloat(m.ingreso || 0), 0)
+  )
 
-  const totalEgresos = computed(() => {
-    return movimientos.value
-      .reduce((sum, m) => sum + parseFloat(m.egreso || 0), 0)
-  })
+  const totalEgresos = computed(() =>
+    movimientos.value.reduce((sum, m) => sum + parseFloat(m.egreso || 0), 0)
+  )
 
   const saldoNeto = computed(() => totalIngresos.value - totalEgresos.value)
 
@@ -42,46 +39,44 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     let filtered = [...movimientos.value]
 
     // Filtro por tipo
-    if (filtros.value.tipo === 'ING') {
-      filtered = filtered.filter(m => parseFloat(m.ingreso || 0) > 0)
-    } else if (filtros.value.tipo === 'EGR') {
-      filtered = filtered.filter(m => parseFloat(m.egreso || 0) > 0)
-    }
-
-    // Filtro por banco
-    if (filtros.value.banco) {
-      filtered = filtered.filter(m =>
-        m.banco && m.banco.toLowerCase().includes(filtros.value.banco.toLowerCase())
-      )
+    if (filtros.value.tipo !== 'TODOS') {
+      filtered = filtered.filter(m => m.tipo === filtros.value.tipo)
     }
 
     // Filtro por búsqueda (concepto o beneficiario)
     if (filtros.value.busqueda.trim()) {
       const q = filtros.value.busqueda.toLowerCase()
       filtered = filtered.filter(m =>
-        (m.concepto && m.concepto.toLowerCase().includes(q)) ||
-        (m.referencia && m.referencia.toLowerCase().includes(q))
+        (m.concepto  && m.concepto.toLowerCase().includes(q)) ||
+        (m.beneficia && m.beneficia.toLowerCase().includes(q)) ||
+        (m.numero    && m.numero.includes(q))
       )
     }
 
     return filtered
   })
 
-  const bancos = computed(() => {
-    const bancoSet = new Set()
-    movimientos.value.forEach(m => {
-      if (m.banco) bancoSet.add(m.banco)
-    })
-    return Array.from(bancoSet).sort()
-  })
-
   // Actions
+  async function fetchCuentasBancarias() {
+    try {
+      const data = await movimientosBancariosService.getCuentasBancarias()
+      cuentasBancarias.value = Array.isArray(data) ? data : (data.data || [])
+      // Filtrar solo ACTIVAS
+      cuentasBancarias.value = cuentasBancarias.value.filter(c => c.estado === 'ACTIVA')
+    } catch (err) {
+      console.error('Error fetchCuentasBancarias:', err)
+      cuentasBancarias.value = []
+    }
+  }
+
   async function fetchMovimientos() {
     loading.value = true
     error.value = null
     try {
-      const data = await movimientosBancariosService.getMovimientos()
-      movimientos.value = Array.isArray(data.data) ? data.data : data.data?.data || []
+      const params = {}
+      if (bancoSeleccionado.value) params.banco = bancoSeleccionado.value
+      const data = await movimientosBancariosService.getMovimientos(params)
+      movimientos.value = Array.isArray(data) ? data : (data.data || [])
     } catch (err) {
       error.value = err.message
       console.error('Error fetchMovimientos:', err)
@@ -90,18 +85,39 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     }
   }
 
-  function setFiltros(nuevosFiltros) {
-    filtros.value = { ...filtros.value, ...nuevosFiltros }
+  async function getNextNumero() {
+    try {
+      const data = await movimientosBancariosService.getNextNumero()
+      return data?.data?.numero || '0000000001'
+    } catch (err) {
+      console.error('Error getNextNumero:', err)
+      return '0000000001'
+    }
   }
 
-  function clearFiltros() {
-    filtros.value = {
-      tipo: 'TODOS',
-      banco: '',
-      busqueda: '',
-      fechaInicio: null,
-      fechaFin: null
+  async function crearMovimiento(datos) {
+    loading.value = true
+    error.value = null
+    try {
+      const resp = await movimientosBancariosService.crearMovimiento(datos)
+      // Recargar lista después de crear
+      await fetchMovimientos()
+      return resp
+    } catch (err) {
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
     }
+  }
+
+  function setBanco(codigo) {
+    bancoSeleccionado.value = codigo
+    movimientos.value = []
+  }
+
+  function setFiltros(nuevosFiltros) {
+    filtros.value = { ...filtros.value, ...nuevosFiltros }
   }
 
   function clearError() {
@@ -111,6 +127,8 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
   return {
     // State
     movimientos,
+    cuentasBancarias,
+    bancoSeleccionado,
     loading,
     error,
     filtros,
@@ -123,12 +141,14 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     totalEgresos,
     saldoNeto,
     movimientosFiltrados,
-    bancos,
 
     // Actions
+    fetchCuentasBancarias,
     fetchMovimientos,
+    getNextNumero,
+    crearMovimiento,
+    setBanco,
     setFiltros,
-    clearFiltros,
     clearError,
   }
 })
