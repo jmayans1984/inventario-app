@@ -1791,21 +1791,24 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
         // Log para diagnóstico (remover en producción)
         console.log(`[DESCARGA] ID: ${id}, Archivo: ${nombre_archivo}, TipoArchivo: ${tipo_archivo}, BufferSize: ${buffer.length} bytes`);
 
-        // Detectar tipo MIME basado en extensión del archivo si no está disponible
-        let contentType = tipo_archivo || 'application/octet-stream';
+        // Detectar tipo MIME - SIEMPRE usar extensión del archivo como fuente confiable
+        // porque la PWA Light guarda tipo_archivo como ".jpg" (extensión)
+        // y la app Vue lo guarda como "image/jpeg" (MIME type)
         const ext = nombre_archivo.split('.').pop().toLowerCase();
+        const mimeTypes = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'bmp': 'image/bmp',
+            'webp': 'image/webp',
+            'pdf': 'application/pdf',
+            'txt': 'text/plain'
+        };
+        // Siempre priorizar la extensión del archivo para el Content-Type
+        let contentType = mimeTypes[ext] || 'application/octet-stream';
 
-        if (!tipo_archivo || tipo_archivo === 'application/octet-stream') {
-            const mimeTypes = {
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'gif': 'image/gif',
-                'pdf': 'application/pdf',
-                'txt': 'text/plain'
-            };
-            contentType = mimeTypes[ext] || 'application/octet-stream';
-        }
+        console.log(`[DESCARGA] tipo_archivo en BD: "${tipo_archivo}", ext: "${ext}", Content-Type usado: "${contentType}"`);
 
         // Establecer headers correctos para descarga de archivo
         res.setHeader('Content-Type', contentType);
@@ -2101,17 +2104,17 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
         
         const updateQuery = `
             UPDATE factura_venta
-            SET estado = 'POR VERIFICAR'
+            SET estado = 'POR_VERIFICAR'
             WHERE codigo = $1
         `;
-        
+
         await client.query(updateQuery, [factura]);
-        
+
         await client.query('COMMIT');
-        
+
         res.json({
             success: true,
-            message: 'Soporte de pago subido exitosamente. Estado actualizado a POR VERIFICAR.'
+            message: 'Soporte de pago subido exitosamente. Estado actualizado a POR_VERIFICAR.'
         });
         
     } catch (error) {

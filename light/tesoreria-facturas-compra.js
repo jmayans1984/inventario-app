@@ -35,7 +35,7 @@ function cargarFacturasCompra() {
                         <option value="TODOS">TODOS</option>
                         <option value="PENDIENTE" selected>PENDIENTE</option>
                         <option value="PAGADA">PAGADA</option>
-                        <option value="POR VERIFICAR">POR VERIFICAR</option>
+                        <option value="POR_VERIFICAR">POR VERIFICAR</option>
                     </select>
                 </div>
 
