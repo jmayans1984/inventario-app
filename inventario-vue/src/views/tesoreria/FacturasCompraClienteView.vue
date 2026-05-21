@@ -437,6 +437,9 @@ async function guardarSoportePago() {
     await store.fetchFacturasVenta()
 
     alert('Soporte de pago cargado exitosamente')
+
+    // Cerrar el modal automáticamente después de guardar exitosamente
+    cerrarDetalle()
   } catch (err) {
     console.error('Error guardando soporte:', err)
     alert('Error al guardar el soporte de pago')
