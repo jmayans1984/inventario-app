@@ -1516,6 +1516,7 @@ app.post('/api/tesoreria/facturas-compra/:codigo/soportes', async (req, res) => 
         try {
             archivo_data = Buffer.from(archivo_base64, 'base64');
         } catch (e) {
+            console.error(`Error decodificando base64 para ${codigo}:`, e.message);
             return res.status(400).json({
                 success: false,
                 error: 'No se pudo decodificar el archivo base64'
@@ -1538,6 +1539,9 @@ app.post('/api/tesoreria/facturas-compra/:codigo/soportes', async (req, res) => 
                 error: 'El archivo excede el tamaño máximo de 10MB'
             });
         }
+
+        // Log para diagnóstico
+        console.log(`[CARGA] Factura: ${codigo}, Archivo: ${nombre_archivo}, Tipo: ${tipo_archivo}, Tamaño: ${archivo_data.length} bytes`);
 
         // Insertar soporte
         const result = await pool.query(
@@ -1720,8 +1724,9 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
     const { id } = req.params;
 
     try {
+        // Usar encode() para garantizar base64 format en la respuesta
         const result = await pool.query(
-            'SELECT archivo_data, nombre_archivo, tipo_archivo FROM soportes_pago WHERE id = $1',
+            'SELECT encode(archivo_data, \'base64\') as archivo_data, nombre_archivo, tipo_archivo FROM soportes_pago WHERE id = $1',
             [id]
         );
 
@@ -1742,24 +1747,37 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
             });
         }
 
-        // Asegurar que archivo_data es un Buffer
+        // Convertir archivo_data (ya debería estar en base64 del SQL encode())
         let buffer;
+
         if (Buffer.isBuffer(archivo_data)) {
+            // Ya es Buffer - perfecto
             buffer = archivo_data;
         } else if (typeof archivo_data === 'string') {
-            // Si es string, intentar convertir de base64 o binary
+            // Esperamos base64 desde el SQL encode(), pero con fallbacks
             try {
                 buffer = Buffer.from(archivo_data, 'base64');
-                // Validar que el buffer tiene contenido
+
+                // Si resulta vacío, intentar otros formatos
                 if (buffer.length === 0) {
-                    buffer = Buffer.from(archivo_data, 'binary');
+                    // Intenta hex format
+                    if (archivo_data.startsWith('\\x')) {
+                        buffer = Buffer.from(archivo_data.slice(2), 'hex');
+                    } else {
+                        // Fallback a binary
+                        buffer = Buffer.from(archivo_data, 'binary');
+                    }
                 }
             } catch (e) {
+                console.warn(`Error decodificando base64 para soporte ${id}:`, e.message);
+                // Fallback a binary
                 buffer = Buffer.from(archivo_data, 'binary');
             }
-        } else {
-            // Intenta interpretar como Uint8Array o similar
+        } else if (typeof archivo_data === 'object') {
+            // Uint8Array o similar
             buffer = Buffer.from(archivo_data);
+        } else {
+            buffer = Buffer.from(String(archivo_data), 'binary');
         }
 
         // Validar que el buffer tiene contenido válido
@@ -1769,6 +1787,9 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
                 error: 'El archivo está vacío'
             });
         }
+
+        // Log para diagnóstico (remover en producción)
+        console.log(`[DESCARGA] ID: ${id}, Archivo: ${nombre_archivo}, TipoArchivo: ${tipo_archivo}, BufferSize: ${buffer.length} bytes`);
 
         // Detectar tipo MIME basado en extensión del archivo si no está disponible
         let contentType = tipo_archivo || 'application/octet-stream';
@@ -1800,6 +1821,120 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Error al descargar soporte',
+            details: error.message
+        });
+    }
+});
+
+// TEST: POST /api/tesoreria/test-bytea - Test de round-trip bytea (para diagnóstico)
+app.post('/api/tesoreria/test-bytea', async (req, res) => {
+    const { base64String } = req.body;
+
+    if (!base64String) {
+        return res.status(400).json({ error: 'base64String requerido' });
+    }
+
+    try {
+        // Convertir base64 a buffer
+        const buffer = Buffer.from(base64String, 'base64');
+
+        // Crear tabla temporal si no existe
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS test_bytea (
+                id SERIAL PRIMARY KEY,
+                data BYTEA,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
+        // Insertar el buffer
+        const insertResult = await pool.query(
+            'INSERT INTO test_bytea (data) VALUES ($1) RETURNING id',
+            [buffer]
+        );
+        const testId = insertResult.rows[0].id;
+
+        // Recuperar como base64
+        const selectResult = await pool.query(
+            'SELECT encode(data, \'base64\') as data_base64, LENGTH(data) as size FROM test_bytea WHERE id = $1',
+            [testId]
+        );
+
+        const retrieved = selectResult.rows[0];
+        const matches = retrieved.data_base64 === base64String;
+
+        res.json({
+            success: true,
+            test_id: testId,
+            original_size: buffer.length,
+            retrieved_size: retrieved.size,
+            matches: matches,
+            message: matches ? 'Round-trip SUCCESS' : 'Round-trip FAIL - datos no coinciden',
+            hex_original: buffer.toString('hex').substring(0, 32),
+            hex_retrieved: Buffer.from(retrieved.data_base64, 'base64').toString('hex').substring(0, 32)
+        });
+
+    } catch (error) {
+        console.error('Error en test-bytea:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/soportes/:id/info - Info diagnóstica del soporte (sin descargar)
+app.get('/api/tesoreria/soportes/:id/info', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await pool.query(
+            'SELECT id, pago, nombre_archivo, tipo_archivo, fecha_subida, LENGTH(archivo_data) as archivo_size, encode(archivo_data, \'hex\') as archivo_hex_preview FROM soportes_pago WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Soporte no encontrado'
+            });
+        }
+
+        const data = result.rows[0];
+        const hexPreview = data.archivo_hex_preview ? data.archivo_hex_preview.substring(0, 32) : 'VACIO';
+
+        // Detectar tipo de archivo por magic bytes (primeros bytes en hex)
+        let detectedType = 'DESCONOCIDO';
+        if (hexPreview.startsWith('ffd8ffe0') || hexPreview.startsWith('ffd8ffe1')) {
+            detectedType = 'JPEG';
+        } else if (hexPreview.startsWith('89504e47')) {
+            detectedType = 'PNG';
+        } else if (hexPreview.startsWith('47494638')) {
+            detectedType = 'GIF';
+        } else if (hexPreview.startsWith('25504446')) {
+            detectedType = 'PDF';
+        }
+
+        res.json({
+            success: true,
+            data: {
+                id: data.id,
+                pago: data.pago,
+                nombre_archivo: data.nombre_archivo,
+                tipo_archivo_registrado: data.tipo_archivo,
+                archivo_size: data.archivo_size,
+                archivo_size_mb: (data.archivo_size / (1024 * 1024)).toFixed(2),
+                hex_preview: `${hexPreview}...`,
+                tipo_detectado: detectedType,
+                fecha_subida: data.fecha_subida
+            }
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/soportes/:id/info:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error obteniendo información del soporte',
             details: error.message
         });
     }
