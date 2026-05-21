@@ -60,7 +60,8 @@ export const useFacturasCompraClienteStore = defineStore('facturasCompraCliente'
     loading.value = true
     error.value = null
     try {
-      const data = await facturasCompraClienteService.getFacturasVenta()
+      // Cargar TODAS las facturas (TODOS) para poder filtrar client-side
+      const data = await facturasCompraClienteService.getFacturasVenta({ estado: 'TODOS' })
       facturas.value = Array.isArray(data) ? data : (data.data || [])
     } catch (err) {
       error.value = err.message
