@@ -1273,7 +1273,7 @@ app.get('/api/tesoreria/facturas-compra', async (req, res) => {
                 observaciones,
                 fecha_vencimiento,
                 valor_pagado,
-                (SELECT COUNT(*) FROM soportes_pago WHERE pago = factura_venta.codigo) as soportes_count
+                COALESCE((SELECT COUNT(*) FROM soportes_pago WHERE pago = factura_venta.codigo), 0) as soportes_count
             FROM factura_venta
             WHERE cliente = $1
         `;
@@ -1347,7 +1347,7 @@ app.get('/api/tesoreria/facturas-venta', async (req, res) => {
                 observaciones,
                 fecha_vencimiento,
                 valor_pagado,
-                (SELECT COUNT(*) FROM soportes_pago WHERE pago = factura_venta.codigo) as soportes_count
+                COALESCE((SELECT COUNT(*) FROM soportes_pago WHERE pago = factura_venta.codigo), 0) as soportes_count
             FROM factura_venta
             WHERE cliente = $1
         `;
@@ -1524,10 +1524,17 @@ app.post('/api/tesoreria/facturas-compra/:codigo/soportes', async (req, res) => 
             [codigo, nombre_archivo, archivo_data, tipo_archivo]
         );
 
+        // Cambiar estado de factura a POR_VERIFICAR
+        await pool.query(
+            'UPDATE factura_venta SET estado = $1 WHERE codigo = $2',
+            ['POR_VERIFICAR', codigo]
+        );
+
         res.status(201).json({
             success: true,
             message: 'Soporte de pago cargado exitosamente',
-            data: result.rows[0]
+            data: result.rows[0],
+            nuevoEstado: 'POR_VERIFICAR'
         });
 
     } catch (error) {

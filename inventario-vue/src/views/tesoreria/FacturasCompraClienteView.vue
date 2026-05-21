@@ -162,7 +162,7 @@
                   </v-chip>
                 </td>
                 <td class="col-soportes">
-                  <span v-if="fact.soportes_count && fact.soportes_count > 0" class="badge-soportes">
+                  <span v-if="fact.soportes_count > 0" class="badge-soportes">
                     <v-icon size="14">mdi-file-check</v-icon>
                     {{ fact.soportes_count }}
                   </span>
@@ -429,6 +429,13 @@ async function guardarSoportePago() {
   try {
     await store.subirSoportePago(facturaActual.value.codigo, archivoSeleccionado.value)
     archivoSeleccionado.value = null
+
+    // Actualizar estado de la factura actual
+    facturaActual.value.estado = 'POR_VERIFICAR'
+
+    // Recargar todas las facturas para actualizar soportes_count en grid
+    await store.fetchFacturasVenta()
+
     alert('Soporte de pago cargado exitosamente')
   } catch (err) {
     console.error('Error guardando soporte:', err)
