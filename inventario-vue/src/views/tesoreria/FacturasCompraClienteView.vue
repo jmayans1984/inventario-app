@@ -106,10 +106,12 @@
             <thead>
               <tr>
                 <th class="col-codigo sortable" @click="ordenar('codigo')">
-                  CÓDIGO
-                  <v-icon v-if="ordenActual.campo === 'codigo'" size="12" class="sort-icon">
-                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
-                  </v-icon>
+                  <span class="header-text">
+                    CÓDIGO
+                    <v-icon v-if="ordenActual.campo === 'codigo'" size="12" class="sort-icon">
+                      {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                    </v-icon>
+                  </span>
                 </th>
                 <th class="col-fecha sortable" @click="ordenar('fecha')">
                   FECHA
@@ -672,20 +674,26 @@ onMounted(async () => {
   color: rgba(var(--v-theme-on-surface), 0.6);
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   white-space: nowrap;
+  vertical-align: middle;
 }
 .data-table thead th.sortable {
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  user-select: none;
   transition: color 0.15s;
 }
 .data-table thead th.sortable:hover {
   color: #06b6d4;
 }
+.header-text {
+  display: inline;
+  white-space: nowrap;
+}
 .sort-icon {
   color: #06b6d4;
   font-weight: 700;
+  margin-left: 4px;
+  vertical-align: middle;
+  display: inline;
 }
 .data-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
 .data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
