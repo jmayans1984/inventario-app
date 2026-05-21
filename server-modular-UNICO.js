@@ -1213,7 +1213,6 @@ app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
             SELECT codigo, nombre
             FROM proveedores
             WHERE empresa = $1
-              AND estado = 'ACTIVO'
         `;
         const params = [empresa];
 
