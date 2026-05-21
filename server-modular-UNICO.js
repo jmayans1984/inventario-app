@@ -1210,7 +1210,7 @@ app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
 
     try {
         let query = `
-            SELECT codigo, nombre, telefono, email
+            SELECT codigo, nombre
             FROM proveedores
             WHERE empresa = $1
               AND estado = 'ACTIVO'
