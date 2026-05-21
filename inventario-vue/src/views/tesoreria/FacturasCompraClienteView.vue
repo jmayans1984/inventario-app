@@ -675,7 +675,7 @@ onMounted(async () => {
 }
 .data-table thead th.sortable {
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   transition: color 0.15s;

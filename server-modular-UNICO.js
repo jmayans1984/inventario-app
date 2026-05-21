@@ -1710,9 +1710,32 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
 
         const { archivo_data, nombre_archivo, tipo_archivo } = result.rows[0];
 
-        res.setHeader('Content-Type', tipo_archivo);
+        // Asegurar que archivo_data es un Buffer
+        const buffer = Buffer.isBuffer(archivo_data) ? archivo_data : Buffer.from(archivo_data, 'binary');
+
+        // Detectar tipo MIME basado en extensión del archivo si no está disponible
+        let contentType = tipo_archivo || 'application/octet-stream';
+        const ext = nombre_archivo.split('.').pop().toLowerCase();
+
+        if (!tipo_archivo || tipo_archivo === 'application/octet-stream') {
+            const mimeTypes = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif',
+                'pdf': 'application/pdf',
+                'txt': 'text/plain'
+            };
+            contentType = mimeTypes[ext] || 'application/octet-stream';
+        }
+
+        // Establecer headers correctos para descarga de archivo
+        res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${nombre_archivo}"`);
-        res.send(archivo_data);
+        res.setHeader('Content-Length', buffer.length);
+
+        // Enviar el buffer binario
+        res.end(buffer);
 
     } catch (error) {
         console.error('Error en GET /api/tesoreria/soportes/:id/descargar:', error);
