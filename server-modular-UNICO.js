@@ -7,7 +7,6 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
-const fileUpload = require('express-fileupload');
 require('dotenv').config();
 
 const app = express();
@@ -61,13 +60,6 @@ app.use(cors({
 // Aumentar límite para soportar imágenes base64 (50MB)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-// Middleware para manejo de file uploads
-app.use(fileUpload({
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-    abortOnLimit: true,
-    responseOnLimit: 'El archivo excede el tamaño máximo permitido de 50MB'
-}));
 
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -1479,11 +1471,20 @@ app.get('/api/tesoreria/facturas-venta/:codigo/soportes', async (req, res) => {
     }
 });
 
-// POST /api/tesoreria/facturas-venta/:codigo/soportes - Subir soporte de pago
+// POST /api/tesoreria/facturas-venta/:codigo/soportes - Subir soporte de pago (base64)
 app.post('/api/tesoreria/facturas-venta/:codigo/soportes', async (req, res) => {
     const { codigo } = req.params;
+    const { nombre_archivo, archivo_base64, tipo_archivo } = req.body;
 
     try {
+        // Validar campos requeridos
+        if (!nombre_archivo || !archivo_base64 || !tipo_archivo) {
+            return res.status(400).json({
+                success: false,
+                error: 'Parámetros requeridos: nombre_archivo, archivo_base64, tipo_archivo'
+            });
+        }
+
         // Verificar que la factura exista y esté PENDIENTE
         const facturaRes = await pool.query(
             'SELECT estado FROM factura_venta WHERE codigo = $1',
@@ -1504,25 +1505,24 @@ app.post('/api/tesoreria/facturas-venta/:codigo/soportes', async (req, res) => {
             });
         }
 
-        // Obtener archivo del request
-        if (!req.files || !req.files.archivo) {
-            return res.status(400).json({
+        // Convertir base64 a buffer
+        const archivo_data = Buffer.from(archivo_base64, 'base64');
+
+        // Validar tamaño (máx 10MB)
+        const maxSize = 10 * 1024 * 1024;
+        if (archivo_data.length > maxSize) {
+            return res.status(413).json({
                 success: false,
-                error: 'Archivo requerido'
+                error: 'El archivo excede el tamaño máximo de 10MB'
             });
         }
-
-        const archivo = req.files.archivo;
-        const nombre_archivo = archivo.name;
-        const archivo_data = archivo.data;
-        const tipo_archivo = archivo.mimetype;
 
         // Insertar soporte
         const result = await pool.query(
             `INSERT INTO soportes_pago
                 (pago, nombre_archivo, archivo_data, tipo_archivo, fecha_subida)
              VALUES ($1, $2, $3, $4, NOW())
-             RETURNING *`,
+             RETURNING id, pago, nombre_archivo, tipo_archivo, fecha_subida`,
             [codigo, nombre_archivo, archivo_data, tipo_archivo]
         );
 

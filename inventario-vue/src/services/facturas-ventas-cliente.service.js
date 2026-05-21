@@ -45,15 +45,24 @@ export const facturasVentasClienteService = {
     }
   },
 
-  // Subir soporte de pago (archivo)
+  // Subir soporte de pago (convertir a base64)
   async subirSoportePago(codigo, archivo) {
     try {
-      const formData = new FormData()
-      formData.append('archivo', archivo)
-      const response = await api.post(`${ENDPOINT}/${codigo}/soportes`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+      // Convertir archivo a base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(archivo)
+        reader.onload = () => {
+          const base64String = reader.result.split(',')[1]
+          resolve(base64String)
         }
+        reader.onerror = reject
+      })
+
+      const response = await api.post(`${ENDPOINT}/${codigo}/soportes`, {
+        nombre_archivo: archivo.name,
+        archivo_base64: base64,
+        tipo_archivo: archivo.type
       })
       return response.data
     } catch (error) {

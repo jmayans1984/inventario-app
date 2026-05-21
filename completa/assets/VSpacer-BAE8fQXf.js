@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-BO2vpG-w.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
