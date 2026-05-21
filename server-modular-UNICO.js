@@ -1324,6 +1324,80 @@ app.get('/api/tesoreria/facturas-compra', async (req, res) => {
     }
 });
 
+// GET /api/tesoreria/facturas-compra - Obtener facturas de compra para cliente (mismo que facturas-venta)
+app.get('/api/tesoreria/facturas-compra', async (req, res) => {
+    const { empresa, estado, fecha_inicio, fecha_fin } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        let query = `
+            SELECT
+                codigo,
+                fecha,
+                cliente,
+                orden_compra,
+                subtotal,
+                impuestos,
+                total,
+                estado,
+                observaciones,
+                fecha_vencimiento,
+                valor_pagado,
+                (SELECT COUNT(*) FROM soportes_pago WHERE pago = factura_venta.codigo) as soportes_count
+            FROM factura_venta
+            WHERE cliente = $1
+        `;
+
+        const params = [empresa];
+        let paramIndex = 2;
+
+        // Por defecto mostrar PENDIENTE
+        if (!estado || estado === 'PENDIENTE') {
+            query += ` AND estado = 'PENDIENTE'`;
+        } else if (estado !== 'TODOS') {
+            query += ` AND estado = $${paramIndex}`;
+            params.push(estado);
+            paramIndex++;
+        }
+
+        if (fecha_inicio) {
+            query += ` AND fecha >= $${paramIndex}`;
+            params.push(fecha_inicio);
+            paramIndex++;
+        }
+
+        if (fecha_fin) {
+            query += ` AND fecha <= $${paramIndex}`;
+            params.push(fecha_fin);
+            paramIndex++;
+        }
+
+        query += ` ORDER BY fecha_vencimiento ASC, codigo DESC`;
+
+        const result = await pool.query(query, params);
+
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-compra:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener facturas de compra',
+            details: error.message
+        });
+    }
+});
+
 // GET /api/tesoreria/facturas-venta - Obtener facturas de venta para cliente
 app.get('/api/tesoreria/facturas-venta', async (req, res) => {
     const { empresa, estado, fecha_inicio, fecha_fin } = req.query;
@@ -1393,6 +1467,150 @@ app.get('/api/tesoreria/facturas-venta', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Error al obtener facturas de venta',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/facturas-compra/:codigo - Obtener factura específica
+app.get('/api/tesoreria/facturas-compra/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { empresa } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT
+                codigo, fecha, cliente, orden_compra, subtotal, impuestos, total,
+                estado, observaciones, fecha_vencimiento, valor_pagado
+             FROM factura_venta
+             WHERE codigo = $1 AND cliente = $2`,
+            [codigo, empresa]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Factura no encontrada'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-compra/:codigo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener factura',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/facturas-compra/:codigo/soportes - Obtener soportes de pago
+app.get('/api/tesoreria/facturas-compra/:codigo/soportes', async (req, res) => {
+    const { codigo } = req.params;
+
+    try {
+        const result = await pool.query(
+            `SELECT
+                id, pago, nombre_archivo, tipo_archivo, fecha_subida
+             FROM soportes_pago
+             WHERE pago = $1
+             ORDER BY fecha_subida DESC`,
+            [codigo]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-compra/:codigo/soportes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener soportes',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/tesoreria/facturas-compra/:codigo/soportes - Subir soporte de pago (base64)
+app.post('/api/tesoreria/facturas-compra/:codigo/soportes', async (req, res) => {
+    const { codigo } = req.params;
+    const { nombre_archivo, archivo_base64, tipo_archivo } = req.body;
+
+    try {
+        // Validar campos requeridos
+        if (!nombre_archivo || !archivo_base64 || !tipo_archivo) {
+            return res.status(400).json({
+                success: false,
+                error: 'Parámetros requeridos: nombre_archivo, archivo_base64, tipo_archivo'
+            });
+        }
+
+        // Verificar que la factura exista y esté PENDIENTE
+        const facturaRes = await pool.query(
+            'SELECT estado FROM factura_venta WHERE codigo = $1',
+            [codigo]
+        );
+
+        if (facturaRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Factura no encontrada'
+            });
+        }
+
+        if (facturaRes.rows[0].estado !== 'PENDIENTE') {
+            return res.status(400).json({
+                success: false,
+                error: 'Solo se pueden subir soportes en facturas PENDIENTE'
+            });
+        }
+
+        // Convertir base64 a buffer
+        const archivo_data = Buffer.from(archivo_base64, 'base64');
+
+        // Validar tamaño (máx 10MB)
+        const maxSize = 10 * 1024 * 1024;
+        if (archivo_data.length > maxSize) {
+            return res.status(413).json({
+                success: false,
+                error: 'El archivo excede el tamaño máximo de 10MB'
+            });
+        }
+
+        // Insertar soporte
+        const result = await pool.query(
+            `INSERT INTO soportes_pago
+                (pago, nombre_archivo, archivo_data, tipo_archivo, fecha_subida)
+             VALUES ($1, $2, $3, $4, NOW())
+             RETURNING id, pago, nombre_archivo, tipo_archivo, fecha_subida`,
+            [codigo, nombre_archivo, archivo_data, tipo_archivo]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Soporte de pago cargado exitosamente',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error en POST /api/tesoreria/facturas-compra/:codigo/soportes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al cargar soporte',
             details: error.message
         });
     }
