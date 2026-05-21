@@ -1000,9 +1000,9 @@ app.post('/api/tesoreria/movimientos/batch/conciliar', async (req, res) => {
     }
 });
 
-// GET /api/tesoreria/movimientos/resumen - Obtener resumen de conciliación
+// GET /api/tesoreria/movimientos/resumen - Obtener resumen de conciliación por banco
 app.get('/api/tesoreria/movimientos/resumen', async (req, res) => {
-    const { empresa } = req.query;
+    const { empresa, banco } = req.query;
 
     if (!empresa) {
         return res.status(400).json({
@@ -1011,33 +1011,44 @@ app.get('/api/tesoreria/movimientos/resumen', async (req, res) => {
         });
     }
 
+    if (!banco) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro banco requerido'
+        });
+    }
+
     try {
+        // conciliado es varchar(2): 'SI' o 'NO'
         const query = `
             SELECT
-                COUNT(*) FILTER (WHERE conciliado = false) as pendientes,
-                COUNT(*) FILTER (WHERE conciliado = true) as conciliados,
-                COUNT(*) as total,
-                COALESCE(SUM(ingreso) FILTER (WHERE conciliado = false), 0) as total_pendiente_ingreso,
-                COALESCE(SUM(egreso) FILTER (WHERE conciliado = false), 0) as total_pendiente_egreso,
-                COALESCE(SUM(ingreso) FILTER (WHERE conciliado = true), 0) as total_conciliado_ingreso,
-                COALESCE(SUM(egreso) FILTER (WHERE conciliado = true), 0) as total_conciliado_egreso
+                COALESCE(SUM(ingreso) FILTER (WHERE conciliado = 'SI'), 0)  AS ingreso_conciliado,
+                COALESCE(SUM(egreso)  FILTER (WHERE conciliado = 'SI'), 0)  AS egreso_conciliado,
+                COALESCE(SUM(ingreso) FILTER (WHERE conciliado = 'NO' OR conciliado IS NULL), 0) AS ingreso_pendiente,
+                COALESCE(SUM(egreso)  FILTER (WHERE conciliado = 'NO' OR conciliado IS NULL), 0) AS egreso_pendiente
             FROM moviban
             WHERE empresa = $1
+              AND banco = $2
         `;
 
-        const result = await pool.query(query, [empresa]);
+        const result = await pool.query(query, [empresa, banco]);
         const row = result.rows[0];
+
+        const ingresoConciliado = parseFloat(row.ingreso_conciliado) || 0;
+        const egresoConciliado  = parseFloat(row.egreso_conciliado)  || 0;
+        const ingresoPendiente  = parseFloat(row.ingreso_pendiente)  || 0;
+        const egresoPendiente   = parseFloat(row.egreso_pendiente)   || 0;
+
+        const saldoInicial = ingresoConciliado - egresoConciliado;
+        const saldoFinal   = saldoInicial + ingresoPendiente - egresoPendiente;
 
         res.json({
             success: true,
             data: {
-                pendientes: parseInt(row.pendientes) || 0,
-                conciliados: parseInt(row.conciliados) || 0,
-                total: parseInt(row.total) || 0,
-                total_pendiente_ingreso: parseFloat(row.total_pendiente_ingreso) || 0,
-                total_pendiente_egreso: parseFloat(row.total_pendiente_egreso) || 0,
-                total_conciliado_ingreso: parseFloat(row.total_conciliado_ingreso) || 0,
-                total_conciliado_egreso: parseFloat(row.total_conciliado_egreso) || 0
+                saldo_inicial_conciliado: saldoInicial,
+                ingresos_pendientes:      ingresoPendiente,
+                egresos_pendientes:       egresoPendiente,
+                saldo_final_conciliado:   saldoFinal
             }
         });
 

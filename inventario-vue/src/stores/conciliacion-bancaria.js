@@ -9,8 +9,14 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
   const loading = ref(false)
   const error = ref(null)
   const selectedIds = ref([])
-  const filtroEstado = ref('PENDIENTE') // PENDIENTE, CONCILIADO, TODOS
-  const bancoSeleccionado = ref(null) // Código de la cuenta bancaria activa
+  const filtroEstado = ref('PENDIENTE')
+  const bancoSeleccionado = ref(null)
+
+  // Saldos del resumen
+  const saldoInicialConciliado = ref(0)
+  const ingresosPendientes = ref(0)
+  const egresosPendientes = ref(0)
+  const saldoFinalConciliado = ref(0)
 
   // Getters — la API ya devuelve solo los NO conciliados
   const movimientosPendientes = computed(() =>
@@ -43,8 +49,19 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     loading.value = true
     error.value = null
     try {
-      const data = await conciliacionBancariaService.getMovimientos(bancoSeleccionado.value)
-      movimientos.value = Array.isArray(data) ? data : data.data || []
+      // Cargar movimientos pendientes y resumen en paralelo
+      const [dataMovs, dataResumen] = await Promise.all([
+        conciliacionBancariaService.getMovimientos(bancoSeleccionado.value),
+        conciliacionBancariaService.getResumen(bancoSeleccionado.value)
+      ])
+      movimientos.value = Array.isArray(dataMovs) ? dataMovs : dataMovs.data || []
+
+      if (dataResumen?.data) {
+        saldoInicialConciliado.value = dataResumen.data.saldo_inicial_conciliado || 0
+        ingresosPendientes.value     = dataResumen.data.ingresos_pendientes      || 0
+        egresosPendientes.value      = dataResumen.data.egresos_pendientes       || 0
+        saldoFinalConciliado.value   = dataResumen.data.saldo_final_conciliado   || 0
+      }
     } catch (err) {
       error.value = err.message
       console.error('Error fetchMovimientos:', err)
@@ -56,6 +73,10 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
   function setBanco(codigo) {
     bancoSeleccionado.value = codigo
     selectedIds.value = []
+    saldoInicialConciliado.value = 0
+    ingresosPendientes.value = 0
+    egresosPendientes.value = 0
+    saldoFinalConciliado.value = 0
   }
 
   async function marcarConciliado(numero) {
@@ -124,6 +145,10 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     selectedIds,
     filtroEstado,
     bancoSeleccionado,
+    saldoInicialConciliado,
+    ingresosPendientes,
+    egresosPendientes,
+    saldoFinalConciliado,
 
     // Getters
     movimientosPendientes,

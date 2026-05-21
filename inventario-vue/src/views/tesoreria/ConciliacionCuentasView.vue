@@ -52,25 +52,7 @@
           :loading="cuentasStore.loading"
           class="cuenta-select"
           @update:modelValue="onCuentaChange"
-        >
-          <template #item="{ props, item }">
-            <v-list-item v-bind="props">
-              <template #prepend>
-                <v-icon size="18" color="primary">mdi-bank-outline</v-icon>
-              </template>
-              <template #subtitle>
-                <span class="text-caption">{{ item.raw.nombre_banco }} · {{ item.raw.nro_cta || '' }}</span>
-              </template>
-            </v-list-item>
-          </template>
-          <template #selection="{ item }">
-            <div class="selected-cuenta">
-              <v-icon size="16" color="primary" class="mr-2">mdi-bank-outline</v-icon>
-              <span class="selected-nombre">{{ item.raw.nombre_cta }}</span>
-              <span class="selected-banco ml-2">· {{ item.raw.nombre_banco }}</span>
-            </div>
-          </template>
-        </v-select>
+        />
       </div>
 
       <!-- SIN CUENTA SELECCIONADA -->
@@ -83,20 +65,39 @@
       <template v-else>
         <!-- KPI CARDS -->
         <div class="kpi-grid">
-          <div class="kpi-card kpi-pendiente">
-            <div class="kpi-label">PENDIENTES</div>
-            <div class="kpi-value">{{ store.movimientos.length }}</div>
-            <div class="kpi-sub">Total pendientes por conciliar</div>
+          <div class="kpi-card kpi-saldo-ini">
+            <div class="kpi-icon-wrap kpi-icon-cyan">
+              <v-icon size="18" color="white">mdi-bank-check</v-icon>
+            </div>
+            <div class="kpi-label">SALDO INICIAL CONCILIADO</div>
+            <div class="kpi-value kpi-cyan">{{ formatMoneda(store.saldoInicialConciliado) }}</div>
+            <div class="kpi-sub">Balance ya conciliado</div>
           </div>
           <div class="kpi-card kpi-ingreso">
-            <div class="kpi-label">TOTAL INGRESOS</div>
-            <div class="kpi-value kpi-verde">{{ formatMoneda(totalIngresos) }}</div>
-            <div class="kpi-sub">Créditos pendientes</div>
+            <div class="kpi-icon-wrap kpi-icon-verde">
+              <v-icon size="18" color="white">mdi-arrow-down-circle</v-icon>
+            </div>
+            <div class="kpi-label">INGRESOS POR CONCILIAR</div>
+            <div class="kpi-value kpi-verde">{{ formatMoneda(store.ingresosPendientes) }}</div>
+            <div class="kpi-sub">{{ store.movimientos.filter(m => m.ingreso > 0).length }} movimientos</div>
           </div>
           <div class="kpi-card kpi-egreso">
-            <div class="kpi-label">TOTAL EGRESOS</div>
-            <div class="kpi-value kpi-ambar">{{ formatMoneda(totalEgresos) }}</div>
-            <div class="kpi-sub">Débitos pendientes</div>
+            <div class="kpi-icon-wrap kpi-icon-ambar">
+              <v-icon size="18" color="white">mdi-arrow-up-circle</v-icon>
+            </div>
+            <div class="kpi-label">EGRESOS POR CONCILIAR</div>
+            <div class="kpi-value kpi-ambar">{{ formatMoneda(store.egresosPendientes) }}</div>
+            <div class="kpi-sub">{{ store.movimientos.filter(m => m.egreso > 0).length }} movimientos</div>
+          </div>
+          <div class="kpi-card kpi-saldo-fin">
+            <div class="kpi-icon-wrap" :class="store.saldoFinalConciliado >= 0 ? 'kpi-icon-verde' : 'kpi-icon-rojo'">
+              <v-icon size="18" color="white">mdi-scale-balance</v-icon>
+            </div>
+            <div class="kpi-label">SALDO FINAL CONCILIADO</div>
+            <div class="kpi-value" :class="store.saldoFinalConciliado >= 0 ? 'kpi-verde' : 'kpi-rojo'">
+              {{ formatMoneda(store.saldoFinalConciliado) }}
+            </div>
+            <div class="kpi-sub">Si se concilian todos</div>
           </div>
         </div>
 
@@ -239,14 +240,6 @@ const cuentasActivas = computed(() =>
   cuentasStore.cuentas.filter(c => c.estado === 'ACTIVA')
 )
 
-// KPI calculados desde ingreso/egreso
-const totalIngresos = computed(() =>
-  store.movimientos.reduce((s, m) => s + parseFloat(m.ingreso || 0), 0)
-)
-const totalEgresos = computed(() =>
-  store.movimientos.reduce((s, m) => s + parseFloat(m.egreso || 0), 0)
-)
-
 // Movimientos filtrados por búsqueda
 const movimientosFiltrados = computed(() => {
   if (!searchQuery.value.trim()) return store.movimientos
@@ -338,10 +331,7 @@ onMounted(async () => {
 /* SELECTOR CUENTA */
 .cuenta-selector-wrap { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
 .cuenta-selector-label { font-size: 13px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.7); white-space: nowrap; display: flex; align-items: center; }
-.cuenta-select { flex: 1; max-width: 540px; }
-.selected-cuenta { display: flex; align-items: center; }
-.selected-nombre { font-weight: 600; font-size: 14px; }
-.selected-banco { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.cuenta-select { flex: 1; max-width: 400px; }
 
 /* EMPTY STATE */
 .empty-state-cuenta { background: rgb(var(--v-theme-surface)); border: 1px dashed rgba(var(--v-theme-on-surface), 0.15); border-radius: 12px; padding: 60px 24px; text-align: center; }
@@ -350,16 +340,24 @@ onMounted(async () => {
 .empty-state-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.35); margin: 0; }
 
 /* KPI */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.kpi-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 12px; padding: 20px; text-align: center; }
-.kpi-pendiente { border-left: 3px solid #06b6d4; }
-.kpi-ingreso { border-left: 3px solid #10b981; }
-.kpi-egreso { border-left: 3px solid #f59e0b; }
-.kpi-label { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-value { font-size: 26px; font-weight: 800; color: #06b6d4; margin: 8px 0; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+@media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+.kpi-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 12px; padding: 18px 16px; }
+.kpi-icon-wrap { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+.kpi-icon-cyan  { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.kpi-icon-verde { background: linear-gradient(135deg, #10b981, #059669); }
+.kpi-icon-ambar { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.kpi-icon-rojo  { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+.kpi-label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.kpi-value { font-size: 20px; font-weight: 800; color: #06b6d4; margin: 4px 0 4px; }
+.kpi-cyan  { color: #06b6d4 !important; }
 .kpi-verde { color: #10b981 !important; }
 .kpi-ambar { color: #f59e0b !important; }
-.kpi-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
+.kpi-rojo  { color: #ef4444 !important; }
+.kpi-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
 
 /* TABLA */
 .tabla-container { background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-theme-on-surface), 0.08); }

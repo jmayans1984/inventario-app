@@ -83,13 +83,12 @@ export const conciliacionBancariaService = {
     }
   },
 
-  // Obtener resumen de conciliación
-  async getResumenConciliacion(params = {}) {
+  // Obtener resumen de saldos por banco
+  async getResumen(banco) {
     try {
       const empresa = getEmpresaActiva()
-      const paramsConEmpresa = { ...params, empresa }
       const response = await api.get(`${ENDPOINT}/resumen`, {
-        params: paramsConEmpresa,
+        params: { empresa, banco }
       })
       return response.data
     } catch (error) {
