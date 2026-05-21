@@ -293,27 +293,6 @@
             </div>
           </div>
 
-          <!-- Beneficiario combobox -->
-          <div class="form-row">
-            <div class="form-field full-width">
-              <label class="field-label">BENEFICIARIO / PAGADOR <span class="req">*</span></label>
-              <v-select
-                v-model="form.beneficia"
-                :items="store.proveedoresOptions"
-                item-title="nombre"
-                item-value="codigo"
-                placeholder="Escribe para buscar proveedor..."
-                filterable
-                searchable
-                clearable
-                hide-details
-                density="compact"
-                variant="outlined"
-              />
-              <span v-if="formErrors.beneficia" class="field-error">{{ formErrors.beneficia }}</span>
-            </div>
-          </div>
-
           <!-- Concepto -->
           <div class="form-row">
             <div class="form-field full-width">
@@ -461,7 +440,6 @@ const todayISO = new Date().toISOString().slice(0, 10)
 const form = ref({
   tipo:          'ING',
   fecha:         todayISO,
-  beneficia:     '',       // Código proveedor
   concepto:      '',
   cheque:        '',
   monto:         '',
@@ -480,7 +458,6 @@ function abrirFormulario() {
   form.value = {
     tipo:          'ING',
     fecha:         todayISO,
-    beneficia:     '',
     concepto:      '',
     cheque:        '',
     monto:         '',
@@ -497,7 +474,6 @@ function validarForm() {
   const errs = {}
   if (!form.value.fecha)             errs.fecha     = 'La fecha es requerida'
   if (!form.value.tipo)              errs.tipo      = 'El tipo es requerido'
-  if (!form.value.beneficia)         errs.beneficia = 'Selecciona un beneficiario'
   if (!form.value.concepto?.trim())  errs.concepto  = 'El concepto es requerido'
   const monto = parseFloat(form.value.monto)
   if (!form.value.monto || isNaN(monto) || monto <= 0) errs.monto = 'El monto debe ser mayor a 0'
@@ -514,7 +490,6 @@ async function guardarMovimiento() {
     const datos = {
       tipo:          form.value.tipo,
       fecha:         form.value.fecha,
-      beneficia:     form.value.beneficia,  // Código proveedor
       concepto:      form.value.concepto.trim().toUpperCase(),
       cheque:        (form.value.cheque?.trim() || '').toUpperCase(),
       ingreso:       form.value.tipo === 'ING' ? monto : 0,
@@ -536,8 +511,6 @@ async function guardarMovimiento() {
 // ─── Inicialización ──────────────────────────────────────────────
 onMounted(async () => {
   await store.fetchCuentasBancarias()
-  // Cargar proveedores para el combobox
-  await store.buscarProveedores('')
   if (store.bancoSeleccionado) await store.fetchMovimientos()
 })
 </script>
