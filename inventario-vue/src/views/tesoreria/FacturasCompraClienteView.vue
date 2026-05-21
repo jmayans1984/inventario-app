@@ -105,21 +105,56 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th class="col-codigo">CÓDIGO</th>
-                <th class="col-fecha">FECHA</th>
-                <th class="col-monto">MONTO</th>
-                <th class="col-pagado">PAGADO</th>
-                <th class="col-pendiente">PENDIENTE</th>
-                <th class="col-vencimiento">VENCIMIENTO</th>
+                <th class="col-codigo sortable" @click="ordenar('codigo')">
+                  CÓDIGO
+                  <v-icon v-if="ordenActual.campo === 'codigo'" size="12" class="sort-icon">
+                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                  </v-icon>
+                </th>
+                <th class="col-fecha sortable" @click="ordenar('fecha')">
+                  FECHA
+                  <v-icon v-if="ordenActual.campo === 'fecha'" size="12" class="sort-icon">
+                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                  </v-icon>
+                </th>
+                <th class="col-monto sortable" @click="ordenar('total')">
+                  MONTO
+                  <v-icon v-if="ordenActual.campo === 'total'" size="12" class="sort-icon">
+                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                  </v-icon>
+                </th>
+                <th class="col-pagado sortable" @click="ordenar('valor_pagado')">
+                  PAGADO
+                  <v-icon v-if="ordenActual.campo === 'valor_pagado'" size="12" class="sort-icon">
+                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                  </v-icon>
+                </th>
+                <th class="col-pendiente sortable" @click="ordenar('pendiente')">
+                  PENDIENTE
+                  <v-icon v-if="ordenActual.campo === 'pendiente'" size="12" class="sort-icon">
+                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                  </v-icon>
+                </th>
+                <th class="col-vencimiento sortable" @click="ordenar('fecha_vencimiento')">
+                  VENCIMIENTO
+                  <v-icon v-if="ordenActual.campo === 'fecha_vencimiento'" size="12" class="sort-icon">
+                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                  </v-icon>
+                </th>
                 <th class="col-dias">DÍAS</th>
-                <th class="col-estado">ESTADO</th>
+                <th class="col-estado sortable" @click="ordenar('estado')">
+                  ESTADO
+                  <v-icon v-if="ordenActual.campo === 'estado'" size="12" class="sort-icon">
+                    {{ ordenActual.desc ? 'mdi-arrow-down' : 'mdi-arrow-up' }}
+                  </v-icon>
+                </th>
                 <th class="col-soportes">SOPORTES</th>
                 <th class="col-acciones">ACCIONES</th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="fact in store.facturasFiltradas"
+                v-for="fact in getFacturasOrdenadasYFiltradas()"
                 :key="fact.codigo"
                 class="tabla-row"
                 :class="{ 'row-vencido': isVencido(fact) }"
@@ -145,12 +180,14 @@
                 <td class="col-vencimiento">{{ formatFecha(fact.fecha_vencimiento) }}</td>
                 <td class="col-dias">
                   <v-chip
+                    v-if="fact.estado === 'PENDIENTE'"
                     :color="getDiasColor(fact.fecha_vencimiento)"
                     variant="flat"
                     size="small"
                   >
                     {{ calcularDias(fact.fecha_vencimiento) }}
                   </v-chip>
+                  <span v-else class="text-muted">-</span>
                 </td>
                 <td class="col-estado">
                   <v-chip
@@ -366,6 +403,12 @@ const estadoTabs = [
   { value: 'POR_VERIFICAR', label: 'Por Verificar', icon: 'mdi-clock-outline' },
 ]
 
+// Estado del ordenamiento - por defecto CODIGO descendente
+const ordenActual = ref({
+  campo: 'codigo',
+  desc: true
+})
+
 // Helpers
 function calcularDias(fecha_vencimiento) {
   const hoy = new Date()
@@ -392,6 +435,50 @@ function getEstadoColor(estado) {
     'POR_VERIFICAR': 'info'
   }
   return map[estado] || 'default'
+}
+
+// Ordenamiento y filtrado
+function ordenar(campo) {
+  if (ordenActual.value.campo === campo) {
+    // Si ya está ordenado por este campo, cambiar dirección
+    ordenActual.value.desc = !ordenActual.value.desc
+  } else {
+    // Si es un nuevo campo, ordenar descendente por defecto
+    ordenActual.value.campo = campo
+    ordenActual.value.desc = true
+  }
+}
+
+function getFacturasOrdenadasYFiltradas() {
+  // Calcular fecha de hace 3 meses
+  const hace3meses = new Date()
+  hace3meses.setMonth(hace3meses.getMonth() - 3)
+
+  // Filtrar: facturas del filtro actual AND últimos 3 meses
+  let facturasFiltradas = store.facturasFiltradas.filter(f => {
+    const fechaFactura = new Date(f.fecha)
+    return fechaFactura >= hace3meses
+  })
+
+  // Ordenar
+  facturasFiltradas.sort((a, b) => {
+    let valA = a[ordenActual.value.campo]
+    let valB = b[ordenActual.value.campo]
+
+    // Convertir a números si es necesario
+    if (typeof valA === 'string' && !isNaN(parseFloat(valA))) {
+      valA = parseFloat(valA)
+    }
+    if (typeof valB === 'string' && !isNaN(parseFloat(valB))) {
+      valB = parseFloat(valB)
+    }
+
+    if (valA < valB) return ordenActual.value.desc ? 1 : -1
+    if (valA > valB) return ordenActual.value.desc ? -1 : 1
+    return 0
+  })
+
+  return facturasFiltradas
 }
 
 // Modal
@@ -585,6 +672,20 @@ onMounted(async () => {
   color: rgba(var(--v-theme-on-surface), 0.6);
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   white-space: nowrap;
+}
+.data-table thead th.sortable {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s;
+}
+.data-table thead th.sortable:hover {
+  color: #06b6d4;
+}
+.sort-icon {
+  color: #06b6d4;
+  font-weight: 700;
 }
 .data-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
 .data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
