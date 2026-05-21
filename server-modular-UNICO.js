@@ -1123,10 +1123,13 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Obtener próximo número (con lock para evitar duplicados)
+        // Bloquear tabla para obtener número seguro (transacción aislada)
+        await client.query('LOCK TABLE moviban IN EXCLUSIVE MODE');
+
+        // Obtener próximo número (después del lock)
         const numRes = await client.query(
             `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) + 1 AS next_num
-             FROM moviban WHERE empresa = $1 FOR UPDATE`,
+             FROM moviban WHERE empresa = $1`,
             [empresa]
         );
         const nextNum = numRes.rows[0].next_num || 1;

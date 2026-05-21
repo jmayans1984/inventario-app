@@ -324,6 +324,7 @@
                 class="field-input"
                 :class="{ error: formErrors.concepto }"
                 placeholder="Descripción del movimiento"
+                @input="toUpperCaseField('concepto')"
               />
               <span v-if="formErrors.concepto" class="field-error">{{ formErrors.concepto }}</span>
             </div>
@@ -338,6 +339,7 @@
                 type="text"
                 class="field-input"
                 placeholder="Nro. cheque o referencia"
+                @input="toUpperCaseField('cheque')"
               />
             </div>
             <div class="form-field">
@@ -466,6 +468,13 @@ const form = ref({
   banco_destino: null,
 })
 
+// Convertir campos de texto a mayúsculas
+function toUpperCaseField(field) {
+  if (form.value[field] && typeof form.value[field] === 'string') {
+    form.value[field] = form.value[field].toUpperCase()
+  }
+}
+
 function abrirFormulario() {
   formErrors.value = {}
   form.value = {
@@ -506,8 +515,8 @@ async function guardarMovimiento() {
       tipo:          form.value.tipo,
       fecha:         form.value.fecha,
       beneficia:     form.value.beneficia,  // Código proveedor
-      concepto:      form.value.concepto.trim(),
-      cheque:        form.value.cheque?.trim() || '',
+      concepto:      form.value.concepto.trim().toUpperCase(),
+      cheque:        (form.value.cheque?.trim() || '').toUpperCase(),
       ingreso:       form.value.tipo === 'ING' ? monto : 0,
       egreso:        form.value.tipo === 'EGR' || form.value.tipo === 'TRA' ? monto : 0,
       banco:         store.bancoSeleccionado,
@@ -769,6 +778,7 @@ onMounted(async () => {
   transition: border-color 0.15s;
   width: 100%;
   box-sizing: border-box;
+  text-transform: uppercase;
 }
 .field-input:focus { border-color: #06b6d4; }
 .field-input.error { border-color: #ef4444; }
