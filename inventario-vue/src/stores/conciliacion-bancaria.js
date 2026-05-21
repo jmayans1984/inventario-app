@@ -12,27 +12,26 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
   const filtroEstado = ref('PENDIENTE') // PENDIENTE, CONCILIADO, TODOS
   const bancoSeleccionado = ref(null) // Código de la cuenta bancaria activa
 
-  // Getters
+  // Getters — la API ya devuelve solo los NO conciliados
   const movimientosPendientes = computed(() =>
-    movimientos.value.filter(m => m.estado === 'PENDIENTE')
+    movimientos.value.filter(m => (m.conciliado || 'NO') === 'NO')
   )
 
   const movimientosConciliados = computed(() =>
-    movimientos.value.filter(m => m.estado === 'CONCILIADO')
+    movimientos.value.filter(m => m.conciliado === 'SI')
   )
 
   const totalMovimientos = computed(() => movimientos.value.length)
 
   const totalPendiente = computed(() => {
-    return movimientos.value
-      .filter(m => m.estado === 'PENDIENTE')
-      .reduce((sum, m) => sum + parseFloat(m.monto || 0), 0)
+    // moviban.conciliado='NO' → pendientes (toda la lista viene filtrada por NO)
+    return movimientos.value.reduce((sum, m) =>
+      sum + parseFloat(m.ingreso || 0) + parseFloat(m.egreso || 0), 0)
   })
 
   const totalConciliado = computed(() => {
-    return movimientos.value
-      .filter(m => m.estado === 'CONCILIADO')
-      .reduce((sum, m) => sum + parseFloat(m.monto || 0), 0)
+    // Los conciliados en sesión ya no están en la lista (se filtran por conciliado=NO)
+    return 0
   })
 
   // Actions
@@ -59,15 +58,13 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     selectedIds.value = []
   }
 
-  async function marcarConciliado(id) {
+  async function marcarConciliado(numero) {
     loading.value = true
     error.value = null
     try {
-      await conciliacionBancariaService.marcarConciliado(id)
-      const idx = movimientos.value.findIndex(m => m.id === id)
-      if (idx >= 0) {
-        movimientos.value[idx].estado = 'CONCILIADO'
-      }
+      await conciliacionBancariaService.marcarConciliado(numero)
+      // Quitar de la lista (la vista solo muestra NO conciliados)
+      movimientos.value = movimientos.value.filter(m => m.numero !== numero)
     } catch (err) {
       error.value = err.message
       throw err
@@ -76,15 +73,12 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     }
   }
 
-  async function marcarPendiente(id) {
+  async function marcarPendiente(numero) {
     loading.value = true
     error.value = null
     try {
-      await conciliacionBancariaService.marcarPendiente(id)
-      const idx = movimientos.value.findIndex(m => m.id === id)
-      if (idx >= 0) {
-        movimientos.value[idx].estado = 'PENDIENTE'
-      }
+      await conciliacionBancariaService.marcarPendiente(numero)
+      movimientos.value = movimientos.value.filter(m => m.numero !== numero)
     } catch (err) {
       error.value = err.message
       throw err
@@ -99,12 +93,8 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     error.value = null
     try {
       await conciliacionBancariaService.marcarMultiplesConciliados(selectedIds.value)
-      selectedIds.value.forEach(id => {
-        const idx = movimientos.value.findIndex(m => m.id === id)
-        if (idx >= 0) {
-          movimientos.value[idx].estado = 'CONCILIADO'
-        }
-      })
+      // Quitar de la lista todos los conciliados
+      movimientos.value = movimientos.value.filter(m => !selectedIds.value.includes(m.numero))
       selectedIds.value = []
     } catch (err) {
       error.value = err.message

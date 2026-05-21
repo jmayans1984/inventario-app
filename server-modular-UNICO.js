@@ -794,7 +794,7 @@ app.post('/api/movimientos-bancarios/crear', async (req, res) => {
 
 // GET /api/tesoreria/movimientos - Obtener movimientos bancarios para conciliación
 app.get('/api/tesoreria/movimientos', async (req, res) => {
-    const { empresa, estado } = req.query;
+    const { empresa, banco, conciliado } = req.query;
 
     if (!empresa) {
         return res.status(400).json({
@@ -803,59 +803,62 @@ app.get('/api/tesoreria/movimientos', async (req, res) => {
         });
     }
 
+    if (!banco) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro banco requerido'
+        });
+    }
+
     try {
+        const params = [empresa, banco];
+        let paramIndex = 3;
+
         let query = `
             SELECT
-                m.numero as id,
                 m.numero,
+                m.tipo,
                 m.fecha,
                 m.concepto,
-                m.beneficia as referencia,
+                m.beneficia,
+                m.cheque,
                 m.ingreso,
                 m.egreso,
-                m.monto as monto,
-                CASE
-                    WHEN m.conciliado = true THEN 'CONCILIADO'
-                    ELSE 'PENDIENTE'
-                END as estado,
                 m.banco,
-                m.tipo,
-                m.cheque,
+                m.conciliado,
                 m.gasto,
+                m.ccosto,
                 m.empresa
             FROM moviban m
             WHERE m.empresa = $1
+              AND m.banco = $2
         `;
 
-        const params = [empresa];
-        let paramIndex = 2;
-
-        if (estado && estado !== 'TODOS') {
-            if (estado === 'CONCILIADO') {
-                query += ` AND m.conciliado = true`;
-            } else if (estado === 'PENDIENTE') {
-                query += ` AND m.conciliado = false`;
-            }
+        // Filtro por conciliado (varchar: 'NO' o 'SI')
+        if (conciliado === 'NO') {
+            query += ` AND (m.conciliado = 'NO' OR m.conciliado IS NULL)`;
+        } else if (conciliado === 'SI') {
+            query += ` AND m.conciliado = 'SI'`;
         }
 
         query += ` ORDER BY m.fecha DESC, m.numero DESC`;
 
         const result = await pool.query(query, params);
 
-        // Transform data to match frontend expectations
         const movimientos = result.rows.map(row => ({
-            id: row.numero,
-            numero: row.numero,
-            fecha: row.fecha,
-            concepto: row.concepto,
-            referencia: row.referencia,
-            monto: parseFloat(row.ingreso || 0) + parseFloat(row.egreso || 0),
-            estado: row.estado,
-            banco: row.banco,
-            tipo: row.tipo,
-            cheque: row.cheque,
-            gasto: row.gasto,
-            empresa: row.empresa
+            numero:     row.numero,
+            tipo:       row.tipo,
+            fecha:      row.fecha,
+            concepto:   row.concepto,
+            beneficia:  row.beneficia || '',
+            cheque:     row.cheque || '',
+            ingreso:    parseFloat(row.ingreso || 0),
+            egreso:     parseFloat(row.egreso || 0),
+            banco:      row.banco,
+            conciliado: row.conciliado || 'NO',
+            gasto:      row.gasto,
+            ccosto:     row.ccosto,
+            empresa:    row.empresa
         }));
 
         res.json({
@@ -898,7 +901,8 @@ app.put('/api/tesoreria/movimientos/:id', async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const conciliado = estado === 'CONCILIADO';
+        // conciliado es varchar(2): 'SI' o 'NO'
+        const conciliado = estado === 'CONCILIADO' ? 'SI' : 'NO';
 
         const updateQuery = `
             UPDATE moviban
@@ -967,7 +971,7 @@ app.post('/api/tesoreria/movimientos/batch/conciliar', async (req, res) => {
 
         const updateQuery = `
             UPDATE moviban
-            SET conciliado = true
+            SET conciliado = 'SI'
             WHERE numero IN (${placeholders}) AND empresa = $${ids.length + 1}
             RETURNING numero, conciliado
         `;
