@@ -576,13 +576,13 @@ app.get('/api/cuentas-bancarias', async (req, res) => {
     
     try {
         const query = `
-            SELECT codigo, nombre_banco, nombre_cta, tipo_cuenta
+            SELECT codigo, nombre_banco, nombre_cta, tipo_cuenta, estado
             FROM cuentas_bancarias
             WHERE empresa = $1
             AND estado = 'ACTIVA'
             ORDER BY nombre_cta
         `;
-        
+
         const result = await pool.query(query, [empresa]);
         
         res.json({

@@ -60,9 +60,8 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
   async function fetchCuentasBancarias() {
     try {
       const data = await movimientosBancariosService.getCuentasBancarias()
+      // El endpoint ya filtra por estado='ACTIVA'
       cuentasBancarias.value = Array.isArray(data) ? data : (data.data || [])
-      // Filtrar solo ACTIVAS
-      cuentasBancarias.value = cuentasBancarias.value.filter(c => c.estado === 'ACTIVA')
     } catch (err) {
       console.error('Error fetchCuentasBancarias:', err)
       cuentasBancarias.value = []
