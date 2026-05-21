@@ -9,11 +9,11 @@ function getEmpresaActiva() {
 }
 
 export const conciliacionBancariaService = {
-  // Obtener movimientos no conciliados
-  async getMovimientosPendientes(params = {}) {
+  // Obtener movimientos no conciliados filtrados por banco
+  async getMovimientosPendientes(banco, params = {}) {
     try {
       const empresa = getEmpresaActiva()
-      const paramsConEmpresa = { ...params, empresa, estado: 'PENDIENTE' }
+      const paramsConEmpresa = { ...params, empresa, banco, conciliado: 'NO' }
       const response = await api.get(ENDPOINT, { params: paramsConEmpresa })
       return response.data
     } catch (error) {
@@ -22,12 +22,14 @@ export const conciliacionBancariaService = {
     }
   },
 
-  // Obtener todos los movimientos (con filtro de estado)
-  async getMovimientos(estado = null, params = {}) {
+  // Obtener movimientos por banco (conciliados y no conciliados)
+  async getMovimientos(banco = null, params = {}) {
     try {
       const empresa = getEmpresaActiva()
       const paramsConEmpresa = { ...params, empresa }
-      if (estado) paramsConEmpresa.estado = estado
+      if (banco) paramsConEmpresa.banco = banco
+      // Por defecto trae solo los NO conciliados para la conciliación
+      paramsConEmpresa.conciliado = 'NO'
       const response = await api.get(ENDPOINT, { params: paramsConEmpresa })
       return response.data
     } catch (error) {

@@ -10,6 +10,7 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
   const error = ref(null)
   const selectedIds = ref([])
   const filtroEstado = ref('PENDIENTE') // PENDIENTE, CONCILIADO, TODOS
+  const bancoSeleccionado = ref(null) // Código de la cuenta bancaria activa
 
   // Getters
   const movimientosPendientes = computed(() =>
@@ -36,11 +37,14 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
 
   // Actions
   async function fetchMovimientos() {
+    if (!bancoSeleccionado.value) {
+      movimientos.value = []
+      return
+    }
     loading.value = true
     error.value = null
     try {
-      const estado = filtroEstado.value === 'TODOS' ? null : filtroEstado.value
-      const data = await conciliacionBancariaService.getMovimientos(estado)
+      const data = await conciliacionBancariaService.getMovimientos(bancoSeleccionado.value)
       movimientos.value = Array.isArray(data) ? data : data.data || []
     } catch (err) {
       error.value = err.message
@@ -48,6 +52,11 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     } finally {
       loading.value = false
     }
+  }
+
+  function setBanco(codigo) {
+    bancoSeleccionado.value = codigo
+    selectedIds.value = []
   }
 
   async function marcarConciliado(id) {
@@ -124,6 +133,7 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     error,
     selectedIds,
     filtroEstado,
+    bancoSeleccionado,
 
     // Getters
     movimientosPendientes,
@@ -139,6 +149,7 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     marcarMultiplesConciliados,
     setSelectedIds,
     setFiltroEstado,
+    setBanco,
     clearError,
   }
 })
