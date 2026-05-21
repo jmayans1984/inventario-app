@@ -1200,29 +1200,32 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
     }
 });
 
-// GET /api/tesoreria/proveedores/buscar - Buscar proveedores por nombre
+// GET /api/tesoreria/proveedores/buscar - Buscar/listar proveedores
 app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
     const { empresa, q } = req.query;
 
     if (!empresa) {
         return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
     }
-    if (!q || q.trim().length < 2) {
-        return res.json({ success: true, data: [] });
-    }
 
     try {
-        const busqueda = `%${q.toLowerCase()}%`;
-        const result = await pool.query(
-            `SELECT codigo, nombre, telefono, email
-             FROM proveedores
-             WHERE empresa = $1
-               AND estado = 'ACTIVO'
-               AND LOWER(nombre) LIKE $2
-             ORDER BY nombre
-             LIMIT 10`,
-            [empresa, busqueda]
-        );
+        let query = `
+            SELECT codigo, nombre, telefono, email
+            FROM proveedores
+            WHERE empresa = $1
+              AND estado = 'ACTIVO'
+        `;
+        const params = [empresa];
+
+        // Si hay búsqueda, filtrar por nombre (LIKE)
+        if (q && q.trim().length >= 1) {
+            query += ` AND LOWER(nombre) LIKE $2`;
+            params.push(`%${q.toLowerCase()}%`);
+        }
+
+        query += ` ORDER BY nombre LIMIT 50`;
+
+        const result = await pool.query(query, params);
 
         res.json({
             success: true,

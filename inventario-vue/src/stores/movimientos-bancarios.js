@@ -86,10 +86,6 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
   }
 
   async function buscarProveedores(busqueda) {
-    if (!busqueda || busqueda.length < 2) {
-      proveedoresOptions.value = []
-      return
-    }
     try {
       const data = await movimientosBancariosService.buscarProveedores(busqueda)
       proveedoresOptions.value = Array.isArray(data) ? data : (data.data || [])

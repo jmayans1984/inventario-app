@@ -153,7 +153,6 @@
             <thead>
               <tr>
                 <th class="col-numero">NÚMERO</th>
-                <th class="col-tipo">TIPO</th>
                 <th class="col-fecha">FECHA</th>
                 <th class="col-beneficiario">BENEFICIARIO</th>
                 <th class="col-concepto">CONCEPTO</th>
@@ -165,7 +164,7 @@
             </thead>
             <tbody>
               <tr v-if="store.movimientosFiltrados.length === 0">
-                <td colspan="9" class="tabla-empty">
+                <td colspan="8" class="tabla-empty">
                   <v-icon size="32" class="empty-icon-sm">mdi-inbox-outline</v-icon>
                   <p class="empty-text">No hay movimientos para mostrar</p>
                 </td>
@@ -177,16 +176,6 @@
               >
                 <td class="col-numero">
                   <span class="numero-badge">{{ mov.numero }}</span>
-                </td>
-                <td class="col-tipo">
-                  <v-chip
-                    :color="getTipoColor(mov.tipo)"
-                    variant="flat"
-                    size="x-small"
-                    class="tipo-chip"
-                  >
-                    {{ getTipoLabel(mov.tipo) }}
-                  </v-chip>
                 </td>
                 <td class="col-fecha">{{ formatFecha(mov.fecha) }}</td>
                 <td class="col-beneficiario">{{ mov.beneficia || '-' }}</td>
@@ -304,36 +293,27 @@
             </div>
           </div>
 
-          <!-- Beneficiario con búsqueda -->
+          <!-- Beneficiario combobox -->
           <div class="form-row">
             <div class="form-field full-width">
               <label class="field-label">BENEFICIARIO / PAGADOR <span class="req">*</span></label>
-              <div class="autocomplete-wrap">
-                <input
-                  v-model="form.beneficiaText"
-                  type="text"
-                  class="field-input"
-                  :class="{ error: formErrors.beneficia }"
-                  placeholder="Busca por nombre del proveedor..."
-                  @input="onBeneficiaInput"
-                  @keydown.escape="cerrarSugerencias"
-                  @keydown.down="seleccionarSiguiente"
-                  @keydown.up="seleccionarAnterior"
-                  @keydown.enter="aceptarSugerencia"
-                />
-                <div v-if="mostrarSugerencias && store.proveedoresOptions.length" class="autocomplete-options">
-                  <div
-                    v-for="(prov, idx) in store.proveedoresOptions"
-                    :key="prov.codigo"
-                    class="option-item"
-                    :class="{ selected: indexSugerencia === idx }"
-                    @click="selectBeneficiario(prov)"
-                  >
-                    <div class="option-name">{{ prov.nombre }}</div>
-                    <div class="option-details">{{ prov.codigo }} • {{ prov.email || 'Sin email' }}</div>
-                  </div>
-                </div>
-              </div>
+              <v-select
+                v-model="form.beneficia"
+                :items="store.proveedoresOptions"
+                item-title="nombre"
+                item-value="codigo"
+                placeholder="Selecciona o busca proveedor..."
+                filterable
+                searchable
+                hide-details
+                density="compact"
+                variant="outlined"
+                :class="{ error: formErrors.beneficia }"
+              >
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props" :title="item.raw.nombre" :subtitle="item.raw.codigo" />
+                </template>
+              </v-select>
               <span v-if="formErrors.beneficia" class="field-error">{{ formErrors.beneficia }}</span>
             </div>
           </div>
@@ -477,93 +457,45 @@ async function onCuentaChange(codigo) {
 const dialogOpen = ref(false)
 const guardando  = ref(false)
 const formErrors = ref({})
-const mostrarSugerencias = ref(false)
-const indexSugerencia = ref(-1)
 
 const todayISO = new Date().toISOString().slice(0, 10)
 
 const form = ref({
-  tipo:           'ING',
-  fecha:          todayISO,
-  beneficia:      '',       // Código proveedor guardado
-  beneficiaText:  '',       // Texto para búsqueda
-  concepto:       '',
-  cheque:         '',
-  monto:          '',
-  banco_destino:  null,
+  tipo:          'ING',
+  fecha:         todayISO,
+  beneficia:     '',       // Código proveedor
+  concepto:      '',
+  cheque:        '',
+  monto:         '',
+  banco_destino: null,
 })
 
-function abrirFormulario() {
+async function abrirFormulario() {
   formErrors.value = {}
   form.value = {
-    tipo:           'ING',
-    fecha:          todayISO,
-    beneficia:      '',
-    beneficiaText:  '',
-    concepto:       '',
-    cheque:         '',
-    monto:          '',
-    banco_destino:  null,
+    tipo:          'ING',
+    fecha:         todayISO,
+    beneficia:     '',
+    concepto:      '',
+    cheque:        '',
+    monto:         '',
+    banco_destino: null,
   }
-  indexSugerencia.value = -1
-  mostrarSugerencias.value = false
   dialogOpen.value = true
+  // Cargar proveedores al abrir el form
+  await store.buscarProveedores('')  // Cargar todos
 }
 
 function cerrarFormulario() {
   dialogOpen.value = false
-  mostrarSugerencias.value = false
-}
-
-// Autocomplete beneficiario
-function onBeneficiaInput() {
-  indexSugerencia.value = -1
-  if (form.value.beneficiaText.length >= 2) {
-    store.buscarProveedores(form.value.beneficiaText)
-    mostrarSugerencias.value = true
-  } else {
-    mostrarSugerencias.value = false
-    store.proveedoresOptions = []
-  }
-}
-
-function selectBeneficiario(proveedor) {
-  form.value.beneficia = proveedor.codigo
-  form.value.beneficiaText = proveedor.nombre
-  mostrarSugerencias.value = false
-  indexSugerencia.value = -1
-}
-
-function cerrarSugerencias() {
-  mostrarSugerencias.value = false
-}
-
-function seleccionarSiguiente() {
-  if (!mostrarSugerencias.value) return
-  if (indexSugerencia.value < store.proveedoresOptions.length - 1) {
-    indexSugerencia.value++
-  }
-}
-
-function seleccionarAnterior() {
-  if (!mostrarSugerencias.value) return
-  if (indexSugerencia.value > 0) {
-    indexSugerencia.value--
-  }
-}
-
-function aceptarSugerencia() {
-  if (mostrarSugerencias.value && indexSugerencia.value >= 0) {
-    selectBeneficiario(store.proveedoresOptions[indexSugerencia.value])
-  }
 }
 
 function validarForm() {
   const errs = {}
-  if (!form.value.fecha)              errs.fecha     = 'La fecha es requerida'
-  if (!form.value.tipo)               errs.tipo      = 'El tipo es requerido'
-  if (!form.value.beneficia?.trim())  errs.beneficia = 'Selecciona un beneficiario válido'
-  if (!form.value.concepto?.trim())   errs.concepto  = 'El concepto es requerido'
+  if (!form.value.fecha)             errs.fecha     = 'La fecha es requerida'
+  if (!form.value.tipo)              errs.tipo      = 'El tipo es requerido'
+  if (!form.value.beneficia)         errs.beneficia = 'Selecciona un beneficiario'
+  if (!form.value.concepto?.trim())  errs.concepto  = 'El concepto es requerido'
   const monto = parseFloat(form.value.monto)
   if (!form.value.monto || isNaN(monto) || monto <= 0) errs.monto = 'El monto debe ser mayor a 0'
   if (form.value.tipo === 'TRA' && !form.value.banco_destino) errs.banco_destino = 'La cuenta destino es requerida'
@@ -778,10 +710,9 @@ onMounted(async () => {
 .tabla-footer td { padding: 14px 10px !important; }
 
 .col-numero       { width: 120px; }
-.col-tipo         { width: 100px; }
 .col-fecha        { width: 90px; white-space: nowrap; }
-.col-beneficiario { width: 18%; }
-.col-concepto     { width: 25%; }
+.col-beneficiario { width: 20%; }
+.col-concepto     { width: 28%; }
 .col-cheque       { width: 110px; }
 .col-ingreso      { width: 110px; text-align: right !important; }
 .col-egreso       { width: 110px; text-align: right !important; }
@@ -880,41 +811,6 @@ onMounted(async () => {
   font-size: 12px;
   color: #06b6d4;
   font-weight: 600;
-}
-
-/* Autocomplete */
-.autocomplete-wrap {
-  position: relative;
-}
-.autocomplete-options {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  max-height: 220px;
-  overflow-y: auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-.option-item {
-  padding: 10px 12px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
-  transition: background 0.1s;
-}
-.option-item:last-child { border-bottom: none; }
-.option-item:hover, .option-item.selected {
-  background: rgba(6, 182, 212, 0.08);
-}
-.option-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
-  margin-bottom: 2px;
-}
-.option-details {
-  font-size: 11px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
 }
 
 .form-footer {
