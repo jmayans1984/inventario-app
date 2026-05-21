@@ -302,18 +302,14 @@
                 :items="store.proveedoresOptions"
                 item-title="nombre"
                 item-value="codigo"
-                placeholder="Selecciona o busca proveedor..."
+                placeholder="Escribe para buscar proveedor..."
                 filterable
                 searchable
+                clearable
                 hide-details
                 density="compact"
                 variant="outlined"
-                :class="{ error: formErrors.beneficia }"
-              >
-                <template #item="{ item, props }">
-                  <v-list-item v-bind="props" :title="item.raw.nombre" :subtitle="item.raw.codigo" />
-                </template>
-              </v-select>
+              />
               <span v-if="formErrors.beneficia" class="field-error">{{ formErrors.beneficia }}</span>
             </div>
           </div>
