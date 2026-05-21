@@ -1503,8 +1503,32 @@ app.post('/api/tesoreria/facturas-compra/:codigo/soportes', async (req, res) => 
             });
         }
 
+        // Validar que base64 es válido (debe tener múltiplo de 4 caracteres)
+        if (archivo_base64.length % 4 !== 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'El archivo base64 es inválido'
+            });
+        }
+
         // Convertir base64 a buffer
-        const archivo_data = Buffer.from(archivo_base64, 'base64');
+        let archivo_data;
+        try {
+            archivo_data = Buffer.from(archivo_base64, 'base64');
+        } catch (e) {
+            return res.status(400).json({
+                success: false,
+                error: 'No se pudo decodificar el archivo base64'
+            });
+        }
+
+        // Validar que el buffer tiene contenido
+        if (archivo_data.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'El archivo está vacío'
+            });
+        }
 
         // Validar tamaño (máx 10MB)
         const maxSize = 10 * 1024 * 1024;
@@ -1710,8 +1734,41 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
 
         const { archivo_data, nombre_archivo, tipo_archivo } = result.rows[0];
 
+        // Validar que existe data
+        if (!archivo_data) {
+            return res.status(404).json({
+                success: false,
+                error: 'El archivo está vacío o corrupto'
+            });
+        }
+
         // Asegurar que archivo_data es un Buffer
-        const buffer = Buffer.isBuffer(archivo_data) ? archivo_data : Buffer.from(archivo_data, 'binary');
+        let buffer;
+        if (Buffer.isBuffer(archivo_data)) {
+            buffer = archivo_data;
+        } else if (typeof archivo_data === 'string') {
+            // Si es string, intentar convertir de base64 o binary
+            try {
+                buffer = Buffer.from(archivo_data, 'base64');
+                // Validar que el buffer tiene contenido
+                if (buffer.length === 0) {
+                    buffer = Buffer.from(archivo_data, 'binary');
+                }
+            } catch (e) {
+                buffer = Buffer.from(archivo_data, 'binary');
+            }
+        } else {
+            // Intenta interpretar como Uint8Array o similar
+            buffer = Buffer.from(archivo_data);
+        }
+
+        // Validar que el buffer tiene contenido válido
+        if (!buffer || buffer.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'El archivo está vacío'
+            });
+        }
 
         // Detectar tipo MIME basado en extensión del archivo si no está disponible
         let contentType = tipo_archivo || 'application/octet-stream';
@@ -1733,6 +1790,7 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${nombre_archivo}"`);
         res.setHeader('Content-Length', buffer.length);
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
         // Enviar el buffer binario
         res.end(buffer);
