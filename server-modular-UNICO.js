@@ -7,6 +7,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const fileUpload = require('express-fileupload');
 require('dotenv').config();
 
 const app = express();
@@ -60,6 +61,13 @@ app.use(cors({
 // Aumentar límite para soportar imágenes base64 (50MB)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Middleware para manejo de file uploads
+app.use(fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    abortOnLimit: true,
+    responseOnLimit: 'El archivo excede el tamaño máximo permitido de 50MB'
+}));
 
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -1324,9 +1332,9 @@ app.get('/api/tesoreria/facturas-compra', async (req, res) => {
     }
 });
 
-// GET /api/tesoreria/facturas-venta - Obtener facturas de venta
+// GET /api/tesoreria/facturas-venta - Obtener facturas de venta para cliente
 app.get('/api/tesoreria/facturas-venta', async (req, res) => {
-    const { empresa, estado, cliente, fecha_inicio, fecha_fin } = req.query;
+    const { empresa, estado, fecha_inicio, fecha_fin } = req.query;
 
     if (!empresa) {
         return res.status(400).json({
@@ -1339,32 +1347,30 @@ app.get('/api/tesoreria/facturas-venta', async (req, res) => {
         let query = `
             SELECT
                 codigo,
-                numero,
                 fecha,
                 cliente,
-                concepto,
-                monto,
-                impuesto,
+                orden_compra,
+                subtotal,
+                impuestos,
                 total,
                 estado,
+                observaciones,
                 fecha_vencimiento,
-                numero_comprobante
+                valor_pagado,
+                (SELECT COUNT(*) FROM soportes_pago WHERE pago = factura_venta.codigo) as soportes_count
             FROM factura_venta
-            WHERE empresa = $1
+            WHERE cliente = $1
         `;
 
         const params = [empresa];
         let paramIndex = 2;
 
-        if (estado && estado !== 'TODOS') {
+        // Por defecto mostrar PENDIENTE
+        if (!estado || estado === 'PENDIENTE') {
+            query += ` AND estado = 'PENDIENTE'`;
+        } else if (estado !== 'TODOS') {
             query += ` AND estado = $${paramIndex}`;
             params.push(estado);
-            paramIndex++;
-        }
-
-        if (cliente) {
-            query += ` AND cliente = $${paramIndex}`;
-            params.push(cliente);
             paramIndex++;
         }
 
@@ -1380,7 +1386,7 @@ app.get('/api/tesoreria/facturas-venta', async (req, res) => {
             paramIndex++;
         }
 
-        query += ` ORDER BY fecha DESC, codigo DESC`;
+        query += ` ORDER BY fecha_vencimiento ASC, codigo DESC`;
 
         const result = await pool.query(query, params);
 
@@ -1395,6 +1401,175 @@ app.get('/api/tesoreria/facturas-venta', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Error al obtener facturas de venta',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/facturas-venta/:codigo - Obtener factura específica
+app.get('/api/tesoreria/facturas-venta/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { empresa } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetro empresa requerido'
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT
+                codigo, fecha, cliente, orden_compra, subtotal, impuestos, total,
+                estado, observaciones, fecha_vencimiento, valor_pagado
+             FROM factura_venta
+             WHERE codigo = $1 AND cliente = $2`,
+            [codigo, empresa]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Factura no encontrada'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-venta/:codigo:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener factura',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/facturas-venta/:codigo/soportes - Obtener soportes de pago
+app.get('/api/tesoreria/facturas-venta/:codigo/soportes', async (req, res) => {
+    const { codigo } = req.params;
+
+    try {
+        const result = await pool.query(
+            `SELECT
+                id, pago, nombre_archivo, tipo_archivo, fecha_subida
+             FROM soportes_pago
+             WHERE pago = $1
+             ORDER BY fecha_subida DESC`,
+            [codigo]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-venta/:codigo/soportes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener soportes',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/tesoreria/facturas-venta/:codigo/soportes - Subir soporte de pago
+app.post('/api/tesoreria/facturas-venta/:codigo/soportes', async (req, res) => {
+    const { codigo } = req.params;
+
+    try {
+        // Verificar que la factura exista y esté PENDIENTE
+        const facturaRes = await pool.query(
+            'SELECT estado FROM factura_venta WHERE codigo = $1',
+            [codigo]
+        );
+
+        if (facturaRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Factura no encontrada'
+            });
+        }
+
+        if (facturaRes.rows[0].estado !== 'PENDIENTE') {
+            return res.status(400).json({
+                success: false,
+                error: 'Solo se pueden subir soportes en facturas PENDIENTE'
+            });
+        }
+
+        // Obtener archivo del request
+        if (!req.files || !req.files.archivo) {
+            return res.status(400).json({
+                success: false,
+                error: 'Archivo requerido'
+            });
+        }
+
+        const archivo = req.files.archivo;
+        const nombre_archivo = archivo.name;
+        const archivo_data = archivo.data;
+        const tipo_archivo = archivo.mimetype;
+
+        // Insertar soporte
+        const result = await pool.query(
+            `INSERT INTO soportes_pago
+                (pago, nombre_archivo, archivo_data, tipo_archivo, fecha_subida)
+             VALUES ($1, $2, $3, $4, NOW())
+             RETURNING *`,
+            [codigo, nombre_archivo, archivo_data, tipo_archivo]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Soporte de pago cargado exitosamente',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error en POST /api/tesoreria/facturas-venta/:codigo/soportes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al cargar soporte',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/soportes/:id/descargar - Descargar soporte de pago
+app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await pool.query(
+            'SELECT archivo_data, nombre_archivo, tipo_archivo FROM soportes_pago WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Soporte no encontrado'
+            });
+        }
+
+        const { archivo_data, nombre_archivo, tipo_archivo } = result.rows[0];
+
+        res.setHeader('Content-Type', tipo_archivo);
+        res.setHeader('Content-Disposition', `attachment; filename="${nombre_archivo}"`);
+        res.send(archivo_data);
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/soportes/:id/descargar:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al descargar soporte',
             details: error.message
         });
     }
