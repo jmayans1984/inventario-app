@@ -1273,7 +1273,7 @@ app.get('/api/tesoreria/facturas-compra', async (req, res) => {
                 estado,
                 fecha_vencimiento,
                 numero_comprobante
-            FROM factura_compra
+            FROM factura_venta
             WHERE empresa = $1
         `;
 
