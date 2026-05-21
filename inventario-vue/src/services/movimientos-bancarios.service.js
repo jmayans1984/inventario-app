@@ -40,9 +40,11 @@ export const movimientosBancariosService = {
   async buscarProveedores(busqueda) {
     try {
       const empresa = getEmpresaActiva()
+      console.log('[buscarProveedores] empresa:', empresa, 'busqueda:', busqueda)
       const response = await api.get('/tesoreria/proveedores/buscar', {
         params: { empresa, q: busqueda }
       })
+      console.log('[buscarProveedores] response:', response.data)
       return response.data
     } catch (error) {
       console.error('Error buscando proveedores:', error)

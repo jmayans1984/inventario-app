@@ -470,7 +470,7 @@ const form = ref({
   banco_destino: null,
 })
 
-async function abrirFormulario() {
+function abrirFormulario() {
   formErrors.value = {}
   form.value = {
     tipo:          'ING',
@@ -482,8 +482,6 @@ async function abrirFormulario() {
     banco_destino: null,
   }
   dialogOpen.value = true
-  // Cargar proveedores al abrir el form
-  await store.buscarProveedores('')  // Cargar todos
 }
 
 function cerrarFormulario() {
@@ -533,6 +531,8 @@ async function guardarMovimiento() {
 // ─── Inicialización ──────────────────────────────────────────────
 onMounted(async () => {
   await store.fetchCuentasBancarias()
+  // Cargar proveedores para el combobox
+  await store.buscarProveedores('')
   if (store.bancoSeleccionado) await store.fetchMovimientos()
 })
 </script>
