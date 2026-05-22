@@ -80,9 +80,17 @@
             :class="{ active: store.filtroEstado === tab.value }"
             @click="store.setFiltroEstado(tab.value)"
           >
-            <v-icon size="14">{{ tab.icon }}</v-icon>
-            {{ tab.label }}
-            <span v-if="tab.badge > 0" class="tab-badge">{{ tab.badge }}</span>
+            <div class="tab-content">
+              <div class="tab-header">
+                <v-icon size="14">{{ tab.icon }}</v-icon>
+                {{ tab.label }}
+                <span v-if="tab.badge > 0" class="tab-badge">{{ tab.badge }}</span>
+              </div>
+              <!-- Mostrar valor pendiente solo para PENDIENTE -->
+              <div v-if="tab.value === 'PENDIENTE' && store.totalPendiente > 0" class="tab-subtext">
+                {{ formatMoneda(store.totalPendiente) }}
+              </div>
+            </div>
           </button>
         </div>
       </div>
@@ -755,7 +763,7 @@ onMounted(async () => {
 .filtros-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .tipo-tabs { display: flex; gap: 4px; }
 .tipo-tab {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   font-size: 12px; font-weight: 600; cursor: pointer;
   background: transparent; color: rgba(var(--v-theme-on-surface), 0.6);
@@ -763,6 +771,12 @@ onMounted(async () => {
 }
 .tipo-tab:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
 .tipo-tab.active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+.tab-content { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tab-header { display: flex; align-items: center; gap: 6px; }
+.tab-subtext {
+  font-size: 10px; font-weight: 700; opacity: 0.8;
+  color: inherit;
+}
 .tab-badge {
   background: #ef4444; color: #fff; border-radius: 10px;
   padding: 1px 6px; font-size: 10px; font-weight: 700; min-width: 18px; text-align: center;
