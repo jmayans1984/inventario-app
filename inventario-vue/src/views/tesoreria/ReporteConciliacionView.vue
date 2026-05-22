@@ -38,7 +38,7 @@
         <div class="rc-filtro-inner">
           <v-icon size="18" color="#94a3b8" class="mr-2">mdi-bank-outline</v-icon>
           <span class="rc-filtro-label">Cuenta bancaria:</span>
-          <select v-model="bancoSeleccionado" @change="cargarDatos" class="rc-select">
+          <select v-model="bancoSeleccionado" class="rc-select">
             <option value="">— Selecciona una cuenta —</option>
             <option
               v-for="c in cuentas"
@@ -188,7 +188,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
@@ -307,6 +307,11 @@ function exportarPDF() {
   doc.save(`conciliacion-${nombreCuenta}.pdf`)
   generandoPDF.value = false
 }
+
+watch(bancoSeleccionado, (val) => {
+  if (val) cargarDatos()
+  else datos.value = null
+})
 
 onMounted(cargarCuentas)
 </script>
