@@ -1812,7 +1812,7 @@ app.get('/api/tesoreria/saldo-favor-cliente/:cliente', async (req, res) => {
 // POST /api/tesoreria/facturas-proveedor/:codigo/aprobar-pago - Aprobar pago de factura
 app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, res) => {
     const { codigo } = req.params;
-    const { fecha, banco, valor_pagado, empresa } = req.body;
+    const { fecha, banco, valor_pagado, empresa, usar_saldo_favor } = req.body;
 
     if (!fecha || !banco || valor_pagado === undefined || !empresa) {
         return res.status(400).json({
@@ -1840,24 +1840,40 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
         const valorFactura = parseFloat(factura.total);
         const valorPago = parseFloat(valor_pagado);
 
-        // 2. Determinar caso de pago y nuevo estado
+        // 1b. Obtener saldo a favor del cliente (si aplica)
+        let saldoFavorDisponible = 0;
+        let saldoFavorUsado = 0;
+        if (usar_saldo_favor) {
+            const saldoRes = await client.query(
+                `SELECT saldo FROM saldo_favor_cliente WHERE CAST(cliente AS TEXT) = $1`,
+                [factura.cliente]
+            );
+            saldoFavorDisponible = saldoRes.rows.length > 0 ? parseFloat(saldoRes.rows[0].saldo) : 0;
+        }
+
+        const valorPagoEfectivo = valorPago + saldoFavorDisponible;
+
+        // 2. Determinar caso de pago y nuevo estado (basado en pago EFECTIVO)
         let nuevoEstado, valorPagadoFinal, conceptoMoviban, excedente = 0;
 
-        if (Math.abs(valorPago - valorFactura) < 0.01) {
+        if (Math.abs(valorPagoEfectivo - valorFactura) < 0.01) {
             // CASO 1: Pago completo (tolerancia de 1 centavo)
             nuevoEstado = 'PAGADA';
             valorPagadoFinal = valorFactura;
+            saldoFavorUsado = saldoFavorDisponible;
             conceptoMoviban = `PAGO FACTURA DE VENTA ${codigo}`;
-        } else if (valorPago < valorFactura) {
+        } else if (valorPagoEfectivo < valorFactura) {
             // CASO 2: Pago parcial
             nuevoEstado = 'PENDIENTE';
-            valorPagadoFinal = valorPago;
+            valorPagadoFinal = valorPagoEfectivo;
+            saldoFavorUsado = saldoFavorDisponible;
             conceptoMoviban = `PAGO PARCIAL FACTURA DE VENTA ${codigo}`;
         } else {
             // CASO 3: Sobrepago
             nuevoEstado = 'PAGADA';
             valorPagadoFinal = valorFactura;
-            excedente = parseFloat((valorPago - valorFactura).toFixed(2));
+            saldoFavorUsado = saldoFavorDisponible;
+            excedente = parseFloat((valorPagoEfectivo - valorFactura).toFixed(2));
             conceptoMoviban = `PAGO FACTURA DE VENTA ${codigo}`;
         }
 
@@ -1886,7 +1902,26 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
             [numeroMoviban, fecha, conceptoMoviban.substring(0, 60), valorPago, banco, empresa]
         );
 
-        // 6. Manejar saldo a favor del cliente (solo en caso de sobrepago)
+        // 6. Manejar saldo a favor del cliente
+        if (usar_saldo_favor && saldoFavorUsado > 0) {
+            // Si se usó saldo a favor, reducirlo
+            const nuevoSaldo = parseFloat((saldoFavorDisponible - saldoFavorUsado).toFixed(2));
+            if (nuevoSaldo > 0.01) {
+                // Actualizar saldo existente
+                await client.query(
+                    `UPDATE saldo_favor_cliente SET saldo = $1 WHERE CAST(cliente AS TEXT) = $2`,
+                    [nuevoSaldo, factura.cliente]
+                );
+            } else {
+                // Si saldo quedó en 0 o negativo, borrar el registro
+                await client.query(
+                    `DELETE FROM saldo_favor_cliente WHERE CAST(cliente AS TEXT) = $1`,
+                    [factura.cliente]
+                );
+            }
+        }
+
+        // Manejar nuevo saldo a favor (en caso de sobrepago)
         if (excedente > 0) {
             const saldoRes = await client.query(
                 `SELECT saldo FROM saldo_favor_cliente WHERE CAST(cliente AS TEXT) = $1`,

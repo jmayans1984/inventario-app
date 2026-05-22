@@ -365,12 +365,21 @@
         </div>
 
         <div class="form-body">
-          <!-- Saldo a favor del cliente -->
-          <div v-if="store.saldoFavorActual > 0" class="saldo-favor-alert">
-            <v-icon size="18" color="info">mdi-information-outline</v-icon>
-            <span>
-              Este cliente tiene un <strong>saldo a favor de {{ formatMoneda(store.saldoFavorActual) }}</strong>
-            </span>
+          <!-- Saldo a favor del cliente - SIEMPRE VISIBLE -->
+          <div class="saldo-favor-box">
+            <div class="saldo-favor-row">
+              <span class="saldo-favor-label">
+                <v-icon size="16">mdi-wallet-outline</v-icon>
+                Saldo a favor del cliente:
+              </span>
+              <span class="saldo-favor-valor" :class="store.saldoFavorActual > 0 ? 'has-saldo' : 'no-saldo'">
+                {{ formatMoneda(store.saldoFavorActual) }}
+              </span>
+            </div>
+            <div v-if="store.saldoFavorActual > 0" class="saldo-favor-check">
+              <input type="checkbox" id="usar-saldo" v-model="formPago.usar_saldo_favor" />
+              <label for="usar-saldo">Aplicar saldo a favor a este pago</label>
+            </div>
           </div>
 
           <!-- Resumen factura -->
@@ -413,7 +422,7 @@
                   :key="cuenta.codigo"
                   :value="cuenta.codigo"
                 >
-                  {{ cuenta.nombre_cta }} ({{ cuenta.codigo }})
+                  {{ cuenta.nombre_cta }}
                 </option>
               </select>
             </div>
@@ -432,27 +441,47 @@
           </div>
 
           <!-- Preview resultado -->
-          <div v-if="formPago.valor_pagado > 0" class="preview-resultado">
+          <div v-if="formPago.valor_pagado > 0 || (formPago.usar_saldo_favor && store.saldoFavorActual > 0)" class="preview-resultado">
             <div class="preview-title">💡 Resultado del pago</div>
+
+            <!-- Si usa saldo a favor -->
+            <div v-if="formPago.usar_saldo_favor && store.saldoFavorActual > 0" class="preview-desglose">
+              <div class="desglose-row">
+                <span>Pago por banco:</span>
+                <span class="monto">{{ formatMoneda(formPago.valor_pagado || 0) }}</span>
+              </div>
+              <div class="desglose-row">
+                <span>+ Saldo a favor:</span>
+                <span class="monto">{{ formatMoneda(store.saldoFavorActual) }}</span>
+              </div>
+              <div class="desglose-row desglose-total">
+                <span>= Total pago:</span>
+                <span class="monto">{{ formatMoneda((formPago.valor_pagado || 0) + store.saldoFavorActual) }}</span>
+              </div>
+            </div>
+
+            <!-- Casos de pago -->
             <div
-              v-if="Math.abs(formPago.valor_pagado - parseFloat(facturaActual?.total || 0)) < 0.01"
+              v-if="Math.abs(((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? store.saldoFavorActual : 0)) - parseFloat(facturaActual?.total || 0)) < 0.01"
               class="preview-caso pagada"
             >
               <v-icon size="16" color="success">mdi-check-circle</v-icon>
               Pago completo → Factura marcada como <strong>PAGADA</strong>
+              <span v-if="formPago.usar_saldo_favor && store.saldoFavorActual > 0" class="caso-sub">(saldo a favor: se anula)</span>
             </div>
             <div
-              v-else-if="formPago.valor_pagado < parseFloat(facturaActual?.total || 0)"
+              v-else-if="((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? store.saldoFavorActual : 0)) < parseFloat(facturaActual?.total || 0)"
               class="preview-caso parcial"
             >
               <v-icon size="16" color="warning">mdi-alert-circle</v-icon>
               Pago parcial → Factura queda en <strong>PENDIENTE</strong>
-              (abono de {{ formatMoneda(formPago.valor_pagado) }})
+              <span v-if="formPago.usar_saldo_favor && store.saldoFavorActual > 0" class="caso-sub">(saldo a favor se consume completamente)</span>
+              <span v-else class="caso-sub">(abono de {{ formatMoneda(formPago.valor_pagado) }})</span>
             </div>
             <div v-else class="preview-caso sobrepago">
               <v-icon size="16" color="info">mdi-information</v-icon>
               Sobrepago → Factura <strong>PAGADA</strong> +
-              saldo a favor de <strong>{{ formatMoneda(formPago.valor_pagado - parseFloat(facturaActual?.total || 0)) }}</strong>
+              nuevo saldo a favor de <strong>{{ formatMoneda(((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? store.saldoFavorActual : 0)) - parseFloat(facturaActual?.total || 0)) }}</strong>
             </div>
           </div>
         </div>
@@ -510,7 +539,7 @@ const previewFileSize  = ref(0)
 const previewSoporteId = ref(null)
 
 // ── Formulario pago ───────────────────────────────────────────────────────
-const formPago = ref({ fecha: '', banco: '', valor_pagado: null })
+const formPago = ref({ fecha: '', banco: '', valor_pagado: null, usar_saldo_favor: false })
 const hoy = new Date().toISOString().split('T')[0]
 
 // ── Tabs de estado ────────────────────────────────────────────────────────
@@ -594,7 +623,7 @@ function cerrarDetalle() {
 // ── Modal Aprobación ──────────────────────────────────────────────────────
 async function abrirAprobacion(factura) {
   facturaActual.value = factura
-  formPago.value = { fecha: hoy, banco: '', valor_pagado: null }
+  formPago.value = { fecha: hoy, banco: '', valor_pagado: null, usar_saldo_favor: false }
   await store.fetchSaldoFavor(factura.cliente)
   aprobacionOpen.value = true
 }
@@ -602,7 +631,7 @@ async function abrirAprobacion(factura) {
 function pasarAAprobacion() {
   // Desde el modal detalle al modal de aprobación
   dialogOpen.value = false
-  formPago.value = { fecha: hoy, banco: '', valor_pagado: null }
+  formPago.value = { fecha: hoy, banco: '', valor_pagado: null, usar_saldo_favor: false }
   store.fetchSaldoFavor(facturaActual.value.cliente)
   aprobacionOpen.value = true
 }
@@ -831,6 +860,16 @@ onMounted(async () => {
 .no-soportes p { margin: 8px 0 0; font-size: 13px; }
 
 /* Modal Aprobación */
+.saldo-favor-box { padding: 14px 16px; background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(139,92,246,0.04)); border: 1px solid rgba(139,92,246,0.2); border-radius: 10px; }
+.saldo-favor-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.saldo-favor-label { font-size: 13px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.8); display: flex; align-items: center; gap: 6px; }
+.saldo-favor-valor { font-size: 16px; font-weight: 700; }
+.saldo-favor-valor.has-saldo { color: #8b5cf6; }
+.saldo-favor-valor.no-saldo { color: rgba(var(--v-theme-on-surface), 0.4); }
+.saldo-favor-check { margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.saldo-favor-check input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; accent-color: #8b5cf6; }
+.saldo-favor-check label { cursor: pointer; color: rgba(var(--v-theme-on-surface), 0.7); }
+
 .saldo-favor-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 10px; font-size: 13px; }
 
 .resumen-factura { background: rgba(var(--v-theme-on-surface), 0.03); border-radius: 10px; padding: 14px 16px; }
@@ -858,10 +897,16 @@ onMounted(async () => {
 
 .preview-resultado { background: rgba(var(--v-theme-on-surface), 0.03); border-radius: 10px; padding: 14px 16px; }
 .preview-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); letter-spacing: 0.5px; margin-bottom: 8px; }
-.preview-caso { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; }
+.preview-caso { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; flex-wrap: wrap; }
 .preview-caso.pagada   { color: #10b981; }
 .preview-caso.parcial  { color: #f59e0b; }
 .preview-caso.sobrepago { color: #06b6d4; }
+.caso-sub { display: block; width: 100%; font-size: 11px; margin-top: 4px; opacity: 0.9; }
+
+.preview-desglose { padding: 10px; background: rgba(139,92,246,0.06); border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #8b5cf6; }
+.desglose-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; }
+.desglose-row .monto { font-weight: 600; font-family: 'Courier New', monospace; color: #8b5cf6; }
+.desglose-total { padding: 8px 0; margin-top: 5px; border-top: 1px solid rgba(139,92,246,0.2); font-weight: 600; }
 
 .form-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
 
