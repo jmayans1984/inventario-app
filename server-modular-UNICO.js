@@ -1749,7 +1749,7 @@ app.get('/api/tesoreria/facturas-proveedor', async (req, res) => {
                 fv.valor_pagado,
                 COALESCE((SELECT COUNT(*) FROM soportes_pago WHERE pago = fv.codigo), 0) AS soportes_count
             FROM factura_venta fv
-            LEFT JOIN empresa e ON CAST(e.codigo AS TEXT) = CAST(fv.cliente AS TEXT)
+            LEFT JOIN empresas e ON CAST(e.codigo AS TEXT) = CAST(fv.cliente AS TEXT)
             WHERE 1=1
         `;
 
