@@ -1230,12 +1230,14 @@ app.get('/api/tesoreria/conciliacion', async (req, res) => {
         // Movimientos pendientes (conciliado = 'NO')
         const pendRes = await pool.query(
             `SELECT
-                numero, fecha, tipo, concepto,
-                COALESCE(ingreso,0) AS ingreso,
-                COALESCE(egreso,0)  AS egreso
-             FROM moviban
-             WHERE banco = $1 AND empresa = $2 AND conciliado = 'NO'
-             ORDER BY fecha ASC, numero ASC`,
+                m.numero, m.fecha, m.tipo, m.concepto, m.beneficia,
+                COALESCE(p.nombre, '') AS beneficiario_nombre,
+                COALESCE(m.ingreso,0) AS ingreso,
+                COALESCE(m.egreso,0)  AS egreso
+             FROM moviban m
+             LEFT JOIN proveedores p ON TRIM(p.codigo) = TRIM(m.beneficia)
+             WHERE m.banco = $1 AND m.empresa = $2 AND m.conciliado = 'NO'
+             ORDER BY m.fecha ASC, m.numero ASC`,
             [banco, empresa]
         );
 
@@ -1257,12 +1259,13 @@ app.get('/api/tesoreria/conciliacion', async (req, res) => {
                 totalEgresosPend,
                 saldoProyectado,
                 movimientos: movimientos.map(m => ({
-                    numero:   m.numero,
-                    fecha:    m.fecha,
-                    tipo:     m.tipo,
-                    concepto: m.concepto,
-                    ingreso:  parseFloat(m.ingreso || 0),
-                    egreso:   parseFloat(m.egreso  || 0),
+                    numero:              m.numero,
+                    fecha:               m.fecha,
+                    tipo:                m.tipo,
+                    concepto:            m.concepto,
+                    beneficiario:        m.beneficiario_nombre || '',
+                    ingreso:             parseFloat(m.ingreso || 0),
+                    egreso:              parseFloat(m.egreso  || 0),
                 }))
             }
         });

@@ -254,21 +254,17 @@
               <thead>
                 <tr>
                   <th style="width:100px">FECHA</th>
-                  <th style="width:120px">NÚMERO</th>
-                  <th style="width:70px">TIPO</th>
                   <th>CONCEPTO</th>
-                  <th class="col-right" style="width:140px">INGRESO</th>
-                  <th class="col-right" style="width:140px">EGRESO</th>
+                  <th>BENEFICIARIO</th>
+                  <th class="col-right" style="width:150px">INGRESO</th>
+                  <th class="col-right" style="width:150px">EGRESO</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(mov, idx) in datos.movimientos" :key="mov.id || idx" :class="idx % 2 === 0 ? 'tr-even' : 'tr-odd'">
+                <tr v-for="(mov, idx) in datos.movimientos" :key="mov.numero || idx" :class="idx % 2 === 0 ? 'tr-even' : 'tr-odd'">
                   <td class="td-fecha">{{ fmtFecha(mov.fecha) }}</td>
-                  <td class="td-numero">{{ mov.numero }}</td>
-                  <td class="td-tipo">
-                    <span :class="mov.tipo === 'ING' ? 'tipo-ing' : 'tipo-egr'">{{ mov.tipo }}</span>
-                  </td>
                   <td class="td-concepto">{{ mov.concepto || '—' }}</td>
+                  <td class="td-beneficiario">{{ mov.beneficiario || '—' }}</td>
                   <td class="td-monto col-right">
                     <span v-if="Number(mov.ingreso) > 0" class="monto-ing">{{ fmt(mov.ingreso) }}</span>
                     <span v-else class="monto-dash">—</span>
@@ -281,7 +277,7 @@
               </tbody>
               <tfoot>
                 <tr class="tr-foot">
-                  <td colspan="4" class="foot-label">TOTALES PENDIENTES</td>
+                  <td colspan="3" class="foot-label">TOTALES PENDIENTES</td>
                   <td class="col-right foot-monto monto-ing">{{ fmt(datos.totalIngresosPend) }}</td>
                   <td class="col-right foot-monto monto-egr">{{ fmt(datos.totalEgresosPend) }}</td>
                 </tr>
@@ -348,7 +344,7 @@ const porcentajeConciliado = computed(() => {
 function fmt(val) {
   const n = parseFloat(val || 0)
   return new Intl.NumberFormat('es-CO', {
-    style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0
+    style: 'currency', currency: 'COP', minimumFractionDigits: 2, maximumFractionDigits: 2
   }).format(n)
 }
 
@@ -459,25 +455,22 @@ function exportarPDF() {
   // Tabla movimientos
   autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 8,
-    head: [['Fecha', 'Número', 'Tipo', 'Concepto', 'Ingreso', 'Egreso']],
+    head: [['Fecha', 'Concepto', 'Beneficiario', 'Ingreso', 'Egreso']],
     body: datos.value.movimientos.map(m => [
       fmtFecha(m.fecha),
-      m.numero || '',
-      m.tipo || '',
       m.concepto || '',
+      m.beneficiario || '—',
       Number(m.ingreso) > 0 ? fmt(m.ingreso) : '—',
       Number(m.egreso)  > 0 ? fmt(m.egreso)  : '—'
     ]),
-    foot: [['', '', '', 'TOTALES', fmt(datos.value.totalIngresosPend), fmt(datos.value.totalEgresosPend)]],
+    foot: [['', '', 'TOTALES', fmt(datos.value.totalIngresosPend), fmt(datos.value.totalEgresosPend)]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold' },
     footStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: 'bold' },
     columnStyles: {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 12, halign: 'center' },
-      4: { halign: 'right', cellWidth: 32 },
-      5: { halign: 'right', cellWidth: 32 }
+      0: { cellWidth: 24 },
+      3: { halign: 'right', cellWidth: 34 },
+      4: { halign: 'right', cellWidth: 34 }
     },
     theme: 'striped',
     alternateRowStyles: { fillColor: [248, 250, 252] }
@@ -816,11 +809,10 @@ function exportarPDF() {
 
 .col-right { text-align: right !important; }
 
-.td-fecha   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); white-space: nowrap; }
-.td-numero  { font-family: 'Courier New', monospace; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.75); }
-.td-tipo    { }
-.td-concepto { color: rgb(var(--v-theme-on-surface)); }
-.td-monto   { font-family: 'Courier New', monospace; font-weight: 600; font-size: 12px; }
+.td-fecha        { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); white-space: nowrap; }
+.td-concepto     { color: rgb(var(--v-theme-on-surface)); }
+.td-beneficiario { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.65); }
+.td-monto        { font-family: 'Courier New', monospace; font-weight: 600; font-size: 12px; }
 
 .tipo-ing {
   background: rgba(16,185,129,0.12); color: #10b981;
