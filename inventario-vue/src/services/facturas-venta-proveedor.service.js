@@ -64,13 +64,14 @@ export const facturasVentaProveedorService = {
   },
 
   // Aprobar pago de una factura (crea movimiento en MOVIBAN)
-  async aprobarPago(codigo, { fecha, banco, valor_pagado }) {
+  async aprobarPago(codigo, { fecha, banco, valor_pagado, usar_saldo_favor }) {
     try {
       const empresa = getEmpresaActiva()
       const response = await api.post(`${ENDPOINT}/${codigo}/aprobar-pago`, {
         fecha,
         banco,
         valor_pagado: parseFloat(valor_pagado),
+        usar_saldo_favor: usar_saldo_favor || false,
         empresa
       })
       return response.data
