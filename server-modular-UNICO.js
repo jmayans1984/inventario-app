@@ -1204,75 +1204,72 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
     }
 });
 
-// GET /api/tesoreria/cuentas-bancarias/:codigo/reporte-conciliacion - Reporte de conciliación por cuenta
-app.get('/api/tesoreria/cuentas-bancarias/:codigo/reporte-conciliacion', async (req, res) => {
-    const { codigo } = req.params;
-    const { empresa } = req.query;
+// GET /api/tesoreria/conciliacion - Reporte de conciliación bancaria por cuenta
+app.get('/api/tesoreria/conciliacion', async (req, res) => {
+    const { banco, empresa } = req.query;
 
-    if (!codigo || !empresa) {
-        return res.status(400).json({
-            success: false,
-            error: 'Parámetros codigo y empresa requeridos'
-        });
+    if (!banco || !empresa) {
+        return res.status(400).json({ success: false, error: 'Parámetros banco y empresa requeridos' });
     }
 
     try {
-        // Obtener saldo anterior conciliado (suma de ingresos menos egresos de movimientos conciliados)
-        const saldoRes = await pool.query(
+        // Saldo conciliado (movimientos con conciliado = 'SI')
+        const saldoConciliadoRes = await pool.query(
             `SELECT
-                COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo_anterior
+                COALESCE(SUM(ingreso), 0) AS total_ingresos_conc,
+                COALESCE(SUM(egreso), 0)  AS total_egresos_conc
              FROM moviban
              WHERE banco = $1 AND empresa = $2 AND conciliado = 'SI'`,
-            [codigo, empresa]
+            [banco, empresa]
         );
 
-        const saldoAnterior = parseFloat(saldoRes.rows[0]?.saldo_anterior || 0);
+        const ingConc  = parseFloat(saldoConciliadoRes.rows[0]?.total_ingresos_conc || 0);
+        const egrConc  = parseFloat(saldoConciliadoRes.rows[0]?.total_egresos_conc  || 0);
+        const saldoConciliado = ingConc - egrConc;
 
-        // Obtener movimientos pendientes (conciliado = 'NO')
-        const movRes = await pool.query(
+        // Movimientos pendientes (conciliado = 'NO')
+        const pendRes = await pool.query(
             `SELECT
-                id,
-                numero,
-                fecha,
-                tipo,
-                concepto,
-                ingreso,
-                egreso,
-                CASE
-                    WHEN tipo = 'ING' THEN ingreso
-                    ELSE -egreso
-                END AS monto
+                id, numero, fecha, tipo, concepto,
+                COALESCE(ingreso,0) AS ingreso,
+                COALESCE(egreso,0)  AS egreso
              FROM moviban
              WHERE banco = $1 AND empresa = $2 AND conciliado = 'NO'
-             ORDER BY fecha DESC, numero DESC`,
-            [codigo, empresa]
+             ORDER BY fecha ASC, numero ASC`,
+            [banco, empresa]
         );
 
-        const movimientosPendientes = movRes.rows;
-        const totalMovimientos = movimientosPendientes.reduce((sum, mov) => sum + (parseFloat(mov.monto) || 0), 0);
+        const movimientos = pendRes.rows;
+        let totalIngresosPend = 0;
+        let totalEgresosPend  = 0;
+        movimientos.forEach(m => {
+            totalIngresosPend += parseFloat(m.ingreso || 0);
+            totalEgresosPend  += parseFloat(m.egreso  || 0);
+        });
+
+        const saldoProyectado = saldoConciliado + totalIngresosPend - totalEgresosPend;
 
         res.json({
             success: true,
             data: {
-                saldoAnterior,
-                totalMovimientos,
-                movimientosPendientes: movimientosPendientes.map(m => ({
-                    id: m.id,
-                    numero: m.numero,
-                    fecha: m.fecha,
-                    tipo: m.tipo,
+                saldoConciliado,
+                totalIngresosPend,
+                totalEgresosPend,
+                saldoProyectado,
+                movimientos: movimientos.map(m => ({
+                    id:       m.id,
+                    numero:   m.numero,
+                    fecha:    m.fecha,
+                    tipo:     m.tipo,
                     concepto: m.concepto,
-                    monto: parseFloat(m.monto) || 0
+                    ingreso:  parseFloat(m.ingreso || 0),
+                    egreso:   parseFloat(m.egreso  || 0),
                 }))
             }
         });
     } catch (error) {
-        console.error('Error en GET /api/tesoreria/cuentas-bancarias/:codigo/reporte-conciliacion:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Error al obtener reporte de conciliación',
-            details: error.message
-        });
+        console.error('Error GET /api/tesoreria/conciliacion:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
