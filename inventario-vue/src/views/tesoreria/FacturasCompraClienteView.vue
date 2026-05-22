@@ -80,8 +80,20 @@
             :class="{ active: store.filtroEstado === tab.value }"
             @click="store.setFiltroEstado(tab.value)"
           >
-            <v-icon size="14">{{ tab.icon }}</v-icon>
-            {{ tab.label }}
+            <div class="tab-content">
+              <div class="tab-header">
+                <v-icon size="14">{{ tab.icon }}</v-icon>
+                {{ tab.label }}
+                <span v-if="tab.badge > 0" class="tab-badge">{{ tab.badge }}</span>
+              </div>
+              <!-- Mostrar total pendiente para PENDIENTE, total para POR VERIFICAR -->
+              <div v-if="tab.value === 'PENDIENTE' && store.totalPendiente > 0" class="tab-subtext">
+                {{ formatMoneda(store.totalPendiente) }}
+              </div>
+              <div v-if="tab.value === 'POR VERIFICAR' && totalPorVerificar > 0" class="tab-subtext">
+                {{ formatMoneda(totalPorVerificar) }}
+              </div>
+            </div>
           </button>
         </div>
       </div>
@@ -398,7 +410,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import FilePreviewModal from '../../components/modules/tesoreria/FilePreviewModal.vue'
 import { useFacturasCompraClienteStore } from '../../stores/facturas-compra-cliente'
@@ -421,13 +433,20 @@ const previewFileData = ref('')
 const previewFileSize = ref(0)
 const previewSoporteId = ref(null)
 
-// Tabs de estado
-const estadoTabs = [
-  { value: 'TODOS', label: 'Todos', icon: 'mdi-view-list' },
-  { value: 'PENDIENTE', label: 'Pendientes', icon: 'mdi-alert-circle-outline' },
-  { value: 'PAGADA', label: 'Pagadas', icon: 'mdi-check-circle-outline' },
-  { value: 'POR VERIFICAR', label: 'Por Verificar', icon: 'mdi-clock-outline' },
-]
+// Total pendiente en facturas POR VERIFICAR
+const totalPorVerificar = computed(() =>
+  store.facturasPorVerificar.reduce(
+    (sum, f) => sum + (parseFloat(f.total || 0) - parseFloat(f.valor_pagado || 0)), 0
+  )
+)
+
+// Tabs de estado con badges
+const estadoTabs = computed(() => [
+  { value: 'TODOS', label: 'Todos', icon: 'mdi-view-list', badge: 0 },
+  { value: 'PENDIENTE', label: 'Pendientes', icon: 'mdi-alert-circle-outline', badge: store.facturasPendientes.length },
+  { value: 'PAGADA', label: 'Pagadas', icon: 'mdi-check-circle-outline', badge: 0 },
+  { value: 'POR VERIFICAR', label: 'Por Verificar', icon: 'mdi-clock-outline', badge: store.facturasPorVerificar.length },
+])
 
 // Estado del ordenamiento - por defecto CODIGO descendente
 const ordenActual = ref({
@@ -713,7 +732,7 @@ onMounted(async () => {
 }
 .tipo-tabs { display: flex; gap: 4px; }
 .tipo-tab {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   font-size: 12px; font-weight: 600; cursor: pointer;
   background: transparent; color: rgba(var(--v-theme-on-surface), 0.6);
@@ -721,6 +740,11 @@ onMounted(async () => {
 }
 .tipo-tab:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
 .tipo-tab.active { background: #06b6d4; border-color: #06b6d4; color: #fff; }
+
+.tab-content { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tab-header { display: flex; align-items: center; gap: 6px; }
+.tab-subtext { font-size: 10px; font-weight: 700; opacity: 0.8; color: inherit; }
+.tab-badge { background: #ef4444; color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 10px; font-weight: 700; min-width: 18px; text-align: center; }
 
 /* ── Loading / Empty ── */
 .loading-wrap { text-align: center; padding: 60px; }
