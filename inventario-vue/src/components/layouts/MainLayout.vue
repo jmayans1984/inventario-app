@@ -194,13 +194,8 @@ const appStore = useAppStore()
 
 const currentDate = ref('')
 // Filtra items con requiredTipo según el tipo de empresa activa.
-// Si el tipo no está disponible aún se muestran todos los items.
 const modules = computed(() => {
-  // authStore.empresa es el código (string); empresaTipo se puede
-  // extender en el futuro. Por ahora usamos appStore o localStorage.
-  const tipo = (typeof authStore.empresa === 'object' ? authStore.empresa?.tipo : null)
-              || localStorage.getItem('empresaTipo')
-              || null
+  const tipo = authStore.empresaTipo
   return MODULES.map(mod => ({
     ...mod,
     children: (mod.children || []).map(cat => ({
@@ -208,8 +203,6 @@ const modules = computed(() => {
       items: (cat.items || []).filter(item =>
         // Sin requiredTipo → siempre visible
         !item.requiredTipo ||
-        // Tipo desconocido → mostrar todos
-        !tipo ||
         // Tipo coincide → visible
         item.requiredTipo === tipo
       ),

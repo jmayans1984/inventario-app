@@ -6,6 +6,7 @@ export const useAuthStore = defineStore('auth', () => {
   const usuario = ref(null)
   const empresa = ref(null)
   const empresaNombre = ref(null)
+  const empresaTipo = ref(null)
   const isAuthenticated = ref(false)
   const modoApp = ref('light')
 
@@ -28,13 +29,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function setEmpresa(empresaCod, nombre = null) {
+  function setEmpresa(empresaCod, nombre = null, tipo = null) {
     empresa.value = empresaCod
     empresaNombre.value = nombre
+    empresaTipo.value = tipo
 
     // Persist to localStorage
     localStorage.setItem('empresaActual', empresaCod)
     if (nombre) localStorage.setItem('empresaNombre', nombre)
+    if (tipo) localStorage.setItem('empresaTipo', tipo)
   }
 
   function setModoApp(modo) {
@@ -46,11 +49,13 @@ export const useAuthStore = defineStore('auth', () => {
     usuario.value = null
     empresa.value = null
     empresaNombre.value = null
+    empresaTipo.value = null
     isAuthenticated.value = false
 
     localStorage.removeItem('usuario')
     localStorage.removeItem('empresaActual')
     localStorage.removeItem('empresaNombre')
+    localStorage.removeItem('empresaTipo')
   }
 
   function loadFromLocalStorage() {
@@ -71,6 +76,8 @@ export const useAuthStore = defineStore('auth', () => {
       empresa.value = savedEmpresa
       const savedNombre = localStorage.getItem('empresaNombre')
       if (savedNombre) empresaNombre.value = savedNombre
+      const savedTipo = localStorage.getItem('empresaTipo')
+      if (savedTipo) empresaTipo.value = savedTipo
     }
 
     if (savedModo) {
@@ -83,6 +90,7 @@ export const useAuthStore = defineStore('auth', () => {
     usuario,
     empresa,
     empresaNombre,
+    empresaTipo,
     isAuthenticated,
     modoApp,
 

@@ -106,7 +106,7 @@
             v-for="emp in empresas"
             :key="emp.empresa"
             class="empresa-option"
-            @click="selectEmpresa(emp.empresa, emp.empresa_nombre)"
+            @click="selectEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)"
           >
             <div class="empresa-icon">
               <v-icon size="20" color="#667eea">mdi-building</v-icon>
@@ -198,7 +198,7 @@ const handleLogin = async () => {
       } else {
         const emp = result.data.empresas[0]
         if (emp) {
-          authStore.setEmpresa(emp.empresa, emp.empresa_nombre)
+          authStore.setEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)
           redirectToMain()
         }
       }
@@ -212,8 +212,8 @@ const handleLogin = async () => {
   }
 }
 
-const selectEmpresa = (cod, nombre) => {
-  authStore.setEmpresa(cod, nombre)
+const selectEmpresa = (cod, nombre, tipo = null) => {
+  authStore.setEmpresa(cod, nombre, tipo)
   redirectToMain()
 }
 
