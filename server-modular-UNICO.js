@@ -1849,7 +1849,8 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
         const valorFactura = parseFloat(factura.total);
         const valorPagadoPrevio = parseFloat(factura.valor_pagado || 0);
         const saldoPendiente = valorFactura - valorPagadoPrevio;
-        const valorPago = parseFloat(valor_pagado);
+        // Convertir valor_pagado a número, defecto a 0 si está vacío o inválido
+        const valorPago = parseFloat(valor_pagado) || 0;
 
         // 1b. Obtener saldo a favor del cliente (si aplica)
         let saldoFavorDisponible = 0;
