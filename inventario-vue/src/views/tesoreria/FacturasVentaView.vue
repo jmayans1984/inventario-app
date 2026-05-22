@@ -568,10 +568,14 @@ const formPagoValido = computed(() => {
 
   if (usarSaldo) {
     // Si usa saldo a favor: solo necesita fecha (no necesita banco ni valor)
-    return tieneFecha
+    const valido = !!tieneFecha
+    console.log('✓ Validación SALDO:', { tieneFecha, saldoFavorActual: store.saldoFavorActual, valido })
+    return valido
   } else {
     // Si no usa saldo: necesita fecha, banco y valor
-    return tieneFecha && formPago.value.banco && (formPago.value.valor_pagado > 0)
+    const valido = tieneFecha && formPago.value.banco && (formPago.value.valor_pagado > 0)
+    console.log('✓ Validación BANCO:', { tieneFecha, banco: formPago.value.banco, valor_pagado: formPago.value.valor_pagado, valido })
+    return valido
   }
 })
 
