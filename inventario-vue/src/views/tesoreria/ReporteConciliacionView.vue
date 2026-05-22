@@ -254,8 +254,8 @@
               <thead>
                 <tr>
                   <th style="width:100px">FECHA</th>
-                  <th>CONCEPTO</th>
                   <th>BENEFICIARIO</th>
+                  <th>CONCEPTO</th>
                   <th class="col-right" style="width:150px">INGRESO</th>
                   <th class="col-right" style="width:150px">EGRESO</th>
                 </tr>
@@ -263,8 +263,8 @@
               <tbody>
                 <tr v-for="(mov, idx) in datos.movimientos" :key="mov.numero || idx" :class="idx % 2 === 0 ? 'tr-even' : 'tr-odd'">
                   <td class="td-fecha">{{ fmtFecha(mov.fecha) }}</td>
-                  <td class="td-concepto">{{ mov.concepto || '—' }}</td>
                   <td class="td-beneficiario">{{ mov.beneficiario || '—' }}</td>
+                  <td class="td-concepto">{{ mov.concepto || '—' }}</td>
                   <td class="td-monto col-right">
                     <span v-if="Number(mov.ingreso) > 0" class="monto-ing">{{ fmt(mov.ingreso) }}</span>
                     <span v-else class="monto-dash">—</span>
