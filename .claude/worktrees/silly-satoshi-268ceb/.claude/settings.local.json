@@ -49,7 +49,9 @@
       "Bash(node test-kalshi.js)",
       "Bash(curl -s http://localhost:3000/api/mercados-btc15m)",
       "Bash(taskkill /F /PID 383052)",
-      "Bash(node test-historico.js)"
+      "Bash(node test-historico.js)",
+      "Bash(npm install *)",
+      "PowerShell(cd \"C:\\\\Users\\\\JUAN\\\\Documents\\\\GitHub\\\\kalshi-trader\"; $env:KALSHI_API_KEY=\"test\"; $env:KALSHI_API_URL=\"https://trading-api.kalshi.com\"; $env:KALSHI_API_SECRET=\"test\"; node -e \"require\\('./server.js'\\)\" 2>&1 | Select-Object -First 10)"
     ]
   }
 }
