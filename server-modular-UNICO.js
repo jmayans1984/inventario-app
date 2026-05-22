@@ -1829,6 +1829,82 @@ app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
     }
 });
 
+// GET /api/tesoreria/soportes/:id/preview - Preview de soporte (sin descarga)
+app.get('/api/tesoreria/soportes/:id/preview', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Usar encode() para garantizar base64 format en la respuesta
+        const result = await pool.query(
+            'SELECT encode(archivo_data, \'base64\') as archivo_data, nombre_archivo, tipo_archivo FROM soportes_pago WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Soporte no encontrado'
+            });
+        }
+
+        const { archivo_data, nombre_archivo, tipo_archivo } = result.rows[0];
+
+        if (!archivo_data) {
+            return res.status(404).json({
+                success: false,
+                error: 'El archivo está vacío'
+            });
+        }
+
+        // Convertir base64 a Buffer
+        let buffer;
+        try {
+            buffer = Buffer.from(archivo_data, 'base64');
+        } catch (e) {
+            console.error('Error decodificando base64:', e.message);
+            buffer = Buffer.from(archivo_data, 'binary');
+        }
+
+        if (!buffer || buffer.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'El archivo está vacío'
+            });
+        }
+
+        // Detectar MIME type
+        const ext = nombre_archivo.split('.').pop().toLowerCase();
+        const mimeTypes = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'bmp': 'image/bmp',
+            'webp': 'image/webp',
+            'pdf': 'application/pdf',
+            'txt': 'text/plain'
+        };
+        const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+        // Headers para preview (inline en lugar de attachment)
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Length', buffer.length);
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        // NO incluir Content-Disposition para que se muestre inline
+
+        // Enviar el buffer binario
+        res.end(buffer);
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/soportes/:id/preview:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al previsualizar soporte',
+            details: error.message
+        });
+    }
+});
+
 // TEST: POST /api/tesoreria/test-bytea - Test de round-trip bytea (para diagnóstico)
 app.post('/api/tesoreria/test-bytea', async (req, res) => {
     const { base64String } = req.body;

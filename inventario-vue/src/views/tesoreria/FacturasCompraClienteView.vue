@@ -359,9 +359,14 @@
                     <div class="soporte-fecha">{{ formatFecha(soporte.fecha_subida) }}</div>
                   </div>
                 </div>
-                <button class="btn-descargar" @click="descargarSoporte(soporte.id)" title="Descargar">
-                  <v-icon size="16">mdi-download</v-icon>
-                </button>
+                <div class="soporte-actions">
+                  <button class="btn-previsualizar" @click="previsualizarSoporte(soporte.id)" title="Previsualizar">
+                    <v-icon size="16">mdi-eye-outline</v-icon>
+                  </button>
+                  <button class="btn-descargar" @click="descargarSoporte(soporte.id)" title="Descargar">
+                    <v-icon size="16">mdi-download</v-icon>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -379,12 +384,23 @@
         </div>
       </v-card>
     </v-dialog>
+
+    <!-- FILE PREVIEW MODAL -->
+    <FilePreviewModal
+      :open="previewModalOpen"
+      :file-name="previewFileName"
+      :file-data="previewFileData"
+      :file-size="previewFileSize"
+      :download-function="descargarDesdePreview"
+      @close="previewModalOpen = false"
+    />
   </MainLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import FilePreviewModal from '../../components/modules/tesoreria/FilePreviewModal.vue'
 import { useFacturasCompraClienteStore } from '../../stores/facturas-compra-cliente'
 import { formatMoneda, formatFecha } from '../../utils/formatters'
 
@@ -396,6 +412,13 @@ const facturaActual = ref(null)
 const fileInput = ref(null)
 const archivoSeleccionado = ref(null)
 const cargandoArchivo = ref(false)
+
+// Estado del preview modal
+const previewModalOpen = ref(false)
+const previewFileName = ref('')
+const previewFileData = ref('')
+const previewFileSize = ref(0)
+const previewSoporteId = ref(null)
 
 // Tabs de estado
 const estadoTabs = [
@@ -542,6 +565,57 @@ async function descargarSoporte(idSoporte) {
     await store.descargarSoporte(idSoporte)
   } catch (err) {
     console.error('Error descargando soporte:', err)
+    alert('Error al descargar el archivo')
+  }
+}
+
+async function previsualizarSoporte(soporteId) {
+  try {
+    // Obtener información del archivo (incluyendo tamaño)
+    const response = await fetch(`/api/tesoreria/soportes/${soporteId}/info`)
+    const infoData = await response.json()
+
+    if (!infoData.success) {
+      throw new Error('No se pudo obtener información del archivo')
+    }
+
+    const fileSize = infoData.data.archivo_size
+    const MAX_MODAL_SIZE = 5 * 1024 * 1024 // 5MB
+
+    // Si es mayor a 5MB, abrir en pestaña nueva
+    if (fileSize > MAX_MODAL_SIZE) {
+      // Abrir en pestaña nueva usando el endpoint de descarga
+      const downloadUrl = `/api/tesoreria/soportes/${soporteId}/descargar`
+      window.open(downloadUrl, '_blank')
+      return
+    }
+
+    // Si es pequeño, mostrar en modal
+    // Obtener el archivo en formato DataURL para previsualización
+    const fileResponse = await fetch(`/api/tesoreria/soportes/${soporteId}/preview`)
+    const fileBlob = await fileResponse.blob()
+    const fileUrl = URL.createObjectURL(fileBlob)
+
+    // Obtener información del soporte
+    const soporteInfo = store.soportesPagoActual.find(s => s.id === soporteId)
+
+    previewFileName.value = soporteInfo?.nombre_archivo || 'archivo'
+    previewFileData.value = fileUrl
+    previewFileSize.value = fileSize
+    previewSoporteId.value = soporteId
+    previewModalOpen.value = true
+  } catch (err) {
+    console.error('Error previsualizando archivo:', err)
+    alert('Error al previsualizar el archivo')
+  }
+}
+
+async function descargarDesdePreview() {
+  try {
+    await store.descargarSoporte(previewSoporteId.value)
+    previewModalOpen.value = false
+  } catch (err) {
+    console.error('Error descargando desde preview:', err)
     alert('Error al descargar el archivo')
   }
 }
@@ -842,10 +916,15 @@ onMounted(async () => {
 .soporte-details { min-width: 0; }
 .soporte-nombre { font-size: 13px; font-weight: 600; color: rgb(var(--v-theme-on-surface)); word-break: break-word; }
 .soporte-fecha { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); margin-top: 2px; }
+.soporte-actions {
+  display: flex; gap: 4px; flex-shrink: 0;
+}
+.btn-previsualizar,
 .btn-descargar {
   background: transparent; border: none; cursor: pointer;
   padding: 4px 8px; color: #06b6d4; transition: all 0.15s;
 }
+.btn-previsualizar:hover,
 .btn-descargar:hover { color: #0891b2; }
 
 .no-soportes {
