@@ -86,9 +86,12 @@
                 {{ tab.label }}
                 <span v-if="tab.badge > 0" class="tab-badge">{{ tab.badge }}</span>
               </div>
-              <!-- Mostrar valor pendiente solo para PENDIENTE -->
+              <!-- Mostrar total pendiente para PENDIENTE, total por verificar para POR VERIFICAR -->
               <div v-if="tab.value === 'PENDIENTE' && store.totalPendiente > 0" class="tab-subtext">
                 {{ formatMoneda(store.totalPendiente) }}
+              </div>
+              <div v-if="tab.value === 'POR VERIFICAR' && store.totalPorVerificar > 0" class="tab-subtext">
+                {{ store.totalPorVerificar }} pendientes
               </div>
             </div>
           </button>
@@ -550,7 +553,7 @@ const hoy = computed(() => new Date().toISOString().split('T')[0])
 // ── Tabs de estado ────────────────────────────────────────────────────────
 const estadoTabs = computed(() => [
   { value: 'TODOS',         label: 'Todos',         icon: 'mdi-view-list',            badge: 0 },
-  { value: 'PENDIENTE',     label: 'Pendientes',    icon: 'mdi-alert-circle-outline',  badge: 0 },
+  { value: 'PENDIENTE',     label: 'Pendientes',    icon: 'mdi-alert-circle-outline',  badge: store.facturasPendientes.length },
   { value: 'POR VERIFICAR', label: 'Por Verificar', icon: 'mdi-clock-outline',         badge: store.totalPorVerificar },
   { value: 'PAGADA',        label: 'Pagadas',       icon: 'mdi-check-circle-outline',  badge: 0 },
 ])
