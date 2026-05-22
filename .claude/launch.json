@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Backend Server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server-modular-UNICO.js"],
+      "port": 3000
+    },
+    {
+      "name": "Vue Dev Server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    }
+  ]
+}
