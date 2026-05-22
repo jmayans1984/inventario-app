@@ -1720,6 +1720,222 @@ app.post('/api/tesoreria/facturas-venta/:codigo/soportes', async (req, res) => {
     }
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ENDPOINTS VISTA PROVEEDOR: Facturas de Venta
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/tesoreria/facturas-proveedor - Todas las facturas emitidas (vista proveedor)
+app.get('/api/tesoreria/facturas-proveedor', async (req, res) => {
+    const { empresa, estado } = req.query;
+
+    if (!empresa) {
+        return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+    }
+
+    try {
+        let query = `
+            SELECT
+                fv.codigo,
+                fv.fecha,
+                fv.cliente,
+                COALESCE(e.nombre, fv.cliente) AS cliente_nombre,
+                fv.orden_compra,
+                fv.subtotal,
+                fv.impuestos,
+                fv.total,
+                fv.estado,
+                fv.observaciones,
+                fv.fecha_vencimiento,
+                fv.valor_pagado,
+                COALESCE((SELECT COUNT(*) FROM soportes_pago WHERE pago = fv.codigo), 0) AS soportes_count
+            FROM factura_venta fv
+            LEFT JOIN empresa e ON CAST(e.codigo AS TEXT) = CAST(fv.cliente AS TEXT)
+            WHERE 1=1
+        `;
+
+        const params = [];
+        let paramIndex = 1;
+
+        if (estado && estado !== 'TODOS') {
+            query += ` AND fv.estado = $${paramIndex}`;
+            params.push(estado);
+            paramIndex++;
+        }
+
+        query += ` ORDER BY fv.fecha DESC, fv.codigo DESC`;
+
+        const result = await pool.query(query, params);
+
+        res.json({
+            success: true,
+            data: result.rows,
+            total: result.rowCount
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/facturas-proveedor:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener facturas',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/tesoreria/saldo-favor-cliente/:cliente - Saldo a favor de un cliente
+app.get('/api/tesoreria/saldo-favor-cliente/:cliente', async (req, res) => {
+    const { cliente } = req.params;
+
+    try {
+        const result = await pool.query(
+            `SELECT saldo FROM saldo_favor_cliente WHERE CAST(cliente AS TEXT) = $1`,
+            [cliente]
+        );
+
+        const saldo = result.rows.length > 0 ? parseFloat(result.rows[0].saldo) : 0;
+
+        res.json({
+            success: true,
+            data: { saldo, tiene_saldo: saldo > 0 }
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/saldo-favor-cliente/:cliente:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener saldo a favor',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/tesoreria/facturas-proveedor/:codigo/aprobar-pago - Aprobar pago de factura
+app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, res) => {
+    const { codigo } = req.params;
+    const { fecha, banco, valor_pagado, empresa } = req.body;
+
+    if (!fecha || !banco || valor_pagado === undefined || !empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetros requeridos: fecha, banco, valor_pagado, empresa'
+        });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Obtener factura actual
+        const facturaRes = await client.query(
+            `SELECT codigo, total, cliente, estado FROM factura_venta WHERE codigo = $1`,
+            [codigo]
+        );
+
+        if (facturaRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Factura no encontrada' });
+        }
+
+        const factura = facturaRes.rows[0];
+        const valorFactura = parseFloat(factura.total);
+        const valorPago = parseFloat(valor_pagado);
+
+        // 2. Determinar caso de pago y nuevo estado
+        let nuevoEstado, valorPagadoFinal, conceptoMoviban, excedente = 0;
+
+        if (Math.abs(valorPago - valorFactura) < 0.01) {
+            // CASO 1: Pago completo (tolerancia de 1 centavo)
+            nuevoEstado = 'PAGADA';
+            valorPagadoFinal = valorFactura;
+            conceptoMoviban = `PAGO FACTURA DE VENTA ${codigo}`;
+        } else if (valorPago < valorFactura) {
+            // CASO 2: Pago parcial
+            nuevoEstado = 'PENDIENTE';
+            valorPagadoFinal = valorPago;
+            conceptoMoviban = `PAGO PARCIAL FACTURA DE VENTA ${codigo}`;
+        } else {
+            // CASO 3: Sobrepago
+            nuevoEstado = 'PAGADA';
+            valorPagadoFinal = valorFactura;
+            excedente = parseFloat((valorPago - valorFactura).toFixed(2));
+            conceptoMoviban = `PAGO FACTURA DE VENTA ${codigo}`;
+        }
+
+        // 3. Actualizar factura_venta
+        await client.query(
+            `UPDATE factura_venta SET estado = $1, valor_pagado = $2 WHERE codigo = $3`,
+            [nuevoEstado, valorPagadoFinal, codigo]
+        );
+
+        // 4. Generar número de movimiento bancario (10 dígitos)
+        await client.query('LOCK TABLE moviban IN SHARE ROW EXCLUSIVE MODE');
+        const maxNumRes = await client.query(
+            `SELECT MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END) AS max_num
+             FROM moviban WHERE empresa = $1`,
+            [empresa]
+        );
+        const nextNum = (parseInt(maxNumRes.rows[0].max_num) || 0) + 1;
+        const numeroMoviban = String(nextNum).padStart(10, '0');
+
+        // 5. Insertar movimiento en MOVIBAN (ingreso siempre por el valor recibido)
+        await client.query(
+            `INSERT INTO moviban
+                (tipo, numero, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, ccosto, origen)
+             VALUES
+                ('ING', $1, $2, $3, NULL, NULL, $4, 0, $5, 'NO', $6, NULL, NULL, NULL)`,
+            [numeroMoviban, fecha, conceptoMoviban.substring(0, 60), valorPago, banco, empresa]
+        );
+
+        // 6. Manejar saldo a favor del cliente (solo en caso de sobrepago)
+        if (excedente > 0) {
+            const saldoRes = await client.query(
+                `SELECT saldo FROM saldo_favor_cliente WHERE CAST(cliente AS TEXT) = $1`,
+                [factura.cliente]
+            );
+
+            if (saldoRes.rows.length > 0) {
+                // Actualizar saldo existente
+                const saldoActual = parseFloat(saldoRes.rows[0].saldo);
+                await client.query(
+                    `UPDATE saldo_favor_cliente SET saldo = $1 WHERE CAST(cliente AS TEXT) = $2`,
+                    [parseFloat((saldoActual + excedente).toFixed(2)), factura.cliente]
+                );
+            } else {
+                // Crear nuevo registro de saldo a favor
+                await client.query(
+                    `INSERT INTO saldo_favor_cliente (empresa, cliente, saldo) VALUES ($1, $2, $3)`,
+                    [parseInt(empresa), factura.cliente, excedente]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `Pago aprobado exitosamente. Factura ${nuevoEstado}.`,
+            data: {
+                codigo,
+                estado: nuevoEstado,
+                valor_pagado: valorPagadoFinal,
+                numero_movimiento: numeroMoviban,
+                excedente_saldo_favor: excedente > 0 ? excedente : null
+            }
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en POST /api/tesoreria/facturas-proveedor/:codigo/aprobar-pago:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al aprobar el pago',
+            details: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
 // GET /api/tesoreria/soportes/:id/descargar - Descargar soporte de pago
 app.get('/api/tesoreria/soportes/:id/descargar', async (req, res) => {
     const { id } = req.params;
