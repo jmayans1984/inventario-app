@@ -336,15 +336,6 @@
 
         <div class="form-footer">
           <v-btn variant="text" @click="cerrarDetalle">Cerrar</v-btn>
-          <v-btn
-            v-if="facturaActual?.estado === 'POR VERIFICAR'"
-            color="success"
-            variant="elevated"
-            prepend-icon="mdi-check-circle-outline"
-            @click="pasarAAprobacion"
-          >
-            Aprobar Pago
-          </v-btn>
         </div>
       </v-card>
     </v-dialog>
@@ -645,13 +636,6 @@ async function abrirAprobacion(factura) {
   aprobacionOpen.value = true
 }
 
-function pasarAAprobacion() {
-  // Desde el modal detalle al modal de aprobación
-  dialogOpen.value = false
-  formPago.value = { fecha: hoy.value, banco: '', valor_pagado: 0, usar_saldo_favor: false }
-  store.fetchSaldoFavor(facturaActual.value.cliente)
-  aprobacionOpen.value = true
-}
 
 function cerrarAprobacion() {
   aprobacionOpen.value = false
