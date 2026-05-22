@@ -1275,6 +1275,61 @@ app.get('/api/tesoreria/conciliacion', async (req, res) => {
     }
 });
 
+// GET /api/tesoreria/movimientos-cuenta - Reporte de movimientos por cuenta y periodo
+app.get('/api/tesoreria/movimientos-cuenta', async (req, res) => {
+    const { banco, empresa, fechaInicio, fechaFin } = req.query;
+
+    if (!banco || !empresa || !fechaInicio || !fechaFin) {
+        return res.status(400).json({ success: false, error: 'Parámetros banco, empresa, fechaInicio y fechaFin son requeridos' });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT
+                m.numero, m.fecha, m.tipo, m.concepto, m.beneficia,
+                COALESCE(p.nombre, '') AS beneficiario_nombre,
+                COALESCE(m.ingreso, 0) AS ingreso,
+                COALESCE(m.egreso,  0) AS egreso
+             FROM moviban m
+             LEFT JOIN proveedores p ON TRIM(p.codigo) = TRIM(m.beneficia)
+             WHERE m.banco = $1 AND m.empresa = $2
+               AND m.fecha >= $3 AND m.fecha <= $4
+             ORDER BY m.fecha ASC, m.numero ASC`,
+            [banco, empresa, fechaInicio, fechaFin]
+        );
+
+        const movimientos = result.rows;
+        let totalIngresos = 0;
+        let totalEgresos  = 0;
+        movimientos.forEach(m => {
+            totalIngresos += parseFloat(m.ingreso || 0);
+            totalEgresos  += parseFloat(m.egreso  || 0);
+        });
+
+        res.json({
+            success: true,
+            data: {
+                totalIngresos,
+                totalEgresos,
+                saldoNeto:           totalIngresos - totalEgresos,
+                cantidadMovimientos: movimientos.length,
+                movimientos: movimientos.map(m => ({
+                    numero:       m.numero,
+                    fecha:        m.fecha,
+                    tipo:         m.tipo,
+                    concepto:     m.concepto || '',
+                    beneficiario: m.beneficiario_nombre || '',
+                    ingreso:      parseFloat(m.ingreso || 0),
+                    egreso:       parseFloat(m.egreso  || 0),
+                }))
+            }
+        });
+    } catch (error) {
+        console.error('Error GET /api/tesoreria/movimientos-cuenta:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/tesoreria/proveedores/buscar - Buscar/listar proveedores
 app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
     const { empresa, q } = req.query;
