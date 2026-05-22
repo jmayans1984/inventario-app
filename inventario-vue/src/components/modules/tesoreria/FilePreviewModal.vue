@@ -13,7 +13,7 @@
           </div>
         </div>
         <div class="preview-close">
-          <v-btn icon size="small" variant="text" @click="closeModal">
+          <v-btn icon size="small" variant="text" color="error" @click="closeModal">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </div>
@@ -145,7 +145,7 @@
       <div class="preview-footer">
         <span class="footer-info">{{ getTypeLabel() }}</span>
         <div class="footer-buttons">
-          <v-btn variant="text" @click="closeModal">Cerrar</v-btn>
+          <v-btn color="error" variant="elevated" @click="closeModal">Cerrar</v-btn>
           <v-btn
             color="primary"
             variant="elevated"
@@ -305,8 +305,9 @@ watch(
   flex-direction: column;
   height: 100vh;
   max-height: 100vh;
-  background: var(--v-theme-surface) !important;
+  background: rgb(var(--v-theme-surface)) !important;
   opacity: 1 !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
 }
 
 .preview-header {
@@ -399,7 +400,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--v-theme-on-surface), 0.05);
   padding: 2rem;
   flex-shrink: 1;
 }
@@ -428,7 +429,7 @@ watch(
   width: 100%;
   height: 100%;
   display: flex;
-  background: white;
+  background: rgb(var(--v-theme-surface));
   border-radius: 8px;
   overflow: hidden;
 }
