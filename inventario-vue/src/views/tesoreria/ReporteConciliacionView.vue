@@ -42,7 +42,7 @@
           <v-select
             v-model="cuentaSeleccionada"
             :items="cuentas"
-            item-title="numero"
+            item-title="nombre_cta"
             item-value="codigo"
             @update:modelValue="cargarReporte"
             placeholder="Elige una cuenta..."
@@ -52,12 +52,12 @@
             class="selector-input"
           >
             <template #item="{ props, item }">
-              <v-list-item v-bind="props" :title="`${item.value.numero} - ${item.value.nombre}`" :subtitle="item.value.banco" />
+              <v-list-item v-bind="props" :title="item.raw.nombre_cta" />
             </template>
             <template #selection="{ item }">
               <div class="selector-selected">
                 <v-icon size="18" class="mr-2">mdi-bank</v-icon>
-                {{ item.value.numero }} - {{ item.value.nombre }}
+                {{ item.raw.nombre_cta }}
               </div>
             </template>
           </v-select>
@@ -79,8 +79,8 @@
               <v-icon size="20" color="white">mdi-bank-outline</v-icon>
             </div>
             <div class="kpi-body">
-              <div class="kpi-label">NÚMERO DE CUENTA</div>
-              <div class="kpi-value text-sm">{{ cuentaActual.numero }}</div>
+              <div class="kpi-label">CUENTA BANCARIA</div>
+              <div class="kpi-value text-sm">{{ cuentaActual.nombre_cta }}</div>
             </div>
           </div>
 
@@ -269,7 +269,7 @@ async function exportarPDF() {
     const imgWidth = 210 - 20
     const imgHeight = (canvas.height * imgWidth) / canvas.width
     pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
-    pdf.save(`conciliacion-${cuentaActual.value.numero}.pdf`)
+    pdf.save(`conciliacion-${cuentaActual.value.nombre_cta}.pdf`)
   } catch (err) {
     console.error('Error exportando PDF:', err)
     alert('Error al generar PDF')
