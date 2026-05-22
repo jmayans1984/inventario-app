@@ -99,7 +99,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
         
         const empresasQuery = `
-            SELECT DISTINCT u.empresa, e.nombre as empresa_nombre
+            SELECT DISTINCT u.empresa, e.nombre as empresa_nombre, e.tipo
             FROM usuarios u
             INNER JOIN empresas e ON u.empresa = e.codigo
             WHERE UPPER(u.usuario) = UPPER($1)
