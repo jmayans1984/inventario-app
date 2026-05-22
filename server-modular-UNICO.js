@@ -1873,6 +1873,19 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
         // 2. Determinar caso de pago y nuevo estado (basado en pago EFECTIVO vs SALDO PENDIENTE)
         let nuevoEstado, valorPagadoFinal, conceptoMoviban, excedente = 0;
 
+        console.log('DEBUG APROBACION PAGO:', {
+            codigo,
+            valorFactura,
+            valorPagadoPrevio,
+            saldoPendiente,
+            valorPago,
+            saldoFavorDisponible,
+            saldoFavorUsado,
+            valorPagoEfectivo,
+            usar_saldo_favor,
+            diferencia: Math.abs(valorPagoEfectivo - saldoPendiente)
+        });
+
         if (Math.abs(valorPagoEfectivo - saldoPendiente) < 0.01) {
             // CASO 1: Pago completo del saldo pendiente (tolerancia de 1 centavo)
             nuevoEstado = 'PAGADA';
