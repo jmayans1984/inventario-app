@@ -90,8 +90,8 @@
               <div v-if="tab.value === 'PENDIENTE' && store.totalPendiente > 0" class="tab-subtext">
                 {{ formatMoneda(store.totalPendiente) }}
               </div>
-              <div v-if="tab.value === 'POR VERIFICAR' && store.totalPorVerificar > 0" class="tab-subtext">
-                {{ store.totalPorVerificar }} pendientes
+              <div v-if="tab.value === 'POR VERIFICAR' && totalPendientePorVerificar > 0" class="tab-subtext">
+                {{ formatMoneda(totalPendientePorVerificar) }}
               </div>
             </div>
           </button>
@@ -557,6 +557,13 @@ const estadoTabs = computed(() => [
   { value: 'POR VERIFICAR', label: 'Por Verificar', icon: 'mdi-clock-outline',         badge: store.totalPorVerificar },
   { value: 'PAGADA',        label: 'Pagadas',       icon: 'mdi-check-circle-outline',  badge: 0 },
 ])
+
+// ── Total pendiente en facturas POR VERIFICAR ────────────────────────────
+const totalPendientePorVerificar = computed(() =>
+  store.facturasPorVerificar.reduce(
+    (sum, f) => sum + (parseFloat(f.total || 0) - parseFloat(f.valor_pagado || 0)), 0
+  )
+)
 
 // ── Cuentas bancarias activas ─────────────────────────────────────────────
 const cuentasActivas = computed(() =>
