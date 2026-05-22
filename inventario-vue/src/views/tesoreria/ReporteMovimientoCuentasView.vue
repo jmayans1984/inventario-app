@@ -274,7 +274,6 @@
               <thead>
                 <tr>
                   <th style="width:105px">FECHA</th>
-                  <th style="width:55px">TIPO</th>
                   <th>BENEFICIARIO</th>
                   <th>CONCEPTO</th>
                   <th class="col-right" style="width:150px">INGRESO</th>
@@ -288,9 +287,6 @@
                   :class="idx % 2 === 0 ? 'tr-even' : 'tr-odd'"
                 >
                   <td class="td-fecha">{{ fmtFecha(mov.fecha) }}</td>
-                  <td class="td-tipo">
-                    <span :class="mov.tipo === 'ING' ? 'tipo-ing' : 'tipo-egr'">{{ mov.tipo }}</span>
-                  </td>
                   <td class="td-beneficiario">{{ mov.beneficiario || '—' }}</td>
                   <td class="td-concepto">{{ mov.concepto || '—' }}</td>
                   <td class="td-monto col-right">
@@ -305,7 +301,7 @@
               </tbody>
               <tfoot>
                 <tr class="tr-foot">
-                  <td colspan="4" class="foot-label">TOTALES DEL PERÍODO</td>
+                  <td colspan="3" class="foot-label">TOTALES DEL PERÍODO</td>
                   <td class="col-right foot-monto monto-ing">{{ fmt(datos.totalIngresos) }}</td>
                   <td class="col-right foot-monto monto-egr">{{ fmt(datos.totalEgresos) }}</td>
                 </tr>
@@ -473,24 +469,22 @@ function exportarPDF() {
   // Movimientos
   autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 8,
-    head: [['Fecha', 'Tipo', 'Beneficiario', 'Concepto', 'Ingreso', 'Egreso']],
+    head: [['Fecha', 'Beneficiario', 'Concepto', 'Ingreso', 'Egreso']],
     body: datos.value.movimientos.map(m => [
       fmtFecha(m.fecha),
-      m.tipo || '',
       m.beneficiario || '—',
       m.concepto || '',
       Number(m.ingreso) > 0 ? fmt(m.ingreso) : '—',
       Number(m.egreso)  > 0 ? fmt(m.egreso)  : '—'
     ]),
-    foot: [['', '', '', 'TOTALES', fmt(datos.value.totalIngresos), fmt(datos.value.totalEgresos)]],
+    foot: [['', '', 'TOTALES', fmt(datos.value.totalIngresos), fmt(datos.value.totalEgresos)]],
     styles: { fontSize: 7.5 },
     headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold' },
     footStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: 'bold' },
     columnStyles: {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 12, halign: 'center' },
-      4: { halign: 'right', cellWidth: 32 },
-      5: { halign: 'right', cellWidth: 32 }
+      0: { cellWidth: 24 },
+      3: { halign: 'right', cellWidth: 34 },
+      4: { halign: 'right', cellWidth: 34 }
     },
     theme: 'striped',
     alternateRowStyles: { fillColor: [248, 250, 252] }
