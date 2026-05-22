@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="isOpen" max-width="1000px" persistent>
+  <v-dialog v-model="isOpen" fullscreen persistent>
     <v-card class="preview-card">
       <!-- HEADER -->
       <div class="preview-header">
@@ -303,9 +303,10 @@ watch(
 .preview-card {
   display: flex;
   flex-direction: column;
-  height: 90vh;
-  max-height: 90vh;
-  background: var(--v-theme-surface);
+  height: 100vh;
+  max-height: 100vh;
+  background: var(--v-theme-surface) !important;
+  opacity: 1 !important;
 }
 
 .preview-header {
@@ -398,7 +399,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.1);
   padding: 2rem;
   flex-shrink: 1;
 }

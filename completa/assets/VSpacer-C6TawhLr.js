@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-DMp3RsUI.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
