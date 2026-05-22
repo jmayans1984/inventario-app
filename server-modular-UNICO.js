@@ -1230,7 +1230,7 @@ app.get('/api/tesoreria/conciliacion', async (req, res) => {
         // Movimientos pendientes (conciliado = 'NO')
         const pendRes = await pool.query(
             `SELECT
-                id, numero, fecha, tipo, concepto,
+                numero, fecha, tipo, concepto,
                 COALESCE(ingreso,0) AS ingreso,
                 COALESCE(egreso,0)  AS egreso
              FROM moviban
@@ -1257,7 +1257,6 @@ app.get('/api/tesoreria/conciliacion', async (req, res) => {
                 totalEgresosPend,
                 saldoProyectado,
                 movimientos: movimientos.map(m => ({
-                    id:       m.id,
                     numero:   m.numero,
                     fecha:    m.fecha,
                     tipo:     m.tipo,
