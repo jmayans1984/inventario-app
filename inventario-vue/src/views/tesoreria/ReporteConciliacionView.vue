@@ -27,6 +27,7 @@
             prepend-icon="mdi-file-pdf-box"
             @click="exportarPDF"
             :loading="cargando"
+            :disabled="!cuentaSeleccionada"
             color="error"
           >
             PDF
@@ -34,23 +35,52 @@
         </div>
       </div>
 
+      <!-- SELECTOR DE CUENTA -->
+      <div class="selector-section">
+        <div class="selector-container">
+          <label class="selector-label">Seleccionar Cuenta Bancaria</label>
+          <v-select
+            v-model="cuentaSeleccionada"
+            :items="cuentas"
+            item-title="numero"
+            item-value="codigo"
+            @update:modelValue="cargarReporte"
+            placeholder="Elige una cuenta..."
+            variant="outlined"
+            density="comfortable"
+            :loading="cargandoCuentas"
+            class="selector-input"
+          >
+            <template #item="{ props, item }">
+              <v-list-item v-bind="props" :title="`${item.value.numero} - ${item.value.nombre}`" :subtitle="item.value.banco" />
+            </template>
+            <template #selection="{ item }">
+              <div class="selector-selected">
+                <v-icon size="18" class="mr-2">mdi-bank</v-icon>
+                {{ item.value.numero }} - {{ item.value.nombre }}
+              </div>
+            </template>
+          </v-select>
+        </div>
+      </div>
+
       <!-- LOADING -->
-      <div v-if="cargando" class="loading-wrap">
+      <div v-if="cargando && cuentaSeleccionada" class="loading-wrap">
         <v-progress-circular indeterminate color="primary" size="40" />
         <p class="loading-text">Cargando reporte...</p>
       </div>
 
-      <!-- CUENTAS Y REPORTE -->
-      <div v-else>
-        <!-- RESUMEN GENERAL -->
+      <!-- REPORTE DE LA CUENTA SELECCIONADA -->
+      <div v-else-if="cuentaSeleccionada && cuentaActual">
+        <!-- RESUMEN DE KPIs -->
         <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-icon-wrap kpi-icon-cyan">
               <v-icon size="20" color="white">mdi-bank-outline</v-icon>
             </div>
             <div class="kpi-body">
-              <div class="kpi-label">CUENTAS ACTIVAS</div>
-              <div class="kpi-value">{{ cuentas.length }}</div>
+              <div class="kpi-label">NÚMERO DE CUENTA</div>
+              <div class="kpi-value text-sm">{{ cuentaActual.numero }}</div>
             </div>
           </div>
 
@@ -60,7 +90,7 @@
             </div>
             <div class="kpi-body">
               <div class="kpi-label">SALDO ANTERIOR</div>
-              <div class="kpi-value">{{ formatMoneda(totalSaldoAnterior) }}</div>
+              <div class="kpi-value">{{ formatMoneda(cuentaActual.saldoAnterior) }}</div>
             </div>
           </div>
 
@@ -70,7 +100,7 @@
             </div>
             <div class="kpi-body">
               <div class="kpi-label">MOVIMIENTOS PENDIENTES</div>
-              <div class="kpi-value">{{ formatMoneda(totalMovimientosPendientes) }}</div>
+              <div class="kpi-value">{{ formatMoneda(cuentaActual.totalMovimientos) }}</div>
             </div>
           </div>
 
@@ -80,14 +110,87 @@
             </div>
             <div class="kpi-body">
               <div class="kpi-label">SALDO FUTURO PROYECTADO</div>
-              <div class="kpi-value">{{ formatMoneda(totalSaldoFinal) }}</div>
+              <div class="kpi-value">{{ formatMoneda(cuentaActual.saldoFinal) }}</div>
             </div>
           </div>
         </div>
 
-        <!-- CUENTAS POR CUENTA -->
-        <div v-if="cuentas.length > 0" class="cuentas-grid">
-          <div v-for="cuenta in cuentas" :key="cuenta.codigo" class="cuenta-card">
+        <!-- CÁLCULO VISUAL -->
+        <div class="calculo-section">
+          <div class="calculo-container">
+            <div class="calculo-item">
+              <span class="calculo-label">SALDO ANTERIOR CONCILIADO</span>
+              <span class="calculo-value cyan-text">{{ formatMoneda(cuentaActual.saldoAnterior) }}</span>
+            </div>
+            <div class="calculo-operator">+</div>
+            <div class="calculo-item">
+              <span class="calculo-label">MOVIMIENTOS PENDIENTES</span>
+              <span class="calculo-value orange-text">{{ formatMoneda(cuentaActual.totalMovimientos) }}</span>
+            </div>
+            <div class="calculo-operator">=</div>
+            <div class="calculo-item">
+              <span class="calculo-label">SALDO FUTURO PROYECTADO</span>
+              <span class="calculo-value green-text">{{ formatMoneda(cuentaActual.saldoFinal) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOVIMIENTOS PENDIENTES -->
+        <div v-if="cuentaActual.movimientosPendientes && cuentaActual.movimientosPendientes.length > 0" class="movimientos-section">
+          <div class="section-title">
+            Movimientos Pendientes ({{ cuentaActual.movimientosPendientes.length }})
+          </div>
+          <div class="tabla-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-fecha">FECHA</th>
+                  <th class="col-numero">NÚMERO</th>
+                  <th class="col-tipo">TIPO</th>
+                  <th class="col-concepto">CONCEPTO</th>
+                  <th class="col-monto">MONTO</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="mov in cuentaActual.movimientosPendientes" :key="mov.id" class="tabla-row">
+                  <td class="col-fecha">{{ formatFecha(mov.fecha) }}</td>
+                  <td class="col-numero">{{ mov.numero }}</td>
+                  <td class="col-tipo">
+                    <v-chip
+                      :color="mov.tipo === 'ING' ? 'success' : 'error'"
+                      variant="flat"
+                      size="x-small"
+                    >
+                      {{ mov.tipo }}
+                    </v-chip>
+                  </td>
+                  <td class="col-concepto">{{ mov.concepto }}</td>
+                  <td class="col-monto">
+                    <span :class="mov.tipo === 'ING' ? 'text-green' : 'text-red'">
+                      {{ formatMoneda(mov.monto) }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-else class="no-movimientos">
+          <v-icon size="32">mdi-check-circle-outline</v-icon>
+          <p>Todos los movimientos están conciliados</p>
+        </div>
+      </div>
+
+      <!-- EMPTY STATE -->
+      <div v-else-if="!cargandoCuentas" class="empty-state">
+        <v-icon size="48" class="empty-icon">mdi-bank-outline</v-icon>
+        <p class="empty-title">Selecciona una cuenta</p>
+        <p class="empty-sub">Elige una cuenta bancaria para ver el reporte de conciliación</p>
+      </div>
+    </div>
+  </MainLayout>
+</template>
             <!-- ENCABEZADO DE LA CUENTA -->
             <div class="cuenta-header">
               <div class="cuenta-info">
@@ -182,65 +285,63 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
 const cuentas = ref([])
+const cuentaSeleccionada = ref(null)
+const cuentaActual = ref(null)
 const cargando = ref(false)
+const cargandoCuentas = ref(false)
 const authStore = useAuthStore()
 
-const totalSaldoAnterior = computed(() =>
-  cuentas.value.reduce((sum, c) => sum + (parseFloat(c.saldoAnterior) || 0), 0)
-)
+async function cargarCuentas() {
+  cargandoCuentas.value = true
+  try {
+    const respCuentas = await cuentasBancariasService.getCuentas({ estado: 'ACTIVA' })
+    cuentas.value = Array.isArray(respCuentas) ? respCuentas : (respCuentas.data || [])
 
-const totalMovimientosPendientes = computed(() =>
-  cuentas.value.reduce((sum, c) => sum + (parseFloat(c.totalMovimientos) || 0), 0)
-)
-
-const totalSaldoFinal = computed(() =>
-  cuentas.value.reduce((sum, c) => sum + (parseFloat(c.saldoFinal) || 0), 0)
-)
+    // Seleccionar la primera cuenta por defecto
+    if (cuentas.value.length > 0 && !cuentaSeleccionada.value) {
+      cuentaSeleccionada.value = cuentas.value[0].codigo
+    }
+  } catch (err) {
+    console.error('Error cargando cuentas:', err)
+  } finally {
+    cargandoCuentas.value = false
+  }
+}
 
 async function cargarReporte() {
+  if (!cuentaSeleccionada.value) return
+
   cargando.value = true
   try {
-    // Obtener cuentas bancarias activas
-    const respCuentas = await cuentasBancariasService.getCuentas({ estado: 'ACTIVA' })
-    const cuentasData = Array.isArray(respCuentas) ? respCuentas : (respCuentas.data || [])
+    // Obtener la cuenta seleccionada
+    const cuenta = cuentas.value.find(c => c.codigo === cuentaSeleccionada.value)
+    if (!cuenta) return
 
-    // Para cada cuenta, obtener los movimientos pendientes
-    const cuentasConDatos = await Promise.all(
-      cuentasData.map(async (cuenta) => {
-        try {
-          const response = await api.get(`/tesoreria/cuentas-bancarias/${cuenta.codigo}/reporte-conciliacion`, {
-            params: { empresa: authStore.empresa?.codigo }
-          })
-          const datos = response.data?.data || {}
-          return {
-            ...cuenta,
-            saldoAnterior: datos.saldoAnterior || 0,
-            totalMovimientos: datos.totalMovimientos || 0,
-            saldoFinal: (datos.saldoAnterior || 0) + (datos.totalMovimientos || 0),
-            movimientosPendientes: datos.movimientosPendientes || []
-          }
-        } catch (err) {
-          console.error(`Error cargando reporte para cuenta ${cuenta.codigo}:`, err)
-          return {
-            ...cuenta,
-            saldoAnterior: 0,
-            totalMovimientos: 0,
-            saldoFinal: 0,
-            movimientosPendientes: []
-          }
-        }
-      })
-    )
+    // Obtener los movimientos pendientes de esta cuenta
+    const response = await api.get(`/tesoreria/cuentas-bancarias/${cuenta.codigo}/reporte-conciliacion`, {
+      params: { empresa: authStore.empresa }
+    })
 
-    cuentas.value = cuentasConDatos
+    const datos = response.data?.data || {}
+
+    cuentaActual.value = {
+      ...cuenta,
+      saldoAnterior: parseFloat(datos.saldoAnterior || 0),
+      totalMovimientos: parseFloat(datos.totalMovimientos || 0),
+      saldoFinal: (parseFloat(datos.saldoAnterior || 0) + parseFloat(datos.totalMovimientos || 0)),
+      movimientosPendientes: datos.movimientosPendientes || []
+    }
   } catch (err) {
     console.error('Error cargando reporte:', err)
+    cuentaActual.value = null
   } finally {
     cargando.value = false
   }
 }
 
 async function exportarPDF() {
+  if (!cuentaActual.value) return
+
   cargando.value = true
   try {
     const elemento = document.querySelector('.view-container')
@@ -250,7 +351,7 @@ async function exportarPDF() {
     const imgWidth = 210 - 20
     const imgHeight = (canvas.height * imgWidth) / canvas.width
     pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
-    pdf.save('conciliacion-bancaria.pdf')
+    pdf.save(`conciliacion-${cuentaActual.value.numero}.pdf`)
   } catch (err) {
     console.error('Error exportando PDF:', err)
     alert('Error al generar PDF')
@@ -260,7 +361,10 @@ async function exportarPDF() {
 }
 
 onMounted(async () => {
-  await cargarReporte()
+  await cargarCuentas()
+  if (cuentaSeleccionada.value) {
+    await cargarReporte()
+  }
 })
 </script>
 
@@ -461,4 +565,101 @@ onMounted(async () => {
 .empty-icon { color: rgba(var(--v-theme-on-surface), 0.15); display: block; margin: 0 auto 12px; }
 .empty-title { font-size: 16px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.5); margin: 0 0 4px; }
 .empty-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.4); margin: 0; }
+
+/* ── Selector de Cuenta ── */
+.selector-section {
+  margin-bottom: 28px;
+}
+
+.selector-container {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 600px;
+}
+
+.selector-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.selector-input {
+  width: 100%;
+}
+
+.selector-selected {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mr-2 {
+  margin-right: 8px;
+}
+
+/* ── Cálculo Visual ── */
+.calculo-section {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.calculo-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.calculo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.calculo-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.calculo-value {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+}
+
+.calculo-operator {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface), 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .calculo-container {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .kpi-value.text-sm {
+    font-size: 16px;
+  }
+}
 </style>
