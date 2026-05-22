@@ -813,7 +813,7 @@ app.get('/api/tesoreria/movimientos', async (req, res) => {
                 m.tipo,
                 m.fecha,
                 m.concepto,
-                m.beneficia,
+                COALESCE(p.nombre, m.beneficia) AS beneficia,
                 m.cheque,
                 m.ingreso,
                 m.egreso,
@@ -823,6 +823,7 @@ app.get('/api/tesoreria/movimientos', async (req, res) => {
                 m.ccosto,
                 m.empresa
             FROM moviban m
+            LEFT JOIN proveedores p ON CAST(p.codigo AS TEXT) = CAST(m.beneficia AS TEXT) AND p.empresa = m.empresa
             WHERE m.empresa = $1
         `;
 
