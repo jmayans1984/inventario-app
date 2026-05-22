@@ -230,14 +230,16 @@ async function cargarReporte() {
   if (!cuentaSeleccionada.value) return
 
   cargando.value = true
+  cuentaActual.value = null
   try {
-    // Obtener la cuenta seleccionada
-    const cuenta = cuentas.value.find(c => c.codigo === cuentaSeleccionada.value)
-    if (!cuenta) return
+    const codigoCuenta = String(cuentaSeleccionada.value)
+    const empresa = authStore.empresa || localStorage.getItem('empresaActual')
 
-    // Obtener los movimientos pendientes de esta cuenta
-    const response = await api.get(`/tesoreria/cuentas-bancarias/${cuenta.codigo}/reporte-conciliacion`, {
-      params: { empresa: authStore.empresa }
+    // Buscar datos de la cuenta con comparación de strings
+    const cuenta = cuentas.value.find(c => String(c.codigo) === codigoCuenta) || {}
+
+    const response = await api.get(`/tesoreria/cuentas-bancarias/${codigoCuenta}/reporte-conciliacion`, {
+      params: { empresa }
     })
 
     const datos = response.data?.data || {}
@@ -246,7 +248,7 @@ async function cargarReporte() {
       ...cuenta,
       saldoAnterior: parseFloat(datos.saldoAnterior || 0),
       totalMovimientos: parseFloat(datos.totalMovimientos || 0),
-      saldoFinal: (parseFloat(datos.saldoAnterior || 0) + parseFloat(datos.totalMovimientos || 0)),
+      saldoFinal: parseFloat(datos.saldoAnterior || 0) + parseFloat(datos.totalMovimientos || 0),
       movimientosPendientes: datos.movimientosPendientes || []
     }
   } catch (err) {
