@@ -15,6 +15,10 @@ export const useFacturasCompraClienteStore = defineStore('facturasCompraCliente'
     facturas.value.filter(f => f.estado === 'PENDIENTE')
   )
 
+  const facturasPorVerificar = computed(() =>
+    facturas.value.filter(f => f.estado === 'POR VERIFICAR')
+  )
+
   const facturasVencidas = computed(() =>
     facturasPendientes.value.filter(f => {
       const hoy = new Date()
@@ -136,6 +140,7 @@ export const useFacturasCompraClienteStore = defineStore('facturasCompraCliente'
 
     // Getters
     facturasPendientes,
+    facturasPorVerificar,
     facturasVencidas,
     facturasProximas,
     totalPendiente,
