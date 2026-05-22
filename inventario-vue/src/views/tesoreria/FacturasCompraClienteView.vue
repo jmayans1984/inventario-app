@@ -426,7 +426,7 @@ const estadoTabs = [
   { value: 'TODOS', label: 'Todos', icon: 'mdi-view-list' },
   { value: 'PENDIENTE', label: 'Pendientes', icon: 'mdi-alert-circle-outline' },
   { value: 'PAGADA', label: 'Pagadas', icon: 'mdi-check-circle-outline' },
-  { value: 'POR_VERIFICAR', label: 'Por Verificar', icon: 'mdi-clock-outline' },
+  { value: 'POR VERIFICAR', label: 'Por Verificar', icon: 'mdi-clock-outline' },
 ]
 
 // Estado del ordenamiento - por defecto CODIGO descendente
@@ -458,7 +458,7 @@ function getEstadoColor(estado) {
   const map = {
     'PENDIENTE': 'warning',
     'PAGADA': 'success',
-    'POR_VERIFICAR': 'info'
+    'POR VERIFICAR': 'info'
   }
   return map[estado] || 'default'
 }
@@ -544,7 +544,7 @@ async function guardarSoportePago() {
     archivoSeleccionado.value = null
 
     // Actualizar estado de la factura actual
-    facturaActual.value.estado = 'POR_VERIFICAR'
+    facturaActual.value.estado = 'POR VERIFICAR'
 
     // Recargar todas las facturas para actualizar soportes_count en grid
     await store.fetchFacturasVenta()
