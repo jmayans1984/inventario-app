@@ -402,6 +402,7 @@ import { ref, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import FilePreviewModal from '../../components/modules/tesoreria/FilePreviewModal.vue'
 import { useFacturasCompraClienteStore } from '../../stores/facturas-compra-cliente'
+import api from '../../services/api'
 import { formatMoneda, formatFecha } from '../../utils/formatters'
 
 const store = useFacturasCompraClienteStore()
@@ -572,8 +573,8 @@ async function descargarSoporte(idSoporte) {
 async function previsualizarSoporte(soporteId) {
   try {
     // Obtener información del archivo (incluyendo tamaño)
-    const response = await fetch(`/api/tesoreria/soportes/${soporteId}/info`)
-    const infoData = await response.json()
+    const infoResponse = await api.get(`/tesoreria/soportes/${soporteId}/info`)
+    const infoData = infoResponse.data
 
     if (!infoData.success) {
       throw new Error('No se pudo obtener información del archivo')
@@ -585,16 +586,17 @@ async function previsualizarSoporte(soporteId) {
     // Si es mayor a 5MB, abrir en pestaña nueva
     if (fileSize > MAX_MODAL_SIZE) {
       // Abrir en pestaña nueva usando el endpoint de descarga
-      const downloadUrl = `/api/tesoreria/soportes/${soporteId}/descargar`
+      const downloadUrl = `${api.defaults.baseURL}/tesoreria/soportes/${soporteId}/descargar`
       window.open(downloadUrl, '_blank')
       return
     }
 
     // Si es pequeño, mostrar en modal
-    // Obtener el archivo en formato DataURL para previsualización
-    const fileResponse = await fetch(`/api/tesoreria/soportes/${soporteId}/preview`)
-    const fileBlob = await fileResponse.blob()
-    const fileUrl = URL.createObjectURL(fileBlob)
+    // Obtener el archivo como blob para previsualización
+    const fileResponse = await api.get(`/tesoreria/soportes/${soporteId}/preview`, {
+      responseType: 'blob'
+    })
+    const fileUrl = URL.createObjectURL(fileResponse.data)
 
     // Obtener información del soporte
     const soporteInfo = store.soportesPagoActual.find(s => s.id === soporteId)
