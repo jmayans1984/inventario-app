@@ -1204,6 +1204,78 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
     }
 });
 
+// GET /api/tesoreria/cuentas-bancarias/:codigo/reporte-conciliacion - Reporte de conciliación por cuenta
+app.get('/api/tesoreria/cuentas-bancarias/:codigo/reporte-conciliacion', async (req, res) => {
+    const { codigo } = req.params;
+    const { empresa } = req.query;
+
+    if (!codigo || !empresa) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parámetros codigo y empresa requeridos'
+        });
+    }
+
+    try {
+        // Obtener saldo anterior conciliado (suma de ingresos menos egresos de movimientos conciliados)
+        const saldoRes = await pool.query(
+            `SELECT
+                COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo_anterior
+             FROM moviban
+             WHERE banco = $1 AND empresa = $2 AND conciliado = 'SI'`,
+            [codigo, empresa]
+        );
+
+        const saldoAnterior = parseFloat(saldoRes.rows[0]?.saldo_anterior || 0);
+
+        // Obtener movimientos pendientes (conciliado = 'NO')
+        const movRes = await pool.query(
+            `SELECT
+                id,
+                numero,
+                fecha,
+                tipo,
+                concepto,
+                ingreso,
+                egreso,
+                CASE
+                    WHEN tipo = 'ING' THEN ingreso
+                    ELSE -egreso
+                END AS monto
+             FROM moviban
+             WHERE banco = $1 AND empresa = $2 AND conciliado = 'NO'
+             ORDER BY fecha DESC, numero DESC`,
+            [codigo, empresa]
+        );
+
+        const movimientosPendientes = movRes.rows;
+        const totalMovimientos = movimientosPendientes.reduce((sum, mov) => sum + (parseFloat(mov.monto) || 0), 0);
+
+        res.json({
+            success: true,
+            data: {
+                saldoAnterior,
+                totalMovimientos,
+                movimientosPendientes: movimientosPendientes.map(m => ({
+                    id: m.id,
+                    numero: m.numero,
+                    fecha: m.fecha,
+                    tipo: m.tipo,
+                    concepto: m.concepto,
+                    monto: parseFloat(m.monto) || 0
+                }))
+            }
+        });
+    } catch (error) {
+        console.error('Error en GET /api/tesoreria/cuentas-bancarias/:codigo/reporte-conciliacion:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener reporte de conciliación',
+            details: error.message
+        });
+    }
+});
+
 // GET /api/tesoreria/proveedores/buscar - Buscar/listar proveedores
 app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
     const { empresa, q } = req.query;
