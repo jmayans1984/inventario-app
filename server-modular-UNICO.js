@@ -1838,6 +1838,8 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
 
         const factura = facturaRes.rows[0];
         const valorFactura = parseFloat(factura.total);
+        const valorPagadoPrevio = parseFloat(factura.valor_pagado || 0);
+        const saldoPendiente = valorFactura - valorPagadoPrevio;
         const valorPago = parseFloat(valor_pagado);
 
         // 1b. Obtener saldo a favor del cliente (si aplica)
@@ -1849,31 +1851,33 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
                 [factura.cliente]
             );
             saldoFavorDisponible = saldoRes.rows.length > 0 ? parseFloat(saldoRes.rows[0].saldo) : 0;
+
+            // El saldo a favor solo cubre lo que falta pagar (saldo pendiente)
+            // No puede pagar más de lo que debe
+            const pendienteDespuesBanco = Math.max(0, saldoPendiente - valorPago);
+            saldoFavorUsado = Math.min(saldoFavorDisponible, pendienteDespuesBanco);
         }
 
-        const valorPagoEfectivo = valorPago + saldoFavorDisponible;
+        const valorPagoEfectivo = valorPago + saldoFavorUsado;
 
-        // 2. Determinar caso de pago y nuevo estado (basado en pago EFECTIVO)
+        // 2. Determinar caso de pago y nuevo estado (basado en pago EFECTIVO vs SALDO PENDIENTE)
         let nuevoEstado, valorPagadoFinal, conceptoMoviban, excedente = 0;
 
-        if (Math.abs(valorPagoEfectivo - valorFactura) < 0.01) {
-            // CASO 1: Pago completo (tolerancia de 1 centavo)
+        if (Math.abs(valorPagoEfectivo - saldoPendiente) < 0.01) {
+            // CASO 1: Pago completo del saldo pendiente (tolerancia de 1 centavo)
             nuevoEstado = 'PAGADA';
             valorPagadoFinal = valorFactura;
-            saldoFavorUsado = saldoFavorDisponible;
             conceptoMoviban = `PAGO FACTURA DE VENTA ${codigo}`;
-        } else if (valorPagoEfectivo < valorFactura) {
-            // CASO 2: Pago parcial
+        } else if (valorPagoEfectivo < saldoPendiente) {
+            // CASO 2: Pago parcial (no cubre todo lo pendiente)
             nuevoEstado = 'PENDIENTE';
-            valorPagadoFinal = valorPagoEfectivo;
-            saldoFavorUsado = saldoFavorDisponible;
+            valorPagadoFinal = valorPagadoPrevio + valorPagoEfectivo;
             conceptoMoviban = `PAGO PARCIAL FACTURA DE VENTA ${codigo}`;
         } else {
-            // CASO 3: Sobrepago
+            // CASO 3: Sobrepago (paga más de lo adeudado)
             nuevoEstado = 'PAGADA';
             valorPagadoFinal = valorFactura;
-            saldoFavorUsado = saldoFavorDisponible;
-            excedente = parseFloat((valorPagoEfectivo - valorFactura).toFixed(2));
+            excedente = parseFloat((valorPagoEfectivo - saldoPendiente).toFixed(2));
             conceptoMoviban = `PAGO FACTURA DE VENTA ${codigo}`;
         }
 

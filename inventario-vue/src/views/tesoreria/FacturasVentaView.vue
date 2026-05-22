@@ -444,6 +444,12 @@
           <div v-if="formPago.valor_pagado > 0 || (formPago.usar_saldo_favor && store.saldoFavorActual > 0)" class="preview-resultado">
             <div class="preview-title">💡 Resultado del pago</div>
 
+            <!-- Saldo pendiente de la factura -->
+            <div class="preview-info-pendiente">
+              <span>Saldo pendiente:</span>
+              <span class="monto">{{ formatMoneda(parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0)) }}</span>
+            </div>
+
             <!-- Si usa saldo a favor -->
             <div v-if="formPago.usar_saldo_favor && store.saldoFavorActual > 0" class="preview-desglose">
               <div class="desglose-row">
@@ -452,25 +458,25 @@
               </div>
               <div class="desglose-row">
                 <span>+ Saldo a favor:</span>
-                <span class="monto">{{ formatMoneda(store.saldoFavorActual) }}</span>
+                <span class="monto">{{ formatMoneda(Math.min(store.saldoFavorActual, Math.max(0, parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0) - (formPago.valor_pagado || 0)))) }}</span>
               </div>
               <div class="desglose-row desglose-total">
                 <span>= Total pago:</span>
-                <span class="monto">{{ formatMoneda((formPago.valor_pagado || 0) + store.saldoFavorActual) }}</span>
+                <span class="monto">{{ formatMoneda((formPago.valor_pagado || 0) + Math.min(store.saldoFavorActual, Math.max(0, parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0) - (formPago.valor_pagado || 0)))) }}</span>
               </div>
             </div>
 
-            <!-- Casos de pago -->
+            <!-- Casos de pago (comparar contra SALDO PENDIENTE, no total) -->
             <div
-              v-if="Math.abs(((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? store.saldoFavorActual : 0)) - parseFloat(facturaActual?.total || 0)) < 0.01"
+              v-if="Math.abs(((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? Math.min(store.saldoFavorActual, Math.max(0, parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0) - (formPago.valor_pagado || 0))) : 0)) - (parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0))) < 0.01"
               class="preview-caso pagada"
             >
               <v-icon size="16" color="success">mdi-check-circle</v-icon>
               Pago completo → Factura marcada como <strong>PAGADA</strong>
-              <span v-if="formPago.usar_saldo_favor && store.saldoFavorActual > 0" class="caso-sub">(saldo a favor: se anula)</span>
+              <span v-if="formPago.usar_saldo_favor && store.saldoFavorActual > 0" class="caso-sub">(saldo a favor consumido según sea necesario)</span>
             </div>
             <div
-              v-else-if="((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? store.saldoFavorActual : 0)) < parseFloat(facturaActual?.total || 0)"
+              v-else-if="((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? Math.min(store.saldoFavorActual, Math.max(0, parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0) - (formPago.valor_pagado || 0))) : 0)) < (parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0))"
               class="preview-caso parcial"
             >
               <v-icon size="16" color="warning">mdi-alert-circle</v-icon>
@@ -481,7 +487,7 @@
             <div v-else class="preview-caso sobrepago">
               <v-icon size="16" color="info">mdi-information</v-icon>
               Sobrepago → Factura <strong>PAGADA</strong> +
-              nuevo saldo a favor de <strong>{{ formatMoneda(((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? store.saldoFavorActual : 0)) - parseFloat(facturaActual?.total || 0)) }}</strong>
+              nuevo saldo a favor de <strong>{{ formatMoneda(((formPago.valor_pagado || 0) + (formPago.usar_saldo_favor ? Math.min(store.saldoFavorActual, Math.max(0, parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0) - (formPago.valor_pagado || 0))) : 0)) - (parseFloat(facturaActual?.total || 0) - parseFloat(facturaActual?.valor_pagado || 0))) }}</strong>
             </div>
           </div>
         </div>
@@ -897,6 +903,8 @@ onMounted(async () => {
 
 .preview-resultado { background: rgba(var(--v-theme-on-surface), 0.03); border-radius: 10px; padding: 14px 16px; }
 .preview-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); letter-spacing: 0.5px; margin-bottom: 8px; }
+.preview-info-pendiente { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; margin-bottom: 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1); color: #f59e0b; font-weight: 600; }
+.preview-info-pendiente .monto { font-family: 'Courier New', monospace; }
 .preview-caso { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; flex-wrap: wrap; }
 .preview-caso.pagada   { color: #10b981; }
 .preview-caso.parcial  { color: #f59e0b; }
