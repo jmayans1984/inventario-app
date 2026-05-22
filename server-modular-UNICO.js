@@ -7,6 +7,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -65,6 +66,13 @@ app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
 });
+
+// ================================================================
+// SERVIR FRONTEND (VUE.JS COMPILADO)
+// ================================================================
+
+const vueDistPath = path.join(__dirname, 'inventario-vue', 'dist');
+app.use(express.static(vueDistPath));
 
 // ================================================================
 // MÓDULO 1: AUTENTICACIÓN
@@ -4877,6 +4885,23 @@ app.get('/api/contabilidad/gastos/proximo-codigo', async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
+});
+
+// ================================================================
+// CATCH-ALL ROUTE PARA SPA (VUE ROUTER HISTORY MODE)
+// ================================================================
+
+// Esta ruta DEBE estar al final, después de todos los endpoints /api/
+app.get('*', (req, res) => {
+    // Si la ruta comienza con /api/, devolver 404
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+            error: 'Endpoint no encontrado',
+            path: req.path
+        });
+    }
+    // Para cualquier otra ruta, servir index.html (Vue Router manejará la navegación)
+    res.sendFile(path.join(vueDistPath, 'index.html'));
 });
 
 // ================================================================

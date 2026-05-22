@@ -4,8 +4,10 @@
   "description": "API REST para PWA de Inventario, Órdenes de Compra y Facturas",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "build:vue": "cd inventario-vue && npm run build",
+    "start": "npm run build:vue && node server-modular-UNICO.js",
+    "dev": "nodemon server-modular-UNICO.js",
+    "postinstall": "cd inventario-vue && npm install"
   },
   "keywords": ["api", "inventario", "postgresql", "express"],
   "author": "",
