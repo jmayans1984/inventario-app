@@ -21,8 +21,8 @@ const routes = [
   { path: '/tesoreria/procesos/importar-ventas',                 component: () => import('../views/tesoreria/ImportarVentasView.vue'),             meta: { requiresAuth: true } },
   { path: '/tesoreria/procesos/conciliacion-cuentas',            component: () => import('../views/tesoreria/ConciliacionCuentasView.vue'),        meta: { requiresAuth: true } },
   { path: '/tesoreria/procesos/movimientos-bancarios',           component: () => import('../views/tesoreria/MovimientosBancariosView.vue'),       meta: { requiresAuth: true } },
-  { path: '/tesoreria/procesos/facturas-compra',                 component: () => import('../views/tesoreria/FacturasCompraClienteView.vue'),    meta: { requiresAuth: true } },
-  { path: '/tesoreria/procesos/facturas-venta',                  component: () => import('../views/tesoreria/FacturasVentaView.vue'),              meta: { requiresAuth: true } },
+  { path: '/tesoreria/procesos/facturas-compra',                 component: () => import('../views/tesoreria/FacturasCompraClienteView.vue'),    meta: { requiresAuth: true, requiredTipo: 'CLIENTE' } },
+  { path: '/tesoreria/procesos/facturas-venta',                  component: () => import('../views/tesoreria/FacturasVentaView.vue'),              meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/tesoreria/reportes/conciliacion-bancaria',           component: () => import('../views/tesoreria/ReporteConciliacionView.vue'),        meta: { requiresAuth: true } },
   { path: '/tesoreria/reportes/movimiento-cuentas',              component: () => import('../views/tesoreria/ReporteMovimientoCuentasView.vue'),   meta: { requiresAuth: true } },
   { path: '/tesoreria/reportes/ventas-periodo',                  component: () => import('../views/tesoreria/ReporteVentasPeriodoView.vue'),       meta: { requiresAuth: true } },
@@ -78,9 +78,24 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   if (!authStore.isAuthenticated) authStore.loadFromLocalStorage()
 
+  // Verificar autenticación
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
-  } else if (to.path === '/login' && authStore.isAuthenticated) {
+    return
+  }
+
+  // Verificar tipo de empresa si la ruta lo requiere
+  if (to.meta.requiredTipo && authStore.empresa) {
+    const empresaActiva = authStore.empresa
+    if (empresaActiva.tipo !== to.meta.requiredTipo) {
+      // Usuario no tiene permiso para esta ruta, redirecciona a inicio
+      next('/')
+      return
+    }
+  }
+
+  // Redirigir login → home si ya está autenticado
+  if (to.path === '/login' && authStore.isAuthenticated) {
     next('/')
   } else {
     next()
