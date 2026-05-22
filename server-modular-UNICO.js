@@ -1552,17 +1552,17 @@ app.post('/api/tesoreria/facturas-compra/:codigo/soportes', async (req, res) => 
             [codigo, nombre_archivo, archivo_data, tipo_archivo]
         );
 
-        // Cambiar estado de factura a POR_VERIFICAR
+        // Cambiar estado de factura a POR VERIFICAR
         await pool.query(
             'UPDATE factura_venta SET estado = $1 WHERE codigo = $2',
-            ['POR_VERIFICAR', codigo]
+            ['POR VERIFICAR', codigo]
         );
 
         res.status(201).json({
             success: true,
             message: 'Soporte de pago cargado exitosamente',
             data: result.rows[0],
-            nuevoEstado: 'POR_VERIFICAR'
+            nuevoEstado: 'POR VERIFICAR'
         });
 
     } catch (error) {
@@ -2180,7 +2180,7 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
         
         const updateQuery = `
             UPDATE factura_venta
-            SET estado = 'POR_VERIFICAR'
+            SET estado = 'POR VERIFICAR'
             WHERE codigo = $1
         `;
 
@@ -2190,7 +2190,7 @@ app.post('/api/soporte-pago/subir', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Soporte de pago subido exitosamente. Estado actualizado a POR_VERIFICAR.'
+            message: 'Soporte de pago subido exitosamente. Estado actualizado a POR VERIFICAR.'
         });
         
     } catch (error) {
