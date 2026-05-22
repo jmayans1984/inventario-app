@@ -1836,7 +1836,7 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
 
         // 1. Obtener factura actual
         const facturaRes = await client.query(
-            `SELECT codigo, total, cliente, estado FROM factura_venta WHERE codigo = $1`,
+            `SELECT codigo, total, cliente, estado, valor_pagado FROM factura_venta WHERE codigo = $1`,
             [codigo]
         );
 
