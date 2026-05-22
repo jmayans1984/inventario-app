@@ -545,8 +545,8 @@ const previewFileSize  = ref(0)
 const previewSoporteId = ref(null)
 
 // ── Formulario pago ───────────────────────────────────────────────────────
-const formPago = ref({ fecha: '', banco: '', valor_pagado: null, usar_saldo_favor: false })
-const hoy = new Date().toISOString().split('T')[0]
+const formPago = ref({ fecha: '', banco: '', valor_pagado: 0, usar_saldo_favor: false })
+const hoy = computed(() => new Date().toISOString().split('T')[0])
 
 // ── Tabs de estado ────────────────────────────────────────────────────────
 const estadoTabs = computed(() => [
@@ -562,11 +562,18 @@ const cuentasActivas = computed(() =>
 )
 
 // ── Validación formulario ─────────────────────────────────────────────────
-const formPagoValido = computed(() =>
-  formPago.value.fecha &&
-  formPago.value.banco &&
-  formPago.value.valor_pagado > 0
-)
+const formPagoValido = computed(() => {
+  const tieneFecha = formPago.value.fecha
+  const usarSaldo = formPago.value.usar_saldo_favor && store.saldoFavorActual > 0
+
+  if (usarSaldo) {
+    // Si usa saldo a favor: solo necesita fecha (no necesita banco ni valor)
+    return tieneFecha
+  } else {
+    // Si no usa saldo: necesita fecha, banco y valor
+    return tieneFecha && formPago.value.banco && (formPago.value.valor_pagado > 0)
+  }
+})
 
 // ── Ordenamiento ──────────────────────────────────────────────────────────
 const ordenActual = ref({ campo: 'codigo', desc: true })
@@ -629,7 +636,7 @@ function cerrarDetalle() {
 // ── Modal Aprobación ──────────────────────────────────────────────────────
 async function abrirAprobacion(factura) {
   facturaActual.value = factura
-  formPago.value = { fecha: hoy, banco: '', valor_pagado: null, usar_saldo_favor: false }
+  formPago.value = { fecha: hoy.value, banco: '', valor_pagado: 0, usar_saldo_favor: false }
   await store.fetchSaldoFavor(factura.cliente)
   aprobacionOpen.value = true
 }
@@ -637,7 +644,7 @@ async function abrirAprobacion(factura) {
 function pasarAAprobacion() {
   // Desde el modal detalle al modal de aprobación
   dialogOpen.value = false
-  formPago.value = { fecha: hoy, banco: '', valor_pagado: null, usar_saldo_favor: false }
+  formPago.value = { fecha: hoy.value, banco: '', valor_pagado: 0, usar_saldo_favor: false }
   store.fetchSaldoFavor(facturaActual.value.cliente)
   aprobacionOpen.value = true
 }

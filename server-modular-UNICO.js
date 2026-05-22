@@ -1814,10 +1814,19 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
     const { codigo } = req.params;
     const { fecha, banco, valor_pagado, empresa, usar_saldo_favor } = req.body;
 
-    if (!fecha || !banco || valor_pagado === undefined || !empresa) {
+    if (!fecha || !empresa || valor_pagado === undefined) {
         return res.status(400).json({
             success: false,
-            error: 'Parámetros requeridos: fecha, banco, valor_pagado, empresa'
+            error: 'Parámetros requeridos: fecha, valor_pagado, empresa'
+        });
+    }
+
+    // Si usa saldo a favor, banco es opcional
+    // Si no usa saldo a favor, banco es obligatorio
+    if (!usar_saldo_favor && !banco) {
+        return res.status(400).json({
+            success: false,
+            error: 'Banco es requerido cuando no se aplica saldo a favor'
         });
     }
 
@@ -1897,14 +1906,16 @@ app.post('/api/tesoreria/facturas-proveedor/:codigo/aprobar-pago', async (req, r
         const nextNum = (parseInt(maxNumRes.rows[0].max_num) || 0) + 1;
         const numeroMoviban = String(nextNum).padStart(10, '0');
 
-        // 5. Insertar movimiento en MOVIBAN (ingreso siempre por el valor recibido)
-        await client.query(
-            `INSERT INTO moviban
-                (tipo, numero, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, ccosto, origen)
-             VALUES
-                ('ING', $1, $2, $3, NULL, NULL, $4, 0, $5, 'NO', $6, NULL, NULL, NULL)`,
-            [numeroMoviban, fecha, conceptoMoviban.substring(0, 60), valorPago, banco, empresa]
-        );
+        // 5. Insertar movimiento en MOVIBAN (solo si hay valor pagado por banco)
+        if (valorPago > 0) {
+            await client.query(
+                `INSERT INTO moviban
+                    (tipo, numero, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, conciliado, empresa, gasto, ccosto, origen)
+                 VALUES
+                    ('ING', $1, $2, $3, NULL, NULL, $4, 0, $5, 'NO', $6, NULL, NULL, NULL)`,
+                [numeroMoviban, fecha, conceptoMoviban.substring(0, 60), valorPago, banco, empresa]
+            );
+        }
 
         // 6. Manejar saldo a favor del cliente
         if (usar_saldo_favor && saldoFavorUsado > 0) {
