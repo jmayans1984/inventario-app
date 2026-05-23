@@ -1,529 +1,894 @@
 <template>
   <MainLayout>
-    <div class="view-container">
+    <div class="iv-wrap">
+
       <!-- BREADCRUMB -->
       <div class="breadcrumb">
         <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
+        <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
         <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Importar Ventas</span>
+        <v-icon size="13" color="#475569">mdi-chevron-right</v-icon>
+        <span class="bc-cur">Importar Ventas Square</span>
       </div>
 
       <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon-wrap">
-            <v-icon size="22" color="white">mdi-file-import-outline</v-icon>
+      <div class="iv-header">
+        <div class="iv-header-left">
+          <div class="iv-icon-wrap">
+            <v-icon size="26" color="white">mdi-storefront-outline</v-icon>
           </div>
           <div>
-            <h1 class="page-title">IMPORTAR VENTAS</h1>
-            <p class="page-sub">Carga registros de ventas desde un archivo CSV</p>
+            <h1 class="iv-title">IMPORTAR VENTAS SQUARE</h1>
+            <p class="iv-sub">Carga los dos CSV exportados desde Square para ver el resumen del período</p>
           </div>
         </div>
       </div>
 
-      <!-- PASO 1: SELECCIONAR ARCHIVO -->
-      <div v-if="store.paso === 1" class="import-card">
-        <div class="import-section">
-          <v-icon size="48" class="import-icon">mdi-cloud-upload-outline</v-icon>
-          <h3>Selecciona un archivo CSV</h3>
-          <p class="import-subtitle">Arrastra tu archivo aquí o haz clic para seleccionar</p>
+      <!-- ZONA DE CARGA -->
+      <div class="iv-upload-row">
 
-          <div class="drop-zone" @dragover.prevent @drop.prevent="handleDrop">
-            <input
-              ref="fileInput"
-              type="file"
-              accept=".csv"
-              style="display: none"
-              @change="handleFileSelect"
-            />
-            <v-btn
-              variant="tonal"
-              prepend-icon="mdi-folder-open"
-              @click="fileInput?.click()"
-              class="select-btn"
-            >
-              Seleccionar Archivo
-            </v-btn>
-
-            <div v-if="store.archivo" class="file-selected">
-              <v-icon color="success" size="24">mdi-check-circle</v-icon>
-              <span>{{ store.archivo.name }} ({{ formatFileSize(store.archivo.size) }})</span>
+        <!-- Resumen de ventas -->
+        <div
+          class="drop-zone"
+          :class="{ 'drop-zone--active': dragging[0], 'drop-zone--loaded': resumen }"
+          @dragover.prevent="dragging[0] = true"
+          @dragleave="dragging[0] = false"
+          @drop.prevent="onDrop($event, 'resumen')"
+          @click="$refs.inputResumen.click()"
+        >
+          <input ref="inputResumen" type="file" accept=".csv" hidden @change="onFileInput($event, 'resumen')" />
+          <div v-if="!resumen" class="drop-content">
+            <div class="drop-icon-wrap drop-icon-blue">
+              <v-icon size="28" color="white">mdi-file-chart-outline</v-icon>
             </div>
+            <div class="drop-title">Resumen de Ventas</div>
+            <div class="drop-sub">Arrastra o haz click para cargar</div>
+            <div class="drop-hint"><code>resumen_ventas-YYYY-MM-DD.csv</code></div>
           </div>
-
-          <div class="button-group">
-            <v-btn variant="text" @click="store.descargarPlantilla" prepend-icon="mdi-download">
-              Descargar Plantilla
-            </v-btn>
-            <v-btn
-              v-if="store.archivo"
-              color="success"
-              prepend-icon="mdi-check"
-              :loading="store.validating"
-              @click="validarArchivo"
-              class="next-btn"
-            >
-              Validar
+          <div v-else class="drop-loaded">
+            <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
+            <div class="drop-loaded-name">{{ resumenFileName }}</div>
+            <div class="drop-loaded-sub">{{ resumen.periodo }}</div>
+            <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar('resumen')">
+              <v-icon size="14">mdi-close</v-icon> Quitar
             </v-btn>
           </div>
         </div>
+
+        <!-- Artículos vendidos -->
+        <div
+          class="drop-zone"
+          :class="{ 'drop-zone--active': dragging[1], 'drop-zone--loaded': articulos }"
+          @dragover.prevent="dragging[1] = true"
+          @dragleave="dragging[1] = false"
+          @drop.prevent="onDrop($event, 'articulos')"
+          @click="$refs.inputArticulos.click()"
+        >
+          <input ref="inputArticulos" type="file" accept=".csv" hidden @change="onFileInput($event, 'articulos')" />
+          <div v-if="!articulos" class="drop-content">
+            <div class="drop-icon-wrap drop-icon-purple">
+              <v-icon size="28" color="white">mdi-package-variant-closed</v-icon>
+            </div>
+            <div class="drop-title">Artículos Vendidos</div>
+            <div class="drop-sub">Arrastra o haz click para cargar</div>
+            <div class="drop-hint"><code>ventas_articulos-YYYY-MM-DD.csv</code></div>
+          </div>
+          <div v-else class="drop-loaded">
+            <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
+            <div class="drop-loaded-name">{{ articulosFileName }}</div>
+            <div class="drop-loaded-sub">{{ articulos.items.length }} artículos · {{ articulos.modificadores.length }} modificadores</div>
+            <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar('articulos')">
+              <v-icon size="14">mdi-close</v-icon> Quitar
+            </v-btn>
+          </div>
+        </div>
+
       </div>
 
-      <!-- PASO 2: VALIDAR DATOS -->
-      <div v-if="store.paso === 2" class="import-card">
-        <div class="import-section">
-          <div class="validation-summary">
-            <div class="summary-item success">
-              <v-icon size="28">mdi-check-circle</v-icon>
-              <div>
-                <span class="summary-label">Válidos</span>
-                <span class="summary-value">{{ store.totalValidos }}</span>
-              </div>
+      <!-- ERROR DE PARSEO -->
+      <div v-if="parseError" class="iv-error">
+        <v-icon size="20" color="#ef4444">mdi-alert-circle-outline</v-icon>
+        <span>{{ parseError }}</span>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════
+           PREVIEW — RESUMEN
+      ═══════════════════════════════════════════════ -->
+      <div v-if="resumen" class="iv-section">
+
+        <!-- Encabezado sección -->
+        <div class="iv-section-header">
+          <div class="iv-section-icon" style="background:rgba(59,130,246,0.1)">
+            <v-icon size="16" color="#3b82f6">mdi-file-chart-outline</v-icon>
+          </div>
+          <div>
+            <div class="iv-section-title">RESUMEN DE VENTAS</div>
+            <div class="iv-section-sub">{{ resumen.ubicacion }} · {{ resumen.periodo }}</div>
+          </div>
+        </div>
+
+        <!-- KPIs ventas -->
+        <div class="kpi-grid kpi-grid-3">
+
+          <div class="kpi-card kpi-blue">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Ventas Brutas</span>
+              <v-icon size="16" color="#3b82f6">mdi-cash-multiple</v-icon>
             </div>
-            <div class="summary-item error">
-              <v-icon size="28">mdi-alert-circle</v-icon>
-              <div>
-                <span class="summary-label">Errores</span>
-                <span class="summary-value">{{ store.totalInvalidos }}</span>
-              </div>
+            <div class="kpi-val kpi-val-blue">{{ fmt(resumen.ventas.ventasBrutas) }}</div>
+          </div>
+
+          <div class="kpi-card kpi-orange">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Descuentos</span>
+              <v-icon size="16" color="#f59e0b">mdi-tag-minus-outline</v-icon>
             </div>
-            <div class="summary-item info">
-              <v-icon size="28">mdi-information-outline</v-icon>
-              <div>
-                <span class="summary-label">Total</span>
-                <span class="summary-value">{{ store.totalRegistros }}</span>
-              </div>
+            <div class="kpi-val kpi-val-orange">{{ fmt(resumen.ventas.descuentos) }}</div>
+          </div>
+
+          <div class="kpi-card kpi-green">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Ventas Netas</span>
+              <v-icon size="16" color="#10b981">mdi-trending-up</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-green">{{ fmt(resumen.ventas.ventasNetas) }}</div>
+          </div>
+
+          <div class="kpi-card kpi-gray">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Impuestos</span>
+              <v-icon size="16" color="#64748b">mdi-percent-outline</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-gray">{{ fmt(resumen.ventas.impuestos) }}</div>
+          </div>
+
+          <div class="kpi-card kpi-purple">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Propinas</span>
+              <v-icon size="16" color="#8b5cf6">mdi-hand-coin-outline</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-purple">{{ fmt(resumen.ventas.propinas) }}</div>
+          </div>
+
+          <div class="kpi-card kpi-blue-dark">
+            <div class="kpi-top">
+              <span class="kpi-lbl">TOTAL</span>
+              <v-icon size="16" color="#1d4ed8">mdi-sigma</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-blue-dark">{{ fmt(resumen.ventas.total) }}</div>
+          </div>
+
+        </div>
+
+        <!-- Tabla de pagos -->
+        <div class="iv-card mt-16">
+          <div class="iv-card-header">
+            <div class="iv-card-title">
+              <v-icon size="14" color="#10b981" class="mr-1">mdi-credit-card-outline</v-icon>
+              Detalle de Pagos
+            </div>
+          </div>
+          <div class="pagos-grid">
+            <div class="pago-item" v-for="p in pagoItems" :key="p.label">
+              <span class="pago-label">{{ p.label }}</span>
+              <span class="pago-valor" :style="{ color: p.color }">{{ fmt(p.valor) }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══════════════════════════════════════════════
+           PREVIEW — ARTÍCULOS
+      ═══════════════════════════════════════════════ -->
+      <div v-if="articulos" class="iv-section">
+
+        <div class="iv-section-header">
+          <div class="iv-section-icon" style="background:rgba(139,92,246,0.1)">
+            <v-icon size="16" color="#8b5cf6">mdi-package-variant-closed</v-icon>
+          </div>
+          <div>
+            <div class="iv-section-title">ARTÍCULOS VENDIDOS</div>
+            <div class="iv-section-sub">{{ articulos.ubicacion }} · {{ articulos.periodo }}</div>
+          </div>
+        </div>
+
+        <!-- KPIs artículos -->
+        <div class="kpi-grid kpi-grid-4">
+          <div class="kpi-card kpi-purple">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Artículos Distintos</span>
+              <v-icon size="16" color="#8b5cf6">mdi-format-list-bulleted</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-purple">{{ articulos.items.length }}</div>
+          </div>
+          <div class="kpi-card kpi-blue">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Unidades Vendidas</span>
+              <v-icon size="16" color="#3b82f6">mdi-counter</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-blue">{{ totalUnidades }}</div>
+          </div>
+          <div class="kpi-card kpi-green">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Ventas Brutas</span>
+              <v-icon size="16" color="#10b981">mdi-cash</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-green">{{ fmt(totalVentasBrutas) }}</div>
+          </div>
+          <div class="kpi-card kpi-green-dark">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Ventas Netas</span>
+              <v-icon size="16" color="#059669">mdi-trending-up</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-green-dark">{{ fmt(totalVentasNetas) }}</div>
+          </div>
+        </div>
+
+        <!-- Tabla de artículos agrupada por categoría -->
+        <div class="iv-card">
+          <div class="iv-card-header">
+            <div class="iv-card-title">
+              <v-icon size="14" color="#8b5cf6" class="mr-1">mdi-table</v-icon>
+              Detalle por Artículo
+            </div>
+            <div class="iv-card-chips">
+              <div
+                v-for="cat in categorias"
+                :key="cat"
+                class="cat-chip"
+                :class="{ 'cat-chip--active': catFiltro === cat }"
+                @click="catFiltro = catFiltro === cat ? '' : cat"
+              >{{ cat }}</div>
             </div>
           </div>
 
-          <!-- Mostrar errores -->
-          <v-alert
-            v-if="store.validationErrors.length > 0"
-            type="error"
-            closable
-            class="validation-errors-card"
-          >
-            <div class="errors-list">
-              <div v-for="error in store.validationErrors" :key="error.fila" class="error-item">
-                <strong>Fila {{ error.fila }}:</strong>
-                {{ error.errores.join('; ') }}
-              </div>
-            </div>
-          </v-alert>
-
-          <!-- Vista previa de registros válidos -->
-          <div v-if="store.totalValidos > 0" class="preview-section">
-            <h4>Vista previa de registros válidos</h4>
-            <div class="table-wrapper">
-              <table class="preview-table">
-                <thead>
-                  <tr>
-                    <th>Fila</th>
-                    <th>Fecha</th>
-                    <th>Cliente</th>
-                    <th>Monto</th>
-                    <th>Referencia</th>
+          <div class="art-tabla-wrap">
+            <table class="art-tabla">
+              <thead>
+                <tr>
+                  <th>ARTÍCULO</th>
+                  <th>VARIANTE</th>
+                  <th>SKU</th>
+                  <th>CATEGORÍA</th>
+                  <th class="col-right">CANT.</th>
+                  <th class="col-right">V. BRUTA</th>
+                  <th class="col-right">DESCUENTO</th>
+                  <th class="col-right">V. NETA</th>
+                  <th class="col-right">IMPUESTO</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(grp, cat) in itemsAgrupados" :key="cat">
+                  <tr class="tr-cat-header">
+                    <td colspan="9">
+                      <span class="cat-badge">{{ cat }}</span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(reg, idx) in store.registrosValidos.slice(0, 5)" :key="idx">
-                    <td>{{ reg.fila }}</td>
-                    <td>{{ reg.fecha }}</td>
-                    <td>{{ reg.cliente }}</td>
-                    <td class="amount">{{ formatMoneda(parseFloat(reg.monto)) }}</td>
-                    <td>{{ reg.referencia || '-' }}</td>
+                  <tr
+                    v-for="(item, idx) in grp"
+                    :key="item.sku + idx"
+                    class="tr-item"
+                  >
+                    <td class="td-nombre">{{ item.nombre }}</td>
+                    <td class="td-variante">{{ item.variante !== 'Regular' ? item.variante : '—' }}</td>
+                    <td class="td-sku">{{ item.sku }}</td>
+                    <td class="td-cat"><span class="cat-tag">{{ item.categoria }}</span></td>
+                    <td class="td-num col-right">{{ item.cantidad }}</td>
+                    <td class="td-monto col-right">{{ fmt(item.ventasBrutas) }}</td>
+                    <td class="td-monto col-right">
+                      <span v-if="item.descuentos < 0" class="txt-orange">{{ fmt(item.descuentos) }}</span>
+                      <span v-else class="txt-dim">—</span>
+                    </td>
+                    <td class="td-monto col-right txt-green">{{ fmt(item.ventasNetas) }}</td>
+                    <td class="td-monto col-right txt-dim">{{ fmt(item.impuestos) }}</td>
                   </tr>
-                </tbody>
-              </table>
-              <div v-if="store.totalValidos > 5" class="more-records">
-                ... y {{ store.totalValidos - 5 }} registros más
-              </div>
+                  <tr class="tr-subtotal">
+                    <td colspan="4" class="subtotal-lbl">Subtotal {{ cat }}</td>
+                    <td class="col-right subtotal-val">{{ subtotalCat(cat).cantidad }}</td>
+                    <td class="col-right subtotal-val">{{ fmt(subtotalCat(cat).brutas) }}</td>
+                    <td class="col-right subtotal-val txt-orange">{{ subtotalCat(cat).descuentos < 0 ? fmt(subtotalCat(cat).descuentos) : '—' }}</td>
+                    <td class="col-right subtotal-val txt-green">{{ fmt(subtotalCat(cat).netas) }}</td>
+                    <td class="col-right subtotal-val txt-dim">{{ fmt(subtotalCat(cat).impuestos) }}</td>
+                  </tr>
+                </template>
+              </tbody>
+              <tfoot>
+                <tr class="tr-total">
+                  <td colspan="4" class="total-lbl">TOTAL GENERAL</td>
+                  <td class="col-right total-val">{{ totalUnidades }}</td>
+                  <td class="col-right total-val txt-green">{{ fmt(totalVentasBrutas) }}</td>
+                  <td class="col-right total-val txt-orange">{{ totalDescuentos < 0 ? fmt(totalDescuentos) : '—' }}</td>
+                  <td class="col-right total-val txt-green">{{ fmt(totalVentasNetas) }}</td>
+                  <td class="col-right total-val txt-dim">{{ fmt(totalImpuestos) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modificadores (colapsable) -->
+        <div class="iv-card">
+          <div class="iv-card-header" style="cursor:pointer" @click="mostrarMods = !mostrarMods">
+            <div class="iv-card-title">
+              <v-icon size="14" color="#f59e0b" class="mr-1">mdi-tune-variant</v-icon>
+              Modificadores Vendidos
+              <span class="mod-count">{{ articulos.modificadores.length }}</span>
             </div>
+            <v-icon size="18" color="#94a3b8">{{ mostrarMods ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
           </div>
-
-          <div class="button-group">
-            <v-btn variant="text" @click="store.resetForm" prepend-icon="mdi-arrow-left">
-              Atrás
-            </v-btn>
-            <v-btn
-              v-if="store.totalValidos > 0"
-              color="success"
-              prepend-icon="mdi-import"
-              :loading="store.loading"
-              @click="store.importar"
-              class="next-btn"
-            >
-              Importar ({{ store.totalValidos }})
-            </v-btn>
+          <div v-if="mostrarMods" class="art-tabla-wrap">
+            <table class="art-tabla">
+              <thead>
+                <tr>
+                  <th>GRUPO</th>
+                  <th>MODIFICADOR</th>
+                  <th class="col-right">CANT.</th>
+                  <th class="col-right">V. NETA</th>
+                  <th class="col-right">V. BRUTA</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(m, i) in articulos.modificadores" :key="i" :class="i % 2 === 0 ? 'tr-even' : 'tr-odd'">
+                  <td class="td-dim">{{ m.grupo }}</td>
+                  <td class="td-nombre">{{ m.modificador }}</td>
+                  <td class="td-num col-right">{{ m.cantidadNeta }}</td>
+                  <td class="td-monto col-right">{{ m.ventasNetas > 0 ? fmt(m.ventasNetas) : '—' }}</td>
+                  <td class="td-monto col-right">{{ m.ventasBrutas > 0 ? fmt(m.ventasBrutas) : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
+
       </div>
 
-      <!-- PASO 4: RESULTADO -->
-      <div v-if="store.paso === 4" class="import-card">
-        <div class="import-section">
-          <v-icon size="64" color="success" class="success-icon">mdi-check-circle</v-icon>
-          <h3>¡Importación completada!</h3>
-          <p>{{ store.success }}</p>
-
-          <v-btn
-            color="primary"
-            prepend-icon="mdi-reload"
-            @click="store.resetForm"
-            class="reset-btn"
-          >
-            Importar otro archivo
-          </v-btn>
-        </div>
-      </div>
-
-      <!-- ALERTAS DE ERROR -->
-      <v-alert
-        v-if="store.error"
-        type="error"
-        closable
-        @click:close="store.clearMessages"
-        class="mt-4"
-      >
-        {{ store.error }}
-      </v-alert>
     </div>
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
-import { useImportarVentasStore } from '../../stores/importar-ventas'
-import { formatMoneda } from '../../utils/formatters'
 
-const store = useImportarVentasStore()
-const fileInput = ref(null)
+// ─── State ───────────────────────────────────────────────────
+const resumen          = ref(null)
+const articulos        = ref(null)
+const resumenFileName  = ref('')
+const articulosFileName= ref('')
+const parseError       = ref('')
+const dragging         = ref([false, false])
+const catFiltro        = ref('')
+const mostrarMods      = ref(false)
 
-function handleFileSelect(event) {
-  const file = event.target.files?.[0]
-  if (file) {
-    store.seleccionarArchivo(file)
-  }
+// ─── Formatting ──────────────────────────────────────────────
+function fmt(val) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: 'USD',
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  }).format(parseFloat(val || 0))
 }
 
-function handleDrop(event) {
-  const file = event.dataTransfer?.files?.[0]
-  if (file && file.type === 'text/csv' || file.name.endsWith('.csv')) {
-    store.seleccionarArchivo(file)
-  } else if (file) {
-    store.error = 'Por favor, selecciona un archivo CSV'
-  }
-}
-
-function formatFileSize(bytes) {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
-}
-
-async function validarArchivo() {
-  await store.validarArchivo()
-}
-
-onMounted(() => {
-  store.resetForm()
+// ─── Computed — artículos ─────────────────────────────────────
+const categorias = computed(() => {
+  if (!articulos.value) return []
+  const cats = [...new Set(articulos.value.items.map(i => i.categoria))]
+  return cats
 })
+
+const itemsFiltrados = computed(() => {
+  if (!articulos.value) return []
+  if (!catFiltro.value) return articulos.value.items
+  return articulos.value.items.filter(i => i.categoria === catFiltro.value)
+})
+
+const itemsAgrupados = computed(() => {
+  const groups = {}
+  for (const item of itemsFiltrados.value) {
+    if (!groups[item.categoria]) groups[item.categoria] = []
+    groups[item.categoria].push(item)
+  }
+  return groups
+})
+
+function subtotalCat(cat) {
+  const items = itemsAgrupados.value[cat] || []
+  return {
+    cantidad:   items.reduce((s, i) => s + i.cantidad, 0),
+    brutas:     items.reduce((s, i) => s + i.ventasBrutas, 0),
+    descuentos: items.reduce((s, i) => s + i.descuentos, 0),
+    netas:      items.reduce((s, i) => s + i.ventasNetas, 0),
+    impuestos:  items.reduce((s, i) => s + i.impuestos, 0),
+  }
+}
+
+const totalUnidades     = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.cantidad, 0))
+const totalVentasBrutas = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.ventasBrutas, 0))
+const totalDescuentos   = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.descuentos, 0))
+const totalVentasNetas  = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.ventasNetas, 0))
+const totalImpuestos    = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.impuestos, 0))
+
+// ─── Computed — pagos ─────────────────────────────────────────
+const pagoItems = computed(() => {
+  if (!resumen.value) return []
+  const p = resumen.value.pagos
+  return [
+    { label: 'Total Recibido',    valor: p.totalRecibido,  color: '#1d4ed8' },
+    { label: 'Efectivo',          valor: p.efectivo,       color: '#059669' },
+    { label: 'Tarjeta',           valor: p.tarjeta,        color: '#7c3aed' },
+    { label: 'Otro',              valor: p.otro,           color: '#0891b2' },
+    { label: 'Tarjeta de Regalo', valor: p.tarjetaRegalo,  color: '#db2777' },
+    { label: 'Comisiones',        valor: p.comisiones,     color: '#dc2626' },
+    { label: 'Total Neto',        valor: p.totalNeto,      color: '#15803d' },
+  ]
+})
+
+// ─── Parser helpers ───────────────────────────────────────────
+function decodeUTF16(buffer) {
+  // Try with BOM detection
+  const bytes = new Uint8Array(buffer)
+  // BOM FF FE → little endian; FE FF → big endian
+  const isLE = bytes[0] === 0xFF && bytes[1] === 0xFE
+  const isBE = bytes[0] === 0xFE && bytes[1] === 0xFF
+  const encoding = isBE ? 'utf-16be' : 'utf-16le'
+  const decoder = new TextDecoder(encoding)
+  let text = decoder.decode(buffer)
+  // Remove BOM character if present
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
+  return text
+}
+
+function parseNum(str) {
+  if (!str || str.trim() === '') return 0
+  // Format: "2194,89 $"  or  "-7,79 $"  or  "0,00 $"
+  const cleaned = str.trim().replace(/\s*\$\s*$/, '').replace(',', '.')
+  return parseFloat(cleaned) || 0
+}
+
+function splitLines(text) {
+  return text.split(/\r?\n/).map(l => l.split('\t').map(c => c.trim()))
+}
+
+function extractDatesFromName(filename) {
+  // Pattern: something-YYYY-MM-DD-YYYY-MM-DD.csv
+  const m = filename.match(/(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})/)
+  if (m) return `${fmtDate(m[1])} — ${fmtDate(m[2])}`
+  return filename
+}
+
+function fmtDate(iso) {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  return `${d} ${meses[parseInt(m)-1]} ${y}`
+}
+
+function extractLocation(lines) {
+  for (const line of lines) {
+    const text = line[0] || ''
+    if (text.toLowerCase().includes('ubicación') || text.toLowerCase().includes('ubicacion')) {
+      const parts = text.split(':')
+      return parts[1]?.trim() || ''
+    }
+  }
+  return ''
+}
+
+// ─── Parser: resumen_ventas ───────────────────────────────────
+function parseResumen(buffer, filename) {
+  const text  = decodeUTF16(buffer)
+  const lines = splitLines(text)
+
+  const result = {
+    periodo:  extractDatesFromName(filename),
+    ubicacion: extractLocation(lines),
+    ventas: {
+      ventasBrutas: 0, articulos: 0, cargosServicio: 0,
+      devoluciones: 0, descuentos: 0, ventasNetas: 0,
+      ventasTarjetaRegalo: 0, impuestos: 0, propinas: 0,
+      reembolsos: 0, total: 0
+    },
+    pagos: {
+      totalRecibido: 0, efectivo: 0, tarjeta: 0,
+      otro: 0, tarjetaRegalo: 0, comisiones: 0, totalNeto: 0
+    }
+  }
+
+  let section = ''
+  for (const line of lines) {
+    const key = (line[0] || '').toLowerCase().trim()
+    const val = line[1] || ''
+
+    if (key === 'ventas') { section = 'ventas'; continue }
+    if (key === 'pagos')  { section = 'pagos';  continue }
+
+    if (section === 'ventas') {
+      if (key.includes('ventas brutas'))               result.ventas.ventasBrutas        = parseNum(val)
+      else if (key === 'artículos' || key === 'articulos') result.ventas.articulos        = parseNum(val)
+      else if (key.includes('cargos'))                 result.ventas.cargosServicio       = parseNum(val)
+      else if (key.includes('devoluciones'))           result.ventas.devoluciones         = parseNum(val)
+      else if (key.includes('descuentos'))             result.ventas.descuentos           = parseNum(val)
+      else if (key.includes('ventas netas'))           result.ventas.ventasNetas          = parseNum(val)
+      else if (key.includes('tarjetas de regalo'))     result.ventas.ventasTarjetaRegalo  = parseNum(val)
+      else if (key.includes('impuestos'))              result.ventas.impuestos            = parseNum(val)
+      else if (key.includes('propinas'))               result.ventas.propinas             = parseNum(val)
+      else if (key.includes('reembolsos'))             result.ventas.reembolsos           = parseNum(val)
+      else if (key === 'total')                        result.ventas.total                = parseNum(val)
+    } else if (section === 'pagos') {
+      if (key.includes('total recibido'))              result.pagos.totalRecibido  = parseNum(val)
+      else if (key === 'efectivo')                     result.pagos.efectivo       = parseNum(val)
+      else if (key === 'tarjeta')                      result.pagos.tarjeta        = parseNum(val)
+      else if (key === 'otro')                         result.pagos.otro           = parseNum(val)
+      else if (key.includes('tarjeta de regalo'))      result.pagos.tarjetaRegalo  = parseNum(val)
+      else if (key.includes('comisiones'))             result.pagos.comisiones     = parseNum(val)
+      else if (key.includes('total neto'))             result.pagos.totalNeto      = parseNum(val)
+    }
+  }
+  return result
+}
+
+// ─── Parser: ventas_articulos ─────────────────────────────────
+function parseArticulos(buffer, filename) {
+  const text  = decodeUTF16(buffer)
+  const lines = splitLines(text)
+
+  const result = {
+    periodo:      extractDatesFromName(filename),
+    ubicacion:    extractLocation(lines),
+    items:        [],
+    modificadores: []
+  }
+
+  // Find the items header row — contains "Artículos vendidos" or "Articulos vendidos"
+  let itemsHeaderIdx = -1
+  let modsHeaderIdx  = -1
+  let modsSection    = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const first = (lines[i][0] || '').toLowerCase()
+    if (first.includes('nombre del art')) {
+      itemsHeaderIdx = i
+    }
+    if (first.includes('grupo de modificadores') || first.includes('modificador')) {
+      if (itemsHeaderIdx >= 0 && i > itemsHeaderIdx) {
+        modsHeaderIdx = i
+      }
+    }
+  }
+
+  // Parse items
+  if (itemsHeaderIdx >= 0) {
+    const hdr = lines[itemsHeaderIdx].map(h => h.toLowerCase())
+    const iNombre    = hdr.findIndex(h => h.includes('nombre del art'))
+    const iVariante  = hdr.findIndex(h => h.includes('variante'))
+    const iSKU       = hdr.findIndex(h => h.includes('sku'))
+    const iCat       = hdr.findIndex(h => h.includes('categor'))
+    const iCant      = hdr.findIndex(h => h.includes('vendidos') && !h.includes('ventas'))
+    const iBrutas    = hdr.findIndex(h => h.includes('ventas brutas'))
+    const iDesc      = hdr.findIndex(h => h.includes('descuentos'))
+    const iNetas     = hdr.findIndex(h => h.includes('ventas netas'))
+    const iImpuestos = hdr.findIndex(h => h.includes('impuesto'))
+
+    for (let i = itemsHeaderIdx + 1; i < lines.length; i++) {
+      const line = lines[i]
+      // Stop at empty line or "Ventas con modificadores" section
+      if (!line[0] || line[0].trim() === '') {
+        // Check if next non-empty line is modifiers section
+        continue
+      }
+      // Stop if we hit the modifiers section
+      const first = (line[0] || '').toLowerCase()
+      if (first.includes('ventas con modificadores') || first.includes('grupo de modificadores')) break
+
+      const item = {
+        nombre:      line[iNombre]    || '',
+        variante:    line[iVariante]  || '',
+        sku:         line[iSKU]       || '',
+        categoria:   line[iCat]       || 'SIN CATEGORÍA',
+        cantidad:    parseInt(line[iCant]   || '0') || 0,
+        ventasBrutas: parseNum(line[iBrutas]),
+        descuentos:   parseNum(line[iDesc]),
+        ventasNetas:  parseNum(line[iNetas]),
+        impuestos:    parseNum(line[iImpuestos]),
+      }
+      if (item.nombre) result.items.push(item)
+    }
+  }
+
+  // Parse modificadores
+  if (modsHeaderIdx >= 0) {
+    const hdr = lines[modsHeaderIdx].map(h => h.toLowerCase())
+    const iGrupo    = hdr.findIndex(h => h.includes('grupo'))
+    const iMod      = hdr.findIndex(h => h.includes('modificador'))
+    const iCantNeta = hdr.findIndex(h => h.includes('monto neto') || h.includes('cantidad') || h.includes('neto vendido'))
+    const iNetas    = hdr.findIndex(h => h.includes('ventas netas'))
+    const iCantB    = hdr.findIndex(h => h.includes('monto vendido'))
+    const iBrutas   = hdr.findIndex(h => h.includes('ventas brutas'))
+
+    for (let i = modsHeaderIdx + 1; i < lines.length; i++) {
+      const line = lines[i]
+      if (!line[0] || line[0].trim() === '') continue
+      const mod = {
+        grupo:        line[iGrupo]    || '',
+        modificador:  line[iMod]      || '',
+        cantidadNeta: parseInt(line[iCantNeta] || '0') || 0,
+        ventasNetas:  parseNum(line[iNetas]),
+        cantidadB:    parseInt(line[iCantB]    || '0') || 0,
+        ventasBrutas: parseNum(line[iBrutas]),
+      }
+      if (mod.modificador) result.modificadores.push(mod)
+    }
+  }
+
+  return result
+}
+
+// ─── File handling ────────────────────────────────────────────
+function detectType(filename, buffer) {
+  const name = filename.toLowerCase()
+  if (name.includes('resumen')) return 'resumen'
+  if (name.includes('articulo') || name.includes('artículo')) return 'articulos'
+  // Fallback: peek at content
+  const text = new TextDecoder('utf-16le').decode(buffer.slice(0, 200))
+  if (text.toLowerCase().includes('resumen')) return 'resumen'
+  return 'articulos'
+}
+
+async function processFile(file, forcedType) {
+  parseError.value = ''
+  try {
+    const buffer = await file.arrayBuffer()
+    const type   = forcedType || detectType(file.name, buffer)
+
+    if (type === 'resumen') {
+      resumenFileName.value = file.name
+      resumen.value = parseResumen(buffer, file.name)
+    } else {
+      articulosFileName.value = file.name
+      articulos.value = parseArticulos(buffer, file.name)
+    }
+  } catch (e) {
+    parseError.value = `Error al parsear "${file.name}": ${e.message}`
+    console.error(e)
+  }
+}
+
+function onDrop(e, type) {
+  dragging.value = [false, false]
+  const file = e.dataTransfer.files[0]
+  if (file) processFile(file, type)
+}
+
+function onFileInput(e, type) {
+  const file = e.target.files[0]
+  if (file) processFile(file, type)
+  e.target.value = ''
+}
+
+function limpiar(type) {
+  if (type === 'resumen')   { resumen.value = null;   resumenFileName.value = '' }
+  if (type === 'articulos') { articulos.value = null; articulosFileName.value = '' }
+  parseError.value = ''
+}
 </script>
 
 <style scoped>
-.view-container {
-  padding: 24px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
+/* ── Wrapper ───────────────────────────────────────── */
+.iv-wrap { padding: 24px; max-width: 1280px; margin: 0 auto; }
 
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 20px;
-}
+/* ── Breadcrumb ────────────────────────────────────── */
+.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
+.bc-root { font-size: 11px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; }
+.bc-cat  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.4); }
+.bc-cur  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 600; }
 
-.bc-root {
-  font-size: 12px;
-  font-weight: 700;
-  color: #06b6d4;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+/* ── Header ────────────────────────────────────────── */
+.iv-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.iv-header-left { display: flex; align-items: center; gap: 16px; }
+.iv-icon-wrap {
+  width: 52px; height: 52px; border-radius: 16px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 20px rgba(245,158,11,0.38); flex-shrink: 0;
 }
+.iv-title { font-size: 21px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); letter-spacing: 0.4px; margin: 0; }
+.iv-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); margin: 3px 0 0; }
 
-.bc-sep {
-  color: rgba(var(--v-theme-on-surface), 0.3);
+/* ── Drop zones ────────────────────────────────────── */
+.iv-upload-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-bottom: 24px;
 }
-
-.bc-cat {
-  font-size: 12px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-}
-
-.bc-current {
-  font-size: 12px;
-  color: rgba(var(--v-theme-on-surface), 0.8);
-  font-weight: 500;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 28px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
-}
-
-.page-title {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  margin: 0;
-}
-
-.page-sub {
-  font-size: 13px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  margin: 2px 0 0;
-}
-
-.import-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 16px;
-  padding: 40px 32px;
-}
-
-.import-section {
-  text-align: center;
-}
-
-.import-icon {
-  color: #06b6d4;
-  margin-bottom: 16px;
-}
-
-.import-section h3 {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 16px 0 8px;
-}
-
-.import-subtitle {
-  font-size: 14px;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  margin: 0;
-}
+@media (max-width: 640px) { .iv-upload-row { grid-template-columns: 1fr; } }
 
 .drop-zone {
-  border: 2px dashed rgba(6, 182, 212, 0.3);
-  border-radius: 12px;
+  border: 2px dashed rgba(var(--v-theme-on-surface), 0.18);
+  border-radius: 16px;
   padding: 32px 24px;
-  margin: 24px 0;
-  background: rgba(6, 182, 212, 0.05);
-  transition: all 0.3s;
-}
-
-.drop-zone:hover {
-  border-color: #06b6d4;
-  background: rgba(6, 182, 212, 0.1);
-}
-
-.select-btn {
-  margin-bottom: 16px;
-}
-
-.file-selected {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: #10b981;
-  font-weight: 600;
-  margin-top: 16px;
-}
-
-.validation-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
-  margin: 24px 0;
-}
-
-.summary-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-}
-
-.summary-item.success {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.3);
-}
-
-.summary-item.success :deep(.v-icon) {
-  color: #10b981;
-}
-
-.summary-item.error {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.3);
-}
-
-.summary-item.error :deep(.v-icon) {
-  color: #ef4444;
-}
-
-.summary-item.info {
-  background: rgba(6, 182, 212, 0.1);
-  border-color: rgba(6, 182, 212, 0.3);
-}
-
-.summary-item.info :deep(.v-icon) {
-  color: #06b6d4;
-}
-
-.summary-item > div {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-
-.summary-label {
-  font-size: 12px;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.summary-value {
-  font-size: 24px;
-  font-weight: 800;
-}
-
-.validation-errors-card {
-  margin: 20px 0;
-}
-
-.errors-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.error-item {
-  padding: 8px 0;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.preview-section {
-  margin: 24px 0;
-  text-align: left;
-}
-
-.preview-section h4 {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-
-.table-wrapper {
-  background: rgba(var(--v-theme-on-surface), 0.02);
-  border-radius: 8px;
-  overflow: auto;
-}
-
-.preview-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.preview-table th {
-  background: rgba(var(--v-theme-on-surface), 0.06);
-  padding: 10px;
-  text-align: left;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-}
-
-.preview-table td {
-  padding: 10px;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
-}
-
-.preview-table td.amount {
-  text-align: right;
-  color: #06b6d4;
-  font-weight: 600;
-}
-
-.more-records {
-  padding: 12px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgb(var(--v-theme-surface));
   text-align: center;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  font-size: 12px;
-  font-style: italic;
+  min-height: 160px;
+  display: flex; align-items: center; justify-content: center;
+}
+.drop-zone:hover { border-color: #06b6d4; background: rgba(6,182,212,0.03); }
+.drop-zone--active { border-color: #06b6d4; background: rgba(6,182,212,0.06); }
+.drop-zone--loaded { border-style: solid; border-color: #10b981; background: rgba(16,185,129,0.04); }
+
+.drop-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.drop-icon-wrap {
+  width: 56px; height: 56px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+}
+.drop-icon-blue   { background: linear-gradient(135deg,#3b82f6,#2563eb); }
+.drop-icon-purple { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
+.drop-title { font-size: 15px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
+.drop-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); }
+.drop-hint  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.3); margin-top: 4px; }
+.drop-hint code { background: rgba(var(--v-theme-on-surface),0.06); padding: 2px 6px; border-radius: 4px; }
+
+.drop-loaded { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.drop-loaded-name { font-size: 13px; font-weight: 600; color: #10b981; word-break: break-all; }
+.drop-loaded-sub  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
+
+/* ── Error ─────────────────────────────────────────── */
+.iv-error {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
+  font-size: 13px; color: #ef4444;
 }
 
-.success-icon {
-  animation: bounce 0.6s ease-out;
+/* ── Sections ──────────────────────────────────────── */
+.iv-section { margin-bottom: 32px; display: flex; flex-direction: column; gap: 16px; }
+.iv-section-header { display: flex; align-items: center; gap: 12px; }
+.iv-section-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.iv-section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: rgb(var(--v-theme-on-surface)); }
+.iv-section-sub   { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.45); margin-top: 2px; }
+
+/* ── KPI Grid ──────────────────────────────────────── */
+.kpi-grid { display: grid; gap: 12px; }
+.kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) { .kpi-grid-3, .kpi-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .kpi-grid-3, .kpi-grid-4 { grid-template-columns: 1fr; } }
+
+.kpi-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 12px; padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.kpi-val { font-size: 20px; font-weight: 800; font-family: 'Courier New', monospace; }
+
+.kpi-blue      { border-left: 3px solid #3b82f6; } .kpi-val-blue      { color: #3b82f6; }
+.kpi-green     { border-left: 3px solid #10b981; } .kpi-val-green     { color: #10b981; }
+.kpi-green-dark{ border-left: 3px solid #059669; } .kpi-val-green-dark{ color: #059669; }
+.kpi-orange    { border-left: 3px solid #f59e0b; } .kpi-val-orange    { color: #f59e0b; }
+.kpi-purple    { border-left: 3px solid #8b5cf6; } .kpi-val-purple    { color: #8b5cf6; }
+.kpi-gray      { border-left: 3px solid #64748b; } .kpi-val-gray      { color: #64748b; }
+.kpi-blue-dark { border-left: 3px solid #1d4ed8; } .kpi-val-blue-dark { color: #1d4ed8; }
+
+/* ── Card ──────────────────────────────────────────── */
+.iv-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.iv-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  flex-wrap: wrap; gap: 8px;
+}
+.iv-card-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.7);
+  display: flex; align-items: center;
+}
+.mr-1 { margin-right: 4px; }
+.mt-16 { margin-top: 0; }
+.iv-card-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── Pagos grid ────────────────────────────────────── */
+.pagos-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+}
+@media (max-width: 700px) { .pagos-grid { grid-template-columns: repeat(2, 1fr); } }
+.pago-item {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 14px 18px;
+  border-right: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+}
+.pago-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(var(--v-theme-on-surface), 0.45); }
+.pago-valor { font-size: 16px; font-weight: 800; font-family: 'Courier New', monospace; }
+
+/* ── Categoría chips ───────────────────────────────── */
+.cat-chip {
+  font-size: 10px; font-weight: 700; padding: 3px 10px;
+  border-radius: 20px; cursor: pointer;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  transition: all 0.15s; white-space: nowrap;
+}
+.cat-chip:hover { border-color: #8b5cf6; color: #8b5cf6; }
+.cat-chip--active { background: rgba(139,92,246,0.12); border-color: #8b5cf6; color: #8b5cf6; }
+
+/* ── Artículos tabla ───────────────────────────────── */
+.art-tabla-wrap { overflow-x: auto; }
+.art-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.art-tabla thead th {
+  padding: 10px 12px; text-align: left;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5);
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  white-space: nowrap;
+}
+.art-tabla td { padding: 9px 12px; }
+
+/* Categoría header row */
+.tr-cat-header { background: rgba(139,92,246,0.04); border-top: 1px solid rgba(139,92,246,0.15); }
+.tr-cat-header td { padding: 7px 12px; }
+.cat-badge {
+  font-size: 9.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.6px; color: #8b5cf6;
+  background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+  padding: 2px 10px; border-radius: 20px;
 }
 
-@keyframes bounce {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
+/* Item rows */
+.tr-item { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
+.tr-item:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
+.tr-even { background: rgb(var(--v-theme-surface)); }
+.tr-odd  { background: rgba(var(--v-theme-on-surface), 0.018); }
 
-.button-group {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-top: 24px;
+/* Subtotal row */
+.tr-subtotal {
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-bottom: 2px solid rgba(var(--v-theme-on-surface), 0.08);
 }
+.tr-subtotal td { padding: 8px 12px; }
+.subtotal-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.subtotal-val { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; color: rgba(var(--v-theme-on-surface), 0.7); }
 
-.next-btn {
-  min-width: 140px;
+/* Total row */
+.tr-total {
+  background: rgba(var(--v-theme-on-surface), 0.07);
+  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.15);
 }
+.tr-total td { padding: 10px 12px; }
+.total-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.7); }
+.total-val { font-size: 13px; font-weight: 800; font-family: 'Courier New', monospace; }
 
-.reset-btn {
-  margin-top: 20px;
+/* Cell styles */
+.col-right    { text-align: right !important; }
+.td-nombre    { font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
+.td-variante  { font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.55); }
+.td-sku       { font-family: 'Courier New', monospace; font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.td-cat       { }
+.td-num       { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
+.td-monto     { font-family: 'Courier New', monospace; font-weight: 500; }
+.td-dim       { font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.cat-tag      { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: rgba(var(--v-theme-on-surface), 0.5); background: rgba(var(--v-theme-on-surface),0.06); padding: 2px 7px; border-radius: 4px; }
+
+.txt-green  { color: #10b981; }
+.txt-orange { color: #f59e0b; }
+.txt-dim    { color: rgba(var(--v-theme-on-surface), 0.4); }
+
+/* Modificadores */
+.mod-count {
+  background: rgba(245,158,11,0.12); color: #f59e0b;
+  font-size: 10px; font-weight: 700; border-radius: 20px;
+  padding: 1px 8px; margin-left: 6px;
 }
 </style>
