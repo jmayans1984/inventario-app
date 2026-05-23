@@ -634,7 +634,7 @@ function parseArticulos(buffer, filename) {
   if (modsHeaderIdx >= 0) {
     const hdr = lines[modsHeaderIdx].map(h => h.toLowerCase())
     const iGrupo    = hdr.findIndex(h => h.includes('grupo'))
-    const iMod      = hdr.findIndex(h => h.includes('modificador'))
+    const iMod      = hdr.findIndex(h => h.includes('modificador') && !h.includes('grupo'))
     const iCantNeta = hdr.findIndex(h => h.includes('monto neto') || h.includes('cantidad') || h.includes('neto vendido'))
     const iNetas    = hdr.findIndex(h => h.includes('ventas netas'))
     const iCantB    = hdr.findIndex(h => h.includes('monto vendido'))
