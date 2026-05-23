@@ -1330,6 +1330,27 @@ app.get('/api/tesoreria/movimientos-cuenta', async (req, res) => {
     }
 });
 
+// GET /api/recetas/por-skus - Busca recetas por lista de códigos (SKU), sin filtro de empresa
+app.get('/api/recetas/por-skus', async (req, res) => {
+    const { skus } = req.query;
+    if (!skus) return res.json({ success: true, data: [] });
+
+    const skuList = skus.split(',').map(s => s.trim()).filter(Boolean);
+    if (skuList.length === 0) return res.json({ success: true, data: [] });
+
+    try {
+        const placeholders = skuList.map((_, i) => `$${i + 1}`).join(',');
+        const result = await pool.query(
+            `SELECT codigo, nombre, precio_venta FROM recetas WHERE TRIM(codigo::text) IN (${placeholders})`,
+            skuList
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/recetas/por-skus:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/tesoreria/proveedores/buscar - Buscar/listar proveedores
 app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
     const { empresa, q } = req.query;
