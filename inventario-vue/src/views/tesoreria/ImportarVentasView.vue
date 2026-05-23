@@ -247,21 +247,17 @@
             <table class="art-tabla">
               <thead>
                 <tr>
+                  <th style="width:80px">SKU</th>
                   <th>ARTÍCULO</th>
-                  <th>VARIANTE</th>
-                  <th>SKU</th>
-                  <th>CATEGORÍA</th>
-                  <th class="col-right">CANT.</th>
-                  <th class="col-right">V. BRUTA</th>
-                  <th class="col-right">DESCUENTO</th>
-                  <th class="col-right">V. NETA</th>
-                  <th class="col-right">IMPUESTO</th>
+                  <th class="col-right" style="width:70px">CANT.</th>
+                  <th class="col-right" style="width:130px">VR. UNITARIO</th>
+                  <th class="col-right" style="width:140px">SUBTOTAL</th>
                 </tr>
               </thead>
               <tbody>
                 <template v-for="(grp, cat) in itemsAgrupados" :key="cat">
                   <tr class="tr-cat-header">
-                    <td colspan="9">
+                    <td colspan="5">
                       <span class="cat-badge">{{ cat }}</span>
                     </td>
                   </tr>
@@ -270,37 +266,29 @@
                     :key="item.sku + idx"
                     class="tr-item"
                   >
-                    <td class="td-nombre">{{ item.nombre }}</td>
-                    <td class="td-variante">{{ item.variante !== 'Regular' ? item.variante : '—' }}</td>
                     <td class="td-sku">{{ item.sku }}</td>
-                    <td class="td-cat"><span class="cat-tag">{{ item.categoria }}</span></td>
-                    <td class="td-num col-right">{{ item.cantidad }}</td>
-                    <td class="td-monto col-right">{{ fmt(item.ventasBrutas) }}</td>
-                    <td class="td-monto col-right">
-                      <span v-if="item.descuentos < 0" class="txt-orange">{{ fmt(item.descuentos) }}</span>
-                      <span v-else class="txt-dim">—</span>
+                    <td class="td-nombre">
+                      {{ item.nombre }}
+                      <span v-if="item.variante && item.variante !== 'Regular'" class="variante-tag">{{ item.variante }}</span>
                     </td>
+                    <td class="td-num col-right">{{ item.cantidad }}</td>
+                    <td class="td-monto col-right txt-dim">{{ item.cantidad > 0 ? fmt(item.ventasBrutas / item.cantidad) : '—' }}</td>
                     <td class="td-monto col-right txt-green">{{ fmt(item.ventasNetas) }}</td>
-                    <td class="td-monto col-right txt-dim">{{ fmt(item.impuestos) }}</td>
                   </tr>
                   <tr class="tr-subtotal">
-                    <td colspan="4" class="subtotal-lbl">Subtotal {{ cat }}</td>
+                    <td colspan="2" class="subtotal-lbl">Subtotal {{ cat }}</td>
                     <td class="col-right subtotal-val">{{ subtotalCat(cat).cantidad }}</td>
-                    <td class="col-right subtotal-val">{{ fmt(subtotalCat(cat).brutas) }}</td>
-                    <td class="col-right subtotal-val txt-orange">{{ subtotalCat(cat).descuentos < 0 ? fmt(subtotalCat(cat).descuentos) : '—' }}</td>
+                    <td class="col-right subtotal-val txt-dim">—</td>
                     <td class="col-right subtotal-val txt-green">{{ fmt(subtotalCat(cat).netas) }}</td>
-                    <td class="col-right subtotal-val txt-dim">{{ fmt(subtotalCat(cat).impuestos) }}</td>
                   </tr>
                 </template>
               </tbody>
               <tfoot>
                 <tr class="tr-total">
-                  <td colspan="4" class="total-lbl">TOTAL GENERAL</td>
+                  <td colspan="2" class="total-lbl">TOTAL GENERAL</td>
                   <td class="col-right total-val">{{ totalUnidades }}</td>
-                  <td class="col-right total-val txt-green">{{ fmt(totalVentasBrutas) }}</td>
-                  <td class="col-right total-val txt-orange">{{ totalDescuentos < 0 ? fmt(totalDescuentos) : '—' }}</td>
+                  <td class="col-right total-val txt-dim">—</td>
                   <td class="col-right total-val txt-green">{{ fmt(totalVentasNetas) }}</td>
-                  <td class="col-right total-val txt-dim">{{ fmt(totalImpuestos) }}</td>
                 </tr>
               </tfoot>
             </table>
@@ -880,6 +868,7 @@ function limpiar(type) {
 .td-monto     { font-family: 'Courier New', monospace; font-weight: 500; }
 .td-dim       { font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
 .cat-tag      { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: rgba(var(--v-theme-on-surface), 0.5); background: rgba(var(--v-theme-on-surface),0.06); padding: 2px 7px; border-radius: 4px; }
+.variante-tag { font-size: 10px; font-weight: 600; color: #8b5cf6; background: rgba(139,92,246,0.1); padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 
 .txt-green  { color: #10b981; }
 .txt-orange { color: #f59e0b; }
