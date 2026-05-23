@@ -191,6 +191,10 @@
             <div class="iv-section-title">ARTÍCULOS VENDIDOS</div>
             <div class="iv-section-sub">{{ articulos.ubicacion }} · {{ articulos.periodo }}</div>
           </div>
+          <div v-if="enrichLoading" class="enrich-badge">
+            <v-progress-circular size="14" width="2" indeterminate color="#8b5cf6" />
+            <span>Cargando precios...</span>
+          </div>
         </div>
 
         <!-- KPIs artículos -->
@@ -268,12 +272,12 @@
                   >
                     <td class="td-sku">{{ item.sku }}</td>
                     <td class="td-nombre">
-                      {{ item.nombre }}
+                      {{ item.nombreReceta || item.nombre }}
                       <span v-if="item.variante && item.variante !== 'Regular'" class="variante-tag">{{ item.variante }}</span>
                     </td>
                     <td class="td-num col-right">{{ item.cantidad }}</td>
-                    <td class="td-monto col-right txt-dim">{{ item.cantidad > 0 ? fmt(item.ventasBrutas / item.cantidad) : '—' }}</td>
-                    <td class="td-monto col-right txt-green">{{ fmt(item.ventasNetas) }}</td>
+                    <td class="td-monto col-right txt-dim">{{ item.precioVenta != null ? fmt(item.precioVenta) : (item.cantidad > 0 ? fmt(item.ventasBrutas / item.cantidad) : '—') }}</td>
+                    <td class="td-monto col-right txt-green">{{ fmt(itemSubtotal(item)) }}</td>
                   </tr>
                   <tr class="tr-subtotal">
                     <td colspan="2" class="subtotal-lbl">Subtotal {{ cat }}</td>
@@ -338,6 +342,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import api from '../../services/api'
 
 // ─── State ───────────────────────────────────────────────────
 const resumen          = ref(null)
@@ -348,6 +353,7 @@ const parseError       = ref('')
 const dragging         = ref([false, false])
 const catFiltro        = ref('')
 const mostrarMods      = ref(false)
+const enrichLoading    = ref(false)
 
 // ─── Formatting ──────────────────────────────────────────────
 function fmt(val) {
@@ -379,13 +385,17 @@ const itemsAgrupados = computed(() => {
   return groups
 })
 
+function itemSubtotal(item) {
+  return item.subtotal != null ? item.subtotal : item.ventasNetas
+}
+
 function subtotalCat(cat) {
   const items = itemsAgrupados.value[cat] || []
   return {
     cantidad:   items.reduce((s, i) => s + i.cantidad, 0),
     brutas:     items.reduce((s, i) => s + i.ventasBrutas, 0),
     descuentos: items.reduce((s, i) => s + i.descuentos, 0),
-    netas:      items.reduce((s, i) => s + i.ventasNetas, 0),
+    netas:      items.reduce((s, i) => s + itemSubtotal(i), 0),
     impuestos:  items.reduce((s, i) => s + i.impuestos, 0),
   }
 }
@@ -393,7 +403,7 @@ function subtotalCat(cat) {
 const totalUnidades     = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.cantidad, 0))
 const totalVentasBrutas = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.ventasBrutas, 0))
 const totalDescuentos   = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.descuentos, 0))
-const totalVentasNetas  = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.ventasNetas, 0))
+const totalVentasNetas  = computed(() => (articulos.value?.items || []).reduce((s, i) => s + itemSubtotal(i), 0))
 const totalImpuestos    = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.impuestos, 0))
 
 // ─── Computed — pagos ─────────────────────────────────────────
@@ -611,6 +621,37 @@ function parseArticulos(buffer, filename) {
   return result
 }
 
+// ─── Recetas enrichment ───────────────────────────────────────
+async function enrichWithRecetas() {
+  if (!articulos.value?.items?.length) return
+  const skus = [...new Set(
+    articulos.value.items.map(i => i.sku).filter(s => s && s.trim() !== '')
+  )]
+  if (skus.length === 0) return
+  enrichLoading.value = true
+  try {
+    const resp = await api.get('/recetas/por-skus', { params: { skus: skus.join(',') } })
+    if (resp.data?.success && resp.data.data?.length) {
+      const recetaMap = {}
+      for (const r of resp.data.data) {
+        recetaMap[(r.codigo || '').toString().trim()] = r
+      }
+      for (const item of articulos.value.items) {
+        const sku = (item.sku || '').trim()
+        if (sku && recetaMap[sku]) {
+          item.nombreReceta = recetaMap[sku].nombre
+          item.precioVenta  = parseFloat(recetaMap[sku].precio_venta) || 0
+          item.subtotal     = item.cantidad * item.precioVenta
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error al cargar recetas por SKU:', e)
+  } finally {
+    enrichLoading.value = false
+  }
+}
+
 // ─── File handling ────────────────────────────────────────────
 function detectType(filename, buffer) {
   const name = filename.toLowerCase()
@@ -634,6 +675,7 @@ async function processFile(file, forcedType) {
     } else {
       articulosFileName.value = file.name
       articulos.value = parseArticulos(buffer, file.name)
+      await enrichWithRecetas()
     }
   } catch (e) {
     parseError.value = `Error al parsear "${file.name}": ${e.message}`
@@ -873,6 +915,12 @@ function limpiar(type) {
 .txt-green  { color: #10b981; }
 .txt-orange { color: #f59e0b; }
 .txt-dim    { color: rgba(var(--v-theme-on-surface), 0.4); }
+
+/* Enrich badge */
+.enrich-badge {
+  display: flex; align-items: center; gap: 6px; margin-left: auto;
+  font-size: 11px; color: #8b5cf6; font-weight: 600;
+}
 
 /* Modificadores */
 .mod-count {
