@@ -313,22 +313,41 @@
             <table class="art-tabla">
               <thead>
                 <tr>
-                  <th>GRUPO</th>
-                  <th>MODIFICADOR</th>
-                  <th class="col-right">CANT.</th>
-                  <th class="col-right">V. NETA</th>
-                  <th class="col-right">V. BRUTA</th>
+                  <th>NOMBRE</th>
+                  <th class="col-right" style="width:70px">CANT.</th>
+                  <th class="col-right" style="width:130px">VR. ARTÍCULO</th>
+                  <th class="col-right" style="width:140px">SUBTOTAL</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(m, i) in articulos.modificadores" :key="i" :class="i % 2 === 0 ? 'tr-even' : 'tr-odd'">
-                  <td class="td-dim">{{ m.grupo }}</td>
-                  <td class="td-nombre">{{ m.modificador }}</td>
-                  <td class="td-num col-right">{{ m.cantidadNeta }}</td>
-                  <td class="td-monto col-right">{{ m.ventasNetas > 0 ? fmt(m.ventasNetas) : '—' }}</td>
-                  <td class="td-monto col-right">{{ m.ventasBrutas > 0 ? fmt(m.ventasBrutas) : '—' }}</td>
-                </tr>
+                <template v-for="(mods, grupo) in modificadoresAgrupados" :key="grupo">
+                  <tr class="tr-cat-header tr-cat-orange">
+                    <td colspan="4">
+                      <span class="cat-badge cat-badge-orange">{{ grupo }}</span>
+                    </td>
+                  </tr>
+                  <tr v-for="(m, i) in mods" :key="i" class="tr-item">
+                    <td class="td-nombre">{{ m.modificador }}</td>
+                    <td class="td-num col-right">{{ m.cantidadNeta }}</td>
+                    <td class="td-monto col-right txt-dim">{{ m.cantidadNeta > 0 ? fmt(m.ventasNetas / m.cantidadNeta) : '—' }}</td>
+                    <td class="td-monto col-right txt-orange">{{ m.ventasNetas > 0 ? fmt(m.ventasNetas) : '—' }}</td>
+                  </tr>
+                  <tr class="tr-subtotal">
+                    <td class="subtotal-lbl">Subtotal {{ grupo }}</td>
+                    <td class="col-right subtotal-val">{{ mods.reduce((s,m) => s + m.cantidadNeta, 0) }}</td>
+                    <td class="col-right subtotal-val txt-dim">—</td>
+                    <td class="col-right subtotal-val txt-orange">{{ fmt(mods.reduce((s,m) => s + m.ventasNetas, 0)) }}</td>
+                  </tr>
+                </template>
               </tbody>
+              <tfoot>
+                <tr class="tr-total">
+                  <td class="total-lbl">TOTAL MODIFICADORES</td>
+                  <td class="col-right total-val">{{ totalModUnidades }}</td>
+                  <td class="col-right total-val txt-dim">—</td>
+                  <td class="col-right total-val txt-orange">{{ fmt(totalModNetas) }}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -405,6 +424,24 @@ const totalVentasBrutas = computed(() => (articulos.value?.items || []).reduce((
 const totalDescuentos   = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.descuentos, 0))
 const totalVentasNetas  = computed(() => (articulos.value?.items || []).reduce((s, i) => s + itemSubtotal(i), 0))
 const totalImpuestos    = computed(() => (articulos.value?.items || []).reduce((s, i) => s + i.impuestos, 0))
+
+// ─── Computed — modificadores ────────────────────────────────
+const modificadoresAgrupados = computed(() => {
+  const groups = {}
+  for (const m of (articulos.value?.modificadores || [])) {
+    const g = m.grupo || 'SIN GRUPO'
+    if (!groups[g]) groups[g] = []
+    groups[g].push(m)
+  }
+  return groups
+})
+
+const totalModUnidades = computed(() =>
+  (articulos.value?.modificadores || []).reduce((s, m) => s + m.cantidadNeta, 0)
+)
+const totalModNetas = computed(() =>
+  (articulos.value?.modificadores || []).reduce((s, m) => s + m.ventasNetas, 0)
+)
 
 // ─── Computed — pagos ─────────────────────────────────────────
 const pagoItems = computed(() => {
@@ -915,6 +952,14 @@ function limpiar(type) {
 .txt-green  { color: #10b981; }
 .txt-orange { color: #f59e0b; }
 .txt-dim    { color: rgba(var(--v-theme-on-surface), 0.4); }
+
+/* Modificadores grupo header */
+.tr-cat-orange { background: rgba(245,158,11,0.04); border-top: 1px solid rgba(245,158,11,0.15); }
+.cat-badge-orange {
+  color: #d97706;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+}
 
 /* Enrich badge */
 .enrich-badge {
