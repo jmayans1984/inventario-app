@@ -683,6 +683,12 @@
           </table>
         </div>
 
+        <!-- Error al guardar -->
+        <div v-if="saveLineError" class="iv-error" style="margin:8px 16px 0; border-radius:8px">
+          <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <span>{{ saveLineError }}</span>
+        </div>
+
         <!-- Formulario nueva línea -->
         <div class="config-new-row">
           <div class="config-new-title">
@@ -779,6 +785,7 @@ const productosControlados = ref([])     // para autocomplete
 const newLine              = ref({ articulo: null, cant: '', tipo: '+' })
 const savingLine           = ref(false)
 const deletingId           = ref(null)
+const saveLineError        = ref('')
 
 // ─── Formatting ──────────────────────────────────────────────
 function fmt(val) {
@@ -1231,6 +1238,7 @@ function openConfigDialog(mod) {
   configDialogMod.value = mod
   configLines.value = allMappings.value.filter(m => m.modificador === mod.modificador)
   newLine.value = { articulo: null, cant: '', tipo: '+' }
+  saveLineError.value = ''
   showConfigDialog.value = true
   fetchProductosControlados()
 }
@@ -1238,20 +1246,26 @@ function openConfigDialog(mod) {
 async function saveNewLine() {
   if (!newLine.value.articulo || !newLine.value.cant) return
   savingLine.value = true
+  saveLineError.value = ''
   try {
-    await api.post('/modificadores-inventario', {
+    const codigo = typeof newLine.value.articulo === 'object'
+      ? newLine.value.articulo.codigo
+      : newLine.value.articulo
+    const resp = await api.post('/modificadores-inventario', {
       modificador: configDialogMod.value.modificador,
-      articulo:    newLine.value.articulo.codigo,
+      articulo:    codigo,
       cant:        parseFloat(newLine.value.cant),
       tipo:        newLine.value.tipo
     })
+    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
     await fetchMappings()
     configLines.value = allMappings.value.filter(m => m.modificador === configDialogMod.value.modificador)
     newLine.value = { articulo: null, cant: '', tipo: '+' }
-    // Recalcula consumo con nuevos mappings
     if (articulos.value) await calcularConsumo()
-  } catch (e) { console.error('saveNewLine:', e) }
-  finally { savingLine.value = false }
+  } catch (e) {
+    console.error('saveNewLine:', e)
+    saveLineError.value = e?.response?.data?.error || e.message || 'Error al guardar'
+  } finally { savingLine.value = false }
 }
 
 async function deleteLine(id) {
