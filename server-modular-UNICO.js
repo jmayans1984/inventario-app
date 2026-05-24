@@ -1363,9 +1363,12 @@ app.get('/api/detalle-productos/por-recetas', async (req, res) => {
         const result = await pool.query(
             `SELECT dp.receta, dp.articulo, dp.cant,
                     COALESCE(p.nombre, dp.articulo) AS articulo_nombre,
-                    COALESCE(p.und, '') AS und
+                    COALESCE(p.und, '') AS und,
+                    COALESCE(p.grupo, '') AS grupo,
+                    COALESCE(gp.nombre, p.grupo, '') AS grupo_nombre
              FROM detalle_productos dp
              INNER JOIN productos p ON TRIM(p.codigo::text) = TRIM(dp.articulo::text)
+             LEFT JOIN grupos_productos gp ON TRIM(gp.codigo::text) = TRIM(p.grupo::text)
              WHERE TRIM(dp.receta::text) IN (${placeholders})
              AND UPPER(TRIM(COALESCE(p.control, ''))) = 'SI'`,
             recetaList

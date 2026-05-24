@@ -498,38 +498,45 @@
                   <table class="art-tabla">
                     <thead>
                       <tr>
-                        <th style="width:60px">#</th>
+                        <th style="width:40px">#</th>
                         <th style="width:70px">CÓDIGO</th>
                         <th>DESCRIPCIÓN</th>
                         <th style="width:70px" class="col-right">UND</th>
                         <th style="width:140px" class="col-right">CONSUMO TOTAL</th>
-                        <th style="width:160px" class="col-center">RECETAS</th>
+                        <th style="width:130px" class="col-center">RECETAS</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="(c, idx) in consumo" :key="c.codigo" class="tr-item tr-consumo">
-                        <td class="td-idx">{{ idx + 1 }}</td>
-                        <td class="td-sku">{{ c.codigo }}</td>
-                        <td class="td-nombre-consumo">
-                          <div class="consumo-nombre">{{ c.nombre }}</div>
-                          <div class="consumo-bar-wrap">
-                            <div
-                              class="consumo-bar"
-                              :style="{ width: maxConsumo > 0 ? (c.totalConsumo / maxConsumo * 100).toFixed(1) + '%' : '0%' }"
-                            ></div>
-                          </div>
-                        </td>
-                        <td class="col-right td-und">{{ c.und || '—' }}</td>
-                        <td class="col-right">
-                          <span class="consumo-total-val">{{ fmtNum(c.totalConsumo) }}</span>
-                        </td>
-                        <td class="col-center">
-                          <button class="btn-ver-recetas" @click="verRecetas(c)">
-                            <v-icon size="15" color="#8b5cf6">mdi-eye-outline</v-icon>
-                            <span>{{ c.recetas.length }} receta{{ c.recetas.length !== 1 ? 's' : '' }}</span>
-                          </button>
-                        </td>
-                      </tr>
+                      <template v-for="grp in consumoAgrupado" :key="grp.grupo">
+                        <!-- Encabezado de grupo -->
+                        <tr class="tr-cat-header tr-cat-teal">
+                          <td colspan="6">
+                            <span class="cat-badge cat-badge-teal">
+                              {{ grp.grupo }} · {{ grp.grupoNombre }}
+                            </span>
+                          </td>
+                        </tr>
+                        <!-- Filas del grupo -->
+                        <tr
+                          v-for="(c, idx) in grp.items"
+                          :key="c.codigo"
+                          class="tr-item tr-consumo"
+                        >
+                          <td class="td-idx">{{ idx + 1 }}</td>
+                          <td class="td-sku">{{ c.codigo }}</td>
+                          <td class="td-nombre">{{ c.nombre }}</td>
+                          <td class="col-right td-und">{{ c.und || '—' }}</td>
+                          <td class="col-right">
+                            <span class="consumo-total-val">{{ fmtNum(c.totalConsumo) }}</span>
+                          </td>
+                          <td class="col-center">
+                            <button class="btn-ver-recetas" @click="verRecetas(c)">
+                              <v-icon size="15" color="#8b5cf6">mdi-eye-outline</v-icon>
+                              <span>{{ c.recetas.length }} receta{{ c.recetas.length !== 1 ? 's' : '' }}</span>
+                            </button>
+                          </td>
+                        </tr>
+                      </template>
                     </tbody>
                   </table>
                 </div>
@@ -969,8 +976,11 @@ async function calcularConsumo() {
       const vendidos = cantMap[receta] || 0
       const total    = cantRec * vendidos
 
+      const grupo      = (dp.grupo       || '').trim()
+      const grupoNombre= (dp.grupo_nombre || grupo || 'SIN GRUPO').trim()
+
       if (!consumoMap[codArt]) {
-        consumoMap[codArt] = { codigo: codArt, nombre, und, totalConsumo: 0, recetas: [] }
+        consumoMap[codArt] = { codigo: codArt, nombre, und, grupo, grupoNombre, totalConsumo: 0, recetas: [] }
       }
       consumoMap[codArt].totalConsumo += total
       consumoMap[codArt].recetas.push({
@@ -982,7 +992,10 @@ async function calcularConsumo() {
       })
     }
 
-    consumo.value = Object.values(consumoMap).sort((a, b) => b.totalConsumo - a.totalConsumo)
+    consumo.value = Object.values(consumoMap).sort((a, b) => {
+      const g = a.grupo.localeCompare(b.grupo)
+      return g !== 0 ? g : a.nombre.localeCompare(b.nombre)
+    })
   } catch (e) {
     console.error('Error al calcular consumo:', e)
     consumoError.value = e?.response?.data?.error || e.message || 'Error al consultar detalle_productos'
@@ -994,6 +1007,18 @@ async function calcularConsumo() {
 const maxConsumo = computed(() =>
   consumo.value.reduce((m, c) => Math.max(m, c.totalConsumo), 0)
 )
+
+// Agrupa consumo por grupo de producto (ya viene ordenado por grupo)
+const consumoAgrupado = computed(() => {
+  const groups = {}
+  for (const c of consumo.value) {
+    const key = c.grupo || 'ZZZ'
+    if (!groups[key]) groups[key] = { grupo: c.grupo, grupoNombre: c.grupoNombre, items: [] }
+    groups[key].items.push(c)
+  }
+  // Retorna array ordenado por clave de grupo
+  return Object.values(groups).sort((a, b) => a.grupo.localeCompare(b.grupo))
+})
 
 function verRecetas(item) {
   recetasDialogItem.value = item
@@ -1336,6 +1361,13 @@ function limpiar(type) {
   border: 1px solid rgba(245,158,11,0.25);
 }
 
+.tr-cat-teal { background: rgba(20,184,166,0.04); border-top: 1px solid rgba(20,184,166,0.2); }
+.cat-badge-teal {
+  color: #0d9488;
+  background: rgba(20,184,166,0.1);
+  border: 1px solid rgba(20,184,166,0.25);
+}
+
 /* ── Consumo ───────────────────────────────────────── */
 .consumo-empty {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -1352,11 +1384,6 @@ function limpiar(type) {
 .tr-consumo { vertical-align: middle; }
 .td-idx { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.3); text-align: center; }
 .td-und { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); font-weight: 600; }
-
-.td-nombre-consumo { padding: 8px 12px !important; }
-.consumo-nombre { font-weight: 700; font-size: 13px; color: rgb(var(--v-theme-on-surface)); margin-bottom: 5px; }
-.consumo-bar-wrap { height: 4px; background: rgba(var(--v-theme-on-surface), 0.07); border-radius: 4px; overflow: hidden; }
-.consumo-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ef4444, #f97316); transition: width 0.4s ease; }
 .consumo-total-val { font-family: 'Courier New', monospace; font-size: 15px; font-weight: 800; color: #ef4444; }
 
 .td-recetas { padding: 8px 12px !important; }
