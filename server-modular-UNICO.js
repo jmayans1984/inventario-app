@@ -1351,6 +1351,25 @@ app.get('/api/recetas/por-skus', async (req, res) => {
     }
 });
 
+// GET /api/detalle-productos/por-codigos - Trae componentes de materia prima por lista de códigos de receta
+app.get('/api/detalle-productos/por-codigos', async (req, res) => {
+    const { codigos } = req.query;
+    if (!codigos) return res.json({ success: true, data: [] });
+    const codigoList = codigos.split(',').map(s => s.trim()).filter(Boolean);
+    if (codigoList.length === 0) return res.json({ success: true, data: [] });
+    try {
+        const placeholders = codigoList.map((_, i) => `$${i + 1}`).join(',');
+        const result = await pool.query(
+            `SELECT codigo, receta, articulo, cant FROM detalle_productos WHERE TRIM(codigo::text) IN (${placeholders})`,
+            codigoList
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/detalle-productos/por-codigos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/tesoreria/proveedores/buscar - Buscar/listar proveedores
 app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
     const { empresa, q } = req.query;

@@ -354,6 +354,87 @@
 
       </div>
 
+      <!-- ═══════════════════════════════════════════════
+           CONSUMO DE MATERIA PRIMA
+      ═══════════════════════════════════════════════ -->
+      <div v-if="articulos && (consumo.length > 0 || consumoLoading)" class="iv-section">
+
+        <div class="iv-section-header">
+          <div class="iv-section-icon" style="background:rgba(239,68,68,0.1)">
+            <v-icon size="16" color="#ef4444">mdi-package-down</v-icon>
+          </div>
+          <div>
+            <div class="iv-section-title">CONSUMO DE MATERIA PRIMA</div>
+            <div class="iv-section-sub">Ingredientes consumidos según ventas del período</div>
+          </div>
+          <div v-if="consumoLoading" class="enrich-badge" style="color:#ef4444">
+            <v-progress-circular size="14" width="2" indeterminate color="#ef4444" />
+            <span>Calculando consumo...</span>
+          </div>
+          <div v-else class="enrich-badge" style="color:#64748b; margin-left:auto">
+            <v-icon size="14">mdi-package-variant</v-icon>
+            <span>{{ consumo.length }} ingrediente{{ consumo.length !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+
+        <div class="iv-card">
+          <div class="iv-card-header">
+            <div class="iv-card-title">
+              <v-icon size="14" color="#ef4444" class="mr-1">mdi-clipboard-list-outline</v-icon>
+              Detalle de Consumo por Artículo
+            </div>
+          </div>
+          <div class="art-tabla-wrap">
+            <table class="art-tabla">
+              <thead>
+                <tr>
+                  <th style="width:100px">ARTÍCULO</th>
+                  <th class="col-right" style="width:160px">CONSUMO TOTAL</th>
+                  <th>DETALLE POR RECETA</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="c in consumo"
+                  :key="c.articulo"
+                  class="tr-item"
+                >
+                  <td class="td-sku" style="font-size:13px;font-weight:700;color:rgb(var(--v-theme-on-surface))">
+                    {{ c.articulo }}
+                  </td>
+                  <td class="col-right">
+                    <span class="consumo-total">{{ fmtNum(c.totalConsumo) }}</span>
+                  </td>
+                  <td class="td-detalle">
+                    <div class="detalle-wrap">
+                      <span
+                        v-for="d in c.detalle"
+                        :key="d.sku"
+                        class="detalle-chip"
+                        :title="`${d.sku}: ${fmtNum(d.cantPorUnidad)} × ${d.vendidos} uds`"
+                      >
+                        <span class="detalle-sku">{{ d.sku }}</span>
+                        <span class="detalle-calc">{{ fmtNum(d.cantPorUnidad) }} × {{ d.vendidos }} = <strong>{{ fmtNum(d.total) }}</strong></span>
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="tr-total">
+                  <td class="total-lbl">{{ consumo.length }} ARTÍCULOS</td>
+                  <td class="col-right total-val txt-red">
+                    {{ consumo.length }} ingredientes
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   </MainLayout>
 </template>
@@ -373,6 +454,8 @@ const dragging         = ref([false, false])
 const catFiltro        = ref('')
 const mostrarMods      = ref(false)
 const enrichLoading    = ref(false)
+const consumo          = ref([])   // [{ articulo, totalConsumo }]
+const consumoLoading   = ref(false)
 
 // ─── Formatting ──────────────────────────────────────────────
 function fmt(val) {
@@ -380,6 +463,19 @@ function fmt(val) {
     style: 'currency', currency: 'USD',
     minimumFractionDigits: 2, maximumFractionDigits: 2
   }).format(parseFloat(val || 0))
+}
+
+// Formateo numérico sin símbolo de moneda (para cantidades de consumo)
+function fmtNum(val) {
+  const n = parseFloat(val || 0)
+  // Si el número tiene decimales significativos, los muestra (hasta 4)
+  const decimals = n % 1 === 0 ? 0 : Math.min(4,
+    (n.toString().split('.')[1] || '').replace(/0+$/, '').length
+  )
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals > 0 ? 2 : 0,
+    maximumFractionDigits: 4
+  }).format(n)
 }
 
 // ─── Computed — artículos ─────────────────────────────────────
@@ -689,6 +785,55 @@ async function enrichWithRecetas() {
   }
 }
 
+// ─── Consumo de materia prima ─────────────────────────────────
+async function calcularConsumo() {
+  if (!articulos.value?.items?.length) return
+  // Solo items con SKU
+  const itemsConSku = articulos.value.items.filter(i => i.sku && i.sku.trim() !== '')
+  if (itemsConSku.length === 0) return
+
+  const codigos = [...new Set(itemsConSku.map(i => i.sku.trim()))]
+  consumoLoading.value = true
+  consumo.value = []
+  try {
+    const resp = await api.get('/detalle-productos/por-codigos', {
+      params: { codigos: codigos.join(',') }
+    })
+    if (!resp.data?.success || !resp.data.data?.length) return
+
+    // Mapa: sku → cantidad vendida
+    const cantMap = {}
+    for (const item of itemsConSku) {
+      const sku = item.sku.trim()
+      cantMap[sku] = (cantMap[sku] || 0) + item.cantidad
+    }
+
+    // Agregar consumo por articulo
+    const consumoMap = {}
+    for (const dp of resp.data.data) {
+      const sku       = (dp.codigo || '').trim()
+      const articulo  = (dp.articulo || '').trim()
+      const cantRec   = parseFloat(dp.cant) || 0
+      const vendidos  = cantMap[sku] || 0
+      const total     = cantRec * vendidos
+
+      if (!consumoMap[articulo]) {
+        consumoMap[articulo] = { articulo, totalConsumo: 0, detalle: [] }
+      }
+      consumoMap[articulo].totalConsumo += total
+      consumoMap[articulo].detalle.push({ sku, cantPorUnidad: cantRec, vendidos, total })
+    }
+
+    consumo.value = Object.values(consumoMap).sort((a, b) =>
+      a.articulo.localeCompare(b.articulo)
+    )
+  } catch (e) {
+    console.error('Error al calcular consumo:', e)
+  } finally {
+    consumoLoading.value = false
+  }
+}
+
 // ─── File handling ────────────────────────────────────────────
 function detectType(filename, buffer) {
   const name = filename.toLowerCase()
@@ -713,6 +858,7 @@ async function processFile(file, forcedType) {
       articulosFileName.value = file.name
       articulos.value = parseArticulos(buffer, file.name)
       await enrichWithRecetas()
+      await calcularConsumo()
     }
   } catch (e) {
     parseError.value = `Error al parsear "${file.name}": ${e.message}`
@@ -734,7 +880,7 @@ function onFileInput(e, type) {
 
 function limpiar(type) {
   if (type === 'resumen')   { resumen.value = null;   resumenFileName.value = '' }
-  if (type === 'articulos') { articulos.value = null; articulosFileName.value = '' }
+  if (type === 'articulos') { articulos.value = null; articulosFileName.value = ''; consumo.value = [] }
   parseError.value = ''
 }
 </script>
@@ -959,6 +1105,36 @@ function limpiar(type) {
   color: #d97706;
   background: rgba(245,158,11,0.1);
   border: 1px solid rgba(245,158,11,0.25);
+}
+
+/* Consumo total */
+.consumo-total {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 800;
+  color: #ef4444;
+}
+.txt-red { color: #ef4444; }
+.td-detalle { padding: 8px 12px; }
+.detalle-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.detalle-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-radius: 6px; padding: 3px 8px; font-size: 11px;
+}
+.detalle-sku {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  color: #8b5cf6;
+  font-size: 10.5px;
+}
+.detalle-calc {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+.detalle-calc strong {
+  color: #ef4444;
+  font-weight: 700;
 }
 
 /* Enrich badge */
