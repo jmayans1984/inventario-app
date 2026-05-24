@@ -160,67 +160,113 @@
                 </div>
               </div>
 
-              <!-- KPIs ventas -->
-              <div class="kpi-grid kpi-grid-3">
-                <div class="kpi-card kpi-blue">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Ventas Brutas</span>
-                    <v-icon size="16" color="#3b82f6">mdi-cash-multiple</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-blue">{{ fmt(resumen.ventas.ventasBrutas) }}</div>
-                </div>
-                <div class="kpi-card kpi-orange">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Descuentos</span>
-                    <v-icon size="16" color="#f59e0b">mdi-tag-minus-outline</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-orange">{{ fmt(resumen.ventas.descuentos) }}</div>
-                </div>
-                <div class="kpi-card kpi-green">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Ventas Netas</span>
-                    <v-icon size="16" color="#10b981">mdi-trending-up</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-green">{{ fmt(resumen.ventas.ventasNetas) }}</div>
-                </div>
-                <div class="kpi-card kpi-gray">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Impuestos</span>
-                    <v-icon size="16" color="#64748b">mdi-percent-outline</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-gray">{{ fmt(resumen.ventas.impuestos) }}</div>
-                </div>
-                <div class="kpi-card kpi-purple">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Propinas</span>
-                    <v-icon size="16" color="#8b5cf6">mdi-hand-coin-outline</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-purple">{{ fmt(resumen.ventas.propinas) }}</div>
-                </div>
-                <div class="kpi-card kpi-blue-dark">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">TOTAL</span>
-                    <v-icon size="16" color="#1d4ed8">mdi-sigma</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-blue-dark">{{ fmt(resumen.ventas.total) }}</div>
-                </div>
-              </div>
+              <!-- Layout de dos columnas: VENTAS + PAGOS -->
+              <div class="rs-two-col">
 
-              <!-- Tabla de pagos -->
-              <div class="iv-card">
-                <div class="iv-card-header">
-                  <div class="iv-card-title">
-                    <v-icon size="14" color="#10b981" class="mr-1">mdi-credit-card-outline</v-icon>
-                    Detalle de Pagos
+                <!-- ── COLUMNA VENTAS ── -->
+                <div class="iv-card rs-card">
+                  <div class="iv-card-header">
+                    <div class="iv-card-title">
+                      <v-icon size="14" color="#3b82f6" class="mr-1">mdi-cash-register</v-icon>
+                      VENTAS
+                    </div>
+                  </div>
+                  <div class="rs-rows">
+                    <div class="rs-row">
+                      <span class="rs-lbl">Ventas Brutas</span>
+                      <span class="rs-val rs-pos">{{ fmt(resumen.ventas.ventasBrutas) }}</span>
+                    </div>
+                    <div class="rs-row rs-indent">
+                      <span class="rs-lbl">Artículos</span>
+                      <span class="rs-val">{{ fmt(resumen.ventas.articulos) }}</span>
+                    </div>
+                    <div class="rs-row rs-indent">
+                      <span class="rs-lbl">Cargos de Servicio</span>
+                      <span class="rs-val">{{ fmt(resumen.ventas.cargosServicio) }}</span>
+                    </div>
+                    <div class="rs-row rs-sep"></div>
+                    <div class="rs-row">
+                      <span class="rs-lbl">Devoluciones</span>
+                      <span class="rs-val rs-neg">{{ fmt(resumen.ventas.devoluciones) }}</span>
+                    </div>
+                    <div class="rs-row">
+                      <span class="rs-lbl">Descuentos</span>
+                      <span class="rs-val rs-neg">{{ fmt(resumen.ventas.descuentos) }}</span>
+                    </div>
+                    <div class="rs-row rs-sep"></div>
+                    <div class="rs-row rs-total-row">
+                      <span class="rs-lbl rs-lbl-bold">Ventas Netas</span>
+                      <span class="rs-val rs-val-big rs-pos">{{ fmt(resumen.ventas.ventasNetas) }}</span>
+                    </div>
+                    <div class="rs-row rs-sep"></div>
+                    <div class="rs-row">
+                      <span class="rs-lbl">Tarjetas de Regalo</span>
+                      <span class="rs-val">{{ fmt(resumen.ventas.ventasTarjetaRegalo) }}</span>
+                    </div>
+                    <div class="rs-row">
+                      <span class="rs-lbl">Impuestos</span>
+                      <span class="rs-val">{{ fmt(resumen.ventas.impuestos) }}</span>
+                    </div>
+                    <div class="rs-row">
+                      <span class="rs-lbl">Propinas</span>
+                      <span class="rs-val rs-purple">{{ fmt(resumen.ventas.propinas) }}</span>
+                    </div>
+                    <div class="rs-row">
+                      <span class="rs-lbl">Reembolsos</span>
+                      <span class="rs-val rs-neg">{{ fmt(resumen.ventas.reembolsos) }}</span>
+                    </div>
+                    <div class="rs-row rs-sep"></div>
+                    <div class="rs-row rs-grand-total">
+                      <span class="rs-lbl rs-lbl-bold">TOTAL</span>
+                      <span class="rs-val rs-val-grand rs-pos">{{ fmt(resumen.ventas.total) }}</span>
+                    </div>
                   </div>
                 </div>
-                <div class="pagos-grid">
-                  <div class="pago-item" v-for="p in pagoItems" :key="p.label">
-                    <span class="pago-label">{{ p.label }}</span>
-                    <span class="pago-valor" :style="{ color: p.color }">{{ fmt(p.valor) }}</span>
+
+                <!-- ── COLUMNA PAGOS ── -->
+                <div class="iv-card rs-card">
+                  <div class="iv-card-header">
+                    <div class="iv-card-title">
+                      <v-icon size="14" color="#10b981" class="mr-1">mdi-credit-card-outline</v-icon>
+                      PAGOS
+                    </div>
+                  </div>
+                  <div class="rs-rows">
+                    <div class="rs-row rs-total-row">
+                      <span class="rs-lbl rs-lbl-bold">Total Recibido</span>
+                      <span class="rs-val rs-val-big rs-pos">{{ fmt(resumen.pagos.totalRecibido) }}</span>
+                    </div>
+                    <div class="rs-row rs-sep"></div>
+                    <div class="rs-row rs-indent">
+                      <span class="rs-lbl">Efectivo</span>
+                      <span class="rs-val rs-green">{{ fmt(resumen.pagos.efectivo) }}</span>
+                    </div>
+                    <div class="rs-row rs-indent">
+                      <span class="rs-lbl">Tarjeta</span>
+                      <span class="rs-val rs-purple">{{ fmt(resumen.pagos.tarjeta) }}</span>
+                    </div>
+                    <div class="rs-row rs-indent">
+                      <span class="rs-lbl">Otro</span>
+                      <span class="rs-val">{{ fmt(resumen.pagos.otro) }}</span>
+                    </div>
+                    <div class="rs-row rs-indent">
+                      <span class="rs-lbl">Tarjeta de Regalo</span>
+                      <span class="rs-val rs-pink">{{ fmt(resumen.pagos.tarjetaRegalo) }}</span>
+                    </div>
+                    <div class="rs-row rs-sep"></div>
+                    <div class="rs-row">
+                      <span class="rs-lbl">Comisiones</span>
+                      <span class="rs-val rs-neg">{{ fmt(resumen.pagos.comisiones) }}</span>
+                    </div>
+                    <div class="rs-row rs-sep"></div>
+                    <div class="rs-row rs-grand-total">
+                      <span class="rs-lbl rs-lbl-bold">TOTAL NETO</span>
+                      <span class="rs-val rs-val-grand rs-pos">{{ fmt(resumen.pagos.totalNeto) }}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+              </div><!-- /.rs-two-col -->
 
             </template>
             <div v-else class="tab-empty">
@@ -1530,19 +1576,55 @@ function limpiar(type) {
 .ml-1 { margin-left: 4px; }
 .iv-card-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 
-/* ── Pagos grid ────────────────────────────────────── */
-.pagos-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+/* ── Resumen vertical layout ───────────────────────── */
+.rs-two-col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
 }
-@media (max-width: 700px) { .pagos-grid { grid-template-columns: repeat(2, 1fr); } }
-.pago-item {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 14px 18px;
-  border-right: 1px solid rgba(var(--v-theme-on-surface), 0.07);
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+@media (max-width: 760px) { .rs-two-col { grid-template-columns: 1fr; } }
+
+.rs-card { display: flex; flex-direction: column; }
+
+.rs-rows { display: flex; flex-direction: column; padding: 4px 0; }
+
+.rs-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 18px; gap: 12px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04);
+  transition: background 0.1s;
 }
-.pago-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(var(--v-theme-on-surface), 0.45); }
-.pago-valor { font-size: 16px; font-weight: 800; font-family: 'Courier New', monospace; }
+.rs-row:hover { background: rgba(var(--v-theme-on-surface), 0.025); }
+
+.rs-indent { padding-left: 32px; }
+.rs-indent .rs-lbl { color: rgba(var(--v-theme-on-surface), 0.5); font-size: 12px; }
+
+.rs-sep {
+  height: 1px; background: rgba(var(--v-theme-on-surface), 0.1);
+  margin: 4px 18px; padding: 0; border: none;
+}
+.rs-sep:hover { background: rgba(var(--v-theme-on-surface), 0.1); }
+
+.rs-total-row { background: rgba(var(--v-theme-on-surface), 0.03); }
+.rs-grand-total {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.12) !important;
+}
+
+.rs-lbl { font-size: 12.5px; color: rgba(var(--v-theme-on-surface), 0.75); flex: 1; }
+.rs-lbl-bold { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
+
+.rs-val {
+  font-family: 'Courier New', monospace; font-size: 13px;
+  font-weight: 600; text-align: right; white-space: nowrap;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+.rs-val-big   { font-size: 15px; font-weight: 800; }
+.rs-val-grand { font-size: 17px; font-weight: 800; }
+
+.rs-pos    { color: #10b981; }
+.rs-neg    { color: #ef4444; }
+.rs-green  { color: #10b981; }
+.rs-purple { color: #8b5cf6; }
+.rs-pink   { color: #db2777; }
 
 /* ── Categoría chips ───────────────────────────────── */
 .cat-chip {
