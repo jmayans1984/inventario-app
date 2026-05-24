@@ -389,17 +389,12 @@
                 <v-btn
                   color="#06b6d4"
                   variant="flat"
-                  :disabled="!configFecha || !configCcosto"
                   @click="abrirGuardarResumen"
                 >
                   <v-icon size="17" class="mr-2">mdi-database-import-outline</v-icon>
                   Registrar en Contabilidad
                 </v-btn>
-                <span v-if="!configFecha || !configCcosto" class="rs-save-hint">
-                  <v-icon size="13" color="#f59e0b">mdi-alert-circle-outline</v-icon>
-                  Selecciona Fecha y Centro de Costo en la configuración
-                </span>
-                <span v-else-if="saveResumenSuccess" class="rs-save-ok">
+                <span v-if="saveResumenSuccess" class="rs-save-ok">
                   <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
                   {{ saveResumenResult?.total }} registros guardados correctamente
                 </span>
