@@ -384,6 +384,27 @@
 
               </div><!-- /.rs-two-col -->
 
+              <!-- Botón guardar -->
+              <div class="rs-save-row">
+                <v-btn
+                  color="#06b6d4"
+                  variant="flat"
+                  :disabled="!configFecha || !configCcosto"
+                  @click="abrirGuardarResumen"
+                >
+                  <v-icon size="17" class="mr-2">mdi-database-import-outline</v-icon>
+                  Registrar en Contabilidad
+                </v-btn>
+                <span v-if="!configFecha || !configCcosto" class="rs-save-hint">
+                  <v-icon size="13" color="#f59e0b">mdi-alert-circle-outline</v-icon>
+                  Selecciona Fecha y Centro de Costo en la configuración
+                </span>
+                <span v-else-if="saveResumenSuccess" class="rs-save-ok">
+                  <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
+                  {{ saveResumenResult?.total }} registros guardados correctamente
+                </span>
+              </div>
+
             </template>
             <div v-else class="tab-empty">
               <v-icon size="40" color="rgba(var(--v-theme-on-surface),0.15)">mdi-file-chart-outline</v-icon>
@@ -730,6 +751,121 @@
     </div><!-- /.iv-wrap -->
 
     <!-- ═══════════════════════════════════════════════
+         DIALOG: CONFIRMAR REGISTRO EN CONTABILIDAD
+    ═══════════════════════════════════════════════ -->
+    <v-dialog v-model="showSaveResumenDlg" max-width="680" scrollable>
+      <v-card class="rcpopup">
+
+        <!-- Header -->
+        <div class="rcpopup-header" style="background: linear-gradient(135deg,#0891b2,#0e7490)">
+          <div class="rcpopup-icon">
+            <v-icon size="18" color="white">mdi-database-import-outline</v-icon>
+          </div>
+          <div class="rcpopup-title-wrap">
+            <div class="rcpopup-title">REGISTRAR EN CONTABILIDAD</div>
+            <div class="rcpopup-sub">
+              Fecha: {{ configFecha }} · CCosto: {{ configCcosto }} · Empresa: {{ empresaCodigo }}
+            </div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="showSaveResumenDlg = false">
+            <v-icon size="18" color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <!-- Error de configuración o de API -->
+        <div v-if="saveResumenError && !saveResumenSuccess" class="iv-error" style="margin:16px 16px 0; border-radius:8px">
+          <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <span>{{ saveResumenError }}</span>
+        </div>
+
+        <!-- Éxito -->
+        <div v-if="saveResumenSuccess" class="rs-dlg-success">
+          <v-icon size="36" color="#10b981">mdi-check-circle</v-icon>
+          <div>
+            <div class="rs-dlg-success-title">¡Registrado correctamente!</div>
+            <div class="rs-dlg-success-sub">
+              Se crearon {{ saveResumenResult?.total }} registros en la tabla Gastos con origen SQUARE.
+            </div>
+          </div>
+          <div class="rs-dlg-success-codigos">
+            <div v-for="r in saveResumenResult?.registros" :key="r.codigo" class="rs-dlg-codigo-row">
+              <span class="rs-dlg-codigo">{{ r.codigo }}</span>
+              <span class="rs-dlg-ccta">{{ r.cuenta }}</span>
+              <span class="rs-dlg-cval">{{ fmt(r.valor) }}</span>
+            </div>
+          </div>
+          <v-btn variant="tonal" color="#10b981" @click="showSaveResumenDlg = false">Cerrar</v-btn>
+        </div>
+
+        <!-- Preview de registros (antes de confirmar) -->
+        <template v-else-if="configGeneral && !saveResumenSuccess">
+          <div class="rcpopup-body">
+            <div class="rs-dlg-info">
+              <v-icon size="14" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
+              Se van a crear <strong>{{ previewResumen.filter(r => r.cuenta).length }}</strong> registros en la tabla
+              <strong>GASTOS</strong> con estado <strong>PENDIENTE</strong>:
+            </div>
+            <table class="art-tabla">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>CONCEPTO</th>
+                  <th style="width:80px" class="col-center">CUENTA</th>
+                  <th style="width:130px" class="col-right">VALOR</th>
+                  <th style="width:60px" class="col-center">ESTADO</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, i) in previewResumen" :key="i" class="tr-item" :class="{ 'rs-dlg-row-warn': !row.cuenta }">
+                  <td class="td-idx">{{ i + 1 }}</td>
+                  <td class="td-nombre">{{ row.label }}</td>
+                  <td class="col-center">
+                    <span v-if="row.cuenta" class="rs-dlg-cta-badge">{{ row.cuenta }}</span>
+                    <span v-else class="rs-dlg-nocta">
+                      <v-icon size="12" color="#f59e0b">mdi-alert</v-icon> Sin config
+                    </span>
+                  </td>
+                  <td class="col-right td-monto">
+                    <span :class="row.valor >= 0 ? 'txt-green' : 'txt-red'">{{ fmt(row.valor) }}</span>
+                  </td>
+                  <td class="col-center">
+                    <span v-if="row.cuenta" class="rs-dlg-estado">PENDIENTE</span>
+                    <span v-else class="rs-dlg-omitido">OMITIDO</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="previewResumen.some(r => !r.cuenta)" class="rs-dlg-warn-note">
+              <v-icon size="13" color="#f59e0b">mdi-alert-circle-outline</v-icon>
+              Los registros marcados como <strong>OMITIDO</strong> no se insertarán porque su cuenta no está configurada en Config General.
+            </div>
+          </div>
+
+          <div class="rs-dlg-actions">
+            <v-btn variant="text" @click="showSaveResumenDlg = false">Cancelar</v-btn>
+            <v-btn
+              color="#0891b2"
+              variant="flat"
+              :loading="savingResumen"
+              :disabled="previewResumen.filter(r => r.cuenta).length === 0"
+              @click="confirmarGuardarResumen"
+            >
+              <v-icon size="16" class="mr-1">mdi-content-save-outline</v-icon>
+              Confirmar y Guardar
+            </v-btn>
+          </div>
+        </template>
+
+        <!-- Cargando config -->
+        <div v-else-if="!configGeneral && !saveResumenError" class="rs-dlg-loading">
+          <v-progress-circular indeterminate color="#06b6d4" size="32" />
+          <span>Cargando configuración...</span>
+        </div>
+
+      </v-card>
+    </v-dialog>
+
+    <!-- ═══════════════════════════════════════════════
          POPUP: RECETAS QUE USAN EL PRODUCTO
     ═══════════════════════════════════════════════ -->
     <v-dialog v-model="showRecetasDialog" max-width="620" scrollable>
@@ -1009,6 +1145,77 @@ function fmtNum(val) {
     minimumFractionDigits: decimals > 0 ? 2 : 0,
     maximumFractionDigits: 4
   }).format(n)
+}
+
+// ─── Guardar Resumen en Contabilidad ─────────────────────────
+const configGeneral       = ref(null)
+const showSaveResumenDlg  = ref(false)
+const savingResumen       = ref(false)
+const saveResumenError    = ref('')
+const saveResumenSuccess  = ref(false)
+const saveResumenResult   = ref(null)
+
+async function abrirGuardarResumen() {
+  if (!resumen.value) return
+  saveResumenError.value   = ''
+  saveResumenSuccess.value = false
+  saveResumenResult.value  = null
+  configGeneral.value      = null
+
+  // Validar config mínima
+  if (!configFecha.value || !configCcosto.value) {
+    saveResumenError.value = 'Debes seleccionar Fecha y Centro de Costo antes de guardar.'
+    showSaveResumenDlg.value = true
+    return
+  }
+
+  try {
+    const resp = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
+    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al leer configuración')
+    configGeneral.value = resp.data.data
+  } catch (e) {
+    saveResumenError.value = e?.response?.data?.error || e.message || 'Error al cargar config_general'
+  }
+  showSaveResumenDlg.value = true
+}
+
+// Preview de los 7 registros calculados con los datos actuales
+const previewResumen = computed(() => {
+  if (!resumen.value || !configGeneral.value) return []
+  const v   = resumen.value.ventas
+  const p   = resumen.value.pagos
+  const cfg = configGeneral.value
+  const ventasNetas = (v.ventasBrutas || 0) - (v.devoluciones || 0)
+  return [
+    { label: 'Ventas Brutas − Devoluciones', campo: 'cta_ventas',           cuenta: cfg.cta_ventas,            valor: ventasNetas         },
+    { label: 'Descuentos en Ventas',         campo: 'cta_descuentos_ventas', cuenta: cfg.cta_descuentos_ventas, valor: v.descuentos  || 0  },
+    { label: 'Impuestos',                    campo: 'cta_impuestos',         cuenta: cfg.cta_impuestos,         valor: v.impuestos   || 0  },
+    { label: 'Propinas',                     campo: 'cta_propinas',          cuenta: cfg.cta_propinas,          valor: v.propinas    || 0  },
+    { label: 'Comisiones Square',            campo: 'cta_comisiones',        cuenta: cfg.cta_comisiones,        valor: p.comisiones  || 0  },
+    { label: 'Egreso Impuestos',             campo: 'cta_egresos_impuestos', cuenta: cfg.cta_egresos_impuestos, valor: v.impuestos   || 0  },
+    { label: 'Egreso Propinas',              campo: 'cta_egresos_propinas',  cuenta: cfg.cta_egresos_propinas,  valor: v.propinas    || 0  },
+  ]
+})
+
+async function confirmarGuardarResumen() {
+  savingResumen.value    = true
+  saveResumenError.value = ''
+  try {
+    const resp = await api.post('/square/importar-resumen', {
+      empresa: empresaCodigo.value,
+      fecha:   configFecha.value,
+      ccosto:  configCcosto.value,
+      ventas:  resumen.value.ventas,
+      pagos:   resumen.value.pagos,
+    })
+    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
+    saveResumenResult.value  = resp.data.data
+    saveResumenSuccess.value = true
+  } catch (e) {
+    saveResumenError.value = e?.response?.data?.error || e.message || 'Error al guardar'
+  } finally {
+    savingResumen.value = false
+  }
 }
 
 // ─── Computed — artículos ─────────────────────────────────────
@@ -2086,6 +2293,88 @@ function limpiar(type) {
 }
 
 .imp-cfg-select { font-size: 13px; }
+/* ── Botón guardar resumen ─────────────────────────── */
+.rs-save-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 0 4px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  margin-top: 16px;
+}
+.rs-save-hint {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: #f59e0b;
+}
+.rs-save-ok {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: #10b981;
+}
+
+/* ── Dialog guardar resumen ────────────────────────── */
+.rs-dlg-info {
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6);
+  margin-bottom: 14px; display: flex; align-items: center;
+}
+.rs-dlg-cta-badge {
+  font-family: 'Courier New', monospace; font-size: 11px; font-weight: 800;
+  background: rgba(6,182,212,0.1); color: #06b6d4;
+  border: 1px solid rgba(6,182,212,0.25);
+  border-radius: 4px; padding: 2px 6px;
+}
+.rs-dlg-nocta { font-size: 10px; color: #f59e0b; display: flex; align-items: center; gap: 3px; }
+.rs-dlg-estado {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.3px;
+  background: rgba(245,158,11,0.1); color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.2); border-radius: 4px; padding: 2px 6px;
+}
+.rs-dlg-omitido {
+  font-size: 9px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.3);
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  border-radius: 4px; padding: 2px 6px;
+}
+.rs-dlg-row-warn { opacity: 0.5; }
+.rs-dlg-warn-note {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: #f59e0b;
+  margin-top: 12px; padding: 8px 12px;
+  background: rgba(245,158,11,0.06); border-radius: 8px;
+}
+.rs-dlg-actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.rs-dlg-loading {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 48px 24px; font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5);
+}
+.rs-dlg-success {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 32px 24px; text-align: center;
+}
+.rs-dlg-success-title { font-size: 16px; font-weight: 700; color: #10b981; }
+.rs-dlg-success-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); margin-top: 4px; }
+.rs-dlg-success-codigos {
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 10px; padding: 12px 16px;
+}
+.rs-dlg-codigo-row {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 12px;
+}
+.rs-dlg-codigo {
+  font-family: 'Courier New', monospace; font-weight: 700; font-size: 11px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+.rs-dlg-ccta {
+  font-family: 'Courier New', monospace; font-weight: 800;
+  color: #06b6d4; background: rgba(6,182,212,0.08);
+  border-radius: 4px; padding: 1px 5px; font-size: 11px;
+}
+.rs-dlg-cval { margin-left: auto; font-weight: 700; color: #10b981; font-size: 12px; }
+.txt-red { color: #ef4444; }
+
 .imp-cfg-code-chip {
   font-family: 'Courier New', monospace;
   font-size: 10px; font-weight: 700;

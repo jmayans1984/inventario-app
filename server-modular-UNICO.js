@@ -5415,6 +5415,111 @@ app.get('/api/contabilidad/gastos/proximo-codigo', async (req, res) => {
 });
 
 // ================================================================
+// SQUARE: CONFIG GENERAL + IMPORTACIÓN
+// ================================================================
+
+// GET /api/config-general
+app.get('/api/config-general', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const result = await pool.query(
+            'SELECT * FROM config_general WHERE empresa = $1',
+            [empresa]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'No existe configuración general para esta empresa' });
+        }
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error en /api/config-general:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/square/importar-resumen
+// Inserta hasta 7 registros en gastos (transacción atómica)
+// Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...} }
+app.post('/api/square/importar-resumen', async (req, res) => {
+    const { empresa, fecha, ccosto, ventas, pagos } = req.body;
+    if (!empresa || !fecha || !ccosto) {
+        return res.status(400).json({ success: false, error: 'empresa, fecha y ccosto son requeridos' });
+    }
+    if (!ventas || !pagos) {
+        return res.status(400).json({ success: false, error: 'ventas y pagos son requeridos' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Leer config_general
+        const cfgRes = await client.query(
+            'SELECT * FROM config_general WHERE empresa = $1',
+            [empresa]
+        );
+        if (cfgRes.rows.length === 0) throw new Error('No existe configuración general para esta empresa');
+        const cfg = cfgRes.rows[0];
+
+        // 2. Bloquear tabla y obtener MAX codigo
+        await client.query('LOCK TABLE gastos IN SHARE ROW EXCLUSIVE MODE');
+        const maxRes = await client.query(
+            `SELECT COALESCE(MAX(CAST(codigo AS BIGINT)), 0) AS max_codigo
+             FROM gastos WHERE empresa = $1`,
+            [empresa]
+        );
+        let seq = parseInt(maxRes.rows[0].max_codigo) + 1;
+
+        // 3. Calcular valores
+        const ventasNetas  = (parseFloat(ventas.ventasBrutas) || 0) - (parseFloat(ventas.devoluciones) || 0);
+        const descuentos   = parseFloat(ventas.descuentos)  || 0;
+        const impuestos    = parseFloat(ventas.impuestos)   || 0;
+        const propinas     = parseFloat(ventas.propinas)    || 0;
+        const comisiones   = parseFloat(pagos.comisiones)   || 0;
+
+        // 4. Definir los 7 registros
+        const records = [
+            { cuenta: cfg.cta_ventas,            valor: ventasNetas  },
+            { cuenta: cfg.cta_descuentos_ventas,  valor: descuentos   },
+            { cuenta: cfg.cta_impuestos,          valor: impuestos    },
+            { cuenta: cfg.cta_propinas,           valor: propinas     },
+            { cuenta: cfg.cta_comisiones,         valor: comisiones   },
+            { cuenta: cfg.cta_egresos_impuestos,  valor: impuestos    },
+            { cuenta: cfg.cta_egresos_propinas,   valor: propinas     },
+        ];
+
+        // 5. Insertar cada registro
+        const insertados = [];
+        for (const rec of records) {
+            if (!rec.cuenta || rec.cuenta.trim() === '') continue; // omitir si la cuenta no está configurada
+            const codigo = String(seq).padStart(10, '0');
+            await client.query(
+                `INSERT INTO gastos
+                    (codigo, fecha, factura, proveedor, ccosto, forma_pago,
+                     cuenta, concepto, subtotal, impuestos, total,
+                     empresa, estado, entrada_almacen, origen)
+                 VALUES ($1, $2, NULL, NULL, $3, NULL,
+                         $4, NULL, $5, 0, $5,
+                         $6, 'PENDIENTE', NULL, 'SQUARE')`,
+                [codigo, fecha, ccosto, rec.cuenta, rec.valor, empresa]
+            );
+            insertados.push({ codigo, cuenta: rec.cuenta, valor: rec.valor });
+            seq++;
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, data: { registros: insertados, total: insertados.length } });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en /api/square/importar-resumen:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// ================================================================
 // INICIAR SERVIDOR
 // ================================================================
 
