@@ -1351,27 +1351,27 @@ app.get('/api/recetas/por-skus', async (req, res) => {
     }
 });
 
-// GET /api/detalle-productos/por-codigos - Trae componentes de inventario por lista de códigos de receta
+// GET /api/detalle-productos/por-recetas - Trae componentes de inventario por lista de SKUs (campo RECETA)
 // JOIN con productos para obtener nombre y unidad del ingrediente
-app.get('/api/detalle-productos/por-codigos', async (req, res) => {
-    const { codigos, empresa } = req.query;
-    if (!codigos) return res.json({ success: true, data: [] });
-    const codigoList = codigos.split(',').map(s => s.trim()).filter(Boolean);
-    if (codigoList.length === 0) return res.json({ success: true, data: [] });
+app.get('/api/detalle-productos/por-recetas', async (req, res) => {
+    const { recetas } = req.query;
+    if (!recetas) return res.json({ success: true, data: [] });
+    const recetaList = recetas.split(',').map(s => s.trim()).filter(Boolean);
+    if (recetaList.length === 0) return res.json({ success: true, data: [] });
     try {
-        const placeholders = codigoList.map((_, i) => `$${i + 1}`).join(',');
+        const placeholders = recetaList.map((_, i) => `$${i + 1}`).join(',');
         const result = await pool.query(
-            `SELECT dp.codigo, dp.receta, dp.articulo, dp.cant,
+            `SELECT dp.receta, dp.articulo, dp.cant,
                     COALESCE(p.nombre, dp.articulo) AS articulo_nombre,
                     COALESCE(p.und, '') AS und
              FROM detalle_productos dp
              LEFT JOIN productos p ON TRIM(p.codigo::text) = TRIM(dp.articulo::text)
-             WHERE TRIM(dp.codigo::text) IN (${placeholders})`,
-            codigoList
+             WHERE TRIM(dp.receta::text) IN (${placeholders})`,
+            recetaList
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {
-        console.error('Error GET /api/detalle-productos/por-codigos:', error);
+        console.error('Error GET /api/detalle-productos/por-recetas:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

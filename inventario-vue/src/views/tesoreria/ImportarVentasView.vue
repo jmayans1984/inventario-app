@@ -850,39 +850,41 @@ async function calcularConsumo() {
   const itemsConSku = articulos.value.items.filter(i => i.sku && i.sku.trim() !== '')
   if (itemsConSku.length === 0) return
 
-  const codigos = [...new Set(itemsConSku.map(i => i.sku.trim()))]
+  // SKUs únicos del CSV (= campo RECETA en detalle_productos)
+  const skus = [...new Set(itemsConSku.map(i => i.sku.trim()))]
+
   consumoLoading.value = true
   consumoError.value = ''
   consumo.value = []
   try {
-    const resp = await api.get('/detalle-productos/por-codigos', {
-      params: { codigos: codigos.join(',') }
+    const resp = await api.get('/detalle-productos/por-recetas', {
+      params: { recetas: skus.join(',') }
     })
     if (!resp.data?.success || !resp.data.data?.length) return
 
-    // Mapa: sku → { nombre, cantidad }
+    // Mapa SKU → cantidad vendida (del CSV)
     const cantMap = {}
     for (const item of itemsConSku) {
       const sku = item.sku.trim()
       cantMap[sku] = (cantMap[sku] || 0) + item.cantidad
     }
 
-    // Nombre de receta por SKU (para el detalle)
+    // Mapa SKU → nombre de la receta (para mostrar en detalle)
     const nombreRecetaMap = {}
     for (const item of itemsConSku) {
       const sku = item.sku.trim()
       if (!nombreRecetaMap[sku]) nombreRecetaMap[sku] = item.nombreReceta || item.nombre || sku
     }
 
-    // Agrega consumo por articulo
+    // Agrupa por ARTICULO acumulando: cant_detalle × cant_vendida
     const consumoMap = {}
     for (const dp of resp.data.data) {
-      const sku      = (dp.codigo || '').trim()
-      const codArt   = (dp.articulo || '').trim()
+      const receta   = (dp.receta   || '').trim()   // SKU que coincide con el CSV
+      const codArt   = (dp.articulo || '').trim()   // ingrediente de inventario
       const nombre   = (dp.articulo_nombre || codArt).trim()
       const und      = (dp.und || '').trim()
-      const cantRec  = parseFloat(dp.cant) || 0
-      const vendidos = cantMap[sku] || 0
+      const cantRec  = parseFloat(dp.cant) || 0      // cant por unidad de receta
+      const vendidos = cantMap[receta] || 0           // unidades vendidas según CSV
       const total    = cantRec * vendidos
 
       if (!consumoMap[codArt]) {
@@ -890,15 +892,15 @@ async function calcularConsumo() {
       }
       consumoMap[codArt].totalConsumo += total
       consumoMap[codArt].recetas.push({
-        sku,
-        nombreReceta: nombreRecetaMap[sku] || sku,
+        sku: receta,
+        nombreReceta: nombreRecetaMap[receta] || receta,
         cantPorUnidad: cantRec,
         vendidos,
         subtotal: total
       })
     }
 
-    // Ordena por consumo total descendente
+    // Ordena de mayor a menor consumo
     consumo.value = Object.values(consumoMap).sort((a, b) => b.totalConsumo - a.totalConsumo)
   } catch (e) {
     console.error('Error al calcular consumo:', e)
