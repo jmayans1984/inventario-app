@@ -24,6 +24,95 @@
         </div>
       </div>
 
+      <!-- ═══════════════════════════════════════════════
+           CONFIGURACIÓN DE IMPORTACIÓN
+      ═══════════════════════════════════════════════ -->
+      <div class="imp-cfg-card">
+        <div class="imp-cfg-header">
+          <div class="imp-cfg-icon">
+            <v-icon size="16" color="white">mdi-tune</v-icon>
+          </div>
+          <span class="imp-cfg-title">CONFIGURACIÓN DE IMPORTACIÓN</span>
+          <span class="imp-cfg-sub">Parámetros que se aplicarán al generar los movimientos contables</span>
+        </div>
+        <div class="imp-cfg-fields">
+
+          <!-- Fecha -->
+          <div class="imp-cfg-field">
+            <label class="imp-cfg-label">
+              <v-icon size="12" color="#06b6d4" class="mr-1">mdi-calendar-outline</v-icon>
+              FECHA
+            </label>
+            <input
+              v-model="configFecha"
+              type="date"
+              class="imp-cfg-date"
+            />
+          </div>
+
+          <!-- Empresa -->
+          <div class="imp-cfg-field">
+            <label class="imp-cfg-label">
+              <v-icon size="12" color="#8b5cf6" class="mr-1">mdi-office-building-outline</v-icon>
+              EMPRESA
+            </label>
+            <div class="imp-cfg-empresa">
+              <span class="imp-cfg-empresa-code">{{ empresaCodigo || '—' }}</span>
+            </div>
+          </div>
+
+          <!-- Centro de Costo -->
+          <div class="imp-cfg-field imp-cfg-field--wide">
+            <label class="imp-cfg-label">
+              <v-icon size="12" color="#f59e0b" class="mr-1">mdi-map-marker-outline</v-icon>
+              CENTRO DE COSTO
+            </label>
+            <v-select
+              v-model="configCcosto"
+              :items="ccostos"
+              item-title="nombre"
+              item-value="codigo"
+              density="compact"
+              variant="outlined"
+              hide-details
+              placeholder="Seleccionar..."
+              :loading="ccostosLoading"
+              class="imp-cfg-select"
+              bg-color="rgb(var(--v-theme-surface))"
+            >
+              <template #prepend-inner>
+                <span v-if="configCcosto" class="imp-cfg-code-chip">{{ configCcosto }}</span>
+              </template>
+            </v-select>
+          </div>
+
+          <!-- Cuentas Bancarias -->
+          <div class="imp-cfg-field imp-cfg-field--wide">
+            <label class="imp-cfg-label">
+              <v-icon size="12" color="#10b981" class="mr-1">mdi-bank-outline</v-icon>
+              CUENTAS BANCARIAS
+            </label>
+            <v-select
+              v-model="configCuentas"
+              :items="cuentasBancarias"
+              item-title="nombre"
+              item-value="codigo"
+              density="compact"
+              variant="outlined"
+              hide-details
+              placeholder="Seleccionar cuentas..."
+              :loading="cuentasLoading"
+              multiple
+              chips
+              closable-chips
+              class="imp-cfg-select"
+              bg-color="rgb(var(--v-theme-surface))"
+            />
+          </div>
+
+        </div>
+      </div>
+
       <!-- ZONA DE CARGA -->
       <div class="iv-upload-row">
 
@@ -801,9 +890,51 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
+import { useAuthStore } from '../../stores/auth'
+
+// ─── Auth ─────────────────────────────────────────────────────
+const authStore   = useAuthStore()
+const empresaCodigo = computed(() => authStore.empresa || authStore.user?.empresa || '')
+
+// ─── Config importación ───────────────────────────────────────
+const configFecha   = ref(new Date().toISOString().slice(0, 10))  // hoy por defecto
+const configCcosto  = ref(null)
+const configCuentas = ref([])
+const ccostos       = ref([])
+const ccostosLoading = ref(false)
+const cuentasBancarias = ref([])
+const cuentasLoading   = ref(false)
+
+async function fetchCcostos() {
+  if (!empresaCodigo.value) return
+  ccostosLoading.value = true
+  try {
+    const resp = await api.get('/ccostos', { params: { empresa: empresaCodigo.value } })
+    if (resp.data?.success) ccostos.value = resp.data.data
+  } catch (e) { console.error('fetchCcostos:', e) }
+  finally { ccostosLoading.value = false }
+}
+
+async function fetchCuentasBancarias() {
+  if (!empresaCodigo.value) return
+  cuentasLoading.value = true
+  try {
+    const resp = await api.get('/contabilidad/cuentas-bancarias', {
+      params: { empresa: empresaCodigo.value, estado: 'ACTIVA', limit: 100 }
+    })
+    const data = resp.data?.data ?? resp.data
+    if (Array.isArray(data)) cuentasBancarias.value = data
+  } catch (e) { console.error('fetchCuentasBancarias:', e) }
+  finally { cuentasLoading.value = false }
+}
+
+onMounted(() => {
+  fetchCcostos()
+  fetchCuentasBancarias()
+})
 
 // ─── State ───────────────────────────────────────────────────
 const resumen          = ref(null)
@@ -1841,4 +1972,94 @@ function limpiar(type) {
 }
 .tipo-suma  { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
 .tipo-resta { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+
+/* ── Configuración de importación ──────────────────── */
+.imp-cfg-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 16px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.imp-cfg-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(6,182,212,0.03));
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.imp-cfg-icon {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.imp-cfg-title {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.6px;
+  color: #06b6d4; text-transform: uppercase;
+}
+
+.imp-cfg-sub {
+  font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.35);
+  margin-left: auto;
+}
+
+.imp-cfg-fields {
+  display: grid;
+  grid-template-columns: auto auto 1fr 1fr;
+  gap: 16px;
+  padding: 14px 18px;
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .imp-cfg-fields { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .imp-cfg-fields { grid-template-columns: 1fr; }
+}
+
+.imp-cfg-field { display: flex; flex-direction: column; gap: 5px; }
+.imp-cfg-field--wide { /* already wide via grid */ }
+
+.imp-cfg-label {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.45);
+  display: flex; align-items: center;
+}
+
+.imp-cfg-date {
+  height: 40px; border-radius: 8px; padding: 0 10px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 13px; font-weight: 600; outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.imp-cfg-date:focus { border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6,182,212,0.15); }
+
+.imp-cfg-empresa {
+  height: 40px; border-radius: 8px; padding: 0 12px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  display: flex; align-items: center;
+  min-width: 80px;
+}
+
+.imp-cfg-empresa-code {
+  font-family: 'Courier New', monospace;
+  font-size: 16px; font-weight: 800;
+  color: #8b5cf6;
+}
+
+.imp-cfg-select { font-size: 13px; }
+.imp-cfg-code-chip {
+  font-family: 'Courier New', monospace;
+  font-size: 10px; font-weight: 700;
+  background: rgba(245,158,11,0.1); color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 4px; padding: 1px 5px; margin-right: 4px;
+}
 </style>
