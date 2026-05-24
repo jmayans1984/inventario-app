@@ -209,6 +209,40 @@
 
       </div>
 
+      <!-- BARRA DE ACCIONES (visible cuando hay resumen cargado) -->
+      <div v-if="resumen" class="iv-action-bar">
+        <div class="iv-action-bar-left">
+          <v-icon size="15" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
+          <span v-if="saveResumenSuccess" class="iv-action-ok">
+            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
+            {{ saveResumenResult?.total }} registros guardados en Gastos
+          </span>
+          <span v-else class="iv-action-hint">
+            Archivo de resumen listo · Selecciona Fecha y CCosto para registrar
+          </span>
+        </div>
+        <div class="iv-action-bar-right">
+          <v-btn
+            variant="outlined"
+            color="#94a3b8"
+            size="small"
+            @click="limpiar('resumen'); limpiar('articulos')"
+          >
+            <v-icon size="15" class="mr-1">mdi-close</v-icon>
+            Cancelar
+          </v-btn>
+          <v-btn
+            color="#06b6d4"
+            variant="flat"
+            size="small"
+            @click="abrirGuardarResumen"
+          >
+            <v-icon size="15" class="mr-1">mdi-database-import-outline</v-icon>
+            Guardar en Contabilidad
+          </v-btn>
+        </div>
+      </div>
+
       <!-- ERROR DE PARSEO -->
       <div v-if="parseError" class="iv-error">
         <v-icon size="20" color="#ef4444">mdi-alert-circle-outline</v-icon>
@@ -281,16 +315,6 @@
                 <div>
                   <div class="iv-section-title">RESUMEN DE VENTAS</div>
                   <div class="iv-section-sub">{{ resumen.ubicacion }} · {{ resumen.periodo }}</div>
-                </div>
-                <div style="margin-left:auto; display:flex; align-items:center; gap:12px">
-                  <span v-if="saveResumenSuccess" class="rs-save-ok">
-                    <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
-                    {{ saveResumenResult?.total }} registros guardados
-                  </span>
-                  <v-btn color="#06b6d4" variant="flat" size="small" @click="abrirGuardarResumen">
-                    <v-icon size="16" class="mr-1">mdi-database-import-outline</v-icon>
-                    Registrar en Contabilidad
-                  </v-btn>
                 </div>
               </div>
 
@@ -2283,6 +2307,27 @@ function limpiar(type) {
 }
 
 .imp-cfg-select { font-size: 13px; }
+/* ── Barra de acciones ─────────────────────────────── */
+.iv-action-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(6,182,212,0.25);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+}
+.iv-action-bar-left {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45);
+}
+.iv-action-bar-right { display: flex; align-items: center; gap: 8px; }
+.iv-action-ok {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: #10b981;
+}
+.iv-action-hint { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); }
+
 /* ── Botón guardar resumen ─────────────────────────── */
 .rs-save-row {
   display: flex; align-items: center; gap: 14px;
