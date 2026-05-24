@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-Df4pshID.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

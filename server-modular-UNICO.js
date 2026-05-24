@@ -1351,17 +1351,29 @@ app.get('/api/recetas/por-skus', async (req, res) => {
     }
 });
 
-// GET /api/detalle-productos/por-codigos - Trae componentes de materia prima por lista de códigos de receta
+// GET /api/detalle-productos/por-codigos - Trae componentes de inventario por lista de códigos de receta
+// JOIN con productos para obtener nombre y unidad del ingrediente
 app.get('/api/detalle-productos/por-codigos', async (req, res) => {
-    const { codigos } = req.query;
+    const { codigos, empresa } = req.query;
     if (!codigos) return res.json({ success: true, data: [] });
     const codigoList = codigos.split(',').map(s => s.trim()).filter(Boolean);
     if (codigoList.length === 0) return res.json({ success: true, data: [] });
     try {
         const placeholders = codigoList.map((_, i) => `$${i + 1}`).join(',');
+        const params = [...codigoList];
+        let joinCondition = 'TRIM(p.codigo::text) = TRIM(dp.articulo::text)';
+        if (empresa) {
+            params.push(empresa);
+            joinCondition += ` AND p.empresa = $${params.length}`;
+        }
         const result = await pool.query(
-            `SELECT codigo, receta, articulo, cant FROM detalle_productos WHERE TRIM(codigo::text) IN (${placeholders})`,
-            codigoList
+            `SELECT dp.codigo, dp.receta, dp.articulo, dp.cant,
+                    COALESCE(p.nombre, dp.articulo) AS articulo_nombre,
+                    COALESCE(p.und, '') AS und
+             FROM detalle_productos dp
+             LEFT JOIN productos p ON ${joinCondition}
+             WHERE TRIM(dp.codigo::text) IN (${placeholders})`,
+            params
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {

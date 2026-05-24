@@ -355,80 +355,125 @@
       </div>
 
       <!-- ═══════════════════════════════════════════════
-           CONSUMO DE MATERIA PRIMA
+           CONSUMO DE INVENTARIO
       ═══════════════════════════════════════════════ -->
       <div v-if="articulos && (consumo.length > 0 || consumoLoading)" class="iv-section">
 
+        <!-- Encabezado -->
         <div class="iv-section-header">
           <div class="iv-section-icon" style="background:rgba(239,68,68,0.1)">
             <v-icon size="16" color="#ef4444">mdi-package-down</v-icon>
           </div>
           <div>
-            <div class="iv-section-title">CONSUMO DE MATERIA PRIMA</div>
-            <div class="iv-section-sub">Ingredientes consumidos según ventas del período</div>
+            <div class="iv-section-title">CONSUMO DE INVENTARIO</div>
+            <div class="iv-section-sub">Productos descontados del inventario según ventas del período</div>
           </div>
-          <div v-if="consumoLoading" class="enrich-badge" style="color:#ef4444">
+          <div v-if="consumoLoading" class="enrich-badge" style="color:#ef4444; margin-left:auto">
             <v-progress-circular size="14" width="2" indeterminate color="#ef4444" />
-            <span>Calculando consumo...</span>
-          </div>
-          <div v-else class="enrich-badge" style="color:#64748b; margin-left:auto">
-            <v-icon size="14">mdi-package-variant</v-icon>
-            <span>{{ consumo.length }} ingrediente{{ consumo.length !== 1 ? 's' : '' }}</span>
+            <span>Calculando...</span>
           </div>
         </div>
 
-        <div class="iv-card">
+        <!-- KPIs -->
+        <div v-if="!consumoLoading && consumo.length" class="kpi-grid kpi-grid-3">
+          <div class="kpi-card kpi-red">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Productos Afectados</span>
+              <v-icon size="16" color="#ef4444">mdi-package-variant-closed</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-red">{{ consumo.length }}</div>
+          </div>
+          <div class="kpi-card kpi-orange">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Recetas Involucradas</span>
+              <v-icon size="16" color="#f59e0b">mdi-chef-hat</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-orange">
+              {{ new Set(consumo.flatMap(c => c.recetas.map(r => r.sku))).size }}
+            </div>
+          </div>
+          <div class="kpi-card kpi-purple">
+            <div class="kpi-top">
+              <span class="kpi-lbl">Mayor Consumo</span>
+              <v-icon size="16" color="#8b5cf6">mdi-trending-up</v-icon>
+            </div>
+            <div class="kpi-val kpi-val-purple" style="font-size:15px">
+              {{ consumo[0]?.nombre || '—' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de consumo -->
+        <div v-if="!consumoLoading && consumo.length" class="iv-card">
           <div class="iv-card-header">
             <div class="iv-card-title">
               <v-icon size="14" color="#ef4444" class="mr-1">mdi-clipboard-list-outline</v-icon>
-              Detalle de Consumo por Artículo
+              Detalle de Consumo por Producto
+            </div>
+            <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4)">
+              Ordenado por mayor consumo
             </div>
           </div>
+
           <div class="art-tabla-wrap">
             <table class="art-tabla">
               <thead>
                 <tr>
-                  <th style="width:100px">ARTÍCULO</th>
-                  <th class="col-right" style="width:160px">CONSUMO TOTAL</th>
-                  <th>DETALLE POR RECETA</th>
+                  <th style="width:60px">#</th>
+                  <th style="width:70px">CÓDIGO</th>
+                  <th>DESCRIPCIÓN</th>
+                  <th style="width:70px" class="col-right">UND</th>
+                  <th style="width:140px" class="col-right">CONSUMO TOTAL</th>
+                  <th style="width:220px">RECETAS QUE LO USAN</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="c in consumo"
-                  :key="c.articulo"
-                  class="tr-item"
+                  v-for="(c, idx) in consumo"
+                  :key="c.codigo"
+                  class="tr-item tr-consumo"
                 >
-                  <td class="td-sku" style="font-size:13px;font-weight:700;color:rgb(var(--v-theme-on-surface))">
-                    {{ c.articulo }}
+                  <!-- Número -->
+                  <td class="td-idx">{{ idx + 1 }}</td>
+
+                  <!-- Código -->
+                  <td class="td-sku">{{ c.codigo }}</td>
+
+                  <!-- Nombre + barra -->
+                  <td class="td-nombre-consumo">
+                    <div class="consumo-nombre">{{ c.nombre }}</div>
+                    <div class="consumo-bar-wrap">
+                      <div
+                        class="consumo-bar"
+                        :style="{ width: maxConsumo > 0 ? (c.totalConsumo / maxConsumo * 100).toFixed(1) + '%' : '0%' }"
+                      ></div>
+                    </div>
                   </td>
+
+                  <!-- Unidad -->
+                  <td class="col-right td-und">{{ c.und || '—' }}</td>
+
+                  <!-- Consumo total -->
                   <td class="col-right">
-                    <span class="consumo-total">{{ fmtNum(c.totalConsumo) }}</span>
+                    <span class="consumo-total-val">{{ fmtNum(c.totalConsumo) }}</span>
                   </td>
-                  <td class="td-detalle">
-                    <div class="detalle-wrap">
+
+                  <!-- Recetas que lo usan -->
+                  <td class="td-recetas">
+                    <div class="recetas-wrap">
                       <span
-                        v-for="d in c.detalle"
-                        :key="d.sku"
-                        class="detalle-chip"
-                        :title="`${d.sku}: ${fmtNum(d.cantPorUnidad)} × ${d.vendidos} uds`"
+                        v-for="r in c.recetas"
+                        :key="r.sku"
+                        class="receta-chip"
+                        :title="`${r.nombreReceta}: ${fmtNum(r.cantPorUnidad)} × ${r.vendidos} uds = ${fmtNum(r.subtotal)}`"
                       >
-                        <span class="detalle-sku">{{ d.sku }}</span>
-                        <span class="detalle-calc">{{ fmtNum(d.cantPorUnidad) }} × {{ d.vendidos }} = <strong>{{ fmtNum(d.total) }}</strong></span>
+                        <span class="receta-sku">{{ r.sku }}</span>
+                        <span class="receta-subtotal">{{ fmtNum(r.subtotal) }}</span>
                       </span>
                     </div>
                   </td>
                 </tr>
               </tbody>
-              <tfoot>
-                <tr class="tr-total">
-                  <td class="total-lbl">{{ consumo.length }} ARTÍCULOS</td>
-                  <td class="col-right total-val txt-red">
-                    {{ consumo.length }} ingredientes
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </div>
@@ -443,6 +488,13 @@
 import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
+import { useAuthStore } from '../../stores/auth'
+
+const authStore = useAuthStore()
+function getEmpresa() {
+  return authStore.empresa || authStore.user?.empresa ||
+    localStorage.getItem('empresaActual') || localStorage.getItem('empresa') || ''
+}
 
 // ─── State ───────────────────────────────────────────────────
 const resumen          = ref(null)
@@ -788,7 +840,6 @@ async function enrichWithRecetas() {
 // ─── Consumo de materia prima ─────────────────────────────────
 async function calcularConsumo() {
   if (!articulos.value?.items?.length) return
-  // Solo items con SKU
   const itemsConSku = articulos.value.items.filter(i => i.sku && i.sku.trim() !== '')
   if (itemsConSku.length === 0) return
 
@@ -797,42 +848,61 @@ async function calcularConsumo() {
   consumo.value = []
   try {
     const resp = await api.get('/detalle-productos/por-codigos', {
-      params: { codigos: codigos.join(',') }
+      params: { codigos: codigos.join(','), empresa: getEmpresa() }
     })
     if (!resp.data?.success || !resp.data.data?.length) return
 
-    // Mapa: sku → cantidad vendida
+    // Mapa: sku → { nombre, cantidad }
     const cantMap = {}
     for (const item of itemsConSku) {
       const sku = item.sku.trim()
       cantMap[sku] = (cantMap[sku] || 0) + item.cantidad
     }
 
-    // Agregar consumo por articulo
-    const consumoMap = {}
-    for (const dp of resp.data.data) {
-      const sku       = (dp.codigo || '').trim()
-      const articulo  = (dp.articulo || '').trim()
-      const cantRec   = parseFloat(dp.cant) || 0
-      const vendidos  = cantMap[sku] || 0
-      const total     = cantRec * vendidos
-
-      if (!consumoMap[articulo]) {
-        consumoMap[articulo] = { articulo, totalConsumo: 0, detalle: [] }
-      }
-      consumoMap[articulo].totalConsumo += total
-      consumoMap[articulo].detalle.push({ sku, cantPorUnidad: cantRec, vendidos, total })
+    // Nombre de receta por SKU (para el detalle)
+    const nombreRecetaMap = {}
+    for (const item of itemsConSku) {
+      const sku = item.sku.trim()
+      if (!nombreRecetaMap[sku]) nombreRecetaMap[sku] = item.nombreReceta || item.nombre || sku
     }
 
-    consumo.value = Object.values(consumoMap).sort((a, b) =>
-      a.articulo.localeCompare(b.articulo)
-    )
+    // Agrega consumo por articulo
+    const consumoMap = {}
+    for (const dp of resp.data.data) {
+      const sku      = (dp.codigo || '').trim()
+      const codArt   = (dp.articulo || '').trim()
+      const nombre   = (dp.articulo_nombre || codArt).trim()
+      const und      = (dp.und || '').trim()
+      const cantRec  = parseFloat(dp.cant) || 0
+      const vendidos = cantMap[sku] || 0
+      const total    = cantRec * vendidos
+
+      if (!consumoMap[codArt]) {
+        consumoMap[codArt] = { codigo: codArt, nombre, und, totalConsumo: 0, recetas: [] }
+      }
+      consumoMap[codArt].totalConsumo += total
+      consumoMap[codArt].recetas.push({
+        sku,
+        nombreReceta: nombreRecetaMap[sku] || sku,
+        cantPorUnidad: cantRec,
+        vendidos,
+        subtotal: total
+      })
+    }
+
+    // Ordena por consumo total descendente
+    consumo.value = Object.values(consumoMap).sort((a, b) => b.totalConsumo - a.totalConsumo)
   } catch (e) {
     console.error('Error al calcular consumo:', e)
   } finally {
     consumoLoading.value = false
   }
 }
+
+// Max consumo para barra relativa
+const maxConsumo = computed(() =>
+  consumo.value.reduce((m, c) => Math.max(m, c.totalConsumo), 0)
+)
 
 // ─── File handling ────────────────────────────────────────────
 function detectType(filename, buffer) {
@@ -1107,35 +1177,44 @@ function limpiar(type) {
   border: 1px solid rgba(245,158,11,0.25);
 }
 
-/* Consumo total */
-.consumo-total {
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  font-weight: 800;
-  color: #ef4444;
+/* KPI rojo */
+.kpi-red     { border-left: 3px solid #ef4444; } .kpi-val-red     { color: #ef4444; }
+
+/* Consumo tabla */
+.tr-consumo { vertical-align: middle; }
+.td-idx { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.3); text-align: center; }
+.td-und { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); font-weight: 600; }
+
+.td-nombre-consumo { padding: 8px 12px !important; }
+.consumo-nombre { font-weight: 700; font-size: 13px; color: rgb(var(--v-theme-on-surface)); margin-bottom: 5px; }
+.consumo-bar-wrap {
+  height: 4px; background: rgba(var(--v-theme-on-surface), 0.07);
+  border-radius: 4px; overflow: hidden;
 }
+.consumo-bar {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  transition: width 0.4s ease;
+}
+
+.consumo-total-val {
+  font-family: 'Courier New', monospace;
+  font-size: 15px; font-weight: 800; color: #ef4444;
+}
+
+/* Recetas chips */
+.td-recetas { padding: 8px 12px !important; }
+.recetas-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
+.receta-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(139,92,246,0.07);
+  border: 1px solid rgba(139,92,246,0.15);
+  border-radius: 5px; padding: 2px 7px; font-size: 10.5px;
+  cursor: default;
+}
+.receta-sku { font-family: 'Courier New', monospace; font-weight: 700; color: #8b5cf6; }
+.receta-subtotal { color: rgba(var(--v-theme-on-surface), 0.55); font-weight: 500; }
 .txt-red { color: #ef4444; }
-.td-detalle { padding: 8px 12px; }
-.detalle-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
-.detalle-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(var(--v-theme-on-surface), 0.05);
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
-  border-radius: 6px; padding: 3px 8px; font-size: 11px;
-}
-.detalle-sku {
-  font-family: 'Courier New', monospace;
-  font-weight: 700;
-  color: #8b5cf6;
-  font-size: 10.5px;
-}
-.detalle-calc {
-  color: rgba(var(--v-theme-on-surface), 0.6);
-}
-.detalle-calc strong {
-  color: #ef4444;
-  font-weight: 700;
-}
 
 /* Enrich badge */
 .enrich-badge {
