@@ -282,6 +282,16 @@
                   <div class="iv-section-title">RESUMEN DE VENTAS</div>
                   <div class="iv-section-sub">{{ resumen.ubicacion }} · {{ resumen.periodo }}</div>
                 </div>
+                <div style="margin-left:auto; display:flex; align-items:center; gap:12px">
+                  <span v-if="saveResumenSuccess" class="rs-save-ok">
+                    <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
+                    {{ saveResumenResult?.total }} registros guardados
+                  </span>
+                  <v-btn color="#06b6d4" variant="flat" size="small" @click="abrirGuardarResumen">
+                    <v-icon size="16" class="mr-1">mdi-database-import-outline</v-icon>
+                    Registrar en Contabilidad
+                  </v-btn>
+                </div>
               </div>
 
               <!-- Layout de dos columnas: VENTAS + PAGOS -->
@@ -384,21 +394,6 @@
 
               </div><!-- /.rs-two-col -->
 
-              <!-- Botón guardar -->
-              <div class="rs-save-row">
-                <v-btn
-                  color="#06b6d4"
-                  variant="flat"
-                  @click="abrirGuardarResumen"
-                >
-                  <v-icon size="17" class="mr-2">mdi-database-import-outline</v-icon>
-                  Registrar en Contabilidad
-                </v-btn>
-                <span v-if="saveResumenSuccess" class="rs-save-ok">
-                  <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
-                  {{ saveResumenResult?.total }} registros guardados correctamente
-                </span>
-              </div>
 
             </template>
             <div v-else class="tab-empty">
