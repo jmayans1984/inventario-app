@@ -5480,7 +5480,7 @@ app.put('/api/config-general', async (req, res) => {
 // Inserta hasta 7 registros en gastos (transacción atómica)
 // Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...} }
 app.post('/api/square/importar-resumen', async (req, res) => {
-    const { empresa, fecha, ccosto, ventas, pagos } = req.body;
+    const { empresa, fecha, ccosto, ventas, pagos, force } = req.body;
     if (!empresa || !fecha || !ccosto) {
         return res.status(400).json({ success: false, error: 'empresa, fecha y ccosto son requeridos' });
     }
@@ -5500,7 +5500,32 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         if (cfgRes.rows.length === 0) throw new Error('No existe configuración general para esta empresa');
         const cfg = cfgRes.rows[0];
 
-        // 2. Bloquear tabla y obtener MAX codigo
+        // 2. Verificar duplicados (misma fecha + ccosto + empresa + origen=SQUARE)
+        const dupRes = await client.query(
+            `SELECT COUNT(*) AS cnt FROM gastos
+             WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND origen = 'SQUARE'`,
+            [fecha, ccosto, empresa]
+        );
+        const dupCount = parseInt(dupRes.rows[0].cnt) || 0;
+        if (dupCount > 0 && !force) {
+            await client.query('ROLLBACK');
+            return res.json({
+                success: false,
+                conflict: true,
+                count: dupCount,
+                message: `Ya existen ${dupCount} registros para esta fecha, centro de costo y empresa con origen SQUARE.`
+            });
+        }
+        if (dupCount > 0 && force) {
+            // Eliminar registros anteriores antes de reinsertar
+            await client.query(
+                `DELETE FROM gastos
+                 WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND origen = 'SQUARE'`,
+                [fecha, ccosto, empresa]
+            );
+        }
+
+        // 3. Bloquear tabla y obtener MAX codigo
         await client.query('LOCK TABLE gastos IN SHARE ROW EXCLUSIVE MODE');
         const maxRes = await client.query(
             `SELECT COALESCE(MAX(CAST(codigo AS BIGINT)), 0) AS max_codigo
@@ -5509,14 +5534,14 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         );
         let seq = parseInt(maxRes.rows[0].max_codigo) + 1;
 
-        // 3. Calcular valores
-        const ventasNetas  = (parseFloat(ventas.ventasBrutas) || 0) - (parseFloat(ventas.devoluciones) || 0);
-        const descuentos   = parseFloat(ventas.descuentos)  || 0;
-        const impuestos    = parseFloat(ventas.impuestos)   || 0;
-        const propinas     = parseFloat(ventas.propinas)    || 0;
-        const comisiones   = parseFloat(pagos.comisiones)   || 0;
+        // 4. Calcular valores (siempre positivos con Math.abs)
+        const ventasNetas  = Math.abs((parseFloat(ventas.ventasBrutas) || 0) - (parseFloat(ventas.devoluciones) || 0));
+        const descuentos   = Math.abs(parseFloat(ventas.descuentos)  || 0);
+        const impuestos    = Math.abs(parseFloat(ventas.impuestos)   || 0);
+        const propinas     = Math.abs(parseFloat(ventas.propinas)    || 0);
+        const comisiones   = Math.abs(parseFloat(pagos.comisiones)   || 0);
 
-        // 4. Definir los 7 registros
+        // 5. Definir los 7 registros
         const records = [
             { cuenta: cfg.cta_ventas,            valor: ventasNetas  },
             { cuenta: cfg.cta_descuentos_ventas,  valor: descuentos   },
@@ -5527,7 +5552,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             { cuenta: cfg.cta_egresos_propinas,   valor: propinas     },
         ];
 
-        // 5. Insertar cada registro
+        // 6. Insertar cada registro
         const insertados = [];
         for (const rec of records) {
             if (!rec.cuenta || rec.cuenta.trim() === '') continue; // omitir si la cuenta no está configurada

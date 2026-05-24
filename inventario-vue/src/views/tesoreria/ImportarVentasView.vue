@@ -795,6 +795,28 @@
           <span>{{ saveResumenError }}</span>
         </div>
 
+        <!-- Advertencia de duplicados -->
+        <div v-if="conflictInfo && !saveResumenSuccess" class="rs-dlg-conflict">
+          <div class="rs-dlg-conflict-icon">
+            <v-icon size="32" color="#f59e0b">mdi-alert-circle-outline</v-icon>
+          </div>
+          <div class="rs-dlg-conflict-body">
+            <div class="rs-dlg-conflict-title">¡Ya existen registros para esta importación!</div>
+            <div class="rs-dlg-conflict-sub">
+              Se encontraron <strong>{{ conflictInfo.count }}</strong> registros en GASTOS con la misma
+              <strong>fecha</strong>, <strong>centro de costo</strong> y <strong>empresa</strong> con origen SQUARE.<br>
+              Si continúas, los registros anteriores serán <strong>eliminados</strong> y reemplazados.
+            </div>
+            <div class="rs-dlg-conflict-actions">
+              <v-btn variant="outlined" size="small" @click="conflictInfo = null">Cancelar</v-btn>
+              <v-btn color="#f59e0b" variant="flat" size="small" :loading="savingResumen" @click="confirmarGuardarResumenForce">
+                <v-icon size="15" class="mr-1">mdi-delete-sweep-outline</v-icon>
+                Sí, borrar y reimportar
+              </v-btn>
+            </div>
+          </div>
+        </div>
+
         <!-- Éxito -->
         <div v-if="saveResumenSuccess" class="rs-dlg-success">
           <v-icon size="36" color="#10b981">mdi-check-circle</v-icon>
@@ -815,7 +837,7 @@
         </div>
 
         <!-- Preview de registros (antes de confirmar) -->
-        <template v-else-if="configGeneral && !saveResumenSuccess">
+        <template v-else-if="configGeneral && !saveResumenSuccess && !conflictInfo">
           <div class="rcpopup-body">
             <div class="rs-dlg-info">
               <v-icon size="14" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
@@ -1254,6 +1276,7 @@ const configGeneral       = ref(null)
 const showSaveResumenDlg  = ref(false)
 const savingResumen       = ref(false)
 const saveResumenError    = ref('')
+const conflictInfo        = ref(null)   // { count } cuando el backend detecta duplicados
 const saveResumenSuccess  = ref(false)
 const saveResumenResult   = ref(null)
 
@@ -1314,6 +1337,7 @@ async function abrirGuardarResumen() {
   saveResumenSuccess.value = false
   saveResumenResult.value  = null
   configGeneral.value      = null
+  conflictInfo.value       = null
 
   // Validar config mínima
   if (!configFecha.value || !configCcosto.value) {
@@ -1338,21 +1362,26 @@ const previewResumen = computed(() => {
   const v   = resumen.value.ventas
   const p   = resumen.value.pagos
   const cfg = configGeneral.value
-  const ventasNetas = (v.ventasBrutas || 0) - (v.devoluciones || 0)
+  const ventasNetas  = Math.abs((v.ventasBrutas || 0) - (v.devoluciones || 0))
+  const descuentos   = Math.abs(v.descuentos  || 0)
+  const impuestos    = Math.abs(v.impuestos   || 0)
+  const propinas     = Math.abs(v.propinas    || 0)
+  const comisiones   = Math.abs(p.comisiones  || 0)
   return [
-    { label: 'Ventas Brutas − Devoluciones', campo: 'cta_ventas',           cuenta: cfg.cta_ventas,            valor: ventasNetas         },
-    { label: 'Descuentos en Ventas',         campo: 'cta_descuentos_ventas', cuenta: cfg.cta_descuentos_ventas, valor: v.descuentos  || 0  },
-    { label: 'Impuestos',                    campo: 'cta_impuestos',         cuenta: cfg.cta_impuestos,         valor: v.impuestos   || 0  },
-    { label: 'Propinas',                     campo: 'cta_propinas',          cuenta: cfg.cta_propinas,          valor: v.propinas    || 0  },
-    { label: 'Comisiones Square',            campo: 'cta_comisiones',        cuenta: cfg.cta_comisiones,        valor: p.comisiones  || 0  },
-    { label: 'Egreso Impuestos',             campo: 'cta_egresos_impuestos', cuenta: cfg.cta_egresos_impuestos, valor: v.impuestos   || 0  },
-    { label: 'Egreso Propinas',              campo: 'cta_egresos_propinas',  cuenta: cfg.cta_egresos_propinas,  valor: v.propinas    || 0  },
+    { label: 'Ventas Brutas − Devoluciones', campo: 'cta_ventas',           cuenta: cfg.cta_ventas,            valor: ventasNetas },
+    { label: 'Descuentos en Ventas',         campo: 'cta_descuentos_ventas', cuenta: cfg.cta_descuentos_ventas, valor: descuentos  },
+    { label: 'Impuestos',                    campo: 'cta_impuestos',         cuenta: cfg.cta_impuestos,         valor: impuestos   },
+    { label: 'Propinas',                     campo: 'cta_propinas',          cuenta: cfg.cta_propinas,          valor: propinas    },
+    { label: 'Comisiones Square',            campo: 'cta_comisiones',        cuenta: cfg.cta_comisiones,        valor: comisiones  },
+    { label: 'Egreso Impuestos',             campo: 'cta_egresos_impuestos', cuenta: cfg.cta_egresos_impuestos, valor: impuestos   },
+    { label: 'Egreso Propinas',              campo: 'cta_egresos_propinas',  cuenta: cfg.cta_egresos_propinas,  valor: propinas    },
   ]
 })
 
-async function confirmarGuardarResumen() {
+async function confirmarGuardarResumen(force = false) {
   savingResumen.value    = true
   saveResumenError.value = ''
+  conflictInfo.value     = null
   try {
     const resp = await api.post('/square/importar-resumen', {
       empresa: empresaCodigo.value,
@@ -1360,7 +1389,13 @@ async function confirmarGuardarResumen() {
       ccosto:  configCcosto.value,
       ventas:  resumen.value.ventas,
       pagos:   resumen.value.pagos,
+      force,
     })
+    // Conflicto de duplicados — mostrar advertencia al usuario
+    if (resp.data?.conflict) {
+      conflictInfo.value = { count: resp.data.count }
+      return
+    }
     if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
     saveResumenResult.value  = resp.data.data
     saveResumenSuccess.value = true
@@ -1369,6 +1404,10 @@ async function confirmarGuardarResumen() {
   } finally {
     savingResumen.value = false
   }
+}
+
+async function confirmarGuardarResumenForce() {
+  await confirmarGuardarResumen(true)
 }
 
 // ─── Computed — artículos ─────────────────────────────────────
@@ -2520,6 +2559,25 @@ function limpiar(type) {
 .rs-dlg-loading {
   display: flex; align-items: center; justify-content: center; gap: 14px;
   padding: 48px 24px; font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5);
+}
+/* ── Conflict warning ── */
+.rs-dlg-conflict {
+  display: flex; align-items: flex-start; gap: 16px;
+  margin: 16px; padding: 18px 20px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 10px;
+}
+.rs-dlg-conflict-icon { flex-shrink: 0; padding-top: 2px; }
+.rs-dlg-conflict-body { flex: 1; }
+.rs-dlg-conflict-title {
+  font-size: 14px; font-weight: 700; color: #f59e0b; margin-bottom: 6px;
+}
+.rs-dlg-conflict-sub {
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.75); line-height: 1.6;
+}
+.rs-dlg-conflict-actions {
+  display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;
 }
 .rs-dlg-success {
   display: flex; flex-direction: column; align-items: center; gap: 14px;
