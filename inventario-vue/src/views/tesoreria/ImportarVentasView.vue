@@ -50,19 +50,8 @@
             />
           </div>
 
-          <!-- Empresa -->
-          <div class="imp-cfg-field">
-            <label class="imp-cfg-label">
-              <v-icon size="12" color="#8b5cf6" class="mr-1">mdi-office-building-outline</v-icon>
-              EMPRESA
-            </label>
-            <div class="imp-cfg-empresa">
-              <span class="imp-cfg-empresa-code">{{ empresaCodigo || '—' }}</span>
-            </div>
-          </div>
-
           <!-- Centro de Costo -->
-          <div class="imp-cfg-field imp-cfg-field--wide">
+          <div class="imp-cfg-field">
             <label class="imp-cfg-label">
               <v-icon size="12" color="#f59e0b" class="mr-1">mdi-map-marker-outline</v-icon>
               CENTRO DE COSTO
@@ -79,6 +68,7 @@
               :loading="ccostosLoading"
               class="imp-cfg-select"
               bg-color="rgb(var(--v-theme-surface))"
+              style="min-width:180px"
             >
               <template #prepend-inner>
                 <span v-if="configCcosto" class="imp-cfg-code-chip">{{ configCcosto }}</span>
@@ -86,27 +76,72 @@
             </v-select>
           </div>
 
-          <!-- Cuentas Bancarias -->
-          <div class="imp-cfg-field imp-cfg-field--wide">
+          <!-- CTA. SQUARE -->
+          <div class="imp-cfg-field">
             <label class="imp-cfg-label">
-              <v-icon size="12" color="#10b981" class="mr-1">mdi-bank-outline</v-icon>
-              CUENTAS BANCARIAS
+              <v-icon size="12" color="#7c3aed" class="mr-1">mdi-credit-card-outline</v-icon>
+              CTA. SQUARE
             </label>
             <v-select
-              v-model="configCuentas"
+              v-model="configCtaSquare"
               :items="cuentasBancarias"
-              item-title="nombre"
+              item-title="nombre_cta"
               item-value="codigo"
               density="compact"
               variant="outlined"
               hide-details
-              placeholder="Seleccionar cuentas..."
+              placeholder="Cuenta tarjeta..."
               :loading="cuentasLoading"
-              multiple
-              chips
-              closable-chips
+              clearable
               class="imp-cfg-select"
               bg-color="rgb(var(--v-theme-surface))"
+              style="min-width:180px"
+            />
+          </div>
+
+          <!-- CTA. OTROS -->
+          <div class="imp-cfg-field">
+            <label class="imp-cfg-label">
+              <v-icon size="12" color="#06b6d4" class="mr-1">mdi-bank-transfer-out</v-icon>
+              CTA. OTROS
+            </label>
+            <v-select
+              v-model="configCtaOtros"
+              :items="cuentasBancarias"
+              item-title="nombre_cta"
+              item-value="codigo"
+              density="compact"
+              variant="outlined"
+              hide-details
+              placeholder="Cuenta otros..."
+              :loading="cuentasLoading"
+              clearable
+              class="imp-cfg-select"
+              bg-color="rgb(var(--v-theme-surface))"
+              style="min-width:180px"
+            />
+          </div>
+
+          <!-- CTA. EFECTIVO -->
+          <div class="imp-cfg-field">
+            <label class="imp-cfg-label">
+              <v-icon size="12" color="#10b981" class="mr-1">mdi-cash</v-icon>
+              CTA. EFECTIVO
+            </label>
+            <v-select
+              v-model="configCtaEfectivo"
+              :items="cuentasBancarias"
+              item-title="nombre_cta"
+              item-value="codigo"
+              density="compact"
+              variant="outlined"
+              hide-details
+              placeholder="Cuenta efectivo..."
+              :loading="cuentasLoading"
+              clearable
+              class="imp-cfg-select"
+              bg-color="rgb(var(--v-theme-surface))"
+              style="min-width:180px"
             />
           </div>
 
@@ -261,17 +296,9 @@
                     </div>
                   </div>
                   <div class="rs-rows">
-                    <div class="rs-row">
-                      <span class="rs-lbl">Ventas Brutas</span>
-                      <span class="rs-val rs-pos">{{ fmt(resumen.ventas.ventasBrutas) }}</span>
-                    </div>
-                    <div class="rs-row rs-indent">
-                      <span class="rs-lbl">Artículos</span>
-                      <span class="rs-val">{{ fmt(resumen.ventas.articulos) }}</span>
-                    </div>
-                    <div class="rs-row rs-indent">
-                      <span class="rs-lbl">Cargos de Servicio</span>
-                      <span class="rs-val">{{ fmt(resumen.ventas.cargosServicio) }}</span>
+                    <div class="rs-row rs-total-row">
+                      <span class="rs-lbl rs-lbl-bold">Ventas Brutas</span>
+                      <span class="rs-val rs-val-big rs-pos">{{ fmt(resumen.ventas.ventasBrutas) }}</span>
                     </div>
                     <div class="rs-row rs-sep"></div>
                     <div class="rs-row">
@@ -900,11 +927,13 @@ const authStore   = useAuthStore()
 const empresaCodigo = computed(() => authStore.empresa || authStore.user?.empresa || '')
 
 // ─── Config importación ───────────────────────────────────────
-const configFecha   = ref(new Date().toISOString().slice(0, 10))  // hoy por defecto
-const configCcosto  = ref(null)
-const configCuentas = ref([])
-const ccostos       = ref([])
-const ccostosLoading = ref(false)
+const configFecha      = ref(new Date().toISOString().slice(0, 10))  // hoy por defecto
+const configCcosto     = ref(null)
+const configCtaSquare  = ref(null)
+const configCtaOtros   = ref(null)
+const configCtaEfectivo = ref(null)
+const ccostos          = ref([])
+const ccostosLoading   = ref(false)
 const cuentasBancarias = ref([])
 const cuentasLoading   = ref(false)
 
@@ -922,11 +951,10 @@ async function fetchCuentasBancarias() {
   if (!empresaCodigo.value) return
   cuentasLoading.value = true
   try {
-    const resp = await api.get('/contabilidad/cuentas-bancarias', {
-      params: { empresa: empresaCodigo.value, estado: 'ACTIVA', limit: 100 }
+    const resp = await api.get('/cuentas-bancarias', {
+      params: { empresa: empresaCodigo.value }
     })
-    const data = resp.data?.data ?? resp.data
-    if (Array.isArray(data)) cuentasBancarias.value = data
+    if (resp.data?.success) cuentasBancarias.value = resp.data.data
   } catch (e) { console.error('fetchCuentasBancarias:', e) }
   finally { cuentasLoading.value = false }
 }
@@ -2007,16 +2035,19 @@ function limpiar(type) {
 
 .imp-cfg-fields {
   display: grid;
-  grid-template-columns: auto auto 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: auto auto 1fr 1fr 1fr;
+  gap: 14px;
   padding: 14px 18px;
   align-items: end;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .imp-cfg-fields { grid-template-columns: 1fr 1fr 1fr; }
+}
+@media (max-width: 700px) {
   .imp-cfg-fields { grid-template-columns: 1fr 1fr; }
 }
-@media (max-width: 560px) {
+@media (max-width: 480px) {
   .imp-cfg-fields { grid-template-columns: 1fr; }
 }
 
