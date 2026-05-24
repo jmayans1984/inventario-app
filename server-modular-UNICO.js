@@ -5437,6 +5437,45 @@ app.get('/api/config-general', async (req, res) => {
     }
 });
 
+// PUT /api/config-general  — actualiza los campos de config_general para la empresa
+app.put('/api/config-general', async (req, res) => {
+    const { empresa, ...fields } = req.body;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const allowed = [
+        'cta_ventas', 'cta_comisiones', 'cta_descuentos_ventas',
+        'cta_propinas', 'cta_impuestos', 'cta_egresos_impuestos',
+        'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo'
+    ];
+
+    const sets = [];
+    const values = [];
+    let idx = 1;
+    for (const f of allowed) {
+        if (f in fields) {
+            sets.push(`${f} = $${idx}`);
+            values.push(fields[f] || null);
+            idx++;
+        }
+    }
+    if (sets.length === 0)
+        return res.status(400).json({ success: false, error: 'Sin campos para actualizar' });
+
+    values.push(empresa);
+    try {
+        const upd = await pool.query(
+            `UPDATE config_general SET ${sets.join(', ')} WHERE empresa = $${idx} RETURNING *`,
+            values
+        );
+        if (upd.rows.length === 0)
+            return res.status(404).json({ success: false, error: 'No existe config_general para esta empresa' });
+        res.json({ success: true, data: upd.rows[0] });
+    } catch (error) {
+        console.error('Error en PUT /api/config-general:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/square/importar-resumen
 // Inserta hasta 7 registros en gastos (transacción atómica)
 // Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...} }

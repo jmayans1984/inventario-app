@@ -781,6 +781,9 @@
               Fecha: {{ configFecha }} · CCosto: {{ configCcosto }} · Empresa: {{ empresaCodigo }}
             </div>
           </div>
+          <v-btn icon variant="text" size="small" title="Configurar cuentas contables" @click="abrirCfgEditor">
+            <v-icon size="18" color="rgba(255,255,255,0.7)">mdi-cog-outline</v-icon>
+          </v-btn>
           <v-btn icon variant="text" size="small" @click="showSaveResumenDlg = false">
             <v-icon size="18" color="white">mdi-close</v-icon>
           </v-btn>
@@ -874,6 +877,91 @@
         <div v-else-if="!configGeneral && !saveResumenError" class="rs-dlg-loading">
           <v-progress-circular indeterminate color="#06b6d4" size="32" />
           <span>Cargando configuración...</span>
+        </div>
+
+      </v-card>
+    </v-dialog>
+
+    <!-- ═══════════════════════════════════════════════
+         DIALOG: CONFIGURAR CUENTAS CONFIG_GENERAL
+    ═══════════════════════════════════════════════ -->
+    <v-dialog v-model="showCfgEditor" max-width="560" scrollable>
+      <v-card class="rcpopup">
+
+        <!-- Header -->
+        <div class="rcpopup-header" style="background: linear-gradient(135deg,#475569,#334155)">
+          <div class="rcpopup-icon">
+            <v-icon size="18" color="white">mdi-cog-outline</v-icon>
+          </div>
+          <div class="rcpopup-title-wrap">
+            <div class="rcpopup-title">CONFIGURAR CUENTAS CONTABLES</div>
+            <div class="rcpopup-sub">Asigna una cuenta a cada concepto de importación Square</div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="showCfgEditor = false">
+            <v-icon size="18" color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <!-- Campos -->
+        <div class="rcpopup-body" style="padding:16px">
+          <div v-if="cuentasLoading2" class="rs-dlg-loading">
+            <v-progress-circular indeterminate color="#475569" size="28" />
+            <span>Cargando cuentas...</span>
+          </div>
+          <template v-else>
+            <div
+              v-for="f in CFG_FIELDS"
+              :key="f.key"
+              class="cfg-editor-row"
+            >
+              <div class="cfg-editor-lbl">{{ f.label }}</div>
+              <v-autocomplete
+                v-model="editCfg[f.key]"
+                :items="cuentasContables"
+                item-title="cuenta"
+                item-value="codigo"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                placeholder="Sin asignar"
+                class="cfg-editor-select"
+                bg-color="rgb(var(--v-theme-surface))"
+              >
+                <template #prepend-inner>
+                  <span v-if="editCfg[f.key]" class="rs-dlg-cta-badge">{{ editCfg[f.key] }}</span>
+                </template>
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template #prepend>
+                      <span style="font-family:monospace;font-size:11px;font-weight:700;color:#06b6d4;margin-right:8px">{{ item.raw.codigo }}</span>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+            </div>
+
+            <!-- Error -->
+            <div v-if="saveCfgError" class="iv-error" style="margin-top:10px;border-radius:8px">
+              <v-icon size="15" color="#ef4444">mdi-alert-circle-outline</v-icon>
+              <span>{{ saveCfgError }}</span>
+            </div>
+          </template>
+        </div>
+
+        <!-- Acciones -->
+        <div class="rs-dlg-actions">
+          <v-btn variant="text" @click="showCfgEditor = false">Cancelar</v-btn>
+          <v-btn
+            color="#475569"
+            variant="flat"
+            :loading="savingCfg"
+            :disabled="cuentasLoading2"
+            @click="guardarCfg"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
+          </v-btn>
         </div>
 
       </v-card>
@@ -1168,6 +1256,57 @@ const savingResumen       = ref(false)
 const saveResumenError    = ref('')
 const saveResumenSuccess  = ref(false)
 const saveResumenResult   = ref(null)
+
+// ── Config General: editor de cuentas ─────────────────
+const showCfgEditor    = ref(false)
+const cuentasContables = ref([])        // lista para el select
+const cuentasLoading2  = ref(false)
+const editCfg          = ref({})        // copia editable de config_general
+const savingCfg        = ref(false)
+const saveCfgError     = ref('')
+
+const CFG_FIELDS = [
+  { key: 'cta_ventas',            label: 'Ventas Brutas − Devoluciones' },
+  { key: 'cta_descuentos_ventas', label: 'Descuentos en Ventas' },
+  { key: 'cta_impuestos',         label: 'Impuestos' },
+  { key: 'cta_propinas',          label: 'Propinas' },
+  { key: 'cta_comisiones',        label: 'Comisiones Square' },
+  { key: 'cta_egresos_impuestos', label: 'Egreso Impuestos' },
+  { key: 'cta_egresos_propinas',  label: 'Egreso Propinas' },
+]
+
+async function abrirCfgEditor() {
+  saveCfgError.value = ''
+  // Cargar cuentas si no están cargadas
+  if (!cuentasContables.value.length) {
+    cuentasLoading2.value = true
+    try {
+      const resp = await api.get('/gastos/cuentas-contables', { params: { empresa: empresaCodigo.value } })
+      if (resp.data?.success) cuentasContables.value = resp.data.cuentas
+    } catch (e) { console.error('fetchCuentasContables:', e) }
+    finally { cuentasLoading2.value = false }
+  }
+  // Copiar valores actuales para editar
+  editCfg.value = configGeneral.value ? { ...configGeneral.value } : {}
+  showCfgEditor.value = true
+}
+
+async function guardarCfg() {
+  savingCfg.value  = true
+  saveCfgError.value = ''
+  try {
+    const payload = { empresa: empresaCodigo.value }
+    for (const f of CFG_FIELDS) payload[f.key] = editCfg.value[f.key] || null
+    const resp = await api.put('/config-general', payload)
+    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
+    // Recargar config y cerrar editor
+    const r2 = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
+    if (r2.data?.success) configGeneral.value = r2.data.data
+    showCfgEditor.value = false
+  } catch (e) {
+    saveCfgError.value = e?.response?.data?.error || e.message || 'Error al guardar'
+  } finally { savingCfg.value = false }
+}
 
 async function abrirGuardarResumen() {
   if (!resumen.value) return
@@ -2409,6 +2548,20 @@ function limpiar(type) {
 }
 .rs-dlg-cval { margin-left: auto; font-weight: 700; color: #10b981; font-size: 12px; }
 .txt-red { color: #ef4444; }
+
+/* ── Editor Config General ─────────────────────────── */
+.cfg-editor-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+}
+.cfg-editor-row:last-child { border-bottom: none; }
+.cfg-editor-lbl {
+  font-size: 12px; font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.65);
+  min-width: 190px; flex-shrink: 0;
+}
+.cfg-editor-select { flex: 1; }
 
 .imp-cfg-code-chip {
   font-family: 'Courier New', monospace;
