@@ -1368,7 +1368,7 @@ app.get('/api/detalle-productos/por-recetas', async (req, res) => {
                     COALESCE(gp.nombre, p.grupo, '') AS grupo_nombre
              FROM detalle_productos dp
              INNER JOIN productos p ON TRIM(p.codigo::text) = TRIM(dp.articulo::text)
-             LEFT JOIN grupos_productos gp ON TRIM(gp.codigo::text) = TRIM(p.grupo::text)
+             LEFT JOIN grupo_productos gp ON TRIM(gp.codigo::text) = TRIM(p.grupo::text)
              WHERE TRIM(dp.receta::text) IN (${placeholders})
              AND UPPER(TRIM(COALESCE(p.control, ''))) = 'SI'`,
             recetaList
