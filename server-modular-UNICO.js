@@ -1360,20 +1360,14 @@ app.get('/api/detalle-productos/por-codigos', async (req, res) => {
     if (codigoList.length === 0) return res.json({ success: true, data: [] });
     try {
         const placeholders = codigoList.map((_, i) => `$${i + 1}`).join(',');
-        const params = [...codigoList];
-        let joinCondition = 'TRIM(p.codigo::text) = TRIM(dp.articulo::text)';
-        if (empresa) {
-            params.push(empresa);
-            joinCondition += ` AND p.empresa = $${params.length}`;
-        }
         const result = await pool.query(
             `SELECT dp.codigo, dp.receta, dp.articulo, dp.cant,
                     COALESCE(p.nombre, dp.articulo) AS articulo_nombre,
                     COALESCE(p.und, '') AS und
              FROM detalle_productos dp
-             LEFT JOIN productos p ON ${joinCondition}
+             LEFT JOIN productos p ON TRIM(p.codigo::text) = TRIM(dp.articulo::text)
              WHERE TRIM(dp.codigo::text) IN (${placeholders})`,
-            params
+            codigoList
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {

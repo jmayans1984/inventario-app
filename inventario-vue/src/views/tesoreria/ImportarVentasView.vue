@@ -488,13 +488,6 @@
 import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
-import { useAuthStore } from '../../stores/auth'
-
-const authStore = useAuthStore()
-function getEmpresa() {
-  return authStore.empresa || authStore.user?.empresa ||
-    localStorage.getItem('empresaActual') || localStorage.getItem('empresa') || ''
-}
 
 // ─── State ───────────────────────────────────────────────────
 const resumen          = ref(null)
@@ -848,7 +841,7 @@ async function calcularConsumo() {
   consumo.value = []
   try {
     const resp = await api.get('/detalle-productos/por-codigos', {
-      params: { codigos: codigos.join(','), empresa: getEmpresa() }
+      params: { codigos: codigos.join(',') }
     })
     if (!resp.data?.success || !resp.data.data?.length) return
 
