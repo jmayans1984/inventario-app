@@ -383,12 +383,13 @@
                         <th class="col-right" style="width:70px">CANT.</th>
                         <th class="col-right" style="width:130px">VR. ARTÍCULO</th>
                         <th class="col-right" style="width:140px">SUBTOTAL</th>
+                        <th class="col-center" style="width:160px">INVENTARIO</th>
                       </tr>
                     </thead>
                     <tbody>
                       <template v-for="(mods, grupo) in modificadoresAgrupados" :key="grupo">
                         <tr class="tr-cat-header tr-cat-orange">
-                          <td colspan="4">
+                          <td colspan="5">
                             <span class="cat-badge cat-badge-orange">{{ grupo }}</span>
                           </td>
                         </tr>
@@ -397,12 +398,27 @@
                           <td class="td-num col-right">{{ m.cantidadNeta }}</td>
                           <td class="td-monto col-right txt-dim">{{ m.cantidadNeta > 0 ? fmt(m.ventasNetas / m.cantidadNeta) : '—' }}</td>
                           <td class="td-monto col-right txt-orange">{{ m.ventasNetas > 0 ? fmt(m.ventasNetas) : '—' }}</td>
+                          <td class="col-center">
+                            <div class="mod-inv-cell">
+                              <span
+                                class="mod-inv-badge"
+                                :class="modificadoresConfigurados.has(m.modificador) ? 'mod-inv-ok' : 'mod-inv-warn'"
+                              >
+                                <v-icon size="11">{{ modificadoresConfigurados.has(m.modificador) ? 'mdi-check-circle' : 'mdi-alert-circle-outline' }}</v-icon>
+                                {{ modificadoresConfigurados.has(m.modificador) ? 'Configurado' : 'Sin config' }}
+                              </span>
+                              <button class="btn-config-mod" @click="openConfigDialog(m)" title="Configurar impacto en inventario">
+                                <v-icon size="14">mdi-cog-outline</v-icon>
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                         <tr class="tr-subtotal">
                           <td class="subtotal-lbl">Subtotal {{ grupo }}</td>
                           <td class="col-right subtotal-val">{{ mods.reduce((s,m) => s + m.cantidadNeta, 0) }}</td>
                           <td class="col-right subtotal-val txt-dim">—</td>
                           <td class="col-right subtotal-val txt-orange">{{ fmt(mods.reduce((s,m) => s + m.ventasNetas, 0)) }}</td>
+                          <td></td>
                         </tr>
                       </template>
                     </tbody>
@@ -412,6 +428,7 @@
                         <td class="col-right total-val">{{ totalModUnidades }}</td>
                         <td class="col-right total-val txt-dim">—</td>
                         <td class="col-right total-val txt-orange">{{ fmt(totalModNetas) }}</td>
+                        <td></td>
                       </tr>
                     </tfoot>
                   </table>
@@ -604,6 +621,130 @@
       </v-card>
     </v-dialog>
 
+    <!-- ═══════════════════════════════════════════════
+         POPUP: CONFIGURAR MODIFICADOR → INVENTARIO
+    ═══════════════════════════════════════════════ -->
+    <v-dialog v-model="showConfigDialog" max-width="660" scrollable>
+      <v-card v-if="configDialogMod" class="rcpopup">
+
+        <!-- Header -->
+        <div class="rcpopup-header" style="background: linear-gradient(135deg,#f59e0b,#d97706)">
+          <div class="rcpopup-icon">
+            <v-icon size="18" color="white">mdi-cog-outline</v-icon>
+          </div>
+          <div class="rcpopup-title-wrap">
+            <div class="rcpopup-title">{{ configDialogMod.modificador }}</div>
+            <div class="rcpopup-sub">Grupo: {{ configDialogMod.grupo }} · Configura qué ingredientes impacta este modificador</div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="showConfigDialog = false">
+            <v-icon size="18" color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <!-- Filas existentes -->
+        <div class="rcpopup-body">
+          <div v-if="configLines.length === 0" class="config-empty">
+            <v-icon size="28" color="rgba(var(--v-theme-on-surface),0.2)">mdi-package-variant-closed-remove</v-icon>
+            <span>Sin configuración — agrega un ingrediente abajo</span>
+          </div>
+
+          <table v-else class="art-tabla">
+            <thead>
+              <tr>
+                <th>INGREDIENTE</th>
+                <th class="col-right" style="width:90px">CANT/UNIDAD</th>
+                <th class="col-center" style="width:80px">TIPO</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="ln in configLines" :key="ln.id" class="tr-item">
+                <td>
+                  <div class="td-nombre">{{ ln.articulo_nombre }}</div>
+                  <div class="td-sku">{{ ln.articulo }} · {{ ln.und }}</div>
+                </td>
+                <td class="col-right td-monto">{{ fmtNum(ln.cant) }}</td>
+                <td class="col-center">
+                  <span class="tipo-badge" :class="ln.tipo === '+' ? 'tipo-suma' : 'tipo-resta'">
+                    {{ ln.tipo === '+' ? '+ SUMA' : '− RESTA' }}
+                  </span>
+                </td>
+                <td class="col-center">
+                  <v-btn
+                    icon size="x-small" variant="text" color="#ef4444"
+                    :loading="deletingId === ln.id"
+                    @click="deleteLine(ln.id)"
+                  >
+                    <v-icon size="15">mdi-delete-outline</v-icon>
+                  </v-btn>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Formulario nueva línea -->
+        <div class="config-new-row">
+          <div class="config-new-title">
+            <v-icon size="13" color="#f59e0b" class="mr-1">mdi-plus-circle-outline</v-icon>
+            AGREGAR INGREDIENTE
+          </div>
+          <div class="config-new-fields">
+            <v-autocomplete
+              v-model="newLine.articulo"
+              :items="productosControlados"
+              item-title="nombre"
+              item-value="codigo"
+              return-object
+              label="Producto (ingrediente)"
+              density="compact"
+              variant="outlined"
+              hide-details
+              class="config-field-art"
+              @update:search="val => fetchProductosControlados(val)"
+            >
+              <template #item="{ item, props }">
+                <v-list-item v-bind="props">
+                  <template #append>
+                    <span style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4)">{{ item.raw.codigo }} · {{ item.raw.und }}</span>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-autocomplete>
+
+            <v-text-field
+              v-model="newLine.cant"
+              label="Cant/Unidad"
+              density="compact"
+              variant="outlined"
+              hide-details
+              type="number"
+              min="0"
+              step="0.0001"
+              class="config-field-cant"
+            />
+
+            <v-btn-toggle v-model="newLine.tipo" mandatory density="compact" class="config-tipo-toggle">
+              <v-btn value="+" color="#10b981" size="small">+ SUMA</v-btn>
+              <v-btn value="-" color="#ef4444" size="small">− RESTA</v-btn>
+            </v-btn-toggle>
+
+            <v-btn
+              color="#f59e0b"
+              :loading="savingLine"
+              :disabled="!newLine.articulo || !newLine.cant"
+              @click="saveNewLine"
+              size="small"
+            >
+              <v-icon size="16" class="mr-1">mdi-content-save-outline</v-icon>
+              Guardar
+            </v-btn>
+          </div>
+        </div>
+
+      </v-card>
+    </v-dialog>
+
   </MainLayout>
 </template>
 
@@ -627,6 +768,17 @@ const consumoError     = ref('')
 const activeTab        = ref('resumen')
 const showRecetasDialog  = ref(false)
 const recetasDialogItem  = ref(null)
+
+// ── Configuración modificadores → inventario ──────────
+const allMappings          = ref([])     // todas las filas de modificadores_inventario
+const mappingsLoading      = ref(false)
+const showConfigDialog     = ref(false)
+const configDialogMod      = ref(null)   // modificador que se está editando
+const configLines          = ref([])     // mappings del modificador actual
+const productosControlados = ref([])     // para autocomplete
+const newLine              = ref({ articulo: null, cant: '', tipo: '+' })
+const savingLine           = ref(false)
+const deletingId           = ref(null)
 
 // ─── Formatting ──────────────────────────────────────────────
 function fmt(val) {
@@ -992,6 +1144,34 @@ async function calcularConsumo() {
       })
     }
 
+    // ── Aplica mappings de modificadores ─────────────
+    for (const mod of (articulos.value?.modificadores || [])) {
+      const modNombre = (mod.modificador || '').trim()
+      const mappings  = allMappings.value.filter(m => m.modificador === modNombre)
+      for (const mp of mappings) {
+        const codArt   = (mp.articulo || '').trim()
+        const nombre   = (mp.articulo_nombre || codArt).trim()
+        const und      = (mp.und || '').trim()
+        const grupo    = (mp.grupo || '').trim()
+        const cantMp   = parseFloat(mp.cant) || 0
+        const vendidos = mod.cantidadNeta || 0
+        const total    = cantMp * vendidos
+        const delta    = mp.tipo === '-' ? -total : total
+
+        if (!consumoMap[codArt]) {
+          consumoMap[codArt] = { codigo: codArt, nombre, und, grupo, grupoNombre: grupo || 'SIN GRUPO', totalConsumo: 0, recetas: [] }
+        }
+        consumoMap[codArt].totalConsumo += delta
+        consumoMap[codArt].recetas.push({
+          sku:          mp.tipo === '-' ? 'MOD−' : 'MOD+',
+          nombreReceta: (mp.tipo === '-' ? '[RESTA] ' : '') + modNombre,
+          cantPorUnidad: cantMp,
+          vendidos,
+          subtotal:     delta
+        })
+      }
+    }
+
     consumo.value = Object.values(consumoMap).sort((a, b) => {
       const g = a.grupo.localeCompare(b.grupo)
       return g !== 0 ? g : a.nombre.localeCompare(b.nombre)
@@ -1006,6 +1186,11 @@ async function calcularConsumo() {
 
 const maxConsumo = computed(() =>
   consumo.value.reduce((m, c) => Math.max(m, c.totalConsumo), 0)
+)
+
+// Set de nombres de modificadores que tienen al menos 1 mapping configurado
+const modificadoresConfigurados = computed(() =>
+  new Set(allMappings.value.map(m => m.modificador))
 )
 
 // Agrupa consumo por grupo de producto (ya viene ordenado por grupo)
@@ -1023,6 +1208,61 @@ const consumoAgrupado = computed(() => {
 function verRecetas(item) {
   recetasDialogItem.value = item
   showRecetasDialog.value = true
+}
+
+// ── Mappings modificadores ────────────────────────────
+async function fetchMappings() {
+  mappingsLoading.value = true
+  try {
+    const resp = await api.get('/modificadores-inventario')
+    if (resp.data?.success) allMappings.value = resp.data.data
+  } catch (e) { console.error('fetchMappings:', e) }
+  finally { mappingsLoading.value = false }
+}
+
+async function fetchProductosControlados(q = '') {
+  try {
+    const resp = await api.get('/productos/controlados', { params: q ? { q } : {} })
+    if (resp.data?.success) productosControlados.value = resp.data.data
+  } catch (e) { console.error('fetchProductosControlados:', e) }
+}
+
+function openConfigDialog(mod) {
+  configDialogMod.value = mod
+  configLines.value = allMappings.value.filter(m => m.modificador === mod.modificador)
+  newLine.value = { articulo: null, cant: '', tipo: '+' }
+  showConfigDialog.value = true
+  fetchProductosControlados()
+}
+
+async function saveNewLine() {
+  if (!newLine.value.articulo || !newLine.value.cant) return
+  savingLine.value = true
+  try {
+    await api.post('/modificadores-inventario', {
+      modificador: configDialogMod.value.modificador,
+      articulo:    newLine.value.articulo.codigo,
+      cant:        parseFloat(newLine.value.cant),
+      tipo:        newLine.value.tipo
+    })
+    await fetchMappings()
+    configLines.value = allMappings.value.filter(m => m.modificador === configDialogMod.value.modificador)
+    newLine.value = { articulo: null, cant: '', tipo: '+' }
+    // Recalcula consumo con nuevos mappings
+    if (articulos.value) await calcularConsumo()
+  } catch (e) { console.error('saveNewLine:', e) }
+  finally { savingLine.value = false }
+}
+
+async function deleteLine(id) {
+  deletingId.value = id
+  try {
+    await api.delete(`/modificadores-inventario/${id}`)
+    await fetchMappings()
+    configLines.value = allMappings.value.filter(m => m.modificador === configDialogMod.value.modificador)
+    if (articulos.value) await calcularConsumo()
+  } catch (e) { console.error('deleteLine:', e) }
+  finally { deletingId.value = null }
 }
 
 // ─── File handling ────────────────────────────────────────────
@@ -1050,6 +1290,7 @@ async function processFile(file, forcedType) {
       articulos.value = parseArticulos(buffer, file.name)
       activeTab.value = 'articulos'
       await enrichWithRecetas()
+      await fetchMappings()
       await calcularConsumo()
     }
   } catch (e) {
@@ -1448,4 +1689,60 @@ function limpiar(type) {
 
 .rcpopup-receta-nombre { font-weight: 700; font-size: 12.5px; color: rgb(var(--v-theme-on-surface)); }
 .rcpopup-receta-sku    { font-family: 'Courier New', monospace; font-size: 10px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
+
+/* ── Columna inventario en Modificadores ───────────── */
+.mod-inv-cell {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.mod-inv-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9.5px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px;
+}
+.mod-inv-ok   { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+.mod-inv-warn { background: rgba(245,158,11,0.1);  color: #d97706; border: 1px solid rgba(245,158,11,0.2); }
+
+.btn-config-mod {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+  background: rgba(var(--v-theme-on-surface),0.06);
+  border: 1px solid rgba(var(--v-theme-on-surface),0.12);
+  color: rgba(var(--v-theme-on-surface),0.6);
+  transition: all 0.15s; outline: none;
+}
+.btn-config-mod:hover {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.3);
+  color: #d97706;
+}
+
+/* ── Config dialog ─────────────────────────────────── */
+.config-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 28px 24px; color: rgba(var(--v-theme-on-surface),0.35); font-size: 12px;
+}
+
+.config-new-row {
+  border-top: 1px solid rgba(var(--v-theme-on-surface),0.08);
+  padding: 14px 16px;
+  background: rgba(var(--v-theme-on-surface),0.02);
+}
+.config-new-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.5);
+  margin-bottom: 10px; display: flex; align-items: center;
+}
+.config-new-fields {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.config-field-art  { flex: 1; min-width: 200px; }
+.config-field-cant { width: 110px; flex-shrink: 0; }
+.config-tipo-toggle { flex-shrink: 0; }
+
+.tipo-badge {
+  font-size: 9.5px; font-weight: 800; padding: 2px 8px;
+  border-radius: 20px; letter-spacing: 0.3px;
+}
+.tipo-suma  { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+.tipo-resta { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
 </style>

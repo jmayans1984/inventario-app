@@ -1380,6 +1380,84 @@ app.get('/api/detalle-productos/por-recetas', async (req, res) => {
     }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// MODIFICADORES → INVENTARIO
+// Tabla: modificadores_inventario (id, modificador, articulo, cant, tipo)
+// Mapea nombres de modificadores del CSV a ingredientes de inventario
+// ══════════════════════════════════════════════════════════════════
+
+// GET /api/modificadores-inventario — lista todas las configuraciones
+app.get('/api/modificadores-inventario', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT mi.id, mi.modificador, mi.articulo, mi.cant, mi.tipo,
+                   COALESCE(p.nombre, mi.articulo) AS articulo_nombre,
+                   COALESCE(p.und, '') AS und,
+                   COALESCE(p.grupo, '') AS grupo
+            FROM modificadores_inventario mi
+            LEFT JOIN productos p ON TRIM(p.codigo::text) = TRIM(mi.articulo::text)
+            ORDER BY mi.modificador, mi.id
+        `);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/modificadores-inventario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/modificadores-inventario — crea o actualiza una fila
+app.post('/api/modificadores-inventario', async (req, res) => {
+    const { modificador, articulo, cant, tipo } = req.body;
+    if (!modificador || !articulo || cant == null || !tipo) {
+        return res.status(400).json({ success: false, error: 'Faltan campos: modificador, articulo, cant, tipo' });
+    }
+    try {
+        const result = await pool.query(`
+            INSERT INTO modificadores_inventario (modificador, articulo, cant, tipo)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (modificador, articulo)
+            DO UPDATE SET cant = EXCLUDED.cant, tipo = EXCLUDED.tipo
+            RETURNING *
+        `, [modificador.trim(), articulo.trim(), parseFloat(cant), tipo]);
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/modificadores-inventario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/modificadores-inventario/:id — elimina una fila
+app.delete('/api/modificadores-inventario/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM modificadores_inventario WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/modificadores-inventario/:id:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/productos/controlados — productos con control='SI' para autocomplete
+app.get('/api/productos/controlados', async (req, res) => {
+    const { q } = req.query;
+    try {
+        let query = `SELECT codigo, nombre, und, COALESCE(grupo,'') AS grupo
+                     FROM productos
+                     WHERE UPPER(TRIM(COALESCE(control,''))) = 'SI'`;
+        const params = [];
+        if (q && q.trim()) {
+            query += ` AND (UPPER(nombre) LIKE UPPER($1) OR TRIM(codigo::text) LIKE UPPER($1))`;
+            params.push(`%${q.trim()}%`);
+        }
+        query += ` ORDER BY nombre LIMIT 60`;
+        const result = await pool.query(query, params);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/productos/controlados:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/tesoreria/proveedores/buscar - Buscar/listar proveedores
 app.get('/api/tesoreria/proveedores/buscar', async (req, res) => {
     const { empresa, q } = req.query;
