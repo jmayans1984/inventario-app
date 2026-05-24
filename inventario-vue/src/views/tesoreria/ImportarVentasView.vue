@@ -357,7 +357,7 @@
       <!-- ═══════════════════════════════════════════════
            CONSUMO DE INVENTARIO
       ═══════════════════════════════════════════════ -->
-      <div v-if="articulos && (consumo.length > 0 || consumoLoading)" class="iv-section">
+      <div v-if="articulos" class="iv-section">
 
         <!-- Encabezado -->
         <div class="iv-section-header">
@@ -372,6 +372,19 @@
             <v-progress-circular size="14" width="2" indeterminate color="#ef4444" />
             <span>Calculando...</span>
           </div>
+        </div>
+
+        <!-- Error -->
+        <div v-if="consumoError" class="iv-error">
+          <v-icon size="18" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <span>{{ consumoError }}</span>
+        </div>
+
+        <!-- Vacío sin error -->
+        <div v-else-if="!consumoLoading && !consumo.length" class="consumo-empty">
+          <v-icon size="32" color="rgba(var(--v-theme-on-surface),0.2)">mdi-package-variant-closed-remove</v-icon>
+          <span>No se encontraron componentes de inventario para los SKUs vendidos</span>
+          <span class="consumo-empty-hint">Verifica que los SKUs del CSV existen en la tabla <code>detalle_productos</code></span>
         </div>
 
         <!-- KPIs -->
@@ -499,8 +512,9 @@ const dragging         = ref([false, false])
 const catFiltro        = ref('')
 const mostrarMods      = ref(false)
 const enrichLoading    = ref(false)
-const consumo          = ref([])   // [{ articulo, totalConsumo }]
+const consumo          = ref([])
 const consumoLoading   = ref(false)
+const consumoError     = ref('')
 
 // ─── Formatting ──────────────────────────────────────────────
 function fmt(val) {
@@ -838,6 +852,7 @@ async function calcularConsumo() {
 
   const codigos = [...new Set(itemsConSku.map(i => i.sku.trim()))]
   consumoLoading.value = true
+  consumoError.value = ''
   consumo.value = []
   try {
     const resp = await api.get('/detalle-productos/por-codigos', {
@@ -887,6 +902,7 @@ async function calcularConsumo() {
     consumo.value = Object.values(consumoMap).sort((a, b) => b.totalConsumo - a.totalConsumo)
   } catch (e) {
     console.error('Error al calcular consumo:', e)
+    consumoError.value = e?.response?.data?.error || e.message || 'Error al consultar detalle_productos'
   } finally {
     consumoLoading.value = false
   }
@@ -943,7 +959,7 @@ function onFileInput(e, type) {
 
 function limpiar(type) {
   if (type === 'resumen')   { resumen.value = null;   resumenFileName.value = '' }
-  if (type === 'articulos') { articulos.value = null; articulosFileName.value = ''; consumo.value = [] }
+  if (type === 'articulos') { articulos.value = null; articulosFileName.value = ''; consumo.value = []; consumoError.value = '' }
   parseError.value = ''
 }
 </script>
@@ -1172,6 +1188,25 @@ function limpiar(type) {
 
 /* KPI rojo */
 .kpi-red     { border-left: 3px solid #ef4444; } .kpi-val-red     { color: #ef4444; }
+
+/* Consumo vacío */
+.consumo-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 40px 24px; text-align: center;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  font-size: 13px;
+}
+.consumo-empty-hint {
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface), 0.25);
+}
+.consumo-empty-hint code {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  padding: 1px 5px; border-radius: 3px; font-size: 10.5px;
+}
 
 /* Consumo tabla */
 .tr-consumo { vertical-align: middle; }
