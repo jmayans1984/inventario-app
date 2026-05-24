@@ -503,7 +503,7 @@
                         <th>DESCRIPCIÓN</th>
                         <th style="width:70px" class="col-right">UND</th>
                         <th style="width:140px" class="col-right">CONSUMO TOTAL</th>
-                        <th style="width:220px">RECETAS QUE LO USAN</th>
+                        <th style="width:160px" class="col-center">RECETAS</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -523,18 +523,11 @@
                         <td class="col-right">
                           <span class="consumo-total-val">{{ fmtNum(c.totalConsumo) }}</span>
                         </td>
-                        <td class="td-recetas">
-                          <div class="recetas-wrap">
-                            <span
-                              v-for="r in c.recetas"
-                              :key="r.sku"
-                              class="receta-chip"
-                              :title="`${r.nombreReceta}: ${fmtNum(r.cantPorUnidad)} × ${r.vendidos} uds = ${fmtNum(r.subtotal)}`"
-                            >
-                              <span class="receta-sku">{{ r.sku }}</span>
-                              <span class="receta-subtotal">{{ fmtNum(r.subtotal) }}</span>
-                            </span>
-                          </div>
+                        <td class="col-center">
+                          <button class="btn-ver-recetas" @click="verRecetas(c)">
+                            <v-icon size="15" color="#8b5cf6">mdi-eye-outline</v-icon>
+                            <span>{{ c.recetas.length }} receta{{ c.recetas.length !== 1 ? 's' : '' }}</span>
+                          </button>
                         </td>
                       </tr>
                     </tbody>
@@ -549,6 +542,61 @@
       </div><!-- /.sheets-container -->
 
     </div><!-- /.iv-wrap -->
+
+    <!-- ═══════════════════════════════════════════════
+         POPUP: RECETAS QUE USAN EL PRODUCTO
+    ═══════════════════════════════════════════════ -->
+    <v-dialog v-model="showRecetasDialog" max-width="620" scrollable>
+      <v-card v-if="recetasDialogItem" class="rcpopup">
+        <!-- Header -->
+        <div class="rcpopup-header">
+          <div class="rcpopup-icon">
+            <v-icon size="18" color="white">mdi-package-variant-closed</v-icon>
+          </div>
+          <div class="rcpopup-title-wrap">
+            <div class="rcpopup-title">{{ recetasDialogItem.nombre }}</div>
+            <div class="rcpopup-sub">Código: {{ recetasDialogItem.codigo }} · {{ recetasDialogItem.und || '—' }}</div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="showRecetasDialog = false">
+            <v-icon size="18">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <!-- Total -->
+        <div class="rcpopup-total-row">
+          <span class="rcpopup-total-lbl">CONSUMO TOTAL DEL PERÍODO</span>
+          <span class="rcpopup-total-val">{{ fmtNum(recetasDialogItem.totalConsumo) }} {{ recetasDialogItem.und }}</span>
+        </div>
+
+        <!-- Tabla de recetas -->
+        <div class="rcpopup-body">
+          <table class="art-tabla">
+            <thead>
+              <tr>
+                <th>RECETA</th>
+                <th class="col-right" style="width:100px">CANT/UNIDAD</th>
+                <th class="col-right" style="width:80px">VENDIDOS</th>
+                <th class="col-right" style="width:110px">CONSUMO</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in recetasDialogItem.recetas" :key="r.sku" class="tr-item">
+                <td>
+                  <div class="rcpopup-receta-nombre">{{ r.nombreReceta || r.sku }}</div>
+                  <div class="rcpopup-receta-sku">{{ r.sku }}</div>
+                </td>
+                <td class="col-right td-monto txt-dim">{{ fmtNum(r.cantPorUnidad) }}</td>
+                <td class="col-right td-num">{{ r.vendidos }}</td>
+                <td class="col-right">
+                  <span class="consumo-total-val" style="font-size:13px">{{ fmtNum(r.subtotal) }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </v-card>
+    </v-dialog>
+
   </MainLayout>
 </template>
 
@@ -570,6 +618,8 @@ const consumo          = ref([])
 const consumoLoading   = ref(false)
 const consumoError     = ref('')
 const activeTab        = ref('resumen')
+const showRecetasDialog  = ref(false)
+const recetasDialogItem  = ref(null)
 
 // ─── Formatting ──────────────────────────────────────────────
 function fmt(val) {
@@ -945,6 +995,11 @@ const maxConsumo = computed(() =>
   consumo.value.reduce((m, c) => Math.max(m, c.totalConsumo), 0)
 )
 
+function verRecetas(item) {
+  recetasDialogItem.value = item
+  showRecetasDialog.value = true
+}
+
 // ─── File handling ────────────────────────────────────────────
 function detectType(filename, buffer) {
   const name = filename.toLowerCase()
@@ -1319,4 +1374,51 @@ function limpiar(type) {
   display: flex; align-items: center; gap: 6px; margin-left: auto;
   font-size: 11px; color: #8b5cf6; font-weight: 600;
 }
+
+.col-center { text-align: center !important; }
+
+/* ── Botón ver recetas ─────────────────────────────── */
+.btn-ver-recetas {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px; cursor: pointer;
+  background: rgba(139,92,246,0.08);
+  border: 1px solid rgba(139,92,246,0.2);
+  color: #8b5cf6; font-size: 11px; font-weight: 600;
+  transition: all 0.15s; outline: none;
+}
+.btn-ver-recetas:hover {
+  background: rgba(139,92,246,0.16);
+  border-color: rgba(139,92,246,0.4);
+}
+
+/* ── Popup recetas ─────────────────────────────────── */
+.rcpopup { border-radius: 16px !important; overflow: hidden; }
+
+.rcpopup-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+.rcpopup-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.rcpopup-title-wrap { flex: 1; min-width: 0; }
+.rcpopup-title { font-size: 15px; font-weight: 800; color: white; }
+.rcpopup-sub   { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+
+.rcpopup-total-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(139,92,246,0.06);
+  border-bottom: 1px solid rgba(139,92,246,0.12);
+}
+.rcpopup-total-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.5); }
+.rcpopup-total-val { font-size: 18px; font-weight: 800; font-family: 'Courier New', monospace; color: #8b5cf6; }
+
+.rcpopup-body { padding: 0; }
+
+.rcpopup-receta-nombre { font-weight: 700; font-size: 12.5px; color: rgb(var(--v-theme-on-surface)); }
+.rcpopup-receta-sku    { font-family: 'Courier New', monospace; font-size: 10px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
 </style>
