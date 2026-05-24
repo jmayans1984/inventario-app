@@ -795,28 +795,6 @@
           <span>{{ saveResumenError }}</span>
         </div>
 
-        <!-- Advertencia de duplicados -->
-        <div v-if="conflictInfo && !saveResumenSuccess" class="rs-dlg-conflict">
-          <div class="rs-dlg-conflict-icon">
-            <v-icon size="32" color="#f59e0b">mdi-alert-circle-outline</v-icon>
-          </div>
-          <div class="rs-dlg-conflict-body">
-            <div class="rs-dlg-conflict-title">¡Ya existen registros para esta importación!</div>
-            <div class="rs-dlg-conflict-sub">
-              Se encontraron <strong>{{ conflictInfo.count }}</strong> registros en GASTOS con la misma
-              <strong>fecha</strong>, <strong>centro de costo</strong> y <strong>empresa</strong> con origen SQUARE.<br>
-              Si continúas, los registros anteriores serán <strong>eliminados</strong> y reemplazados.
-            </div>
-            <div class="rs-dlg-conflict-actions">
-              <v-btn variant="outlined" size="small" @click="conflictInfo = null">Cancelar</v-btn>
-              <v-btn color="#f59e0b" variant="flat" size="small" :loading="savingResumen" @click="confirmarGuardarResumenForce">
-                <v-icon size="15" class="mr-1">mdi-delete-sweep-outline</v-icon>
-                Sí, borrar y reimportar
-              </v-btn>
-            </div>
-          </div>
-        </div>
-
         <!-- Éxito -->
         <div v-if="saveResumenSuccess" class="rs-dlg-success">
           <v-icon size="36" color="#10b981">mdi-check-circle</v-icon>
@@ -836,9 +814,28 @@
           <v-btn variant="tonal" color="#10b981" @click="showSaveResumenDlg = false">Cerrar</v-btn>
         </div>
 
-        <!-- Preview de registros (antes de confirmar) -->
-        <template v-else-if="configGeneral && !saveResumenSuccess && !conflictInfo">
-          <div class="rcpopup-body">
+        <!-- Preview / Conflicto / Cargando (cuando aún no hay éxito) -->
+        <template v-else-if="configGeneral">
+
+          <!-- ⚠️ AVISO DE DUPLICADOS — reemplaza la tabla cuando hay conflicto -->
+          <div v-if="conflictInfo" class="rcpopup-body">
+            <div class="rs-conflict-banner">
+              <div class="rs-conflict-banner-top">
+                <v-icon size="28" color="#f59e0b">mdi-alert-circle</v-icon>
+                <span class="rs-conflict-banner-title">¡Ya existen registros para esta importación!</span>
+              </div>
+              <div class="rs-conflict-banner-msg">
+                Se encontraron <strong>{{ conflictInfo.count }} registros</strong> en la tabla GASTOS
+                para la misma <strong>fecha</strong>, <strong>centro de costo</strong> y <strong>empresa</strong>
+                con origen <strong>SQUARE</strong>.<br><br>
+                Si confirmas, los registros anteriores serán <strong style="color:#ef4444">eliminados permanentemente</strong>
+                y se insertarán los nuevos.
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de preview normal -->
+          <div v-else class="rcpopup-body">
             <div class="rs-dlg-info">
               <v-icon size="14" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
               Se van a crear <strong>{{ previewResumen.filter(r => r.cuenta).length }}</strong> registros en la tabla
@@ -880,14 +877,30 @@
             </div>
           </div>
 
+          <!-- Botones — cambian según si hay conflicto o no -->
           <div class="rs-dlg-actions">
-            <v-btn variant="text" @click="showSaveResumenDlg = false">Cancelar</v-btn>
+            <v-btn variant="text" @click="conflictInfo ? conflictInfo = null : showSaveResumenDlg = false">
+              Cancelar
+            </v-btn>
+            <!-- Botón conflicto -->
             <v-btn
+              v-if="conflictInfo"
+              color="#f59e0b"
+              variant="flat"
+              :loading="savingResumen"
+              @click="confirmarGuardarResumenForce"
+            >
+              <v-icon size="16" class="mr-1">mdi-delete-sweep-outline</v-icon>
+              Sí, eliminar y reimportar
+            </v-btn>
+            <!-- Botón normal -->
+            <v-btn
+              v-else
               color="#0891b2"
               variant="flat"
               :loading="savingResumen"
               :disabled="previewResumen.filter(r => r.cuenta).length === 0"
-              @click="confirmarGuardarResumen"
+              @click="confirmarGuardarResumen()"
             >
               <v-icon size="16" class="mr-1">mdi-content-save-outline</v-icon>
               Confirmar y Guardar
@@ -896,7 +909,7 @@
         </template>
 
         <!-- Cargando config -->
-        <div v-else-if="!configGeneral && !saveResumenError" class="rs-dlg-loading">
+        <div v-else-if="!saveResumenError" class="rs-dlg-loading">
           <v-progress-circular indeterminate color="#06b6d4" size="32" />
           <span>Cargando configuración...</span>
         </div>
@@ -2560,24 +2573,21 @@ function limpiar(type) {
   display: flex; align-items: center; justify-content: center; gap: 14px;
   padding: 48px 24px; font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5);
 }
-/* ── Conflict warning ── */
-.rs-dlg-conflict {
-  display: flex; align-items: flex-start; gap: 16px;
-  margin: 16px; padding: 18px 20px;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+/* ── Conflict banner ── */
+.rs-conflict-banner {
+  background: rgba(245, 158, 11, 0.10);
+  border: 2px solid rgba(245, 158, 11, 0.50);
   border-radius: 10px;
+  padding: 20px 22px;
 }
-.rs-dlg-conflict-icon { flex-shrink: 0; padding-top: 2px; }
-.rs-dlg-conflict-body { flex: 1; }
-.rs-dlg-conflict-title {
-  font-size: 14px; font-weight: 700; color: #f59e0b; margin-bottom: 6px;
+.rs-conflict-banner-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
 }
-.rs-dlg-conflict-sub {
-  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.75); line-height: 1.6;
+.rs-conflict-banner-title {
+  font-size: 15px; font-weight: 700; color: #f59e0b;
 }
-.rs-dlg-conflict-actions {
-  display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;
+.rs-conflict-banner-msg {
+  font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.85); line-height: 1.7;
 }
 .rs-dlg-success {
   display: flex; flex-direction: column; align-items: center; gap: 14px;
