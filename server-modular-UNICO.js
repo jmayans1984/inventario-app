@@ -5480,7 +5480,10 @@ app.put('/api/config-general', async (req, res) => {
 // Inserta hasta 7 registros en gastos + 1 registro en ventas (transacción atómica)
 // Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...}, force }
 app.post('/api/square/importar-resumen', async (req, res) => {
-    const { empresa, fecha, ccosto, ventas, pagos, items = [], consumoItems = [], force } = req.body;
+    const { empresa, fecha, ccosto, ccostoNombre, ventas, pagos,
+            items = [], consumoItems = [],
+            ctaSquare, ctaOtros, ctaEfectivo,
+            force } = req.body;
     if (!empresa || !fecha || !ccosto) {
         return res.status(400).json({ success: false, error: 'empresa, fecha y ccosto son requeridos' });
     }
@@ -5532,7 +5535,15 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         );
         const dupInvCount = parseInt(dupInvRes.rows[0].cnt) || 0;
 
-        const totalDups = dupCount + dupVentasCount + dupDetalleCount + dupInvCount;
+        // Verificar duplicado en moviban
+        const dupMovRes = await client.query(
+            `SELECT COUNT(*) AS cnt FROM moviban
+             WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND origen = 'SQUARE' AND tipo = 'IMP'`,
+            [fecha, ccosto, parseInt(empresa)]
+        );
+        const dupMovCount = parseInt(dupMovRes.rows[0].cnt) || 0;
+
+        const totalDups = dupCount + dupVentasCount + dupDetalleCount + dupInvCount + dupMovCount;
         if (totalDups > 0 && !force) {
             await client.query('ROLLBACK');
             return res.json({
@@ -5542,6 +5553,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 countVentas: dupVentasCount,
                 countDetalle: dupDetalleCount,
                 countInventario: dupInvCount,
+                countMoviban: dupMovCount,
                 message: `Ya existen registros para esta fecha, centro de costo y empresa.`
             });
         }
@@ -5571,6 +5583,13 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 await client.query(
                     `DELETE FROM detalle_inventario
                      WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND tipo = 'SALIDA POR VENTA'`,
+                    [fecha, ccosto, parseInt(empresa)]
+                );
+            }
+            if (dupMovCount > 0) {
+                await client.query(
+                    `DELETE FROM moviban
+                     WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND origen = 'SQUARE' AND tipo = 'IMP'`,
                     [fecha, ccosto, parseInt(empresa)]
                 );
             }
@@ -5671,6 +5690,40 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             inventarioInsertados++;
         }
 
+        // 10. INSERT en moviban — 3 registros: Efectivo, Tarjeta, Otros
+        const maxMovRes = await client.query(
+            `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) AS max_num
+             FROM moviban WHERE empresa = $1`,
+            [parseInt(empresa)]
+        );
+        let movSeq = parseInt(maxMovRes.rows[0].max_num) + 1;
+
+        const nombreCcosto = (ccostoNombre || ccosto).toString().trim();
+        const valorEfectivo = Math.abs(parseFloat(pagos.efectivo)      || 0);
+        const valorTarjeta  = Math.abs(parseFloat(pagos.tarjeta)       || 0)
+                            + Math.abs(parseFloat(pagos.tarjetaRegalo) || 0);
+        const valorOtros    = Math.abs(parseFloat(pagos.otro)          || 0);
+
+        const movibanRecords = [
+            { concepto: `VENTAS EFECTIVO - ${nombreCcosto}`, ingreso: valorEfectivo, banco: ctaEfectivo || null },
+            { concepto: `VENTAS TARJETA - ${nombreCcosto}`,  ingreso: valorTarjeta,  banco: ctaSquare  || null },
+            { concepto: `VENTAS OTROS - ${nombreCcosto}`,    ingreso: valorOtros,    banco: ctaOtros   || null },
+        ];
+
+        for (const mov of movibanRecords) {
+            const numero = String(movSeq).padStart(10, '0');
+            await client.query(
+                `INSERT INTO moviban
+                    (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
+                     banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                 VALUES ('IMP', $1, $2, $3, NULL, $4, 0,
+                         $5, 'NO', $6, NULL, NULL, 'SQUARE', $7)`,
+                [numero, fecha, mov.concepto.substring(0, 60), mov.ingreso,
+                 mov.banco, parseInt(empresa), ccosto]
+            );
+            movSeq++;
+        }
+
         await client.query('COMMIT');
         res.json({
             success: true,
@@ -5679,6 +5732,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 total: insertados.length,
                 detalles: detallesInsertados,
                 inventario: inventarioInsertados,
+                moviban: movibanRecords.length,
                 ventas: { fecha, ccosto, ventas_brutas: vBrutas, ventas_netas: vNetas }
             }
         });
