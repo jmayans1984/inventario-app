@@ -196,13 +196,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 
-const authStore     = useAuthStore()
-const empresa       = computed(() => authStore.empresa || authStore.user?.empresa || '')
+const authStore = useAuthStore()
+const empresa   = computed(() => authStore.empresaCodigo || '')
 
 // ── Fechas por defecto: mes actual ──────────────────────────────
 function primerDiaMes() {
@@ -268,12 +268,16 @@ function fmt(n) {
 
 function fmtFecha(f) {
   if (!f) return ''
-  const d = new Date(f + 'T00:00:00')
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const s = String(f).slice(0, 10)   // toma solo "YYYY-MM-DD" sin timezone
+  const [y, m, d] = s.split('-')
+  return `${d}/${m}/${y}`
 }
 
+// Cargar ccostos cuando empresa esté disponible (puede llegar después del mount)
+watch(empresa, (val) => { if (val) fetchCcostos() }, { immediate: true })
+
 onMounted(() => {
-  fetchCcostos()
+  if (empresa.value) fetchCcostos()
 })
 </script>
 
