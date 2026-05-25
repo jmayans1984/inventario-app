@@ -623,6 +623,114 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
 
 // ── FIN GESTIÓN DE INVENTARIO ─────────────────────────────────────
 
+// ── AJUSTE DE INVENTARIO (TOMA FÍSICA) ──────────────────────────
+
+// GET /api/almacen/ajuste-inventario/stock
+// Devuelve todos los productos con control='SI' y su stock actual en ese CC
+app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
+    const { empresa, ccosto } = req.query;
+    if (!empresa || !ccosto) {
+        return res.status(400).json({ success: false, error: 'empresa y ccosto son requeridos' });
+    }
+    try {
+        const result = await pool.query(
+            `SELECT
+                p.codigo,
+                p.nombre,
+                p.und,
+                COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
+                COALESCE(gp.codigo, '999')        AS grupo_codigo,
+                COALESCE(
+                    (SELECT SUM(d.entrada) - SUM(d.salida)
+                     FROM detalle_inventario d
+                     WHERE d.codigo = p.codigo
+                       AND d.ccosto = $2
+                       AND d.empresa = $1),
+                    0
+                ) AS stock_actual
+             FROM productos p
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             WHERE p.control = 'SI'
+             ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
+            [parseInt(empresa), ccosto]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/ajuste-inventario/stock:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/almacen/ajuste-inventario
+// Guarda los ajustes en detalle_inventario
+app.post('/api/almacen/ajuste-inventario', async (req, res) => {
+    const { empresa, fecha, ccosto, observaciones, ajustes, mode } = req.body;
+    // ajustes: [{ codigo, diferencia }]  diferencia = fisico - actual
+    // mode: 'new' | 'replace' | 'add'
+
+    if (!empresa || !fecha || !ccosto || !ajustes || ajustes.length === 0) {
+        return res.status(400).json({ success: false, error: 'Faltan parámetros obligatorios' });
+    }
+
+    const emp = parseInt(empresa);
+    const obs = (observaciones || '').trim().toUpperCase();
+    const TIPO = 'AJUSTE DE INVENTARIO';
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Detectar conflicto (modo 'new')
+        if (!mode || mode === 'new') {
+            const dup = await client.query(
+                `SELECT COUNT(*) AS cnt FROM detalle_inventario
+                 WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
+                [fecha, ccosto, emp, TIPO]
+            );
+            if (parseInt(dup.rows[0].cnt) > 0) {
+                await client.query('ROLLBACK');
+                return res.json({ success: false, conflict: true, count: parseInt(dup.rows[0].cnt) });
+            }
+        }
+
+        // Eliminar previos si replace
+        if (mode === 'replace') {
+            await client.query(
+                `DELETE FROM detalle_inventario WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
+                [fecha, ccosto, emp, TIPO]
+            );
+        }
+
+        // Insertar ajustes
+        let registros = 0;
+        for (const aj of ajustes) {
+            const diff = parseFloat(aj.diferencia);
+            if (!diff || diff === 0 || isNaN(diff)) continue;
+
+            const entrada = diff > 0 ? diff : 0;
+            const salida  = diff < 0 ? Math.abs(diff) : 0;
+
+            await client.query(
+                `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+                [fecha, ccosto, aj.codigo, entrada, salida, TIPO, emp, obs || 'AJUSTE DE INVENTARIO']
+            );
+            registros++;
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, registros });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/almacen/ajuste-inventario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// ── FIN AJUSTE DE INVENTARIO ──────────────────────────────────────
+
 // POST /api/inventario/movimientos - Registrar movimientos (formato nuevo)
 app.post('/api/inventario/movimientos', async (req, res) => {
     const { movimientos } = req.body;
