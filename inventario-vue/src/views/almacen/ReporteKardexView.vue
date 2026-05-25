@@ -161,7 +161,7 @@
                   <td class="td-num">
                     <strong :class="p.stock_final < 0 ? 'num-neg' : 'num-stock'">{{ formatNum(p.stock_final) }}</strong>
                   </td>
-                  <td class="td-cantidad">____________________</td>
+                  <td class="td-cantidad">______________</td>
                 </tr>
               </template>
 
@@ -465,17 +465,17 @@ function exportarPDF() {
 .kx-table-wrap { overflow-x: auto; max-height: 65vh; overflow-y: auto; }
 .kx-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .kx-table thead th { position: sticky; top: 0; z-index: 2; background: rgb(var(--v-theme-surface)); padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1); white-space: nowrap; }
-.th-nom     { width: 100%; }
+.th-nom     { width: 100%; max-width: 200px; }
 .th-num     { text-align: right !important; }
 .th-entrada { color: #10b981 !important; }
 .th-salida  { color: #f59e0b !important; }
 .th-venta   { color: #ef4444 !important; }
 .th-stock   { color: #0891b2 !important; }
 
-.kx-grupo-row td { padding: 8px 12px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); background: rgba(var(--v-theme-on-surface),.02); }
-.kx-prod-row td  { padding: 8px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); }
+.kx-grupo-row td { padding: 8px 12px 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); background: rgba(var(--v-theme-on-surface),.02); text-align: left; }
+.kx-prod-row td  { padding: 4px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); }
 .kx-prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
-.kx-total-row td { padding: 10px 12px; border-top: 2px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.03); font-size: 13px; }
+.kx-total-row td { padding: 7px 10px; border-top: 2px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.03); font-size: 13px; }
 
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
 .badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:#0891b2; font-weight:600; }
@@ -491,6 +491,6 @@ function exportarPDF() {
 
 .kx-empty { text-align:center; padding:60px 24px; color:rgba(var(--v-theme-on-surface),.4); display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14px; }
 
-.th-cantidad { text-align: center !important; color: rgba(var(--v-theme-on-surface),.4) !important; font-style: italic; min-width: 140px; }
-.td-cantidad { text-align: center; color: rgba(var(--v-theme-on-surface),.25); letter-spacing: 1px; font-size: 12px; white-space: nowrap; }
+.th-cantidad { text-align: center !important; color: rgba(var(--v-theme-on-surface),.4) !important; font-style: italic; min-width: 110px; }
+.td-cantidad { text-align: center; color: rgba(var(--v-theme-on-surface),.25); font-size: 12px; white-space: nowrap; }
 </style>
