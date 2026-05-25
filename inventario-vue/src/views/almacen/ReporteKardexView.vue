@@ -161,7 +161,7 @@
                   <td class="td-num">
                     <strong :class="p.stock_final < 0 ? 'num-neg' : 'num-stock'">{{ formatNum(p.stock_final) }}</strong>
                   </td>
-                  <td class="td-cantidad">______________</td>
+                  <td class="td-cantidad">__________</td>
                 </tr>
               </template>
 
@@ -302,7 +302,7 @@ function exportarPDF() {
   const PH  = doc.internal.pageSize.getHeight()  // 279.4 mm
   const ML  = 12
   const MR  = 12
-  const RAYITAS = '____________________'
+  const RAYITAS = '__________'
 
   // ── Encabezado compacto ───────────────────────────────────
   function drawHeader() {
@@ -340,6 +340,7 @@ function exportarPDF() {
       styles: {
         fontStyle: 'bold', fontSize: 6.5,
         textColor: [8, 100, 140],
+        halign: 'left',
         cellPadding: { top: 5, bottom: 1, left: 1, right: 1 },
       }
     }])
@@ -358,16 +359,6 @@ function exportarPDF() {
     }
   }
 
-  const totalsRowIndex = body.length
-  body.push([
-    { content: 'TOTALES', colSpan: 3, styles: { fontStyle: 'bold' } },
-    { content: formatNum(totalStockAnterior.value), styles: { fontStyle: 'bold', halign: 'right' } },
-    { content: `+${formatNum(totalEntradas.value)}`,  styles: { fontStyle: 'bold', halign: 'right', textColor: [16,185,129] } },
-    { content: formatNum(totalSalidas.value),   styles: { fontStyle: 'bold', halign: 'right', textColor: [245,158,11] } },
-    { content: formatNum(totalVentas.value),    styles: { fontStyle: 'bold', halign: 'right', textColor: [239,68,68] } },
-    { content: formatNum(totalStockFinal.value),styles: { fontStyle: 'bold', halign: 'right', textColor: [8,145,178] } },
-    { content: '' },
-  ])
 
   // ── autoTable minimalista ─────────────────────────────────
   autoTable(doc, {
@@ -408,14 +399,6 @@ function exportarPDF() {
     },
     margin: { left: ML, right: MR },
     didDrawPage: () => drawHeader(),
-    // Línea fina encima de la fila de totales
-    willDrawCell: (data) => {
-      if (data.section === 'body' && data.row.index === totalsRowIndex) {
-        doc.setDrawColor(160, 160, 160)
-        doc.setLineWidth(0.4)
-        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y)
-      }
-    },
   })
 
   const totalPgs = doc.internal.getNumberOfPages()
