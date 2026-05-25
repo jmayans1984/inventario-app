@@ -168,7 +168,7 @@
                 v-for="p in grupo.items"
                 :key="p.codigo"
                 class="gi-prod-row"
-                :class="{ 'gi-prod-highlighted': getCantidad(p.codigo) > 0 }"
+                :class="{ 'gi-prod-highlighted': getCantidad(p.codigo) !== 0 }"
               >
                 <td><span class="badge-cod">{{ p.codigo }}</span></td>
                 <td class="td-nom">{{ p.nombre }}</td>
@@ -317,7 +317,7 @@ function getCantidad(codigo) {
 function setCantidad(codigo, val) {
   const n = parseFloat(val)
   const nuevo = { ...cantidades.value }
-  if (!val || isNaN(n) || n <= 0) delete nuevo[codigo]
+  if (val === '' || val === null || val === undefined || isNaN(n) || n === 0) delete nuevo[codigo]
   else nuevo[codigo] = n
   cantidades.value = nuevo
 }

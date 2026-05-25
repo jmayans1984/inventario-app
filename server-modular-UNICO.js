@@ -584,8 +584,14 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
                 registrosCreados++;
 
             } else if (tipo === 'TRASLADO') {
-                const nombreOrigen  = ccOrigenNombre  || ccOrigen;
-                const nombreDestino = ccDestinoNombre || ccDestino;
+                // Consultar nombres de CC directamente en la DB (más confiable que lo que envíe el frontend)
+                const [resOrigen, resDestino] = await Promise.all([
+                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1`, [ccOrigen]),
+                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1`, [ccDestino]),
+                ]);
+                const nombreOrigen  = resOrigen.rows[0]?.nombre  || ccOrigen;
+                const nombreDestino = resDestino.rows[0]?.nombre || ccDestino;
+
                 // Registro en CC Origen: SALIDA POR TRASLADO  (entrada=0, salida=cant)
                 await client.query(
                     `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
