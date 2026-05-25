@@ -731,6 +731,92 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
 
 // ── FIN AJUSTE DE INVENTARIO ──────────────────────────────────────
 
+// ── KARDEX POR PERÍODO ────────────────────────────────────────────
+
+// GET /api/almacen/kardex
+// Parámetros: empresa, ccosto, fecha
+// Devuelve movimiento del día por producto agrupado por grupo
+app.get('/api/almacen/kardex', async (req, res) => {
+    const { empresa, ccosto, fecha } = req.query;
+    if (!empresa || !ccosto || !fecha) {
+        return res.status(400).json({ success: false, error: 'empresa, ccosto y fecha son requeridos' });
+    }
+    const emp = parseInt(empresa);
+    try {
+        const result = await pool.query(
+            `SELECT
+                p.codigo,
+                p.nombre,
+                p.und,
+                COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
+                COALESCE(gp.codigo, '999')        AS grupo_codigo,
+
+                -- Stock anterior (todo antes de la fecha)
+                COALESCE((
+                    SELECT SUM(d.entrada) - SUM(d.salida)
+                    FROM detalle_inventario d
+                    WHERE d.codigo  = p.codigo
+                      AND d.ccosto  = $2
+                      AND d.empresa = $1
+                      AND d.fecha   < $3
+                ), 0) AS stock_anterior,
+
+                -- Entradas del día (todos los tipos)
+                COALESCE((
+                    SELECT SUM(d.entrada)
+                    FROM detalle_inventario d
+                    WHERE d.codigo  = p.codigo
+                      AND d.ccosto  = $2
+                      AND d.empresa = $1
+                      AND d.fecha   = $3
+                ), 0) AS entradas_dia,
+
+                -- Salidas del día (excluyendo ventas)
+                COALESCE((
+                    SELECT SUM(d.salida)
+                    FROM detalle_inventario d
+                    WHERE d.codigo  = p.codigo
+                      AND d.ccosto  = $2
+                      AND d.empresa = $1
+                      AND d.fecha   = $3
+                      AND d.tipo   <> 'SALIDA POR VENTA'
+                ), 0) AS salidas_dia,
+
+                -- Ventas del día
+                COALESCE((
+                    SELECT SUM(d.salida)
+                    FROM detalle_inventario d
+                    WHERE d.codigo  = p.codigo
+                      AND d.ccosto  = $2
+                      AND d.empresa = $1
+                      AND d.fecha   = $3
+                      AND d.tipo    = 'SALIDA POR VENTA'
+                ), 0) AS ventas_dia
+
+             FROM productos p
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             WHERE p.control = 'SI'
+             ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
+            [emp, ccosto, fecha]
+        );
+
+        // Solo devolver productos con algún movimiento o stock distinto de 0
+        const data = result.rows.filter(r =>
+            parseFloat(r.stock_anterior) !== 0 ||
+            parseFloat(r.entradas_dia)   !== 0 ||
+            parseFloat(r.salidas_dia)    !== 0 ||
+            parseFloat(r.ventas_dia)     !== 0
+        );
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error GET /api/almacen/kardex:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── FIN KARDEX ────────────────────────────────────────────────────
+
 // POST /api/inventario/movimientos - Registrar movimientos (formato nuevo)
 app.post('/api/inventario/movimientos', async (req, res) => {
     const { movimientos } = req.body;
