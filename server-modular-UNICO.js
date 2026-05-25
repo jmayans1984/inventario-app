@@ -508,7 +508,7 @@ const TIPO_DB = {
 
 // POST /api/almacen/gestion-inventario — guardar movimiento de inventario
 app.post('/api/almacen/gestion-inventario', async (req, res) => {
-    const { empresa, fecha, tipo, ccOrigen, ccDestino, observaciones, productos, mode } = req.body;
+    const { empresa, fecha, tipo, ccOrigen, ccOrigenNombre, ccDestino, ccDestinoNombre, observaciones, productos, mode } = req.body;
     // tipo (frontend): ENTRADA | SALIDA | BAJA | TRASLADO
     // mode: 'new' (detecta conflicto) | 'replace' (borra previos) | 'add' (suma)
 
@@ -584,19 +584,21 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
                 registrosCreados++;
 
             } else if (tipo === 'TRASLADO') {
+                const nombreOrigen  = ccOrigenNombre  || ccOrigen;
+                const nombreDestino = ccDestinoNombre || ccDestino;
                 // Registro en CC Origen: SALIDA POR TRASLADO  (entrada=0, salida=cant)
                 await client.query(
                     `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
                      VALUES ($1,$2,$3,0,$4,$5,$6,$7)`,
                     [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp,
-                     obs || `Traslado a CC ${ccDestino}`]
+                     obs || `Traslado a ${nombreDestino}`]
                 );
                 // Registro en CC Destino: ENTRADA POR TRASLADO (entrada=cant, salida=0)
                 await client.query(
                     `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
                      VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
                     [fecha, ccDestino, prod.codigo, cant, mapa.destino, emp,
-                     obs || `Traslado desde CC ${ccOrigen}`]
+                     obs || `Traslado desde ${nombreOrigen}`]
                 );
                 registrosCreados += 2;
             }

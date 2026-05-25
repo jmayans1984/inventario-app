@@ -175,12 +175,11 @@
                 <td><span class="badge-und">{{ p.und }}</span></td>
                 <td class="td-cant">
                   <input
-                    :value="getCantidad(p.codigo) || ''"
+                    :value="getCantidad(p.codigo) ?? ''"
                     type="number"
-                    min="0"
                     step="0.001"
                     class="gi-cant-input"
-                    :class="{ 'gi-cant-active': getCantidad(p.codigo) > 0 }"
+                    :class="{ 'gi-cant-active': getCantidad(p.codigo) !== null && getCantidad(p.codigo) !== 0 }"
                     placeholder="0"
                     @input="setCantidad(p.codigo, $event.target.value)"
                     @keydown.enter.prevent="siguienteInput($event)"
@@ -349,6 +348,11 @@ const nombreCcOrigen = computed(() => {
   return cc ? cc.nombre : ccOrigen.value
 })
 
+const nombreCcDestino = computed(() => {
+  const cc = ccostos.value.find(c => c.codigo === ccDestino.value)
+  return cc ? cc.nombre : ccDestino.value
+})
+
 const tipoLabel = computed(() => {
   const t = TIPOS.find(t => t.value === tipoOp.value)
   return t ? t.label : tipoOp.value
@@ -426,12 +430,14 @@ async function guardar(mode = 'new') {
 
   try {
     const res = await api.post('/almacen/gestion-inventario', {
-      empresa:       empresa.value,
-      fecha:         fecha.value,
-      tipo:          tipoOp.value,
-      ccOrigen:      ccOrigen.value,
-      ccDestino:     ccDestino.value || null,
-      observaciones: observaciones.value,
+      empresa:          empresa.value,
+      fecha:            fecha.value,
+      tipo:             tipoOp.value,
+      ccOrigen:         ccOrigen.value,
+      ccOrigenNombre:   nombreCcOrigen.value,
+      ccDestino:        ccDestino.value || null,
+      ccDestinoNombre:  nombreCcDestino.value || null,
+      observaciones:    observaciones.value,
       productos:     productosPayload,
       mode,
     })
