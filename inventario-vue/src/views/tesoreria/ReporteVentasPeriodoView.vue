@@ -21,6 +21,19 @@
           <p class="page-sub">Resumen de ventas consolidadas importadas desde Square</p>
         </div>
       </div>
+      <div class="header-actions">
+        <v-btn
+          v-if="rows.length > 0"
+          color="#ef4444"
+          variant="flat"
+          size="small"
+          prepend-icon="mdi-file-pdf-box"
+          :loading="generandoPdf"
+          @click="exportarPDF"
+        >
+          Exportar PDF
+        </v-btn>
+      </div>
     </div>
 
     <!-- FILTROS -->
@@ -200,6 +213,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const authStore = useAuthStore()
 const empresa   = computed(() => authStore.empresaCodigo || '')
@@ -273,6 +288,137 @@ function fmtFecha(f) {
   return `${d}/${m}/${y}`
 }
 
+// ── PDF ─────────────────────────────────────────────────────────
+const generandoPdf = ref(false)
+
+function fmtFechaCorta(f) {
+  if (!f) return ''
+  const s = String(f).slice(0, 10)
+  const [y, m, d] = s.split('-')
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  return `${d} ${meses[parseInt(m) - 1]} ${y}`
+}
+
+function exportarPDF() {
+  if (!rows.value.length) return
+  generandoPdf.value = true
+  try {
+    const doc  = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+    const PW   = doc.internal.pageSize.getWidth()
+    const PH   = doc.internal.pageSize.getHeight()
+    const ML   = 10
+    const hoy  = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' })
+
+    // Nombre del ccosto seleccionado
+    const ccostoObj    = ccostos.value.find(c => c.codigo === ccostoFiltro.value)
+    const ccostoLabel  = ccostoFiltro.value === 'TODOS'
+      ? 'Todos los centros'
+      : `${ccostoFiltro.value} — ${ccostoObj?.nombre || ''}`
+
+    // ── Header ──────────────────────────────────────────────────
+    doc.setFillColor(6, 182, 212)
+    doc.rect(0, 0, PW, 22, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text('VENTAS POR PERÍODO', ML, 9)
+    doc.setFontSize(8.5)
+    doc.setFont('helvetica', 'normal')
+    doc.text(
+      `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabel}`,
+      ML, 16
+    )
+    doc.text(`Impreso: ${hoy}`, PW - ML, 16, { align: 'right' })
+    doc.setTextColor(0, 0, 0)
+
+    // ── KPI resumen ─────────────────────────────────────────────
+    autoTable(doc, {
+      startY: 26,
+      head: [['Ventas Netas', 'Efectivo', 'Tarjetas', 'Otros', 'Comisiones', 'Devoluciones', 'Registros']],
+      body: [[
+        fmt(totals.value.ventas_netas),
+        fmt(totals.value.efectivo),
+        fmt(totals.value.tarjetas),
+        fmt(totals.value.otros),
+        fmt(totals.value.comisiones),
+        fmt(totals.value.devoluciones),
+        String(rows.value.length)
+      ]],
+      styles: { fontSize: 8.5, halign: 'right', fontStyle: 'bold' },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7.5, halign: 'center' },
+      theme: 'grid',
+      margin: { left: ML, right: ML }
+    })
+
+    // ── Tabla principal ──────────────────────────────────────────
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 6,
+      head: [['Fecha', 'Centro de Costos', 'Brutas', 'Devol.', 'Desc.', 'Netas', 'Impuestos', 'Propinas', 'Comisiones', 'Tarjetas', 'Efectivo', 'Otros']],
+      body: rows.value.map(r => [
+        fmtFechaCorta(r.fecha),
+        `${r.ccosto} — ${r.ccosto_nombre}`,
+        fmt(r.ventas_brutas),
+        fmt(r.devoluciones),
+        fmt(r.descuentos),
+        fmt(r.ventas_netas),
+        fmt(r.impuestos),
+        fmt(r.propinas),
+        fmt(r.comisiones),
+        fmt(r.tarjetas),
+        fmt(r.efectivo),
+        fmt(r.otros)
+      ]),
+      foot: [[
+        'TOTALES', '',
+        fmt(totals.value.ventas_brutas),
+        fmt(totals.value.devoluciones),
+        fmt(totals.value.descuentos),
+        fmt(totals.value.ventas_netas),
+        fmt(totals.value.impuestos),
+        fmt(totals.value.propinas),
+        fmt(totals.value.comisiones),
+        fmt(totals.value.tarjetas),
+        fmt(totals.value.efectivo),
+        fmt(totals.value.otros)
+      ]],
+      styles: { fontSize: 7.5 },
+      headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 40 },
+        2:  { halign: 'right' },
+        3:  { halign: 'right' },
+        4:  { halign: 'right' },
+        5:  { halign: 'right', fontStyle: 'bold' },
+        6:  { halign: 'right' },
+        7:  { halign: 'right' },
+        8:  { halign: 'right' },
+        9:  { halign: 'right' },
+        10: { halign: 'right' },
+        11: { halign: 'right' }
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: 'striped',
+      margin: { left: ML, right: ML },
+      didDrawPage: (data) => {
+        // Número de página
+        doc.setFontSize(7)
+        doc.setTextColor(150)
+        doc.text(`Página ${data.pageNumber}`, PW - ML, PH - 5, { align: 'right' })
+        doc.setTextColor(0, 0, 0)
+      }
+    })
+
+    // Abrir en nueva pestaña
+    const blob = doc.output('blob')
+    const url  = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  } finally {
+    generandoPdf.value = false
+  }
+}
+
 // Cargar ccostos cuando empresa esté disponible (puede llegar después del mount)
 watch(empresa, (val) => { if (val) fetchCcostos() }, { immediate: true })
 
@@ -295,8 +441,9 @@ onMounted(() => {
 
 .page-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 20px;
+  gap: 12px; margin-bottom: 20px;
 }
+.header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .header-left {
   display: flex; align-items: center; gap: 14px;
 }
