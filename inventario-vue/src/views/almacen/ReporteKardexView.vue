@@ -328,14 +328,14 @@ function exportarPDF() {
   // ── Encabezado ────────────────────────────────────────────
   function drawHeader() {
     doc.setFillColor(8, 145, 178)
-    doc.rect(0, 0, PW, 20, 'F')
+    doc.rect(0, 0, PW, 18, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(12.5)
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('KARDEX DE INVENTARIO', ML, 9)
-    doc.setFontSize(9)
+    doc.text('KARDEX DE INVENTARIO', ML, 8)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`CENTRO DE COSTOS: ${nombreCcosto.value}  ·  ${fechaFormateada.value}`, ML, 16)
+    doc.text(`CENTRO DE COSTOS: ${nombreCcosto.value}  ·  ${fechaFormateada.value}`, ML, 14)
     doc.setTextColor(0, 0, 0)
   }
 
@@ -360,10 +360,10 @@ function exportarPDF() {
       content: grupo.nombre.toUpperCase(),
       colSpan: 9,
       styles: {
-        fontStyle: 'bold', fontSize: 8.5,
+        fontStyle: 'bold', fontSize: 7.5,
         textColor: [8, 100, 140],
         halign: 'left',
-        cellPadding: { top: 5, bottom: 1, left: 1, right: 1 },
+        cellPadding: 1.5,
       }
     }])
     for (const p of grupo.items) {
@@ -384,7 +384,7 @@ function exportarPDF() {
 
   // ── autoTable minimalista ─────────────────────────────────
   autoTable(doc, {
-    startY: 24,
+    startY: 21,
     head: [[
       { content: 'CÓD',   styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
@@ -399,13 +399,13 @@ function exportarPDF() {
     body,
     theme: 'plain',
     headStyles: {
-      textColor: [80, 80, 80], fontSize: 9, fontStyle: 'bold',
-      cellPadding: { top: 1, bottom: 2, left: 1, right: 1 },
+      textColor: [80, 80, 80], fontSize: 8, fontStyle: 'bold',
+      cellPadding: 1.5,
       lineWidth: { bottom: 0.4 }, lineColor: [180, 180, 180],
     },
     bodyStyles: {
-      fontSize: 9,
-      cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 },
+      fontSize: 7.5,
+      cellPadding: 1.2,
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
@@ -420,6 +420,14 @@ function exportarPDF() {
       8: { cellWidth: 28,  halign: 'center', textColor: [160,160,160] },
     },
     margin: { left: ML, right: MR, bottom: 22 },
+    didDrawCell: (data) => {
+      // Asegurar alineación a derecha en columnas numéricas del footer
+      if (data.row.section === 'body' && data.row.index >= filas.value.length - 1) {
+        if (data.column.index >= 3 && data.column.index <= 7) {
+          data.cell.styles.halign = 'right'
+        }
+      }
+    },
     didDrawPage: () => drawHeader(),
   })
 
