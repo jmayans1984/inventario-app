@@ -5548,7 +5548,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         // 3. Calcular valores (siempre positivos con Math.abs)
         const vBrutas   = Math.abs(parseFloat(ventas.ventasBrutas) || 0);
         const vDevoluc  = Math.abs(parseFloat(ventas.devoluciones) || 0);
-        const vNetas    = Math.abs(vBrutas - vDevoluc);
+        const vNetas    = Math.abs(parseFloat(ventas.ventasNetas)  || 0);
         const descuentos = Math.abs(parseFloat(ventas.descuentos)  || 0);
         const impuestos  = Math.abs(parseFloat(ventas.impuestos)   || 0);
         const propinas   = Math.abs(parseFloat(ventas.propinas)    || 0);
