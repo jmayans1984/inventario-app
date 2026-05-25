@@ -800,15 +800,8 @@ app.get('/api/almacen/kardex', async (req, res) => {
             [emp, ccosto, fecha]
         );
 
-        // Solo devolver productos con algún movimiento o stock distinto de 0
-        const data = result.rows.filter(r =>
-            parseFloat(r.stock_anterior) !== 0 ||
-            parseFloat(r.entradas_dia)   !== 0 ||
-            parseFloat(r.salidas_dia)    !== 0 ||
-            parseFloat(r.ventas_dia)     !== 0
-        );
-
-        res.json({ success: true, data });
+        // Devolver TODOS los productos con control='SI', tengan o no movimiento
+        res.json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error GET /api/almacen/kardex:', error);
         res.status(500).json({ success: false, error: error.message });
