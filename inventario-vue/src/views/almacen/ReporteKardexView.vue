@@ -64,13 +64,13 @@
             </v-btn>
             <v-btn
               v-if="filas.length > 0"
-              color="success"
+              color="error"
               variant="outlined"
-              prepend-icon="mdi-file-excel"
+              prepend-icon="mdi-file-pdf-box"
               class="ml-2"
-              @click="exportarCSV"
+              @click="exportarPDF"
             >
-              Exportar
+              Exportar PDF
             </v-btn>
           </div>
 
@@ -128,12 +128,13 @@
                 <th class="th-num th-salida">SALIDAS</th>
                 <th class="th-num th-venta">VENTAS</th>
                 <th class="th-num th-stock">STOCK FINAL</th>
+                <th class="th-cantidad">CANTIDAD</th>
               </tr>
             </thead>
             <tbody>
               <template v-for="grupo in productosAgrupados" :key="grupo.key">
                 <tr class="kx-grupo-row">
-                  <td colspan="8">
+                  <td colspan="9">
                     <v-icon size="13" class="mr-1" style="opacity:.6">mdi-folder-outline</v-icon>
                     {{ grupo.nombre }}
                   </td>
@@ -160,6 +161,7 @@
                   <td class="td-num">
                     <strong :class="p.stock_final < 0 ? 'num-neg' : 'num-stock'">{{ formatNum(p.stock_final) }}</strong>
                   </td>
+                  <td class="td-cantidad">____________________</td>
                 </tr>
               </template>
 
@@ -171,6 +173,7 @@
                 <td class="td-num num-salida"><strong>{{ formatNum(totalSalidas) }}</strong></td>
                 <td class="td-num num-venta"><strong>{{ formatNum(totalVentas) }}</strong></td>
                 <td class="td-num num-stock"><strong>{{ formatNum(totalStockFinal) }}</strong></td>
+                <td></td>
               </tr>
             </tbody>
           </table>
@@ -193,6 +196,8 @@ import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -290,25 +295,117 @@ async function generar() {
   }
 }
 
-// ── Exportar CSV ──────────────────────────────────────────────
-function exportarCSV() {
-  const encabezado = ['Codigo', 'Producto', 'Und', 'Stock Anterior', 'Entradas', 'Salidas', 'Ventas', 'Stock Final']
-  const filasSinGrupo = filas.value
-  const lineas = [
-    `Kardex - ${nombreCcosto.value} - ${fechaFormateada.value}`,
-    encabezado.join(';'),
-    ...filasSinGrupo.map(p =>
-      [p.codigo, p.nombre, p.und, p.stock_anterior, p.entradas_dia, p.salidas_dia, p.ventas_dia, p.stock_final].join(';')
-    ),
-    ['', 'TOTALES', '', totalStockAnterior.value, totalEntradas.value, totalSalidas.value, totalVentas.value, totalStockFinal.value].join(';')
-  ]
-  const blob = new Blob(['﻿' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
-  a.download = `Kardex_${ccosto.value}_${fecha.value}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+// ── Exportar PDF ──────────────────────────────────────────────
+function exportarPDF() {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+  const PW  = doc.internal.pageSize.getWidth()   // 279mm
+  const PH  = doc.internal.pageSize.getHeight()  // 216mm
+  const RAYITAS = '____________________'
+
+  // ── Encabezado ────────────────────────────────────────────
+  function drawHeader() {
+    doc.setFillColor(8, 145, 178)
+    doc.rect(0, 0, PW, 18, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(13)
+    doc.setFont('helvetica', 'bold')
+    doc.text('KARDEX DE INVENTARIO', 14, 7)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Centro de Costo: ${nombreCcosto.value}`, 14, 13)
+    doc.text(`Fecha: ${fechaFormateada.value}`, PW / 2, 13, { align: 'center' })
+    doc.text(`Productos: ${filas.value.length}`, PW - 14, 13, { align: 'right' })
+    doc.setTextColor(0, 0, 0)
+  }
+
+  // ── Pie de página ─────────────────────────────────────────
+  function drawFooter(pageNum, totalPages) {
+    doc.setFontSize(8)
+    doc.setTextColor(150)
+    doc.text(`Página ${pageNum} de ${totalPages}`, PW / 2, PH - 5, { align: 'center' })
+    doc.setTextColor(0, 0, 0)
+  }
+
+  drawHeader()
+
+  // ── Construir filas de la tabla con grupos ────────────────
+  const body = []
+  for (const grupo of productosAgrupados.value) {
+    // Fila de grupo
+    body.push([
+      { content: grupo.nombre.toUpperCase(), colSpan: 9,
+        styles: { fontStyle: 'bold', fillColor: [240, 249, 255], textColor: [8, 100, 140], fontSize: 8 } }
+    ])
+    // Filas de productos
+    for (const p of grupo.items) {
+      body.push([
+        p.codigo,
+        p.nombre,
+        p.und,
+        formatNum(p.stock_anterior),
+        p.entradas_dia > 0 ? formatNum(p.entradas_dia) : '—',
+        p.salidas_dia  > 0 ? formatNum(p.salidas_dia)  : '—',
+        p.ventas_dia   > 0 ? formatNum(p.ventas_dia)   : '—',
+        formatNum(p.stock_final),
+        RAYITAS,
+      ])
+    }
+  }
+  // Fila de totales
+  body.push([
+    { content: 'TOTALES', colSpan: 3, styles: { fontStyle: 'bold' } },
+    { content: formatNum(totalStockAnterior.value), styles: { fontStyle: 'bold', halign: 'right' } },
+    { content: `+${formatNum(totalEntradas.value)}`,  styles: { fontStyle: 'bold', halign: 'right', textColor: [16,185,129] } },
+    { content: formatNum(totalSalidas.value),   styles: { fontStyle: 'bold', halign: 'right', textColor: [245,158,11] } },
+    { content: formatNum(totalVentas.value),    styles: { fontStyle: 'bold', halign: 'right', textColor: [239,68,68] } },
+    { content: formatNum(totalStockFinal.value),styles: { fontStyle: 'bold', halign: 'right', textColor: [8,145,178] } },
+    { content: '', styles: {} },
+  ])
+
+  // ── autoTable ─────────────────────────────────────────────
+  autoTable(doc, {
+    startY: 22,
+    head: [[
+      { content: 'CÓD',            styles: { halign: 'center' } },
+      { content: 'PRODUCTO' },
+      { content: 'UND',            styles: { halign: 'center' } },
+      { content: 'STOCK ANTERIOR', styles: { halign: 'right' } },
+      { content: 'ENTRADAS',       styles: { halign: 'right', textColor: [16,185,129] } },
+      { content: 'SALIDAS',        styles: { halign: 'right', textColor: [245,158,11] } },
+      { content: 'VENTAS',         styles: { halign: 'right', textColor: [239,68,68] } },
+      { content: 'STOCK FINAL',    styles: { halign: 'right', textColor: [8,145,178] } },
+      { content: 'CANTIDAD',       styles: { halign: 'center' } },
+    ]],
+    body,
+    theme: 'grid',
+    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontSize: 8, fontStyle: 'bold', cellPadding: 3 },
+    bodyStyles: { fontSize: 8, cellPadding: 2.5 },
+    columnStyles: {
+      0: { cellWidth: 12,  halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 12,  halign: 'center' },
+      3: { cellWidth: 24,  halign: 'right' },
+      4: { cellWidth: 20,  halign: 'right', textColor: [16,185,129] },
+      5: { cellWidth: 20,  halign: 'right', textColor: [245,158,11] },
+      6: { cellWidth: 20,  halign: 'right', textColor: [239,68,68] },
+      7: { cellWidth: 22,  halign: 'right', textColor: [8,145,178] },
+      8: { cellWidth: 40,  halign: 'center', textColor: [150,150,150] },
+    },
+    margin: { left: 10, right: 10 },
+    didDrawPage: (data) => {
+      drawHeader()
+      // pie se agrega al final
+    },
+  })
+
+  // Pie en todas las páginas
+  const totalPgs = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= totalPgs; i++) {
+    doc.setPage(i)
+    drawFooter(i, totalPgs)
+  }
+
+  doc.save(`Kardex_${ccosto.value}_${fecha.value}.pdf`)
 }
 </script>
 
@@ -374,4 +471,7 @@ function exportarCSV() {
 .num-cero    { color: rgba(var(--v-theme-on-surface),.25); }
 
 .kx-empty { text-align:center; padding:60px 24px; color:rgba(var(--v-theme-on-surface),.4); display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14px; }
+
+.th-cantidad { text-align: center !important; color: rgba(var(--v-theme-on-surface),.4) !important; font-style: italic; min-width: 140px; }
+.td-cantidad { text-align: center; color: rgba(var(--v-theme-on-surface),.25); letter-spacing: 1px; font-size: 12px; white-space: nowrap; }
 </style>
