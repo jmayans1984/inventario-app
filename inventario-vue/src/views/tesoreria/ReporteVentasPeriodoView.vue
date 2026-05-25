@@ -351,23 +351,23 @@ function exportarPDF() {
 
     // ── Header ──────────────────────────────────────────────────
     doc.setFillColor(6, 182, 212)
-    doc.rect(0, 0, PW, 22, 'F')
+    doc.rect(0, 0, PW, 18, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
-    doc.text('VENTAS POR PERÍODO', ML, 9)
-    doc.setFontSize(8.5)
+    doc.setFontSize(12)
+    doc.text('VENTAS POR PERÍODO', ML, 8)
+    doc.setFontSize(7.5)
     doc.setFont('helvetica', 'normal')
     doc.text(
       `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabel}`,
-      ML, 16
+      ML, 14
     )
-    doc.text(`Impreso: ${hoy}`, PW - ML, 16, { align: 'right' })
+    doc.text(`Impreso: ${hoy}`, PW - ML, 14, { align: 'right' })
     doc.setTextColor(0, 0, 0)
 
     // ── KPI resumen ─────────────────────────────────────────────
     autoTable(doc, {
-      startY: 26,
+      startY: 21,
       head: [['Ventas Netas', 'Efectivo', 'Tarjetas', 'Otros', 'Comisiones', 'Devoluciones', 'Registros']],
       body: [[
         fmt(totals.value.ventas_netas),
@@ -378,15 +378,15 @@ function exportarPDF() {
         fmt(totals.value.devoluciones),
         String(rows.value.length)
       ]],
-      styles: { fontSize: 8.5, halign: 'right', fontStyle: 'bold' },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7.5, halign: 'center' },
+      styles: { fontSize: 8, halign: 'right', fontStyle: 'bold', cellPadding: 1.5 },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'center', cellPadding: 1.5 },
       theme: 'grid',
       margin: { left: ML, right: ML }
     })
 
     // ── Tabla principal ──────────────────────────────────────────
     autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 6,
+      startY: doc.lastAutoTable.finalY + 3,
       head: [['Fecha', 'Centro de Costos', 'Brutas', 'Devol.', 'Desc.', 'Netas', 'Impuestos', 'Propinas', 'Comisiones', 'Tarjetas', 'Efectivo', 'Otros']],
       body: rows.value.map(r => [
         fmtFechaCorta(r.fecha),
@@ -415,9 +415,9 @@ function exportarPDF() {
         fmt(totals.value.efectivo),
         fmt(totals.value.otros)
       ]],
-      styles: { fontSize: 7.5 },
-      headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold', fontSize: 7 },
-      footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold' },
+      styles: { fontSize: 7, cellPadding: 1.2 },
+      headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold', fontSize: 6.5, cellPadding: 1.5 },
+      footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold', cellPadding: 1.5 },
       columnStyles: {
         0: { cellWidth: 22 },
         1: { cellWidth: 40 },
