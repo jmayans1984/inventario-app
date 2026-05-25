@@ -183,6 +183,7 @@
                     :class="{ 'gi-cant-active': getCantidad(p.codigo) > 0 }"
                     placeholder="0"
                     @input="setCantidad(p.codigo, $event.target.value)"
+                    @keydown.enter.prevent="siguienteInput($event)"
                   />
                 </td>
               </tr>
@@ -323,6 +324,16 @@ function setCantidad(codigo, val) {
 }
 function limpiarCantidades() {
   cantidades.value = {}
+}
+
+// Enter actúa como Tab — mueve al siguiente input de cantidad
+function siguienteInput(event) {
+  const inputs = Array.from(document.querySelectorAll('.gi-cant-input'))
+  const idx    = inputs.indexOf(event.target)
+  if (idx !== -1 && idx < inputs.length - 1) {
+    inputs[idx + 1].focus()
+    inputs[idx + 1].select()
+  }
 }
 
 // ── Estado de guardado ────────────────────────────────────────
