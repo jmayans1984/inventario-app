@@ -297,32 +297,35 @@ async function generar() {
 
 // ── Exportar PDF ──────────────────────────────────────────────
 function exportarPDF() {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-  const PW  = doc.internal.pageSize.getWidth()   // 279mm
-  const PH  = doc.internal.pageSize.getHeight()  // 216mm
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+  const PW  = doc.internal.pageSize.getWidth()   // 215.9 mm
+  const PH  = doc.internal.pageSize.getHeight()  // 279.4 mm
+  const ML  = 12
+  const MR  = 12
   const RAYITAS = '____________________'
 
-  // ── Encabezado ────────────────────────────────────────────
+  // ── Encabezado compacto ───────────────────────────────────
   function drawHeader() {
     doc.setFillColor(8, 145, 178)
-    doc.rect(0, 0, PW, 18, 'F')
+    doc.rect(0, 0, PW, 13, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(13)
+    doc.setFontSize(10.5)
     doc.setFont('helvetica', 'bold')
-    doc.text('KARDEX DE INVENTARIO', 14, 7)
-    doc.setFontSize(9)
+    doc.text('KARDEX DE INVENTARIO', ML, 6)
+    doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Centro de Costo: ${nombreCcosto.value}`, 14, 13)
-    doc.text(`Fecha: ${fechaFormateada.value}`, PW / 2, 13, { align: 'center' })
-    doc.text(`Productos: ${filas.value.length}`, PW - 14, 13, { align: 'right' })
+    doc.text(
+      `CC: ${nombreCcosto.value}  ·  ${fechaFormateada.value}  ·  ${filas.value.length} productos`,
+      ML, 11
+    )
     doc.setTextColor(0, 0, 0)
   }
 
   // ── Pie de página ─────────────────────────────────────────
   function drawFooter(pageNum, totalPages) {
-    doc.setFontSize(8)
-    doc.setTextColor(150)
-    doc.text(`Página ${pageNum} de ${totalPages}`, PW / 2, PH - 5, { align: 'center' })
+    doc.setFontSize(7)
+    doc.setTextColor(180)
+    doc.text(`Pág. ${pageNum} / ${totalPages}`, PW - MR, PH - 4, { align: 'right' })
     doc.setTextColor(0, 0, 0)
   }
 
@@ -331,12 +334,15 @@ function exportarPDF() {
   // ── Construir filas de la tabla con grupos ────────────────
   const body = []
   for (const grupo of productosAgrupados.value) {
-    // Fila de grupo
-    body.push([
-      { content: grupo.nombre.toUpperCase(), colSpan: 9,
-        styles: { fontStyle: 'bold', fillColor: [240, 249, 255], textColor: [8, 100, 140], fontSize: 8 } }
-    ])
-    // Filas de productos
+    body.push([{
+      content: grupo.nombre.toUpperCase(),
+      colSpan: 9,
+      styles: {
+        fontStyle: 'bold', fontSize: 6.5,
+        textColor: [8, 100, 140],
+        cellPadding: { top: 5, bottom: 1, left: 1, right: 1 },
+      }
+    }])
     for (const p of grupo.items) {
       body.push([
         p.codigo,
@@ -351,7 +357,8 @@ function exportarPDF() {
       ])
     }
   }
-  // Fila de totales
+
+  const totalsRowIndex = body.length
   body.push([
     { content: 'TOTALES', colSpan: 3, styles: { fontStyle: 'bold' } },
     { content: formatNum(totalStockAnterior.value), styles: { fontStyle: 'bold', halign: 'right' } },
@@ -359,46 +366,58 @@ function exportarPDF() {
     { content: formatNum(totalSalidas.value),   styles: { fontStyle: 'bold', halign: 'right', textColor: [245,158,11] } },
     { content: formatNum(totalVentas.value),    styles: { fontStyle: 'bold', halign: 'right', textColor: [239,68,68] } },
     { content: formatNum(totalStockFinal.value),styles: { fontStyle: 'bold', halign: 'right', textColor: [8,145,178] } },
-    { content: '', styles: {} },
+    { content: '' },
   ])
 
-  // ── autoTable ─────────────────────────────────────────────
+  // ── autoTable minimalista ─────────────────────────────────
   autoTable(doc, {
-    startY: 22,
+    startY: 17,
     head: [[
-      { content: 'CÓD',            styles: { halign: 'center' } },
+      { content: 'CÓD',   styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
-      { content: 'UND',            styles: { halign: 'center' } },
-      { content: 'STOCK ANTERIOR', styles: { halign: 'right' } },
-      { content: 'ENTRADAS',       styles: { halign: 'right', textColor: [16,185,129] } },
-      { content: 'SALIDAS',        styles: { halign: 'right', textColor: [245,158,11] } },
-      { content: 'VENTAS',         styles: { halign: 'right', textColor: [239,68,68] } },
-      { content: 'STOCK FINAL',    styles: { halign: 'right', textColor: [8,145,178] } },
-      { content: 'CANTIDAD',       styles: { halign: 'center' } },
+      { content: 'UND',   styles: { halign: 'center' } },
+      { content: 'ANT.',  styles: { halign: 'right' } },
+      { content: 'ENT.',  styles: { halign: 'right', textColor: [16,185,129] } },
+      { content: 'SAL.',  styles: { halign: 'right', textColor: [245,158,11] } },
+      { content: 'VEN.',  styles: { halign: 'right', textColor: [239,68,68] } },
+      { content: 'FINAL', styles: { halign: 'right', textColor: [8,145,178] } },
+      { content: 'CANT.', styles: { halign: 'center' } },
     ]],
     body,
-    theme: 'grid',
-    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontSize: 8, fontStyle: 'bold', cellPadding: 3 },
-    bodyStyles: { fontSize: 8, cellPadding: 2.5 },
-    columnStyles: {
-      0: { cellWidth: 12,  halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 12,  halign: 'center' },
-      3: { cellWidth: 24,  halign: 'right' },
-      4: { cellWidth: 20,  halign: 'right', textColor: [16,185,129] },
-      5: { cellWidth: 20,  halign: 'right', textColor: [245,158,11] },
-      6: { cellWidth: 20,  halign: 'right', textColor: [239,68,68] },
-      7: { cellWidth: 22,  halign: 'right', textColor: [8,145,178] },
-      8: { cellWidth: 40,  halign: 'center', textColor: [150,150,150] },
+    theme: 'plain',
+    headStyles: {
+      textColor: [80, 80, 80], fontSize: 7, fontStyle: 'bold',
+      cellPadding: { top: 1, bottom: 2, left: 1, right: 1 },
+      lineWidth: { bottom: 0.4 }, lineColor: [180, 180, 180],
     },
-    margin: { left: 10, right: 10 },
-    didDrawPage: (data) => {
-      drawHeader()
-      // pie se agrega al final
+    bodyStyles: {
+      fontSize: 7,
+      cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 },
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 10,  halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 9,   halign: 'center' },
+      3: { cellWidth: 18,  halign: 'right' },
+      4: { cellWidth: 15,  halign: 'right', textColor: [16,185,129] },
+      5: { cellWidth: 15,  halign: 'right', textColor: [245,158,11] },
+      6: { cellWidth: 15,  halign: 'right', textColor: [239,68,68] },
+      7: { cellWidth: 18,  halign: 'right', textColor: [8,145,178] },
+      8: { cellWidth: 28,  halign: 'center', textColor: [160,160,160] },
+    },
+    margin: { left: ML, right: MR },
+    didDrawPage: () => drawHeader(),
+    // Línea fina encima de la fila de totales
+    willDrawCell: (data) => {
+      if (data.section === 'body' && data.row.index === totalsRowIndex) {
+        doc.setDrawColor(160, 160, 160)
+        doc.setLineWidth(0.4)
+        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y)
+      }
     },
   })
 
-  // Pie en todas las páginas
   const totalPgs = doc.internal.getNumberOfPages()
   for (let i = 1; i <= totalPgs; i++) {
     doc.setPage(i)
