@@ -801,7 +801,8 @@
           <div>
             <div class="rs-dlg-success-title">¡Registrado correctamente!</div>
             <div class="rs-dlg-success-sub">
-              Se crearon {{ saveResumenResult?.total }} registros en la tabla Gastos con origen SQUARE.
+              Se crearon {{ saveResumenResult?.total }} registros en <strong>GASTOS</strong>
+              y 1 registro en <strong>VENTAS</strong>.
             </div>
           </div>
           <div class="rs-dlg-success-codigos">
@@ -825,11 +826,14 @@
                 <span class="rs-conflict-banner-title">¡Ya existen registros para esta importación!</span>
               </div>
               <div class="rs-conflict-banner-msg">
-                Se encontraron <strong>{{ conflictInfo.count }} registros</strong> en la tabla GASTOS
-                para la misma <strong>fecha</strong>, <strong>centro de costo</strong> y <strong>empresa</strong>
-                con origen <strong>SQUARE</strong>.<br><br>
-                Si confirmas, los registros anteriores serán <strong style="color:#ef4444">eliminados permanentemente</strong>
-                y se insertarán los nuevos.
+                Se encontraron registros existentes para la misma <strong>fecha</strong>,
+                <strong>centro de costo</strong> y <strong>empresa</strong>:
+                <strong>{{ conflictInfo.count }}</strong> en GASTOS
+                <template v-if="conflictInfo.countVentas > 0">
+                  y <strong>{{ conflictInfo.countVentas }}</strong> en VENTAS
+                </template>.<br><br>
+                Si confirmas, todos esos registros serán <strong style="color:#ef4444">eliminados</strong>
+                y se insertarán los nuevos datos.
               </div>
             </div>
           </div>
@@ -1406,7 +1410,7 @@ async function confirmarGuardarResumen(force = false) {
     })
     // Conflicto de duplicados — mostrar advertencia al usuario
     if (resp.data?.conflict) {
-      conflictInfo.value = { count: resp.data.count }
+      conflictInfo.value = { count: resp.data.count || 0, countVentas: resp.data.countVentas || 0 }
       return
     }
     if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')

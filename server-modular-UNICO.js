@@ -5477,8 +5477,8 @@ app.put('/api/config-general', async (req, res) => {
 });
 
 // POST /api/square/importar-resumen
-// Inserta hasta 7 registros en gastos (transacción atómica)
-// Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...} }
+// Inserta hasta 7 registros en gastos + 1 registro en ventas (transacción atómica)
+// Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...}, force }
 app.post('/api/square/importar-resumen', async (req, res) => {
     const { empresa, fecha, ccosto, ventas, pagos, force } = req.body;
     if (!empresa || !fecha || !ccosto) {
@@ -5500,32 +5500,76 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         if (cfgRes.rows.length === 0) throw new Error('No existe configuración general para esta empresa');
         const cfg = cfgRes.rows[0];
 
-        // 2. Verificar duplicados (misma fecha + ccosto + empresa + origen=SQUARE)
+        // 2. Verificar duplicados en gastos (misma fecha + ccosto + empresa + origen=SQUARE)
         const dupRes = await client.query(
             `SELECT COUNT(*) AS cnt FROM gastos
              WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND origen = 'SQUARE'`,
             [fecha, ccosto, empresa]
         );
         const dupCount = parseInt(dupRes.rows[0].cnt) || 0;
-        if (dupCount > 0 && !force) {
+
+        // También verificar duplicado en ventas
+        const dupVentasRes = await client.query(
+            `SELECT COUNT(*) AS cnt FROM ventas
+             WHERE fecha = $1 AND ccosto = $2 AND empresa = $3`,
+            [fecha, ccosto, parseInt(empresa)]
+        );
+        const dupVentasCount = parseInt(dupVentasRes.rows[0].cnt) || 0;
+
+        const totalDups = dupCount + dupVentasCount;
+        if (totalDups > 0 && !force) {
             await client.query('ROLLBACK');
             return res.json({
                 success: false,
                 conflict: true,
                 count: dupCount,
-                message: `Ya existen ${dupCount} registros para esta fecha, centro de costo y empresa con origen SQUARE.`
+                countVentas: dupVentasCount,
+                message: `Ya existen registros para esta fecha, centro de costo y empresa (${dupCount} en gastos, ${dupVentasCount} en ventas).`
             });
         }
-        if (dupCount > 0 && force) {
-            // Eliminar registros anteriores antes de reinsertar
-            await client.query(
-                `DELETE FROM gastos
-                 WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND origen = 'SQUARE'`,
-                [fecha, ccosto, empresa]
-            );
+        if (totalDups > 0 && force) {
+            // Eliminar registros anteriores en ambas tablas
+            if (dupCount > 0) {
+                await client.query(
+                    `DELETE FROM gastos
+                     WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND origen = 'SQUARE'`,
+                    [fecha, ccosto, empresa]
+                );
+            }
+            if (dupVentasCount > 0) {
+                await client.query(
+                    `DELETE FROM ventas
+                     WHERE fecha = $1 AND ccosto = $2 AND empresa = $3`,
+                    [fecha, ccosto, parseInt(empresa)]
+                );
+            }
         }
 
-        // 3. Bloquear tabla y obtener MAX codigo
+        // 3. Calcular valores (siempre positivos con Math.abs)
+        const vBrutas   = Math.abs(parseFloat(ventas.ventasBrutas) || 0);
+        const vDevoluc  = Math.abs(parseFloat(ventas.devoluciones) || 0);
+        const vNetas    = Math.abs(vBrutas - vDevoluc);
+        const descuentos = Math.abs(parseFloat(ventas.descuentos)  || 0);
+        const impuestos  = Math.abs(parseFloat(ventas.impuestos)   || 0);
+        const propinas   = Math.abs(parseFloat(ventas.propinas)    || 0);
+        const comisiones = Math.abs(parseFloat(pagos.comisiones)   || 0);
+        const efectivo   = Math.abs(parseFloat(pagos.efectivo)     || 0);
+        const tarjetas   = Math.abs(parseFloat(pagos.tarjeta)      || 0)
+                         + Math.abs(parseFloat(pagos.tarjetaRegalo) || 0);
+        const otros      = Math.abs(parseFloat(pagos.otro)         || 0);
+
+        // 4. INSERT en tabla ventas
+        await client.query(
+            `INSERT INTO ventas
+                (fecha, ccosto, ventas_brutas, devoluciones, descuentos, ventas_netas,
+                 impuestos, propinas, comisiones, tarjetas, efectivo, empresa, otros)
+             VALUES ($1, $2, $3, $4, $5, $6,
+                     $7, $8, $9, $10, $11, $12, $13)`,
+            [fecha, ccosto, vBrutas, vDevoluc, descuentos, vNetas,
+             impuestos, propinas, comisiones, tarjetas, efectivo, parseInt(empresa), otros]
+        );
+
+        // 5. Bloquear tabla gastos y obtener MAX codigo
         await client.query('LOCK TABLE gastos IN SHARE ROW EXCLUSIVE MODE');
         const maxRes = await client.query(
             `SELECT COALESCE(MAX(CAST(codigo AS BIGINT)), 0) AS max_codigo
@@ -5534,28 +5578,21 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         );
         let seq = parseInt(maxRes.rows[0].max_codigo) + 1;
 
-        // 4. Calcular valores (siempre positivos con Math.abs)
-        const ventasNetas  = Math.abs((parseFloat(ventas.ventasBrutas) || 0) - (parseFloat(ventas.devoluciones) || 0));
-        const descuentos   = Math.abs(parseFloat(ventas.descuentos)  || 0);
-        const impuestos    = Math.abs(parseFloat(ventas.impuestos)   || 0);
-        const propinas     = Math.abs(parseFloat(ventas.propinas)    || 0);
-        const comisiones   = Math.abs(parseFloat(pagos.comisiones)   || 0);
-
-        // 5. Definir los 7 registros
+        // 6. Definir los 7 registros de gastos
         const records = [
-            { cuenta: cfg.cta_ventas,            valor: ventasNetas  },
-            { cuenta: cfg.cta_descuentos_ventas,  valor: descuentos   },
-            { cuenta: cfg.cta_impuestos,          valor: impuestos    },
-            { cuenta: cfg.cta_propinas,           valor: propinas     },
-            { cuenta: cfg.cta_comisiones,         valor: comisiones   },
-            { cuenta: cfg.cta_egresos_impuestos,  valor: impuestos    },
-            { cuenta: cfg.cta_egresos_propinas,   valor: propinas     },
+            { cuenta: cfg.cta_ventas,            valor: vNetas     },
+            { cuenta: cfg.cta_descuentos_ventas,  valor: descuentos },
+            { cuenta: cfg.cta_impuestos,          valor: impuestos  },
+            { cuenta: cfg.cta_propinas,           valor: propinas   },
+            { cuenta: cfg.cta_comisiones,         valor: comisiones },
+            { cuenta: cfg.cta_egresos_impuestos,  valor: impuestos  },
+            { cuenta: cfg.cta_egresos_propinas,   valor: propinas   },
         ];
 
-        // 6. Insertar cada registro
+        // 7. Insertar cada registro en gastos
         const insertados = [];
         for (const rec of records) {
-            if (!rec.cuenta || rec.cuenta.trim() === '') continue; // omitir si la cuenta no está configurada
+            if (!rec.cuenta || rec.cuenta.trim() === '') continue;
             const codigo = String(seq).padStart(10, '0');
             await client.query(
                 `INSERT INTO gastos
@@ -5572,7 +5609,14 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         }
 
         await client.query('COMMIT');
-        res.json({ success: true, data: { registros: insertados, total: insertados.length } });
+        res.json({
+            success: true,
+            data: {
+                registros: insertados,
+                total: insertados.length,
+                ventas: { fecha, ccosto, ventas_brutas: vBrutas, ventas_netas: vNetas }
+            }
+        });
 
     } catch (error) {
         await client.query('ROLLBACK');
