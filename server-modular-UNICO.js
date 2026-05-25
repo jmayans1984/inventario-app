@@ -589,8 +589,8 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
                     client.query(`SELECT nombre FROM ccostos WHERE codigo=$1 AND empresa=$2`, [ccOrigen, emp]),
                     client.query(`SELECT nombre FROM ccostos WHERE codigo=$1 AND empresa=$2`, [ccDestino, emp]),
                 ]);
-                const nombreOrigen  = resOrigen.rows[0]?.nombre  || ccOrigen;
-                const nombreDestino = resDestino.rows[0]?.nombre || ccDestino;
+                const nombreOrigen  = (resOrigen.rows[0]?.nombre  || ccOrigen).toUpperCase();
+                const nombreDestino = (resDestino.rows[0]?.nombre || ccDestino).toUpperCase();
 
                 // Registro en CC Origen: SALIDA POR TRASLADO  (entrada=0, salida=cant)
                 await client.query(

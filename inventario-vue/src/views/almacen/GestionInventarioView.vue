@@ -90,7 +90,8 @@
           <!-- OBSERVACIONES -->
           <v-col cols="12" :sm="tipoOp === 'TRASLADO' ? 12 : 4">
             <v-text-field
-              v-model="observaciones"
+              :model-value="observaciones"
+              @update:model-value="observaciones = $event.toUpperCase()"
               label="Observaciones"
               variant="outlined"
               density="compact"
