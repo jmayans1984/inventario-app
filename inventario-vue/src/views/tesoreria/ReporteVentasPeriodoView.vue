@@ -59,12 +59,19 @@
             <v-icon size="13" color="#f59e0b">mdi-map-marker-outline</v-icon>
             <span>Centro de Costos</span>
           </div>
-          <select v-model="ccostoFiltro" class="filter-select">
-            <option value="TODOS">TODOS LOS CENTROS</option>
-            <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">
-              {{ c.codigo }} — {{ c.nombre }}
-            </option>
-          </select>
+          <v-select
+            v-model="ccostoFiltro"
+            :items="ccostoItems"
+            item-title="label"
+            item-value="value"
+            density="compact"
+            variant="outlined"
+            hide-details
+            :loading="ccostosLoading"
+            class="filter-select-v"
+            bg-color="rgb(var(--v-theme-surface))"
+            style="min-width:220px"
+          />
         </div>
 
       </div>
@@ -209,7 +216,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
@@ -237,25 +244,42 @@ function ultimoDiaMes() {
   return new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().slice(0, 10)
 }
 
-const fechaInicio  = ref(primerDiaMes())
-const fechaFin     = ref(ultimoDiaMes())
-const ccostoFiltro = ref('TODOS')
-const ccostos      = ref([])
-const rows         = ref([])
-const totals       = ref({ ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
-                           impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 })
-const loading      = ref(false)
-const error        = ref('')
-const consultado   = ref(false)
+const fechaInicio    = ref(primerDiaMes())
+const fechaFin       = ref(ultimoDiaMes())
+const ccostoFiltro   = ref('TODOS')
+const ccostos        = ref([])
+const ccostosLoading = ref(false)
+const rows           = ref([])
+const totals         = ref({ ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
+                             impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 })
+const loading        = ref(false)
+const error          = ref('')
+const consultado     = ref(false)
+
+// Items para el v-select de ccostos (incluye opción TODOS)
+const ccostoItems = computed(() => [
+  { label: 'TODOS LOS CENTROS', value: 'TODOS' },
+  ...ccostos.value.map(c => ({ label: `${c.codigo} — ${c.nombre}`, value: c.codigo }))
+])
 
 // ── Cargar ccostos ──────────────────────────────────────────────
 async function fetchCcostos() {
   const emp = getEmpresa()
-  if (!emp) return
+  if (!emp) {
+    console.warn('[ventas-periodo] fetchCcostos: empresa vacía')
+    return
+  }
+  ccostosLoading.value = true
   try {
     const r = await api.get('/ccostos', { params: { empresa: emp } })
-    if (r.data?.success) ccostos.value = r.data.data || []
-  } catch (e) { console.error('fetchCcostos:', e) }
+    console.log('[ventas-periodo] ccostos response:', r.data)
+    const data = r.data?.data ?? r.data
+    ccostos.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('[ventas-periodo] fetchCcostos error:', e)
+  } finally {
+    ccostosLoading.value = false
+  }
 }
 
 // ── Consultar ───────────────────────────────────────────────────
@@ -498,15 +522,7 @@ onMounted(() => {
   outline: none; transition: border-color .2s;
 }
 .date-input:focus { border-color: #06b6d4; }
-.filter-select {
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
-  border-radius: 8px; padding: 7px 10px;
-  font-size: 13px; background: rgba(var(--v-theme-on-surface), 0.04);
-  color: rgb(var(--v-theme-on-surface));
-  outline: none; min-width: 220px;
-  cursor: pointer;
-}
-.filter-select:focus { border-color: #06b6d4; }
+.filter-select-v { min-width: 220px; }
 .filters-footer { margin-top: 14px; display: flex; justify-content: flex-end; }
 .btn-consultar {
   display: flex; align-items: center; gap: 6px;
