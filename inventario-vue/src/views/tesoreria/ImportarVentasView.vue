@@ -801,8 +801,9 @@
           <div>
             <div class="rs-dlg-success-title">¡Registrado correctamente!</div>
             <div class="rs-dlg-success-sub">
-              Se crearon {{ saveResumenResult?.total }} registros en <strong>GASTOS</strong>
-              y 1 registro en <strong>VENTAS</strong>.
+              Se crearon {{ saveResumenResult?.total }} registros en <strong>GASTOS</strong>,
+              1 en <strong>VENTAS</strong>
+              y {{ saveResumenResult?.detalles }} en <strong>DETALLE_VENTAS</strong>.
             </div>
           </div>
           <div class="rs-dlg-success-codigos">
@@ -828,10 +829,10 @@
               <div class="rs-conflict-banner-msg">
                 Se encontraron registros existentes para la misma <strong>fecha</strong>,
                 <strong>centro de costo</strong> y <strong>empresa</strong>:
-                <strong>{{ conflictInfo.count }}</strong> en GASTOS
-                <template v-if="conflictInfo.countVentas > 0">
-                  y <strong>{{ conflictInfo.countVentas }}</strong> en VENTAS
-                </template>.<br><br>
+                <template v-if="conflictInfo.count > 0"><strong>{{ conflictInfo.count }}</strong> en GASTOS — </template>
+                <template v-if="conflictInfo.countVentas > 0"><strong>{{ conflictInfo.countVentas }}</strong> en VENTAS — </template>
+                <template v-if="conflictInfo.countDetalle > 0"><strong>{{ conflictInfo.countDetalle }}</strong> en DETALLE_VENTAS</template>
+                <br><br>
                 Si confirmas, todos esos registros serán <strong style="color:#ef4444">eliminados</strong>
                 y se insertarán los nuevos datos.
               </div>
@@ -1406,11 +1407,12 @@ async function confirmarGuardarResumen(force = false) {
       ccosto:  configCcosto.value,
       ventas:  resumen.value.ventas,
       pagos:   resumen.value.pagos,
+      items:   articulos.value?.items || [],
       force,
     })
     // Conflicto de duplicados — mostrar advertencia al usuario
     if (resp.data?.conflict) {
-      conflictInfo.value = { count: resp.data.count || 0, countVentas: resp.data.countVentas || 0 }
+      conflictInfo.value = { count: resp.data.count || 0, countVentas: resp.data.countVentas || 0, countDetalle: resp.data.countDetalle || 0 }
       return
     }
     if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
@@ -1636,6 +1638,8 @@ function parseArticulos(buffer, filename) {
     const iDesc      = hdr.findIndex(h => h.includes('descuentos'))
     const iNetas     = hdr.findIndex(h => h.includes('ventas netas'))
     const iImpuestos = hdr.findIndex(h => h.includes('impuesto'))
+    const iSubtotal  = hdr.findIndex(h => h.includes('subtotal'))
+    const iVrUnit    = hdr.findIndex(h => h.includes('precio por') || h.includes('unitario') || (h.includes('vr') && h.includes('unit')))
 
     for (let i = itemsHeaderIdx + 1; i < lines.length; i++) {
       const line = lines[i]
@@ -1653,6 +1657,8 @@ function parseArticulos(buffer, filename) {
         descuentos:   parseNum(line[iDesc]),
         ventasNetas:  parseNum(line[iNetas]),
         impuestos:    parseNum(line[iImpuestos]),
+        subtotal:     iSubtotal >= 0 ? parseNum(line[iSubtotal]) : null,
+        vrUnit:       iVrUnit   >= 0 ? parseNum(line[iVrUnit])   : null,
       }
       if (item.nombre) result.items.push(item)
     }

@@ -5480,7 +5480,7 @@ app.put('/api/config-general', async (req, res) => {
 // Inserta hasta 7 registros en gastos + 1 registro en ventas (transacción atómica)
 // Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...}, force }
 app.post('/api/square/importar-resumen', async (req, res) => {
-    const { empresa, fecha, ccosto, ventas, pagos, force } = req.body;
+    const { empresa, fecha, ccosto, ventas, pagos, items = [], force } = req.body;
     if (!empresa || !fecha || !ccosto) {
         return res.status(400).json({ success: false, error: 'empresa, fecha y ccosto son requeridos' });
     }
@@ -5516,7 +5516,15 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         );
         const dupVentasCount = parseInt(dupVentasRes.rows[0].cnt) || 0;
 
-        const totalDups = dupCount + dupVentasCount;
+        // Verificar duplicado en detalle_ventas
+        const dupDetalleRes = await client.query(
+            `SELECT COUNT(*) AS cnt FROM detalle_ventas
+             WHERE fecha = $1 AND ccosto = $2 AND empresa = $3`,
+            [fecha, ccosto, parseInt(empresa)]
+        );
+        const dupDetalleCount = parseInt(dupDetalleRes.rows[0].cnt) || 0;
+
+        const totalDups = dupCount + dupVentasCount + dupDetalleCount;
         if (totalDups > 0 && !force) {
             await client.query('ROLLBACK');
             return res.json({
@@ -5524,11 +5532,12 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 conflict: true,
                 count: dupCount,
                 countVentas: dupVentasCount,
-                message: `Ya existen registros para esta fecha, centro de costo y empresa (${dupCount} en gastos, ${dupVentasCount} en ventas).`
+                countDetalle: dupDetalleCount,
+                message: `Ya existen registros para esta fecha, centro de costo y empresa.`
             });
         }
         if (totalDups > 0 && force) {
-            // Eliminar registros anteriores en ambas tablas
+            // Eliminar registros anteriores en las tres tablas
             if (dupCount > 0) {
                 await client.query(
                     `DELETE FROM gastos
@@ -5539,6 +5548,13 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             if (dupVentasCount > 0) {
                 await client.query(
                     `DELETE FROM ventas
+                     WHERE fecha = $1 AND ccosto = $2 AND empresa = $3`,
+                    [fecha, ccosto, parseInt(empresa)]
+                );
+            }
+            if (dupDetalleCount > 0) {
+                await client.query(
+                    `DELETE FROM detalle_ventas
                      WHERE fecha = $1 AND ccosto = $2 AND empresa = $3`,
                     [fecha, ccosto, parseInt(empresa)]
                 );
@@ -5608,12 +5624,31 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             seq++;
         }
 
+        // 8. INSERT en detalle_ventas (un registro por ítem)
+        let detallesInsertados = 0;
+        for (const item of items) {
+            if (!item.nombre) continue;
+            const codigo  = item.sku  ? String(item.sku).substring(0, 6)   : null;
+            const nombre  = item.nombre ? String(item.nombre).substring(0, 100) : '';
+            const cant    = parseFloat(item.cantidad)  || 0;
+            const vrUnit  = Math.abs(parseFloat(item.vrUnit)   || 0);
+            const subtot  = Math.abs(parseFloat(item.subtotal) || 0);
+            await client.query(
+                `INSERT INTO detalle_ventas
+                    (fecha, ccosto, codigo, nombre, cant, vr_unit, subtotal, empresa)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [fecha, ccosto, codigo, nombre, cant, vrUnit, subtot, parseInt(empresa)]
+            );
+            detallesInsertados++;
+        }
+
         await client.query('COMMIT');
         res.json({
             success: true,
             data: {
                 registros: insertados,
                 total: insertados.length,
+                detalles: detallesInsertados,
                 ventas: { fecha, ccosto, ventas_brutas: vBrutas, ventas_netas: vNetas }
             }
         });
