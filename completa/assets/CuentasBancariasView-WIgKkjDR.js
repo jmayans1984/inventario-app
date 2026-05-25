@@ -1,1 +1,0 @@
-import{Wt as e,in as t,nn as n,r}from"./index-CH2-xCB9.js";var i={__name:`CuentasBancariasView`,setup(i){let a=r();return n(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(n,r)=>(t(),e(`div`))}};export{i as default};

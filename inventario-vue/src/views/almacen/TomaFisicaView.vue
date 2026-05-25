@@ -16,11 +16,79 @@
         <div class="tf-header-icon">
           <v-icon size="28" color="white">mdi-counter</v-icon>
         </div>
-        <div>
-          <h2 class="tf-title">Toma Física / Ajuste de Inventario</h2>
+        <div class="tf-header-text">
+          <div class="tf-title-row">
+            <h2 class="tf-title">Toma Física / Ajuste de Inventario</h2>
+            <v-btn
+              icon size="small" variant="text"
+              color="#0891b2"
+              title="¿Cómo funciona este módulo?"
+              @click="dlgAyuda = true"
+            >
+              <v-icon size="20">mdi-help-circle-outline</v-icon>
+            </v-btn>
+          </div>
           <p class="tf-subtitle">Registra el conteo físico y genera los ajustes automáticos en el inventario</p>
         </div>
       </div>
+
+      <!-- DIALOG AYUDA -->
+      <v-dialog v-model="dlgAyuda" max-width="560">
+        <v-card>
+          <v-card-title class="d-flex align-center gap-2 pa-4 pb-2">
+            <v-icon color="#0891b2">mdi-help-circle-outline</v-icon>
+            ¿Cómo funciona la Toma Física?
+          </v-card-title>
+          <v-divider />
+          <v-card-text class="pa-4" style="font-size:14px;line-height:1.7">
+
+            <div class="ayuda-bloque">
+              <div class="ayuda-icon"><v-icon color="#0891b2" size="20">mdi-numeric-1-circle</v-icon></div>
+              <div>
+                <strong>¿Qué hace este módulo?</strong><br>
+                Compara el stock que tiene el sistema con el conteo real que hiciste en bodega.
+                La diferencia se registra automáticamente en el inventario como <em>AJUSTE DE INVENTARIO</em>.
+              </div>
+            </div>
+
+            <div class="ayuda-bloque">
+              <div class="ayuda-icon"><v-icon color="#f59e0b" size="20">mdi-numeric-2-circle</v-icon></div>
+              <div>
+                <strong>Filas sin conteo → se omiten</strong><br>
+                Si dejas un producto en blanco, el sistema <strong>no asume que tiene cero</strong> — simplemente lo omite.
+                Solo se ajustan los productos donde escribiste un conteo físico
+                <em>y</em> ese conteo es diferente al stock actual.
+              </div>
+            </div>
+
+            <div class="ayuda-bloque">
+              <div class="ayuda-icon"><v-icon color="#10b981" size="20">mdi-numeric-3-circle</v-icon></div>
+              <div>
+                <strong>¿Qué fecha usar?</strong><br>
+                Usa la fecha en que <strong>se cerró el inventario</strong>, no la fecha de hoy.
+                <br><br>
+                <em>Ejemplo:</em> Si hoy es 25 de mayo pero el conteo lo hiciste anoche después del
+                cierre de ventas, registra la toma con fecha <strong>24 de mayo</strong>.
+                Así el ajuste queda en el momento exacto del conteo, no después de los movimientos del día siguiente.
+              </div>
+            </div>
+
+            <div class="ayuda-bloque">
+              <div class="ayuda-icon"><v-icon color="#8b5cf6" size="20">mdi-numeric-4-circle</v-icon></div>
+              <div>
+                <strong>¿Qué registra en el inventario?</strong><br>
+                • Diferencia <span style="color:#10b981;font-weight:700">positiva</span> (conteo &gt; sistema) → va a <strong>Entrada</strong><br>
+                • Diferencia <span style="color:#ef4444;font-weight:700">negativa</span> (conteo &lt; sistema) → va a <strong>Salida</strong>
+              </div>
+            </div>
+
+          </v-card-text>
+          <v-divider />
+          <v-card-actions class="pa-3 justify-end">
+            <v-btn color="#0891b2" variant="elevated" @click="dlgAyuda = false">Entendido</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
       <!-- FORMULARIO CABECERA -->
       <div class="tf-form-card">
@@ -264,6 +332,7 @@ const stockCargado  = ref(false)
 // ── UI ────────────────────────────────────────────────────────
 const guardando      = ref(false)
 const dlgConflicto   = ref(false)
+const dlgAyuda       = ref(false)
 const conflictCount  = ref(0)
 const errorMsg       = ref('')
 const exitoMsg       = ref('')
@@ -444,8 +513,14 @@ async function guardar(mode = 'new') {
 
 .tf-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
 .tf-header-icon { width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg,#06b6d4,#0891b2); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 14px rgba(6,182,212,.3); }
+.tf-header-text { flex: 1; }
+.tf-title-row { display: flex; align-items: center; gap: 4px; }
 .tf-title    { font-size: 20px; font-weight: 800; margin: 0; }
 .tf-subtitle { font-size: 13px; color: rgba(var(--v-theme-on-surface),.55); margin: 2px 0 0; }
+
+.ayuda-bloque { display: flex; gap: 12px; margin-bottom: 18px; }
+.ayuda-bloque:last-child { margin-bottom: 0; }
+.ayuda-icon { flex-shrink: 0; padding-top: 2px; }
 
 .tf-form-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
 .tf-form-row  { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
