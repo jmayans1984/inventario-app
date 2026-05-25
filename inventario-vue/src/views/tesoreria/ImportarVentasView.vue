@@ -801,9 +801,10 @@
           <div>
             <div class="rs-dlg-success-title">¡Registrado correctamente!</div>
             <div class="rs-dlg-success-sub">
-              Se crearon {{ saveResumenResult?.total }} registros en <strong>GASTOS</strong>,
-              1 en <strong>VENTAS</strong>
-              y {{ saveResumenResult?.detalles }} en <strong>DETALLE_VENTAS</strong>.
+              Se crearon {{ saveResumenResult?.total }} en <strong>GASTOS</strong>,
+              1 en <strong>VENTAS</strong>,
+              {{ saveResumenResult?.detalles }} en <strong>DETALLE_VENTAS</strong>
+              y {{ saveResumenResult?.inventario }} en <strong>DETALLE_INVENTARIO</strong>.
             </div>
           </div>
           <div class="rs-dlg-success-codigos">
@@ -831,7 +832,8 @@
                 <strong>centro de costo</strong> y <strong>empresa</strong>:
                 <template v-if="conflictInfo.count > 0"><strong>{{ conflictInfo.count }}</strong> en GASTOS — </template>
                 <template v-if="conflictInfo.countVentas > 0"><strong>{{ conflictInfo.countVentas }}</strong> en VENTAS — </template>
-                <template v-if="conflictInfo.countDetalle > 0"><strong>{{ conflictInfo.countDetalle }}</strong> en DETALLE_VENTAS</template>
+                <template v-if="conflictInfo.countDetalle > 0"><strong>{{ conflictInfo.countDetalle }}</strong> en DETALLE_VENTAS — </template>
+                <template v-if="conflictInfo.countInventario > 0"><strong>{{ conflictInfo.countInventario }}</strong> en DETALLE_INVENTARIO</template>
                 <br><br>
                 Si confirmas, todos esos registros serán <strong style="color:#ef4444">eliminados</strong>
                 y se insertarán los nuevos datos.
@@ -1402,17 +1404,18 @@ async function confirmarGuardarResumen(force = false) {
   conflictInfo.value     = null
   try {
     const resp = await api.post('/square/importar-resumen', {
-      empresa: empresaCodigo.value,
-      fecha:   configFecha.value,
-      ccosto:  configCcosto.value,
-      ventas:  resumen.value.ventas,
-      pagos:   resumen.value.pagos,
-      items:   articulos.value?.items || [],
+      empresa:      empresaCodigo.value,
+      fecha:        configFecha.value,
+      ccosto:       configCcosto.value,
+      ventas:       resumen.value.ventas,
+      pagos:        resumen.value.pagos,
+      items:        articulos.value?.items || [],
+      consumoItems: consumo.value || [],
       force,
     })
     // Conflicto de duplicados — mostrar advertencia al usuario
     if (resp.data?.conflict) {
-      conflictInfo.value = { count: resp.data.count || 0, countVentas: resp.data.countVentas || 0, countDetalle: resp.data.countDetalle || 0 }
+      conflictInfo.value = { count: resp.data.count || 0, countVentas: resp.data.countVentas || 0, countDetalle: resp.data.countDetalle || 0, countInventario: resp.data.countInventario || 0 }
       return
     }
     if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')

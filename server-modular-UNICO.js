@@ -5480,7 +5480,7 @@ app.put('/api/config-general', async (req, res) => {
 // Inserta hasta 7 registros en gastos + 1 registro en ventas (transacción atómica)
 // Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...}, force }
 app.post('/api/square/importar-resumen', async (req, res) => {
-    const { empresa, fecha, ccosto, ventas, pagos, items = [], force } = req.body;
+    const { empresa, fecha, ccosto, ventas, pagos, items = [], consumoItems = [], force } = req.body;
     if (!empresa || !fecha || !ccosto) {
         return res.status(400).json({ success: false, error: 'empresa, fecha y ccosto son requeridos' });
     }
@@ -5524,7 +5524,15 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         );
         const dupDetalleCount = parseInt(dupDetalleRes.rows[0].cnt) || 0;
 
-        const totalDups = dupCount + dupVentasCount + dupDetalleCount;
+        // Verificar duplicado en detalle_inventario
+        const dupInvRes = await client.query(
+            `SELECT COUNT(*) AS cnt FROM detalle_inventario
+             WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND tipo = 'SALIDA POR VENTA'`,
+            [fecha, ccosto, parseInt(empresa)]
+        );
+        const dupInvCount = parseInt(dupInvRes.rows[0].cnt) || 0;
+
+        const totalDups = dupCount + dupVentasCount + dupDetalleCount + dupInvCount;
         if (totalDups > 0 && !force) {
             await client.query('ROLLBACK');
             return res.json({
@@ -5533,11 +5541,11 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 count: dupCount,
                 countVentas: dupVentasCount,
                 countDetalle: dupDetalleCount,
+                countInventario: dupInvCount,
                 message: `Ya existen registros para esta fecha, centro de costo y empresa.`
             });
         }
         if (totalDups > 0 && force) {
-            // Eliminar registros anteriores en las tres tablas
             if (dupCount > 0) {
                 await client.query(
                     `DELETE FROM gastos
@@ -5556,6 +5564,13 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 await client.query(
                     `DELETE FROM detalle_ventas
                      WHERE fecha = $1 AND ccosto = $2 AND empresa = $3`,
+                    [fecha, ccosto, parseInt(empresa)]
+                );
+            }
+            if (dupInvCount > 0) {
+                await client.query(
+                    `DELETE FROM detalle_inventario
+                     WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND tipo = 'SALIDA POR VENTA'`,
                     [fecha, ccosto, parseInt(empresa)]
                 );
             }
@@ -5624,13 +5639,13 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             seq++;
         }
 
-        // 8. INSERT en detalle_ventas (un registro por ítem)
+        // 8. INSERT en detalle_ventas (un registro por ítem de artículos)
         let detallesInsertados = 0;
         for (const item of items) {
             if (!item.nombre) continue;
-            const codigo  = item.sku  ? String(item.sku).substring(0, 6)   : null;
+            const codigo  = item.sku  ? String(item.sku).substring(0, 6)       : null;
             const nombre  = item.nombre ? String(item.nombre).substring(0, 100) : '';
-            const cant    = parseFloat(item.cantidad)   || 0;
+            const cant    = parseFloat(item.cantidad)         || 0;
             const vrUnit  = Math.abs(parseFloat(item.precioVenta) || 0);
             const subtot  = Math.abs(parseFloat(item.subtotal)    || 0);
             await client.query(
@@ -5642,6 +5657,20 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             detallesInsertados++;
         }
 
+        // 9. INSERT en detalle_inventario (un registro por ítem de consumo)
+        let inventarioInsertados = 0;
+        for (const c of consumoItems) {
+            if (!c.codigo) continue;
+            const salida = Math.abs(parseFloat(c.totalConsumo) || 0);
+            await client.query(
+                `INSERT INTO detalle_inventario
+                    (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                 VALUES ($1, $2, $3, 0, $4, 'SALIDA POR VENTA', $5, NULL)`,
+                [fecha, ccosto, String(c.codigo), salida, parseInt(empresa)]
+            );
+            inventarioInsertados++;
+        }
+
         await client.query('COMMIT');
         res.json({
             success: true,
@@ -5649,6 +5678,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 registros: insertados,
                 total: insertados.length,
                 detalles: detallesInsertados,
+                inventario: inventarioInsertados,
                 ventas: { fecha, ccosto, ventas_brutas: vBrutas, ventas_netas: vNetas }
             }
         });
