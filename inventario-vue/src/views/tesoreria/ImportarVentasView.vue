@@ -837,6 +837,15 @@
                 <template v-if="conflictInfo.countInventario > 0"><strong>{{ conflictInfo.countInventario }}</strong> en DETALLE_INVENTARIO — </template>
                 <template v-if="conflictInfo.countMoviban > 0"><strong>{{ conflictInfo.countMoviban }}</strong> en MOVIBAN</template>
                 <br><br>
+                <template v-if="conflictInfo.sampleRow">
+                  <span style="font-size:11px;color:#94a3b8;">
+                    🔍 Diagnóstico — fila real en BD:
+                    fecha=<strong>{{ conflictInfo.sampleRow.fecha }}</strong>
+                    ccosto=<strong>{{ conflictInfo.sampleRow.ccosto }}</strong>
+                    empresa=<strong>{{ conflictInfo.sampleRow.empresa }}</strong>
+                  </span>
+                  <br><br>
+                </template>
                 Si confirmas, todos esos registros serán <strong style="color:#ef4444">eliminados</strong>
                 y se insertarán los nuevos datos.
               </div>
@@ -1422,7 +1431,7 @@ async function confirmarGuardarResumen(force = false) {
     })
     // Conflicto de duplicados — mostrar advertencia al usuario
     if (resp.data?.conflict) {
-      conflictInfo.value = { count: resp.data.count || 0, countVentas: resp.data.countVentas || 0, countDetalle: resp.data.countDetalle || 0, countInventario: resp.data.countInventario || 0, countMoviban: resp.data.countMoviban || 0 }
+      conflictInfo.value = { count: resp.data.count || 0, countVentas: resp.data.countVentas || 0, countDetalle: resp.data.countDetalle || 0, countInventario: resp.data.countInventario || 0, countMoviban: resp.data.countMoviban || 0, sampleRow: resp.data.sampleRow || null }
       return
     }
     if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')

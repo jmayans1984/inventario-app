@@ -5992,7 +5992,18 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         const dupMovCount = parseInt(dupMovRes.rows[0].cnt) || 0;
 
         const totalDups = dupCount + dupVentasCount + dupDetalleCount + dupInvCount + dupMovCount;
+        console.log(`[importar-resumen] DUPLICATE CHECK: fecha=${fecha} ccosto=${ccosto} empresa=${empresa} → gastos=${dupCount} ventas=${dupVentasCount} detalle=${dupDetalleCount} inv=${dupInvCount} moviban=${dupMovCount}`);
         if (totalDups > 0 && !force) {
+            // Obtener fila de muestra para diagnóstico
+            let sampleRow = null;
+            try {
+                const sampleRes = await client.query(
+                    `SELECT fecha::text, ccosto::text, empresa::text FROM ventas
+                     WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 LIMIT 1`,
+                    [fecha, ccosto, parseInt(empresa)]
+                );
+                if (sampleRes.rows.length > 0) sampleRow = sampleRes.rows[0];
+            } catch(_) {}
             await client.query('ROLLBACK');
             return res.json({
                 success: false,
@@ -6002,6 +6013,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                 countDetalle: dupDetalleCount,
                 countInventario: dupInvCount,
                 countMoviban: dupMovCount,
+                sampleRow,
                 message: `Ya existen registros para esta fecha, centro de costo y empresa.`
             });
         }
