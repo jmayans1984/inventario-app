@@ -47,18 +47,18 @@
               <p class="kpi-value" style="color:#10b981">{{ conControl }}</p>
             </div>
             <div class="kpi-icon" style="background:#10b98118;color:#10b981">
-              <v-icon size="22">mdi-check-circle-outline</v-icon>
+              <v-icon size="22">mdi-eye-outline</v-icon>
             </div>
           </div>
         </div>
-        <div class="prd-kpi-card" style="border-top:3px solid #f59e0b">
+        <div class="prd-kpi-card" style="border-top:3px solid #94a3b8">
           <div class="kpi-top">
             <div>
               <p class="kpi-label">SIN CONTROL</p>
-              <p class="kpi-value" style="color:#f59e0b">{{ sinControl }}</p>
+              <p class="kpi-value" style="color:#94a3b8">{{ sinControl }}</p>
             </div>
-            <div class="kpi-icon" style="background:#f59e0b18;color:#f59e0b">
-              <v-icon size="22">mdi-minus-circle-outline</v-icon>
+            <div class="kpi-icon" style="background:#94a3b818;color:#94a3b8">
+              <v-icon size="22">mdi-eye-off-outline</v-icon>
             </div>
           </div>
         </div>
@@ -84,22 +84,20 @@
             type="text"
             placeholder="Buscar por código o nombre..."
             class="prd-search-input"
-            @input="filtrar"
           />
-          <v-icon v-if="search" size="16" style="cursor:pointer;color:rgba(var(--v-theme-on-surface),.4)" @click="search='';filtrar()">mdi-close</v-icon>
+          <v-icon v-if="search" size="16" style="cursor:pointer;color:rgba(var(--v-theme-on-surface),.4)" @click="search=''">mdi-close</v-icon>
         </div>
 
         <v-select
           v-model="filtroControl"
-          :items="[{title:'Todos',value:'TODOS'},{title:'Con Control',value:'SI'},{title:'Sin Control',value:'NO'}]"
+          :items="[{title:'Todos',value:'TODOS'},{title:'Con Control (SI)',value:'SI'},{title:'Sin Control (NO)',value:'NO'}]"
           item-title="title"
           item-value="value"
           label="Control"
           variant="outlined"
           density="compact"
           hide-details
-          style="max-width:180px"
-          @update:model-value="filtrar"
+          style="max-width:200px"
         />
 
         <v-select
@@ -112,7 +110,6 @@
           density="compact"
           hide-details
           style="max-width:220px"
-          @update:model-value="filtrar"
         />
 
         <v-btn variant="text" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
@@ -120,7 +117,7 @@
         </v-btn>
       </div>
 
-      <!-- TABLA -->
+      <!-- TABLA AGRUPADA -->
       <div class="prd-tabla-wrap">
         <div v-if="loading" class="prd-loading">
           <v-progress-circular indeterminate color="#0891b2" size="36" />
@@ -133,73 +130,103 @@
               <th class="th-cod">CÓDIGO</th>
               <th class="th-nom">NOMBRE</th>
               <th class="th-und">UNIDAD</th>
-              <th class="th-grp">GRUPO</th>
               <th class="th-ctrl">CONTROL</th>
               <th class="th-acc">ACCIONES</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="productosFiltrados.length === 0">
-              <td colspan="6" class="prd-empty">
-                <v-icon size="36" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
-                <p style="color:rgba(var(--v-theme-on-surface),.4);margin:8px 0 0">No hay productos</p>
-              </td>
-            </tr>
-            <tr v-for="p in productosFiltrados" :key="p.codigo" class="prd-row">
-              <td><span class="badge-cod">{{ p.codigo }}</span></td>
-              <td class="td-nom">{{ p.nombre }}</td>
-              <td><span class="badge-und">{{ p.und }}</span></td>
-              <td class="td-grp">{{ p.grupo_nombre || '—' }}</td>
-              <td>
-                <v-chip
-                  :color="p.control === 'SI' ? 'success' : 'default'"
-                  variant="flat"
-                  size="small"
-                >
-                  {{ p.control === 'SI' ? 'SÍ' : 'NO' }}
-                </v-chip>
-              </td>
-              <td class="td-acc">
-                <v-btn icon size="x-small" variant="text" color="#0891b2" @click="abrirEditar(p)" title="Editar">
-                  <v-icon>mdi-pencil</v-icon>
-                </v-btn>
-                <v-btn icon size="x-small" variant="text" color="error" @click="abrirEliminar(p)" title="Eliminar">
-                  <v-icon>mdi-delete</v-icon>
-                </v-btn>
-              </td>
-            </tr>
+            <template v-if="productosAgrupados.length === 0">
+              <tr>
+                <td colspan="5" class="prd-empty">
+                  <v-icon size="36" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
+                  <p style="color:rgba(var(--v-theme-on-surface),.4);margin:8px 0 0">No hay productos</p>
+                </td>
+              </tr>
+            </template>
+
+            <template v-for="grupo in productosAgrupados" :key="grupo.key">
+              <!-- FILA DE GRUPO -->
+              <tr class="grupo-header-row">
+                <td colspan="5" class="grupo-header-cell">
+                  <v-icon size="15" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
+                  <span class="grupo-header-name">{{ grupo.nombre }}</span>
+                  <span class="grupo-header-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
+                </td>
+              </tr>
+              <!-- FILAS DE PRODUCTOS DEL GRUPO -->
+              <tr v-for="p in grupo.items" :key="p.codigo" class="prd-row">
+                <td><span class="badge-cod">{{ p.codigo }}</span></td>
+                <td class="td-nom">{{ p.nombre }}</td>
+                <td><span class="badge-und">{{ p.und }}</span></td>
+                <td>
+                  <v-chip
+                    :color="p.control === 'SI' ? 'success' : 'default'"
+                    variant="flat"
+                    size="small"
+                  >
+                    {{ p.control === 'SI' ? 'SÍ' : 'NO' }}
+                  </v-chip>
+                </td>
+                <td class="td-acc">
+                  <!-- Toggle control con ojito -->
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    :color="p.control === 'SI' ? '#10b981' : '#94a3b8'"
+                    :title="p.control === 'SI' ? 'Deshabilitar control' : 'Habilitar control'"
+                    :loading="toggling === p.codigo"
+                    @click="toggleControl(p)"
+                  >
+                    <v-icon>{{ p.control === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}</v-icon>
+                  </v-btn>
+                  <!-- Editar -->
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="#0891b2"
+                    title="Editar"
+                    @click="abrirEditar(p)"
+                  >
+                    <v-icon>mdi-pencil</v-icon>
+                  </v-btn>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
 
-      <!-- TOTAL FILTRADO -->
+      <!-- TOTAL -->
       <div v-if="!loading && productosFiltrados.length > 0" class="prd-total">
         Mostrando {{ productosFiltrados.length }} de {{ productos.length }} productos
       </div>
 
       <!-- ═══════════════════ DIALOG CREAR / EDITAR ═══════════════════ -->
-      <v-dialog v-model="dlgForm" max-width="500" persistent>
+      <v-dialog v-model="dlgForm" max-width="480" persistent>
         <v-card rounded="lg">
           <v-card-title class="dlg-title">
-            <v-icon size="20" class="mr-2" color="#0891b2">{{ editando ? 'mdi-pencil' : 'mdi-plus-circle-outline' }}</v-icon>
+            <v-icon size="20" class="mr-2" color="#0891b2">
+              {{ editando ? 'mdi-pencil' : 'mdi-plus-circle-outline' }}
+            </v-icon>
             {{ editando ? 'Editar Producto' : 'Nuevo Producto' }}
           </v-card-title>
           <v-divider />
 
           <v-card-text class="pa-5">
             <v-row dense>
-              <!-- CÓDIGO (solo lectura en edición) -->
+              <!-- CÓDIGO — solo lectura, muestra AUTO en creación -->
               <v-col cols="4">
                 <v-text-field
-                  v-model="form.codigo"
-                  label="Código *"
+                  :model-value="editando ? form.codigo : 'AUTO'"
+                  label="Código"
                   variant="outlined"
                   density="compact"
-                  :readonly="editando"
-                  :bg-color="editando ? 'rgba(var(--v-theme-on-surface),0.04)' : undefined"
-                  maxlength="3"
-                  hide-details="auto"
-                  :error-messages="errores.codigo"
+                  readonly
+                  bg-color="rgba(var(--v-theme-on-surface),0.04)"
+                  hide-details
+                  :style="editando ? '' : 'font-style:italic;opacity:.7'"
                 />
               </v-col>
 
@@ -213,6 +240,7 @@
                   maxlength="60"
                   hide-details="auto"
                   :error-messages="errores.nombre"
+                  autofocus
                 />
               </v-col>
 
@@ -242,7 +270,6 @@
                   density="compact"
                   hide-details
                   clearable
-                  placeholder="Seleccione un grupo..."
                 />
               </v-col>
 
@@ -250,9 +277,7 @@
               <v-col cols="12">
                 <v-select
                   v-model="form.control"
-                  :items="[{title:'SÍ — Este producto maneja stock',value:'SI'},{title:'NO — Solo referencia, sin stock',value:'NO'}]"
-                  item-title="title"
-                  item-value="value"
+                  :items="['SI', 'NO']"
                   label="Control de Inventario *"
                   variant="outlined"
                   density="compact"
@@ -261,50 +286,17 @@
               </v-col>
             </v-row>
 
-            <!-- Error general -->
             <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-3">
               {{ formError }}
             </v-alert>
           </v-card-text>
 
           <v-divider />
-          <v-card-actions class="pa-4 gap-2">
+          <v-card-actions class="pa-4">
             <v-spacer />
             <v-btn variant="text" @click="cerrarDlg" :disabled="guardando">Cancelar</v-btn>
             <v-btn color="#0891b2" variant="elevated" :loading="guardando" @click="guardar">
               {{ editando ? 'Guardar Cambios' : 'Crear Producto' }}
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-
-      <!-- ═══════════════════ DIALOG ELIMINAR ═══════════════════ -->
-      <v-dialog v-model="dlgEliminar" max-width="400" persistent>
-        <v-card rounded="lg">
-          <v-card-title class="dlg-title">
-            <v-icon size="20" class="mr-2" color="error">mdi-delete-alert</v-icon>
-            Eliminar Producto
-          </v-card-title>
-          <v-divider />
-          <v-card-text class="pa-5">
-            <p style="font-size:14px">¿Estás seguro de eliminar el producto?</p>
-            <div class="elim-info">
-              <span class="badge-cod">{{ productoAEliminar?.codigo }}</span>
-              <span style="font-weight:600;margin-left:8px">{{ productoAEliminar?.nombre }}</span>
-            </div>
-            <v-alert type="warning" variant="tonal" density="compact" class="mt-3" icon="mdi-alert">
-              Esta acción no se puede deshacer.
-            </v-alert>
-            <v-alert v-if="elimError" type="error" variant="tonal" density="compact" class="mt-2">
-              {{ elimError }}
-            </v-alert>
-          </v-card-text>
-          <v-divider />
-          <v-card-actions class="pa-4">
-            <v-spacer />
-            <v-btn variant="text" @click="dlgEliminar=false" :disabled="eliminando">Cancelar</v-btn>
-            <v-btn color="error" variant="elevated" :loading="eliminando" @click="confirmarEliminar">
-              Sí, Eliminar
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -319,29 +311,22 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 
-// ── Estado principal ──────────────────────────────────────────
-const productos         = ref([])
-const grupos            = ref([])
-const loading           = ref(false)
-const search            = ref('')
-const filtroControl     = ref('TODOS')
-const filtroGrupo       = ref('TODOS')
+// ── Estado ────────────────────────────────────────────────────
+const productos     = ref([])
+const grupos        = ref([])
+const loading       = ref(false)
+const toggling      = ref(null)   // codigo del producto que está toggling
+const search        = ref('')
+const filtroControl = ref('TODOS')
+const filtroGrupo   = ref('TODOS')
 
 // ── Dialog formulario ─────────────────────────────────────────
 const dlgForm   = ref(false)
 const editando  = ref(false)
 const guardando = ref(false)
 const formError = ref('')
-const errores   = ref({ codigo: '', nombre: '', und: '' })
-
-const formVacio = () => ({ codigo: '', nombre: '', und: '', grupo: null, control: 'NO' })
-const form = ref(formVacio())
-
-// ── Dialog eliminar ───────────────────────────────────────────
-const dlgEliminar       = ref(false)
-const eliminando        = ref(false)
-const elimError         = ref('')
-const productoAEliminar = ref(null)
+const errores   = ref({ nombre: '', und: '' })
+const form      = ref({ codigo: '', nombre: '', und: '', grupo: null, control: 'SI' })
 
 // ── Computed ──────────────────────────────────────────────────
 const conControl = computed(() => productos.value.filter(p => p.control === 'SI').length)
@@ -350,15 +335,31 @@ const sinControl = computed(() => productos.value.filter(p => p.control !== 'SI'
 const productosFiltrados = computed(() => {
   let lista = productos.value
   const q = search.value.trim().toUpperCase()
-  if (q) lista = lista.filter(p => p.nombre.toUpperCase().includes(q) || p.codigo.includes(q))
-  if (filtroControl.value !== 'TODOS') lista = lista.filter(p => p.control === filtroControl.value)
-  if (filtroGrupo.value !== 'TODOS')   lista = lista.filter(p => p.grupo === filtroGrupo.value)
+  if (q) lista = lista.filter(p =>
+    p.nombre.toUpperCase().includes(q) || p.codigo.includes(q)
+  )
+  if (filtroControl.value !== 'TODOS')
+    lista = lista.filter(p => p.control === filtroControl.value)
+  if (filtroGrupo.value !== 'TODOS')
+    lista = lista.filter(p => p.grupo === filtroGrupo.value)
   return lista
 })
 
-// ── Métodos ───────────────────────────────────────────────────
-function filtrar() { /* reactivo via computed */ }
+// Agrupados por grupo, manteniendo el orden que devuelve el backend (por g.codigo)
+const productosAgrupados = computed(() => {
+  const mapa = new Map()   // mantiene orden de inserción = orden del backend
 
+  for (const p of productosFiltrados.value) {
+    const key    = p.grupo || '__sin_grupo__'
+    const nombre = p.grupo_nombre || 'Sin Grupo'
+    if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
+    mapa.get(key).items.push(p)
+  }
+
+  return Array.from(mapa.values())
+})
+
+// ── Métodos ───────────────────────────────────────────────────
 async function cargar() {
   loading.value = true
   try {
@@ -366,8 +367,8 @@ async function cargar() {
       productosAlmacenService.getProductos(),
       productosAlmacenService.getGrupos(),
     ])
-    productos.value = resP.data  || []
-    grupos.value    = resG.data  || []
+    productos.value = resP.data || []
+    grupos.value    = resG.data || []
   } catch (e) {
     console.error('Error cargando productos:', e)
   } finally {
@@ -378,9 +379,9 @@ async function cargar() {
 async function abrirCrear() {
   editando.value  = false
   formError.value = ''
-  errores.value   = { codigo: '', nombre: '', und: '' }
-  form.value      = formVacio()
-  // Cargar próximo código
+  errores.value   = { nombre: '', und: '' }
+  form.value      = { codigo: '', nombre: '', und: '', grupo: null, control: 'SI' }
+  // Obtener próximo código internamente (no se muestra, solo para el POST)
   try {
     const res = await productosAlmacenService.getProximoCodigo()
     form.value.codigo = res.codigo || ''
@@ -391,7 +392,7 @@ async function abrirCrear() {
 function abrirEditar(p) {
   editando.value  = true
   formError.value = ''
-  errores.value   = { codigo: '', nombre: '', und: '' }
+  errores.value   = { nombre: '', und: '' }
   form.value = {
     codigo:  p.codigo,
     nombre:  p.nombre,
@@ -408,9 +409,8 @@ function cerrarDlg() {
 }
 
 function validar() {
-  errores.value = { codigo: '', nombre: '', und: '' }
+  errores.value = { nombre: '', und: '' }
   let ok = true
-  if (!form.value.codigo.trim()) { errores.value.codigo = 'Requerido'; ok = false }
   if (!form.value.nombre.trim()) { errores.value.nombre = 'Requerido'; ok = false }
   if (!form.value.und.trim())    { errores.value.und    = 'Requerido'; ok = false }
   return ok
@@ -422,7 +422,7 @@ async function guardar() {
   formError.value = ''
   try {
     const payload = {
-      codigo:  form.value.codigo.trim().padStart(3, '0'),
+      codigo:  form.value.codigo,
       nombre:  form.value.nombre.trim(),
       und:     form.value.und.trim(),
       grupo:   form.value.grupo || null,
@@ -434,7 +434,7 @@ async function guardar() {
       if (idx !== -1) productos.value[idx] = res.data
     } else {
       const res = await productosAlmacenService.crearProducto(payload)
-      productos.value.unshift(res.data)
+      productos.value.push(res.data)
     }
     dlgForm.value = false
   } catch (e) {
@@ -444,23 +444,19 @@ async function guardar() {
   }
 }
 
-function abrirEliminar(p) {
-  productoAEliminar.value = p
-  elimError.value         = ''
-  dlgEliminar.value       = true
-}
-
-async function confirmarEliminar() {
-  eliminando.value = true
-  elimError.value  = ''
+async function toggleControl(p) {
+  toggling.value = p.codigo
+  const anterior = p.control
+  // Optimistic update
+  p.control = p.control === 'SI' ? 'NO' : 'SI'
   try {
-    await productosAlmacenService.eliminarProducto(productoAEliminar.value.codigo)
-    productos.value  = productos.value.filter(p => p.codigo !== productoAEliminar.value.codigo)
-    dlgEliminar.value = false
-  } catch (e) {
-    elimError.value = e?.response?.data?.error || e.message || 'Error al eliminar'
+    const res = await productosAlmacenService.toggleControl(p.codigo)
+    p.control = res.control
+  } catch {
+    // Revertir si falla
+    p.control = anterior
   } finally {
-    eliminando.value = false
+    toggling.value = null
   }
 }
 
@@ -478,11 +474,11 @@ onMounted(cargar)
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
 
 /* Header */
-.prd-header       { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.prd-header-left  { display: flex; align-items: center; gap: 16px; }
-.prd-icon-wrap    { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,.35); flex-shrink: 0; }
-.prd-title        { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
-.prd-sub          { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
+.prd-header      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.prd-header-left { display: flex; align-items: center; gap: 16px; }
+.prd-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,.35); flex-shrink: 0; }
+.prd-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
+.prd-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
 /* KPIs */
 .prd-kpis     { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -493,41 +489,44 @@ onMounted(cargar)
 .kpi-icon     { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 /* Filtros */
-.prd-filtros  { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
-.prd-search   { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 8px; border: 1px solid rgba(var(--v-theme-on-surface),.08); flex: 1; min-width: 260px; }
+.prd-filtros      { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.prd-search       { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 8px; border: 1px solid rgba(var(--v-theme-on-surface),.08); flex: 1; min-width: 260px; }
 .prd-search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: rgb(var(--v-theme-on-surface)); }
 .prd-search-input::placeholder { color: rgba(var(--v-theme-on-surface),.4); }
 
 /* Tabla */
 .prd-tabla-wrap { background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-theme-on-surface),.08); overflow: hidden; }
 .prd-loading    { display: flex; flex-direction: column; align-items: center; padding: 60px 20px; }
+
 .prd-table      { width: 100%; border-collapse: collapse; font-size: 13px; }
 .prd-table thead { background: rgba(var(--v-theme-on-surface),.04); }
 .prd-table thead th { padding: 12px 14px; text-align: left; font-weight: 700; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.6); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
-.prd-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
-.prd-table tbody tr:hover { background: rgba(var(--v-theme-on-surface),.02); }
-.prd-table tbody td { padding: 11px 14px; }
+
+/* Fila de encabezado de grupo */
+.grupo-header-row  { background: rgba(139,92,246,.06); }
+.grupo-header-cell { padding: 8px 14px !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
+.grupo-header-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #8b5cf6; }
+.grupo-header-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: 10px; }
+
+/* Filas de producto */
+.prd-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
+.prd-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
+.prd-table tbody td { padding: 10px 14px; }
 
 .th-cod  { width: 90px; }
 .th-nom  { }
 .th-und  { width: 90px; }
-.th-grp  { width: 200px; }
 .th-ctrl { width: 100px; }
-.th-acc  { width: 100px; text-align: center; }
+.th-acc  { width: 90px; text-align: center; }
 .td-nom  { font-weight: 500; }
-.td-grp  { color: rgba(var(--v-theme-on-surface),.7); }
 .td-acc  { text-align: center; }
 
 .badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
 .badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
 
 .prd-empty { text-align: center !important; padding: 50px 20px !important; }
-
-/* Total */
 .prd-total { margin-top: 12px; font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; padding-right: 4px; }
 
-/* Dialogs */
-.dlg-title  { font-size: 16px; font-weight: 700; padding: 16px 20px; display: flex; align-items: center; }
-.elim-info  { margin-top: 12px; padding: 12px 16px; background: rgba(var(--v-theme-on-surface),.04); border-radius: 8px; display: flex; align-items: center; }
-.gap-2      { gap: 8px; }
+/* Dialog */
+.dlg-title { font-size: 16px; font-weight: 700; padding: 16px 20px; display: flex; align-items: center; }
 </style>

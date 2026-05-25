@@ -322,7 +322,7 @@ app.get('/api/almacen/productos', async (req, res) => {
             params.push(`%${search.toUpperCase()}%`);
             query += ` WHERE UPPER(p.nombre) LIKE $1 OR p.codigo LIKE $1`;
         }
-        query += ` ORDER BY p.codigo`;
+        query += ` ORDER BY g.codigo NULLS LAST, p.nombre`;
         const result = await pool.query(query, params);
         res.json({ success: true, data: result.rows });
     } catch (error) {
@@ -385,17 +385,19 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
     }
 });
 
-// DELETE /api/almacen/productos/:codigo — eliminar producto
-app.delete('/api/almacen/productos/:codigo', async (req, res) => {
+// PATCH /api/almacen/productos/:codigo/toggle-control — alternar SI/NO
+app.patch('/api/almacen/productos/:codigo/toggle-control', async (req, res) => {
     const { codigo } = req.params;
     try {
-        const result = await pool.query(`DELETE FROM productos WHERE codigo = $1`, [codigo]);
-        if (result.rowCount === 0) {
+        const actual = await pool.query(`SELECT control FROM productos WHERE codigo = $1`, [codigo]);
+        if (actual.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Producto no encontrado' });
         }
-        res.json({ success: true, mensaje: 'Producto eliminado correctamente' });
+        const nuevoControl = actual.rows[0].control === 'SI' ? 'NO' : 'SI';
+        await pool.query(`UPDATE productos SET control = $1 WHERE codigo = $2`, [nuevoControl, codigo]);
+        res.json({ success: true, control: nuevoControl });
     } catch (error) {
-        console.error('Error DELETE /api/almacen/productos/:codigo:', error);
+        console.error('Error PATCH /api/almacen/productos/:codigo/toggle-control:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

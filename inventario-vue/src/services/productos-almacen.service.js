@@ -29,8 +29,8 @@ export const productosAlmacenService = {
     return res.data
   },
 
-  async eliminarProducto(codigo) {
-    const res = await api.delete(`${BASE}/${codigo}`)
+  async toggleControl(codigo) {
+    const res = await api.patch(`${BASE}/${codigo}/toggle-control`)
     return res.data
   },
 }
