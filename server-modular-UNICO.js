@@ -278,6 +278,130 @@ app.get('/api/empresas/all', async (req, res) => {
 // MÓDULO 3: INVENTARIO
 // ================================================================
 
+// ── GESTIÓN DE PRODUCTOS (CRUD) ──────────────────────────────────
+
+// GET /api/almacen/grupo-productos — lista de grupos para CBB
+app.get('/api/almacen/grupo-productos', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT codigo, nombre FROM grupo_productos ORDER BY nombre`
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/grupo-productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/almacen/productos/proximo-codigo — siguiente código disponible
+app.get('/api/almacen/productos/proximo-codigo', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT COALESCE(MAX(CAST(codigo AS INTEGER)), 0) + 1 AS siguiente FROM productos`
+        );
+        const sig = parseInt(result.rows[0].siguiente);
+        res.json({ success: true, codigo: String(sig).padStart(3, '0') });
+    } catch (error) {
+        console.error('Error GET /api/almacen/productos/proximo-codigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/almacen/productos — listado completo con nombre del grupo
+app.get('/api/almacen/productos', async (req, res) => {
+    try {
+        const { search } = req.query;
+        let query = `
+            SELECT p.codigo, p.nombre, p.und, p.grupo,
+                   g.nombre AS grupo_nombre, p.control
+            FROM productos p
+            LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+        `;
+        const params = [];
+        if (search) {
+            params.push(`%${search.toUpperCase()}%`);
+            query += ` WHERE UPPER(p.nombre) LIKE $1 OR p.codigo LIKE $1`;
+        }
+        query += ` ORDER BY p.codigo`;
+        const result = await pool.query(query, params);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/almacen/productos — crear producto
+app.post('/api/almacen/productos', async (req, res) => {
+    const { codigo, nombre, und, grupo, control } = req.body;
+    if (!codigo || !nombre || !und) {
+        return res.status(400).json({ success: false, error: 'Campos obligatorios: codigo, nombre, und' });
+    }
+    try {
+        const existe = await pool.query(`SELECT codigo FROM productos WHERE codigo = $1`, [codigo]);
+        if (existe.rows.length > 0) {
+            return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
+        }
+        await pool.query(
+            `INSERT INTO productos (codigo, nombre, und, grupo, control) VALUES ($1, $2, $3, $4, $5)`,
+            [codigo, nombre.trim(), und.trim(), grupo || null, control || 'NO']
+        );
+        const nuevo = await pool.query(
+            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control
+             FROM productos p LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+             WHERE p.codigo = $1`, [codigo]
+        );
+        res.json({ success: true, data: nuevo.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/almacen/productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/almacen/productos/:codigo — actualizar producto
+app.put('/api/almacen/productos/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { nombre, und, grupo, control } = req.body;
+    if (!nombre || !und) {
+        return res.status(400).json({ success: false, error: 'Campos obligatorios: nombre, und' });
+    }
+    try {
+        const result = await pool.query(
+            `UPDATE productos SET nombre=$1, und=$2, grupo=$3, control=$4 WHERE codigo=$5`,
+            [nombre.trim(), und.trim(), grupo || null, control || 'NO', codigo]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+        }
+        const actualizado = await pool.query(
+            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control
+             FROM productos p LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+             WHERE p.codigo = $1`, [codigo]
+        );
+        res.json({ success: true, data: actualizado.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/almacen/productos/:codigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/almacen/productos/:codigo — eliminar producto
+app.delete('/api/almacen/productos/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const result = await pool.query(`DELETE FROM productos WHERE codigo = $1`, [codigo]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+        }
+        res.json({ success: true, mensaje: 'Producto eliminado correctamente' });
+    } catch (error) {
+        console.error('Error DELETE /api/almacen/productos/:codigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── FIN GESTIÓN DE PRODUCTOS ─────────────────────────────────────
+
 // GET /api/inventario - Obtener productos con control = SI y stock por ccosto y empresa
 app.get('/api/inventario', async (req, res) => {
     const { ccosto, empresa } = req.query;

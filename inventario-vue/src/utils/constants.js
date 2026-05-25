@@ -84,7 +84,7 @@ export const MODULES = [
     path: '/almacen',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos' },
+        { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos', requiredTipo: 'PROVEEDOR' },
         { name: 'Control de Inventario', icon: 'mdi-warehouse', path: '/almacen/configuracion/control-inventario' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
