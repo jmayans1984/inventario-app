@@ -258,8 +258,8 @@ const totalStockFinal    = computed(() => filas.value.reduce((s, p) => s + parse
 // ── Formato ───────────────────────────────────────────────────
 function formatNum(n) {
   const num = parseFloat(n)
-  if (isNaN(num)) return '0'
-  return num.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 4 })
+  if (isNaN(num)) return '0.00'
+  return num.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // ── Generar ───────────────────────────────────────────────────
@@ -424,7 +424,9 @@ function exportarPDF() {
     drawFooter(i, totalPgs)
   }
 
-  doc.save(`Kardex_${ccosto.value}_${fecha.value}.pdf`)
+  const blob = doc.output('blob')
+  const url  = URL.createObjectURL(blob)
+  window.open(url, '_blank')
 }
 </script>
 
@@ -463,9 +465,9 @@ function exportarPDF() {
 .kx-kpi--venta   { color: #ef4444; }
 
 .kx-table-wrap { overflow-x: auto; max-height: 65vh; overflow-y: auto; }
-.kx-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.kx-table thead th { position: sticky; top: 0; z-index: 2; background: rgb(var(--v-theme-surface)); padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1); white-space: nowrap; }
-.th-nom     { width: 100%; max-width: 200px; }
+.kx-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.kx-table thead th { position: sticky; top: 0; z-index: 2; background: rgb(var(--v-theme-surface)); padding: 10px 10px; text-align: left; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1); white-space: nowrap; overflow: hidden; }
+.th-nom     { width: 155px; }
 .th-num     { text-align: right !important; }
 .th-entrada { color: #10b981 !important; }
 .th-salida  { color: #f59e0b !important; }
@@ -479,7 +481,7 @@ function exportarPDF() {
 
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
 .badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:#0891b2; font-weight:600; }
-.td-nom { font-weight: 500; }
+.td-nom { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .td-num { text-align: right !important; white-space: nowrap; }
 
 .num-entrada { color: #10b981; font-weight: 600; }
