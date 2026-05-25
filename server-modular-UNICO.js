@@ -584,10 +584,10 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
                 registrosCreados++;
 
             } else if (tipo === 'TRASLADO') {
-                // Consultar nombres de CC directamente en la DB (más confiable que lo que envíe el frontend)
+                // Consultar nombres de CC en la DB filtrando también por empresa
                 const [resOrigen, resDestino] = await Promise.all([
-                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1`, [ccOrigen]),
-                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1`, [ccDestino]),
+                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1 AND empresa=$2`, [ccOrigen, emp]),
+                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1 AND empresa=$2`, [ccDestino, emp]),
                 ]);
                 const nombreOrigen  = resOrigen.rows[0]?.nombre  || ccOrigen;
                 const nombreDestino = resDestino.rows[0]?.nombre || ccDestino;

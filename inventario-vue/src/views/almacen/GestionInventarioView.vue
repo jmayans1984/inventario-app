@@ -175,9 +175,9 @@
                 <td><span class="badge-und">{{ p.und }}</span></td>
                 <td class="td-cant">
                   <input
-                    :value="getCantidad(p.codigo) ?? ''"
-                    type="number"
-                    step="0.001"
+                    :value="getCantidad(p.codigo) || ''"
+                    type="text"
+                    inputmode="decimal"
                     class="gi-cant-input"
                     :class="{ 'gi-cant-active': getCantidad(p.codigo) !== null && getCantidad(p.codigo) !== 0 }"
                     placeholder="0"
@@ -315,10 +315,18 @@ function getCantidad(codigo) {
   return cantidades.value[codigo] || 0
 }
 function setCantidad(codigo, val) {
-  const n = parseFloat(val)
+  // Estado intermedio: usuario escribiendo negativo (solo '-' o '-.')
+  // No actualizamos cantidades para que Vue no borre el carácter del input
+  if (val === '-' || val === '-.') return
+
   const nuevo = { ...cantidades.value }
-  if (val === '' || val === null || val === undefined || isNaN(n) || n === 0) delete nuevo[codigo]
-  else nuevo[codigo] = n
+  if (val === '' || val === null || val === undefined) {
+    delete nuevo[codigo]
+  } else {
+    const n = parseFloat(val)
+    if (isNaN(n) || n === 0) delete nuevo[codigo]
+    else nuevo[codigo] = n
+  }
   cantidades.value = nuevo
 }
 function limpiarCantidades() {
@@ -538,9 +546,7 @@ onMounted(() => {
 }
 .gi-cant-input:focus { border-color: #0891b2; background: rgba(8,145,178,.06); }
 .gi-cant-active { border-color: #0891b2; background: rgba(8,145,178,.08); font-weight: 600; color: #0891b2; }
-.gi-cant-input::-webkit-outer-spin-button,
-.gi-cant-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.gi-cant-input[type=number] { -moz-appearance: textfield; }
+.gi-cant-input { text-align: right; }
 
 .gi-empty { text-align: center !important; padding: 40px !important; }
 
