@@ -495,6 +495,124 @@ app.get('/api/inventario/stats', async (req, res) => {
     }
 });
 
+// ── GESTIÓN DE INVENTARIO (NUEVO) ────────────────────────────────
+
+// GET /api/almacen/gestion-inventario/verificar — detectar registros existentes
+app.get('/api/almacen/gestion-inventario/verificar', async (req, res) => {
+    const { fecha, ccosto, empresa, tipo } = req.query;
+    try {
+        const result = await pool.query(
+            `SELECT COUNT(*) AS cnt FROM detalle_inventario
+             WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
+            [fecha, ccosto, parseInt(empresa), tipo]
+        );
+        const cnt = parseInt(result.rows[0].cnt);
+        res.json({ success: true, exists: cnt > 0, count: cnt });
+    } catch (error) {
+        console.error('Error GET /api/almacen/gestion-inventario/verificar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/almacen/gestion-inventario — guardar movimiento de inventario
+app.post('/api/almacen/gestion-inventario', async (req, res) => {
+    const { empresa, fecha, tipo, ccOrigen, ccDestino, observaciones, productos, mode } = req.body;
+    // tipo: ENTRADA | SALIDA | BAJA | TRASLADO
+    // mode: 'new' (default, detecta conflicto) | 'replace' | 'add'
+
+    if (!empresa || !fecha || !tipo || !ccOrigen || !productos || productos.length === 0) {
+        return res.status(400).json({ success: false, error: 'Faltan parámetros obligatorios' });
+    }
+    if (tipo === 'TRASLADO' && !ccDestino) {
+        return res.status(400).json({ success: false, error: 'Se requiere Centro de Costo Destino para traslados' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // ── Detectar conflicto (solo en modo 'new') ───────────────
+        if (!mode || mode === 'new') {
+            const dupRes = await client.query(
+                `SELECT COUNT(*) AS cnt FROM detalle_inventario
+                 WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
+                [fecha, ccOrigen, parseInt(empresa), tipo]
+            );
+            const cnt = parseInt(dupRes.rows[0].cnt);
+            if (cnt > 0) {
+                await client.query('ROLLBACK');
+                return res.json({ success: false, conflict: true, count: cnt });
+            }
+        }
+
+        // ── Eliminar previos si modo 'replace' ────────────────────
+        if (mode === 'replace') {
+            await client.query(
+                `DELETE FROM detalle_inventario WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
+                [fecha, ccOrigen, parseInt(empresa), tipo]
+            );
+            if (tipo === 'TRASLADO' && ccDestino) {
+                await client.query(
+                    `DELETE FROM detalle_inventario WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
+                    [fecha, ccDestino, parseInt(empresa), tipo]
+                );
+            }
+        }
+
+        // ── Insertar registros ────────────────────────────────────
+        let registrosCreados = 0;
+        const obs = (observaciones || '').trim();
+
+        for (const prod of productos) {
+            const cant = parseFloat(prod.cantidad) || 0;
+            if (cant <= 0) continue;
+
+            if (tipo === 'ENTRADA') {
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                     VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
+                    [fecha, ccOrigen, prod.codigo, cant, tipo, parseInt(empresa), obs]
+                );
+                registrosCreados++;
+            } else if (tipo === 'SALIDA' || tipo === 'BAJA') {
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                     VALUES ($1,$2,$3,0,$4,$5,$6,$7)`,
+                    [fecha, ccOrigen, prod.codigo, cant, tipo, parseInt(empresa), obs]
+                );
+                registrosCreados++;
+            } else if (tipo === 'TRASLADO') {
+                // Salida desde origen
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                     VALUES ($1,$2,$3,0,$4,$5,$6,$7)`,
+                    [fecha, ccOrigen, prod.codigo, cant, tipo, parseInt(empresa),
+                     obs || `Traslado a ${ccDestino}`]
+                );
+                // Entrada al destino
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                     VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
+                    [fecha, ccDestino, prod.codigo, cant, tipo, parseInt(empresa),
+                     obs || `Traslado desde ${ccOrigen}`]
+                );
+                registrosCreados += 2;
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, registros: registrosCreados });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/almacen/gestion-inventario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// ── FIN GESTIÓN DE INVENTARIO ─────────────────────────────────────
+
 // POST /api/inventario/movimientos - Registrar movimientos (formato nuevo)
 app.post('/api/inventario/movimientos', async (req, res) => {
     const { movimientos } = req.body;
