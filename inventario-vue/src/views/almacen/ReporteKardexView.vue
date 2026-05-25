@@ -328,14 +328,14 @@ function exportarPDF() {
   // ── Encabezado ────────────────────────────────────────────
   function drawHeader() {
     doc.setFillColor(8, 145, 178)
-    doc.rect(0, 0, PW, 18, 'F')
+    doc.rect(0, 0, PW, 22, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('KARDEX DE INVENTARIO', ML, 8)
+    doc.text('KARDEX DE INVENTARIO', ML, 9)
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`CENTRO DE COSTOS: ${nombreCcosto.value}  ·  ${fechaFormateada.value}`, ML, 14)
+    doc.text(`CENTRO DE COSTOS: ${nombreCcosto.value}  ·  ${fechaFormateada.value}`, ML, 16)
     doc.setTextColor(0, 0, 0)
   }
 
@@ -363,7 +363,7 @@ function exportarPDF() {
         fontStyle: 'bold', fontSize: 7.5,
         textColor: [8, 100, 140],
         halign: 'left',
-        cellPadding: 1.5,
+        cellPadding: 3,
       }
     }])
     for (const p of grupo.items) {
@@ -384,7 +384,7 @@ function exportarPDF() {
 
   // ── autoTable minimalista ─────────────────────────────────
   autoTable(doc, {
-    startY: 21,
+    startY: 26,
     head: [[
       { content: 'CÓD',   styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
