@@ -800,8 +800,15 @@ app.get('/api/almacen/kardex', async (req, res) => {
             [emp, ccosto, fecha]
         );
 
-        // Devolver TODOS los productos con control='SI', tengan o no movimiento
-        res.json({ success: true, data: result.rows });
+        // Obtener total efectivo de ventas del día
+        const efectivoRes = await pool.query(
+            `SELECT COALESCE(SUM(efectivo), 0) AS total FROM ventas WHERE fecha = $1 AND empresa = $2`,
+            [fecha, emp]
+        );
+        const total_efectivo = parseFloat(efectivoRes.rows[0]?.total || 0);
+
+        // Devolver TODOS los productos con control='SI' + total efectivo del día
+        res.json({ success: true, data: result.rows, total_efectivo });
     } catch (error) {
         console.error('Error GET /api/almacen/kardex:', error);
         res.status(500).json({ success: false, error: error.message });

@@ -198,6 +198,7 @@ import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import JsBarcode from 'jsbarcode'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -209,11 +210,12 @@ const errFecha  = ref('')
 const errCcosto = ref('')
 
 // ── Datos ─────────────────────────────────────────────────────
-const ccostos = ref([])
-const filas   = ref([])   // raw rows from backend (with stock_final computed)
-const loading  = ref(false)
-const generado = ref(false)
-const errorMsg = ref('')
+const ccostos       = ref([])
+const filas         = ref([])
+const totalEfectivo = ref(0)
+const loading       = ref(false)
+const generado      = ref(false)
+const errorMsg      = ref('')
 
 // ── Cargar CC ─────────────────────────────────────────────────
 async function cargarCcostos() {
@@ -278,6 +280,7 @@ async function generar() {
       params: { empresa: empresa.value, ccosto: ccosto.value, fecha: fecha.value }
     })
     // Calcular stock_final en el cliente
+    totalEfectivo.value = parseFloat(res.data?.total_efectivo || 0)
     filas.value = (res.data?.data || []).map(p => ({
       ...p,
       stock_anterior: parseFloat(p.stock_anterior) || 0,
@@ -300,33 +303,52 @@ function exportarPDF() {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const PW  = doc.internal.pageSize.getWidth()   // 215.9 mm
   const PH  = doc.internal.pageSize.getHeight()  // 279.4 mm
-  const ML  = 12
-  const MR  = 12
+  const ML  = 7
+  const MR  = 7
   const RAYITAS = '__________'
 
-  // ── Encabezado compacto ───────────────────────────────────
+  // ── Código de barras ──────────────────────────────────────
+  const [y, m, d] = fecha.value.split('-')
+  const mmddyy       = `${m}${d}${y.slice(-2)}`
+  const efectivoCents = Math.round(totalEfectivo.value * 100)
+  const codigoBarras  = mmddyy + String(efectivoCents).padStart(9, '0')
+
+  const barcodeCanvas = document.createElement('canvas')
+  JsBarcode(barcodeCanvas, codigoBarras, {
+    format: 'CODE128', displayValue: true,
+    fontSize: 11, textMargin: 2, height: 42, width: 1.5, margin: 4,
+  })
+  const barcodeImg = barcodeCanvas.toDataURL('image/png')
+
+  // ── Fecha de impresión ────────────────────────────────────
+  const hoyStr = new Date().toLocaleDateString('es-CO', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  })
+
+  // ── Encabezado ────────────────────────────────────────────
   function drawHeader() {
     doc.setFillColor(8, 145, 178)
-    doc.rect(0, 0, PW, 13, 'F')
+    doc.rect(0, 0, PW, 20, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(12.5)
     doc.setFont('helvetica', 'bold')
-    doc.text('KARDEX DE INVENTARIO', ML, 6)
+    doc.text('KARDEX DE INVENTARIO', ML, 9)
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(
-      `CC: ${nombreCcosto.value}  ·  ${fechaFormateada.value}  ·  ${filas.value.length} productos`,
-      ML, 11
-    )
+    doc.text(`CENTRO DE COSTOS: ${nombreCcosto.value}  ·  ${fechaFormateada.value}`, ML, 16)
     doc.setTextColor(0, 0, 0)
   }
 
   // ── Pie de página ─────────────────────────────────────────
-  function drawFooter(pageNum, totalPages) {
-    doc.setFontSize(9)
-    doc.setTextColor(180)
-    doc.text(`Pág. ${pageNum} / ${totalPages}`, PW - MR, PH - 4, { align: 'right' })
+  function drawFooter() {
+    // Fecha de impresión — izquierda, pequeña
+    doc.setFontSize(7)
+    doc.setTextColor(130)
+    doc.text(`Impreso: ${hoyStr}`, ML, PH - 4)
     doc.setTextColor(0, 0, 0)
+    // Código de barras — derecha
+    const bW = 62, bH = 14
+    doc.addImage(barcodeImg, 'PNG', PW - MR - bW, PH - bH - 2, bW, bH)
   }
 
   drawHeader()
@@ -362,7 +384,7 @@ function exportarPDF() {
 
   // ── autoTable minimalista ─────────────────────────────────
   autoTable(doc, {
-    startY: 17,
+    startY: 24,
     head: [[
       { content: 'CÓD',   styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
@@ -397,14 +419,14 @@ function exportarPDF() {
       7: { cellWidth: 18,  halign: 'right', textColor: [8,145,178] },
       8: { cellWidth: 28,  halign: 'center', textColor: [160,160,160] },
     },
-    margin: { left: ML, right: MR },
+    margin: { left: ML, right: MR, bottom: 22 },
     didDrawPage: () => drawHeader(),
   })
 
   const totalPgs = doc.internal.getNumberOfPages()
   for (let i = 1; i <= totalPgs; i++) {
     doc.setPage(i)
-    drawFooter(i, totalPgs)
+    drawFooter()
   }
 
   const blob = doc.output('blob')
