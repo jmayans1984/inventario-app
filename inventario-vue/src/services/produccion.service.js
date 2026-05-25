@@ -4,14 +4,17 @@ import { useAuthStore } from '../stores/auth'
 const ENDPOINTS = {
   productosVenta: '/produccion/productos-venta',
   grupoProductos: '/produccion/grupo-productos',
-  listaPrecios: '/produccion/lista-precios',
-  terminosCredito: '/produccion/terminos-credito',
-  ordenesCompra: '/produccion/ordenes-compra'
+  listaPrecios:   '/produccion/lista-precios',
+  terminosCredito:'/produccion/terminos-credito',
+  ordenesCompra:  '/produccion/ordenes-compra'
 }
 
 function getEmpresaActiva() {
   const authStore = useAuthStore()
-  return authStore.empresa
+  return authStore.empresaCodigo
+    || authStore.empresa
+    || localStorage.getItem('empresaActual')
+    || ''
 }
 
 export const produccionService = {
