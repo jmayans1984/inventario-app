@@ -315,18 +315,19 @@ function getCantidad(codigo) {
   return cantidades.value[codigo] || 0
 }
 function setCantidad(codigo, val) {
-  // Estado intermedio: usuario escribiendo negativo (solo '-' o '-.')
-  // No actualizamos cantidades para que Vue no borre el carácter del input
-  if (val === '-' || val === '-.') return
+  // Estados intermedios: el usuario aún está escribiendo el número
+  // No actualizar cantidades para que Vue no borre lo que está escribiendo
+  if (!val || val === '-' || val === '.' || val === ',' ||
+      val === '-.' || val === '-,' ||
+      val.endsWith('.') || val.endsWith(',')) return
+
+  // Normalizar coma como separador decimal (ej: "1,5" → "1.5")
+  const normalizado = val.replace(',', '.')
+  const n = parseFloat(normalizado)
 
   const nuevo = { ...cantidades.value }
-  if (val === '' || val === null || val === undefined) {
-    delete nuevo[codigo]
-  } else {
-    const n = parseFloat(val)
-    if (isNaN(n) || n === 0) delete nuevo[codigo]
-    else nuevo[codigo] = n
-  }
+  if (isNaN(n) || n === 0) delete nuevo[codigo]
+  else nuevo[codigo] = n
   cantidades.value = nuevo
 }
 function limpiarCantidades() {
