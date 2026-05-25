@@ -435,6 +435,12 @@ function exportarPDF() {
       alternateRowStyles: { fillColor: [248, 250, 252] },
       theme: 'striped',
       margin: { left: ML, right: ML },
+      didDrawCell: (data) => {
+        // Asegurar que el footer tenga alineación a la derecha en columnas numéricas
+        if (data.section === 'foot' && data.column.index >= 2) {
+          data.cell.styles.halign = 'right'
+        }
+      },
       didDrawPage: (data) => {
         // Número de página
         doc.setFontSize(7)
