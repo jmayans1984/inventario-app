@@ -31,20 +31,20 @@
           <!-- FECHA -->
           <v-col cols="12" sm="2">
             <v-text-field
-              v-model="cabecera.fecha"
+              v-model="fecha"
               label="Fecha *"
               type="date"
               variant="outlined"
               density="compact"
               hide-details="auto"
-              :error-messages="errores.fecha"
+              :error-messages="errFecha"
             />
           </v-col>
 
           <!-- TIPO DE OPERACIÓN -->
           <v-col cols="12" sm="3">
             <v-select
-              v-model="cabecera.tipo"
+              v-model="tipoOp"
               :items="TIPOS"
               item-title="label"
               item-value="value"
@@ -52,45 +52,45 @@
               variant="outlined"
               density="compact"
               hide-details="auto"
-              :error-messages="errores.tipo"
-              @update:model-value="cabecera.ccDestino = null"
+              :error-messages="errTipo"
+              @update:model-value="ccDestino = null"
             />
           </v-col>
 
           <!-- CC ORIGEN -->
           <v-col cols="12" sm="3">
             <v-select
-              v-model="cabecera.ccOrigen"
+              v-model="ccOrigen"
               :items="ccostos"
               item-title="nombre"
               item-value="codigo"
-              :label="isTraslado ? 'CC Origen *' : 'Centro de Costo *'"
+              :label="tipoOp === 'TRASLADO' ? 'CC Origen *' : 'Centro de Costo *'"
               variant="outlined"
               density="compact"
               hide-details="auto"
-              :error-messages="errores.ccOrigen"
+              :error-messages="errCcOrigen"
             />
           </v-col>
 
           <!-- CC DESTINO (solo traslado) -->
-          <v-col v-if="isTraslado" cols="12" sm="3">
+          <v-col v-if="tipoOp === 'TRASLADO'" cols="12" sm="3">
             <v-select
-              v-model="cabecera.ccDestino"
-              :items="ccostosDestino"
+              v-model="ccDestino"
+              :items="ccostos.filter(c => c.codigo !== ccOrigen)"
               item-title="nombre"
               item-value="codigo"
               label="CC Destino *"
               variant="outlined"
               density="compact"
               hide-details="auto"
-              :error-messages="errores.ccDestino"
+              :error-messages="errCcDestino"
             />
           </v-col>
 
           <!-- OBSERVACIONES -->
-          <v-col cols="12" :sm="isTraslado ? 12 : 4">
+          <v-col cols="12" :sm="tipoOp === 'TRASLADO' ? 12 : 4">
             <v-text-field
-              v-model="cabecera.observaciones"
+              v-model="observaciones"
               label="Observaciones"
               variant="outlined"
               density="compact"
@@ -113,11 +113,9 @@
             Productos de Inventario
             <span class="gi-grid-sub">— ingresa las cantidades del movimiento</span>
           </div>
-          <div class="gi-grid-actions">
-            <v-btn variant="text" size="small" prepend-icon="mdi-eraser" @click="limpiarCantidades">
-              Limpiar cantidades
-            </v-btn>
-          </div>
+          <v-btn variant="text" size="small" prepend-icon="mdi-eraser" @click="limpiarCantidades">
+            Limpiar cantidades
+          </v-btn>
         </div>
 
         <!-- Loading -->
@@ -126,64 +124,74 @@
           <span class="ml-3" style="font-size:13px;color:rgba(var(--v-theme-on-surface),.5)">Cargando productos...</span>
         </div>
 
+        <!-- Error carga -->
+        <div v-else-if="errorProductos" class="gi-loading">
+          <v-icon color="error" size="28">mdi-alert-circle</v-icon>
+          <span class="ml-2" style="font-size:13px;color:#ef4444">{{ errorProductos }}</span>
+          <v-btn variant="text" size="small" class="ml-3" @click="cargarProductos">Reintentar</v-btn>
+        </div>
+
         <!-- Tabla agrupada -->
-        <template v-else>
-          <table class="gi-table">
-            <thead>
+        <table v-else class="gi-table">
+          <thead>
+            <tr>
+              <th class="th-cod">CÓDIGO</th>
+              <th class="th-nom">NOMBRE DEL PRODUCTO</th>
+              <th class="th-und">UND</th>
+              <th class="th-cant">CANTIDAD</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-if="productosAgrupados.length === 0">
               <tr>
-                <th class="th-cod">CÓDIGO</th>
-                <th class="th-nom">NOMBRE DEL PRODUCTO</th>
-                <th class="th-und">UND</th>
-                <th class="th-cant">CANTIDAD</th>
+                <td colspan="4" class="gi-empty">
+                  <v-icon size="32" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
+                  <p style="color:rgba(var(--v-theme-on-surface),.4);margin:6px 0 0;font-size:13px">
+                    No hay productos con control de inventario registrados
+                  </p>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              <template v-if="productosAgrupados.length === 0">
-                <tr>
-                  <td colspan="4" class="gi-empty">
-                    <v-icon size="32" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
-                    <p style="color:rgba(var(--v-theme-on-surface),.4);margin:6px 0 0;font-size:13px">No hay productos con control de inventario</p>
-                  </td>
-                </tr>
-              </template>
+            </template>
 
-              <template v-for="grupo in productosAgrupados" :key="grupo.key">
-                <!-- CABECERA DE GRUPO -->
-                <tr class="gi-grupo-row">
-                  <td colspan="4" class="gi-grupo-cell">
-                    <v-icon size="14" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
-                    <span class="gi-grupo-name">{{ grupo.nombre }}</span>
-                    <span class="gi-grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
-                  </td>
-                </tr>
+            <template v-for="grupo in productosAgrupados" :key="grupo.key">
+              <!-- CABECERA DE GRUPO -->
+              <tr class="gi-grupo-row">
+                <td colspan="4" class="gi-grupo-cell">
+                  <v-icon size="14" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
+                  <span class="gi-grupo-name">{{ grupo.nombre }}</span>
+                  <span class="gi-grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
+                </td>
+              </tr>
 
-                <!-- FILAS DE PRODUCTOS -->
-                <tr v-for="p in grupo.items" :key="p.codigo"
-                    class="gi-prod-row"
-                    :class="{ 'gi-prod-highlighted': (cantidades[p.codigo] || 0) > 0 }">
-                  <td><span class="badge-cod">{{ p.codigo }}</span></td>
-                  <td class="td-nom">{{ p.nombre }}</td>
-                  <td><span class="badge-und">{{ p.und }}</span></td>
-                  <td class="td-cant">
-                    <input
-                      :value="cantidades[p.codigo] || ''"
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      class="gi-cant-input"
-                      :class="{ 'gi-cant-active': (cantidades[p.codigo] || 0) > 0 }"
-                      placeholder="0"
-                      @input="setCantidad(p.codigo, $event.target.value)"
-                    />
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </template>
+              <!-- FILAS DE PRODUCTOS -->
+              <tr
+                v-for="p in grupo.items"
+                :key="p.codigo"
+                class="gi-prod-row"
+                :class="{ 'gi-prod-highlighted': getCantidad(p.codigo) > 0 }"
+              >
+                <td><span class="badge-cod">{{ p.codigo }}</span></td>
+                <td class="td-nom">{{ p.nombre }}</td>
+                <td><span class="badge-und">{{ p.und }}</span></td>
+                <td class="td-cant">
+                  <input
+                    :value="getCantidad(p.codigo) || ''"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    class="gi-cant-input"
+                    :class="{ 'gi-cant-active': getCantidad(p.codigo) > 0 }"
+                    placeholder="0"
+                    @input="setCantidad(p.codigo, $event.target.value)"
+                  />
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
       </div>
 
-      <!-- FOOTER DE ACCIONES -->
+      <!-- FOOTER -->
       <div class="gi-footer">
         <div class="gi-footer-info">
           <v-icon size="16" color="#0891b2" class="mr-1">mdi-information-outline</v-icon>
@@ -195,7 +203,7 @@
           </span>
         </div>
         <div class="gi-footer-btns">
-          <v-btn variant="text" :disabled="guardando" @click="resetForm">Limpiar todo</v-btn>
+          <v-btn variant="text" :disabled="guardando" @click="resetTodo">Limpiar todo</v-btn>
           <v-btn
             color="#0891b2"
             variant="elevated"
@@ -209,12 +217,10 @@
         </div>
       </div>
 
-      <!-- Alerta de error general -->
+      <!-- Alertas -->
       <v-alert v-if="errorGuardar" type="error" variant="tonal" density="compact" class="mt-3" closable @click:close="errorGuardar=''">
         {{ errorGuardar }}
       </v-alert>
-
-      <!-- Alerta de éxito -->
       <v-alert v-if="exitoMsg" type="success" variant="tonal" density="compact" class="mt-3" closable @click:close="exitoMsg=''">
         {{ exitoMsg }}
       </v-alert>
@@ -234,7 +240,7 @@
             <div class="conflict-info">
               <div class="conflict-row">
                 <span class="conflict-label">Fecha</span>
-                <span class="conflict-val">{{ cabecera.fecha }}</span>
+                <span class="conflict-val">{{ fecha }}</span>
               </div>
               <div class="conflict-row">
                 <span class="conflict-label">Centro de Costo</span>
@@ -246,32 +252,18 @@
               </div>
             </div>
             <p style="font-size:13px;margin-top:16px;color:rgba(var(--v-theme-on-surface),.7)">
-              ¿Qué deseas hacer con los datos existentes?
+              ¿Qué deseas hacer?
             </p>
           </v-card-text>
           <v-divider />
           <v-card-actions class="pa-4" style="flex-direction:column;gap:8px;align-items:stretch">
-            <v-btn
-              color="error"
-              variant="elevated"
-              prepend-icon="mdi-delete-sweep"
-              :loading="guardando"
-              @click="guardar('replace')"
-            >
+            <v-btn color="error" variant="elevated" prepend-icon="mdi-delete-sweep" :loading="guardando" @click="guardar('replace')">
               Eliminar registros previos y reemplazar
             </v-btn>
-            <v-btn
-              color="#0891b2"
-              variant="outlined"
-              prepend-icon="mdi-plus-circle-outline"
-              :loading="guardando"
-              @click="guardar('add')"
-            >
+            <v-btn color="#0891b2" variant="outlined" prepend-icon="mdi-plus-circle-outline" :loading="guardando" @click="guardar('add')">
               Adicionar a las cantidades existentes
             </v-btn>
-            <v-btn variant="text" :disabled="guardando" @click="dlgConflicto=false">
-              Cancelar
-            </v-btn>
+            <v-btn variant="text" :disabled="guardando" @click="dlgConflicto=false">Cancelar</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -281,12 +273,12 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 
-const auth = useAuthStore()
+const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
 
 // ── Tipos de operación ────────────────────────────────────────
@@ -297,53 +289,65 @@ const TIPOS = [
   { label: 'TRASLADO ENTRE ALMACENES', value: 'TRASLADO' },
 ]
 
-// ── Estado ────────────────────────────────────────────────────
+// ── Datos externos ────────────────────────────────────────────
 const ccostos          = ref([])
 const productos        = ref([])
 const loadingProductos = ref(false)
+const errorProductos   = ref('')
 
-const cabecera = reactive({
-  fecha:        new Date().toISOString().slice(0, 10),
-  tipo:         null,
-  ccOrigen:     null,
-  ccDestino:    null,
-  observaciones: '',
-})
+// ── Campos del formulario (ref individuales, más confiables) ──
+const fecha         = ref(new Date().toISOString().slice(0, 10))
+const tipoOp        = ref(null)
+const ccOrigen      = ref(null)
+const ccDestino     = ref(null)
+const observaciones = ref('')
 
-const errores = reactive({ fecha: '', tipo: '', ccOrigen: '', ccDestino: '' })
-const cantidades   = reactive({})   // { [codigo]: number }
+// Errores validación
+const errFecha     = ref('')
+const errTipo      = ref('')
+const errCcOrigen  = ref('')
+const errCcDestino = ref('')
+
+// ── Cantidades por producto ───────────────────────────────────
+const cantidades = ref({})   // { [codigo]: number }
+
+function getCantidad(codigo) {
+  return cantidades.value[codigo] || 0
+}
+function setCantidad(codigo, val) {
+  const n = parseFloat(val)
+  const nuevo = { ...cantidades.value }
+  if (!val || isNaN(n) || n <= 0) delete nuevo[codigo]
+  else nuevo[codigo] = n
+  cantidades.value = nuevo
+}
+function limpiarCantidades() {
+  cantidades.value = {}
+}
+
+// ── Estado de guardado ────────────────────────────────────────
 const guardando    = ref(false)
 const errorGuardar = ref('')
 const exitoMsg     = ref('')
-
-// Conflicto
-const dlgConflicto  = ref(false)
-const conflictCount = ref(0)
+const dlgConflicto = ref(false)
+const conflictCount= ref(0)
 
 // ── Computed ──────────────────────────────────────────────────
-const isTraslado = computed(() => cabecera.tipo === 'TRASLADO')
-
-// CC Destino no puede ser el mismo que el origen
-const ccostosDestino = computed(() =>
-  ccostos.value.filter(c => c.codigo !== cabecera.ccOrigen)
-)
-
 const nombreCcOrigen = computed(() => {
-  const cc = ccostos.value.find(c => c.codigo === cabecera.ccOrigen)
-  return cc ? cc.nombre : cabecera.ccOrigen
+  const cc = ccostos.value.find(c => c.codigo === ccOrigen.value)
+  return cc ? cc.nombre : ccOrigen.value
 })
 
 const tipoLabel = computed(() => {
-  const t = TIPOS.find(t => t.value === cabecera.tipo)
-  return t ? t.label : cabecera.tipo
+  const t = TIPOS.find(t => t.value === tipoOp.value)
+  return t ? t.label : tipoOp.value
 })
 
-// Solo productos con control='SI'
+// Solo productos con control=SI, ya ordenados por el backend (g.codigo, p.nombre)
 const productosConControl = computed(() =>
   productos.value.filter(p => p.control === 'SI')
 )
 
-// Agrupados (el backend ya devuelve ordenados por g.codigo, p.nombre)
 const productosAgrupados = computed(() => {
   const mapa = new Map()
   for (const p of productosConControl.value) {
@@ -356,63 +360,67 @@ const productosAgrupados = computed(() => {
 })
 
 const productosConCantidad = computed(() =>
-  Object.values(cantidades).filter(v => parseFloat(v) > 0).length
+  Object.values(cantidades.value).filter(v => parseFloat(v) > 0).length
 )
 
-// ── Métodos ───────────────────────────────────────────────────
-function setCantidad(codigo, val) {
-  const n = parseFloat(val)
-  if (!val || isNaN(n) || n <= 0) {
-    delete cantidades[codigo]
-  } else {
-    cantidades[codigo] = n
+// ── Carga de datos (separadas para que un fallo no bloquee la otra) ──
+async function cargarCcostos() {
+  try {
+    const res = await api.get('/ccostos', { params: { empresa: empresa.value } })
+    // El endpoint devuelve { success, data: [...], total }
+    ccostos.value = res.data?.data || res.data?.ccostos || []
+  } catch (e) {
+    console.error('Error cargando ccostos:', e)
   }
 }
 
-function limpiarCantidades() {
-  Object.keys(cantidades).forEach(k => delete cantidades[k])
+async function cargarProductos() {
+  loadingProductos.value = true
+  errorProductos.value   = ''
+  try {
+    // Sin filtro de empresa — devuelve TODOS los productos
+    const res = await api.get('/almacen/productos')
+    productos.value = res.data?.data || []
+  } catch (e) {
+    console.error('Error cargando productos:', e)
+    errorProductos.value = e?.response?.data?.error || 'Error al cargar productos'
+  } finally {
+    loadingProductos.value = false
+  }
 }
 
-function resetForm() {
-  limpiarCantidades()
-  cabecera.tipo = null
-  cabecera.ccOrigen = null
-  cabecera.ccDestino = null
-  cabecera.observaciones = ''
-  errorGuardar.value = ''
-  exitoMsg.value = ''
-}
-
+// ── Validación ────────────────────────────────────────────────
 function validar() {
-  errores.fecha     = cabecera.fecha     ? '' : 'Requerido'
-  errores.tipo      = cabecera.tipo      ? '' : 'Requerido'
-  errores.ccOrigen  = cabecera.ccOrigen  ? '' : 'Requerido'
-  errores.ccDestino = (isTraslado.value && !cabecera.ccDestino) ? 'Requerido' : ''
-  return !errores.fecha && !errores.tipo && !errores.ccOrigen && !errores.ccDestino
+  errFecha.value     = fecha.value    ? '' : 'Requerido'
+  errTipo.value      = tipoOp.value   ? '' : 'Requerido'
+  errCcOrigen.value  = ccOrigen.value ? '' : 'Requerido'
+  errCcDestino.value = (tipoOp.value === 'TRASLADO' && !ccDestino.value) ? 'Requerido' : ''
+  return !errFecha.value && !errTipo.value && !errCcOrigen.value && !errCcDestino.value
 }
 
+// ── Guardar ───────────────────────────────────────────────────
 async function guardar(mode = 'new') {
   if (mode === 'new') {
     if (!validar()) return
     if (productosConCantidad.value === 0) return
   }
 
-  guardando.value = true
+  guardando.value  = true
   errorGuardar.value = ''
-  exitoMsg.value = ''
+  exitoMsg.value   = ''
 
-  const productosPayload = Object.entries(cantidades)
+  const productosPayload = Object.entries(cantidades.value)
     .filter(([, v]) => parseFloat(v) > 0)
     .map(([codigo, cantidad]) => ({ codigo, cantidad: parseFloat(cantidad) }))
 
   try {
     const res = await api.post('/almacen/gestion-inventario', {
       empresa:       empresa.value,
-      fecha:         cabecera.fecha,
-      tipo:          cabecera.tipo,
-      ccOrigen:      cabecera.ccOrigen,
-      ccDestino:     cabecera.ccDestino || null,
-      observaciones: cabecera.observaciones,
+      fecha:         fecha.value,
+      tipo:          tipoOp.value,
+      ccOrigen:      ccOrigen.value,
+      ccDestino:     ccDestino.value || null,
+      observaciones: observaciones.value,
       productos:     productosPayload,
       mode,
     })
@@ -425,10 +433,8 @@ async function guardar(mode = 'new') {
 
     if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
 
-    // Éxito
     dlgConflicto.value = false
-    const regs = res.data.registros || productosPayload.length
-    exitoMsg.value = `✓ Movimiento guardado correctamente — ${regs} registro(s) en inventario`
+    exitoMsg.value = `✓ Movimiento guardado — ${res.data.registros || productosPayload.length} registro(s) en inventario`
     limpiarCantidades()
 
   } catch (e) {
@@ -438,23 +444,20 @@ async function guardar(mode = 'new') {
   }
 }
 
-async function cargar() {
-  loadingProductos.value = true
-  try {
-    const [resCC, resProd] = await Promise.all([
-      api.get('/ccostos', { params: { empresa: empresa.value } }),
-      api.get('/almacen/productos'),
-    ])
-    ccostos.value  = resCC.data?.ccostos || resCC.data || []
-    productos.value = resProd.data?.data  || []
-  } catch (e) {
-    console.error('Error cargando datos:', e)
-  } finally {
-    loadingProductos.value = false
-  }
+function resetTodo() {
+  limpiarCantidades()
+  tipoOp.value        = null
+  ccOrigen.value      = null
+  ccDestino.value     = null
+  observaciones.value = ''
+  errorGuardar.value  = ''
+  exitoMsg.value      = ''
 }
 
-onMounted(cargar)
+onMounted(() => {
+  cargarCcostos()
+  cargarProductos()
+})
 </script>
 
 <style scoped>
@@ -482,7 +485,6 @@ onMounted(cargar)
 .gi-grid-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06); background: rgba(var(--v-theme-on-surface),.02); }
 .gi-grid-title  { font-size: 13px; font-weight: 700; display: flex; align-items: center; color: rgba(var(--v-theme-on-surface),.8); }
 .gi-grid-sub    { font-size: 12px; font-weight: 400; color: rgba(var(--v-theme-on-surface),.4); margin-left: 4px; }
-.gi-grid-actions { display: flex; align-items: center; gap: 8px; }
 .gi-loading     { display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
 
 /* Tabla */
@@ -490,13 +492,11 @@ onMounted(cargar)
 .gi-table thead { background: rgba(var(--v-theme-on-surface),.04); }
 .gi-table thead th { padding: 10px 14px; text-align: left; font-weight: 700; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.6); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
 
-/* Fila de grupo */
 .gi-grupo-row  { background: rgba(139,92,246,.06); }
 .gi-grupo-cell { padding: 7px 14px !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
 .gi-grupo-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #8b5cf6; }
 .gi-grupo-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: 8px; }
 
-/* Filas de producto */
 .gi-prod-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); transition: background .1s; }
 .gi-prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
 .gi-prod-highlighted { background: rgba(8,145,178,.04) !important; }
@@ -510,30 +510,17 @@ onMounted(cargar)
 .td-nom  { font-weight: 500; }
 .td-cant { text-align: right; }
 
-/* Input de cantidad */
 .gi-cant-input {
-  width: 110px;
-  padding: 5px 10px;
+  width: 110px; padding: 5px 10px;
   border: 1px solid rgba(var(--v-theme-on-surface),.15);
   border-radius: 6px;
   background: rgba(var(--v-theme-on-surface),.03);
   color: rgb(var(--v-theme-on-surface));
-  font-size: 13px;
-  text-align: right;
-  outline: none;
+  font-size: 13px; text-align: right; outline: none;
   transition: border-color .15s, background .15s;
 }
-.gi-cant-input:focus {
-  border-color: #0891b2;
-  background: rgba(8,145,178,.06);
-}
-.gi-cant-active {
-  border-color: #0891b2;
-  background: rgba(8,145,178,.08);
-  font-weight: 600;
-  color: #0891b2;
-}
-/* Quitar flechas del número */
+.gi-cant-input:focus { border-color: #0891b2; background: rgba(8,145,178,.06); }
+.gi-cant-active { border-color: #0891b2; background: rgba(8,145,178,.08); font-weight: 600; color: #0891b2; }
 .gi-cant-input::-webkit-outer-spin-button,
 .gi-cant-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .gi-cant-input[type=number] { -moz-appearance: textfield; }
