@@ -37,7 +37,8 @@ export const useAuthStore = defineStore('auth', () => {
     // Persist to localStorage
     localStorage.setItem('empresaActual', empresaCod)
     if (nombre) localStorage.setItem('empresaNombre', nombre)
-    if (tipo) localStorage.setItem('empresaTipo', tipo)
+    // Siempre guardar tipo (aunque sea null/vacío, guardar string vacío)
+    localStorage.setItem('empresaTipo', tipo || '')
   }
 
   function setModoApp(modo) {
@@ -77,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
       const savedNombre = localStorage.getItem('empresaNombre')
       if (savedNombre) empresaNombre.value = savedNombre
       const savedTipo = localStorage.getItem('empresaTipo')
-      if (savedTipo) empresaTipo.value = savedTipo
+      empresaTipo.value = savedTipo || null  // carga siempre (null si vacío)
     }
 
     if (savedModo) {

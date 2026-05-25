@@ -85,7 +85,8 @@ router.beforeEach((to, from, next) => {
   }
 
   // Verificar tipo de empresa si la ruta lo requiere
-  if (to.meta.requiredTipo && authStore.empresa) {
+  // Solo bloquea si el tipo está explícitamente definido Y no coincide
+  if (to.meta.requiredTipo && authStore.empresa && authStore.empresaTipo) {
     const tipoEmpresa = authStore.empresaTipo
     if (tipoEmpresa !== to.meta.requiredTipo) {
       // Usuario no tiene permiso para esta ruta, redirecciona a inicio
