@@ -495,30 +495,22 @@ app.get('/api/inventario/stats', async (req, res) => {
     }
 });
 
-// ── GESTIÓN DE INVENTARIO (NUEVO) ────────────────────────────────
+// ── GESTIÓN DE INVENTARIO ────────────────────────────────────────
 
-// GET /api/almacen/gestion-inventario/verificar — detectar registros existentes
-app.get('/api/almacen/gestion-inventario/verificar', async (req, res) => {
-    const { fecha, ccosto, empresa, tipo } = req.query;
-    try {
-        const result = await pool.query(
-            `SELECT COUNT(*) AS cnt FROM detalle_inventario
-             WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
-            [fecha, ccosto, parseInt(empresa), tipo]
-        );
-        const cnt = parseInt(result.rows[0].cnt);
-        res.json({ success: true, exists: cnt > 0, count: cnt });
-    } catch (error) {
-        console.error('Error GET /api/almacen/gestion-inventario/verificar:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
+// Mapa: código frontend → valor(es) real(es) en detalle_inventario.tipo
+// TRASLADO genera DOS tipos distintos (origen/destino)
+const TIPO_DB = {
+    ENTRADA:  { origen: 'ENTRADA DE ALMACEN' },
+    SALIDA:   { origen: 'SALIDA DE ALMACEN'  },
+    BAJA:     { origen: 'SALIDA POR BAJA'    },
+    TRASLADO: { origen: 'SALIDA POR TRASLADO', destino: 'ENTRADA POR TRASLADO' },
+};
 
 // POST /api/almacen/gestion-inventario — guardar movimiento de inventario
 app.post('/api/almacen/gestion-inventario', async (req, res) => {
     const { empresa, fecha, tipo, ccOrigen, ccDestino, observaciones, productos, mode } = req.body;
-    // tipo: ENTRADA | SALIDA | BAJA | TRASLADO
-    // mode: 'new' (default, detecta conflicto) | 'replace' | 'add'
+    // tipo (frontend): ENTRADA | SALIDA | BAJA | TRASLADO
+    // mode: 'new' (detecta conflicto) | 'replace' (borra previos) | 'add' (suma)
 
     if (!empresa || !fecha || !tipo || !ccOrigen || !productos || productos.length === 0) {
         return res.status(400).json({ success: false, error: 'Faltan parámetros obligatorios' });
@@ -526,17 +518,23 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
     if (tipo === 'TRASLADO' && !ccDestino) {
         return res.status(400).json({ success: false, error: 'Se requiere Centro de Costo Destino para traslados' });
     }
+    const mapa = TIPO_DB[tipo];
+    if (!mapa) {
+        return res.status(400).json({ success: false, error: `Tipo de operación desconocido: ${tipo}` });
+    }
 
+    const emp = parseInt(empresa);
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
         // ── Detectar conflicto (solo en modo 'new') ───────────────
         if (!mode || mode === 'new') {
+            // Para TRASLADO verificamos el ccOrigen con tipo SALIDA POR TRASLADO
             const dupRes = await client.query(
                 `SELECT COUNT(*) AS cnt FROM detalle_inventario
                  WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
-                [fecha, ccOrigen, parseInt(empresa), tipo]
+                [fecha, ccOrigen, emp, mapa.origen]
             );
             const cnt = parseInt(dupRes.rows[0].cnt);
             if (cnt > 0) {
@@ -549,12 +547,12 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
         if (mode === 'replace') {
             await client.query(
                 `DELETE FROM detalle_inventario WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
-                [fecha, ccOrigen, parseInt(empresa), tipo]
+                [fecha, ccOrigen, emp, mapa.origen]
             );
-            if (tipo === 'TRASLADO' && ccDestino) {
+            if (tipo === 'TRASLADO' && ccDestino && mapa.destino) {
                 await client.query(
                     `DELETE FROM detalle_inventario WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
-                    [fecha, ccDestino, parseInt(empresa), tipo]
+                    [fecha, ccDestino, emp, mapa.destino]
                 );
             }
         }
@@ -564,37 +562,41 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
         const obs = (observaciones || '').trim();
 
         for (const prod of productos) {
-            const cant = parseFloat(prod.cantidad) || 0;
-            if (cant <= 0) continue;
+            const cant = parseFloat(prod.cantidad);
+            if (!cant || cant === 0) continue;   // permite negativos, rechaza solo 0/NaN
 
             if (tipo === 'ENTRADA') {
+                // entrada = cant, salida = 0
                 await client.query(
                     `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
                      VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
-                    [fecha, ccOrigen, prod.codigo, cant, tipo, parseInt(empresa), obs]
+                    [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp, obs]
                 );
                 registrosCreados++;
+
             } else if (tipo === 'SALIDA' || tipo === 'BAJA') {
+                // entrada = 0, salida = cant
                 await client.query(
                     `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
                      VALUES ($1,$2,$3,0,$4,$5,$6,$7)`,
-                    [fecha, ccOrigen, prod.codigo, cant, tipo, parseInt(empresa), obs]
+                    [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp, obs]
                 );
                 registrosCreados++;
+
             } else if (tipo === 'TRASLADO') {
-                // Salida desde origen
+                // Registro en CC Origen: SALIDA POR TRASLADO  (entrada=0, salida=cant)
                 await client.query(
                     `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
                      VALUES ($1,$2,$3,0,$4,$5,$6,$7)`,
-                    [fecha, ccOrigen, prod.codigo, cant, tipo, parseInt(empresa),
-                     obs || `Traslado a ${ccDestino}`]
+                    [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp,
+                     obs || `Traslado a CC ${ccDestino}`]
                 );
-                // Entrada al destino
+                // Registro en CC Destino: ENTRADA POR TRASLADO (entrada=cant, salida=0)
                 await client.query(
                     `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
                      VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
-                    [fecha, ccDestino, prod.codigo, cant, tipo, parseInt(empresa),
-                     obs || `Traslado desde ${ccOrigen}`]
+                    [fecha, ccDestino, prod.codigo, cant, mapa.destino, emp,
+                     obs || `Traslado desde CC ${ccOrigen}`]
                 );
                 registrosCreados += 2;
             }

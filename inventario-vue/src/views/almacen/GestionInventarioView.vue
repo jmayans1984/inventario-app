@@ -371,7 +371,7 @@ const productosAgrupados = computed(() => {
 })
 
 const productosConCantidad = computed(() =>
-  Object.values(cantidades.value).filter(v => parseFloat(v) > 0).length
+  Object.values(cantidades.value).filter(v => { const n = parseFloat(v); return !isNaN(n) && n !== 0 }).length
 )
 
 // ── Carga de datos (separadas para que un fallo no bloquee la otra) ──
@@ -421,8 +421,8 @@ async function guardar(mode = 'new') {
   exitoMsg.value   = ''
 
   const productosPayload = Object.entries(cantidades.value)
-    .filter(([, v]) => parseFloat(v) > 0)
     .map(([codigo, cantidad]) => ({ codigo, cantidad: parseFloat(cantidad) }))
+    .filter(p => !isNaN(p.cantidad) && p.cantidad !== 0)
 
   try {
     const res = await api.post('/almacen/gestion-inventario', {
