@@ -309,10 +309,10 @@ function exportarPDF() {
     doc.setFillColor(8, 145, 178)
     doc.rect(0, 0, PW, 13, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(10.5)
+    doc.setFontSize(12.5)
     doc.setFont('helvetica', 'bold')
     doc.text('KARDEX DE INVENTARIO', ML, 6)
-    doc.setFontSize(7)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.text(
       `CC: ${nombreCcosto.value}  ·  ${fechaFormateada.value}  ·  ${filas.value.length} productos`,
@@ -323,7 +323,7 @@ function exportarPDF() {
 
   // ── Pie de página ─────────────────────────────────────────
   function drawFooter(pageNum, totalPages) {
-    doc.setFontSize(7)
+    doc.setFontSize(9)
     doc.setTextColor(180)
     doc.text(`Pág. ${pageNum} / ${totalPages}`, PW - MR, PH - 4, { align: 'right' })
     doc.setTextColor(0, 0, 0)
@@ -338,7 +338,7 @@ function exportarPDF() {
       content: grupo.nombre.toUpperCase(),
       colSpan: 9,
       styles: {
-        fontStyle: 'bold', fontSize: 6.5,
+        fontStyle: 'bold', fontSize: 8.5,
         textColor: [8, 100, 140],
         halign: 'left',
         cellPadding: { top: 5, bottom: 1, left: 1, right: 1 },
@@ -377,12 +377,12 @@ function exportarPDF() {
     body,
     theme: 'plain',
     headStyles: {
-      textColor: [80, 80, 80], fontSize: 7, fontStyle: 'bold',
+      textColor: [80, 80, 80], fontSize: 9, fontStyle: 'bold',
       cellPadding: { top: 1, bottom: 2, left: 1, right: 1 },
       lineWidth: { bottom: 0.4 }, lineColor: [180, 180, 180],
     },
     bodyStyles: {
-      fontSize: 7,
+      fontSize: 9,
       cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 },
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
