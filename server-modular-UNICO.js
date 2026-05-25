@@ -6272,6 +6272,65 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 });
 
 // ================================================================
+// REPORTE VENTAS DE PRODUCTOS POR PERÍODO
+// ================================================================
+
+// GET /api/tesoreria/ventas-productos-periodo
+// Retorna filas de detalle_ventas agrupadas por producto, filtradas por empresa, fechas y opcionalmente ccosto
+app.get('/api/tesoreria/ventas-productos-periodo', async (req, res) => {
+    const { empresa, fechaInicio, fechaFin, ccosto } = req.query;
+    if (!empresa || !fechaInicio || !fechaFin) {
+        return res.status(400).json({ success: false, error: 'empresa, fechaInicio y fechaFin son requeridos' });
+    }
+    try {
+        const params = [parseInt(empresa), fechaInicio, fechaFin];
+        let ccostoClause = '';
+        if (ccosto && ccosto !== 'TODOS') {
+            params.push(ccosto);
+            ccostoClause = `AND dv.ccosto = $${params.length}`;
+        }
+
+        const sql = `
+            SELECT
+                COALESCE(dv.codigo, '—') AS codigo,
+                dv.nombre,
+                dv.ccosto,
+                cc.nombre AS ccosto_nombre,
+                SUM(dv.cant)                              AS total_cant,
+                CASE WHEN SUM(dv.cant) > 0
+                     THEN SUM(dv.subtotal) / SUM(dv.cant)
+                     ELSE 0 END                           AS vr_unit_prom,
+                SUM(dv.subtotal)                          AS total_subtotal
+            FROM detalle_ventas dv
+            LEFT JOIN ccostos cc ON cc.codigo = dv.ccosto AND cc.empresa = dv.empresa
+            WHERE dv.empresa = $1
+              AND dv.fecha BETWEEN $2 AND $3
+              ${ccostoClause}
+            GROUP BY COALESCE(dv.codigo, '—'), dv.nombre, dv.ccosto, cc.nombre
+            ORDER BY total_subtotal DESC
+        `;
+
+        const result = await pool.query(sql, params);
+
+        // Totales
+        const total_productos = result.rowCount;
+        const total_cant      = result.rows.reduce((s, r) => s + parseFloat(r.total_cant  || 0), 0);
+        const total_valor     = result.rows.reduce((s, r) => s + parseFloat(r.total_subtotal || 0), 0);
+        const ticket_promedio = total_cant > 0 ? total_valor / total_cant : 0;
+
+        res.json({
+            success: true,
+            data: result.rows,
+            totals: { total_productos, total_cant, total_valor, ticket_promedio },
+            total: result.rowCount
+        });
+    } catch (error) {
+        console.error('Error en /api/tesoreria/ventas-productos-periodo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // INICIAR SERVIDOR
 // ================================================================
 
