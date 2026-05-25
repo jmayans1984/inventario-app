@@ -5630,10 +5630,9 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             if (!item.nombre) continue;
             const codigo  = item.sku  ? String(item.sku).substring(0, 6)   : null;
             const nombre  = item.nombre ? String(item.nombre).substring(0, 100) : '';
-            const cant    = parseFloat(item.cantidad)  || 0;
-            const subtot  = Math.abs(parseFloat(item.subtotal) || 0);
-            const vrUnitCSV = Math.abs(parseFloat(item.vrUnit) || 0);
-            const vrUnit  = vrUnitCSV > 0 ? vrUnitCSV : (cant > 0 ? subtot / cant : 0);
+            const cant    = parseFloat(item.cantidad)   || 0;
+            const vrUnit  = Math.abs(parseFloat(item.precioVenta) || 0);
+            const subtot  = Math.abs(parseFloat(item.subtotal)    || 0);
             await client.query(
                 `INSERT INTO detalle_ventas
                     (fecha, ccosto, codigo, nombre, cant, vr_unit, subtotal, empresa)
