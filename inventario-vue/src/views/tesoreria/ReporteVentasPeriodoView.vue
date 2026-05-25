@@ -259,7 +259,7 @@ const consultado     = ref(false)
 // Items para el v-select de ccostos (incluye opción TODOS)
 const ccostoItems = computed(() => [
   { label: 'TODOS LOS CENTROS', value: 'TODOS' },
-  ...ccostos.value.map(c => ({ label: `${c.codigo} — ${c.nombre}`, value: c.codigo }))
+  ...ccostos.value.map(c => ({ label: c.nombre, value: c.codigo }))
 ])
 
 // ── Cargar ccostos ──────────────────────────────────────────────
