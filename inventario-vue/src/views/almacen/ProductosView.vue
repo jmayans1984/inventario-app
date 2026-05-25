@@ -168,29 +168,31 @@
                   </v-chip>
                 </td>
                 <td class="td-acc">
-                  <!-- Toggle control con ojito -->
-                  <v-btn
-                    icon
-                    size="x-small"
-                    variant="text"
-                    :color="p.control === 'SI' ? '#10b981' : '#94a3b8'"
-                    :title="p.control === 'SI' ? 'Deshabilitar control' : 'Habilitar control'"
-                    :loading="toggling === p.codigo"
-                    @click="toggleControl(p)"
-                  >
-                    <v-icon>{{ p.control === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}</v-icon>
-                  </v-btn>
-                  <!-- Editar -->
-                  <v-btn
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="#0891b2"
-                    title="Editar"
-                    @click="abrirEditar(p)"
-                  >
-                    <v-icon>mdi-pencil</v-icon>
-                  </v-btn>
+                  <div class="acc-btns">
+                    <!-- Toggle control con ojito -->
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      :color="p.control === 'SI' ? '#10b981' : '#94a3b8'"
+                      :title="p.control === 'SI' ? 'Deshabilitar control' : 'Habilitar control'"
+                      :loading="toggling === p.codigo"
+                      @click="toggleControl(p)"
+                    >
+                      <v-icon>{{ p.control === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}</v-icon>
+                    </v-btn>
+                    <!-- Editar -->
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      color="#0891b2"
+                      title="Editar"
+                      @click="abrirEditar(p)"
+                    >
+                      <v-icon>mdi-pencil</v-icon>
+                    </v-btn>
+                  </div>
                 </td>
               </tr>
             </template>
@@ -517,9 +519,10 @@ onMounted(cargar)
 .th-nom  { }
 .th-und  { width: 90px; }
 .th-ctrl { width: 100px; }
-.th-acc  { width: 90px; text-align: center; }
+.th-acc  { width: 80px; text-align: center; }
 .td-nom  { font-weight: 500; }
-.td-acc  { text-align: center; }
+.td-acc  { text-align: center; white-space: nowrap; }
+.acc-btns { display: inline-flex; align-items: center; gap: 2px; }
 
 .badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
 .badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
