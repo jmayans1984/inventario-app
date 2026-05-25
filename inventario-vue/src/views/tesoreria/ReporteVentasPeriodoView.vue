@@ -217,7 +217,15 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 const authStore = useAuthStore()
-const empresa   = computed(() => authStore.empresaCodigo || '')
+
+function getEmpresa() {
+  return authStore.empresaCodigo
+    || authStore.empresa
+    || localStorage.getItem('empresaActual')
+    || ''
+}
+
+const empresa = computed(() => getEmpresa())
 
 // ── Fechas por defecto: mes actual ──────────────────────────────
 function primerDiaMes() {
@@ -242,23 +250,25 @@ const consultado   = ref(false)
 
 // ── Cargar ccostos ──────────────────────────────────────────────
 async function fetchCcostos() {
-  if (!empresa.value) return
+  const emp = getEmpresa()
+  if (!emp) return
   try {
-    const r = await api.get('/ccostos', { params: { empresa: empresa.value } })
+    const r = await api.get('/ccostos', { params: { empresa: emp } })
     if (r.data?.success) ccostos.value = r.data.data || []
   } catch (e) { console.error('fetchCcostos:', e) }
 }
 
 // ── Consultar ───────────────────────────────────────────────────
 async function consultar() {
-  if (!empresa.value) { error.value = 'No se pudo determinar la empresa.'; return }
+  const emp = getEmpresa()
+  if (!emp) { error.value = 'No se pudo determinar la empresa.'; return }
   loading.value  = true
   error.value    = ''
   rows.value     = []
   consultado.value = true
   try {
     const params = {
-      empresa:     empresa.value,
+      empresa:     emp,
       fechaInicio: fechaInicio.value,
       fechaFin:    fechaFin.value,
     }
@@ -419,11 +429,8 @@ function exportarPDF() {
   }
 }
 
-// Cargar ccostos cuando empresa esté disponible (puede llegar después del mount)
-watch(empresa, (val) => { if (val) fetchCcostos() }, { immediate: true })
-
 onMounted(() => {
-  if (empresa.value) fetchCcostos()
+  fetchCcostos()
 })
 </script>
 
