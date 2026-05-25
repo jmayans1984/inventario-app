@@ -6207,6 +6207,71 @@ app.post('/api/square/importar-resumen', async (req, res) => {
 });
 
 // ================================================================
+// REPORTE VENTAS POR PERÍODO
+// ================================================================
+
+// GET /api/tesoreria/ventas-periodo
+// Retorna filas de la tabla ventas filtradas por empresa, rango de fechas y opcionalmente ccosto
+app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
+    const { empresa, fechaInicio, fechaFin, ccosto } = req.query;
+    if (!empresa || !fechaInicio || !fechaFin) {
+        return res.status(400).json({ success: false, error: 'empresa, fechaInicio y fechaFin son requeridos' });
+    }
+    try {
+        const params = [parseInt(empresa), fechaInicio, fechaFin];
+        let ccostoFilter = '';
+        if (ccosto && ccosto !== 'TODOS') {
+            params.push(ccosto);
+            ccostoFilter = `AND v.ccosto = $${params.length}`;
+        }
+        const sql = `
+            SELECT
+                v.fecha,
+                v.ccosto,
+                COALESCE(c.nombre, v.ccosto) AS ccosto_nombre,
+                COALESCE(v.ventas_brutas, 0)  AS ventas_brutas,
+                COALESCE(v.devoluciones, 0)   AS devoluciones,
+                COALESCE(v.descuentos, 0)     AS descuentos,
+                COALESCE(v.ventas_netas, 0)   AS ventas_netas,
+                COALESCE(v.impuestos, 0)      AS impuestos,
+                COALESCE(v.propinas, 0)       AS propinas,
+                COALESCE(v.comisiones, 0)     AS comisiones,
+                COALESCE(v.tarjetas, 0)       AS tarjetas,
+                COALESCE(v.efectivo, 0)       AS efectivo,
+                COALESCE(v.otros, 0)          AS otros
+            FROM ventas v
+            LEFT JOIN ccostos c ON c.codigo = v.ccosto AND c.empresa = $1
+            WHERE v.empresa = $1
+              AND v.fecha BETWEEN $2 AND $3
+              ${ccostoFilter}
+            ORDER BY v.fecha ASC, v.ccosto ASC
+        `;
+        const result = await pool.query(sql, params);
+
+        // Totales agregados
+        const totals = result.rows.reduce((acc, r) => {
+            acc.ventas_brutas  += parseFloat(r.ventas_brutas)  || 0;
+            acc.devoluciones   += parseFloat(r.devoluciones)   || 0;
+            acc.descuentos     += parseFloat(r.descuentos)     || 0;
+            acc.ventas_netas   += parseFloat(r.ventas_netas)   || 0;
+            acc.impuestos      += parseFloat(r.impuestos)      || 0;
+            acc.propinas       += parseFloat(r.propinas)       || 0;
+            acc.comisiones     += parseFloat(r.comisiones)     || 0;
+            acc.tarjetas       += parseFloat(r.tarjetas)       || 0;
+            acc.efectivo       += parseFloat(r.efectivo)       || 0;
+            acc.otros          += parseFloat(r.otros)          || 0;
+            return acc;
+        }, { ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
+             impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 });
+
+        res.json({ success: true, data: result.rows, totals, total: result.rowCount });
+    } catch (error) {
+        console.error('Error en /api/tesoreria/ventas-periodo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // INICIAR SERVIDOR
 // ================================================================
 

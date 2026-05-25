@@ -1,117 +1,455 @@
 <template>
   <MainLayout>
-    <div class="view-container">
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Ventas por Período</span>
-      </div>
 
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon-wrap">
-            <v-icon size="22" color="white">mdi-trending-up</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">VENTAS POR PERÍODO</h1>
-            <p class="page-sub">Resumen de ventas consolidadas por período de tiempo</p>
-          </div>
+    <!-- BREADCRUMB -->
+    <div class="breadcrumb-bar">
+      <span class="bc-root">TESORERÍA</span>
+      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
+      <span class="bc-section">Reportes</span>
+      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
+      <span class="bc-item">Ventas por Período</span>
+    </div>
+
+    <!-- HEADER -->
+    <div class="page-header">
+      <div class="header-left">
+        <div class="header-icon">
+          <v-icon size="26" color="white">mdi-trending-up</v-icon>
         </div>
-        <div class="header-actions">
-          <v-btn variant="outlined" prepend-icon="mdi-file-pdf-box" color="error" size="small">
-            PDF
-          </v-btn>
-          <v-btn variant="outlined" prepend-icon="mdi-file-excel-box" color="success" size="small">
-            Excel
-          </v-btn>
-        </div>
-      </div>
-
-      <div class="filtros-bar">
-        <v-text-field
-          label="Fecha Inicio"
-          type="date"
-          variant="outlined"
-          size="small"
-        />
-        <v-text-field
-          label="Fecha Fin"
-          type="date"
-          variant="outlined"
-          size="small"
-        />
-        <v-btn variant="text" prepend-icon="mdi-refresh" size="small">
-          Actualizar
-        </v-btn>
-      </div>
-
-      <div class="info-card">
-        <v-icon size="48" class="info-icon">mdi-trending-up</v-icon>
-        <h3>Reporte de Ventas por Período</h3>
-        <p>Este reporte consolida las ventas por período de tiempo (diario, semanal, mensual), permitiendo analizar tendencias y patrones de venta.</p>
-        <div class="features-list">
-          <div class="feature-item">
-            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
-            <span>Ventas por período (diario/semanal/mensual)</span>
-          </div>
-          <div class="feature-item">
-            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
-            <span>Comparativa período anterior</span>
-          </div>
-          <div class="feature-item">
-            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
-            <span>Gráfico de tendencia de ventas</span>
-          </div>
-          <div class="feature-item">
-            <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
-            <span>Exportación a PDF y Excel</span>
-          </div>
+        <div>
+          <h1 class="page-title">VENTAS POR PERÍODO</h1>
+          <p class="page-sub">Resumen de ventas consolidadas importadas desde Square</p>
         </div>
       </div>
     </div>
+
+    <!-- FILTROS -->
+    <div class="filters-panel">
+      <div class="filters-grid">
+
+        <!-- Fechas -->
+        <div class="filter-group dates-group">
+          <div class="filter-label">
+            <v-icon size="13" color="#06b6d4">mdi-calendar-range</v-icon>
+            <span>Período</span>
+          </div>
+          <div class="dates-row">
+            <input v-model="fechaInicio" type="date" class="date-input" />
+            <v-icon size="15" color="rgba(255,255,255,0.3)">mdi-arrow-right</v-icon>
+            <input v-model="fechaFin" type="date" class="date-input" />
+          </div>
+        </div>
+
+        <!-- Centro de Costos -->
+        <div class="filter-group">
+          <div class="filter-label">
+            <v-icon size="13" color="#f59e0b">mdi-map-marker-outline</v-icon>
+            <span>Centro de Costos</span>
+          </div>
+          <select v-model="ccostoFiltro" class="filter-select">
+            <option value="TODOS">TODOS LOS CENTROS</option>
+            <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">
+              {{ c.codigo }} — {{ c.nombre }}
+            </option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="filters-footer">
+        <button class="btn-consultar" :disabled="loading" @click="consultar">
+          <v-icon v-if="!loading" size="17">mdi-magnify</v-icon>
+          <v-progress-circular v-else size="15" width="2" indeterminate color="white" />
+          <span>{{ loading ? 'Consultando...' : 'Consultar' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div v-if="error" class="error-banner">
+      <v-icon size="18" color="#ef4444">mdi-alert-circle-outline</v-icon>
+      <span>{{ error }}</span>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div v-if="rows.length > 0" class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(6,182,212,0.13)">
+          <v-icon size="20" color="#06b6d4">mdi-currency-usd</v-icon>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-val">{{ fmt(totals.ventas_netas) }}</span>
+          <span class="kpi-label">Ventas Netas</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(16,185,129,0.13)">
+          <v-icon size="20" color="#10b981">mdi-cash</v-icon>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-val">{{ fmt(totals.efectivo) }}</span>
+          <span class="kpi-label">Efectivo</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(139,92,246,0.13)">
+          <v-icon size="20" color="#8b5cf6">mdi-credit-card-outline</v-icon>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-val">{{ fmt(totals.tarjetas) }}</span>
+          <span class="kpi-label">Tarjetas</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(245,158,11,0.13)">
+          <v-icon size="20" color="#f59e0b">mdi-cash-refund</v-icon>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-val">{{ fmt(totals.comisiones) }}</span>
+          <span class="kpi-label">Comisiones</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(239,68,68,0.13)">
+          <v-icon size="20" color="#ef4444">mdi-arrow-u-left-top</v-icon>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-val">{{ fmt(totals.devoluciones) }}</span>
+          <span class="kpi-label">Devoluciones</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:rgba(100,116,139,0.13)">
+          <v-icon size="20" color="#64748b">mdi-table-row</v-icon>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-val">{{ rows.length }}</span>
+          <span class="kpi-label">Registros</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA -->
+    <div v-if="rows.length > 0" class="table-wrap">
+      <table class="vp-table">
+        <thead>
+          <tr>
+            <th>FECHA</th>
+            <th>CENTRO DE COSTOS</th>
+            <th class="col-num">BRUTAS</th>
+            <th class="col-num">DEVOL.</th>
+            <th class="col-num">DESC.</th>
+            <th class="col-num">NETAS</th>
+            <th class="col-num">IMPUESTOS</th>
+            <th class="col-num">PROPINAS</th>
+            <th class="col-num">COMISIONES</th>
+            <th class="col-num">TARJETAS</th>
+            <th class="col-num">EFECTIVO</th>
+            <th class="col-num">OTROS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(r, i) in rows" :key="i" class="tr-data">
+            <td class="td-fecha">{{ fmtFecha(r.fecha) }}</td>
+            <td>
+              <span class="badge-ccosto">{{ r.ccosto }}</span>
+              {{ r.ccosto_nombre }}
+            </td>
+            <td class="col-num">{{ fmt(r.ventas_brutas) }}</td>
+            <td class="col-num td-red">{{ fmt(r.devoluciones) }}</td>
+            <td class="col-num td-dim">{{ fmt(r.descuentos) }}</td>
+            <td class="col-num td-bold">{{ fmt(r.ventas_netas) }}</td>
+            <td class="col-num td-dim">{{ fmt(r.impuestos) }}</td>
+            <td class="col-num td-dim">{{ fmt(r.propinas) }}</td>
+            <td class="col-num td-dim">{{ fmt(r.comisiones) }}</td>
+            <td class="col-num">{{ fmt(r.tarjetas) }}</td>
+            <td class="col-num td-green">{{ fmt(r.efectivo) }}</td>
+            <td class="col-num td-dim">{{ fmt(r.otros) }}</td>
+          </tr>
+        </tbody>
+        <!-- Fila de totales -->
+        <tfoot>
+          <tr class="tr-total">
+            <td colspan="2">TOTALES</td>
+            <td class="col-num">{{ fmt(totals.ventas_brutas) }}</td>
+            <td class="col-num td-red">{{ fmt(totals.devoluciones) }}</td>
+            <td class="col-num">{{ fmt(totals.descuentos) }}</td>
+            <td class="col-num td-bold">{{ fmt(totals.ventas_netas) }}</td>
+            <td class="col-num">{{ fmt(totals.impuestos) }}</td>
+            <td class="col-num">{{ fmt(totals.propinas) }}</td>
+            <td class="col-num">{{ fmt(totals.comisiones) }}</td>
+            <td class="col-num">{{ fmt(totals.tarjetas) }}</td>
+            <td class="col-num td-green">{{ fmt(totals.efectivo) }}</td>
+            <td class="col-num">{{ fmt(totals.otros) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- ESTADO VACÍO -->
+    <div v-else-if="!loading && consultado" class="empty-state">
+      <v-icon size="52" color="rgba(var(--v-theme-on-surface),0.15)">mdi-chart-bar</v-icon>
+      <p>No hay registros de ventas para el período y filtros seleccionados</p>
+    </div>
+
   </MainLayout>
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import api from '../../services/api'
+import { useAuthStore } from '../../stores/auth'
+
+const authStore     = useAuthStore()
+const empresa       = computed(() => authStore.empresa || authStore.user?.empresa || '')
+
+// ── Fechas por defecto: mes actual ──────────────────────────────
+function primerDiaMes() {
+  const hoy = new Date()
+  return new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0, 10)
+}
+function ultimoDiaMes() {
+  const hoy = new Date()
+  return new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().slice(0, 10)
+}
+
+const fechaInicio  = ref(primerDiaMes())
+const fechaFin     = ref(ultimoDiaMes())
+const ccostoFiltro = ref('TODOS')
+const ccostos      = ref([])
+const rows         = ref([])
+const totals       = ref({ ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
+                           impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 })
+const loading      = ref(false)
+const error        = ref('')
+const consultado   = ref(false)
+
+// ── Cargar ccostos ──────────────────────────────────────────────
+async function fetchCcostos() {
+  if (!empresa.value) return
+  try {
+    const r = await api.get('/ccostos', { params: { empresa: empresa.value } })
+    if (r.data?.success) ccostos.value = r.data.data || []
+  } catch (e) { console.error('fetchCcostos:', e) }
+}
+
+// ── Consultar ───────────────────────────────────────────────────
+async function consultar() {
+  if (!empresa.value) { error.value = 'No se pudo determinar la empresa.'; return }
+  loading.value  = true
+  error.value    = ''
+  rows.value     = []
+  consultado.value = true
+  try {
+    const params = {
+      empresa:     empresa.value,
+      fechaInicio: fechaInicio.value,
+      fechaFin:    fechaFin.value,
+    }
+    if (ccostoFiltro.value !== 'TODOS') params.ccosto = ccostoFiltro.value
+    const r = await api.get('/tesoreria/ventas-periodo', { params })
+    if (!r.data?.success) throw new Error(r.data?.error || 'Error al consultar')
+    rows.value   = r.data.data   || []
+    totals.value = r.data.totals || { ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
+                                      impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 }
+  } catch (e) {
+    error.value = e?.response?.data?.error || e.message || 'Error al consultar'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── Formatters ──────────────────────────────────────────────────
+function fmt(n) {
+  const v = parseFloat(n) || 0
+  return v.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function fmtFecha(f) {
+  if (!f) return ''
+  const d = new Date(f + 'T00:00:00')
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+onMounted(() => {
+  fetchCcostos()
+})
 </script>
 
 <style scoped>
-.view-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
+/* ── Layout ───────────────────────────────────────────────────── */
+.breadcrumb-bar {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  letter-spacing: 0.5px; margin-bottom: 16px;
+}
+.bc-root   { color: #06b6d4; }
+.bc-sep    { color: rgba(var(--v-theme-on-surface), 0.25) !important; }
+.bc-item   { color: rgba(var(--v-theme-on-surface), 0.7); }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.header-left {
+  display: flex; align-items: center; gap: 14px;
+}
+.header-icon {
+  width: 48px; height: 48px; border-radius: 14px;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.page-title {
+  font-size: 18px; font-weight: 800;
+  color: rgb(var(--v-theme-on-surface)); margin: 0;
+  letter-spacing: 0.5px;
+}
+.page-sub {
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5);
+  margin: 2px 0 0;
+}
 
-.bc-root { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; }
+/* ── Filtros ──────────────────────────────────────────────────── */
+.filters-panel {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px; padding: 18px 20px 14px;
+  margin-bottom: 20px;
+}
+.filters-grid {
+  display: flex; flex-wrap: wrap; gap: 20px;
+  align-items: flex-end;
+}
+.filter-group { display: flex; flex-direction: column; gap: 6px; }
+.filter-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.5);
+}
+.dates-group .dates-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.date-input {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
+  border-radius: 8px; padding: 7px 10px;
+  font-size: 13px; background: rgba(var(--v-theme-on-surface), 0.04);
+  color: rgb(var(--v-theme-on-surface));
+  outline: none; transition: border-color .2s;
+}
+.date-input:focus { border-color: #06b6d4; }
+.filter-select {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
+  border-radius: 8px; padding: 7px 10px;
+  font-size: 13px; background: rgba(var(--v-theme-on-surface), 0.04);
+  color: rgb(var(--v-theme-on-surface));
+  outline: none; min-width: 220px;
+  cursor: pointer;
+}
+.filter-select:focus { border-color: #06b6d4; }
+.filters-footer { margin-top: 14px; display: flex; justify-content: flex-end; }
+.btn-consultar {
+  display: flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: white; border: none; border-radius: 8px;
+  padding: 9px 20px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: opacity .2s;
+}
+.btn-consultar:hover { opacity: .88; }
+.btn-consultar:disabled { opacity: .5; cursor: not-allowed; }
 
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
+/* ── Error ────────────────────────────────────────────────────── */
+.error-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 10px; padding: 12px 16px;
+  font-size: 13px; color: #ef4444; margin-bottom: 16px;
+}
 
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
+/* ── KPIs ─────────────────────────────────────────────────────── */
+.kpi-row {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  margin-bottom: 20px;
+}
+.kpi-card {
+  flex: 1; min-width: 140px;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.kpi-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kpi-info { display: flex; flex-direction: column; gap: 2px; }
+.kpi-val {
+  font-size: 16px; font-weight: 800;
+  font-family: 'Courier New', monospace;
+  color: rgb(var(--v-theme-on-surface));
+}
+.kpi-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.45);
+}
 
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
+/* ── Tabla ────────────────────────────────────────────────────── */
+.table-wrap {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px; overflow-x: auto;
+}
+.vp-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12.5px; table-layout: auto;
+}
+.vp-table thead th {
+  padding: 11px 12px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.45);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  white-space: nowrap; text-align: left;
+}
+.vp-table thead th.col-num { text-align: right; }
+.tr-data td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
+  color: rgb(var(--v-theme-on-surface));
+  white-space: nowrap;
+}
+.tr-data:last-child td { border-bottom: none; }
+.tr-data:hover td { background: rgba(var(--v-theme-on-surface), 0.025); }
+.col-num { text-align: right !important; font-family: 'Courier New', monospace; }
+.td-fecha { font-weight: 600; white-space: nowrap; }
+.td-bold  { font-weight: 700; color: #06b6d4; }
+.td-green { color: #10b981; font-weight: 600; }
+.td-red   { color: #ef4444; }
+.td-dim   { color: rgba(var(--v-theme-on-surface), 0.5); }
+.badge-ccosto {
+  display: inline-block;
+  background: rgba(6,182,212,0.1); color: #06b6d4;
+  border-radius: 4px; padding: 1px 6px;
+  font-size: 10px; font-weight: 700; font-family: monospace;
+  margin-right: 4px;
+}
+/* Fila de totales */
+.tr-total td {
+  padding: 10px 12px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  font-weight: 700; font-size: 12.5px;
+  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.12);
+  white-space: nowrap;
+}
+.tr-total td.col-num { font-family: 'Courier New', monospace; text-align: right; }
 
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
-
-.header-left { display: flex; align-items: center; gap: 16px; }
-
-.header-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,0.35); }
-
-.page-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; margin: 0; }
-
-.page-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
-
-.filtros-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
-
-.info-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.08); border-radius: 16px; padding: 40px 32px; text-align: center; }
-
-.info-icon { color: rgba(6,182,212,0.4); margin-bottom: 16px; }
-
-.info-card h3 { font-size: 18px; font-weight: 700; margin: 16px 0 8px; }
-
-.info-card p { font-size: 14px; color: rgba(var(--v-theme-on-surface),0.6); margin: 0 0 24px; max-width: 600px; }
-
-.features-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
-
-.feature-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(var(--v-theme-on-surface),0.08); border-radius: 8px; }
+/* ── Empty state ──────────────────────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 60px 20px;
+  color: rgba(var(--v-theme-on-surface), 0.35);
+  font-size: 14px;
+}
+.empty-state p { margin-top: 12px; }
 </style>

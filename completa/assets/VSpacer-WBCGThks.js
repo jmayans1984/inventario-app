@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-DIhi-Hs2.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
