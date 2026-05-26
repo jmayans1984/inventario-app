@@ -4257,6 +4257,126 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
     }
 });
 
+// POST /api/ordenes-compra/:codigo/generar-factura - Generar factura_venta desde orden ENTREGADA
+app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
+    const { codigo } = req.params;
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // 1. Obtener la orden
+        const ordenRes = await client.query(
+            `SELECT oc.codigo, oc.fecha, oc.empresa, oc.cliente, oc.estado,
+                    oc.total, oc.observaciones, oc.dias_credito, oc.fecha_vencimiento
+             FROM ordenes_compra oc
+             WHERE oc.codigo = $1`,
+            [codigo]
+        );
+
+        if (ordenRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Orden no encontrada' });
+        }
+
+        const orden = ordenRes.rows[0];
+
+        if (orden.estado !== 'ENTREGADA') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, error: `Solo se puede facturar una orden ENTREGADA. Estado actual: ${orden.estado}` });
+        }
+
+        // 2. Verificar que no exista ya una factura para esta orden
+        const factExiste = await client.query(
+            `SELECT codigo FROM factura_venta WHERE orden_compra = $1`,
+            [codigo]
+        );
+        if (factExiste.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, error: `Ya existe la factura ${factExiste.rows[0].codigo} para esta orden` });
+        }
+
+        // 3. Obtener detalles de la orden
+        const detallesRes = await client.query(
+            `SELECT d.producto_venta, d.cantidad, d.precio_unitario, d.subtotal,
+                    pv.nombre as producto_nombre
+             FROM detalle_ordenes d
+             LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
+             WHERE d.orden = $1
+             ORDER BY d.id`,
+            [codigo]
+        );
+
+        if (detallesRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, error: 'La orden no tiene productos' });
+        }
+
+        // 4. Generar código de factura FV-XXXXXX
+        const numRes = await client.query(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 4) AS INTEGER)), 0) + 1 AS num
+             FROM factura_venta
+             WHERE codigo ~ '^FV-[0-9]+$'`
+        );
+        const numFact = String(numRes.rows[0].num).padStart(6, '0');
+        const codigoFactura = `FV-${numFact}`;
+
+        // 5. Calcular subtotal e impuestos (0% impuestos por defecto)
+        const subtotal = parseFloat(orden.total) || 0;
+        const impuestos = 0;
+        const total = subtotal;
+
+        // 6. Fecha vencimiento = hoy + dias_credito
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        const diasCredito = parseInt(orden.dias_credito) || 0;
+        let fechaVencimiento = orden.fecha_vencimiento;
+        if (!fechaVencimiento) {
+            const d = new Date();
+            d.setDate(d.getDate() + diasCredito);
+            fechaVencimiento = d.toISOString().split('T')[0];
+        }
+
+        // 7. Insertar factura_venta
+        await client.query(
+            `INSERT INTO factura_venta
+             (codigo, fecha, cliente, orden_compra, subtotal, impuestos, total, estado, observaciones, fecha_vencimiento, valor_pagado)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDIENTE', $8, $9, 0)`,
+            [codigoFactura, fechaHoy, orden.empresa, codigo, subtotal, impuestos, total,
+             orden.observaciones || '', fechaVencimiento]
+        );
+
+        // 8. Insertar detalle_factura_venta
+        for (const det of detallesRes.rows) {
+            await client.query(
+                `INSERT INTO detalle_factura_venta (factura, producto_venta, cantidad, precio_unitario, subtotal)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [codigoFactura, det.producto_venta, det.cantidad, det.precio_unitario, det.subtotal]
+            );
+        }
+
+        // 9. Marcar orden como FACTURADA
+        await client.query(
+            `UPDATE ordenes_compra SET estado = 'FACTURADA' WHERE codigo = $1`,
+            [codigo]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            factura: codigoFactura,
+            message: `Factura ${codigoFactura} generada exitosamente`
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error generando factura:', error);
+        res.status(500).json({ success: false, error: 'Error al generar factura', details: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // ================================================================
 // MÓDULO 8: SOPORTES DE ENTREGA
 // ================================================================
