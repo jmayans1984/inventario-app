@@ -473,12 +473,14 @@ const editTotal = computed(() =>
 // ── Helpers ───────────────────────────────────────────────────────
 function fmtFecha(f) {
   if (!f) return '—'
-  return new Date(f + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const d = new Date(f)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
 }
 
 function fmtMonto(v) {
   const n = parseFloat(v) || 0
-  return '$' + n.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  return '$' + n.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function chipClass(estado) {
