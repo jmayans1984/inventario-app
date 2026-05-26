@@ -109,6 +109,7 @@
               <th class="col-center">F. ENTREGA</th>
               <th class="col-right">TOTAL</th>
               <th class="col-center">ESTADO</th>
+              <th class="col-center">SOPORTES</th>
               <th class="col-acc">ACCIONES</th>
             </tr>
           </thead>
@@ -122,6 +123,15 @@
               <td class="col-right monto-cell">{{ fmtMonto(oc.total) }}</td>
               <td class="col-center">
                 <span :class="chipClass(oc.estado)">{{ oc.estado }}</span>
+              </td>
+              <td class="col-center">
+                <span v-if="parseInt(oc.soportes_count) > 0" class="soporte-badge-ok">
+                  <v-icon size="13">mdi-paperclip</v-icon> {{ oc.soportes_count }}
+                </span>
+                <span v-else-if="oc.estado === 'ENTREGADA'" class="soporte-badge-warn" title="Sin soportes de entrega">
+                  <v-icon size="13">mdi-alert-outline</v-icon> Sin soporte
+                </span>
+                <span v-else class="soporte-badge-none">—</span>
               </td>
               <td class="col-acc">
                 <!-- Ver detalle -->
@@ -137,10 +147,17 @@
                        :loading="entregando === oc.codigo"
                        @click="confirmarEntrega(oc)" />
                 <!-- Generar Factura (solo ENTREGADA) -->
-                <v-btn v-if="oc.estado === 'ENTREGADA'"
-                       icon="mdi-receipt-text-plus-outline" size="x-small" variant="text" color="#16a34a"
-                       :loading="facturando === oc.codigo"
-                       @click="confirmarFactura(oc)" />
+                <v-tooltip v-if="oc.estado === 'ENTREGADA'" :text="parseInt(oc.soportes_count) === 0 ? 'Debe tener al menos 1 soporte de entrega' : 'Generar Factura'" location="top">
+                  <template #activator="{ props }">
+                    <span v-bind="props">
+                      <v-btn icon="mdi-receipt-text-plus-outline" size="x-small" variant="text"
+                             :color="parseInt(oc.soportes_count) > 0 ? '#16a34a' : 'rgba(var(--v-theme-on-surface),.25)'"
+                             :loading="facturando === oc.codigo"
+                             :disabled="parseInt(oc.soportes_count) === 0"
+                             @click="confirmarFactura(oc)" />
+                    </span>
+                  </template>
+                </v-tooltip>
               </td>
             </tr>
           </tbody>
@@ -273,10 +290,20 @@
                    prepend-icon="mdi-truck-delivery-outline" @click="modalVer = false; confirmarEntrega(ocActual)">
               Marcar Entregada
             </v-btn>
-            <v-btn v-if="ocActual?.estado === 'ENTREGADA'" color="#16a34a" variant="flat"
-                   prepend-icon="mdi-receipt-text-plus-outline" @click="modalVer = false; confirmarFactura(ocActual)">
-              Generar Factura
-            </v-btn>
+            <v-tooltip v-if="ocActual?.estado === 'ENTREGADA'"
+                       :text="parseInt(ocActual?.soportes_count) === 0 ? 'Debe tener al menos 1 soporte de entrega' : 'Generar Factura'"
+                       location="top">
+              <template #activator="{ props }">
+                <span v-bind="props">
+                  <v-btn color="#16a34a" variant="flat"
+                         prepend-icon="mdi-receipt-text-plus-outline"
+                         :disabled="parseInt(ocActual?.soportes_count) === 0"
+                         @click="modalVer = false; confirmarFactura(ocActual)">
+                    Generar Factura
+                  </v-btn>
+                </span>
+              </template>
+            </v-tooltip>
           </div>
         </v-card>
       </v-dialog>
@@ -841,6 +868,11 @@ onMounted(cargar)
 /* Success / error */
 .success-box { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #16a34a; display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; }
+
+/* Badges de soporte en tabla */
+.soporte-badge-ok   { display:inline-flex; align-items:center; gap:3px; background:rgba(34,197,94,.12); color:#16a34a; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+.soporte-badge-warn { display:inline-flex; align-items:center; gap:3px; background:rgba(239,68,68,.1); color:#dc2626; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+.soporte-badge-none { color:rgba(var(--v-theme-on-surface),.3); font-size:12px; }
 
 /* Soportes de entrega */
 .soporte-count { background: rgba(6,182,212,.15); color: #0891b2; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px; }

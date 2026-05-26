@@ -3550,7 +3550,8 @@ app.get('/api/ordenes-compra/todas', async (req, res) => {
             SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.fecha_vencimiento,
                    oc.cliente, oc.tipo_precio, oc.dias_credito, oc.estado,
                    oc.total, oc.observaciones, oc.empresa,
-                   e.nombre as empresa_nombre
+                   e.nombre as empresa_nombre,
+                   COALESCE((SELECT COUNT(*) FROM soportes_entrega se WHERE se.orden = oc.codigo), 0) AS soportes_count
             FROM ordenes_compra oc
             LEFT JOIN empresas e ON oc.empresa = e.codigo
         `;
