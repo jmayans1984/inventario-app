@@ -472,6 +472,8 @@ onMounted(cargar)
 .field-input:focus { border-color: #06b6d4; }
 .field-input.field-error { border-color: #ef4444; }
 .field-input:disabled { opacity: .55; cursor: not-allowed; background: rgba(var(--v-theme-on-surface),.06); }
+select.field-input { background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
+select.field-input option { background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
 .cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
 .error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
