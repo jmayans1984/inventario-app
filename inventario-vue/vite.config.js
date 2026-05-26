@@ -3,9 +3,9 @@ import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 
 export default defineConfig({
-  base: '/inventario-app/completa/',
+  base: '/inventario-app/',
   build: {
-    outDir: '../completa',
+    outDir: '../dist-pages',
     emptyOutDir: true,
   },
   plugins: [
