@@ -187,18 +187,20 @@
             <div class="form-row">
               <div class="field-group" style="flex:1">
                 <label class="field-label">Grupo</label>
-                <v-select
-                  v-model="form.grupo"
-                  :items="gruposItems"
-                  item-title="nombre"
-                  item-value="codigo"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  color="#06b6d4"
-                  placeholder="Sin grupo"
-                  class="grupo-vselect"
-                />
+                <div class="grupo-chips">
+                  <span
+                    class="grupo-chip"
+                    :class="{ 'grupo-chip--active': form.grupo === '' }"
+                    @click="form.grupo = ''"
+                  >Sin grupo</span>
+                  <span
+                    v-for="g in grupos"
+                    :key="g.codigo"
+                    class="grupo-chip"
+                    :class="{ 'grupo-chip--active': form.grupo === g.codigo }"
+                    @click="form.grupo = g.codigo"
+                  >{{ g.nombre }}</span>
+                </div>
               </div>
               <div class="field-group" style="flex:0 0 110px">
                 <label class="field-label">Unidad</label>
@@ -210,23 +212,6 @@
                   class="field-input"
                   @input="form.unidad = form.unidad.toUpperCase()"
                 />
-              </div>
-            </div>
-
-            <!-- Precios -->
-            <div class="section-title">Listas de Precios</div>
-            <div class="form-row three">
-              <div class="field-group">
-                <label class="field-label">Lista 1</label>
-                <input v-model="form.precio_venta1" type="number" min="0" step="0.01" placeholder="0.00" class="field-input" />
-              </div>
-              <div class="field-group">
-                <label class="field-label">Lista 2</label>
-                <input v-model="form.precio_venta2" type="number" min="0" step="0.01" placeholder="0.00" class="field-input" />
-              </div>
-              <div class="field-group">
-                <label class="field-label">Lista 3</label>
-                <input v-model="form.precio_venta3" type="number" min="0" step="0.01" placeholder="0.00" class="field-input" />
               </div>
             </div>
 
@@ -291,10 +276,6 @@ const form = ref({
 
 const activos = computed(() => productos.value.filter(p => p.control === 'SI').length)
 
-const gruposItems = computed(() => [
-  { codigo: '', nombre: 'Sin grupo' },
-  ...grupos.value
-])
 
 const filasFiltradas = computed(() => {
   const q = busqueda.value.toLowerCase()
@@ -487,11 +468,11 @@ onMounted(cargar)
 .field-input:disabled { opacity: .55; cursor: not-allowed; background: rgba(var(--v-theme-on-surface),.06); }
 .cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
 
-/* v-select grupo — alinear con los demás inputs */
-.grupo-vselect :deep(.v-field) { border-radius: 8px; font-size: 13px; min-height: 38px; }
-.grupo-vselect :deep(.v-field__input) { padding-top: 6px; padding-bottom: 6px; font-size: 13px; min-height: 38px; }
-.grupo-vselect :deep(.v-field--variant-outlined .v-field__outline__start) { border-radius: 8px 0 0 8px; }
-.grupo-vselect :deep(.v-field--variant-outlined .v-field__outline__end)   { border-radius: 0 8px 8px 0; }
+/* Chips grupo */
+.grupo-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.grupo-chip { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid rgba(var(--v-theme-on-surface),.15); background: rgba(var(--v-theme-on-surface),.04); color: rgba(var(--v-theme-on-surface),.6); transition: all .15s; user-select: none; }
+.grupo-chip:hover { border-color: #06b6d4; color: #06b6d4; }
+.grupo-chip--active { background: rgba(6,182,212,.15); border-color: #06b6d4; color: #06b6d4; }
 .error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
 </style>
