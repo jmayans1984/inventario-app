@@ -187,10 +187,27 @@
             <div class="form-row">
               <div class="field-group" style="flex:1">
                 <label class="field-label">Grupo</label>
-                <select v-model="form.grupo" class="field-input">
-                  <option value="">Sin grupo</option>
-                  <option v-for="g in grupos" :key="g.codigo" :value="g.codigo">{{ g.nombre }}</option>
-                </select>
+                <div class="custom-select" :class="{ open: grupoOpen }" v-click-outside="() => grupoOpen = false">
+                  <div class="cs-trigger" @click="grupoOpen = !grupoOpen">
+                    <span :class="{ placeholder: !form.grupo }">
+                      {{ form.grupo ? (grupos.find(g => g.codigo === form.grupo)?.nombre || form.grupo) : 'Sin grupo' }}
+                    </span>
+                    <v-icon size="16" class="cs-arrow">mdi-chevron-down</v-icon>
+                  </div>
+                  <div v-if="grupoOpen" class="cs-dropdown">
+                    <div class="cs-option" :class="{ active: form.grupo === '' }" @click="form.grupo = ''; grupoOpen = false">
+                      Sin grupo
+                    </div>
+                    <div
+                      v-for="g in grupos" :key="g.codigo"
+                      class="cs-option"
+                      :class="{ active: form.grupo === g.codigo }"
+                      @click="form.grupo = g.codigo; grupoOpen = false"
+                    >
+                      {{ g.nombre }}
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="field-group" style="flex:0 0 110px">
                 <label class="field-label">Unidad</label>
@@ -269,17 +286,27 @@ const filtroGrupo  = ref('')
 const filtroControl = ref('')
 const loading      = ref(false)
 const guardando    = ref(false)
-const toggling     = ref(null)   // codigo del producto que se está toggleando
+const toggling     = ref(null)
 const modal        = ref(false)
 const confirmModal = ref(false)
 const editando     = ref(false)
 const eliminando   = ref(null)
 const msgError     = ref('')
 const errores      = ref({})
+const grupoOpen    = ref(false)
 const form = ref({
   codigo: '', nombre: '', unidad: 'UND', grupo: '',
   precio_costo: 0, precio_venta1: 0, precio_venta2: 0, precio_venta3: 0, control: 'SI'
 })
+
+// Directiva click-outside
+const vClickOutside = {
+  mounted(el, binding) {
+    el._clickOutside = (e) => { if (!el.contains(e.target)) binding.value(e) }
+    document.addEventListener('mousedown', el._clickOutside)
+  },
+  unmounted(el) { document.removeEventListener('mousedown', el._clickOutside) }
+}
 
 const activos = computed(() => productos.value.filter(p => p.control === 'SI').length)
 
@@ -332,6 +359,7 @@ async function cargar() {
 function abrirModal(p = null) {
   errores.value = {}
   msgError.value = ''
+  grupoOpen.value = false
   editando.value = !!p
   if (p) {
     form.value = {
@@ -472,9 +500,19 @@ onMounted(cargar)
 .field-input:focus { border-color: #06b6d4; }
 .field-input.field-error { border-color: #ef4444; }
 .field-input:disabled { opacity: .55; cursor: not-allowed; background: rgba(var(--v-theme-on-surface),.06); }
-select.field-input { background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
-select.field-input option { background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
 .cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
+
+/* Custom select */
+.custom-select { position: relative; width: 100%; }
+.cs-trigger { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; font-size: 13px; background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); cursor: pointer; transition: border-color .2s; user-select: none; }
+.custom-select.open .cs-trigger { border-color: #06b6d4; }
+.cs-arrow { transition: transform .2s; color: rgba(var(--v-theme-on-surface),.4) !important; flex-shrink: 0; }
+.custom-select.open .cs-arrow { transform: rotate(180deg); }
+.placeholder { color: rgba(var(--v-theme-on-surface),.4); }
+.cs-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; z-index: 999; max-height: 200px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.cs-option { padding: 9px 14px; font-size: 13px; color: rgb(var(--v-theme-on-surface)); cursor: pointer; transition: background .15s; }
+.cs-option:hover { background: rgba(6,182,212,.1); }
+.cs-option.active { background: rgba(6,182,212,.15); color: #06b6d4; font-weight: 600; }
 .error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
 </style>
