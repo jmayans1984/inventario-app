@@ -185,11 +185,9 @@ const filasFiltradas = computed(() => {
 })
 
 async function cargar() {
-  const emp = getEmpresa()
-  if (!emp) return
   loading.value = true
   try {
-    const r = await api.get('/produccion/lista-precios', { params: { empresa: emp } })
+    const r = await api.get('/produccion/lista-precios')
     listas.value = r.data?.data || []
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
@@ -215,14 +213,13 @@ async function guardar() {
   if (!validar()) return
   guardando.value = true
   msgError.value = ''
-  const emp = getEmpresa()
   try {
     if (editando.value) {
-      const r = await api.put(`/produccion/lista-precios/${form.value.id}`, { ...form.value, empresa: emp })
+      await api.put(`/produccion/lista-precios/${form.value.id}`, { ...form.value })
       const idx = listas.value.findIndex(l => l.id === form.value.id)
-      if (idx >= 0) listas.value[idx] = r.data.data || { ...listas.value[idx], ...form.value }
+      if (idx >= 0) listas.value[idx] = { ...listas.value[idx], ...form.value }
     } else {
-      const r = await api.post('/produccion/lista-precios', { ...form.value, empresa: emp })
+      const r = await api.post('/produccion/lista-precios', { ...form.value })
       listas.value.push(r.data.data)
     }
     modal.value = false
@@ -236,9 +233,7 @@ function confirmarEliminar(lp) { eliminando.value = lp; confirmModal.value = tru
 async function eliminar() {
   guardando.value = true
   try {
-    await api.delete(`/produccion/lista-precios/${eliminando.value.id}`, {
-      params: { empresa: getEmpresa() }
-    })
+    await api.delete(`/produccion/lista-precios/${eliminando.value.id}`)
     listas.value = listas.value.filter(l => l.id !== eliminando.value.id)
     confirmModal.value = false
   } catch (e) { console.error(e) } finally { guardando.value = false }

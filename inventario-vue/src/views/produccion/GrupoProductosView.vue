@@ -167,11 +167,9 @@ const filasFiltradas = computed(() => {
 })
 
 async function cargar() {
-  const emp = getEmpresa()
-  if (!emp) return
   loading.value = true
   try {
-    const r = await api.get('/produccion/grupo-productos', { params: { empresa: emp } })
+    const r = await api.get('/produccion/grupo-productos')
     grupos.value = r.data?.data || []
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
@@ -196,14 +194,13 @@ async function guardar() {
   if (!validar()) return
   guardando.value = true
   msgError.value = ''
-  const emp = getEmpresa()
   try {
     if (editando.value) {
-      await api.put(`/produccion/grupo-productos/${form.value.codigo}`, { ...form.value, empresa: emp })
+      await api.put(`/produccion/grupo-productos/${form.value.codigo}`, { ...form.value })
       const idx = grupos.value.findIndex(g => g.codigo === form.value.codigo)
       if (idx >= 0) grupos.value[idx].nombre = form.value.nombre
     } else {
-      const r = await api.post('/produccion/grupo-productos', { ...form.value, empresa: emp })
+      const r = await api.post('/produccion/grupo-productos', { ...form.value })
       grupos.value.push(r.data.data)
     }
     modal.value = false
@@ -217,9 +214,7 @@ function confirmarEliminar(g) { eliminando.value = g; confirmModal.value = true 
 async function eliminar() {
   guardando.value = true
   try {
-    await api.delete(`/produccion/grupo-productos/${eliminando.value.codigo}`, {
-      params: { empresa: getEmpresa() }
-    })
+    await api.delete(`/produccion/grupo-productos/${eliminando.value.codigo}`)
     grupos.value = grupos.value.filter(g => g.codigo !== eliminando.value.codigo)
     confirmModal.value = false
   } catch (e) { console.error(e) } finally { guardando.value = false }

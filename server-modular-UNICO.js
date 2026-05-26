@@ -6278,13 +6278,9 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 // ── GRUPO DE PRODUCTOS DE VENTA ────────────────────────────────
 
 app.get('/api/produccion/grupo-productos', async (req, res) => {
-    const { empresa } = req.query;
-    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
         const r = await pool.query(
-            `SELECT codigo, nombre FROM grupo_productos_venta
-             WHERE empresa = $1 ORDER BY nombre`,
-            [parseInt(empresa)]
+            `SELECT codigo, nombre FROM grupo_productos_venta ORDER BY nombre`
         );
         res.json({ success: true, data: r.rows });
     } catch (e) {
@@ -6294,16 +6290,16 @@ app.get('/api/produccion/grupo-productos', async (req, res) => {
 });
 
 app.post('/api/produccion/grupo-productos', async (req, res) => {
-    const { codigo, nombre, empresa } = req.body;
-    if (!codigo || !nombre || !empresa) return res.status(400).json({ success: false, error: 'codigo, nombre y empresa son requeridos' });
+    const { codigo, nombre } = req.body;
+    if (!codigo || !nombre) return res.status(400).json({ success: false, error: 'codigo y nombre son requeridos' });
     try {
         await pool.query(
-            `INSERT INTO grupo_productos_venta (codigo, nombre, empresa) VALUES ($1, $2, $3)`,
-            [codigo.toUpperCase(), nombre, parseInt(empresa)]
+            `INSERT INTO grupo_productos_venta (codigo, nombre) VALUES ($1, $2)`,
+            [codigo.toUpperCase(), nombre]
         );
         const r = await pool.query(
-            `SELECT codigo, nombre FROM grupo_productos_venta WHERE codigo = $1 AND empresa = $2`,
-            [codigo.toUpperCase(), parseInt(empresa)]
+            `SELECT codigo, nombre FROM grupo_productos_venta WHERE codigo = $1`,
+            [codigo.toUpperCase()]
         );
         res.json({ success: true, data: r.rows[0] });
     } catch (e) {
@@ -6315,11 +6311,11 @@ app.post('/api/produccion/grupo-productos', async (req, res) => {
 
 app.put('/api/produccion/grupo-productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, empresa } = req.body;
+    const { nombre } = req.body;
     try {
         await pool.query(
-            `UPDATE grupo_productos_venta SET nombre = $1 WHERE codigo = $2 AND empresa = $3`,
-            [nombre, codigo, parseInt(empresa)]
+            `UPDATE grupo_productos_venta SET nombre = $1 WHERE codigo = $2`,
+            [nombre, codigo]
         );
         res.json({ success: true });
     } catch (e) {
@@ -6330,12 +6326,8 @@ app.put('/api/produccion/grupo-productos/:codigo', async (req, res) => {
 
 app.delete('/api/produccion/grupo-productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { empresa } = req.query;
     try {
-        await pool.query(
-            `DELETE FROM grupo_productos_venta WHERE codigo = $1 AND empresa = $2`,
-            [codigo, parseInt(empresa)]
-        );
+        await pool.query(`DELETE FROM grupo_productos_venta WHERE codigo = $1`, [codigo]);
         res.json({ success: true });
     } catch (e) {
         console.error('Error DELETE /api/produccion/grupo-productos:', e);
@@ -6436,13 +6428,9 @@ app.delete('/api/produccion/productos-venta/:codigo', async (req, res) => {
 // ── LISTA DE PRECIOS (config_listas_precios) ────────────────────
 
 app.get('/api/produccion/lista-precios', async (req, res) => {
-    const { empresa } = req.query;
-    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
         const r = await pool.query(
-            `SELECT id, lista, activo, dias_credito FROM config_listas_precios
-             WHERE empresa = $1 ORDER BY lista`,
-            [parseInt(empresa)]
+            `SELECT id, lista, activo, dias_credito FROM config_listas_precios ORDER BY lista`
         );
         res.json({ success: true, data: r.rows });
     } catch (e) {
@@ -6452,13 +6440,13 @@ app.get('/api/produccion/lista-precios', async (req, res) => {
 });
 
 app.post('/api/produccion/lista-precios', async (req, res) => {
-    const { lista, activo, dias_credito, empresa } = req.body;
-    if (!lista || !empresa) return res.status(400).json({ success: false, error: 'lista y empresa son requeridos' });
+    const { lista, activo, dias_credito } = req.body;
+    if (!lista) return res.status(400).json({ success: false, error: 'lista es requerida' });
     try {
         const r = await pool.query(
-            `INSERT INTO config_listas_precios (lista, activo, dias_credito, empresa)
-             VALUES ($1, $2, $3, $4) RETURNING id, lista, activo, dias_credito`,
-            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0, parseInt(empresa)]
+            `INSERT INTO config_listas_precios (lista, activo, dias_credito)
+             VALUES ($1, $2, $3) RETURNING id, lista, activo, dias_credito`,
+            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0]
         );
         res.json({ success: true, data: r.rows[0] });
     } catch (e) {
@@ -6470,12 +6458,11 @@ app.post('/api/produccion/lista-precios', async (req, res) => {
 
 app.put('/api/produccion/lista-precios/:id', async (req, res) => {
     const { id } = req.params;
-    const { lista, activo, dias_credito, empresa } = req.body;
+    const { lista, activo, dias_credito } = req.body;
     try {
         await pool.query(
-            `UPDATE config_listas_precios SET lista=$1, activo=$2, dias_credito=$3
-             WHERE id=$4 AND empresa=$5`,
-            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0, parseInt(id), parseInt(empresa)]
+            `UPDATE config_listas_precios SET lista=$1, activo=$2, dias_credito=$3 WHERE id=$4`,
+            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0, parseInt(id)]
         );
         res.json({ success: true });
     } catch (e) {
@@ -6486,12 +6473,8 @@ app.put('/api/produccion/lista-precios/:id', async (req, res) => {
 
 app.delete('/api/produccion/lista-precios/:id', async (req, res) => {
     const { id } = req.params;
-    const { empresa } = req.query;
     try {
-        await pool.query(
-            `DELETE FROM config_listas_precios WHERE id=$1 AND empresa=$2`,
-            [parseInt(id), parseInt(empresa)]
-        );
+        await pool.query(`DELETE FROM config_listas_precios WHERE id=$1`, [parseInt(id)]);
         res.json({ success: true });
     } catch (e) {
         console.error('Error DELETE /api/produccion/lista-precios:', e);
@@ -6508,19 +6491,15 @@ pool.query(`
         nombre      VARCHAR(100) NOT NULL,
         dias_pago   INTEGER DEFAULT 0,
         descripcion VARCHAR(255),
-        activo      VARCHAR(2) DEFAULT 'SI',
-        empresa     INTEGER NOT NULL
+        activo      VARCHAR(2) DEFAULT 'SI'
     )
 `).catch(e => console.error('Error creando tabla terminos_credito:', e));
 
 app.get('/api/produccion/terminos-credito', async (req, res) => {
-    const { empresa } = req.query;
-    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
         const r = await pool.query(
             `SELECT id, nombre, dias_pago, descripcion, activo
-             FROM terminos_credito WHERE empresa = $1 ORDER BY dias_pago`,
-            [parseInt(empresa)]
+             FROM terminos_credito ORDER BY dias_pago`
         );
         res.json({ success: true, data: r.rows });
     } catch (e) {
@@ -6530,13 +6509,13 @@ app.get('/api/produccion/terminos-credito', async (req, res) => {
 });
 
 app.post('/api/produccion/terminos-credito', async (req, res) => {
-    const { nombre, dias_pago, descripcion, activo, empresa } = req.body;
-    if (!nombre || !empresa) return res.status(400).json({ success: false, error: 'nombre y empresa son requeridos' });
+    const { nombre, dias_pago, descripcion, activo } = req.body;
+    if (!nombre) return res.status(400).json({ success: false, error: 'nombre es requerido' });
     try {
         const r = await pool.query(
-            `INSERT INTO terminos_credito (nombre, dias_pago, descripcion, activo, empresa)
-             VALUES ($1,$2,$3,$4,$5) RETURNING id, nombre, dias_pago, descripcion, activo`,
-            [nombre, parseInt(dias_pago) || 0, descripcion || '', activo || 'SI', parseInt(empresa)]
+            `INSERT INTO terminos_credito (nombre, dias_pago, descripcion, activo)
+             VALUES ($1,$2,$3,$4) RETURNING id, nombre, dias_pago, descripcion, activo`,
+            [nombre, parseInt(dias_pago) || 0, descripcion || '', activo || 'SI']
         );
         res.json({ success: true, data: r.rows[0] });
     } catch (e) {
@@ -6550,9 +6529,8 @@ app.put('/api/produccion/terminos-credito/:id', async (req, res) => {
     const { nombre, dias_pago, descripcion, activo, empresa } = req.body;
     try {
         await pool.query(
-            `UPDATE terminos_credito SET nombre=$1, dias_pago=$2, descripcion=$3, activo=$4
-             WHERE id=$5 AND empresa=$6`,
-            [nombre, parseInt(dias_pago) || 0, descripcion || '', activo || 'SI', parseInt(id), parseInt(empresa)]
+            `UPDATE terminos_credito SET nombre=$1, dias_pago=$2, descripcion=$3, activo=$4 WHERE id=$5`,
+            [nombre, parseInt(dias_pago) || 0, descripcion || '', activo || 'SI', parseInt(id)]
         );
         res.json({ success: true });
     } catch (e) {
@@ -6563,12 +6541,8 @@ app.put('/api/produccion/terminos-credito/:id', async (req, res) => {
 
 app.delete('/api/produccion/terminos-credito/:id', async (req, res) => {
     const { id } = req.params;
-    const { empresa } = req.query;
     try {
-        await pool.query(
-            `DELETE FROM terminos_credito WHERE id=$1 AND empresa=$2`,
-            [parseInt(id), parseInt(empresa)]
-        );
+        await pool.query(`DELETE FROM terminos_credito WHERE id=$1`, [parseInt(id)]);
         res.json({ success: true });
     } catch (e) {
         console.error('Error DELETE /api/produccion/terminos-credito:', e);
