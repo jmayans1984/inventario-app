@@ -19,7 +19,7 @@
           </div>
           <div>
             <h1 class="page-title">GRUPO DE PRODUCTOS</h1>
-            <p class="page-sub">Categorías para organizar el catálogo de productos de venta</p>
+            <p class="page-sub">Categorías para organizar el catálogo de productos</p>
           </div>
         </div>
         <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
