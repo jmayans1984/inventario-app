@@ -46,12 +46,13 @@
             <tr>
               <th>CÓDIGO</th>
               <th>NOMBRE</th>
+              <th class="col-center">ESTADO</th>
               <th class="col-acc">ACCIONES</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filasFiltradas.length === 0">
-              <td colspan="3" class="empty-row">
+              <td colspan="4" class="empty-row">
                 <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)">mdi-folder-open-outline</v-icon>
                 <p>No hay grupos registrados</p>
               </td>
@@ -59,9 +60,21 @@
             <tr v-for="g in filasFiltradas" :key="g.codigo" class="data-row">
               <td><span class="cod-badge">{{ g.codigo }}</span></td>
               <td class="nombre-cell">{{ g.nombre }}</td>
+              <td class="col-center">
+                <span :class="g.activo === 'SI' ? 'chip-activo' : 'chip-inactivo'">
+                  {{ g.activo === 'SI' ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
               <td class="col-acc">
+                <v-btn
+                  :icon="g.activo === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
+                  size="x-small"
+                  variant="text"
+                  :color="g.activo === 'SI' ? '#10b981' : 'rgba(var(--v-theme-on-surface),.35)'"
+                  :loading="toggling === g.codigo"
+                  @click="toggleActivo(g)"
+                />
                 <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(g)" />
-                <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmarEliminar(g)" />
               </td>
             </tr>
           </tbody>
@@ -78,20 +91,22 @@
             <v-btn icon="mdi-close" size="small" variant="text" @click="modal = false" />
           </div>
           <div class="modal-body">
+            <!-- CÓDIGO -->
             <div class="field-group">
-              <label class="field-label">Código *</label>
+              <label class="field-label">Código</label>
               <input
                 v-model="form.codigo"
                 :disabled="editando"
                 type="text"
                 maxlength="10"
-                placeholder="Ej: GRP001"
-                class="field-input"
+                class="field-input cod-input"
                 :class="{ 'field-error': errores.codigo }"
                 @input="form.codigo = form.codigo.toUpperCase()"
               />
               <span v-if="errores.codigo" class="error-txt">{{ errores.codigo }}</span>
+              <span v-if="!editando" class="hint-txt">Generado automáticamente — puedes modificarlo</span>
             </div>
+            <!-- NOMBRE -->
             <div class="field-group">
               <label class="field-label">Nombre *</label>
               <input
@@ -101,8 +116,23 @@
                 placeholder="Nombre del grupo"
                 class="field-input"
                 :class="{ 'field-error': errores.nombre }"
+                @input="form.nombre = form.nombre.toUpperCase()"
               />
               <span v-if="errores.nombre" class="error-txt">{{ errores.nombre }}</span>
+            </div>
+            <!-- ACTIVO -->
+            <div class="field-group">
+              <label class="field-label">Estado</label>
+              <div class="radio-group">
+                <label class="radio-opt">
+                  <input type="radio" v-model="form.activo" value="SI" />
+                  <span>Activo</span>
+                </label>
+                <label class="radio-opt">
+                  <input type="radio" v-model="form.activo" value="NO" />
+                  <span>Inactivo</span>
+                </label>
+              </div>
             </div>
             <div v-if="msgError" class="api-error">{{ msgError }}</div>
           </div>
@@ -115,23 +145,6 @@
         </v-card>
       </v-dialog>
 
-      <!-- CONFIRM ELIMINAR -->
-      <v-dialog v-model="confirmModal" max-width="360">
-        <v-card class="modal-card">
-          <div class="modal-header">
-            <v-icon color="#ef4444" class="mr-2">mdi-alert-circle-outline</v-icon>
-            <span>Eliminar Grupo</span>
-          </div>
-          <div class="modal-body">
-            <p>¿Eliminar el grupo <strong>{{ eliminando?.nombre }}</strong>? Esta acción no se puede deshacer.</p>
-          </div>
-          <div class="modal-footer">
-            <v-btn variant="text" @click="confirmModal = false">Cancelar</v-btn>
-            <v-btn color="error" variant="flat" :loading="guardando" @click="eliminar">Eliminar</v-btn>
-          </div>
-        </v-card>
-      </v-dialog>
-
     </div>
   </MainLayout>
 </template>
@@ -140,23 +153,16 @@
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
-import { useAuthStore } from '../../stores/auth'
-
-const authStore = useAuthStore()
-function getEmpresa() {
-  return authStore.empresaCodigo || authStore.empresa || localStorage.getItem('empresaActual') || ''
-}
 
 const grupos    = ref([])
 const busqueda  = ref('')
 const loading   = ref(false)
 const guardando = ref(false)
+const toggling  = ref(null)
 const modal     = ref(false)
-const confirmModal = ref(false)
 const editando  = ref(false)
-const eliminando = ref(null)
 const msgError  = ref('')
-const form      = ref({ codigo: '', nombre: '' })
+const form      = ref({ codigo: '', nombre: '', activo: 'SI' })
 const errores   = ref({})
 
 const filasFiltradas = computed(() => {
@@ -174,11 +180,23 @@ async function cargar() {
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
-function abrirModal(g = null) {
+async function generarCodigo() {
+  try {
+    const r = await api.get('/produccion/grupo-productos/proximo-codigo')
+    return r.data?.codigo || '001'
+  } catch { return '001' }
+}
+
+async function abrirModal(g = null) {
   errores.value = {}
   msgError.value = ''
   editando.value = !!g
-  form.value = g ? { codigo: g.codigo, nombre: g.nombre } : { codigo: '', nombre: '' }
+  if (g) {
+    form.value = { codigo: g.codigo, nombre: g.nombre, activo: g.activo || 'SI' }
+  } else {
+    const cod = await generarCodigo()
+    form.value = { codigo: cod, nombre: '', activo: 'SI' }
+  }
   modal.value = true
 }
 
@@ -196,9 +214,9 @@ async function guardar() {
   msgError.value = ''
   try {
     if (editando.value) {
-      await api.put(`/produccion/grupo-productos/${form.value.codigo}`, { ...form.value })
+      await api.put(`/produccion/grupo-productos/${form.value.codigo}`, { nombre: form.value.nombre, activo: form.value.activo })
       const idx = grupos.value.findIndex(g => g.codigo === form.value.codigo)
-      if (idx >= 0) grupos.value[idx].nombre = form.value.nombre
+      if (idx >= 0) grupos.value[idx] = { ...grupos.value[idx], nombre: form.value.nombre, activo: form.value.activo }
     } else {
       const r = await api.post('/produccion/grupo-productos', { ...form.value })
       grupos.value.push(r.data.data)
@@ -209,15 +227,14 @@ async function guardar() {
   } finally { guardando.value = false }
 }
 
-function confirmarEliminar(g) { eliminando.value = g; confirmModal.value = true }
-
-async function eliminar() {
-  guardando.value = true
+async function toggleActivo(g) {
+  toggling.value = g.codigo
+  const nuevoActivo = g.activo === 'SI' ? 'NO' : 'SI'
   try {
-    await api.delete(`/produccion/grupo-productos/${eliminando.value.codigo}`)
-    grupos.value = grupos.value.filter(g => g.codigo !== eliminando.value.codigo)
-    confirmModal.value = false
-  } catch (e) { console.error(e) } finally { guardando.value = false }
+    await api.put(`/produccion/grupo-productos/${g.codigo}`, { nombre: g.nombre, activo: nuevoActivo })
+    const idx = grupos.value.findIndex(x => x.codigo === g.codigo)
+    if (idx >= 0) grupos.value[idx] = { ...grupos.value[idx], activo: nuevoActivo }
+  } catch (e) { console.error(e) } finally { toggling.value = null }
 }
 
 onMounted(cargar)
@@ -247,12 +264,15 @@ onMounted(cargar)
 .loading-wrap { display: flex; justify-content: center; padding: 40px; }
 .crud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .crud-table thead th { padding: 11px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); text-align: left; }
-.col-acc { width: 90px; text-align: center !important; }
+.col-center { text-align: center !important; }
+.col-acc { width: 80px; text-align: center !important; }
 .data-row td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
 .cod-badge { background: rgba(6,182,212,.12); color: #06b6d4; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-family: monospace; }
 .nombre-cell { font-weight: 500; }
+.chip-activo { background: rgba(34,197,94,.12); color: #16a34a; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.chip-inactivo { background: rgba(239,68,68,.1); color: #dc2626; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .empty-row { text-align: center !important; padding: 48px !important; color: rgba(var(--v-theme-on-surface),.35); }
 .empty-row p { margin: 10px 0 0; font-size: 13px; }
 
@@ -268,6 +288,12 @@ onMounted(cargar)
 .field-input:focus { border-color: #06b6d4; }
 .field-input.field-error { border-color: #ef4444; }
 .field-input:disabled { opacity: .55; cursor: not-allowed; }
+.cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
 .error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
+.hint-txt { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-top: 3px; display: block; }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
+
+.radio-group { display: flex; gap: 20px; }
+.radio-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: rgb(var(--v-theme-on-surface)); }
+.radio-opt input[type="radio"] { accent-color: #06b6d4; width: 15px; height: 15px; }
 </style>

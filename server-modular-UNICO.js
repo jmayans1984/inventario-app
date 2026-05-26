@@ -6276,11 +6276,13 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 // ================================================================
 
 // ── GRUPO DE PRODUCTOS DE VENTA ────────────────────────────────
+// Asegurar columna activo en grupo_productos_venta
+pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 
 app.get('/api/produccion/grupo-productos', async (req, res) => {
     try {
         const r = await pool.query(
-            `SELECT codigo, nombre FROM grupo_productos_venta ORDER BY nombre`
+            `SELECT codigo, nombre, COALESCE(activo,'SI') AS activo FROM grupo_productos_venta ORDER BY nombre`
         );
         res.json({ success: true, data: r.rows });
     } catch (e) {
@@ -6289,16 +6291,29 @@ app.get('/api/produccion/grupo-productos', async (req, res) => {
     }
 });
 
+// GET próximo código auto (3 dígitos)
+app.get('/api/produccion/grupo-productos/proximo-codigo', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT codigo FROM grupo_productos_venta WHERE codigo ~ '^[0-9]+$' ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`
+        );
+        const max = r.rows.length ? parseInt(r.rows[0].codigo) : 0;
+        res.json({ success: true, codigo: String(max + 1).padStart(3, '0') });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.post('/api/produccion/grupo-productos', async (req, res) => {
-    const { codigo, nombre } = req.body;
+    const { codigo, nombre, activo = 'SI' } = req.body;
     if (!codigo || !nombre) return res.status(400).json({ success: false, error: 'codigo y nombre son requeridos' });
     try {
         await pool.query(
-            `INSERT INTO grupo_productos_venta (codigo, nombre) VALUES ($1, $2)`,
-            [codigo.toUpperCase(), nombre]
+            `INSERT INTO grupo_productos_venta (codigo, nombre, activo) VALUES ($1, $2, $3)`,
+            [codigo.toUpperCase(), nombre, activo]
         );
         const r = await pool.query(
-            `SELECT codigo, nombre FROM grupo_productos_venta WHERE codigo = $1`,
+            `SELECT codigo, nombre, COALESCE(activo,'SI') AS activo FROM grupo_productos_venta WHERE codigo = $1`,
             [codigo.toUpperCase()]
         );
         res.json({ success: true, data: r.rows[0] });
@@ -6311,11 +6326,11 @@ app.post('/api/produccion/grupo-productos', async (req, res) => {
 
 app.put('/api/produccion/grupo-productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre } = req.body;
+    const { nombre, activo } = req.body;
     try {
         await pool.query(
-            `UPDATE grupo_productos_venta SET nombre = $1 WHERE codigo = $2`,
-            [nombre, codigo]
+            `UPDATE grupo_productos_venta SET nombre = $1, activo = COALESCE($2, activo) WHERE codigo = $3`,
+            [nombre, activo ?? null, codigo]
         );
         res.json({ success: true });
     } catch (e) {
