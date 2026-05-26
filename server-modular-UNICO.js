@@ -4436,56 +4436,43 @@ app.post('/api/soportes-entrega/subir', async (req, res) => {
 app.get('/api/soportes-entrega/:orden', async (req, res) => {
     const { orden } = req.params;
 
-    console.log(`GET /api/soportes-entrega - Buscando soportes para orden: ${orden}`);
-
     try {
-        const query = `
-            SELECT id, orden, archivo_data, nombre_archivo, fecha_subida
-            FROM soportes_entrega
-            WHERE orden = $1
-            ORDER BY fecha_subida DESC
-        `;
+        const result = await pool.query(
+            `SELECT id, orden, nombre_archivo, tipo_archivo, archivo_data, fecha_subida, empresa, numero_soporte
+             FROM soportes_entrega
+             WHERE orden = $1
+             ORDER BY COALESCE(numero_soporte, id) ASC`,
+            [orden]
+        );
 
-        console.log(`Query: ${query}, Parámetro: ${orden}`);
-
-        const result = await pool.query(query, [orden]);
-
-        console.log(`Resultado: ${result.rows.length} soportes encontrados`);
-
+        // Sin soportes → devolver array vacío (no 404)
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'No hay comprobantes de entrega para esta orden'
-            });
+            return res.json({ success: true, data: [] });
         }
 
-        // Convertir archivo_data (buffer) a base64 para TODOS los soportes
+        // Convertir archivo_data a base64 con MIME type correcto
         const soportes = result.rows.map(soporte => {
-            try {
-                if (soporte.archivo_data) {
-                    const base64Data = Buffer.from(soporte.archivo_data).toString('base64');
-                    soporte.archivo_data = 'data:image/png;base64,' + base64Data;
-                    console.log(`Soporte ${soporte.id} - Imagen convertida a base64, tamaño:`, base64Data.length);
-                }
-            } catch (conversionError) {
-                console.error('Error convirtiendo a base64:', conversionError);
+            if (soporte.archivo_data) {
+                const mime = soporte.tipo_archivo || detectMime(soporte.nombre_archivo);
+                const base64Data = Buffer.from(soporte.archivo_data).toString('base64');
+                soporte.archivo_data = `data:${mime};base64,` + base64Data;
             }
             return soporte;
         });
 
-        res.json({
-            success: true,
-            data: soportes
-        });
+        res.json({ success: true, data: soportes });
     } catch (error) {
         console.error('Error en /api/soportes-entrega/:orden:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Error al obtener comprobantes de entrega',
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Error al obtener comprobantes de entrega', details: error.message });
     }
 });
+
+function detectMime(nombre) {
+    if (!nombre) return 'image/jpeg';
+    const ext = nombre.split('.').pop().toLowerCase();
+    const map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf' };
+    return map[ext] || 'image/jpeg';
+}
 
 // ================================================================
 // MÓDULO 9: CONTABILIDAD - PROVEEDORES (NUEVO)

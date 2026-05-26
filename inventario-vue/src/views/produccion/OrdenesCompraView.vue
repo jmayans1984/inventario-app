@@ -225,6 +225,43 @@
                 </tfoot>
               </table>
             </div>
+
+            <!-- Soportes de Entrega -->
+            <div class="prod-section">
+              <div class="prod-header" style="display:flex;align-items:center;gap:8px;">
+                <span>Soportes de Entrega</span>
+                <span v-if="!loadingSoportes" class="soporte-count">{{ soportesEntrega.length }}</span>
+              </div>
+              <div v-if="loadingSoportes" class="loading-wrap-sm">
+                <v-progress-circular indeterminate color="#06b6d4" size="24" />
+              </div>
+              <div v-else-if="soportesEntrega.length === 0" class="soporte-empty">
+                <v-icon size="28" color="rgba(var(--v-theme-on-surface),.2)">mdi-image-off-outline</v-icon>
+                <span>Sin soportes de entrega</span>
+              </div>
+              <div v-else class="soporte-grid">
+                <div
+                  v-for="s in soportesEntrega"
+                  :key="s.id"
+                  class="soporte-thumb"
+                  @click="abrirSoporte(s)"
+                >
+                  <img
+                    v-if="s.archivo_data && !s.archivo_data.includes('application/pdf')"
+                    :src="s.archivo_data"
+                    :alt="s.nombre_archivo"
+                    class="thumb-img"
+                  />
+                  <div v-else class="thumb-pdf">
+                    <v-icon size="32" color="#ef4444">mdi-file-pdf-box</v-icon>
+                  </div>
+                  <div class="thumb-info">
+                    <span class="thumb-num">Soporte #{{ s.numero_soporte || s.id }}</span>
+                    <span class="thumb-fecha">{{ fmtFecha(s.fecha_subida) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <v-btn variant="text" @click="modalVer = false">Cerrar</v-btn>
@@ -399,6 +436,37 @@
         </v-card>
       </v-dialog>
 
+      <!-- ===== MODAL PREVISUALIZAR SOPORTE ===== -->
+      <v-dialog v-model="modalSoporte" max-width="720">
+        <v-card class="modal-card">
+          <div class="modal-header">
+            <v-icon color="#06b6d4" class="mr-2">mdi-image-outline</v-icon>
+            <span>{{ soporteActual?.nombre_archivo }}</span>
+            <v-spacer />
+            <span class="soporte-num-badge" v-if="soporteActual">Soporte #{{ soporteActual.numero_soporte || soporteActual.id }}</span>
+            <v-btn icon="mdi-close" size="small" variant="text" class="ml-2" @click="modalSoporte = false" />
+          </div>
+          <div class="soporte-preview-body" v-if="soporteActual">
+            <img
+              v-if="soporteActual.archivo_data && !soporteActual.archivo_data.includes('application/pdf')"
+              :src="soporteActual.archivo_data"
+              :alt="soporteActual.nombre_archivo"
+              class="soporte-full-img"
+            />
+            <div v-else class="soporte-pdf-msg">
+              <v-icon size="64" color="#ef4444">mdi-file-pdf-box</v-icon>
+              <p>Archivo PDF — no se puede previsualizar</p>
+            </div>
+            <div class="soporte-meta">
+              <span>Fecha: {{ fmtFechaHora(soporteActual.fecha_subida) }}</span>
+              <a :href="soporteActual.archivo_data" :download="soporteActual.nombre_archivo" class="descargar-link">
+                <v-icon size="16">mdi-download</v-icon> Descargar
+              </a>
+            </div>
+          </div>
+        </v-card>
+      </v-dialog>
+
     </div>
   </MainLayout>
 </template>
@@ -415,10 +483,16 @@ const busqueda       = ref('')
 const filtroEstado   = ref('TODAS')
 
 // Detalle modal
-const modalVer       = ref(false)
-const ocActual       = ref(null)
-const detallesActuales = ref([])
-const loadingDetalles = ref(false)
+const modalVer        = ref(false)
+const ocActual        = ref(null)
+const detallesActuales  = ref([])
+const loadingDetalles   = ref(false)
+const soportesEntrega   = ref([])
+const loadingSoportes   = ref(false)
+
+// Soporte preview
+const modalSoporte    = ref(false)
+const soporteActual   = ref(null)
 
 // Editar modal
 const modalEditar    = ref(false)
@@ -517,11 +591,36 @@ async function cargarDetalles(codigo) {
   } catch (e) { console.error(e) } finally { loadingDetalles.value = false }
 }
 
+async function cargarSoportes(codigo) {
+  loadingSoportes.value = true
+  soportesEntrega.value = []
+  try {
+    const r = await api.get(`/soportes-entrega/${codigo}`)
+    soportesEntrega.value = r.data?.data || []
+  } catch (e) {
+    soportesEntrega.value = []
+  } finally { loadingSoportes.value = false }
+}
+
+function abrirSoporte(s) {
+  soporteActual.value = s
+  modalSoporte.value = true
+}
+
+function fmtFechaHora(f) {
+  if (!f) return '—'
+  const d = new Date(f)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 // ── Ver detalle ───────────────────────────────────────────────────
 async function verDetalle(oc) {
   ocActual.value = oc
+  soportesEntrega.value = []
   modalVer.value = true
-  await cargarDetalles(oc.codigo)
+  cargarDetalles(oc.codigo)
+  cargarSoportes(oc.codigo)
 }
 
 // ── Editar ────────────────────────────────────────────────────────
@@ -742,6 +841,27 @@ onMounted(cargar)
 /* Success / error */
 .success-box { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #16a34a; display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; }
+
+/* Soportes de entrega */
+.soporte-count { background: rgba(6,182,212,.15); color: #0891b2; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px; }
+.soporte-empty { display: flex; align-items: center; gap: 8px; padding: 16px 0; color: rgba(var(--v-theme-on-surface),.35); font-size: 12px; }
+.soporte-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 8px; }
+.soporte-thumb { border: 1px solid rgba(var(--v-theme-on-surface),.1); border-radius: 8px; overflow: hidden; cursor: pointer; transition: box-shadow .15s, transform .15s; background: rgba(var(--v-theme-on-surface),.02); }
+.soporte-thumb:hover { box-shadow: 0 4px 14px rgba(6,182,212,.2); transform: translateY(-2px); border-color: #06b6d4; }
+.thumb-img { width: 100%; height: 100px; object-fit: cover; display: block; }
+.thumb-pdf { width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; background: rgba(239,68,68,.05); }
+.thumb-info { padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+.thumb-num { font-size: 11px; font-weight: 700; color: #06b6d4; }
+.thumb-fecha { font-size: 10px; color: rgba(var(--v-theme-on-surface),.45); }
+
+/* Preview modal */
+.soporte-preview-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+.soporte-full-img { width: 100%; max-height: 520px; object-fit: contain; border-radius: 8px; background: rgba(var(--v-theme-on-surface),.03); border: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.soporte-pdf-msg { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px; color: rgba(var(--v-theme-on-surface),.5); font-size: 13px; }
+.soporte-meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
+.soporte-num-badge { background: rgba(6,182,212,.12); color: #0891b2; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 10px; }
+.descargar-link { display: flex; align-items: center; gap: 4px; color: #06b6d4; text-decoration: none; font-weight: 600; font-size: 12px; }
+.descargar-link:hover { text-decoration: underline; }
 
 @media (max-width: 900px) {
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
