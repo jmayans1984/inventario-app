@@ -269,8 +269,8 @@ async function cargar() {
   loading.value = true
   try {
     const [rp, rg] = await Promise.all([
-      api.get('/produccion/productos-venta'),                               // sin empresa
-      emp ? api.get('/produccion/grupo-productos', { params: { empresa: emp } }) : Promise.resolve({ data: { data: [] } })
+      api.get('/produccion/productos-venta'),
+      api.get('/produccion/grupo-productos')
     ])
     productos.value = rp.data?.data || []
     grupos.value    = rg.data?.data || []

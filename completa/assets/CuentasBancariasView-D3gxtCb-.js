@@ -1,1 +1,0 @@
-import{Gt as e,an as t,r as n,rn as r}from"./index-BPakiSSA.js";var i={__name:`CuentasBancariasView`,setup(i){let a=n();return r(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(n,r)=>(t(),e(`div`))}};export{i as default};
