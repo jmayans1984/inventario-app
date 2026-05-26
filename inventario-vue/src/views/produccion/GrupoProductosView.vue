@@ -265,7 +265,7 @@ onMounted(cargar)
 .crud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .crud-table thead th { padding: 11px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); text-align: left; }
 .col-center { text-align: center !important; }
-.col-acc { width: 80px; text-align: center !important; }
+.col-acc { width: 90px; text-align: center !important; white-space: nowrap; }
 .data-row td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
