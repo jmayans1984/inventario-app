@@ -68,6 +68,13 @@
                 </span>
               </td>
               <td class="col-acc">
+                <v-btn
+                  :icon="lp.activo === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
+                  size="x-small" variant="text"
+                  :color="lp.activo === 'SI' ? '#10b981' : 'rgba(var(--v-theme-on-surface),.35)'"
+                  :loading="toggling === lp.id"
+                  @click="toggleActivo(lp)"
+                />
                 <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(lp)" />
                 <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmarEliminar(lp)" />
               </td>
@@ -171,6 +178,7 @@ const listas     = ref([])
 const busqueda   = ref('')
 const loading    = ref(false)
 const guardando  = ref(false)
+const toggling   = ref(null)
 const modal      = ref(false)
 const confirmModal = ref(false)
 const editando   = ref(false)
@@ -239,6 +247,16 @@ async function eliminar() {
   } catch (e) { console.error(e) } finally { guardando.value = false }
 }
 
+async function toggleActivo(lp) {
+  toggling.value = lp.id
+  const nuevoActivo = lp.activo === 'SI' ? 'NO' : 'SI'
+  try {
+    await api.put(`/produccion/lista-precios/${lp.id}`, { ...lp, activo: nuevoActivo })
+    const idx = listas.value.findIndex(x => x.id === lp.id)
+    if (idx >= 0) listas.value[idx] = { ...listas.value[idx], activo: nuevoActivo }
+  } catch (e) { console.error(e) } finally { toggling.value = null }
+}
+
 onMounted(cargar)
 </script>
 
@@ -267,7 +285,7 @@ onMounted(cargar)
 .crud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .crud-table thead th { padding: 11px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); text-align: left; }
 .col-center { text-align: center !important; }
-.col-acc { width: 90px; text-align: center !important; }
+.col-acc { width: 120px; text-align: center !important; white-space: nowrap; }
 .data-row td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
