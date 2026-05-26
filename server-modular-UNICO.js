@@ -6346,19 +6346,19 @@ app.delete('/api/produccion/grupo-productos/:codigo', async (req, res) => {
 // ── PRODUCTOS PARA VENTA ────────────────────────────────────────
 
 app.get('/api/produccion/productos-venta', async (req, res) => {
-    const { empresa, grupo, control } = req.query;
-    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    const { grupo, control } = req.query;
     try {
-        const params = [parseInt(empresa)];
-        let where = 'WHERE pv.empresa = $1';
-        if (grupo) { params.push(grupo); where += ` AND pv.grupo = $${params.length}`; }
-        if (control) { params.push(control.toUpperCase()); where += ` AND UPPER(pv.control) = $${params.length}`; }
+        const params = [];
+        const conds = [];
+        if (grupo) { params.push(grupo); conds.push(`pv.grupo = $${params.length}`); }
+        if (control) { params.push(control.toUpperCase()); conds.push(`UPPER(pv.control) = $${params.length}`); }
+        const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
         const r = await pool.query(
             `SELECT pv.codigo, pv.nombre, pv.descripcion, pv.unidad, pv.grupo,
                     gpv.nombre AS grupo_nombre, pv.precio_costo,
                     pv.precio_venta1, pv.precio_venta2, pv.precio_venta3, pv.control
              FROM productos_venta pv
-             LEFT JOIN grupo_productos_venta gpv ON gpv.codigo = pv.grupo AND gpv.empresa = pv.empresa
+             LEFT JOIN grupo_productos_venta gpv ON gpv.codigo = pv.grupo
              ${where} ORDER BY pv.grupo, pv.nombre`,
             params
         );
@@ -6371,27 +6371,27 @@ app.get('/api/produccion/productos-venta', async (req, res) => {
 
 app.post('/api/produccion/productos-venta', async (req, res) => {
     const { codigo, nombre, descripcion, unidad, grupo, precio_costo,
-            precio_venta1, precio_venta2, precio_venta3, control, empresa } = req.body;
-    if (!codigo || !nombre || !empresa) return res.status(400).json({ success: false, error: 'codigo, nombre y empresa son requeridos' });
+            precio_venta1, precio_venta2, precio_venta3, control } = req.body;
+    if (!codigo || !nombre) return res.status(400).json({ success: false, error: 'codigo y nombre son requeridos' });
     try {
         await pool.query(
             `INSERT INTO productos_venta
                (codigo, nombre, descripcion, unidad, grupo, precio_costo,
-                precio_venta1, precio_venta2, precio_venta3, control, empresa)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                precio_venta1, precio_venta2, precio_venta3, control)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
             [codigo.toUpperCase(), nombre, descripcion || '', unidad || 'UND',
              grupo || null, parseFloat(precio_costo) || 0,
              parseFloat(precio_venta1) || 0, parseFloat(precio_venta2) || 0,
-             parseFloat(precio_venta3) || 0, control || 'SI', parseInt(empresa)]
+             parseFloat(precio_venta3) || 0, control || 'SI']
         );
         const r = await pool.query(
             `SELECT pv.codigo, pv.nombre, pv.descripcion, pv.unidad, pv.grupo,
                     gpv.nombre AS grupo_nombre, pv.precio_costo,
                     pv.precio_venta1, pv.precio_venta2, pv.precio_venta3, pv.control
              FROM productos_venta pv
-             LEFT JOIN grupo_productos_venta gpv ON gpv.codigo = pv.grupo AND gpv.empresa = pv.empresa
-             WHERE pv.codigo = $1 AND pv.empresa = $2`,
-            [codigo.toUpperCase(), parseInt(empresa)]
+             LEFT JOIN grupo_productos_venta gpv ON gpv.codigo = pv.grupo
+             WHERE pv.codigo = $1`,
+            [codigo.toUpperCase()]
         );
         res.json({ success: true, data: r.rows[0] });
     } catch (e) {
@@ -6404,16 +6404,16 @@ app.post('/api/produccion/productos-venta', async (req, res) => {
 app.put('/api/produccion/productos-venta/:codigo', async (req, res) => {
     const { codigo } = req.params;
     const { nombre, descripcion, unidad, grupo, precio_costo,
-            precio_venta1, precio_venta2, precio_venta3, control, empresa } = req.body;
+            precio_venta1, precio_venta2, precio_venta3, control } = req.body;
     try {
         await pool.query(
             `UPDATE productos_venta SET nombre=$1, descripcion=$2, unidad=$3, grupo=$4,
              precio_costo=$5, precio_venta1=$6, precio_venta2=$7, precio_venta3=$8, control=$9
-             WHERE codigo=$10 AND empresa=$11`,
+             WHERE codigo=$10`,
             [nombre, descripcion || '', unidad || 'UND', grupo || null,
              parseFloat(precio_costo) || 0, parseFloat(precio_venta1) || 0,
              parseFloat(precio_venta2) || 0, parseFloat(precio_venta3) || 0,
-             control || 'SI', codigo, parseInt(empresa)]
+             control || 'SI', codigo]
         );
         res.json({ success: true });
     } catch (e) {
@@ -6424,12 +6424,8 @@ app.put('/api/produccion/productos-venta/:codigo', async (req, res) => {
 
 app.delete('/api/produccion/productos-venta/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { empresa } = req.query;
     try {
-        await pool.query(
-            `DELETE FROM productos_venta WHERE codigo = $1 AND empresa = $2`,
-            [codigo, parseInt(empresa)]
-        );
+        await pool.query(`DELETE FROM productos_venta WHERE codigo = $1`, [codigo]);
         res.json({ success: true });
     } catch (e) {
         console.error('Error DELETE /api/produccion/productos-venta:', e);
