@@ -110,7 +110,6 @@ export const MODULES = [
         { name: 'Productos para Venta', icon: 'mdi-package-variant', path: '/produccion/configuracion/productos-venta' },
         { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/produccion/configuracion/grupo-productos' },
         { name: 'Lista de Precios', icon: 'mdi-list-box-outline', path: '/produccion/configuracion/lista-precios' },
-        { name: 'Términos de Crédito', icon: 'mdi-file-document-outline', path: '/produccion/configuracion/terminos-credito' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/produccion/procesos/ordenes-compra' },
