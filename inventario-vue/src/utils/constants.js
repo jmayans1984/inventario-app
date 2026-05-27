@@ -121,6 +121,25 @@ export const MODULES = [
     ],
   },
   {
+    id: 'recetas',
+    name: 'RECETAS',
+    icon: 'mdi-chef-hat',
+    path: '/recetas',
+    children: [
+      { name: 'Configuración', icon: 'mdi-cog-outline', items: [
+        { name: 'Catálogo de Recetas', icon: 'mdi-book-open-variant-outline', path: '/recetas/configuracion/catalogo' },
+        { name: 'Artículos e Insumos',  icon: 'mdi-food-apple-outline',        path: '/recetas/configuracion/articulos' },
+      ]},
+      { name: 'Procesos', icon: 'mdi-cogs', items: [
+        { name: 'Gestión de Costos', icon: 'mdi-calculator-variant-outline', path: '/recetas/procesos/costos' },
+      ]},
+      { name: 'Reportes', icon: 'mdi-chart-bar', items: [
+        { name: 'Resumen de Costos',  icon: 'mdi-file-chart-outline',    path: '/recetas/reportes/costos' },
+        { name: 'Fichas Técnicas',    icon: 'mdi-file-document-outline', path: '/recetas/reportes/fichas' },
+      ]},
+    ],
+  },
+  {
     id: 'nomina',
     name: 'NÓMINA',
     icon: 'mdi-account-group-outline',
