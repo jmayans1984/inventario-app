@@ -7053,16 +7053,11 @@ app.delete('/api/articulos/:codigo', async (req, res) => {
 // Columnas reales: codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
 // subproducto='SI' → es subreceta/producto propio (sincroniza a articulos)
 
-// GET /api/recetas/grupos - Grupos únicos existentes en la tabla recetas
+// GET /api/recetas/grupos - Grupos desde tabla grupo_recetas
 app.get('/api/recetas/grupos', async (req, res) => {
     try {
-        const result = await pool.query(`
-            SELECT DISTINCT TRIM(grupo_receta) AS nombre
-            FROM recetas
-            WHERE grupo_receta IS NOT NULL AND TRIM(grupo_receta) != ''
-            ORDER BY nombre
-        `);
-        res.json({ success: true, data: result.rows.map(r => r.nombre) });
+        const result = await pool.query(`SELECT codigo, nombre FROM grupo_recetas ORDER BY nombre`);
+        res.json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error GET /api/recetas/grupos:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -7076,16 +7071,18 @@ app.get('/api/recetas', async (req, res) => {
         let sql = `
             SELECT r.codigo,
                    r.nombre,
-                   COALESCE(r.grupo_receta, '') AS grupo_receta,
-                   COALESCE(r.subproducto, '')  AS subproducto,
-                   COALESCE(r.und, '')           AS und,
-                   COALESCE(r.valor, 0)          AS valor,
-                   COALESCE(r.precio_venta, 0)   AS precio_venta,
+                   COALESCE(r.grupo_receta, '')          AS grupo_receta,
+                   COALESCE(gr.nombre, r.grupo_receta, '') AS grupo_nombre,
+                   COALESCE(r.subproducto, '')            AS subproducto,
+                   COALESCE(r.und, '')                    AS und,
+                   COALESCE(r.valor, 0)                   AS valor,
+                   COALESCE(r.precio_venta, 0)            AS precio_venta,
                    COALESCE((SELECT COUNT(*) FROM detalle_recetas dr WHERE dr.receta = r.codigo), 0) AS num_ingredientes,
                    CASE WHEN COALESCE(r.precio_venta, 0) > 0
                         THEN ROUND((COALESCE(r.valor, 0) / r.precio_venta * 100)::numeric, 1)
                         ELSE 0 END AS porcentaje_costo
             FROM recetas r
+            LEFT JOIN grupo_recetas gr ON gr.codigo = r.grupo_receta
         `;
         const params = [];
         if (grupo && grupo !== 'TODOS') {

@@ -58,7 +58,7 @@
           </template>
 
           <template #item.grupo_receta="{ item }">
-            <span class="text-caption">{{ item.grupo_receta || '—' }}</span>
+            <span class="text-caption">{{ item.grupo_nombre || item.grupo_receta || '—' }}</span>
           </template>
 
           <template #item.valor="{ item }">
@@ -131,11 +131,13 @@
                 density="compact" hide-details :error-messages="errNombre" />
             </v-col>
             <v-col cols="4">
-              <v-combobox v-model="form.grupo_receta"
+              <v-autocomplete v-model="form.grupo_receta"
                 :items="gruposReceta"
+                item-title="nombre"
+                item-value="codigo"
                 label="Grupo"
                 variant="outlined" density="compact" hide-details
-                clearable placeholder="Escribir o seleccionar..." />
+                clearable placeholder="Seleccionar grupo..." />
             </v-col>
             <v-col cols="4">
               <v-text-field v-model="form.und" label="Unidad" variant="outlined"
@@ -363,10 +365,9 @@ function ok(msg)  { snack.value = { show: true, msg, color: 'success' } }
 function err(msg) { snack.value = { show: true, msg, color: 'error' } }
 
 // Computed
-const grupos = computed(() => [...new Set(recetas.value.map(r => r.grupo_receta).filter(Boolean))].sort())
 const gruposFilter = computed(() => [
   { label: 'Todos los grupos', val: 'TODOS' },
-  ...grupos.value.map(g => ({ label: g, val: g }))
+  ...gruposReceta.value.map(g => ({ label: g.nombre, val: g.codigo }))
 ])
 
 const recetasFiltradas = computed(() => {
