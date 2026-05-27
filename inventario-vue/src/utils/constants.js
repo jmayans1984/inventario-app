@@ -129,6 +129,7 @@ export const MODULES = [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
         { name: 'Catálogo de Recetas', icon: 'mdi-book-open-variant-outline', path: '/recetas/configuracion/catalogo' },
         { name: 'Artículos e Insumos',  icon: 'mdi-food-apple-outline',        path: '/recetas/configuracion/articulos' },
+        { name: 'Precios de Venta',     icon: 'mdi-tag-edit-outline',          path: '/recetas/configuracion/precios' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Costos', icon: 'mdi-calculator-variant-outline', path: '/recetas/procesos/costos' },

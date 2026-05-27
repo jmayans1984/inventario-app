@@ -56,8 +56,9 @@ const routes = [
   { path: '/produccion/:section?/:item?', component: () => import('../views/ProduccionView.vue'), meta: { requiresAuth: true } },
 
   // RECETAS ESPECÍFICAS
-  { path: '/recetas/configuracion/catalogo', component: () => import('../views/recetas/RecetasCatalogoView.vue'),   meta: { requiresAuth: true } },
+  { path: '/recetas/configuracion/catalogo',  component: () => import('../views/recetas/RecetasCatalogoView.vue'),  meta: { requiresAuth: true } },
   { path: '/recetas/configuracion/articulos', component: () => import('../views/recetas/RecetasArticulosView.vue'), meta: { requiresAuth: true } },
+  { path: '/recetas/configuracion/precios',   component: () => import('../views/recetas/RecetasPreciosView.vue'),   meta: { requiresAuth: true } },
   { path: '/recetas/procesos/costos',         component: () => import('../views/recetas/RecetasGestionView.vue'),   meta: { requiresAuth: true } },
   { path: '/recetas/reportes/costos',         component: () => import('../views/recetas/RecetasCostosView.vue'),    meta: { requiresAuth: true } },
   { path: '/recetas/reportes/fichas',         component: () => import('../views/recetas/RecetasFichasView.vue'),    meta: { requiresAuth: true } },
