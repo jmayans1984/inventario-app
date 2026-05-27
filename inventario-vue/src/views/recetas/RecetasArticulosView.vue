@@ -36,8 +36,16 @@
       <div class="ra-filters">
         <v-text-field v-model="busqueda" placeholder="Buscar artículo..." prepend-inner-icon="mdi-magnify"
           variant="outlined" density="compact" hide-details clearable style="max-width:320px" />
-        <v-select v-model="filtroCateg" :items="categsFiltro" item-title="label" item-value="val"
-          variant="outlined" density="compact" hide-details style="max-width:200px" />
+        <v-select
+          v-model="filtroGrupo"
+          :items="filtroItems"
+          item-title="label"
+          item-value="val"
+          variant="outlined"
+          density="compact"
+          hide-details
+          style="max-width:220px"
+        />
       </div>
 
       <!-- TABLA -->
@@ -47,11 +55,34 @@
           :headers="headers"
           :items="articulosFiltrados"
           :search="busqueda"
+          :group-by="groupBy"
           density="compact"
           hover
-          :items-per-page="25"
+          :items-per-page="50"
           class="ra-table"
         >
+          <!-- Cabecera de grupo -->
+          <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
+            <tr class="group-header-row">
+              <td :colspan="columns.length">
+                <div class="d-flex align-center gap-2 py-1">
+                  <v-btn
+                    :icon="isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                    size="x-small"
+                    variant="text"
+                    density="compact"
+                    @click="toggleGroup(item)"
+                  />
+                  <v-icon size="14" color="#f59e0b">mdi-tag-outline</v-icon>
+                  <span class="group-header-text">{{ item.value || '(Sin grupo)' }}</span>
+                  <v-chip size="x-small" color="#f59e0b" variant="tonal" class="ml-1">
+                    {{ item.items.length }}
+                  </v-chip>
+                </div>
+              </td>
+            </tr>
+          </template>
+
           <template #item.valor="{ item }">
             <div class="d-flex align-center justify-end gap-1">
               <span class="font-mono">{{ fmt(item.valor) }}</span>
@@ -129,8 +160,16 @@
                 min="0" variant="outlined" density="compact" hide-details prefix="$" />
             </v-col>
             <v-col cols="4">
-              <v-text-field v-model="form.grupo" label="Grupo" variant="outlined"
-                density="compact" hide-details />
+              <v-select
+                v-model="form.grupo"
+                :items="grupos"
+                label="Grupo"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                placeholder="Sin grupo"
+              />
             </v-col>
           </v-row>
         </v-card-text>
@@ -207,24 +246,30 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 
-const articulos = ref([])
-const loading   = ref(false)
-const busqueda  = ref('')
-const filtroCateg = ref('TODOS')
+const articulos   = ref([])
+const grupos      = ref([])   // nombres de grupo_recetas
+const loading     = ref(false)
+const busqueda    = ref('')
+const filtroGrupo = ref('TODOS')
 
 const headers = [
-  { title: 'CÓDIGO',   key: 'codigo',      width: 100 },
-  { title: 'NOMBRE',   key: 'nombre',      minWidth: 180 },
-  { title: 'UND',      key: 'und',         width: 80  },
-  { title: 'GRUPO',    key: 'grupo',       width: 120 },
-  { title: 'SUBRECETA',key: 'es_subreceta',width: 110, align: 'center' },
-  { title: 'PRECIO COMPRA', key: 'valor',  width: 140, align: 'end' },
-  { title: '',         key: 'acciones',    width: 90,  sortable: false, align: 'end' },
+  { title: 'CÓDIGO',        key: 'codigo',      width: 100 },
+  { title: 'NOMBRE',        key: 'nombre',      minWidth: 180 },
+  { title: 'UND',           key: 'und',         width: 80  },
+  { title: 'GRUPO',         key: 'grupo',       width: 140 },
+  { title: 'SUBRECETA',     key: 'es_subreceta',width: 110, align: 'center' },
+  { title: 'PRECIO COMPRA', key: 'valor',       width: 140, align: 'end' },
+  { title: '',              key: 'acciones',    width: 90,  sortable: false, align: 'end' },
 ]
 
 // ── Computed ──────────────────────────────────────────────────
+
+// Agrupación activa solo cuando se muestran todos los grupos
+const groupBy = computed(() =>
+  filtroGrupo.value === 'TODOS' ? [{ key: 'grupo' }] : []
+)
+
 // Un artículo es subreceta si su campo prod_propio = 'SI'
-// (el backend lo marca así cuando se sincroniza desde una receta con subproducto='SI')
 const articulosConFlag = computed(() =>
   articulos.value.map(a => ({
     ...a,
@@ -232,31 +277,27 @@ const articulosConFlag = computed(() =>
   }))
 )
 
-const categorias = computed(() => {
-  const cats = [...new Set(articulos.value.map(a => a.grupo).filter(Boolean))]
-  return cats.sort()
-})
-
-const categsFiltro = computed(() => [
+// Items del filtro: Todos + grupos de grupo_recetas
+const filtroItems = computed(() => [
   { label: 'Todos los grupos', val: 'TODOS' },
-  ...categorias.value.map(c => ({ label: c, val: c }))
+  ...grupos.value.map(g => ({ label: g, val: g }))
 ])
 
 const articulosFiltrados = computed(() => {
   let a = articulosConFlag.value
-  if (filtroCateg.value !== 'TODOS') a = a.filter(x => x.grupo === filtroCateg.value)
+  if (filtroGrupo.value !== 'TODOS') a = a.filter(x => x.grupo === filtroGrupo.value)
   return a
 })
 
 // ── Dialog nuevo/editar ───────────────────────────────────────
-const dlg      = ref(false)
-const editando = ref(false)
+const dlg       = ref(false)
+const editando  = ref(false)
 const guardando = ref(false)
 const errNombre = ref('')
-const form     = ref(formVacio())
+const form      = ref(formVacio())
 
 function formVacio() {
-  return { codigo: '', nombre: '', und: 'UND', valor: 0, grupo: '' }
+  return { codigo: '', nombre: '', und: 'UND', valor: 0, grupo: null }
 }
 
 // ── Dialog precio rápido ──────────────────────────────────────
@@ -266,38 +307,48 @@ const nuevoPrecio     = ref(0)
 const guardandoPrecio = ref(false)
 
 // ── Dialog eliminar ───────────────────────────────────────────
-const dlgEliminar = ref(false)
+const dlgEliminar  = ref(false)
 const artAEliminar = ref(null)
-const eliminando  = ref(false)
+const eliminando   = ref(false)
 
 // ── Snack ─────────────────────────────────────────────────────
 const snack = ref({ show: false, msg: '', color: 'success' })
 function ok(msg)  { snack.value = { show: true, msg, color: 'success' } }
 function err(msg) { snack.value = { show: true, msg, color: 'error' } }
 
-// ── Métodos ───────────────────────────────────────────────────
+// ── Carga de datos ────────────────────────────────────────────
 async function cargar() {
   loading.value = true
   try {
-    const r = await fetch(`${API_BASE}/articulos`)
-    const j = await r.json()
-    articulos.value = j.data || []
+    const [ra, rg] = await Promise.all([
+      fetch(`${API_BASE}/articulos`).then(r => r.json()),
+      fetch(`${API_BASE}/recetas/grupos`).then(r => r.json()),
+    ])
+    articulos.value = ra.data || []
+    grupos.value    = rg.data || []
   } catch { err('Error al cargar datos') }
   finally { loading.value = false }
 }
 
+// ── CRUD ──────────────────────────────────────────────────────
 function abrirNuevo() {
-  editando.value = false
-  form.value = formVacio()
+  editando.value  = false
+  form.value      = formVacio()
   errNombre.value = ''
-  dlg.value = true
+  dlg.value       = true
 }
 
 function abrirEditar(art) {
-  editando.value = true
-  form.value = { codigo: art.codigo, nombre: art.nombre, und: art.und || '', valor: art.valor || 0, grupo: art.grupo || '' }
+  editando.value  = true
+  form.value      = {
+    codigo: art.codigo,
+    nombre: art.nombre,
+    und:    art.und   || '',
+    valor:  art.valor || 0,
+    grupo:  art.grupo || null,
+  }
   errNombre.value = ''
-  dlg.value = true
+  dlg.value       = true
 }
 
 async function guardar() {
@@ -310,7 +361,7 @@ async function guardar() {
     const r = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
+      body: JSON.stringify(form.value),
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
@@ -333,7 +384,7 @@ async function guardarPrecio() {
     const r = await fetch(`${API_BASE}/articulos/${articuloPrecio.value.codigo}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ valor: parseFloat(nuevoPrecio.value) || 0 })
+      body: JSON.stringify({ valor: parseFloat(nuevoPrecio.value) || 0 }),
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
@@ -385,4 +436,8 @@ onMounted(cargar)
 .ra-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
 .font-mono { font-family: monospace; }
 .dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
+
+/* Agrupación */
+.group-header-row { background: rgba(245,158,11,.06) !important; }
+.group-header-text { font-size: 13px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: .4px; }
 </style>

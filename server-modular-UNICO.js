@@ -6927,6 +6927,17 @@ app.get('/api/gerencia/kpis', async (req, res) => {
 // ── ARTÍCULOS / INSUMOS ─────────────────────────────────────────
 // Columnas reales: codigo, nombre, und, valor, empresa, grupo, prod_propio
 
+// GET /api/recetas/grupos - Listar grupos de recetas desde tabla grupo_recetas
+app.get('/api/recetas/grupos', async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT nombre FROM grupo_recetas ORDER BY nombre`);
+        res.json({ success: true, data: result.rows.map(r => r.nombre) });
+    } catch (error) {
+        console.error('Error GET /api/recetas/grupos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/articulos - Listar todos los artículos
 app.get('/api/articulos', async (req, res) => {
     try {
