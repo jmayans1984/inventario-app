@@ -6947,7 +6947,7 @@ app.get('/api/articulos', async (req, res) => {
                    COALESCE(a.grupo, '')             AS grupo,
                    COALESCE(ga.nombre, a.grupo, '')  AS grupo_nombre,
                    COALESCE(a.prod_propio, '')        AS prod_propio,
-                   (SELECT COUNT(*) FROM detalle_recetas dr
+                   (SELECT COUNT(DISTINCT dr.receta) FROM detalle_recetas dr
                     WHERE TRIM(dr.articulo) = TRIM(a.codigo))::int AS num_recetas
             FROM articulos a
             LEFT JOIN grupo_articulos ga ON ga.codigo = a.grupo
