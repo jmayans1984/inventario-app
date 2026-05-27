@@ -6923,6 +6923,28 @@ app.get('/api/gerencia/kpis', async (req, res) => {
 // Sin filtro de empresa - las recetas son globales
 // ================================================================
 
+// GET /api/recetas-info - Diagnóstico: columnas reales de las tablas
+app.get('/api/recetas-info', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT table_name, column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name IN ('recetas','detalle_recetas','articulos')
+              AND table_schema = 'public'
+            ORDER BY table_name, ordinal_position
+        `);
+        // También traer una fila de muestra de recetas
+        let muestra = [];
+        try {
+            const m = await pool.query('SELECT * FROM recetas LIMIT 3');
+            muestra = m.rows;
+        } catch(e) { muestra = [e.message]; }
+        res.json({ success: true, columnas: result.rows, muestra_recetas: muestra });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ── ARTÍCULOS / INSUMOS ─────────────────────────────────────────
 
 // GET /api/articulos - Listar todos los artículos (ingredientes)
