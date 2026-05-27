@@ -6927,27 +6927,29 @@ app.get('/api/gerencia/kpis', async (req, res) => {
 // ── ARTÍCULOS / INSUMOS ─────────────────────────────────────────
 // Columnas reales: codigo, nombre, und, valor, empresa, grupo, prod_propio
 
-// GET /api/recetas/grupos - Listar grupos de recetas desde tabla grupo_recetas
-app.get('/api/recetas/grupos', async (req, res) => {
+// GET /api/articulos/grupos - Listar grupos desde tabla grupo_articulos
+app.get('/api/articulos/grupos', async (req, res) => {
     try {
-        const result = await pool.query(`SELECT nombre FROM grupo_recetas ORDER BY nombre`);
-        res.json({ success: true, data: result.rows.map(r => r.nombre) });
+        const result = await pool.query(`SELECT codigo, nombre FROM grupo_articulos ORDER BY nombre`);
+        res.json({ success: true, data: result.rows });
     } catch (error) {
-        console.error('Error GET /api/recetas/grupos:', error);
+        console.error('Error GET /api/articulos/grupos:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// GET /api/articulos - Listar todos los artículos
+// GET /api/articulos - Listar todos los artículos con nombre del grupo
 app.get('/api/articulos', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT codigo, nombre, und,
-                   COALESCE(valor, 0) AS valor,
-                   COALESCE(grupo, '') AS grupo,
-                   COALESCE(prod_propio, '') AS prod_propio
-            FROM articulos
-            ORDER BY nombre
+            SELECT a.codigo, a.nombre, a.und,
+                   COALESCE(a.valor, 0)        AS valor,
+                   COALESCE(a.grupo, '')        AS grupo,
+                   COALESCE(ga.nombre, a.grupo, '') AS grupo_nombre,
+                   COALESCE(a.prod_propio, '')  AS prod_propio
+            FROM articulos a
+            LEFT JOIN grupo_articulos ga ON ga.codigo = a.grupo
+            ORDER BY ga.nombre NULLS LAST, a.nombre
         `);
         res.json({ success: true, data: result.rows });
     } catch (error) {
