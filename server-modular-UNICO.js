@@ -7082,7 +7082,7 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                        COALESCE(a.valor, 0)             AS precio_unit,
                        COALESCE(dr.vr_unit, a.valor, 0) AS vr_unit,
                        COALESCE(dr.vr_total, COALESCE(a.valor,0) * dr.cantidad, 0) AS vr_total,
-                       CASE WHEN EXISTS(SELECT 1 FROM recetas r2 WHERE r2.codigo = dr.articulo)
+                       CASE WHEN EXISTS(SELECT 1 FROM recetas r2 WHERE r2.codigo = dr.articulo AND COALESCE(r2.subproducto,'NO') = 'SI')
                             THEN true ELSE false END AS es_subreceta
                 FROM detalle_recetas dr
                 LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo)
