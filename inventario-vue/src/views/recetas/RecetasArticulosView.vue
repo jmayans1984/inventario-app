@@ -208,7 +208,6 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const articulos = ref([])
-const recetas   = ref([])
 const loading   = ref(false)
 const busqueda  = ref('')
 const filtroCateg = ref('TODOS')
@@ -224,13 +223,14 @@ const headers = [
 ]
 
 // ── Computed ──────────────────────────────────────────────────
-const articulosConFlag = computed(() => {
-  const codsRecetas = new Set(recetas.value.map(r => r.codigo))
-  return articulos.value.map(a => ({
+// Un artículo es subreceta si su campo prod_propio = 'SI'
+// (el backend lo marca así cuando se sincroniza desde una receta con subproducto='SI')
+const articulosConFlag = computed(() =>
+  articulos.value.map(a => ({
     ...a,
-    es_subreceta: codsRecetas.has(a.codigo)
+    es_subreceta: a.prod_propio === 'SI'
   }))
-})
+)
 
 const categorias = computed(() => {
   const cats = [...new Set(articulos.value.map(a => a.grupo).filter(Boolean))]
@@ -279,12 +279,9 @@ function err(msg) { snack.value = { show: true, msg, color: 'error' } }
 async function cargar() {
   loading.value = true
   try {
-    const [ra, rr] = await Promise.all([
-      fetch(`${API_BASE}/articulos`).then(r => r.json()),
-      fetch(`${API_BASE}/recetas`).then(r => r.json()),
-    ])
-    articulos.value = ra.data || []
-    recetas.value   = rr.data || []
+    const r = await fetch(`${API_BASE}/articulos`)
+    const j = await r.json()
+    articulos.value = j.data || []
   } catch { err('Error al cargar datos') }
   finally { loading.value = false }
 }

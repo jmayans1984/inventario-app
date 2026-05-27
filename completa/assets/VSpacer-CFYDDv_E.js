@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-CaMF2bTe.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
