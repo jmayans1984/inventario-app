@@ -240,7 +240,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in recetasDelArticulo" :key="r.codigo" class="rec-list-row">
+            <tr v-for="r in recetasPaginadas" :key="r.codigo" class="rec-list-row">
               <td>
                 <div class="font-weight-medium" style="font-size:13px">{{ r.nombre }}</div>
                 <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.45)">{{ r.codigo }}</div>
@@ -269,6 +269,23 @@
             </tr>
           </tbody>
         </v-table>
+
+        <!-- Paginación -->
+        <div v-if="totalPaginasRecetas > 1" class="d-flex align-center justify-center gap-2 py-2 px-4"
+          style="border-top:1px solid rgba(var(--v-theme-on-surface),.08)">
+          <v-pagination
+            v-model="recetasPagina"
+            :length="totalPaginasRecetas"
+            :total-visible="5"
+            density="compact"
+            color="purple"
+            rounded
+          />
+          <span class="text-caption text-medium-emphasis" style="white-space:nowrap">
+            {{ (recetasPagina - 1) * REC_POR_PAG + 1 }}–{{ Math.min(recetasPagina * REC_POR_PAG, recetasDelArticulo.length) }}
+            de {{ recetasDelArticulo.length }}
+          </span>
+        </div>
 
         <v-divider />
         <div class="pa-3 d-flex justify-end">
@@ -450,14 +467,25 @@ const articulosAgrupados = computed(() => {
 })
 
 // ── Dialog Ver Recetas ─────────────────────────────────────────
-const dlgRecetas        = ref(false)
-const articuloRecetas   = ref(null)
+const REC_POR_PAG        = 10
+const dlgRecetas         = ref(false)
+const articuloRecetas    = ref(null)
 const recetasDelArticulo = ref([])
-const loadingRecetas    = ref(false)
+const loadingRecetas     = ref(false)
+const recetasPagina      = ref(1)
+
+const totalPaginasRecetas = computed(() =>
+  Math.ceil(recetasDelArticulo.value.length / REC_POR_PAG)
+)
+const recetasPaginadas = computed(() => {
+  const inicio = (recetasPagina.value - 1) * REC_POR_PAG
+  return recetasDelArticulo.value.slice(inicio, inicio + REC_POR_PAG)
+})
 
 async function verRecetas(art) {
   articuloRecetas.value    = art
   recetasDelArticulo.value = []
+  recetasPagina.value      = 1
   dlgRecetas.value         = true
   loadingRecetas.value     = true
   try {
