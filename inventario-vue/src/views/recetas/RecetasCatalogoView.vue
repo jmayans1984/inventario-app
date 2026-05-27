@@ -182,11 +182,10 @@
         <v-card-text class="pa-4">
           <!-- AGREGAR INGREDIENTE -->
           <div class="add-ing-row">
-            <v-autocomplete v-model="ingNuevo.articulo" :items="articulos"
-              item-title="nombre" item-value="codigo"
+            <v-autocomplete v-model="articuloSeleccionado" :items="articulos"
+              item-title="nombre" return-object
               label="Buscar artículo / subproducto..." variant="outlined" density="compact"
-              hide-details clearable style="flex:1;min-width:200px"
-              @update:model-value="onSelectArticulo">
+              hide-details clearable style="flex:1;min-width:200px">
               <template #item="{ props, item }">
                 <v-list-item v-bind="props">
                   <template #append>
@@ -198,7 +197,7 @@
             <v-text-field v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
               variant="outlined" density="compact" hide-details style="max-width:100px" />
             <v-btn color="#f59e0b" variant="flat" icon size="small"
-              :disabled="!ingNuevo.articulo || !ingNuevo.cantidad"
+              :disabled="!articuloSeleccionado || !ingNuevo.cantidad"
               @click="agregarIngrediente">
               <v-icon>mdi-plus</v-icon>
             </v-btn>
@@ -343,11 +342,12 @@ function formVacio() {
 }
 
 // Dialog ingredientes
-const dlgIng       = ref(false)
-const recetaActual = ref(null)
-const ingredientes = ref([])
-const guardandoIng = ref(false)
-const ingNuevo     = ref({ articulo: null, cantidad: 1 })
+const dlgIng              = ref(false)
+const recetaActual        = ref(null)
+const ingredientes        = ref([])
+const guardandoIng        = ref(false)
+const ingNuevo            = ref({ cantidad: 1 })
+const articuloSeleccionado = ref(null)   // objeto completo del articulo elegido
 
 // Dialog eliminar
 const dlgEliminar     = ref(false)
@@ -456,9 +456,10 @@ async function guardarReceta() {
 }
 
 async function abrirIngredientes(receta) {
-  recetaActual.value = receta
-  ingredientes.value = []
-  ingNuevo.value = { articulo: null, cantidad: 1 }
+  recetaActual.value     = receta
+  ingredientes.value     = []
+  ingNuevo.value         = { cantidad: 1 }
+  articuloSeleccionado.value = null
   dlgIng.value = true
   try {
     const r = await fetch(`${API_BASE}/recetas/${receta.codigo}`)
@@ -473,27 +474,23 @@ async function abrirIngredientes(receta) {
   } catch { err('Error al cargar ingredientes') }
 }
 
-function onSelectArticulo(codigo) {
-  const art = articulos.value.find(a => a.codigo === codigo)
-  if (art) ingNuevo.value._artInfo = art
-}
-
 function agregarIngrediente() {
-  const art = articulos.value.find(a => a.codigo === ingNuevo.value.articulo)
-  if (!art) return
+  const art = articuloSeleccionado.value
+  if (!art) { err('Selecciona un artículo de la lista'); return }
   if (ingredientes.value.find(i => i.articulo === art.codigo)) {
     err('Este artículo ya está en la receta'); return
   }
-  const esSubreceta = recetas.value.some(r => r.codigo === art.codigo)
+  const esSubreceta = recetas.value.some(r => r.codigo === art.codigo && r.subproducto === 'SI')
   ingredientes.value.push({
-    articulo:       art.codigo,
+    articulo:        art.codigo,
     articulo_nombre: art.nombre,
-    cantidad:       parseFloat(ingNuevo.value.cantidad) || 1,
-    und:            art.und || '',
-    precio_unit:    parseFloat(art.valor) || 0,
-    es_subreceta:   esSubreceta,
+    cantidad:        parseFloat(ingNuevo.value.cantidad) || 1,
+    und:             art.und || '',
+    precio_unit:     parseFloat(art.valor) || 0,
+    es_subreceta:    esSubreceta,
   })
-  ingNuevo.value = { articulo: null, cantidad: 1 }
+  articuloSeleccionado.value = null
+  ingNuevo.value = { cantidad: 1 }
 }
 
 function quitarIngrediente(idx) { ingredientes.value.splice(idx, 1) }
