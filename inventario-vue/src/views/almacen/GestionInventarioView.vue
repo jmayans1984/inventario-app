@@ -114,10 +114,188 @@
             Productos de Inventario
             <span class="gi-grid-sub">— ingresa las cantidades del movimiento</span>
           </div>
-          <v-btn variant="text" size="small" prepend-icon="mdi-eraser" @click="limpiarCantidades">
-            Limpiar cantidades
-          </v-btn>
+          <div class="d-flex gap-2">
+            <v-btn variant="tonal" size="small" color="#8b5cf6" prepend-icon="mdi-camera-outline" @click="abrirOcr">
+              Leer foto
+            </v-btn>
+            <v-btn variant="text" size="small" prepend-icon="mdi-eraser" @click="limpiarCantidades">
+              Limpiar
+            </v-btn>
+          </div>
         </div>
+
+      <!-- ═══════════ DIALOG OCR ═══════════ -->
+      <v-dialog v-model="dlgOcr" max-width="860" persistent scrollable>
+        <v-card rounded="xl">
+          <!-- Header -->
+          <div class="ocr-dlg-header">
+            <div class="d-flex align-center gap-3">
+              <div class="ocr-icon-wrap"><v-icon size="20" color="white">mdi-text-recognition</v-icon></div>
+              <div>
+                <div class="ocr-dlg-title">IMPORTAR POR FOTO / OCR</div>
+                <div class="ocr-dlg-sub">Fotografía la remisión o lista de entrega</div>
+              </div>
+            </div>
+            <v-btn icon size="small" variant="text" @click="cerrarOcr"><v-icon>mdi-close</v-icon></v-btn>
+          </div>
+
+          <!-- Stepper visual -->
+          <div class="ocr-steps">
+            <div class="ocr-step" :class="{ active: ocrPaso === 1, done: ocrPaso > 1 }">
+              <div class="ocr-step-num">{{ ocrPaso > 1 ? '✓' : '1' }}</div>
+              <span>Capturar</span>
+            </div>
+            <div class="ocr-step-line" :class="{ done: ocrPaso > 1 }" />
+            <div class="ocr-step" :class="{ active: ocrPaso === 2, done: ocrPaso > 2 }">
+              <div class="ocr-step-num">{{ ocrPaso > 2 ? '✓' : '2' }}</div>
+              <span>Procesar</span>
+            </div>
+            <div class="ocr-step-line" :class="{ done: ocrPaso > 2 }" />
+            <div class="ocr-step" :class="{ active: ocrPaso === 3 }">
+              <div class="ocr-step-num">3</div>
+              <span>Revisar</span>
+            </div>
+          </div>
+
+          <v-card-text class="pa-5">
+
+            <!-- ── PASO 1: Captura ── -->
+            <div v-if="ocrPaso === 1">
+              <div
+                class="ocr-dropzone"
+                :class="{ 'ocr-dropzone--preview': ocrPreview }"
+                @click="$refs.ocrFileInput.click()"
+                @dragover.prevent
+                @drop.prevent="onOcrDrop"
+              >
+                <img v-if="ocrPreview" :src="ocrPreview" class="ocr-img-preview" alt="preview" />
+                <div v-else class="ocr-dropzone-inner">
+                  <v-icon size="48" color="#8b5cf6" class="mb-3">mdi-image-plus</v-icon>
+                  <p class="ocr-drop-txt">Haz clic o arrastra la foto aquí</p>
+                  <p class="ocr-drop-sub">JPG, PNG, WEBP · también puedes usar la cámara</p>
+                  <v-btn class="mt-4" color="#8b5cf6" variant="tonal" size="small" prepend-icon="mdi-camera">
+                    Abrir cámara
+                  </v-btn>
+                </div>
+              </div>
+
+              <!-- Inputs ocultos -->
+              <input ref="ocrFileInput" type="file" accept="image/*" style="display:none"
+                @change="onOcrFile" />
+
+              <div v-if="ocrPreview" class="d-flex gap-2 mt-3 justify-center">
+                <v-btn variant="tonal" color="grey" size="small" prepend-icon="mdi-refresh"
+                  @click="ocrPreview=''; ocrImagen=null">
+                  Cambiar imagen
+                </v-btn>
+                <v-btn color="#8b5cf6" variant="flat" size="small" prepend-icon="mdi-text-recognition"
+                  @click="procesarOcr">
+                  Procesar OCR
+                </v-btn>
+              </div>
+
+              <v-alert type="info" variant="tonal" density="compact" class="mt-4" icon="mdi-lightbulb-outline">
+                <strong>Consejo:</strong> Fotografía la remisión de frente, con buena luz y sin sombras.
+                Funciona mejor con texto impreso que con manuscrito.
+              </v-alert>
+            </div>
+
+            <!-- ── PASO 2: Procesando ── -->
+            <div v-if="ocrPaso === 2" class="ocr-processing">
+              <v-icon size="56" color="#8b5cf6" class="mb-4">mdi-text-recognition</v-icon>
+              <p class="ocr-proc-txt">Reconociendo texto...</p>
+              <v-progress-linear :model-value="ocrProgreso" color="#8b5cf6" height="8" rounded class="mt-4" style="max-width:400px" />
+              <p class="ocr-proc-sub mt-2">{{ ocrProgreso }}% completado</p>
+            </div>
+
+            <!-- ── PASO 3: Revisión ── -->
+            <div v-if="ocrPaso === 3">
+              <div class="ocr-review-header">
+                <div class="ocr-review-stats">
+                  <v-chip color="#8b5cf6" size="small" variant="tonal" prepend-icon="mdi-format-list-bulleted">
+                    {{ ocrItems.length }} líneas detectadas
+                  </v-chip>
+                  <v-chip color="success" size="small" variant="tonal" prepend-icon="mdi-check-circle">
+                    {{ ocrItems.filter(i => i.productoEdit).length }} coincidencias
+                  </v-chip>
+                  <v-chip color="warning" size="small" variant="tonal" prepend-icon="mdi-alert">
+                    {{ ocrItems.filter(i => !i.productoEdit).length }} sin coincidencia
+                  </v-chip>
+                </div>
+                <v-btn variant="text" size="small" prepend-icon="mdi-arrow-left" @click="ocrPaso=1">
+                  Nueva foto
+                </v-btn>
+              </div>
+
+              <div v-if="ocrItems.length === 0" class="ocr-empty">
+                <v-icon size="40" color="warning">mdi-text-search</v-icon>
+                <p>No se detectaron productos. Intenta con otra foto.</p>
+              </div>
+
+              <table v-else class="ocr-table">
+                <thead>
+                  <tr>
+                    <th>TEXTO OCR</th>
+                    <th>PRODUCTO DEL SISTEMA</th>
+                    <th style="width:100px">CANTIDAD</th>
+                    <th style="width:90px">CONFIANZA</th>
+                    <th style="width:44px"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, i) in ocrItems" :key="i"
+                    :class="{ 'ocr-row-ok': item.productoEdit, 'ocr-row-warn': !item.productoEdit }">
+                    <td class="ocr-td-raw">{{ item.textoOcr }}</td>
+                    <td class="ocr-td-prod">
+                      <v-autocomplete
+                        v-model="item.productoEdit"
+                        :items="productosConControl"
+                        item-title="nombre"
+                        return-object
+                        variant="outlined"
+                        density="compact"
+                        hide-details
+                        clearable
+                        placeholder="Seleccionar producto..."
+                        style="min-width:200px"
+                      />
+                    </td>
+                    <td class="ocr-td-cant">
+                      <input v-model.number="item.cantidadEdit" type="number" min="0" step="0.01"
+                        class="ocr-cant-input" />
+                    </td>
+                    <td class="ocr-td-conf">
+                      <v-chip
+                        :color="item.confianza >= 0.7 ? 'success' : item.confianza >= 0.4 ? 'warning' : 'error'"
+                        size="x-small" variant="tonal">
+                        {{ item.productoEdit ? Math.round(item.confianza * 100) + '%' : 'Manual' }}
+                      </v-chip>
+                    </td>
+                    <td>
+                      <v-btn icon size="x-small" variant="text" color="error"
+                        @click="ocrItems.splice(i, 1)">
+                        <v-icon size="14">mdi-delete-outline</v-icon>
+                      </v-btn>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </v-card-text>
+
+          <!-- Footer del dialog -->
+          <v-divider />
+          <v-card-actions class="pa-4 d-flex gap-2">
+            <v-btn variant="text" @click="cerrarOcr">Cancelar</v-btn>
+            <v-spacer />
+            <v-btn v-if="ocrPaso === 3 && ocrItems.some(i => i.productoEdit && i.cantidadEdit > 0)"
+              color="#8b5cf6" variant="flat" rounded="lg" prepend-icon="mdi-table-arrow-down"
+              @click="aplicarOcr">
+              Aplicar al Grid ({{ ocrItems.filter(i => i.productoEdit && i.cantidadEdit > 0).length }} productos)
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
         <!-- Loading -->
         <div v-if="loadingProductos" class="gi-loading">
@@ -485,6 +663,178 @@ onMounted(() => {
   cargarCcostos()
   cargarProductos()
 })
+
+// ── OCR ────────────────────────────────────────────────────────
+const dlgOcr      = ref(false)
+const ocrPaso     = ref(1)
+const ocrImagen   = ref(null)
+const ocrPreview  = ref('')
+const ocrProgreso = ref(0)
+const ocrItems    = ref([])   // { textoOcr, productoEdit, cantidadEdit, confianza }
+
+function abrirOcr() {
+  dlgOcr.value      = true
+  ocrPaso.value     = 1
+  ocrImagen.value   = null
+  ocrPreview.value  = ''
+  ocrProgreso.value = 0
+  ocrItems.value    = []
+}
+
+function cerrarOcr() {
+  dlgOcr.value = false
+}
+
+function onOcrFile(e) {
+  const f = e.target.files[0]
+  if (!f) return
+  ocrImagen.value  = f
+  ocrPreview.value = URL.createObjectURL(f)
+  e.target.value   = ''
+}
+
+function onOcrDrop(e) {
+  const f = e.dataTransfer.files[0]
+  if (!f || !f.type.startsWith('image/')) return
+  ocrImagen.value  = f
+  ocrPreview.value = URL.createObjectURL(f)
+}
+
+async function procesarOcr() {
+  if (!ocrImagen.value) return
+  ocrPaso.value     = 2
+  ocrProgreso.value = 0
+  try {
+    const { createWorker } = await import('tesseract.js')
+    const worker = await createWorker('spa', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          ocrProgreso.value = Math.round(m.progress * 100)
+        }
+      },
+    })
+    const { data: { text } } = await worker.recognize(ocrImagen.value)
+    await worker.terminate()
+    ocrItems.value = parsearTextoOcr(text)
+    ocrPaso.value  = 3
+  } catch (err) {
+    console.error('OCR error:', err)
+    ocrPaso.value = 1
+  }
+}
+
+/* Normaliza texto para comparación fuzzy: minúsculas, sin tildes, sin puntuación */
+function normalizar(txt) {
+  return String(txt || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/* Busca el mejor producto del sistema para un texto de OCR */
+function buscarProducto(texto) {
+  const normTexto  = normalizar(texto)
+  const palabras   = normTexto.split(' ').filter(p => p.length > 2)
+  if (!palabras.length) return { producto: null, confianza: 0 }
+
+  let mejor      = null
+  let mejorScore = 0
+
+  for (const p of productosConControl.value) {
+    const normNombre = normalizar(p.nombre)
+    const normCodigo = normalizar(p.codigo)
+
+    // Coincidencia exacta de código → confianza máxima
+    if (normCodigo && normTexto.includes(normCodigo)) {
+      return { producto: p, confianza: 1 }
+    }
+
+    // Contar palabras que coinciden en el nombre
+    let coincidencias = 0
+    const palabrasNombre = normNombre.split(' ').filter(w => w.length > 2)
+    for (const pal of palabras) {
+      if (palabrasNombre.some(w => w === pal || w.startsWith(pal) || pal.startsWith(w))) {
+        coincidencias++
+      }
+    }
+
+    const score = palabras.length > 0 ? coincidencias / palabras.length : 0
+    if (score > mejorScore && score >= 0.35) {
+      mejorScore = score
+      mejor      = p
+    }
+  }
+
+  return { producto: mejor, confianza: mejorScore }
+}
+
+/* Extrae nombre y cantidad de una línea de texto */
+function parsearLinea(linea) {
+  // Cantidad al final: "LECHE ENTERA 12" o "LECHE ENTERA 12.5 KG"
+  let m = linea.match(/^(.+?)\s+([\d]+(?:[.,]\d+)?)\s*(?:und|un|pz|kg|gr|lt|l|unidad|unidades)?$/i)
+  if (m) return { texto: m[1].trim(), cantidad: parseFloat(m[2].replace(',', '.')) }
+
+  // Cantidad al inicio: "12 LECHE ENTERA"
+  m = linea.match(/^([\d]+(?:[.,]\d+)?)\s+(.+)$/)
+  if (m) return { texto: m[2].trim(), cantidad: parseFloat(m[1].replace(',', '.')) }
+
+  // Patrón "x5" o "5x": "LECHE x12"
+  m = linea.match(/^(.+?)\s*[xX]([\d]+(?:[.,]\d+)?)$/)
+  if (m) return { texto: m[1].trim(), cantidad: parseFloat(m[2].replace(',', '.')) }
+
+  // Sin cantidad → asumir 1
+  return { texto: linea.trim(), cantidad: 1 }
+}
+
+/* Parsea el texto completo del OCR en una lista de ítems */
+function parsearTextoOcr(texto) {
+  const lineas = texto.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 3 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3,}/.test(l))
+
+  const items = []
+  const yaAgregado = new Set()
+
+  for (const linea of lineas) {
+    const { texto: textoItem, cantidad } = parsearLinea(linea)
+    if (!textoItem || textoItem.length < 3) continue
+
+    const { producto, confianza } = buscarProducto(textoItem)
+
+    // Evitar duplicados del mismo producto (suma cantidades)
+    if (producto) {
+      if (yaAgregado.has(producto.codigo)) {
+        const existing = items.find(i => i.productoEdit?.codigo === producto.codigo)
+        if (existing) { existing.cantidadEdit += cantidad; continue }
+      }
+      yaAgregado.add(producto.codigo)
+    }
+
+    items.push({
+      textoOcr:     linea,
+      productoEdit: producto || null,
+      cantidadEdit: cantidad,
+      confianza,
+    })
+  }
+
+  return items.slice(0, 60) // máximo 60 ítems
+}
+
+/* Aplica los ítems revisados al grid de cantidades */
+function aplicarOcr() {
+  const nuevasCantidades = { ...cantidades.value }
+  for (const item of ocrItems.value) {
+    if (item.productoEdit && item.cantidadEdit > 0) {
+      const codigo = item.productoEdit.codigo
+      nuevasCantidades[codigo] = (nuevasCantidades[codigo] || 0) + item.cantidadEdit
+    }
+  }
+  cantidades.value = nuevasCantidades
+  cerrarOcr()
+}
 </script>
 
 <style scoped>
@@ -568,4 +918,93 @@ onMounted(() => {
 .conflict-row + .conflict-row { border-top: 1px solid rgba(var(--v-theme-on-surface),.06); }
 .conflict-label { color: rgba(var(--v-theme-on-surface),.5); font-weight: 500; }
 .conflict-val   { font-weight: 700; }
+
+/* ─── OCR Dialog ──────────────────────────────────────────────── */
+.ocr-dlg-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(139,92,246,.12), rgba(139,92,246,.04));
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08);
+}
+.ocr-icon-wrap {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(139,92,246,.4);
+  flex-shrink: 0;
+}
+.ocr-dlg-title { font-size: 15px; font-weight: 800; letter-spacing: .4px; }
+.ocr-dlg-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 1px; }
+
+/* Stepper */
+.ocr-steps { display: flex; align-items: center; justify-content: center; gap: 0; padding: 14px 20px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06); }
+.ocr-step  { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.4); }
+.ocr-step.active { color: #8b5cf6; }
+.ocr-step.done   { color: #22c55e; }
+.ocr-step-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(var(--v-theme-on-surface),.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+.ocr-step.active .ocr-step-num { background: #8b5cf6; color: white; }
+.ocr-step.done   .ocr-step-num { background: #22c55e; color: white; }
+.ocr-step-line { flex: 1; height: 2px; background: rgba(var(--v-theme-on-surface),.1); margin: 0 8px; max-width: 60px; }
+.ocr-step-line.done { background: #22c55e; }
+
+/* Dropzone */
+.ocr-dropzone {
+  border: 2px dashed rgba(139,92,246,.4);
+  border-radius: 12px;
+  min-height: 200px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  background: rgba(139,92,246,.03);
+}
+.ocr-dropzone:hover { border-color: #8b5cf6; background: rgba(139,92,246,.06); }
+.ocr-dropzone--preview { border-style: solid; border-color: #8b5cf6; padding: 8px; }
+.ocr-dropzone-inner { text-align: center; padding: 20px; }
+.ocr-drop-txt { font-size: 15px; font-weight: 600; margin: 0; }
+.ocr-drop-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 4px 0 0; }
+.ocr-img-preview { max-width: 100%; max-height: 360px; border-radius: 8px; object-fit: contain; }
+
+/* Processing */
+.ocr-processing { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 220px; }
+.ocr-proc-txt { font-size: 16px; font-weight: 700; margin: 0; }
+.ocr-proc-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 0; }
+
+/* Review */
+.ocr-review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.ocr-review-stats  { display: flex; gap: 8px; flex-wrap: wrap; }
+.ocr-empty { text-align: center; padding: 40px; color: rgba(var(--v-theme-on-surface),.5); }
+
+/* Table de revisión */
+.ocr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ocr-table thead { background: rgba(var(--v-theme-on-surface),.04); }
+.ocr-table thead th {
+  padding: 8px 10px; text-align: left;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  color: rgba(var(--v-theme-on-surface),.5);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08);
+}
+.ocr-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
+.ocr-table tbody td { padding: 6px 10px; vertical-align: middle; }
+.ocr-row-ok   { background: rgba(34,197,94,.04); }
+.ocr-row-warn { background: rgba(234,179,8,.04); }
+.ocr-td-raw   { font-size: 12px; color: rgba(var(--v-theme-on-surface),.6); max-width: 180px; word-break: break-word; }
+.ocr-td-prod  { min-width: 200px; }
+.ocr-td-cant  { text-align: center; }
+.ocr-td-conf  { text-align: center; }
+
+.ocr-cant-input {
+  width: 80px; padding: 5px 8px; text-align: center;
+  border: 1px solid rgba(var(--v-theme-on-surface),.15);
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface),.03);
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 13px; font-weight: 600;
+  outline: none;
+}
+.ocr-cant-input:focus { border-color: #8b5cf6; background: rgba(139,92,246,.06); }
 </style>
