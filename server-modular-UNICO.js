@@ -6919,39 +6919,22 @@ app.get('/api/gerencia/kpis', async (req, res) => {
 
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
-// Tablas: recetas, detalle_recetas, articulos
-// Sin filtro de empresa - las recetas son globales
+// recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
+// articulos:      codigo, nombre, und, valor(precio), empresa, grupo, prod_propio
+// detalle_recetas:codigo, receta, articulo, cantidad, vr_unit, vr_total
 // ================================================================
 
-// GET /api/recetas-info - Diagnóstico: columnas reales de las tablas
-app.get('/api/recetas-info', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT table_name, column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name IN ('recetas','detalle_recetas','articulos')
-              AND table_schema = 'public'
-            ORDER BY table_name, ordinal_position
-        `);
-        // También traer una fila de muestra de recetas
-        let muestra = [];
-        try {
-            const m = await pool.query('SELECT * FROM recetas LIMIT 3');
-            muestra = m.rows;
-        } catch(e) { muestra = [e.message]; }
-        res.json({ success: true, columnas: result.rows, muestra_recetas: muestra });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
 // ── ARTÍCULOS / INSUMOS ─────────────────────────────────────────
+// Columnas reales: codigo, nombre, und, valor, empresa, grupo, prod_propio
 
-// GET /api/articulos - Listar todos los artículos (ingredientes)
+// GET /api/articulos - Listar todos los artículos
 app.get('/api/articulos', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT codigo, nombre, und, precio, categoria
+            SELECT codigo, nombre, und,
+                   COALESCE(valor, 0) AS valor,
+                   COALESCE(grupo, '') AS grupo,
+                   COALESCE(prod_propio, '') AS prod_propio
             FROM articulos
             ORDER BY nombre
         `);
@@ -6964,17 +6947,17 @@ app.get('/api/articulos', async (req, res) => {
 
 // POST /api/articulos - Crear artículo
 app.post('/api/articulos', async (req, res) => {
-    const { codigo, nombre, und, precio, categoria } = req.body;
+    const { codigo, nombre, und, valor, grupo } = req.body;
     if (!nombre) return res.status(400).json({ success: false, error: 'nombre es requerido' });
     try {
         const result = await pool.query(`
-            INSERT INTO articulos (codigo, nombre, und, precio, categoria)
+            INSERT INTO articulos (codigo, nombre, und, valor, grupo)
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (codigo) DO UPDATE
             SET nombre = EXCLUDED.nombre, und = EXCLUDED.und,
-                precio = EXCLUDED.precio, categoria = EXCLUDED.categoria
+                valor = EXCLUDED.valor, grupo = EXCLUDED.grupo
             RETURNING *
-        `, [codigo || null, nombre.trim(), und || 'UND', parseFloat(precio) || 0, categoria || null]);
+        `, [codigo || null, nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null]);
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Error POST /api/articulos:', error);
@@ -6985,17 +6968,18 @@ app.post('/api/articulos', async (req, res) => {
 // PUT /api/articulos/:codigo - Actualizar artículo
 app.put('/api/articulos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, und, precio, categoria } = req.body;
+    const { nombre, und, valor, grupo } = req.body;
     try {
         const result = await pool.query(`
             UPDATE articulos
             SET nombre = COALESCE($1, nombre),
-                und = COALESCE($2, und),
-                precio = COALESCE($3, precio),
-                categoria = COALESCE($4, categoria)
+                und    = COALESCE($2, und),
+                valor  = COALESCE($3, valor),
+                grupo  = COALESCE($4, grupo)
             WHERE codigo = $5
             RETURNING *
-        `, [nombre?.trim() || null, und || null, precio != null ? parseFloat(precio) : null, categoria || null, codigo]);
+        `, [nombre?.trim() || null, und || null,
+            valor != null ? parseFloat(valor) : null, grupo || null, codigo]);
         if (result.rowCount === 0)
             return res.status(404).json({ success: false, error: 'Artículo no encontrado' });
         res.json({ success: true, data: result.rows[0] });
@@ -7009,7 +6993,6 @@ app.put('/api/articulos/:codigo', async (req, res) => {
 app.delete('/api/articulos/:codigo', async (req, res) => {
     const { codigo } = req.params;
     try {
-        // Verificar si está en uso en detalle_recetas
         const usoRes = await pool.query(
             `SELECT COUNT(*) AS cnt FROM detalle_recetas WHERE articulo = $1`, [codigo]
         );
@@ -7028,28 +7011,31 @@ app.delete('/api/articulos/:codigo', async (req, res) => {
 });
 
 // ── RECETAS ─────────────────────────────────────────────────────
+// Columnas reales: codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
+// subproducto='SI' → es subreceta/producto propio (sincroniza a articulos)
 
-// GET /api/recetas - Listar todas las recetas con costo calculado
+// GET /api/recetas - Listar todas las recetas
 app.get('/api/recetas', async (req, res) => {
-    const { tipo } = req.query;
+    const { grupo } = req.query;
     try {
         let sql = `
-            SELECT r.codigo, r.nombre, r.tipo, r.precio_venta,
-                   COALESCE(r.costo, 0)       AS costo,
-                   COALESCE(r.rendimiento, 1)  AS rendimiento,
-                   COALESCE(r.und, 'PORCION')  AS und,
-                   COALESCE(r.categoria, '')   AS categoria,
-                   COALESCE(r.descripcion, '') AS descripcion,
+            SELECT r.codigo,
+                   r.nombre,
+                   COALESCE(r.grupo_receta, '') AS grupo_receta,
+                   COALESCE(r.subproducto, '')  AS subproducto,
+                   COALESCE(r.und, '')           AS und,
+                   COALESCE(r.valor, 0)          AS valor,
+                   COALESCE(r.precio_venta, 0)   AS precio_venta,
                    COALESCE((SELECT COUNT(*) FROM detalle_recetas dr WHERE dr.receta = r.codigo), 0) AS num_ingredientes,
-                   CASE WHEN COALESCE(r.precio_venta,0) > 0
-                        THEN ROUND((COALESCE(r.costo,0) / r.precio_venta * 100)::numeric, 1)
+                   CASE WHEN COALESCE(r.precio_venta, 0) > 0
+                        THEN ROUND((COALESCE(r.valor, 0) / r.precio_venta * 100)::numeric, 1)
                         ELSE 0 END AS porcentaje_costo
             FROM recetas r
         `;
         const params = [];
-        if (tipo && tipo !== 'TODOS') {
-            sql += ' WHERE r.tipo = $1';
-            params.push(tipo);
+        if (grupo && grupo !== 'TODOS') {
+            sql += ' WHERE r.grupo_receta = $1';
+            params.push(grupo);
         }
         sql += ' ORDER BY r.nombre';
         const result = await pool.query(sql, params);
@@ -7060,44 +7046,42 @@ app.get('/api/recetas', async (req, res) => {
     }
 });
 
-// GET /api/recetas/:codigo - Obtener receta con sus ingredientes detallados
+// GET /api/recetas/:codigo - Obtener receta con sus ingredientes
 app.get('/api/recetas/:codigo', async (req, res) => {
     const { codigo } = req.params;
     try {
         const [recetaRes, detalleRes] = await Promise.all([
             pool.query(`
-                SELECT r.codigo, r.nombre, r.tipo, r.precio_venta,
-                       COALESCE(r.costo, 0)       AS costo,
-                       COALESCE(r.rendimiento, 1)  AS rendimiento,
-                       COALESCE(r.und, 'PORCION')  AS und,
-                       COALESCE(r.categoria, '')   AS categoria,
-                       COALESCE(r.descripcion, '') AS descripcion
+                SELECT r.codigo, r.nombre,
+                       COALESCE(r.grupo_receta, '') AS grupo_receta,
+                       COALESCE(r.subproducto, '')  AS subproducto,
+                       COALESCE(r.und, '')           AS und,
+                       COALESCE(r.valor, 0)          AS valor,
+                       COALESCE(r.precio_venta, 0)   AS precio_venta
                 FROM recetas r WHERE r.codigo = $1
             `, [codigo]),
             pool.query(`
-                SELECT dr.id, dr.articulo, dr.cant,
-                       COALESCE(dr.und, a.und, 'UND') AS und,
+                SELECT dr.codigo AS id,
+                       dr.articulo,
+                       dr.cantidad,
                        COALESCE(a.nombre, dr.articulo) AS articulo_nombre,
-                       COALESCE(a.precio, 0)           AS precio_unit,
-                       COALESCE(a.und, 'UND')          AS und_articulo,
-                       COALESCE(a.precio, 0) * dr.cant AS subtotal,
-                       -- ¿es subreceta?
+                       COALESCE(a.und, '')              AS und,
+                       COALESCE(a.valor, 0)             AS precio_unit,
+                       COALESCE(dr.vr_unit, a.valor, 0) AS vr_unit,
+                       COALESCE(dr.vr_total, COALESCE(a.valor,0) * dr.cantidad, 0) AS vr_total,
                        CASE WHEN EXISTS(SELECT 1 FROM recetas r2 WHERE r2.codigo = dr.articulo)
                             THEN true ELSE false END AS es_subreceta
                 FROM detalle_recetas dr
-                LEFT JOIN articulos a ON a.codigo = dr.articulo
+                LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo)
                 WHERE dr.receta = $1
-                ORDER BY dr.id
+                ORDER BY dr.codigo
             `, [codigo])
         ]);
         if (recetaRes.rowCount === 0)
             return res.status(404).json({ success: false, error: 'Receta no encontrada' });
         res.json({
             success: true,
-            data: {
-                ...recetaRes.rows[0],
-                ingredientes: detalleRes.rows
-            }
+            data: { ...recetaRes.rows[0], ingredientes: detalleRes.rows }
         });
     } catch (error) {
         console.error('Error GET /api/recetas/:codigo:', error);
@@ -7107,36 +7091,27 @@ app.get('/api/recetas/:codigo', async (req, res) => {
 
 // POST /api/recetas - Crear receta
 app.post('/api/recetas', async (req, res) => {
-    const { codigo, nombre, tipo, precio_venta, rendimiento, und, categoria, descripcion } = req.body;
+    const { codigo, nombre, grupo_receta, subproducto, und, precio_venta } = req.body;
     if (!nombre) return res.status(400).json({ success: false, error: 'nombre es requerido' });
+    if (!codigo)  return res.status(400).json({ success: false, error: 'codigo es requerido' });
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        // Generar código si no se provee
-        let codigoFinal = codigo;
-        if (!codigoFinal) {
-            const maxRes = await client.query(
-                `SELECT MAX(CAST(codigo AS INTEGER)) AS max_cod FROM recetas WHERE codigo ~ '^[0-9]+$'`
-            );
-            codigoFinal = String((parseInt(maxRes.rows[0].max_cod) || 0) + 1).padStart(4, '0');
-        }
-
         const result = await client.query(`
-            INSERT INTO recetas (codigo, nombre, tipo, precio_venta, costo, rendimiento, und, categoria, descripcion)
-            VALUES ($1, $2, $3, $4, 0, $5, $6, $7, $8)
+            INSERT INTO recetas (codigo, nombre, grupo_receta, subproducto, und, precio_venta, valor)
+            VALUES ($1, $2, $3, $4, $5, $6, 0)
             RETURNING *
-        `, [codigoFinal, nombre.trim(), tipo || 'PLATO', parseFloat(precio_venta) || 0,
-            parseFloat(rendimiento) || 1, und || 'PORCION', categoria || null, descripcion || null]);
+        `, [codigo.trim(), nombre.trim(), grupo_receta || null,
+            subproducto || 'NO', und || null, parseFloat(precio_venta) || 0]);
 
-        // Si es PRODUCTO PROPIO → sincronizar a articulos
-        if (tipo === 'PRODUCTO PROPIO') {
+        // Si es subproducto → sincronizar a articulos para que pueda usarse como ingrediente
+        if (subproducto === 'SI') {
             await client.query(`
-                INSERT INTO articulos (codigo, nombre, und, precio, categoria)
-                VALUES ($1, $2, $3, 0, 'SUBRECETA')
+                INSERT INTO articulos (codigo, nombre, und, valor, prod_propio)
+                VALUES ($1, $2, $3, 0, 'SI')
                 ON CONFLICT (codigo) DO UPDATE
-                SET nombre = EXCLUDED.nombre, und = EXCLUDED.und, categoria = EXCLUDED.categoria
-            `, [codigoFinal, nombre.trim(), und || 'PORCION']);
+                SET nombre = EXCLUDED.nombre, und = EXCLUDED.und, prod_propio = 'SI'
+            `, [codigo.trim(), nombre.trim(), und || null]);
         }
 
         await client.query('COMMIT');
@@ -7153,36 +7128,34 @@ app.post('/api/recetas', async (req, res) => {
 // PUT /api/recetas/:codigo - Actualizar receta
 app.put('/api/recetas/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, tipo, precio_venta, rendimiento, und, categoria, descripcion } = req.body;
+    const { nombre, grupo_receta, subproducto, und, precio_venta } = req.body;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         const result = await client.query(`
             UPDATE recetas SET
                 nombre       = COALESCE($1, nombre),
-                tipo         = COALESCE($2, tipo),
-                precio_venta = COALESCE($3, precio_venta),
-                rendimiento  = COALESCE($4, rendimiento),
-                und          = COALESCE($5, und),
-                categoria    = COALESCE($6, categoria),
-                descripcion  = COALESCE($7, descripcion)
-            WHERE codigo = $8
+                grupo_receta = COALESCE($2, grupo_receta),
+                subproducto  = COALESCE($3, subproducto),
+                und          = COALESCE($4, und),
+                precio_venta = COALESCE($5, precio_venta)
+            WHERE codigo = $6
             RETURNING *
-        `, [nombre?.trim() || null, tipo || null, precio_venta != null ? parseFloat(precio_venta) : null,
-            rendimiento != null ? parseFloat(rendimiento) : null, und || null,
-            categoria || null, descripcion || null, codigo]);
+        `, [nombre?.trim() || null, grupo_receta || null, subproducto || null,
+            und || null, precio_venta != null ? parseFloat(precio_venta) : null, codigo]);
 
         if (result.rowCount === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ success: false, error: 'Receta no encontrada' });
         }
 
-        // Si es PRODUCTO PROPIO → sincronizar nombre/und en articulos
-        if (tipo === 'PRODUCTO PROPIO' || result.rows[0].tipo === 'PRODUCTO PROPIO') {
+        // Sincronizar nombre/und en articulos si es subproducto
+        const esSubprod = subproducto === 'SI' || result.rows[0].subproducto === 'SI';
+        if (esSubprod && nombre) {
             await client.query(`
-                UPDATE articulos SET nombre = $1, und = $2
+                UPDATE articulos SET nombre = $1, und = COALESCE($2, und)
                 WHERE codigo = $3
-            `, [nombre?.trim() || result.rows[0].nombre, und || result.rows[0].und, codigo]);
+            `, [nombre.trim(), und || null, codigo]);
         }
 
         await client.query('COMMIT');
@@ -7202,7 +7175,6 @@ app.delete('/api/recetas/:codigo', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        // Verificar si esta receta se usa como ingrediente en otras
         const usoRes = await client.query(
             `SELECT COUNT(*) AS cnt FROM detalle_recetas WHERE articulo = $1`, [codigo]
         );
@@ -7213,17 +7185,15 @@ app.delete('/api/recetas/:codigo', async (req, res) => {
                 error: `No se puede eliminar. Esta receta se usa como ingrediente en ${usoRes.rows[0].cnt} receta(s).`
             });
         }
-        // Verificar tipo para limpiar articulos
-        const tipoRes = await client.query('SELECT tipo FROM recetas WHERE codigo = $1', [codigo]);
-        if (tipoRes.rowCount === 0) {
+        const subpRes = await client.query('SELECT subproducto FROM recetas WHERE codigo = $1', [codigo]);
+        if (subpRes.rowCount === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ success: false, error: 'Receta no encontrada' });
         }
         await client.query('DELETE FROM detalle_recetas WHERE receta = $1', [codigo]);
         await client.query('DELETE FROM recetas WHERE codigo = $1', [codigo]);
-        // Si era PRODUCTO PROPIO, eliminar de articulos también
-        if (tipoRes.rows[0].tipo === 'PRODUCTO PROPIO') {
-            await client.query('DELETE FROM articulos WHERE codigo = $1', [codigo]);
+        if (subpRes.rows[0].subproducto === 'SI') {
+            await client.query("DELETE FROM articulos WHERE codigo = $1 AND prod_propio = 'SI'", [codigo]);
         }
         await client.query('COMMIT');
         res.json({ success: true });
@@ -7237,23 +7207,32 @@ app.delete('/api/recetas/:codigo', async (req, res) => {
 });
 
 // PUT /api/recetas/:codigo/ingredientes - Guardar ingredientes (reemplaza todo)
+// detalle_recetas: codigo(PK), receta, articulo, cantidad, vr_unit, vr_total
 app.put('/api/recetas/:codigo/ingredientes', async (req, res) => {
     const { codigo } = req.params;
-    const { ingredientes } = req.body; // [{articulo, cant, und}]
+    const { ingredientes } = req.body;
     if (!Array.isArray(ingredientes))
         return res.status(400).json({ success: false, error: 'ingredientes debe ser un array' });
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        // Borrar ingredientes actuales
         await client.query('DELETE FROM detalle_recetas WHERE receta = $1', [codigo]);
-        // Insertar nuevos
+        // Obtener max código para generar PK
+        const maxRes = await client.query(
+            `SELECT MAX(CAST(codigo AS INTEGER)) AS max_cod FROM detalle_recetas WHERE codigo ~ '^[0-9]+$'`
+        );
+        let nextCod = (parseInt(maxRes.rows[0].max_cod) || 0) + 1;
+
         for (const ing of ingredientes) {
-            if (!ing.articulo || ing.cant == null) continue;
+            if (!ing.articulo || ing.cantidad == null) continue;
+            const vrUnit  = parseFloat(ing.precio_unit) || 0;
+            const cant    = parseFloat(ing.cantidad) || 0;
+            const vrTotal = vrUnit * cant;
             await client.query(`
-                INSERT INTO detalle_recetas (receta, articulo, cant, und)
-                VALUES ($1, $2, $3, $4)
-            `, [codigo, ing.articulo, parseFloat(ing.cant) || 0, ing.und || 'UND']);
+                INSERT INTO detalle_recetas (codigo, receta, articulo, cantidad, vr_unit, vr_total)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [String(nextCod).padStart(6,'0'), codigo, ing.articulo, cant, vrUnit, vrTotal]);
+            nextCod++;
         }
         await client.query('COMMIT');
         res.json({ success: true });
@@ -7266,34 +7245,38 @@ app.put('/api/recetas/:codigo/ingredientes', async (req, res) => {
     }
 });
 
-// POST /api/recetas/:codigo/calcular-costo - Calcular y guardar costo de una receta
+// POST /api/recetas/:codigo/calcular-costo - Calcular costo de una receta
 app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
     const { codigo } = req.params;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        // Calcular costo total = suma de (precio_articulo * cant)
+        // Costo = SUM(articulo.valor * detalle.cantidad)
         const costoRes = await client.query(`
-            SELECT COALESCE(SUM(COALESCE(a.precio, 0) * dr.cant), 0) AS costo_total
+            SELECT COALESCE(SUM(COALESCE(a.valor, 0) * dr.cantidad), 0) AS costo_total
             FROM detalle_recetas dr
-            LEFT JOIN articulos a ON a.codigo = dr.articulo
+            LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo)
             WHERE dr.receta = $1
         `, [codigo]);
         const costoTotal = parseFloat(costoRes.rows[0].costo_total) || 0;
 
-        // Actualizar costo en recetas
-        await client.query(
-            'UPDATE recetas SET costo = $1 WHERE codigo = $2', [costoTotal, codigo]
-        );
+        // Actualizar vr_unit y vr_total en detalle también
+        await client.query(`
+            UPDATE detalle_recetas dr
+            SET vr_unit  = COALESCE(a.valor, 0),
+                vr_total = COALESCE(a.valor, 0) * dr.cantidad
+            FROM articulos a
+            WHERE TRIM(a.codigo) = TRIM(dr.articulo)
+              AND dr.receta = $1
+        `, [codigo]);
 
-        // Si la receta es PRODUCTO PROPIO → actualizar su precio en articulos
-        const tipoRes = await client.query('SELECT tipo, rendimiento FROM recetas WHERE codigo = $1', [codigo]);
-        if (tipoRes.rowCount > 0 && tipoRes.rows[0].tipo === 'PRODUCTO PROPIO') {
-            const rendimiento = parseFloat(tipoRes.rows[0].rendimiento) || 1;
-            const precioPorUnidad = rendimiento > 0 ? costoTotal / rendimiento : costoTotal;
-            await client.query(
-                'UPDATE articulos SET precio = $1 WHERE codigo = $2', [precioPorUnidad, codigo]
-            );
+        // Guardar costo en recetas.valor
+        await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+
+        // Si es subproducto → actualizar su precio en articulos
+        const subpRes = await client.query('SELECT subproducto FROM recetas WHERE codigo = $1', [codigo]);
+        if (subpRes.rowCount > 0 && subpRes.rows[0].subproducto === 'SI') {
+            await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
         }
 
         await client.query('COMMIT');
@@ -7307,54 +7290,46 @@ app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
     }
 });
 
-// POST /api/recetas/recalcular-todos - Recalcular costos de todas las recetas en orden correcto
-// Primero calcula subrecetas/PRODUCTO PROPIO, luego las que las usan
+// POST /api/recetas/recalcular-todos - 2 pasadas: subproductos primero, luego resto
 app.post('/api/recetas/recalcular-todos', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        // Paso 1: Obtener todas las recetas
-        const recetasRes = await client.query(`
-            SELECT codigo, tipo, rendimiento FROM recetas ORDER BY tipo
-        `);
+        const recetasRes = await client.query(
+            `SELECT codigo, subproducto FROM recetas ORDER BY subproducto DESC, nombre`
+        );
         const recetas = recetasRes.rows;
-
-        // Paso 2: Calcular primero las SUBRECETA y PRODUCTO PROPIO (no dependen de otras)
-        // Luego las que pueden usar subrecetas
-        // Hacemos 2 pasadas para manejar dependencias simples
         const resultados = [];
 
-        async function calcularReceta(codigo, rendimiento, tipo) {
+        async function calcular(codigo, subproducto) {
             const costoRes = await client.query(`
-                SELECT COALESCE(SUM(COALESCE(a.precio, 0) * dr.cant), 0) AS costo_total
+                SELECT COALESCE(SUM(COALESCE(a.valor, 0) * dr.cantidad), 0) AS costo_total
                 FROM detalle_recetas dr
-                LEFT JOIN articulos a ON a.codigo = dr.articulo
+                LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo)
                 WHERE dr.receta = $1
             `, [codigo]);
             const costo = parseFloat(costoRes.rows[0].costo_total) || 0;
-            await client.query('UPDATE recetas SET costo = $1 WHERE codigo = $2', [costo, codigo]);
-            if (tipo === 'PRODUCTO PROPIO') {
-                const rend = parseFloat(rendimiento) || 1;
-                const precioUnd = rend > 0 ? costo / rend : costo;
-                await client.query('UPDATE articulos SET precio = $1 WHERE codigo = $2', [precioUnd, codigo]);
+            await client.query(`
+                UPDATE detalle_recetas dr
+                SET vr_unit  = COALESCE(a.valor, 0),
+                    vr_total = COALESCE(a.valor, 0) * dr.cantidad
+                FROM articulos a
+                WHERE TRIM(a.codigo) = TRIM(dr.articulo) AND dr.receta = $1
+            `, [codigo]);
+            await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costo, codigo]);
+            if (subproducto === 'SI') {
+                await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costo, codigo]);
             }
             return { codigo, costo };
         }
 
-        // Pasada 1: subrecetas y PRODUCTO PROPIO
+        // Pasada 1: subproductos (actualizan articulos)
         for (const r of recetas) {
-            if (r.tipo === 'SUBRECETA' || r.tipo === 'PRODUCTO PROPIO') {
-                const res = await calcularReceta(r.codigo, r.rendimiento, r.tipo);
-                resultados.push(res);
-            }
+            if (r.subproducto === 'SI') resultados.push(await calcular(r.codigo, r.subproducto));
         }
-        // Pasada 2: todos los demás (ahora los precios de subrecetas ya están actualizados en articulos)
+        // Pasada 2: el resto (ya ven los precios actualizados de subproductos)
         for (const r of recetas) {
-            if (r.tipo !== 'SUBRECETA' && r.tipo !== 'PRODUCTO PROPIO') {
-                const res = await calcularReceta(r.codigo, r.rendimiento, r.tipo);
-                resultados.push(res);
-            }
+            if (r.subproducto !== 'SI') resultados.push(await calcular(r.codigo, r.subproducto));
         }
 
         await client.query('COMMIT');
@@ -7368,49 +7343,50 @@ app.post('/api/recetas/recalcular-todos', async (req, res) => {
     }
 });
 
-// GET /api/recetas-reporte/costos - Reporte de costos de todas las recetas
+// GET /api/recetas-reporte/costos - Reporte de costos
 app.get('/api/recetas-reporte/costos', async (req, res) => {
-    const { tipo } = req.query;
+    const { grupo, subproducto } = req.query;
     try {
         let sql = `
-            SELECT r.codigo, r.nombre, r.tipo, r.categoria,
-                   COALESCE(r.precio_venta, 0)  AS precio_venta,
-                   COALESCE(r.costo, 0)          AS costo,
-                   COALESCE(r.rendimiento, 1)    AS rendimiento,
-                   COALESCE(r.und, 'PORCION')    AS und,
+            SELECT r.codigo,
+                   r.nombre,
+                   COALESCE(r.grupo_receta, '') AS grupo_receta,
+                   COALESCE(r.subproducto, '')  AS subproducto,
+                   COALESCE(r.und, '')           AS und,
+                   COALESCE(r.precio_venta, 0)   AS precio_venta,
+                   COALESCE(r.valor, 0)           AS costo,
                    CASE WHEN COALESCE(r.precio_venta, 0) > 0
-                        THEN ROUND((COALESCE(r.costo,0) / r.precio_venta * 100)::numeric, 2)
+                        THEN ROUND((COALESCE(r.valor,0) / r.precio_venta * 100)::numeric, 2)
                         ELSE 0 END               AS porcentaje_costo,
                    CASE WHEN COALESCE(r.precio_venta, 0) > 0
-                        THEN ROUND((r.precio_venta - COALESCE(r.costo,0))::numeric, 2)
+                        THEN ROUND((r.precio_venta - COALESCE(r.valor,0))::numeric, 2)
                         ELSE 0 END               AS margen,
                    (SELECT COUNT(*) FROM detalle_recetas dr WHERE dr.receta = r.codigo) AS num_ingredientes
             FROM recetas r
         `;
         const params = [];
-        if (tipo && tipo !== 'TODOS') {
-            sql += ' WHERE r.tipo = $1';
-            params.push(tipo);
+        const conditions = [];
+        if (grupo && grupo !== 'TODOS') {
+            params.push(grupo);
+            conditions.push(`r.grupo_receta = $${params.length}`);
         }
-        sql += ' ORDER BY r.tipo, r.nombre';
+        if (subproducto && subproducto !== 'TODOS') {
+            params.push(subproducto);
+            conditions.push(`COALESCE(r.subproducto,'NO') = $${params.length}`);
+        }
+        if (conditions.length > 0) sql += ' WHERE ' + conditions.join(' AND ');
+        sql += ' ORDER BY r.grupo_receta, r.nombre';
         const result = await pool.query(sql, params);
 
+        const rows = result.rows;
+        const conPV = rows.filter(r => parseFloat(r.precio_venta) > 0);
         const totals = {
-            total_recetas: result.rows.length,
-            costo_promedio: result.rows.length > 0
-                ? result.rows.reduce((s, r) => s + parseFloat(r.costo), 0) / result.rows.length
-                : 0,
-            precio_promedio: result.rows.length > 0
-                ? result.rows.reduce((s, r) => s + parseFloat(r.precio_venta), 0) / result.rows.length
-                : 0,
-            margen_promedio: result.rows.filter(r => parseFloat(r.precio_venta) > 0).length > 0
-                ? result.rows.filter(r => parseFloat(r.precio_venta) > 0)
-                    .reduce((s, r) => s + parseFloat(r.porcentaje_costo), 0) /
-                  result.rows.filter(r => parseFloat(r.precio_venta) > 0).length
-                : 0,
+            total_recetas:   rows.length,
+            costo_promedio:  rows.length > 0 ? rows.reduce((s,r) => s + parseFloat(r.costo), 0) / rows.length : 0,
+            precio_promedio: rows.length > 0 ? rows.reduce((s,r) => s + parseFloat(r.precio_venta), 0) / rows.length : 0,
+            margen_promedio: conPV.length > 0 ? conPV.reduce((s,r) => s + parseFloat(r.porcentaje_costo), 0) / conPV.length : 0,
         };
-
-        res.json({ success: true, data: result.rows, totals });
+        res.json({ success: true, data: rows, totals });
     } catch (error) {
         console.error('Error GET /api/recetas-reporte/costos:', error);
         res.status(500).json({ success: false, error: error.message });

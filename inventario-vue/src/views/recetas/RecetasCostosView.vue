@@ -67,8 +67,10 @@
           hover
           :items-per-page="25"
         >
-          <template #item.tipo="{ item }">
-            <v-chip :color="colorTipo(item.tipo)" size="x-small" variant="tonal" label>{{ item.tipo }}</v-chip>
+          <template #item.subproducto="{ item }">
+            <v-chip :color="item.subproducto === 'SI' ? 'purple' : 'cyan'" size="x-small" variant="tonal" label>
+              {{ item.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
+            </v-chip>
           </template>
 
           <template #item.costo="{ item }">
@@ -117,17 +119,17 @@ const totals     = ref(null)
 const loading    = ref(false)
 const filtroTipo = ref('TODOS')
 
-const TIPOS = ['PLATO', 'PRODUCTO PROPIO', 'SUBRECETA', 'BEBIDA', 'POSTRE', 'ENTRADA', 'OTRO']
 const tiposFiltro = computed(() => [
-  { label: 'Todos los tipos', val: 'TODOS' },
-  ...TIPOS.map(t => ({ label: t, val: t }))
+  { label: 'Todos', val: 'TODOS' },
+  { label: 'Solo Recetas', val: 'NO' },
+  { label: 'Solo Subproductos', val: 'SI' },
 ])
 
 const headers = [
   { title: 'CÓDIGO',    key: 'codigo',          width: 90 },
   { title: 'NOMBRE',    key: 'nombre',          minWidth: 160 },
-  { title: 'TIPO',      key: 'tipo',            width: 120 },
-  { title: 'CATEG.',    key: 'categoria',       width: 110 },
+  { title: 'TIPO',      key: 'subproducto',     width: 130 },
+  { title: 'GRUPO',     key: 'grupo_receta',    width: 120 },
   { title: 'INGRED.',   key: 'num_ingredientes',width: 80, align: 'center' },
   { title: 'COSTO',     key: 'costo',           width: 120, align: 'end' },
   { title: 'P. VENTA',  key: 'precio_venta',    width: 120, align: 'end' },
@@ -143,7 +145,7 @@ async function cargar() {
   loading.value = true
   try {
     const params = new URLSearchParams()
-    if (filtroTipo.value !== 'TODOS') params.set('tipo', filtroTipo.value)
+    if (filtroTipo.value !== 'TODOS') params.set('subproducto', filtroTipo.value)
     const r = await fetch(`${API_BASE}/recetas-reporte/costos?${params}`)
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
@@ -194,9 +196,11 @@ async function exportarPDF() {
 
   doc.autoTable({
     startY: kpiY + 10,
-    head: [['CÓDIGO', 'NOMBRE', 'TIPO', 'CATEG.', 'ING.', 'COSTO', 'P.VENTA', 'MARGEN', '% COSTO']],
+    head: [['CÓDIGO', 'NOMBRE', 'TIPO', 'GRUPO', 'ING.', 'COSTO', 'P.VENTA', 'MARGEN', '% COSTO']],
     body: recetas.value.map(r => [
-      r.codigo, r.nombre, r.tipo, r.categoria || '—',
+      r.codigo, r.nombre,
+      r.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA',
+      r.grupo_receta || '—',
       r.num_ingredientes,
       fmt(r.costo), fmt(r.precio_venta), fmt(r.margen),
       `${r.porcentaje_costo}%`
@@ -234,11 +238,6 @@ async function exportarPDF() {
 
 function fmt(v) {
   return '$' + (parseFloat(v) || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-function colorTipo(tipo) {
-  const m = { 'PLATO': 'cyan', 'SUBRECETA': 'orange', 'PRODUCTO PROPIO': 'purple',
-               'BEBIDA': 'blue', 'POSTRE': 'pink', 'ENTRADA': 'green', 'OTRO': 'grey' }
-  return m[tipo] || 'grey'
 }
 function colorPct(pct) {
   const p = parseFloat(pct) || 0

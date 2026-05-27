@@ -89,15 +89,15 @@
           hover
           :items-per-page="20"
         >
-          <template #item.tipo="{ item }">
-            <v-chip :color="colorTipo(item.tipo)" size="x-small" variant="tonal" label>
-              {{ item.tipo }}
+          <template #item.subproducto="{ item }">
+            <v-chip :color="item.subproducto === 'SI' ? 'purple' : 'cyan'" size="x-small" variant="tonal" label>
+              {{ item.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
             </v-chip>
           </template>
 
-          <template #item.costo="{ item }">
+          <template #item.valor="{ item }">
             <span class="font-mono font-weight-bold" :style="{ color: '#ef4444' }">
-              {{ fmt(item.costo) }}
+              {{ fmt(item.valor) }}
             </span>
           </template>
 
@@ -107,7 +107,7 @@
 
           <template #item.margen="{ item }">
             <span class="font-mono" :style="{ color: margenColor(item) }">
-              {{ fmt(item.precio_venta - item.costo) }}
+              {{ fmt(parseFloat(item.precio_venta) - parseFloat(item.valor)) }}
             </span>
           </template>
 
@@ -161,24 +161,25 @@ const resultadoRecalculo = ref(null)
 const headers = [
   { title: 'CÓDIGO',    key: 'codigo',          width: 90 },
   { title: 'NOMBRE',    key: 'nombre',          minWidth: 160 },
-  { title: 'TIPO',      key: 'tipo',            width: 120 },
+  { title: 'TIPO',      key: 'subproducto',     width: 130 },
+  { title: 'GRUPO',     key: 'grupo_receta',    width: 120 },
   { title: 'INGRED.',   key: 'num_ingredientes',width: 80, align: 'center' },
-  { title: 'COSTO',     key: 'costo',           width: 120, align: 'end' },
+  { title: 'COSTO',     key: 'valor',           width: 120, align: 'end' },
   { title: 'P.VENTA',   key: 'precio_venta',    width: 120, align: 'end' },
   { title: 'MARGEN',    key: 'margen',          width: 120, align: 'end' },
   { title: '% COSTO',   key: 'porcentaje_costo',width: 160 },
   { title: '',          key: 'acciones',        width: 60, sortable: false, align: 'center' },
 ]
 
-const TIPOS = ['PLATO', 'PRODUCTO PROPIO', 'SUBRECETA', 'BEBIDA', 'POSTRE', 'ENTRADA', 'OTRO']
 const tiposFiltro = computed(() => [
-  { label: 'Todos los tipos', val: 'TODOS' },
-  ...TIPOS.map(t => ({ label: t, val: t }))
+  { label: 'Todas', val: 'TODOS' },
+  { label: 'Solo Recetas', val: 'NO' },
+  { label: 'Solo Subproductos', val: 'SI' },
 ])
 
 const recetasFiltradas = computed(() => {
   let r = recetas.value
-  if (filtroTipo.value !== 'TODOS') r = r.filter(x => x.tipo === filtroTipo.value)
+  if (filtroTipo.value !== 'TODOS') r = r.filter(x => x.subproducto === filtroTipo.value)
   return r
 })
 
@@ -188,7 +189,7 @@ const kpis = computed(() => {
   return {
     total:      r.length,
     articulos:  articulos.value.length,
-    subrecetas: r.filter(x => x.tipo === 'SUBRECETA' || x.tipo === 'PRODUCTO PROPIO').length,
+    subrecetas: r.filter(x => x.subproducto === 'SI').length,
     pctPromedio: conPV.length > 0
       ? (conPV.reduce((s, x) => s + parseFloat(x.porcentaje_costo), 0) / conPV.length).toFixed(1)
       : '0.0',
@@ -242,12 +243,6 @@ function fmt(v) {
   return '$' + (parseFloat(v) || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function colorTipo(tipo) {
-  const m = { 'PLATO': 'cyan', 'SUBRECETA': 'orange', 'PRODUCTO PROPIO': 'purple',
-               'BEBIDA': 'blue', 'POSTRE': 'pink', 'ENTRADA': 'green', 'OTRO': 'grey' }
-  return m[tipo] || 'grey'
-}
-
 function colorPct(pct) {
   const p = parseFloat(pct) || 0
   if (p <= 30) return 'green'
@@ -261,7 +256,7 @@ function colorPctStr(pct) {
   return '#ef4444'
 }
 function margenColor(item) {
-  const m = parseFloat(item.precio_venta) - parseFloat(item.costo)
+  const m = parseFloat(item.precio_venta) - parseFloat(item.valor)
   return m >= 0 ? '#22c55e' : '#ef4444'
 }
 

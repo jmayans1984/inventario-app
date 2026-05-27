@@ -52,9 +52,9 @@
           :items-per-page="25"
           class="ra-table"
         >
-          <template #item.precio="{ item }">
+          <template #item.valor="{ item }">
             <div class="d-flex align-center justify-end gap-1">
-              <span class="font-mono">{{ fmt(item.precio) }}</span>
+              <span class="font-mono">{{ fmt(item.valor) }}</span>
               <v-btn icon size="x-small" variant="text" color="#f59e0b"
                 @click="editarPrecio(item)">
                 <v-icon size="14">mdi-pencil-outline</v-icon>
@@ -62,9 +62,9 @@
             </div>
           </template>
 
-          <template #item.categoria="{ item }">
-            <v-chip v-if="item.categoria" size="x-small" color="orange-lighten-1" variant="tonal" label>
-              {{ item.categoria }}
+          <template #item.grupo="{ item }">
+            <v-chip v-if="item.grupo" size="x-small" color="orange-lighten-1" variant="tonal" label>
+              {{ item.grupo }}
             </v-chip>
             <span v-else class="text-caption text-disabled">—</span>
           </template>
@@ -125,11 +125,11 @@
                 density="compact" hide-details />
             </v-col>
             <v-col cols="4">
-              <v-text-field v-model="form.precio" label="Precio Compra" type="number"
+              <v-text-field v-model="form.valor" label="Precio Compra" type="number"
                 min="0" variant="outlined" density="compact" hide-details prefix="$" />
             </v-col>
             <v-col cols="4">
-              <v-text-field v-model="form.categoria" label="Categoría" variant="outlined"
+              <v-text-field v-model="form.grupo" label="Grupo" variant="outlined"
                 density="compact" hide-details />
             </v-col>
           </v-row>
@@ -162,7 +162,7 @@
             min="0" variant="outlined" density="compact" hide-details prefix="$"
             autofocus @keyup.enter="guardarPrecio" />
           <p class="text-caption text-medium-emphasis mt-2">
-            Precio actual: <strong>{{ fmt(articuloPrecio?.precio) }}</strong>
+            Precio actual: <strong>{{ fmt(articuloPrecio?.valor) }}</strong>
           </p>
         </v-card-text>
         <v-divider />
@@ -217,9 +217,9 @@ const headers = [
   { title: 'CÓDIGO',   key: 'codigo',      width: 100 },
   { title: 'NOMBRE',   key: 'nombre',      minWidth: 180 },
   { title: 'UND',      key: 'und',         width: 80  },
-  { title: 'CATEG.',   key: 'categoria',   width: 120 },
+  { title: 'GRUPO',    key: 'grupo',       width: 120 },
   { title: 'SUBRECETA',key: 'es_subreceta',width: 110, align: 'center' },
-  { title: 'PRECIO COMPRA', key: 'precio', width: 140, align: 'end' },
+  { title: 'PRECIO COMPRA', key: 'valor',  width: 140, align: 'end' },
   { title: '',         key: 'acciones',    width: 90,  sortable: false, align: 'end' },
 ]
 
@@ -233,18 +233,18 @@ const articulosConFlag = computed(() => {
 })
 
 const categorias = computed(() => {
-  const cats = [...new Set(articulos.value.map(a => a.categoria).filter(Boolean))]
+  const cats = [...new Set(articulos.value.map(a => a.grupo).filter(Boolean))]
   return cats.sort()
 })
 
 const categsFiltro = computed(() => [
-  { label: 'Todas las categorías', val: 'TODOS' },
+  { label: 'Todos los grupos', val: 'TODOS' },
   ...categorias.value.map(c => ({ label: c, val: c }))
 ])
 
 const articulosFiltrados = computed(() => {
   let a = articulosConFlag.value
-  if (filtroCateg.value !== 'TODOS') a = a.filter(x => x.categoria === filtroCateg.value)
+  if (filtroCateg.value !== 'TODOS') a = a.filter(x => x.grupo === filtroCateg.value)
   return a
 })
 
@@ -256,7 +256,7 @@ const errNombre = ref('')
 const form     = ref(formVacio())
 
 function formVacio() {
-  return { codigo: '', nombre: '', und: 'UND', precio: 0, categoria: '' }
+  return { codigo: '', nombre: '', und: 'UND', valor: 0, grupo: '' }
 }
 
 // ── Dialog precio rápido ──────────────────────────────────────
@@ -298,7 +298,7 @@ function abrirNuevo() {
 
 function abrirEditar(art) {
   editando.value = true
-  form.value = { codigo: art.codigo, nombre: art.nombre, und: art.und || '', precio: art.precio || 0, categoria: art.categoria || '' }
+  form.value = { codigo: art.codigo, nombre: art.nombre, und: art.und || '', valor: art.valor || 0, grupo: art.grupo || '' }
   errNombre.value = ''
   dlg.value = true
 }
@@ -326,7 +326,7 @@ async function guardar() {
 
 function editarPrecio(art) {
   articuloPrecio.value = art
-  nuevoPrecio.value    = art.precio || 0
+  nuevoPrecio.value    = art.valor || 0
   dlgPrecio.value      = true
 }
 
@@ -336,7 +336,7 @@ async function guardarPrecio() {
     const r = await fetch(`${API_BASE}/articulos/${articuloPrecio.value.codigo}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ precio: parseFloat(nuevoPrecio.value) || 0 })
+      body: JSON.stringify({ valor: parseFloat(nuevoPrecio.value) || 0 })
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)

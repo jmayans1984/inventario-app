@@ -54,10 +54,10 @@
           @click="toggleSeleccion(receta.codigo)">
 
           <!-- Header de la ficha -->
-          <div class="ficha-top" :class="`tipo-${receta.tipo.replace(' ','_').toLowerCase()}`">
+          <div class="ficha-top" :class="receta.subproducto === 'SI' ? 'tipo-subproducto' : 'tipo-receta'">
             <div class="d-flex align-center justify-space-between">
-              <v-chip :color="colorTipo(receta.tipo)" size="x-small" variant="elevated" label class="ficha-tipo-chip">
-                {{ receta.tipo }}
+              <v-chip :color="receta.subproducto === 'SI' ? 'purple' : 'cyan'" size="x-small" variant="elevated" label class="ficha-tipo-chip">
+                {{ receta.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
               </v-chip>
               <v-checkbox-btn
                 :model-value="seleccionadas.includes(receta.codigo)"
@@ -73,13 +73,13 @@
           <div class="ficha-body">
             <!-- Info general -->
             <div class="ficha-info-row">
-              <div class="fi-item">
-                <span class="fi-lbl">Rendimiento</span>
-                <span class="fi-val">{{ receta.rendimiento }} {{ receta.und }}</span>
+              <div class="fi-item" v-if="receta.und">
+                <span class="fi-lbl">Unidad</span>
+                <span class="fi-val">{{ receta.und }}</span>
               </div>
-              <div class="fi-item" v-if="receta.categoria">
-                <span class="fi-lbl">Categoría</span>
-                <span class="fi-val">{{ receta.categoria }}</span>
+              <div class="fi-item" v-if="receta.grupo_receta">
+                <span class="fi-lbl">Grupo</span>
+                <span class="fi-val">{{ receta.grupo_receta }}</span>
               </div>
             </div>
 
@@ -93,8 +93,8 @@
                     <v-icon v-if="ing.es_subreceta" size="10" color="#f59e0b">mdi-chef-hat</v-icon>
                     {{ ing.articulo_nombre }}
                   </span>
-                  <span class="ing-cant">{{ ing.cant }} {{ ing.und }}</span>
-                  <span class="ing-sub">{{ fmt(ing.precio_unit * ing.cant) }}</span>
+                  <span class="ing-cant">{{ ing.cantidad }} {{ ing.und }}</span>
+                  <span class="ing-sub">{{ fmt(ing.precio_unit * ing.cantidad) }}</span>
                 </div>
                 <div v-if="detalles[receta.codigo].length > 5" class="ficha-ing-more">
                   + {{ detalles[receta.codigo].length - 5 }} más...
@@ -109,7 +109,7 @@
             <div class="ficha-costos">
               <div class="fc-row">
                 <span class="fc-lbl">Costo</span>
-                <span class="fc-val error">{{ fmt(receta.costo) }}</span>
+                <span class="fc-val error">{{ fmt(receta.valor) }}</span>
               </div>
               <div class="fc-row" v-if="receta.precio_venta > 0">
                 <span class="fc-lbl">Precio Venta</span>
@@ -146,15 +146,15 @@ const busqueda     = ref('')
 const filtroTipo   = ref('TODOS')
 const seleccionadas = ref([])
 
-const TIPOS = ['PLATO', 'PRODUCTO PROPIO', 'SUBRECETA', 'BEBIDA', 'POSTRE', 'ENTRADA', 'OTRO']
 const tiposFiltro = computed(() => [
-  { label: 'Todos los tipos', val: 'TODOS' },
-  ...TIPOS.map(t => ({ label: t, val: t }))
+  { label: 'Todos', val: 'TODOS' },
+  { label: 'Solo Recetas', val: 'NO' },
+  { label: 'Solo Subproductos', val: 'SI' },
 ])
 
 const recetasFiltradas = computed(() => {
   let r = recetas.value
-  if (filtroTipo.value !== 'TODOS') r = r.filter(x => x.tipo === filtroTipo.value)
+  if (filtroTipo.value !== 'TODOS') r = r.filter(x => x.subproducto === filtroTipo.value)
   if (busqueda.value) {
     const q = busqueda.value.toLowerCase()
     r = r.filter(x => x.nombre.toLowerCase().includes(q) || x.codigo.toLowerCase().includes(q))
@@ -246,7 +246,7 @@ async function exportarPDF() {
     doc.text(receta.nombre.toUpperCase(), 14, 13)
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Código: ${receta.codigo}  ·  Tipo: ${receta.tipo}  ·  Categ.: ${receta.categoria || '—'}`, 14, 19)
+    doc.text(`Código: ${receta.codigo}  ·  Tipo: ${receta.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA'}  ·  Grupo: ${receta.grupo_receta || '—'}`, 14, 19)
 
     // Info general
     doc.setTextColor(40, 40, 40)
@@ -260,20 +260,15 @@ async function exportarPDF() {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8.5)
     const infoY = 36
-    doc.text(`Rendimiento: ${receta.rendimiento} ${receta.und}`, 14, infoY)
-    doc.text(`Costo Total: ${fmt(receta.costo)}`, 80, infoY)
-    if (receta.precio_venta > 0) {
+    doc.text(`Unidad: ${receta.und || '—'}  ·  Grupo: ${receta.grupo_receta || '—'}`, 14, infoY)
+    doc.text(`Costo Total: ${fmt(receta.valor)}`, 80, infoY)
+    if (parseFloat(receta.precio_venta) > 0) {
       doc.text(`Precio Venta: ${fmt(receta.precio_venta)}`, 14, infoY + 5)
-      doc.text(`Margen: ${fmt(receta.precio_venta - receta.costo)}  (${receta.porcentaje_costo}% costo)`, 80, infoY + 5)
-    }
-    if (receta.descripcion) {
-      doc.setTextColor(100, 100, 100)
-      doc.text(`Notas: ${receta.descripcion}`, 14, infoY + 10)
-      doc.setTextColor(40, 40, 40)
+      doc.text(`Margen: ${fmt(parseFloat(receta.precio_venta) - parseFloat(receta.valor))}  (${receta.porcentaje_costo}% costo)`, 80, infoY + 5)
     }
 
     // Tabla ingredientes
-    const ingStartY = receta.descripcion ? infoY + 16 : infoY + 10
+    const ingStartY = infoY + 10
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(9)
     doc.setTextColor(40, 40, 40)
@@ -281,17 +276,17 @@ async function exportarPDF() {
     doc.line(14, ingStartY + 1.5, pW - 14, ingStartY + 1.5)
 
     if (ings.length > 0) {
-      const costoTotal = ings.reduce((s, i) => s + (parseFloat(i.precio_unit)||0) * (parseFloat(i.cant)||0), 0)
+      const costoTotal = ings.reduce((s, i) => s + (parseFloat(i.precio_unit)||0) * (parseFloat(i.cantidad)||0), 0)
       doc.autoTable({
         startY: ingStartY + 3,
         head: [['INGREDIENTE / ARTÍCULO', 'TIPO', 'CANT.', 'UND.', 'PRECIO UNIT.', 'SUBTOTAL', '% COSTO']],
         body: ings.map(i => {
-          const sub = (parseFloat(i.precio_unit)||0) * (parseFloat(i.cant)||0)
+          const sub = (parseFloat(i.precio_unit)||0) * (parseFloat(i.cantidad)||0)
           const pct = costoTotal > 0 ? (sub / costoTotal * 100).toFixed(1) : '0.0'
           return [
             i.articulo_nombre || i.articulo,
             i.es_subreceta ? 'SUBRECETA' : 'INSUMO',
-            parseFloat(i.cant).toFixed(3),
+            parseFloat(i.cantidad).toFixed(3),
             i.und,
             fmt(i.precio_unit),
             fmt(sub),
@@ -348,11 +343,6 @@ async function exportarPDF() {
 
 function fmt(v) {
   return '$' + (parseFloat(v) || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-function colorTipo(tipo) {
-  const m = { 'PLATO': 'cyan', 'SUBRECETA': 'orange', 'PRODUCTO PROPIO': 'purple',
-               'BEBIDA': 'blue', 'POSTRE': 'pink', 'ENTRADA': 'green', 'OTRO': 'grey' }
-  return m[tipo] || 'grey'
 }
 function colorPctStr(pct) {
   const p = parseFloat(pct) || 0
