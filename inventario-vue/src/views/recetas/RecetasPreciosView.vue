@@ -135,9 +135,8 @@
                     <span class="pv-prefix">$</span>
                     <input
                       :ref="el => { if (el) inputRefs[idx] = el }"
-                      type="number"
-                      min="0"
-                      step="100"
+                      type="text"
+                      inputmode="decimal"
                       class="pv-input"
                       :class="{ 'pv-input--modified': pendientes.has(item.codigo) }"
                       :value="editValues[item.codigo]"
@@ -211,9 +210,9 @@ async function cargar() {
     ])
     recetas.value = rr.data || []
     grupos.value  = rg.data || []
-    // inicializar editValues con el precio actual
+    // inicializar editValues con el precio actual (como texto)
     recetas.value.forEach(r => {
-      editValues[r.codigo] = parseFloat(r.precio_venta) || 0
+      editValues[r.codigo] = String(parseFloat(r.precio_venta) || 0)
     })
     pendientes.value  = new Set()
     guardadosOk.value = new Set()
@@ -242,8 +241,13 @@ const conPrecio = computed(() => recetasFiltradas.value.filter(r => parseFloat(r
 const sinPrecio = computed(() => recetasFiltradas.value.filter(r => !(parseFloat(r.precio_venta) > 0)).length)
 
 // ── % costo en tiempo real ────────────────────────────────────────────────────
+function toNum(raw) {
+  // acepta punto y coma como separador decimal
+  return parseFloat(String(raw).replace(',', '.')) || 0
+}
+
 function pctActual(item) {
-  const pv = parseFloat(editValues[item.codigo]) || 0
+  const pv = toNum(editValues[item.codigo])
   const c  = parseFloat(item.valor) || 0
   if (!pv) return 0
   return (c / pv) * 100
@@ -262,9 +266,10 @@ function colorPct(item) {
 
 // ── Edición ───────────────────────────────────────────────────────────────────
 function onInput(item, e) {
-  const val = parseFloat(e.target.value) || 0
-  editValues[item.codigo] = val
-  const original = parseFloat(item.precio_venta) || 0
+  const raw = e.target.value
+  editValues[item.codigo] = raw          // guardar texto crudo (conserva el punto)
+  const val      = toNum(raw)
+  const original = toNum(item.precio_venta)
   if (val !== original) {
     pendientes.value = new Set([...pendientes.value, item.codigo])
   } else {
@@ -276,7 +281,7 @@ function onInput(item, e) {
 
 function onEscape(item) {
   // restaurar valor original
-  editValues[item.codigo] = parseFloat(item.precio_venta) || 0
+  editValues[item.codigo] = String(parseFloat(item.precio_venta) || 0)
   const s = new Set(pendientes.value)
   s.delete(item.codigo)
   pendientes.value = s
@@ -312,7 +317,7 @@ function enfocar(idx) {
 
 // ── Guardado ──────────────────────────────────────────────────────────────────
 async function guardarUna(item) {
-  const nuevoPrecio = parseFloat(editValues[item.codigo]) || 0
+  const nuevoPrecio = toNum(editValues[item.codigo])
   try {
     const r = await fetch(`${API_BASE}/recetas/${item.codigo}`, {
       method: 'PUT',
@@ -321,8 +326,9 @@ async function guardarUna(item) {
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
-    // actualizar el dato local para que el original cambie
+    // actualizar el dato local y normalizar el texto del input
     item.precio_venta = nuevoPrecio
+    editValues[item.codigo] = String(nuevoPrecio)
     const s = new Set(pendientes.value)
     s.delete(item.codigo)
     pendientes.value = s
@@ -456,9 +462,6 @@ kbd { background: rgba(var(--v-theme-on-surface),.1); border-radius: 4px; paddin
   border-color: #f59e0b;
   background: rgba(245,158,11,.07);
 }
-.pv-input::-webkit-inner-spin-button,
-.pv-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.pv-input[type=number] { -moz-appearance: textfield; }
 
 /* estado */
 .estado-ok, .estado-pend, .estado-none { display: flex; justify-content: center; }
