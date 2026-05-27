@@ -131,8 +131,11 @@
                 density="compact" hide-details :error-messages="errNombre" />
             </v-col>
             <v-col cols="4">
-              <v-text-field v-model="form.grupo_receta" label="Grupo" variant="outlined"
-                density="compact" hide-details />
+              <v-combobox v-model="form.grupo_receta"
+                :items="gruposReceta"
+                label="Grupo"
+                variant="outlined" density="compact" hide-details
+                clearable placeholder="Escribir o seleccionar..." />
             </v-col>
             <v-col cols="4">
               <v-text-field v-model="form.und" label="Unidad" variant="outlined"
@@ -309,10 +312,11 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 
-const recetas    = ref([])
-const articulos  = ref([])
-const loading    = ref(false)
-const busqueda   = ref('')
+const recetas      = ref([])
+const articulos    = ref([])
+const gruposReceta = ref([])   // grupos únicos de recetas para el combobox
+const loading      = ref(false)
+const busqueda     = ref('')
 const filtroGrupo   = ref('TODOS')
 const filtroSubprod = ref('TODOS')
 
@@ -391,9 +395,12 @@ const pctCosto = computed(() => {
 async function cargarRecetas() {
   loading.value = true
   try {
-    const r = await fetch(`${API_BASE}/recetas`)
-    const j = await r.json()
-    recetas.value = j.data || []
+    const [rr, rg] = await Promise.all([
+      fetch(`${API_BASE}/recetas`).then(r => r.json()),
+      fetch(`${API_BASE}/recetas/grupos`).then(r => r.json()),
+    ])
+    recetas.value      = rr.data || []
+    gruposReceta.value = rg.data || []
   } catch { err('Error al cargar recetas') }
   finally { loading.value = false }
 }
@@ -465,11 +472,13 @@ async function abrirIngredientes(receta) {
     const r = await fetch(`${API_BASE}/recetas/${receta.codigo}`)
     const j = await r.json()
     if (j.success) {
-      ingredientes.value = (j.data.ingredientes || []).map(i => ({
-        ...i,
-        cantidad:   parseFloat(i.cantidad) || 0,
-        precio_unit: parseFloat(i.precio_unit) || 0,
-      }))
+      ingredientes.value = (j.data.ingredientes || [])
+        .map(i => ({
+          ...i,
+          cantidad:    parseFloat(i.cantidad) || 0,
+          precio_unit: parseFloat(i.precio_unit) || 0,
+        }))
+        .sort((a, b) => (a.articulo_nombre || '').localeCompare(b.articulo_nombre || '', 'es'))
     }
   } catch { err('Error al cargar ingredientes') }
 }
@@ -489,6 +498,7 @@ function agregarIngrediente() {
     precio_unit:     parseFloat(art.valor) || 0,
     es_subreceta:    esSubreceta,
   })
+  ingredientes.value.sort((a, b) => (a.articulo_nombre || '').localeCompare(b.articulo_nombre || '', 'es'))
   articuloSeleccionado.value = null
   ingNuevo.value = { cantidad: 1 }
 }

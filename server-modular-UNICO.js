@@ -7053,6 +7053,22 @@ app.delete('/api/articulos/:codigo', async (req, res) => {
 // Columnas reales: codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
 // subproducto='SI' → es subreceta/producto propio (sincroniza a articulos)
 
+// GET /api/recetas/grupos - Grupos únicos existentes en la tabla recetas
+app.get('/api/recetas/grupos', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT DISTINCT TRIM(grupo_receta) AS nombre
+            FROM recetas
+            WHERE grupo_receta IS NOT NULL AND TRIM(grupo_receta) != ''
+            ORDER BY nombre
+        `);
+        res.json({ success: true, data: result.rows.map(r => r.nombre) });
+    } catch (error) {
+        console.error('Error GET /api/recetas/grupos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/recetas - Listar todas las recetas
 app.get('/api/recetas', async (req, res) => {
     const { grupo } = req.query;
