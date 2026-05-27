@@ -6989,14 +6989,26 @@ app.post('/api/articulos', async (req, res) => {
     const { codigo, nombre, und, valor, grupo } = req.body;
     if (!nombre) return res.status(400).json({ success: false, error: 'nombre es requerido' });
     try {
-        const result = await pool.query(`
-            INSERT INTO articulos (codigo, nombre, und, valor, grupo)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (codigo) DO UPDATE
-            SET nombre = EXCLUDED.nombre, und = EXCLUDED.und,
-                valor = EXCLUDED.valor, grupo = EXCLUDED.grupo
-            RETURNING *
-        `, [codigo || null, nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null]);
+        let result;
+        if (codigo) {
+            const exists = await pool.query('SELECT 1 FROM articulos WHERE TRIM(codigo) = $1', [codigo.trim()]);
+            if (exists.rows.length > 0) {
+                result = await pool.query(`
+                    UPDATE articulos SET nombre=$1, und=$2, valor=$3, grupo=$4
+                    WHERE TRIM(codigo)=$5 RETURNING *
+                `, [nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null, codigo.trim()]);
+            } else {
+                result = await pool.query(`
+                    INSERT INTO articulos (codigo, nombre, und, valor, grupo)
+                    VALUES ($1,$2,$3,$4,$5) RETURNING *
+                `, [codigo.trim(), nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null]);
+            }
+        } else {
+            result = await pool.query(`
+                INSERT INTO articulos (nombre, und, valor, grupo)
+                VALUES ($1,$2,$3,$4) RETURNING *
+            `, [nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null]);
+        }
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Error POST /api/articulos:', error);
