@@ -7158,12 +7158,18 @@ app.post('/api/recetas', async (req, res) => {
 
         // Si es subproducto → sincronizar a articulos para que pueda usarse como ingrediente
         if (subproducto === 'SI') {
-            await client.query(`
-                INSERT INTO articulos (codigo, nombre, und, valor, prod_propio)
-                VALUES ($1, $2, $3, 0, 'SI')
-                ON CONFLICT (codigo) DO UPDATE
-                SET nombre = EXCLUDED.nombre, und = EXCLUDED.und, prod_propio = 'SI'
-            `, [codigo.trim(), nombre.trim(), und || null]);
+            const exists = await client.query('SELECT 1 FROM articulos WHERE TRIM(codigo) = $1', [codigo.trim()]);
+            if (exists.rows.length > 0) {
+                await client.query(
+                    'UPDATE articulos SET nombre=$1, und=$2, prod_propio=$3 WHERE TRIM(codigo)=$4',
+                    [nombre.trim(), und || null, 'SI', codigo.trim()]
+                );
+            } else {
+                await client.query(
+                    'INSERT INTO articulos (codigo, nombre, und, valor, prod_propio) VALUES ($1,$2,$3,0,$4)',
+                    [codigo.trim(), nombre.trim(), und || null, 'SI']
+                );
+            }
         }
 
         await client.query('COMMIT');
