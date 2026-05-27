@@ -6875,14 +6875,13 @@ app.get('/api/gerencia/kpis', async (req, res) => {
                 ORDER BY valor_total DESC LIMIT 10`),
 
             pool.query(`
-                SELECT COALESCE(cu.nombre, g.cuenta) AS cuenta_nombre,
+                SELECT g.cuenta                  AS cuenta_nombre,
                        g.cuenta,
-                       COALESCE(SUM(g.total),0)      AS total_gastado,
-                       COUNT(*)                      AS count_gastos
+                       COALESCE(SUM(g.total),0)  AS total_gastado,
+                       COUNT(*)                  AS count_gastos
                 FROM gastos g
-                LEFT JOIN cuentas_contables cu ON cu.codigo = g.cuenta AND cu.empresa = g.empresa
                 WHERE g.empresa = $1
-                GROUP BY g.cuenta, cu.nombre
+                GROUP BY g.cuenta
                 ORDER BY total_gastado DESC LIMIT 8`, [empresa])
         ]);
 
