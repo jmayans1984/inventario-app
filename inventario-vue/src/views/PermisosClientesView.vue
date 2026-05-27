@@ -61,7 +61,7 @@
         <!-- COLUMNA DERECHA: árbol de módulos -->
         <div class="pc-col-right">
           <div v-if="!clienteSeleccionado" class="pc-placeholder">
-            <v-icon size="48" color="rgba(0,0,0,0.15)">mdi-shield-account-outline</v-icon>
+            <v-icon size="48" color="rgba(var(--v-theme-on-surface), 0.2)">mdi-shield-account-outline</v-icon>
             <p>Selecciona una empresa cliente para configurar sus permisos</p>
           </div>
 
@@ -284,8 +284,8 @@ onMounted(() => {
   letter-spacing: 0.5px;
 }
 .bc-root { color: #f59e0b; text-transform: uppercase; }
-.bc-sep { color: rgba(0,0,0,0.3); }
-.bc-current { color: rgba(0,0,0,0.5); text-transform: uppercase; }
+.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
+.bc-current { color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; }
 
 /* ─── HEADER ─── */
 .pc-header {
@@ -294,7 +294,7 @@ onMounted(() => {
   justify-content: space-between;
   margin-bottom: 24px;
   padding: 20px 24px;
-  background: white;
+  background: rgb(var(--v-theme-surface));
   border-radius: 14px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   border-left: 4px solid #f59e0b;
@@ -320,14 +320,14 @@ onMounted(() => {
 .pc-title {
   font-size: 18px;
   font-weight: 800;
-  color: #1e293b;
+  color: rgb(var(--v-theme-on-surface));
   letter-spacing: 0.8px;
   line-height: 1.2;
 }
 
 .pc-sub {
   font-size: 12px;
-  color: rgba(0,0,0,0.45);
+  color: rgba(var(--v-theme-on-surface), 0.45);
   margin-top: 2px;
 }
 
@@ -342,9 +342,9 @@ onMounted(() => {
 .pc-col-left {
   width: 30%;
   flex-shrink: 0;
-  background: white;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   border-radius: 14px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   padding: 18px;
 }
 
@@ -356,7 +356,7 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: rgba(0,0,0,0.45);
+  color: rgba(var(--v-theme-on-surface), 0.45);
   margin-bottom: 14px;
 }
 
@@ -368,7 +368,7 @@ onMounted(() => {
 
 .pc-empty {
   font-size: 12px;
-  color: rgba(0,0,0,0.4);
+  color: rgba(var(--v-theme-on-surface), 0.4);
   text-align: center;
   padding: 20px 0;
 }
@@ -385,21 +385,21 @@ onMounted(() => {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 10px;
-  border: 1.5px solid rgba(0,0,0,0.06);
+  border: 1.5px solid rgba(var(--v-theme-on-surface), 0.08);
   cursor: pointer;
   transition: all 0.2s;
 }
 .pc-cliente-card:hover {
   border-color: #f59e0b;
-  background: rgba(245,158,11,0.04);
+  background: rgba(245,158,11,0.07);
 }
 .pc-cliente-card--active {
   border-color: #f59e0b;
-  background: rgba(245,158,11,0.08);
+  background: rgba(245,158,11,0.12);
 }
 
 .pc-cliente-icon {
-  color: rgba(0,0,0,0.3);
+  color: rgba(var(--v-theme-on-surface), 0.3);
   flex-shrink: 0;
 }
 .pc-cliente-card--active .pc-cliente-icon {
@@ -414,7 +414,7 @@ onMounted(() => {
 .pc-cliente-nombre {
   font-size: 12px;
   font-weight: 700;
-  color: #1e293b;
+  color: rgb(var(--v-theme-on-surface));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -422,7 +422,7 @@ onMounted(() => {
 
 .pc-cliente-cod {
   font-size: 10px;
-  color: rgba(0,0,0,0.4);
+  color: rgba(var(--v-theme-on-surface), 0.4);
   letter-spacing: 0.5px;
 }
 
@@ -430,9 +430,9 @@ onMounted(() => {
 .pc-col-right {
   flex: 1;
   min-width: 0;
-  background: white;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   border-radius: 14px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   padding: 20px;
 }
 
@@ -443,7 +443,7 @@ onMounted(() => {
   justify-content: center;
   gap: 12px;
   min-height: 300px;
-  color: rgba(0,0,0,0.35);
+  color: rgba(var(--v-theme-on-surface), 0.3);
   font-size: 13px;
   text-align: center;
 }
@@ -454,18 +454,18 @@ onMounted(() => {
   justify-content: space-between;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1.5px solid rgba(0,0,0,0.06);
+  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 
 .pc-panel-title {
   font-size: 15px;
   font-weight: 800;
-  color: #1e293b;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .pc-panel-sub {
   font-size: 11px;
-  color: rgba(0,0,0,0.4);
+  color: rgba(var(--v-theme-on-surface), 0.4);
   margin-top: 2px;
 }
 
@@ -477,7 +477,7 @@ onMounted(() => {
 }
 
 .pc-modulo-block {
-  border: 1.5px solid rgba(0,0,0,0.07);
+  border: 1.5px solid rgba(var(--v-theme-on-surface), 0.08);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -487,8 +487,8 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: rgba(0,0,0,0.02);
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
 }
 
 .pc-modulo-icon {
@@ -502,7 +502,7 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: #1e293b;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .pc-switch-mod {
@@ -518,31 +518,31 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 16px 8px 32px;
-  border-bottom: 1px solid rgba(0,0,0,0.03);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04);
   transition: background 0.15s;
 }
 .pc-item-row:last-child {
   border-bottom: none;
 }
 .pc-item-row:hover {
-  background: rgba(0,0,0,0.02);
+  background: rgba(var(--v-theme-on-surface), 0.03);
 }
 
 .pc-item-icon {
-  color: rgba(0,0,0,0.3);
+  color: rgba(var(--v-theme-on-surface), 0.3);
   flex-shrink: 0;
 }
 
 .pc-item-nombre {
   flex: 1;
   font-size: 12px;
-  color: #374151;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .pc-item-cat {
   font-size: 10px;
-  color: rgba(0,0,0,0.3);
-  background: rgba(0,0,0,0.05);
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  background: rgba(var(--v-theme-on-surface), 0.07);
   padding: 2px 7px;
   border-radius: 20px;
   white-space: nowrap;
@@ -558,7 +558,7 @@ onMounted(() => {
   gap: 6px;
   padding: 10px 16px 10px 32px;
   font-size: 11px;
-  color: rgba(0,0,0,0.35);
+  color: rgba(var(--v-theme-on-surface), 0.35);
   font-style: italic;
 }
 </style>
