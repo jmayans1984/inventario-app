@@ -7464,6 +7464,84 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
 });
 
 // ================================================================
+// PERMISOS DE MÓDULOS POR EMPRESA
+// ================================================================
+
+// Auto-create tabla permisos_modulos
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS permisos_modulos (
+                empresa VARCHAR(50) NOT NULL PRIMARY KEY,
+                rutas_deshabilitadas TEXT DEFAULT '[]'
+            )
+        `);
+        console.log('✅ Tabla permisos_modulos lista');
+    } catch (err) {
+        console.error('❌ Error creando tabla permisos_modulos:', err.message);
+    }
+})();
+
+// GET /api/empresas/clientes — solo empresas tipo CLIENTE
+app.get('/api/empresas/clientes', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT codigo, nombre, tipo_empresa FROM empresas WHERE tipo_empresa = 'CLIENTE' ORDER BY nombre`
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/empresas/clientes:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/permisos-modulos/:empresa — retorna rutas deshabilitadas para una empresa
+app.get('/api/permisos-modulos/:empresa', async (req, res) => {
+    try {
+        const { empresa } = req.params;
+        const result = await pool.query(
+            'SELECT rutas_deshabilitadas FROM permisos_modulos WHERE empresa = $1',
+            [empresa]
+        );
+        if (result.rows.length === 0) {
+            return res.json({ success: true, data: { rutas_deshabilitadas: [] } });
+        }
+        const raw = result.rows[0].rutas_deshabilitadas;
+        const rutas = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
+        res.json({ success: true, data: { rutas_deshabilitadas: rutas } });
+    } catch (error) {
+        console.error('Error GET /api/permisos-modulos/:empresa:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/permisos-modulos/:empresa — upsert manual
+app.put('/api/permisos-modulos/:empresa', async (req, res) => {
+    try {
+        const { empresa } = req.params;
+        const { rutas_deshabilitadas } = req.body;
+        const json = JSON.stringify(Array.isArray(rutas_deshabilitadas) ? rutas_deshabilitadas : []);
+
+        const check = await pool.query('SELECT empresa FROM permisos_modulos WHERE empresa = $1', [empresa]);
+        if (check.rows.length > 0) {
+            await pool.query(
+                'UPDATE permisos_modulos SET rutas_deshabilitadas = $1 WHERE empresa = $2',
+                [json, empresa]
+            );
+        } else {
+            await pool.query(
+                'INSERT INTO permisos_modulos (empresa, rutas_deshabilitadas) VALUES ($1, $2)',
+                [empresa, json]
+            );
+        }
+        res.json({ success: true, message: 'Permisos guardados correctamente' });
+    } catch (error) {
+        console.error('Error PUT /api/permisos-modulos/:empresa:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // INICIAR SERVIDOR
 // ================================================================
 

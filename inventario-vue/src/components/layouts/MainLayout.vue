@@ -193,21 +193,31 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 
 const currentDate = ref('')
-// Filtra items con requiredTipo según el tipo de empresa activa.
+// Verifica si una ruta está permitida según los permisos de módulos
+function rutaPermitida(path) {
+  if (!path) return true
+  const dis = authStore.modulosDeshabilitados
+  if (!dis || !dis.length) return true
+  return !dis.some(d => path === d || path.startsWith(d + '/'))
+}
+
+// Filtra items con requiredTipo según el tipo de empresa activa y con permisos de módulos.
 const modules = computed(() => {
   const tipo = authStore.empresaTipo
-  return MODULES.map(mod => ({
-    ...mod,
-    children: (mod.children || []).map(cat => ({
-      ...cat,
-      items: (cat.items || []).filter(item =>
-        // Sin requiredTipo → siempre visible
-        !item.requiredTipo ||
-        // Tipo coincide → visible
-        item.requiredTipo === tipo
-      ),
-    })),
-  }))
+  return MODULES
+    .filter(mod => rutaPermitida(mod.path))
+    .map(mod => ({
+      ...mod,
+      children: (mod.children || []).map(cat => ({
+        ...cat,
+        items: (cat.items || []).filter(item =>
+          // Sin requiredTipo → visible por tipo; con requiredTipo → debe coincidir
+          (!item.requiredTipo || item.requiredTipo === tipo) &&
+          // Verificar permisos de módulos
+          rutaPermitida(item.path)
+        ),
+      })).filter(cat => !cat.items || cat.items.length > 0),
+    }))
 })
 
 // Estado de apertura de menús

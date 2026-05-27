@@ -77,6 +77,7 @@ const routes = [
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },
 
   // CONFIGURACIÓN
+  { path: '/configuracion/permisos-clientes', component: () => import('../views/PermisosClientesView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/configuracion', component: () => import('../views/ConfiguracionView.vue'), meta: { requiresAuth: true } },
 
   // 404

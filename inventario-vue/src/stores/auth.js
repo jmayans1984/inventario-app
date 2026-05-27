@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { API_BASE } from '../utils/constants'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -9,6 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const empresaTipo = ref(null)
   const isAuthenticated = ref(false)
   const modoApp = ref('light')
+  const modulosDeshabilitados = ref([])  // array de rutas deshabilitadas para esta empresa
 
   // Computed
   const userName = computed(() => usuario.value?.usuario || '')
@@ -29,6 +31,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function cargarPermisos(empresaCod) {
+    try {
+      const r = await fetch(`${API_BASE}/permisos-modulos/${empresaCod}`)
+      const j = await r.json()
+      if (j.success) {
+        const raw = j.data?.rutas_deshabilitadas
+        modulosDeshabilitados.value = Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw || '[]') : [])
+      }
+    } catch {
+      modulosDeshabilitados.value = []
+    }
+  }
+
   function setEmpresa(empresaCod, nombre = null, tipo = null) {
     empresa.value = empresaCod
     empresaNombre.value = nombre
@@ -39,6 +54,13 @@ export const useAuthStore = defineStore('auth', () => {
     if (nombre) localStorage.setItem('empresaNombre', nombre)
     // Siempre guardar tipo (aunque sea null/vacío, guardar string vacío)
     localStorage.setItem('empresaTipo', tipo || '')
+
+    // Cargar permisos de módulos solo para empresas CLIENTE
+    if (tipo !== 'PROVEEDOR' && empresaCod) {
+      cargarPermisos(empresaCod)
+    } else {
+      modulosDeshabilitados.value = []
+    }
   }
 
   function setModoApp(modo) {
@@ -52,6 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
     empresaNombre.value = null
     empresaTipo.value = null
     isAuthenticated.value = false
+    modulosDeshabilitados.value = []
 
     localStorage.removeItem('usuario')
     localStorage.removeItem('empresaActual')
@@ -79,6 +102,11 @@ export const useAuthStore = defineStore('auth', () => {
       if (savedNombre) empresaNombre.value = savedNombre
       const savedTipo = localStorage.getItem('empresaTipo')
       empresaTipo.value = savedTipo || null  // carga siempre (null si vacío)
+
+      // Cargar permisos de módulos al restaurar sesión (solo para CLIENTE)
+      if (savedTipo !== 'PROVEEDOR' && savedEmpresa) {
+        cargarPermisos(savedEmpresa)
+      }
     }
 
     if (savedModo) {
@@ -94,6 +122,7 @@ export const useAuthStore = defineStore('auth', () => {
     empresaTipo,
     isAuthenticated,
     modoApp,
+    modulosDeshabilitados,
 
     // Computed
     userName,
@@ -107,5 +136,6 @@ export const useAuthStore = defineStore('auth', () => {
     setModoApp,
     logout,
     loadFromLocalStorage,
+    cargarPermisos,
   }
 })

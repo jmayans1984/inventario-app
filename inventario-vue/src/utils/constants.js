@@ -181,6 +181,10 @@ export const MODULES = [
     name: 'CONFIGURACIÓN',
     icon: 'mdi-tune',
     path: '/configuracion',
-    children: [],
+    children: [
+      { name: 'Configuración', icon: 'mdi-cog-outline', items: [
+        { name: 'Permisos por Cliente', icon: 'mdi-shield-account-outline', path: '/configuracion/permisos-clientes', requiredTipo: 'PROVEEDOR' },
+      ]},
+    ],
   },
 ]
