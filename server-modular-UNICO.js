@@ -6733,6 +6733,192 @@ app.get('/api/tesoreria/ventas-productos-periodo', async (req, res) => {
 });
 
 // ================================================================
+// MÓDULO GERENCIA: DASHBOARD EJECUTIVO Y KPIs
+// ================================================================
+
+// GET /api/gerencia/dashboard — resumen ejecutivo por período
+app.get('/api/gerencia/dashboard', async (req, res) => {
+    const { empresa, fechaInicio, fechaFin } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+
+    const hoy = new Date().toISOString().split('T')[0];
+    const anio = new Date().getFullYear();
+    const fi = fechaInicio || `${anio}-01-01`;
+    const ff = fechaFin   || hoy;
+
+    try {
+        // 1. Resumen facturación (todas las facturas del período — no hay filtro por proveedor)
+        const [factRes, ordenesRes, gastosRes, movibanRes, topClientesRes, tendFactRes, tendOrdenesRes] = await Promise.all([
+
+            pool.query(`
+                SELECT
+                    COUNT(*)                                                               AS count_total,
+                    COALESCE(SUM(total),0)                                                 AS total_facturado,
+                    COALESCE(SUM(valor_pagado),0)                                          AS total_cobrado,
+                    COALESCE(SUM(CASE WHEN estado='PENDIENTE'
+                        THEN total - COALESCE(valor_pagado,0) ELSE 0 END),0)               AS total_por_cobrar,
+                    COUNT(CASE WHEN estado='PENDIENTE'     THEN 1 END)                     AS count_pendiente,
+                    COUNT(CASE WHEN estado='POR VERIFICAR' THEN 1 END)                     AS count_por_verificar,
+                    COUNT(CASE WHEN estado='PAGADA'        THEN 1 END)                     AS count_pagada,
+                    COUNT(DISTINCT cliente)                                                AS clientes_activos
+                FROM factura_venta
+                WHERE fecha BETWEEN $1 AND $2`, [fi, ff]),
+
+            pool.query(`
+                SELECT estado, COUNT(*) AS count, COALESCE(SUM(total),0) AS valor
+                FROM ordenes_compra
+                WHERE fecha BETWEEN $1 AND $2
+                GROUP BY estado`, [fi, ff]),
+
+            pool.query(`
+                SELECT COALESCE(SUM(total),0) AS total_gastos, COUNT(*) AS count_gastos
+                FROM gastos WHERE empresa = $1 AND fecha BETWEEN $2 AND $3`, [empresa, fi, ff]),
+
+            pool.query(`
+                SELECT COALESCE(SUM(ingreso),0) AS total_ingresos,
+                       COALESCE(SUM(egreso),0)  AS total_egresos
+                FROM moviban WHERE empresa = $1 AND fecha BETWEEN $2 AND $3`, [empresa, fi, ff]),
+
+            pool.query(`
+                SELECT COALESCE(e.nombre, CAST(fv.cliente AS TEXT)) AS cliente_nombre,
+                       COUNT(fv.codigo)          AS facturas_count,
+                       COALESCE(SUM(fv.total),0) AS total_facturado,
+                       COALESCE(SUM(fv.valor_pagado),0) AS total_cobrado
+                FROM factura_venta fv
+                LEFT JOIN empresas e ON CAST(e.codigo AS TEXT) = CAST(fv.cliente AS TEXT)
+                WHERE fv.fecha BETWEEN $1 AND $2
+                GROUP BY fv.cliente, e.nombre
+                ORDER BY total_facturado DESC LIMIT 5`, [fi, ff]),
+
+            pool.query(`
+                SELECT TO_CHAR(fecha,'YYYY-MM') AS mes,
+                       COALESCE(SUM(total),0)     AS valor_facturas,
+                       COALESCE(SUM(valor_pagado),0) AS valor_cobrado,
+                       COUNT(*)                   AS count_facturas
+                FROM factura_venta
+                WHERE fecha >= NOW() - INTERVAL '6 months'
+                GROUP BY TO_CHAR(fecha,'YYYY-MM')
+                ORDER BY mes`),
+
+            pool.query(`
+                SELECT TO_CHAR(fecha,'YYYY-MM') AS mes,
+                       COALESCE(SUM(total),0)    AS valor_ordenes,
+                       COUNT(*)                  AS count_ordenes
+                FROM ordenes_compra
+                WHERE fecha >= NOW() - INTERVAL '6 months'
+                GROUP BY TO_CHAR(fecha,'YYYY-MM')
+                ORDER BY mes`)
+        ]);
+
+        res.json({
+            success: true,
+            periodo: { fechaInicio: fi, fechaFin: ff },
+            facturacion:          factRes.rows[0],
+            ordenes:              ordenesRes.rows,
+            gastos:               gastosRes.rows[0],
+            movimientos:          movibanRes.rows[0],
+            top_clientes:         topClientesRes.rows,
+            tendencia_facturacion: tendFactRes.rows,
+            tendencia_ordenes:    tendOrdenesRes.rows,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/dashboard:', error);
+        res.status(500).json({ success: false, error: 'Error al obtener dashboard', details: error.message });
+    }
+});
+
+// GET /api/gerencia/kpis — KPIs globales
+app.get('/api/gerencia/kpis', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+
+    try {
+        const [factKpiRes, ordenesKpiRes, topProductosRes, clientesVolRes, gastosCuentaRes] = await Promise.all([
+
+            pool.query(`
+                SELECT COUNT(*)                                          AS total_facturas,
+                       COALESCE(SUM(total),0)                           AS total_facturado,
+                       COALESCE(SUM(valor_pagado),0)                    AS total_cobrado,
+                       COALESCE(AVG(total),0)                           AS ticket_promedio,
+                       COUNT(DISTINCT cliente)                          AS clientes_activos
+                FROM factura_venta`),
+
+            pool.query(`
+                SELECT COUNT(*)                                         AS total_ordenes,
+                       COUNT(CASE WHEN estado='PENDIENTE'  THEN 1 END)  AS pendientes,
+                       COUNT(CASE WHEN estado='ENTREGADA'  THEN 1 END)  AS entregadas,
+                       COUNT(CASE WHEN estado='FACTURADA'  THEN 1 END)  AS facturadas,
+                       COALESCE(SUM(total),0)                           AS valor_total
+                FROM ordenes_compra`),
+
+            pool.query(`
+                SELECT COALESCE(pv.nombre, d.producto_venta) AS producto_nombre,
+                       d.producto_venta                       AS codigo,
+                       COALESCE(gpv.nombre,'Sin grupo')       AS grupo,
+                       SUM(d.cantidad)                        AS total_cant,
+                       COALESCE(SUM(d.subtotal),0)            AS total_valor
+                FROM detalle_ordenes d
+                LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
+                LEFT JOIN grupo_productos_venta gpv ON pv.grupo = gpv.codigo
+                GROUP BY d.producto_venta, pv.nombre, gpv.nombre
+                ORDER BY total_valor DESC LIMIT 10`),
+
+            pool.query(`
+                SELECT COALESCE(e.nombre, CAST(oc.empresa AS TEXT)) AS cliente_nombre,
+                       COUNT(oc.codigo)                             AS total_ordenes,
+                       COALESCE(SUM(oc.total),0)                   AS valor_total,
+                       COUNT(CASE WHEN oc.estado='FACTURADA' THEN 1 END) AS facturadas,
+                       COUNT(CASE WHEN oc.estado='PENDIENTE' THEN 1 END) AS pendientes
+                FROM ordenes_compra oc
+                LEFT JOIN empresas e ON e.codigo = oc.empresa
+                GROUP BY oc.empresa, e.nombre
+                ORDER BY valor_total DESC LIMIT 10`),
+
+            pool.query(`
+                SELECT COALESCE(cu.nombre, g.cuenta) AS cuenta_nombre,
+                       g.cuenta,
+                       COALESCE(SUM(g.total),0)      AS total_gastado,
+                       COUNT(*)                      AS count_gastos
+                FROM gastos g
+                LEFT JOIN cuentas_contables cu ON cu.codigo = g.cuenta AND cu.empresa = g.empresa
+                WHERE g.empresa = $1
+                GROUP BY g.cuenta, cu.nombre
+                ORDER BY total_gastado DESC LIMIT 8`, [empresa])
+        ]);
+
+        const fk = factKpiRes.rows[0];
+        const ok = ordenesKpiRes.rows[0];
+        const tasaCobro       = +fk.total_facturado > 0 ? (+fk.total_cobrado / +fk.total_facturado * 100) : 0;
+        const tasaFacturacion = +ok.total_ordenes   > 0 ? (+ok.facturadas   / +ok.total_ordenes   * 100) : 0;
+
+        res.json({
+            success: true,
+            kpis: {
+                total_facturado:    +fk.total_facturado,
+                total_cobrado:      +fk.total_cobrado,
+                total_por_cobrar:   +fk.total_facturado - +fk.total_cobrado,
+                ticket_promedio:    +fk.ticket_promedio,
+                clientes_activos:   +fk.clientes_activos,
+                total_facturas:     +fk.total_facturas,
+                tasa_cobro:         +tasaCobro.toFixed(1),
+                total_ordenes:      +ok.total_ordenes,
+                ordenes_pendientes: +ok.pendientes,
+                ordenes_entregadas: +ok.entregadas,
+                ordenes_facturadas: +ok.facturadas,
+                valor_ordenes:      +ok.valor_total,
+                tasa_facturacion:   +tasaFacturacion.toFixed(1),
+            },
+            top_productos:    topProductosRes.rows,
+            clientes_volumen: clientesVolRes.rows,
+            gastos_cuenta:    gastosCuentaRes.rows,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/kpis:', error);
+        res.status(500).json({ success: false, error: 'Error al obtener KPIs', details: error.message });
+    }
+});
+
+// ================================================================
 // INICIAR SERVIDOR
 // ================================================================
 

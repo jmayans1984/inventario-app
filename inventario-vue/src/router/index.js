@@ -58,7 +58,11 @@ const routes = [
   // NÓMINA
   { path: '/nomina/:section?/:item?', component: () => import('../views/NominaView.vue'), meta: { requiresAuth: true } },
 
-  // GERENCIA
+  // GERENCIA ESPECÍFICAS
+  { path: '/gerencia/reportes/ejecutivo', component: () => import('../views/gerencia/DashboardEjecutivoView.vue'), meta: { requiresAuth: true } },
+  { path: '/gerencia/reportes/kpis',      component: () => import('../views/gerencia/KPIsView.vue'),              meta: { requiresAuth: true } },
+
+  // GERENCIA — patrón general
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },
 
   // CONFIGURACIÓN
