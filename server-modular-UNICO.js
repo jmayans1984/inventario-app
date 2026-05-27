@@ -6938,15 +6938,17 @@ app.get('/api/articulos/grupos', async (req, res) => {
     }
 });
 
-// GET /api/articulos - Listar todos los artículos con nombre del grupo
+// GET /api/articulos - Listar todos los artículos con nombre del grupo y conteo de recetas
 app.get('/api/articulos', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT a.codigo, a.nombre, a.und,
-                   COALESCE(a.valor, 0)        AS valor,
-                   COALESCE(a.grupo, '')        AS grupo,
-                   COALESCE(ga.nombre, a.grupo, '') AS grupo_nombre,
-                   COALESCE(a.prod_propio, '')  AS prod_propio
+                   COALESCE(a.valor, 0)             AS valor,
+                   COALESCE(a.grupo, '')             AS grupo,
+                   COALESCE(ga.nombre, a.grupo, '')  AS grupo_nombre,
+                   COALESCE(a.prod_propio, '')        AS prod_propio,
+                   (SELECT COUNT(*) FROM detalle_recetas dr
+                    WHERE TRIM(dr.articulo) = TRIM(a.codigo))::int AS num_recetas
             FROM articulos a
             LEFT JOIN grupo_articulos ga ON ga.codigo = a.grupo
             ORDER BY ga.nombre NULLS LAST, a.nombre
@@ -6954,6 +6956,30 @@ app.get('/api/articulos', async (req, res) => {
         res.json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error GET /api/articulos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/articulos/:codigo/recetas - Recetas que usan este artículo como ingrediente
+app.get('/api/articulos/:codigo/recetas', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT r.codigo,
+                   r.nombre,
+                   COALESCE(r.grupo_receta, '') AS grupo_receta,
+                   COALESCE(r.subproducto, 'NO') AS subproducto,
+                   dr.cantidad,
+                   COALESCE(art.und, '') AS und
+            FROM detalle_recetas dr
+            JOIN recetas r ON r.codigo = dr.receta
+            LEFT JOIN articulos art ON TRIM(art.codigo) = TRIM(dr.articulo)
+            WHERE TRIM(dr.articulo) = $1
+            ORDER BY r.nombre
+        `, [codigo.trim()]);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/articulos/:codigo/recetas:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

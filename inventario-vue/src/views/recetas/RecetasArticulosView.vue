@@ -63,6 +63,7 @@
               <th>NOMBRE</th>
               <th style="width:80px">UND</th>
               <th style="width:120px;text-align:center">SUBRECETA</th>
+              <th style="width:140px;text-align:center">EN RECETAS</th>
               <th style="width:150px;text-align:right">PRECIO COMPRA</th>
               <th style="width:90px"></th>
             </tr>
@@ -71,7 +72,7 @@
             <template v-for="group in articulosAgrupados" :key="group.nombre">
               <!-- Cabecera de grupo -->
               <tr class="group-header-tr">
-                <td colspan="6">
+                <td colspan="7">
                   <div class="d-flex align-center gap-2">
                     <v-icon size="14" color="#d97706">mdi-tag-outline</v-icon>
                     <span class="group-nombre">{{ group.nombre }}</span>
@@ -90,6 +91,15 @@
                   <v-chip v-if="item.es_subreceta" size="x-small" color="purple" variant="tonal">
                     <v-icon start size="10">mdi-chef-hat</v-icon>Subreceta
                   </v-chip>
+                </td>
+                <td style="text-align:center">
+                  <v-btn v-if="item.num_recetas > 0"
+                    size="x-small" variant="tonal" color="purple" rounded
+                    @click.stop="verRecetas(item)">
+                    <v-icon start size="13">mdi-eye-outline</v-icon>
+                    {{ item.num_recetas }} {{ item.num_recetas === 1 ? 'receta' : 'recetas' }}
+                  </v-btn>
+                  <span v-else class="text-caption text-medium-emphasis">—</span>
                 </td>
                 <td style="text-align:right">
                   <div class="d-flex align-center justify-end gap-1">
@@ -116,7 +126,7 @@
               </tr>
             </template>
             <tr v-if="articulosAgrupados.length === 0">
-              <td colspan="6" class="text-center py-8 text-medium-emphasis">
+              <td colspan="7" class="text-center py-8 text-medium-emphasis">
                 <v-icon size="36" class="mb-2 d-block">mdi-magnify-remove-outline</v-icon>
                 Sin resultados
               </td>
@@ -151,6 +161,16 @@
             </v-chip>
           </template>
 
+          <template #item.num_recetas="{ item }">
+            <v-btn v-if="item.num_recetas > 0"
+              size="x-small" variant="tonal" color="purple" rounded
+              @click="verRecetas(item)">
+              <v-icon start size="13">mdi-eye-outline</v-icon>
+              {{ item.num_recetas }} {{ item.num_recetas === 1 ? 'receta' : 'recetas' }}
+            </v-btn>
+            <span v-else class="text-caption text-medium-emphasis">—</span>
+          </template>
+
           <template #item.acciones="{ item }">
             <div class="d-flex gap-1 justify-end">
               <v-btn icon size="x-small" variant="tonal" color="blue"
@@ -167,6 +187,95 @@
         </v-data-table>
       </div>
     </div>
+
+    <!-- ══════════ DIALOG VER RECETAS ══════════ -->
+    <v-dialog v-model="dlgRecetas" max-width="540">
+      <v-card rounded="xl" style="overflow:hidden">
+        <!-- Header morado -->
+        <div class="dlg-rec-header">
+          <div class="d-flex align-center gap-3">
+            <div class="dlg-rec-icon">
+              <v-icon size="22" color="white">mdi-food-apple-outline</v-icon>
+            </div>
+            <div>
+              <p class="text-caption" style="color:rgba(255,255,255,.65);margin:0">
+                Código: {{ articuloRecetas?.codigo }} · {{ articuloRecetas?.und }}
+              </p>
+              <h3 class="font-weight-bold text-white" style="font-size:17px;margin:0">
+                {{ articuloRecetas?.nombre }}
+              </h3>
+            </div>
+          </div>
+          <v-btn icon variant="text" color="white" size="small" @click="dlgRecetas=false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <!-- Resumen -->
+        <div class="dlg-rec-summary">
+          <span class="text-caption font-weight-bold" style="color:rgba(var(--v-theme-on-surface),.5);letter-spacing:.6px">
+            USADA EN
+          </span>
+          <span class="dlg-rec-total">
+            {{ recetasDelArticulo.length }}
+            <span class="text-caption font-weight-medium ml-1" style="color:#7c3aed">
+              {{ recetasDelArticulo.length === 1 ? 'RECETA' : 'RECETAS' }}
+            </span>
+          </span>
+        </div>
+
+        <v-divider />
+
+        <!-- Lista de recetas -->
+        <div v-if="loadingRecetas" class="pa-8 text-center">
+          <v-progress-circular indeterminate color="purple" size="32" />
+        </div>
+
+        <v-table v-else density="compact" class="rec-list-table">
+          <thead>
+            <tr>
+              <th>RECETA</th>
+              <th style="width:80px;text-align:center">TIPO</th>
+              <th style="width:110px;text-align:right">CANT / UND</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in recetasDelArticulo" :key="r.codigo" class="rec-list-row">
+              <td>
+                <div class="font-weight-medium" style="font-size:13px">{{ r.nombre }}</div>
+                <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.45)">{{ r.codigo }}</div>
+              </td>
+              <td style="text-align:center">
+                <v-chip
+                  :color="r.subproducto === 'SI' ? 'purple' : 'teal'"
+                  size="x-small" variant="tonal" label>
+                  {{ r.subproducto === 'SI' ? 'SUBRECETA' : 'RECETA' }}
+                </v-chip>
+              </td>
+              <td style="text-align:right">
+                <span class="font-mono font-weight-bold" style="color:#7c3aed">
+                  {{ r.cantidad }}
+                </span>
+                <span class="text-caption ml-1" style="color:rgba(var(--v-theme-on-surface),.5)">
+                  {{ r.und || articuloRecetas?.und }}
+                </span>
+              </td>
+            </tr>
+            <tr v-if="recetasDelArticulo.length === 0 && !loadingRecetas">
+              <td colspan="3" class="text-center py-6 text-medium-emphasis">
+                <v-icon size="32" class="mb-2 d-block">mdi-chef-hat</v-icon>
+                Sin recetas asociadas
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+
+        <v-divider />
+        <div class="pa-3 d-flex justify-end">
+          <v-btn variant="text" @click="dlgRecetas=false">Cerrar</v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
 
     <!-- ══════════ DIALOG NUEVO / EDITAR ══════════ -->
     <v-dialog v-model="dlg" max-width="480" persistent>
@@ -292,6 +401,7 @@ const headers = [
   { title: 'NOMBRE',        key: 'nombre',      minWidth: 180 },
   { title: 'UND',           key: 'und',         width: 80  },
   { title: 'SUBRECETA',     key: 'es_subreceta',width: 120, align: 'center' },
+  { title: 'EN RECETAS',    key: 'num_recetas', width: 140, align: 'center' },
   { title: 'PRECIO COMPRA', key: 'valor',       width: 150, align: 'end' },
   { title: '',              key: 'acciones',    width: 90,  sortable: false, align: 'end' },
 ]
@@ -302,6 +412,7 @@ const articulosConFlag = computed(() =>
   articulos.value.map(a => ({
     ...a,
     es_subreceta: a.prod_propio === 'SI',
+    num_recetas: parseInt(a.num_recetas) || 0,
   }))
 )
 
@@ -337,6 +448,26 @@ const articulosAgrupados = computed(() => {
     .sort(([a], [b]) => a.localeCompare(b, 'es'))
     .map(([nombre, items]) => ({ nombre, items }))
 })
+
+// ── Dialog Ver Recetas ─────────────────────────────────────────
+const dlgRecetas        = ref(false)
+const articuloRecetas   = ref(null)
+const recetasDelArticulo = ref([])
+const loadingRecetas    = ref(false)
+
+async function verRecetas(art) {
+  articuloRecetas.value    = art
+  recetasDelArticulo.value = []
+  dlgRecetas.value         = true
+  loadingRecetas.value     = true
+  try {
+    const r = await fetch(`${API_BASE}/articulos/${encodeURIComponent(art.codigo)}/recetas`)
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    recetasDelArticulo.value = j.data || []
+  } catch (e) { err(e.message) }
+  finally { loadingRecetas.value = false }
+}
 
 // ── Dialogs ───────────────────────────────────────────────────
 const dlg       = ref(false)
@@ -518,4 +649,54 @@ onMounted(cargar)
 .ra-row:last-of-type td {
   border-bottom: none !important;
 }
+
+/* ── Dialog Ver Recetas ── */
+.dlg-rec-header {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dlg-rec-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dlg-rec-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+}
+.dlg-rec-total {
+  font-size: 22px;
+  font-weight: 800;
+  color: #7c3aed;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.rec-list-table thead th {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: rgba(var(--v-theme-on-surface),.5) !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08) !important;
+  padding: 8px 16px !important;
+}
+.rec-list-row td {
+  padding: 8px 16px !important;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05) !important;
+}
+.rec-list-row:last-child td { border-bottom: none !important; }
+.rec-list-row:hover td { background: rgba(124,58,237,.04) !important; }
 </style>
