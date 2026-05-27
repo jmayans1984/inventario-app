@@ -205,7 +205,7 @@
           </div>
 
           <!-- TABLA INGREDIENTES -->
-          <div class="ing-table mt-3">
+          <div class="ing-table mt-3" style="max-height:380px;overflow-y:auto">
             <div class="ing-header">
               <span>ARTÍCULO / INGREDIENTE</span>
               <span class="text-center">TIPO</span>
@@ -225,8 +225,8 @@
                 {{ ing.articulo_nombre || ing.articulo }}
               </div>
               <div class="text-center">
-                <v-chip v-if="ing.es_subreceta" color="purple" size="x-small" variant="tonal">SUB</v-chip>
-                <v-chip v-else color="blue-grey" size="x-small" variant="tonal">INS</v-chip>
+                <v-chip v-if="ing.es_subreceta" color="purple" size="x-small" variant="tonal">SUBRECETA</v-chip>
+                <v-chip v-else color="teal" size="x-small" variant="tonal">INSUMO</v-chip>
               </div>
               <div class="text-right">
                 <v-text-field v-model="ing.cantidad" type="number" min="0" variant="plain"
