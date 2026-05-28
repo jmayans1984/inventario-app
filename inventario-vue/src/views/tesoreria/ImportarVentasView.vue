@@ -1522,23 +1522,75 @@ const pagoItems = computed(() => {
 })
 
 // ─── Parser helpers ───────────────────────────────────────────
-function decodeUTF16(buffer) {
+
+/** Decodifica buffer: UTF-16 con BOM → TSV (archivos Square en español)
+ *  o bien UTF-8 → CSV con comas (archivos Square en inglés)          */
+function decodeAny(buffer) {
   const bytes = new Uint8Array(buffer)
-  const isBE = bytes[0] === 0xFE && bytes[1] === 0xFF
-  const encoding = isBE ? 'utf-16be' : 'utf-16le'
-  let text = new TextDecoder(encoding).decode(buffer)
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
-  return text
+  // Detectar BOM UTF-16: FF FE (LE) o FE FF (BE)
+  if ((bytes[0] === 0xFF && bytes[1] === 0xFE) || (bytes[0] === 0xFE && bytes[1] === 0xFF)) {
+    const isBE = bytes[0] === 0xFE && bytes[1] === 0xFF
+    let text = new TextDecoder(isBE ? 'utf-16be' : 'utf-16le').decode(buffer)
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
+    return text
+  }
+  return new TextDecoder('utf-8').decode(buffer)
 }
 
+/** Parsea una línea CSV con soporte para valores entre comillas */
+function splitCSVLine(line) {
+  const result = []
+  let current  = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      inQuotes = !inQuotes
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  result.push(current.trim())
+  return result
+}
+
+/** Detecta si el archivo usa tabs (TSV) o comas (CSV) y divide en columnas */
+function splitLines(text) {
+  const rawLines = text.split(/\r?\n/)
+  const firstNonempty = rawLines.find(l => l.trim().length > 0) || ''
+  const isTab = firstNonempty.includes('\t')
+  if (isTab) {
+    return rawLines.map(l => l.split('\t').map(c => c.trim()))
+  }
+  return rawLines.map(l => splitCSVLine(l))
+}
+
+/** Parsea números tanto en formato inglés ($1,108.06) como español (1108,06) */
 function parseNum(str) {
   if (!str || str.trim() === '') return 0
-  const cleaned = str.trim().replace(/\s*\$\s*$/, '').replace(',', '.')
-  return parseFloat(cleaned) || 0
-}
+  let s = str.trim()
+    .replace(/\s/g, '')
+    .replace(/^\$/, '')       // quita $ al inicio: $1,108.06 → 1,108.06
+    .replace(/^-\$/, '-')     // maneja -$79.00 → -79.00
+    .replace(/\$\s*$/, '')    // quita $ al final (formato español)
 
-function splitLines(text) {
-  return text.split(/\r?\n/).map(l => l.split('\t').map(c => c.trim()))
+  // Determinar si la coma es miles (inglés) o decimal (español/europeo)
+  if (s.includes(',') && s.includes('.')) {
+    const lastComma  = s.lastIndexOf(',')
+    const lastPeriod = s.lastIndexOf('.')
+    if (lastPeriod > lastComma) {
+      s = s.replace(/,/g, '')         // 1,108.06 → 1108.06 (coma = miles)
+    } else {
+      s = s.replace(/\./g, '').replace(',', '.')  // 1.108,06 → 1108.06 (punto = miles)
+    }
+  } else if (s.includes(',')) {
+    s = s.replace(',', '.')           // 1108,06 → 1108.06 (solo coma = decimal español)
+  }
+
+  return parseFloat(s) || 0
 }
 
 function extractDatesFromName(filename) {
@@ -1556,8 +1608,10 @@ function fmtDate(iso) {
 
 function extractLocation(lines) {
   for (const line of lines) {
-    const text = line[0] || ''
-    if (text.toLowerCase().includes('ubicación') || text.toLowerCase().includes('ubicacion')) {
+    const text  = line[0] || ''
+    const lower = text.toLowerCase()
+    // Español: "Filtrado por ubicación: X"  |  Inglés: "Filtered By Location: X"
+    if (lower.includes('ubicaci') || lower.includes('location')) {
       const parts = text.split(':')
       return parts[1]?.trim() || ''
     }
@@ -1565,13 +1619,13 @@ function extractLocation(lines) {
   return ''
 }
 
-// ─── Parser: resumen_ventas ───────────────────────────────────
+// ─── Parser: resumen_ventas (ES + EN) ────────────────────────
 function parseResumen(buffer, filename) {
-  const text  = decodeUTF16(buffer)
+  const text  = decodeAny(buffer)
   const lines = splitLines(text)
 
   const result = {
-    periodo:  extractDatesFromName(filename),
+    periodo:   extractDatesFromName(filename),
     ubicacion: extractLocation(lines),
     ventas: {
       ventasBrutas: 0, articulos: 0, cargosServicio: 0,
@@ -1590,43 +1644,81 @@ function parseResumen(buffer, filename) {
     const key = (line[0] || '').toLowerCase().trim()
     const val = line[1] || ''
 
-    if (key === 'ventas') { section = 'ventas'; continue }
-    if (key === 'pagos')  { section = 'pagos';  continue }
+    // ── Encabezados de sección (ES / EN) ──────────────
+    if (key === 'ventas'   || key === 'sales')    { section = 'ventas'; continue }
+    if (key === 'pagos'    || key === 'payments')  { section = 'pagos';  continue }
 
     if (section === 'ventas') {
-      if (key.includes('ventas brutas'))               result.ventas.ventasBrutas        = parseNum(val)
-      else if (key === 'artículos' || key === 'articulos') result.ventas.articulos        = parseNum(val)
-      else if (key.includes('cargos'))                 result.ventas.cargosServicio       = parseNum(val)
-      else if (key.includes('devoluciones'))           result.ventas.devoluciones         = parseNum(val)
-      else if (key.includes('descuentos'))             result.ventas.descuentos           = parseNum(val)
-      else if (key.includes('ventas netas'))           result.ventas.ventasNetas          = parseNum(val)
-      else if (key.includes('tarjetas de regalo'))     result.ventas.ventasTarjetaRegalo  = parseNum(val)
-      else if (key.includes('impuestos'))              result.ventas.impuestos            = parseNum(val)
-      else if (key.includes('propinas'))               result.ventas.propinas             = parseNum(val)
-      else if (key.includes('reembolsos'))             result.ventas.reembolsos           = parseNum(val)
-      else if (key === 'total')                        result.ventas.total                = parseNum(val)
+      // Ventas brutas / Gross Sales
+      if (key.includes('ventas brutas') || key === 'gross sales')
+        result.ventas.ventasBrutas = parseNum(val)
+      // Artículos / Items (subtotal de artículos)
+      else if (key === 'artículos' || key === 'articulos' || key === 'items')
+        result.ventas.articulos = parseNum(val)
+      // Cargos de servicio / Service Charges
+      else if (key.includes('cargos') || key.includes('service charges'))
+        result.ventas.cargosServicio = parseNum(val)
+      // Devoluciones / Returns
+      else if (key.includes('devoluciones') || key === 'returns')
+        result.ventas.devoluciones = parseNum(val)
+      // Descuentos / Discounts & Comps
+      else if (key.includes('descuentos') || key.includes('discounts'))
+        result.ventas.descuentos = parseNum(val)
+      // Ventas netas / Net Sales
+      else if (key.includes('ventas netas') || key === 'net sales')
+        result.ventas.ventasNetas = parseNum(val)
+      // Tarjetas de regalo / Gift Card Sales
+      else if (key.includes('tarjetas de regalo') || key === 'gift card sales')
+        result.ventas.ventasTarjetaRegalo = parseNum(val)
+      // Impuestos / Tax
+      else if (key.includes('impuestos') || key === 'tax')
+        result.ventas.impuestos = parseNum(val)
+      // Propinas / Tip
+      else if (key.includes('propinas') || key === 'tip')
+        result.ventas.propinas = parseNum(val)
+      // Reembolsos / Refunds
+      else if (key.includes('reembolsos') || key.includes('refunds'))
+        result.ventas.reembolsos = parseNum(val)
+      // Total
+      else if (key === 'total')
+        result.ventas.total = parseNum(val)
+
     } else if (section === 'pagos') {
-      if (key.includes('total recibido'))              result.pagos.totalRecibido  = parseNum(val)
-      else if (key === 'efectivo')                     result.pagos.efectivo       = parseNum(val)
-      else if (key === 'tarjeta')                      result.pagos.tarjeta        = parseNum(val)
-      else if (key === 'otro')                         result.pagos.otro           = parseNum(val)
-      else if (key.includes('tarjeta de regalo'))      result.pagos.tarjetaRegalo  = parseNum(val)
-      else if (key.includes('comisiones'))             result.pagos.comisiones     = parseNum(val)
-      else if (key.includes('total neto'))             result.pagos.totalNeto      = parseNum(val)
+      // Total recibido / Total Collected
+      if (key.includes('total recibido') || key === 'total collected')
+        result.pagos.totalRecibido = parseNum(val)
+      // Efectivo / Cash
+      else if (key === 'efectivo' || key === 'cash')
+        result.pagos.efectivo = parseNum(val)
+      // Tarjeta / Card
+      else if (key === 'tarjeta' || key === 'card')
+        result.pagos.tarjeta = parseNum(val)
+      // Otro / Other
+      else if (key === 'otro' || key === 'other')
+        result.pagos.otro = parseNum(val)
+      // Tarjeta de regalo / Gift Card
+      else if (key.includes('tarjeta de regalo') || key === 'gift card')
+        result.pagos.tarjetaRegalo = parseNum(val)
+      // Comisiones / Fees
+      else if (key.includes('comisiones') || key === 'fees')
+        result.pagos.comisiones = parseNum(val)
+      // Total neto / Net Total
+      else if (key.includes('total neto') || key === 'net total')
+        result.pagos.totalNeto = parseNum(val)
     }
   }
   return result
 }
 
-// ─── Parser: ventas_articulos ─────────────────────────────────
+// ─── Parser: ventas_articulos (ES + EN) ───────────────────────
 function parseArticulos(buffer, filename) {
-  const text  = decodeUTF16(buffer)
+  const text  = decodeAny(buffer)
   const lines = splitLines(text)
 
   const result = {
-    periodo:      extractDatesFromName(filename),
-    ubicacion:    extractLocation(lines),
-    items:        [],
+    periodo:       extractDatesFromName(filename),
+    ubicacion:     extractLocation(lines),
+    items:         [],
     modificadores: []
   }
 
@@ -1635,74 +1727,109 @@ function parseArticulos(buffer, filename) {
 
   for (let i = 0; i < lines.length; i++) {
     const first = (lines[i][0] || '').toLowerCase()
-    if (first.includes('nombre del art')) {
+
+    // Fila de encabezado de artículos: ES "Nombre del Artículo" | EN "Item Name"
+    if (first.includes('nombre del art') || first === 'item name') {
       itemsHeaderIdx = i
     }
-    if (first.includes('grupo de modificadores') || first.includes('modificador')) {
+
+    // Fila de encabezado de modificadores: ES "Grupo de Modificadores" | EN "Modifier Set"
+    if (first.includes('grupo de modificadores') || first.includes('modificador') ||
+        first === 'modifier set') {
       if (itemsHeaderIdx >= 0 && i > itemsHeaderIdx) {
         modsHeaderIdx = i
       }
     }
   }
 
-  // Parse items
+  // ── Parsear artículos ─────────────────────────────────────
   if (itemsHeaderIdx >= 0) {
     const hdr = lines[itemsHeaderIdx].map(h => h.toLowerCase())
-    const iNombre    = hdr.findIndex(h => h.includes('nombre del art'))
-    const iVariante  = hdr.findIndex(h => h.includes('variante'))
-    const iSKU       = hdr.findIndex(h => h.includes('sku'))
+
+    // ES: "Nombre del Artículo"  |  EN: "Item Name"
+    const iNombre    = hdr.findIndex(h => h.includes('nombre del art') || h === 'item name')
+    // ES: "Variante"             |  EN: "Item Variation"
+    const iVariante  = hdr.findIndex(h => h.includes('variante') || h === 'item variation')
+    // SKU (igual en ambos idiomas)
+    const iSKU       = hdr.findIndex(h => h === 'sku')
+    // ES: "Categoría"            |  EN: "Category"
     const iCat       = hdr.findIndex(h => h.includes('categor'))
-    const iCant      = hdr.findIndex(h => h.includes('vendidos') && !h.includes('ventas'))
-    const iBrutas    = hdr.findIndex(h => h.includes('ventas brutas'))
-    const iDesc      = hdr.findIndex(h => h.includes('descuentos'))
-    const iNetas     = hdr.findIndex(h => h.includes('ventas netas'))
-    const iImpuestos = hdr.findIndex(h => h.includes('impuesto'))
+    // ES: "Artículos Vendidos"   |  EN: "Items Sold"
+    const iCant      = hdr.findIndex(h =>
+      (h.includes('vendidos') || h === 'items sold') && !h.includes('ventas')
+    )
+    // ES: "Ventas Brutas"        |  EN: "Gross Sales"
+    const iBrutas    = hdr.findIndex(h => h.includes('ventas brutas') || h === 'gross sales')
+    // ES: "Descuentos"           |  EN: "Discounts & Comps"
+    const iDesc      = hdr.findIndex(h => h.includes('descuentos') || h.includes('discounts'))
+    // ES: "Ventas Netas"         |  EN: "Net Sales"
+    const iNetas     = hdr.findIndex(h => h.includes('ventas netas') || h === 'net sales')
+    // ES: "Impuestos"            |  EN: "Tax"
+    const iImpuestos = hdr.findIndex(h => h.includes('impuesto') || h === 'tax')
+    // Subtotal (solo archivos ES con esa columna)
     const iSubtotal  = hdr.findIndex(h => h.includes('subtotal'))
-    const iVrUnit    = hdr.findIndex(h => h.includes('precio por') || h.includes('unitario') || (h.includes('vr') && h.includes('unit')))
+    // Precio unitario (solo archivos ES)
+    const iVrUnit    = hdr.findIndex(h =>
+      h.includes('precio por') || h.includes('unitario') || (h.includes('vr') && h.includes('unit'))
+    )
 
     for (let i = itemsHeaderIdx + 1; i < lines.length; i++) {
-      const line = lines[i]
+      const line  = lines[i]
       if (!line[0] || line[0].trim() === '') continue
       const first = (line[0] || '').toLowerCase()
-      if (first.includes('ventas con modificadores') || first.includes('grupo de modificadores')) break
+
+      // Fin de sección artículos (ES o EN)
+      if (first.includes('ventas con modificadores') || first.includes('grupo de modificadores') ||
+          first.includes('modifier sales')           || first === 'modifier set') break
 
       const item = {
         nombre:       line[iNombre]    || '',
-        variante:     line[iVariante]  || '',
-        sku:          line[iSKU]       || '',
-        categoria:    line[iCat]       || 'SIN CATEGORÍA',
-        cantidad:     parseInt(line[iCant]   || '0') || 0,
-        ventasBrutas: parseNum(line[iBrutas]),
-        descuentos:   parseNum(line[iDesc]),
-        ventasNetas:  parseNum(line[iNetas]),
-        impuestos:    parseNum(line[iImpuestos]),
-        subtotal:     iSubtotal >= 0 ? parseNum(line[iSubtotal]) : null,
-        vrUnit:       iVrUnit   >= 0 ? parseNum(line[iVrUnit])   : null,
+        variante:     iVariante  >= 0 ? (line[iVariante]  || '') : '',
+        sku:          iSKU       >= 0 ? (line[iSKU]       || '') : '',
+        categoria:    iCat       >= 0 ? (line[iCat]       || 'SIN CATEGORÍA') : 'SIN CATEGORÍA',
+        cantidad:     parseInt(iCant >= 0 ? (line[iCant]  || '0') : '0') || 0,
+        ventasBrutas: iBrutas    >= 0 ? parseNum(line[iBrutas])    : 0,
+        descuentos:   iDesc      >= 0 ? parseNum(line[iDesc])      : 0,
+        ventasNetas:  iNetas     >= 0 ? parseNum(line[iNetas])     : 0,
+        impuestos:    iImpuestos >= 0 ? parseNum(line[iImpuestos]) : 0,
+        subtotal:     iSubtotal  >= 0 ? parseNum(line[iSubtotal])  : null,
+        vrUnit:       iVrUnit    >= 0 ? parseNum(line[iVrUnit])    : null,
       }
       if (item.nombre) result.items.push(item)
     }
   }
 
-  // Parse modificadores
+  // ── Parsear modificadores ─────────────────────────────────
   if (modsHeaderIdx >= 0) {
     const hdr = lines[modsHeaderIdx].map(h => h.toLowerCase())
-    const iGrupo    = hdr.findIndex(h => h.includes('grupo'))
-    const iMod      = hdr.findIndex(h => h.includes('modificador') && !h.includes('grupo'))
-    const iCantNeta = hdr.findIndex(h => h.includes('monto neto') || h.includes('cantidad') || h.includes('neto vendido'))
-    const iNetas    = hdr.findIndex(h => h.includes('ventas netas'))
-    const iCantB    = hdr.findIndex(h => h.includes('monto vendido'))
-    const iBrutas   = hdr.findIndex(h => h.includes('ventas brutas'))
+
+    // ES: "Grupo de Modificadores"  |  EN: "Modifier Set"
+    const iGrupo    = hdr.findIndex(h => h.includes('grupo') || h === 'modifier set')
+    // ES: "Modificador"             |  EN: "Modifier" (no "Modifier Set")
+    const iMod      = hdr.findIndex(h =>
+      (h.includes('modificador') || h === 'modifier') && !h.includes('grupo') && !h.includes('set')
+    )
+    // ES: "Monto Neto Vendido"      |  EN: "Net Qty Sold"
+    const iCantNeta = hdr.findIndex(h =>
+      h.includes('monto neto') || h.includes('neto vendido') || h === 'net qty sold'
+    )
+    // ES: "Ventas Netas"            |  EN: "Net Sales"
+    const iNetas    = hdr.findIndex(h => h.includes('ventas netas') || h === 'net sales')
+    // ES: "Monto Vendido"           |  EN: "Qty Sold"
+    const iCantB    = hdr.findIndex(h => h.includes('monto vendido') || h === 'qty sold')
+    // ES: "Ventas Brutas"           |  EN: "Gross Sales"
+    const iBrutas   = hdr.findIndex(h => h.includes('ventas brutas') || h === 'gross sales')
 
     for (let i = modsHeaderIdx + 1; i < lines.length; i++) {
       const line = lines[i]
       if (!line[0] || line[0].trim() === '') continue
       const mod = {
-        grupo:        line[iGrupo]    || '',
-        modificador:  line[iMod]      || '',
-        cantidadNeta: parseInt(line[iCantNeta] || '0') || 0,
-        ventasNetas:  parseNum(line[iNetas]),
-        cantidadB:    parseInt(line[iCantB]    || '0') || 0,
-        ventasBrutas: parseNum(line[iBrutas]),
+        grupo:        iGrupo    >= 0 ? (line[iGrupo]    || '') : '',
+        modificador:  iMod      >= 0 ? (line[iMod]      || '') : '',
+        cantidadNeta: parseInt(iCantNeta >= 0 ? (line[iCantNeta] || '0') : '0') || 0,
+        ventasNetas:  iNetas    >= 0 ? parseNum(line[iNetas])   : 0,
+        cantidadB:    parseInt(iCantB    >= 0 ? (line[iCantB]   || '0') : '0') || 0,
+        ventasBrutas: iBrutas   >= 0 ? parseNum(line[iBrutas])  : 0,
       }
       if (mod.modificador) result.modificadores.push(mod)
     }
@@ -1928,10 +2055,19 @@ async function deleteLine(id) {
 // ─── File handling ────────────────────────────────────────────
 function detectType(filename, buffer) {
   const name = filename.toLowerCase()
-  if (name.includes('resumen')) return 'resumen'
+  // Nombres en español
+  if (name.includes('resumen'))  return 'resumen'
   if (name.includes('articulo') || name.includes('artículo')) return 'articulos'
-  const text = new TextDecoder('utf-16le').decode(buffer.slice(0, 200))
-  if (text.toLowerCase().includes('resumen')) return 'resumen'
+  // Nombres en inglés (Square exporta así)
+  if (name.includes('sales_summary') || name.includes('sales-summary') ||
+      name.includes('sales summary')) return 'resumen'
+  if (name.includes('item_sales') || name.includes('item-sales') ||
+      name.includes('item sales'))  return 'articulos'
+  // Detección por contenido (primeros 600 bytes)
+  const text  = decodeAny(buffer.slice ? buffer.slice(0, 600) : buffer)
+  const lower = text.toLowerCase()
+  if (lower.includes('sales summary') || lower.includes('resumen de ventas') ||
+      lower.includes('gross sales'))   return 'resumen'
   return 'articulos'
 }
 
