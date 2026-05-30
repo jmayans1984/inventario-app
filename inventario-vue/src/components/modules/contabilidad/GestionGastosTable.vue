@@ -13,6 +13,14 @@
         />
       </div>
       <div class="header-actions">
+        <!-- Toggle: mostrar todos vs solo con proveedor -->
+        <label class="toggle-proveedor" :title="soloConProveedor ? 'Mostrando solo gastos ingresados por usuario. Activa para ver todos.' : 'Mostrando todos los registros incluyendo los automáticos'">
+          <input type="checkbox" v-model="soloConProveedor" @change="currentPage = 1" />
+          <span class="toggle-proveedor-label">
+            <v-icon size="13" :color="soloConProveedor ? '#94a3b8' : '#f59e0b'" class="mr-1">{{ soloConProveedor ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}</v-icon>
+            {{ soloConProveedor ? 'Ocultar automáticos' : 'Mostrar todos' }}
+          </span>
+        </label>
         <v-btn
           size="small"
           variant="outlined"
@@ -127,10 +135,16 @@ const currentPage = ref(1)
 const ITEMS_PER_PAGE = 10
 const sortBy = ref('fecha')
 const sortOrder = ref('desc')
+const soloConProveedor = ref(true)   // por defecto oculta registros sin proveedor
 
 // Filtrado
 const filteredGastos = computed(() => {
   let list = [...store.gastos]
+
+  // Ocultar registros automáticos (sin proveedor) a menos que el usuario los pida
+  if (soloConProveedor.value) {
+    list = list.filter(g => g.proveedor && g.proveedor.trim() !== '' && g.proveedor !== '0')
+  }
 
   // Filtro de búsqueda
   if (searchQuery.value.trim()) {
@@ -244,7 +258,35 @@ async function exportarExcel() {
   font-size: 14px; color: rgb(var(--v-theme-on-surface));
 }
 .search-input::placeholder { color: rgba(var(--v-theme-on-surface), 0.4); }
-.header-actions { display: flex; gap: 8px; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+
+/* Toggle ocultar automáticos */
+.toggle-proveedor {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 6px;
+}
+.toggle-proveedor input[type="checkbox"] { display: none; }
+.toggle-proveedor-label {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  white-space: nowrap;
+  transition: all 0.18s;
+  user-select: none;
+}
+.toggle-proveedor:hover .toggle-proveedor-label {
+  border-color: rgba(var(--v-theme-on-surface), 0.2);
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgba(var(--v-theme-on-surface), 0.8);
+}
 
 /* ── Tabla ── */
 .table-wrapper { overflow-x: auto; }
