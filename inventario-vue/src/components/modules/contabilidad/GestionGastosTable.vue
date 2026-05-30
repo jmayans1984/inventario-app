@@ -53,6 +53,9 @@
             <th class="col-forma-pago" @click="ordenar('forma_pago')">
               <div class="th-inner">FORMA PAGO <v-icon v-if="sortBy==='forma_pago'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
+            <th class="col-cuenta" @click="ordenar('cuenta_nombre')">
+              <div class="th-inner">CUENTA <v-icon v-if="sortBy==='cuenta_nombre'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
+            </th>
             <th class="col-concepto" @click="ordenar('concepto')">
               <div class="th-inner">CONCEPTO <v-icon v-if="sortBy==='concepto'" size="13" class="sort-icon">{{ sortOrder==='asc'?'mdi-arrow-up':'mdi-arrow-down' }}</v-icon><v-icon v-else size="13" class="sort-icon-inactive">mdi-arrow-up-down</v-icon></div>
             </th>
@@ -69,7 +72,7 @@
         </thead>
         <tbody>
           <tr v-if="paginatedGastos.length === 0">
-            <td colspan="9" class="table-empty">
+            <td colspan="10" class="table-empty">
               <v-icon size="32" class="empty-icon">mdi-inbox-outline</v-icon>
               <p class="empty-text">No hay gastos registrados</p>
             </td>
@@ -91,6 +94,7 @@
             <td class="td-forma-pago">
               <span class="badge-forma-pago">{{ gasto.forma_pago_nombre || gasto.forma_pago || '-' }}</span>
             </td>
+            <td class="td-cuenta">{{ gasto.cuenta_nombre || gasto.cuenta || '-' }}</td>
             <td class="td-concepto">{{ gasto.concepto || '-' }}</td>
             <td class="td-factura">{{ gasto.factura || '-' }}</td>
             <td class="td-total">
@@ -316,8 +320,9 @@ async function exportarExcel() {
 .col-fecha    { width: 100px; }
 .col-proveedor{ width: 16%; }
 .col-centro   { width: 13%; }
-.col-forma-pago { width: 12%; }
-.col-concepto { width: 18%; }
+.col-forma-pago { width: 10%; }
+.col-cuenta     { width: 18%; }
+.col-concepto   { width: 15%; }
 .col-factura  { width: 100px; }
 .col-total    { width: 110px; }
 .col-acciones { width: 80px; }

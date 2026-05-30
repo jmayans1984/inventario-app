@@ -5526,6 +5526,7 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
                 g.subtotal,
                 g.impuestos,
                 g.cuenta,
+                COALESCE(cta.cuenta, g.cuenta) as cuenta_nombre,
                 g.forma_pago,
                 COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                 g.estado,
@@ -5535,6 +5536,7 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
              LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
+             LEFT JOIN cuentas cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
              WHERE g.empresa = $1
              ORDER BY g.fecha DESC, g.codigo DESC
              LIMIT 1000`,
