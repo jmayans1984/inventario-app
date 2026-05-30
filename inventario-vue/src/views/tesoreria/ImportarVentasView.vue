@@ -1557,11 +1557,13 @@ function splitCSVLine(line) {
   return result
 }
 
-/** Detecta si el archivo usa tabs (TSV) o comas (CSV) y divide en columnas */
+/** Detecta si el archivo usa tabs (TSV) o comas (CSV) y divide en columnas.
+ *  IMPORTANTE: muestreamos las primeras 15 líneas con contenido, no solo la primera,
+ *  porque en archivos TSV la primera línea ("Resumen de Ventas") puede no tener tabs. */
 function splitLines(text) {
   const rawLines = text.split(/\r?\n/)
-  const firstNonempty = rawLines.find(l => l.trim().length > 0) || ''
-  const isTab = firstNonempty.includes('\t')
+  const sampleLines = rawLines.filter(l => l.trim().length > 0).slice(0, 15)
+  const isTab = sampleLines.some(l => l.includes('\t'))
   if (isTab) {
     return rawLines.map(l => l.split('\t').map(c => c.trim()))
   }
