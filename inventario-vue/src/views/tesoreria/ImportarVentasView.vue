@@ -1752,8 +1752,8 @@ function parseArticulos(buffer, filename) {
     const iNombre    = hdr.findIndex(h => h.includes('nombre del art') || h === 'item name')
     // ES: "Variante"             |  EN: "Item Variation"
     const iVariante  = hdr.findIndex(h => h.includes('variante') || h === 'item variation')
-    // SKU (igual en ambos idiomas)
-    const iSKU       = hdr.findIndex(h => h === 'sku')
+    // SKU (igual en ambos idiomas, pero puede tener espacios o variaciones)
+    const iSKU       = hdr.findIndex(h => h.includes('sku'))
     // ES: "Categoría"            |  EN: "Category"
     const iCat       = hdr.findIndex(h => h.includes('categor'))
     // ES: "Artículos Vendidos"   |  EN: "Items Sold"
