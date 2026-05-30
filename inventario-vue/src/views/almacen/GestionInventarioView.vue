@@ -396,13 +396,27 @@
         </div>
       </div>
 
-      <!-- Alertas -->
+      <!-- Alerta de error inline -->
       <v-alert v-if="errorGuardar" type="error" variant="tonal" density="compact" class="mt-3" closable @click:close="errorGuardar=''">
         {{ errorGuardar }}
       </v-alert>
-      <v-alert v-if="exitoMsg" type="success" variant="tonal" density="compact" class="mt-3" closable @click:close="exitoMsg=''">
-        {{ exitoMsg }}
-      </v-alert>
+
+      <!-- ══════════════ DIALOG DE ÉXITO ══════════════ -->
+      <v-dialog v-model="dlgExito" max-width="420">
+        <v-card rounded="lg">
+          <v-card-text class="pa-6" style="text-align:center">
+            <v-icon size="56" color="#10b981" class="mb-3">mdi-check-circle</v-icon>
+            <div style="font-size:18px;font-weight:700;color:#10b981;margin-bottom:8px">¡Guardado correctamente!</div>
+            <div style="font-size:13px;color:rgba(var(--v-theme-on-surface),.6)">{{ exitoMsg }}</div>
+          </v-card-text>
+          <v-divider />
+          <v-card-actions class="pa-4">
+            <v-spacer />
+            <v-btn color="#10b981" variant="flat" @click="dlgExito = false">Aceptar</v-btn>
+            <v-spacer />
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
       <!-- ══════════════ DIALOG DE CONFLICTO ══════════════ -->
       <v-dialog v-model="dlgConflicto" max-width="480" persistent>
@@ -527,6 +541,7 @@ function siguienteInput(event) {
 const guardando    = ref(false)
 const errorGuardar = ref('')
 const exitoMsg     = ref('')
+const dlgExito     = ref(false)
 const dlgConflicto = ref(false)
 const conflictCount= ref(0)
 
@@ -639,7 +654,8 @@ async function guardar(mode = 'new') {
     if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
 
     dlgConflicto.value = false
-    exitoMsg.value = `✓ Movimiento guardado — ${res.data.registros || productosPayload.length} registro(s) en inventario`
+    exitoMsg.value = `${res.data.registros || productosPayload.length} registro(s) guardados en inventario`
+    dlgExito.value = true
     limpiarCantidades()
 
   } catch (e) {
@@ -657,6 +673,7 @@ function resetTodo() {
   observaciones.value = ''
   errorGuardar.value  = ''
   exitoMsg.value      = ''
+  dlgExito.value      = false
 }
 
 onMounted(() => {
