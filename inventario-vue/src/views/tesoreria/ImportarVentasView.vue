@@ -238,7 +238,7 @@
             @click="abrirGuardarResumen"
           >
             <v-icon size="15" class="mr-1">mdi-database-import-outline</v-icon>
-            Guardar en Contabilidad
+            Guardar
           </v-btn>
         </div>
       </div>
@@ -778,7 +778,7 @@
           <div class="rcpopup-title-wrap">
             <div class="rcpopup-title">REGISTRAR EN CONTABILIDAD</div>
             <div class="rcpopup-sub">
-              Fecha: {{ configFecha }} · CCosto: {{ configCcosto }} · Empresa: {{ empresaCodigo }}
+              Fecha: {{ configFecha }} · {{ ccostos.find(c => c.codigo === configCcosto)?.nombre || configCcosto }} · {{ authStore.empresaNombre || empresaCodigo }}
             </div>
           </div>
           <v-btn icon variant="text" size="small" title="Configurar cuentas contables" @click="abrirCfgEditor">
@@ -790,36 +790,13 @@
         </div>
 
         <!-- Error de configuración o de API -->
-        <div v-if="saveResumenError && !saveResumenSuccess" class="iv-error" style="margin:16px 16px 0; border-radius:8px">
+        <div v-if="saveResumenError" class="iv-error" style="margin:16px 16px 0; border-radius:8px">
           <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
           <span>{{ saveResumenError }}</span>
         </div>
 
-        <!-- Éxito -->
-        <div v-if="saveResumenSuccess" class="rs-dlg-success">
-          <v-icon size="36" color="#10b981">mdi-check-circle</v-icon>
-          <div>
-            <div class="rs-dlg-success-title">¡Registrado correctamente!</div>
-            <div class="rs-dlg-success-sub">
-              Se crearon {{ saveResumenResult?.total }} en <strong>GASTOS</strong>,
-              1 en <strong>VENTAS</strong>,
-              {{ saveResumenResult?.detalles }} en <strong>DETALLE_VENTAS</strong>,
-              {{ saveResumenResult?.inventario }} en <strong>DETALLE_INVENTARIO</strong>
-              y {{ saveResumenResult?.moviban }} en <strong>MOVIBAN</strong>.
-            </div>
-          </div>
-          <div class="rs-dlg-success-codigos">
-            <div v-for="r in saveResumenResult?.registros" :key="r.codigo" class="rs-dlg-codigo-row">
-              <span class="rs-dlg-codigo">{{ r.codigo }}</span>
-              <span class="rs-dlg-ccta">{{ r.cuenta }}</span>
-              <span class="rs-dlg-cval">{{ fmt(r.valor) }}</span>
-            </div>
-          </div>
-          <v-btn variant="tonal" color="#10b981" @click="showSaveResumenDlg = false">Cerrar</v-btn>
-        </div>
-
-        <!-- Preview / Conflicto / Cargando (cuando aún no hay éxito) -->
-        <template v-else-if="configGeneral">
+        <!-- Preview / Conflicto / Cargando -->
+        <template v-if="!saveResumenError && configGeneral">
 
           <!-- ⚠️ AVISO DE DUPLICADOS — reemplaza la tabla cuando hay conflicto -->
           <div v-if="conflictInfo" class="rcpopup-body">
@@ -852,52 +829,15 @@
             </div>
           </div>
 
-          <!-- Tabla de preview normal -->
-          <div v-else class="rcpopup-body">
-            <div class="rs-dlg-info">
-              <v-icon size="14" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
-              Se van a crear <strong>{{ previewResumen.filter(r => r.cuenta).length }}</strong> registros en la tabla
-              <strong>GASTOS</strong> con estado <strong>PENDIENTE</strong>:
-            </div>
-            <table class="art-tabla">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>CONCEPTO</th>
-                  <th style="width:80px" class="col-center">CUENTA</th>
-                  <th style="width:130px" class="col-right">VALOR</th>
-                  <th style="width:60px" class="col-center">ESTADO</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, i) in previewResumen" :key="i" class="tr-item" :class="{ 'rs-dlg-row-warn': !row.cuenta }">
-                  <td class="td-idx">{{ i + 1 }}</td>
-                  <td class="td-nombre">{{ row.label }}</td>
-                  <td class="col-center">
-                    <span v-if="row.cuenta" class="rs-dlg-cta-badge">{{ row.cuenta }}</span>
-                    <span v-else class="rs-dlg-nocta">
-                      <v-icon size="12" color="#f59e0b">mdi-alert</v-icon> Sin config
-                    </span>
-                  </td>
-                  <td class="col-right td-monto">
-                    <span :class="row.valor >= 0 ? 'txt-green' : 'txt-red'">{{ fmt(row.valor) }}</span>
-                  </td>
-                  <td class="col-center">
-                    <span v-if="row.cuenta" class="rs-dlg-estado">PENDIENTE</span>
-                    <span v-else class="rs-dlg-omitido">OMITIDO</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-if="previewResumen.some(r => !r.cuenta)" class="rs-dlg-warn-note">
-              <v-icon size="13" color="#f59e0b">mdi-alert-circle-outline</v-icon>
-              Los registros marcados como <strong>OMITIDO</strong> no se insertarán porque su cuenta no está configurada en Config General.
-            </div>
+          <!-- Sin conflictos: solo mensaje simple -->
+          <div v-else class="rcpopup-body" style="padding:24px 20px; text-align:center; color:rgba(var(--v-theme-on-surface),0.6); font-size:14px">
+            <v-icon size="20" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
+            Se guardarán <strong>{{ previewResumen.filter(r => r.cuenta).length }}</strong> movimientos contables para el período seleccionado.
           </div>
 
           <!-- Botones — cambian según si hay conflicto o no -->
           <div class="rs-dlg-actions">
-            <v-btn variant="text" @click="conflictInfo ? conflictInfo = null : showSaveResumenDlg = false">
+            <v-btn variant="flat" color="#ef4444" @click="conflictInfo ? conflictInfo = null : showSaveResumenDlg = false">
               Cancelar
             </v-btn>
             <!-- Botón conflicto -->
@@ -927,7 +867,7 @@
         </template>
 
         <!-- Cargando config -->
-        <div v-else-if="!saveResumenError" class="rs-dlg-loading">
+        <div v-if="!saveResumenError && !configGeneral" class="rs-dlg-loading">
           <v-progress-circular indeterminate color="#06b6d4" size="32" />
           <span>Cargando configuración...</span>
         </div>
@@ -1204,6 +1144,18 @@
       </v-card>
     </v-dialog>
 
+    <!-- Snackbar de confirmación -->
+    <v-snackbar
+      v-model="snackbarSuccess"
+      color="#10b981"
+      :timeout="3500"
+      location="bottom center"
+      rounded="pill"
+    >
+      <v-icon size="18" class="mr-2">mdi-check-circle</v-icon>
+      <strong>¡Guardado correctamente!</strong>
+    </v-snackbar>
+
   </MainLayout>
 </template>
 
@@ -1310,6 +1262,7 @@ const saveResumenError    = ref('')
 const conflictInfo        = ref(null)   // { count } cuando el backend detecta duplicados
 const saveResumenSuccess  = ref(false)
 const saveResumenResult   = ref(null)
+const snackbarSuccess     = ref(false)
 
 // ── Config General: editor de cuentas ─────────────────
 const showCfgEditor    = ref(false)
@@ -1437,6 +1390,8 @@ async function confirmarGuardarResumen(force = false) {
     if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
     saveResumenResult.value  = resp.data.data
     saveResumenSuccess.value = true
+    showSaveResumenDlg.value = false
+    snackbarSuccess.value    = true
   } catch (e) {
     saveResumenError.value = e?.response?.data?.error || e.message || 'Error al guardar'
   } finally {
