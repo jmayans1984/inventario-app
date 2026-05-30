@@ -800,10 +800,10 @@ app.get('/api/almacen/kardex', async (req, res) => {
             [emp, ccosto, fecha]
         );
 
-        // Obtener total efectivo de ventas del día
+        // Obtener total efectivo de ventas del día (filtrado por empresa + ccosto)
         const efectivoRes = await pool.query(
-            `SELECT COALESCE(SUM(efectivo), 0) AS total FROM ventas WHERE fecha = $1 AND empresa = $2`,
-            [fecha, emp]
+            `SELECT COALESCE(SUM(efectivo), 0) AS total FROM ventas WHERE fecha = $1 AND empresa = $2 AND ccosto = $3`,
+            [fecha, emp, ccosto]
         );
         const total_efectivo = parseFloat(efectivoRes.rows[0]?.total || 0);
 
