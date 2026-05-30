@@ -108,13 +108,25 @@
     </div>
 
     <!-- PAGINACIÓN -->
-    <div v-if="totalPages > 1" class="table-footer">
+    <div class="table-footer">
+      <!-- Selector de registros por página -->
+      <div class="page-size-wrap">
+        <span class="page-size-label">Mostrar</span>
+        <div class="page-size-options">
+          <button
+            v-for="n in PAGE_SIZE_OPTIONS"
+            :key="n"
+            class="page-size-btn"
+            :class="{ 'page-size-btn--active': itemsPerPage === n }"
+            @click="itemsPerPage = n; currentPage = 1"
+          >{{ n }}</button>
+        </div>
+        <span class="page-size-label">de {{ filteredGastos.length }} registros</span>
+      </div>
+      <!-- Navegación de páginas -->
       <div class="pagination">
         <v-btn icon="mdi-chevron-left" size="small" variant="text" :disabled="currentPage <= 1" @click="irAPagina(currentPage - 1)" />
-        <span class="page-info">
-          Página {{ currentPage }} de {{ totalPages }}
-          <span class="records-info">({{ filteredGastos.length }} registros)</span>
-        </span>
+        <span class="page-info">Página {{ currentPage }} de {{ totalPages }}</span>
         <v-btn icon="mdi-chevron-right" size="small" variant="text" :disabled="currentPage >= totalPages" @click="irAPagina(currentPage + 1)" />
       </div>
     </div>
@@ -132,7 +144,8 @@ const store = useGestionGastosStore()
 
 const searchQuery = ref('')
 const currentPage = ref(1)
-const ITEMS_PER_PAGE = 10
+const itemsPerPage = ref(25)
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 250]
 const sortBy = ref('fecha')
 const sortOrder = ref('desc')
 const soloConProveedor = ref(true)   // por defecto oculta registros sin proveedor
@@ -180,11 +193,11 @@ const filteredGastos = computed(() => {
   return list
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredGastos.value.length / ITEMS_PER_PAGE)))
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredGastos.value.length / itemsPerPage.value)))
 
 const paginatedGastos = computed(() => {
-  const start = (currentPage.value - 1) * ITEMS_PER_PAGE
-  return filteredGastos.value.slice(start, start + ITEMS_PER_PAGE)
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  return filteredGastos.value.slice(start, start + itemsPerPage.value)
 })
 
 function handleSearch() {
@@ -409,20 +422,54 @@ async function exportarExcel() {
 .table-footer {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 14px 20px;
+  justify-content: space-between;
+  padding: 12px 20px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.pagination { display: flex; align-items: center; gap: 12px; }
+.pagination { display: flex; align-items: center; gap: 8px; }
 .page-info {
   font-size: 13px;
   color: rgba(var(--v-theme-on-surface), 0.6);
-  min-width: 160px;
+  min-width: 120px;
   text-align: center;
 }
-.records-info {
-  font-size: 11px;
-  opacity: 0.6;
-  margin-left: 6px;
+
+/* Selector de registros por página */
+.page-size-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.page-size-label {
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  white-space: nowrap;
+}
+.page-size-options {
+  display: flex;
+  gap: 3px;
+}
+.page-size-btn {
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.page-size-btn:hover {
+  border-color: rgba(var(--v-theme-on-surface), 0.3);
+  color: rgba(var(--v-theme-on-surface), 0.85);
+  background: rgba(var(--v-theme-on-surface), 0.04);
+}
+.page-size-btn--active {
+  background: #0891b2;
+  border-color: #0891b2;
+  color: #fff;
 }
 </style>
