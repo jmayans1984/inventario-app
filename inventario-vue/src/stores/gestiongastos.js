@@ -74,40 +74,30 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
   }
 
   async function crearGasto(data) {
-    loading.value = true
     error.value = null
     try {
       const nuevo = await gestionGastosService.crearGasto(data)
       const nuevoGasto = nuevo.data || nuevo
-      gastos.value.unshift(nuevoGasto)
-      total.value++
-      guardarEnCache()
+      // Recargar lista completa para obtener los JOINs (cuenta_nombre, proveedor_nombre, etc.)
+      await fetchGastos()
       return nuevoGasto
     } catch (err) {
       error.value = err.response?.data?.message || 'Error al crear el gasto'
       throw err
-    } finally {
-      loading.value = false
     }
   }
 
   async function actualizarGasto(codigo, data) {
-    loading.value = true
     error.value = null
     try {
       const actualizado = await gestionGastosService.actualizarGasto(codigo, data)
       const item = actualizado.data || actualizado
-      const index = gastos.value.findIndex(g => g.codigo === codigo)
-      if (index !== -1) {
-        gastos.value[index] = item
-        guardarEnCache()
-      }
+      // Recargar lista completa para obtener los JOINs actualizados
+      await fetchGastos()
       return item
     } catch (err) {
       error.value = err.response?.data?.message || 'Error al actualizar el gasto'
       throw err
-    } finally {
-      loading.value = false
     }
   }
 
