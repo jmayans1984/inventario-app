@@ -342,7 +342,8 @@ function primerDiaMes() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
 }
 function hoy() {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // ─── Helpers generales ───────────────────────────────────────
@@ -374,7 +375,11 @@ function fmt(val) {
 function fmtFecha(f) {
   if (!f) return '—'
   try {
-    return new Date(f).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    // Parsear sin conversión de zona horaria — new Date('YYYY-MM-DD') interpreta UTC y
+    // en zonas negativas (ej. UTC-5) retrocede al día anterior
+    const s = String(f).split('T')[0]
+    const [y, m, d] = s.split('-')
+    return `${d}/${m}/${y}`
   } catch { return String(f) }
 }
 
