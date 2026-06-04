@@ -5555,10 +5555,13 @@ app.get('/api/dashboard/resumen', async (req, res) => {
                  WHERE empresa = $1 AND proveedor IS NOT NULL AND proveedor <> ''`,
                 [empresa, maxDia]
             ),
-            // Saldo bancario total acumulado + saldo al mismo día del mes anterior
+            // Saldo bancario acumulado hasta día N del mes actual vs día N del mes anterior
             pool.query(
                 `SELECT
-                    COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo_actual,
+                    -- Saldo hasta el día N del mes actual (último día importado de ventas)
+                    COALESCE(SUM(CASE WHEN fecha::date <= (DATE_TRUNC('month', CURRENT_DATE) + ($2 - 1) * INTERVAL '1 day')::date THEN ingreso ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN fecha::date <= (DATE_TRUNC('month', CURRENT_DATE) + ($2 - 1) * INTERVAL '1 day')::date THEN egreso  ELSE 0 END), 0) AS saldo_actual,
+                    -- Saldo hasta el día N del mes anterior (mismo punto de referencia)
                     COALESCE(SUM(CASE WHEN fecha::date <= (DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + ($2 - 1) * INTERVAL '1 day')::date THEN ingreso ELSE 0 END), 0) -
                     COALESCE(SUM(CASE WHEN fecha::date <= (DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + ($2 - 1) * INTERVAL '1 day')::date THEN egreso  ELSE 0 END), 0) AS saldo_anterior
                  FROM moviban WHERE empresa = $1`,
