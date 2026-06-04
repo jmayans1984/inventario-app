@@ -76,7 +76,21 @@
             </div>
             <div class="dkpi-sub">
               <v-icon size="11" color="#94a3b8">mdi-calendar-month-outline</v-icon>
-              {{ resumen?.ventasMes?.cantidad || 0 }} períodos importados
+              Hasta día {{ resumen?.ventasMes?.maxDia || 0 }} del mes
+            </div>
+            <!-- Comparación vs mes anterior -->
+            <div v-if="!cargando && resumen?.ventasMes?.variacion != null" class="dkpi-trend">
+              <v-icon size="13" :color="resumen.ventasMes.variacion >= 0 ? '#10b981' : '#ef4444'">
+                {{ resumen.ventasMes.variacion >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
+              </v-icon>
+              <span :style="{ color: resumen.ventasMes.variacion >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
+                {{ resumen.ventasMes.variacion >= 0 ? '+' : '' }}{{ resumen.ventasMes.variacion.toFixed(1) }}%
+              </span>
+              <span style="font-size:10px; color:rgba(var(--v-theme-on-surface),0.4)">vs día {{ resumen.ventasMes.maxDia }} mes ant.</span>
+            </div>
+            <div v-else-if="!cargando && resumen?.ventasMes?.variacion == null" class="dkpi-sub" style="margin-top:4px">
+              <v-icon size="11" color="#94a3b8">mdi-minus</v-icon>
+              Sin datos mes anterior
             </div>
           </div>
         </div>
@@ -462,6 +476,13 @@ function fmtFecha(f) {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.dkpi-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
 }
 
 .dkpi-skel {

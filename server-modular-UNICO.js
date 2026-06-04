@@ -5533,13 +5533,28 @@ app.get('/api/dashboard/resumen', async (req, res) => {
                  FROM moviban WHERE empresa = $1`,
                 [empresa]
             ),
-            // Ventas del mes (tabla ventas, solo empresa, sin filtro de ccosto)
+            // Ventas del mes actual + comparación con mismo período del mes anterior
             pool.query(
-                `SELECT COALESCE(SUM(ventas_brutas), 0) AS total,
-                        COUNT(*) AS cant
-                 FROM ventas
-                 WHERE empresa = $1
-                   AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)`,
+                `WITH mes_actual AS (
+                    SELECT COALESCE(SUM(ventas_brutas), 0) AS total,
+                           COUNT(*) AS cant,
+                           COALESCE(MAX(EXTRACT(DAY FROM fecha::date)), EXTRACT(DAY FROM CURRENT_DATE)) AS max_dia
+                    FROM ventas
+                    WHERE empresa = $1
+                      AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
+                 ),
+                 mes_anterior AS (
+                    SELECT COALESCE(SUM(ventas_brutas), 0) AS total
+                    FROM ventas
+                    WHERE empresa = $1
+                      AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+                      AND EXTRACT(DAY FROM fecha::date) <= (SELECT max_dia FROM mes_actual)
+                 )
+                 SELECT
+                    (SELECT total   FROM mes_actual)   AS total_actual,
+                    (SELECT cant    FROM mes_actual)    AS cant_actual,
+                    (SELECT max_dia FROM mes_actual)    AS max_dia,
+                    (SELECT total   FROM mes_anterior)  AS total_anterior`,
                 [empresa]
             ),
             // Facturas pendientes/por verificar (cliente = empresa)
@@ -5567,7 +5582,13 @@ app.get('/api/dashboard/resumen', async (req, res) => {
             data: {
                 gastos:        { total: parseFloat(gastosRes.rows[0].total),   cantidad: parseInt(gastosRes.rows[0].cant) },
                 saldoBancario: parseFloat(saldoRes.rows[0].saldo || 0),
-                ventasMes:     { total: parseFloat(ventasRes.rows[0].total),   cantidad: parseInt(ventasRes.rows[0].cant) },
+                ventasMes: (() => {
+                    const actual   = parseFloat(ventasRes.rows[0].total_actual   || 0);
+                    const anterior = parseFloat(ventasRes.rows[0].total_anterior || 0);
+                    const maxDia   = parseInt(ventasRes.rows[0].max_dia          || 0);
+                    const variacion = anterior > 0 ? ((actual - anterior) / anterior * 100) : null;
+                    return { total: actual, cantidad: parseInt(ventasRes.rows[0].cant_actual || 0), totalAnterior: anterior, variacion, maxDia };
+                })(),
                 facturasPend:  { cantidad: parseInt(facturasRes.rows[0].cantidad), valor: parseFloat(facturasRes.rows[0].valor) },
                 ultimosGastos: ultimosGastosRes.rows
             }

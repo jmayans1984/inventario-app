@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-ac3x4RUm.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
