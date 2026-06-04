@@ -741,7 +741,7 @@
                           <td class="td-nombre">{{ c.nombre }}</td>
                           <td class="col-right td-und">{{ c.und || '—' }}</td>
                           <td class="col-right">
-                            <span class="consumo-total-val">{{ fmtNum(c.totalConsumo) }}</span>
+                            <span class="consumo-total-val">{{ fmtDec(c.totalConsumo) }}</span>
                           </td>
                           <td class="col-center">
                             <button class="btn-ver-recetas" @click="verRecetas(c)">
@@ -982,7 +982,7 @@
         <!-- Total -->
         <div class="rcpopup-total-row">
           <span class="rcpopup-total-lbl">CONSUMO TOTAL DEL PERÍODO</span>
-          <span class="rcpopup-total-val">{{ fmtNum(recetasDialogItem.totalConsumo) }} {{ recetasDialogItem.und }}</span>
+          <span class="rcpopup-total-val">{{ fmtDec(recetasDialogItem.totalConsumo) }} {{ recetasDialogItem.und }}</span>
         </div>
 
         <!-- Tabla de recetas -->
@@ -1005,7 +1005,7 @@
                 <td class="col-right td-monto txt-dim">{{ fmtNum(r.cantPorUnidad) }}</td>
                 <td class="col-right td-num">{{ r.vendidos }}</td>
                 <td class="col-right">
-                  <span class="consumo-total-val" style="font-size:13px">{{ fmtNum(r.subtotal) }}</span>
+                  <span class="consumo-total-val" style="font-size:13px">{{ fmtDec(r.subtotal) }}</span>
                 </td>
               </tr>
             </tbody>
@@ -1252,6 +1252,14 @@ function fmtNum(val) {
     minimumFractionDigits: decimals > 0 ? 2 : 0,
     maximumFractionDigits: 4
   }).format(n)
+}
+
+// Siempre 2 decimales fijos (para columnas de consumo)
+function fmtDec(val) {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(parseFloat(val || 0))
 }
 
 // ─── Guardar Resumen en Contabilidad ─────────────────────────
