@@ -1732,6 +1732,15 @@ app.get('/api/tesoreria/movimientos-cuenta', async (req, res) => {
     }
 
     try {
+        // Saldo anterior: todo lo registrado en la cuenta ANTES de fechaInicio
+        const saldoAntRes = await pool.query(
+            `SELECT COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo_anterior
+             FROM moviban
+             WHERE banco = $1 AND empresa = $2 AND fecha < $3`,
+            [banco, empresa, fechaInicio]
+        );
+        const saldoAnterior = parseFloat(saldoAntRes.rows[0]?.saldo_anterior || 0);
+
         const result = await pool.query(
             `SELECT
                 m.numero, m.fecha, m.tipo, m.concepto, m.beneficia,
@@ -1757,6 +1766,7 @@ app.get('/api/tesoreria/movimientos-cuenta', async (req, res) => {
         res.json({
             success: true,
             data: {
+                saldoAnterior,
                 totalIngresos,
                 totalEgresos,
                 saldoNeto:           totalIngresos - totalEgresos,

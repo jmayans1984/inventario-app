@@ -137,6 +137,25 @@
         <!-- KPI CARDS -->
         <div class="rm-kpis">
 
+          <!-- 1. Saldo Anterior (antes del período) -->
+          <div class="kpi-card" :class="datos.saldoAnterior >= 0 ? 'kpi-saldo-pos' : 'kpi-saldo-neg'">
+            <div class="kpi-deco"></div>
+            <div class="kpi-inner">
+              <div class="kpi-top">
+                <div class="kpi-icon-wrap" :class="datos.saldoAnterior >= 0 ? 'kpi-icon-blue' : 'kpi-icon-orange'">
+                  <v-icon size="20" color="white">mdi-bank-outline</v-icon>
+                </div>
+                <span class="kpi-badge" :class="datos.saldoAnterior >= 0 ? 'kpi-badge-blue' : 'kpi-badge-orange'">
+                  <v-icon size="11">mdi-history</v-icon> SALDO ANTERIOR
+                </span>
+              </div>
+              <div class="kpi-value" :class="datos.saldoAnterior >= 0 ? 'kpi-val-blue' : 'kpi-val-orange'">{{ fmt(datos.saldoAnterior) }}</div>
+              <div class="kpi-label">Antes del período</div>
+              <div class="kpi-sub">Hasta {{ fmtFechaCorta(fechaInicio) }}</div>
+            </div>
+          </div>
+
+          <!-- 2. Ingresos -->
           <div class="kpi-card kpi-ingresos">
             <div class="kpi-deco"></div>
             <div class="kpi-inner">
@@ -154,6 +173,7 @@
             </div>
           </div>
 
+          <!-- 3. Egresos -->
           <div class="kpi-card kpi-egresos">
             <div class="kpi-deco"></div>
             <div class="kpi-inner">
@@ -171,6 +191,7 @@
             </div>
           </div>
 
+          <!-- 4. Saldo Neto del período -->
           <div class="kpi-card" :class="datos.saldoNeto >= 0 ? 'kpi-saldo-pos' : 'kpi-saldo-neg'">
             <div class="kpi-deco"></div>
             <div class="kpi-inner">
@@ -188,26 +209,9 @@
             </div>
           </div>
 
-          <div class="kpi-card kpi-total">
-            <div class="kpi-deco"></div>
-            <div class="kpi-inner">
-              <div class="kpi-top">
-                <div class="kpi-icon-wrap kpi-icon-purple">
-                  <v-icon size="20" color="white">mdi-format-list-numbered</v-icon>
-                </div>
-                <span class="kpi-badge kpi-badge-purple">
-                  <v-icon size="11">mdi-counter</v-icon> TOTAL
-                </span>
-              </div>
-              <div class="kpi-value kpi-val-purple">{{ datos.cantidadMovimientos }}</div>
-              <div class="kpi-label">Movimientos</div>
-              <div class="kpi-sub">{{ fmtFechaCorta(fechaInicio) }} → {{ fmtFechaCorta(fechaFin) }}</div>
-            </div>
-          </div>
-
         </div>
 
-        <!-- BARRA RESUMEN OSCURA -->
+        <!-- BARRA RESUMEN OSCURA — solo cuenta y período -->
         <div class="rm-resumen-bar">
           <div class="resumen-item">
             <div class="resumen-label">Cuenta</div>
@@ -217,21 +221,6 @@
           <div class="resumen-item">
             <div class="resumen-label">Período</div>
             <div class="resumen-value resumen-white">{{ fmtFechaCorta(fechaInicio) }} — {{ fmtFechaCorta(fechaFin) }}</div>
-          </div>
-          <div class="resumen-sep"></div>
-          <div class="resumen-item">
-            <div class="resumen-label">Total Ingresos</div>
-            <div class="resumen-value resumen-green">{{ fmt(datos.totalIngresos) }}</div>
-          </div>
-          <div class="resumen-op">−</div>
-          <div class="resumen-item">
-            <div class="resumen-label">Total Egresos</div>
-            <div class="resumen-value resumen-red">{{ fmt(datos.totalEgresos) }}</div>
-          </div>
-          <div class="resumen-op">=</div>
-          <div class="resumen-item resumen-result">
-            <div class="resumen-label resumen-label-w">Saldo Neto</div>
-            <div class="resumen-value" :class="datos.saldoNeto >= 0 ? 'resumen-blue' : 'resumen-orange'">{{ fmt(datos.saldoNeto) }}</div>
           </div>
         </div>
 
