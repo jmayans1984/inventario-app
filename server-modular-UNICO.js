@@ -5512,6 +5512,60 @@ app.get('/', (req, res) => {
 // CONTABILIDAD - GESTIÓN DE GASTOS (CRUD) + MOVIBAN
 // ================================================================
 
+// GET /api/dashboard/resumen - KPIs para la pantalla de inicio
+app.get('/api/dashboard/resumen', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const [gastosRes, productosRes, movibanRes, ultimosGastosRes] = await Promise.all([
+            pool.query(
+                `SELECT COUNT(*) AS cant, COALESCE(SUM(total), 0) AS total
+                 FROM gastos
+                 WHERE empresa = $1
+                   AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
+                   AND proveedor IS NOT NULL AND proveedor <> ''`,
+                [empresa]
+            ),
+            pool.query(`SELECT COUNT(*) AS total FROM productos WHERE control = 'SI'`),
+            pool.query(
+                `SELECT COUNT(*) AS cant,
+                        COALESCE(SUM(ingreso), 0) AS ingresos,
+                        COALESCE(SUM(egreso),  0) AS egresos
+                 FROM moviban
+                 WHERE empresa = $1
+                   AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)`,
+                [empresa]
+            ),
+            pool.query(
+                `SELECT g.codigo, g.fecha::text, g.concepto, g.total, g.estado,
+                        COALESCE(p.nombre, g.proveedor) AS proveedor_nombre
+                 FROM gastos g
+                 LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+                 WHERE g.empresa = $1 AND g.proveedor IS NOT NULL AND g.proveedor <> ''
+                 ORDER BY g.fecha DESC, g.codigo DESC LIMIT 6`,
+                [empresa]
+            )
+        ]);
+        res.json({
+            success: true,
+            data: {
+                gastos:    { total: parseFloat(gastosRes.rows[0].total),     cantidad: parseInt(gastosRes.rows[0].cant) },
+                productos: { total: parseInt(productosRes.rows[0].total) },
+                movimientos: {
+                    cantidad: parseInt(movibanRes.rows[0].cant),
+                    ingresos: parseFloat(movibanRes.rows[0].ingresos),
+                    egresos:  parseFloat(movibanRes.rows[0].egresos),
+                    neto:     parseFloat(movibanRes.rows[0].ingresos) - parseFloat(movibanRes.rows[0].egresos)
+                },
+                ultimosGastos: ultimosGastosRes.rows
+            }
+        });
+    } catch (error) {
+        console.error('Error GET /api/dashboard/resumen:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/contabilidad/gastos - Listar gastos (sin JOINs por ahora)
 app.get('/api/contabilidad/gastos', async (req, res) => {
     try {
