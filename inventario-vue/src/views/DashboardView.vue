@@ -25,7 +25,7 @@
       <div class="dash-kpis">
 
         <!-- Gastos del mes -->
-        <div class="dkpi" :class="cargando ? 'dkpi--loading' : ''">
+        <div class="dkpi">
           <div class="dkpi-accent" style="background:#10b981"></div>
           <div class="dkpi-icon-wrap" style="background:rgba(16,185,129,0.12)">
             <v-icon size="22" color="#10b981">mdi-receipt-text-outline</v-icon>
@@ -38,64 +38,26 @@
             </div>
             <div class="dkpi-sub">
               <v-icon size="11" color="#94a3b8">mdi-file-document-outline</v-icon>
-              {{ resumen?.gastos?.cantidad || 0 }} registros
+              {{ resumen?.gastos?.cantidad || 0 }} registros este mes
             </div>
           </div>
         </div>
 
-        <!-- Inventario -->
-        <div class="dkpi" :class="cargando ? 'dkpi--loading' : ''">
-          <div class="dkpi-accent" style="background:#06b6d4"></div>
-          <div class="dkpi-icon-wrap" style="background:rgba(6,182,212,0.12)">
-            <v-icon size="22" color="#06b6d4">mdi-package-variant-closed</v-icon>
+        <!-- Saldo bancario total -->
+        <div class="dkpi">
+          <div class="dkpi-accent" :style="{ background: (resumen?.saldoBancario || 0) >= 0 ? '#06b6d4' : '#ef4444' }"></div>
+          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.saldoBancario || 0) >= 0 ? 'rgba(6,182,212,0.12)' : 'rgba(239,68,68,0.12)' }">
+            <v-icon size="22" :color="(resumen?.saldoBancario || 0) >= 0 ? '#06b6d4' : '#ef4444'">mdi-bank-outline</v-icon>
           </div>
           <div class="dkpi-body">
-            <div class="dkpi-label">Productos en Inventario</div>
-            <div class="dkpi-value" style="color:#06b6d4">
+            <div class="dkpi-label">Saldo Bancario Total</div>
+            <div class="dkpi-value" :style="{ color: (resumen?.saldoBancario || 0) >= 0 ? '#06b6d4' : '#ef4444' }">
               <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ resumen?.productos?.total || 0 }}</span>
-            </div>
-            <div class="dkpi-sub">
-              <v-icon size="11" color="#94a3b8">mdi-checkbox-marked-circle-outline</v-icon>
-              Con control de inventario
-            </div>
-          </div>
-        </div>
-
-        <!-- Movimientos bancarios -->
-        <div class="dkpi" :class="cargando ? 'dkpi--loading' : ''">
-          <div class="dkpi-accent" style="background:#8b5cf6"></div>
-          <div class="dkpi-icon-wrap" style="background:rgba(139,92,246,0.12)">
-            <v-icon size="22" color="#8b5cf6">mdi-bank-transfer</v-icon>
-          </div>
-          <div class="dkpi-body">
-            <div class="dkpi-label">Movimientos del Mes</div>
-            <div class="dkpi-value" style="color:#8b5cf6">
-              <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ resumen?.movimientos?.cantidad || 0 }}</span>
+              <span v-else>{{ fmt(resumen?.saldoBancario || 0) }}</span>
             </div>
             <div class="dkpi-sub">
               <v-icon size="11" color="#94a3b8">mdi-swap-horizontal</v-icon>
-              {{ fmt(resumen?.movimientos?.ingresos || 0) }} ingresos
-            </div>
-          </div>
-        </div>
-
-        <!-- Saldo neto del mes -->
-        <div class="dkpi" :class="cargando ? 'dkpi--loading' : ''">
-          <div class="dkpi-accent" :style="{ background: (resumen?.movimientos?.neto || 0) >= 0 ? '#f59e0b' : '#ef4444' }"></div>
-          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.movimientos?.neto || 0) >= 0 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)' }">
-            <v-icon size="22" :color="(resumen?.movimientos?.neto || 0) >= 0 ? '#f59e0b' : '#ef4444'">mdi-scale-balance</v-icon>
-          </div>
-          <div class="dkpi-body">
-            <div class="dkpi-label">Saldo Neto del Mes</div>
-            <div class="dkpi-value" :style="{ color: (resumen?.movimientos?.neto || 0) >= 0 ? '#f59e0b' : '#ef4444' }">
-              <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ fmt(resumen?.movimientos?.neto || 0) }}</span>
-            </div>
-            <div class="dkpi-sub">
-              <v-icon size="11" color="#94a3b8">mdi-minus</v-icon>
-              {{ fmt(resumen?.movimientos?.egresos || 0) }} egresos
+              Ingresos − egresos acumulados
             </div>
           </div>
         </div>
@@ -395,11 +357,10 @@ function fmtFecha(f) {
 /* ══ KPI CARDS ═══════════════════════════════════════════════ */
 .dash-kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
 }
 
-@media (max-width: 900px) { .dash-kpis { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 540px) { .dash-kpis { grid-template-columns: 1fr; } }
 
 .dkpi {

@@ -5517,7 +5517,7 @@ app.get('/api/dashboard/resumen', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
-        const [gastosRes, productosRes, movibanRes, ultimosGastosRes] = await Promise.all([
+        const [gastosRes, saldoRes, ultimosGastosRes] = await Promise.all([
             pool.query(
                 `SELECT COUNT(*) AS cant, COALESCE(SUM(total), 0) AS total
                  FROM gastos
@@ -5526,14 +5526,10 @@ app.get('/api/dashboard/resumen', async (req, res) => {
                    AND proveedor IS NOT NULL AND proveedor <> ''`,
                 [empresa]
             ),
-            pool.query(`SELECT COUNT(*) AS total FROM productos WHERE control = 'SI'`),
             pool.query(
-                `SELECT COUNT(*) AS cant,
-                        COALESCE(SUM(ingreso), 0) AS ingresos,
-                        COALESCE(SUM(egreso),  0) AS egresos
+                `SELECT COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo
                  FROM moviban
-                 WHERE empresa = $1
-                   AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)`,
+                 WHERE empresa = $1`,
                 [empresa]
             ),
             pool.query(
@@ -5549,14 +5545,8 @@ app.get('/api/dashboard/resumen', async (req, res) => {
         res.json({
             success: true,
             data: {
-                gastos:    { total: parseFloat(gastosRes.rows[0].total),     cantidad: parseInt(gastosRes.rows[0].cant) },
-                productos: { total: parseInt(productosRes.rows[0].total) },
-                movimientos: {
-                    cantidad: parseInt(movibanRes.rows[0].cant),
-                    ingresos: parseFloat(movibanRes.rows[0].ingresos),
-                    egresos:  parseFloat(movibanRes.rows[0].egresos),
-                    neto:     parseFloat(movibanRes.rows[0].ingresos) - parseFloat(movibanRes.rows[0].egresos)
-                },
+                gastos:        { total: parseFloat(gastosRes.rows[0].total), cantidad: parseInt(gastosRes.rows[0].cant) },
+                saldoBancario: parseFloat(saldoRes.rows[0].saldo || 0),
                 ultimosGastos: ultimosGastosRes.rows
             }
         });
