@@ -114,22 +114,39 @@
             <span>MÓDULOS DEL SISTEMA</span>
           </div>
 
-          <div class="dash-mod-grid">
-            <div
-              v-for="mod in modulos"
-              :key="mod.label"
-              class="dmod"
-              :style="{ '--mc': mod.color }"
-              @click="ir(mod.ruta)"
-            >
-              <div class="dmod-icon-wrap">
-                <v-icon size="26" :color="mod.color">{{ mod.icon }}</v-icon>
+          <div class="dash-grupos">
+            <div v-for="grupo in grupos" :key="grupo.nombre" class="dash-grupo">
+
+              <!-- Encabezado del grupo -->
+              <div class="dgrupo-header" :style="{ '--gc': grupo.color }">
+                <div class="dgrupo-icon">
+                  <v-icon size="14" :color="grupo.color">{{ grupo.icon }}</v-icon>
+                </div>
+                <span class="dgrupo-nombre">{{ grupo.nombre }}</span>
+                <div class="dgrupo-line"></div>
               </div>
-              <div class="dmod-body">
-                <div class="dmod-grupo">{{ mod.grupo }}</div>
-                <div class="dmod-label">{{ mod.label }}</div>
+
+              <!-- 3 tiles del grupo -->
+              <div class="dgrupo-tiles">
+                <div
+                  v-for="mod in grupo.items"
+                  :key="mod.label"
+                  class="dmod"
+                  :class="{ 'dmod--pronto': mod.pronto }"
+                  :style="{ '--mc': grupo.color }"
+                  @click="!mod.pronto && ir(mod.ruta)"
+                >
+                  <div class="dmod-icon-wrap">
+                    <v-icon size="22" :color="mod.pronto ? 'rgba(var(--v-theme-on-surface),0.25)' : grupo.color">{{ mod.icon }}</v-icon>
+                  </div>
+                  <div class="dmod-body">
+                    <div class="dmod-label">{{ mod.label }}</div>
+                    <div v-if="mod.pronto" class="dmod-pronto-badge">Próximamente</div>
+                  </div>
+                  <v-icon v-if="!mod.pronto" size="13" class="dmod-arrow">mdi-chevron-right</v-icon>
+                </div>
               </div>
-              <v-icon size="13" class="dmod-arrow">mdi-arrow-right</v-icon>
+
             </div>
           </div>
         </div>
@@ -245,28 +262,48 @@ async function cargarResumen() {
 
 onMounted(cargarResumen)
 
-// ── Módulos ───────────────────────────────────────────────────
-const modulos = [
-  // ALMACÉN
-  { grupo: 'ALMACÉN',       label: 'Gestión Inventario',   icon: 'mdi-package-variant',             color: '#06b6d4', ruta: '/almacen/procesos/gestion-inventario' },
-  { grupo: 'ALMACÉN',       label: 'Toma Física',           icon: 'mdi-clipboard-check-outline',     color: '#06b6d4', ruta: '/almacen/procesos/toma-fisica' },
-  { grupo: 'ALMACÉN',       label: 'Reporte Kardex',        icon: 'mdi-chart-timeline-variant',      color: '#06b6d4', ruta: '/almacen/reportes/kardex' },
-  { grupo: 'ALMACÉN',       label: 'Órdenes de Compra',     icon: 'mdi-clipboard-list-outline',      color: '#06b6d4', ruta: '/almacen/procesos/ordenes-compra' },
-  // TESORERÍA
-  { grupo: 'TESORERÍA',     label: 'Importar Ventas',       icon: 'mdi-storefront-outline',          color: '#8b5cf6', ruta: '/tesoreria/procesos/importar-ventas' },
-  { grupo: 'TESORERÍA',     label: 'Movimientos Bancarios', icon: 'mdi-bank-transfer',               color: '#8b5cf6', ruta: '/tesoreria/procesos/movimientos-bancarios' },
-  { grupo: 'TESORERÍA',     label: 'Conciliación',          icon: 'mdi-check-circle-outline',        color: '#8b5cf6', ruta: '/tesoreria/procesos/conciliacion-cuentas' },
-  { grupo: 'TESORERÍA',     label: 'Ventas del Período',    icon: 'mdi-chart-line',                  color: '#8b5cf6', ruta: '/tesoreria/reportes/ventas-periodo' },
-  // CONTABILIDAD
-  { grupo: 'CONTABILIDAD',  label: 'Gestión de Gastos',     icon: 'mdi-receipt-text-outline',        color: '#10b981', ruta: '/contabilidad/procesos/gastos' },
-  { grupo: 'CONTABILIDAD',  label: 'Reporte de Gastos',     icon: 'mdi-chart-bar',                   color: '#10b981', ruta: '/contabilidad/reportes/gastos' },
-  { grupo: 'CONTABILIDAD',  label: 'Proveedores',           icon: 'mdi-truck-outline',               color: '#10b981', ruta: '/contabilidad/configuracion/proveedores' },
-  // RECETAS
-  { grupo: 'RECETAS',       label: 'Catálogo de Recetas',   icon: 'mdi-chef-hat',                    color: '#f59e0b', ruta: '/recetas/configuracion/catalogo' },
-  { grupo: 'RECETAS',       label: 'Costos de Recetas',     icon: 'mdi-currency-usd',                color: '#f59e0b', ruta: '/recetas/reportes/costos' },
-  // GERENCIA
-  { grupo: 'GERENCIA',      label: 'Dashboard Ejecutivo',   icon: 'mdi-monitor-dashboard',           color: '#ef4444', ruta: '/gerencia/reportes/ejecutivo' },
-  { grupo: 'GERENCIA',      label: 'KPIs',                  icon: 'mdi-gauge',                       color: '#ef4444', ruta: '/gerencia/reportes/kpis' },
+// ── Grupos de módulos ─────────────────────────────────────────
+const grupos = [
+  {
+    nombre: 'CONTABILIDAD',
+    icon:   'mdi-calculator',
+    color:  '#10b981',
+    items: [
+      { label: 'Gestión de Gastos',     icon: 'mdi-receipt-text-outline', ruta: '/contabilidad/procesos/gastos' },
+      { label: 'Reporte de Gastos',     icon: 'mdi-chart-bar',            ruta: '/contabilidad/reportes/gastos' },
+      { label: 'Estado de Resultados',  icon: 'mdi-file-chart-outline',   pronto: true },
+    ]
+  },
+  {
+    nombre: 'TESORERÍA',
+    icon:   'mdi-bank-outline',
+    color:  '#8b5cf6',
+    items: [
+      { label: 'Importar Ventas',       icon: 'mdi-storefront-outline',   ruta: '/tesoreria/procesos/importar-ventas' },
+      { label: 'Movimiento Bancario',   icon: 'mdi-bank-transfer',        ruta: '/tesoreria/procesos/movimientos-bancarios' },
+      { label: 'Saldo Bancario',        icon: 'mdi-chart-timeline-variant', ruta: '/tesoreria/reportes/movimiento-cuentas' },
+    ]
+  },
+  {
+    nombre: 'ALMACÉN',
+    icon:   'mdi-warehouse',
+    color:  '#06b6d4',
+    items: [
+      { label: 'Gestión de Inventario', icon: 'mdi-package-variant',      ruta: '/almacen/procesos/gestion-inventario' },
+      { label: 'Reporte Kardex',        icon: 'mdi-clipboard-list-outline', ruta: '/almacen/reportes/kardex' },
+      { label: 'Órdenes de Compra',     icon: 'mdi-cart-outline',         ruta: '/almacen/procesos/ordenes-compra' },
+    ]
+  },
+  {
+    nombre: 'NÓMINA',
+    icon:   'mdi-account-group-outline',
+    color:  '#f59e0b',
+    items: [
+      { label: 'Empleados',             icon: 'mdi-badge-account-outline', pronto: true },
+      { label: 'Liquidación de Nómina', icon: 'mdi-cash-multiple',         pronto: true },
+      { label: 'Recibos de Pago',       icon: 'mdi-file-sign',             pronto: true },
+    ]
+  },
 ]
 
 function ir(ruta) {
@@ -494,19 +531,60 @@ function fmtFecha(f) {
   padding: 20px;
 }
 
-.dash-mod-grid {
+.dash-grupos {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Encabezado de cada grupo */
+.dgrupo-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.dgrupo-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--gc) 14%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dgrupo-nombre {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--gc);
+  white-space: nowrap;
+}
+
+.dgrupo-line {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--gc) 20%, transparent);
+  border-radius: 1px;
+}
+
+/* 3 tiles por fila */
+.dgrupo-tiles {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
-@media (max-width: 700px) { .dash-mod-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .dgrupo-tiles { grid-template-columns: 1fr; } }
 
 .dmod {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 12px 12px 10px;
+  padding: 11px 12px;
   border-radius: 10px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.07);
   cursor: pointer;
@@ -527,18 +605,27 @@ function fmtFecha(f) {
   transition: opacity 0.18s;
 }
 
-.dmod:hover {
+.dmod:not(.dmod--pronto):hover {
   border-color: var(--mc);
   background: rgba(var(--v-theme-on-surface), 0.02);
   transform: translateX(2px);
 }
 
-.dmod:hover::before { opacity: 1; }
-.dmod:hover .dmod-arrow { opacity: 1; color: var(--mc); }
+.dmod:not(.dmod--pronto):hover::before { opacity: 1; }
+.dmod:not(.dmod--pronto):hover .dmod-arrow { opacity: 1; }
+.dmod:not(.dmod--pronto):hover .dmod-icon-wrap {
+  background: color-mix(in srgb, var(--mc) 14%, transparent);
+}
+
+/* Tile "próximamente" */
+.dmod--pronto {
+  cursor: default;
+  opacity: 0.45;
+}
 
 .dmod-icon-wrap {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 9px;
   display: flex;
   align-items: center;
@@ -548,21 +635,7 @@ function fmtFecha(f) {
   transition: background 0.18s;
 }
 
-.dmod:hover .dmod-icon-wrap {
-  background: color-mix(in srgb, var(--mc) 15%, transparent);
-}
-
 .dmod-body { flex: 1; min-width: 0; }
-
-.dmod-grupo {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  color: rgba(var(--v-theme-on-surface), 0.35);
-  text-transform: uppercase;
-  line-height: 1;
-  margin-bottom: 3px;
-}
 
 .dmod-label {
   font-size: 12px;
@@ -573,9 +646,18 @@ function fmtFecha(f) {
   text-overflow: ellipsis;
 }
 
+.dmod-pronto-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  margin-top: 2px;
+}
+
 .dmod-arrow {
   opacity: 0;
   flex-shrink: 0;
+  color: var(--mc);
   transition: opacity 0.18s;
 }
 
