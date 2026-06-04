@@ -173,6 +173,10 @@
             <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
             <div class="drop-loaded-name">{{ resumenFileName }}</div>
             <div class="drop-loaded-sub">{{ resumen.periodo }}</div>
+            <div v-if="resumen.ubicacion" class="drop-loaded-loc">
+              <v-icon size="11" color="#06b6d4">mdi-map-marker-outline</v-icon>
+              {{ resumen.ubicacion }}
+            </div>
             <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar('resumen')">
               <v-icon size="14">mdi-close</v-icon> Quitar
             </v-btn>
@@ -201,6 +205,10 @@
             <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
             <div class="drop-loaded-name">{{ articulosFileName }}</div>
             <div class="drop-loaded-sub">{{ articulos.items.length }} artículos · {{ articulos.modificadores.length }} modificadores</div>
+            <div v-if="articulos.ubicacion" class="drop-loaded-loc">
+              <v-icon size="11" color="#06b6d4">mdi-map-marker-outline</v-icon>
+              {{ articulos.ubicacion }}
+            </div>
             <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar('articulos')">
               <v-icon size="14">mdi-close</v-icon> Quitar
             </v-btn>
@@ -789,6 +797,16 @@
           </v-btn>
         </div>
 
+        <!-- Advertencia: ubicación del CSV vs centro de costo seleccionado -->
+        <div v-if="ubicacionMismatch" class="rs-loc-warn">
+          <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
+          <div>
+            <strong>Verificar centro de costo:</strong>
+            el archivo dice <em>"{{ resumen?.ubicacion }}"</em>
+            pero el CCosto seleccionado es <em>"{{ ccostos.find(c => c.codigo === configCcosto)?.nombre }}"</em>.
+          </div>
+        </div>
+
         <!-- Error de configuración o de API -->
         <div v-if="saveResumenError" class="iv-error" style="margin:16px 16px 0; border-radius:8px">
           <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
@@ -1168,6 +1186,16 @@ import { useAuthStore } from '../../stores/auth'
 // ─── Auth ─────────────────────────────────────────────────────
 const authStore   = useAuthStore()
 const empresaCodigo = computed(() => authStore.empresa || authStore.user?.empresa || '')
+
+// Detecta si el nombre de ubicación del CSV no coincide con el CCosto seleccionado
+const ubicacionMismatch = computed(() => {
+  if (!resumen.value?.ubicacion || !configCcosto.value) return false
+  const ccObj = ccostos.value.find(c => c.codigo === configCcosto.value)
+  if (!ccObj) return false
+  const normalize = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return !normalize(ccObj.nombre).includes(normalize(resumen.value.ubicacion)) &&
+         !normalize(resumen.value.ubicacion).includes(normalize(ccObj.nombre))
+})
 
 // ─── Config importación ───────────────────────────────────────
 const configFecha      = ref(new Date().toISOString().slice(0, 10))  // hoy por defecto
@@ -2146,6 +2174,32 @@ function limpiar(type) {
 .drop-loaded { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .drop-loaded-name { font-size: 13px; font-weight: 600; color: #10b981; word-break: break-all; }
 .drop-loaded-sub  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.drop-loaded-loc {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #06b6d4;
+  background: rgba(6,182,212,0.08);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Advertencia de mismatch en el diálogo */
+.rs-loc-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.25);
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), 0.75);
+  line-height: 1.5;
+}
 
 /* ── Error ─────────────────────────────────────────── */
 .iv-error {
