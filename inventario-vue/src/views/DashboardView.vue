@@ -62,6 +62,44 @@
           </div>
         </div>
 
+        <!-- Ventas del mes -->
+        <div class="dkpi">
+          <div class="dkpi-accent" style="background:#8b5cf6"></div>
+          <div class="dkpi-icon-wrap" style="background:rgba(139,92,246,0.12)">
+            <v-icon size="22" color="#8b5cf6">mdi-storefront-outline</v-icon>
+          </div>
+          <div class="dkpi-body">
+            <div class="dkpi-label">Ventas del Mes</div>
+            <div class="dkpi-value" style="color:#8b5cf6">
+              <span v-if="cargando" class="dkpi-skel"></span>
+              <span v-else>{{ fmt(resumen?.ventasMes?.total || 0) }}</span>
+            </div>
+            <div class="dkpi-sub">
+              <v-icon size="11" color="#94a3b8">mdi-calendar-month-outline</v-icon>
+              {{ resumen?.ventasMes?.cantidad || 0 }} períodos importados
+            </div>
+          </div>
+        </div>
+
+        <!-- Facturas pendientes -->
+        <div class="dkpi" style="cursor:pointer" @click="ir('/tesoreria/procesos/facturas-compra')">
+          <div class="dkpi-accent" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#f59e0b' : '#94a3b8' }"></div>
+          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? 'rgba(245,158,11,0.12)' : 'rgba(148,163,184,0.1)' }">
+            <v-icon size="22" :color="(resumen?.facturasPend?.cantidad || 0) > 0 ? '#f59e0b' : '#94a3b8'">mdi-file-clock-outline</v-icon>
+          </div>
+          <div class="dkpi-body">
+            <div class="dkpi-label">Facturas Pendientes</div>
+            <div class="dkpi-value" :style="{ color: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#f59e0b' : '#94a3b8' }">
+              <span v-if="cargando" class="dkpi-skel"></span>
+              <span v-else>{{ resumen?.facturasPend?.cantidad || 0 }}</span>
+            </div>
+            <div class="dkpi-sub">
+              <v-icon size="11" color="#94a3b8">mdi-currency-usd</v-icon>
+              {{ fmt(resumen?.facturasPend?.valor || 0) }} por cobrar
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ══════════════════════════════════════════════════════

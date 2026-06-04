@@ -5517,7 +5517,8 @@ app.get('/api/dashboard/resumen', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
-        const [gastosRes, saldoRes, ultimosGastosRes] = await Promise.all([
+        const [gastosRes, saldoRes, ventasRes, facturasRes, ultimosGastosRes] = await Promise.all([
+            // Gastos del mes (con proveedor)
             pool.query(
                 `SELECT COUNT(*) AS cant, COALESCE(SUM(total), 0) AS total
                  FROM gastos
@@ -5526,12 +5527,31 @@ app.get('/api/dashboard/resumen', async (req, res) => {
                    AND proveedor IS NOT NULL AND proveedor <> ''`,
                 [empresa]
             ),
+            // Saldo bancario total acumulado
             pool.query(
                 `SELECT COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo
-                 FROM moviban
-                 WHERE empresa = $1`,
+                 FROM moviban WHERE empresa = $1`,
                 [empresa]
             ),
+            // Ventas del mes (tabla ventas, solo empresa, sin filtro de ccosto)
+            pool.query(
+                `SELECT COALESCE(SUM(ventas_brutas), 0) AS total,
+                        COUNT(*) AS cant
+                 FROM ventas
+                 WHERE empresa = $1
+                   AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)`,
+                [empresa]
+            ),
+            // Facturas pendientes/por verificar (cliente = empresa)
+            pool.query(
+                `SELECT COUNT(*) AS cantidad,
+                        COALESCE(SUM(total - COALESCE(valor_pagado, 0)), 0) AS valor
+                 FROM factura_venta
+                 WHERE cliente = $1
+                   AND estado IN ('PENDIENTE', 'POR VERIFICAR')`,
+                [empresa]
+            ),
+            // Últimos 6 gastos
             pool.query(
                 `SELECT g.codigo, g.fecha::text, g.concepto, g.total, g.estado,
                         COALESCE(p.nombre, g.proveedor) AS proveedor_nombre
@@ -5545,8 +5565,10 @@ app.get('/api/dashboard/resumen', async (req, res) => {
         res.json({
             success: true,
             data: {
-                gastos:        { total: parseFloat(gastosRes.rows[0].total), cantidad: parseInt(gastosRes.rows[0].cant) },
+                gastos:        { total: parseFloat(gastosRes.rows[0].total),   cantidad: parseInt(gastosRes.rows[0].cant) },
                 saldoBancario: parseFloat(saldoRes.rows[0].saldo || 0),
+                ventasMes:     { total: parseFloat(ventasRes.rows[0].total),   cantidad: parseInt(ventasRes.rows[0].cant) },
+                facturasPend:  { cantidad: parseInt(facturasRes.rows[0].cantidad), valor: parseFloat(facturasRes.rows[0].valor) },
                 ultimosGastos: ultimosGastosRes.rows
             }
         });
