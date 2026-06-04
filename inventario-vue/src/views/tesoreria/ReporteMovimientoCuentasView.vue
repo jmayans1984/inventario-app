@@ -191,21 +191,21 @@
             </div>
           </div>
 
-          <!-- 4. Saldo Neto del período -->
-          <div class="kpi-card" :class="datos.saldoNeto >= 0 ? 'kpi-saldo-pos' : 'kpi-saldo-neg'">
+          <!-- 4. Saldo Final = anterior + ingresos - egresos -->
+          <div class="kpi-card" :class="(datos.saldoAnterior + datos.saldoNeto) >= 0 ? 'kpi-saldo-pos' : 'kpi-saldo-neg'">
             <div class="kpi-deco"></div>
             <div class="kpi-inner">
               <div class="kpi-top">
-                <div class="kpi-icon-wrap" :class="datos.saldoNeto >= 0 ? 'kpi-icon-blue' : 'kpi-icon-orange'">
-                  <v-icon size="20" color="white">{{ datos.saldoNeto >= 0 ? 'mdi-scale-balance' : 'mdi-alert-outline' }}</v-icon>
+                <div class="kpi-icon-wrap" :class="(datos.saldoAnterior + datos.saldoNeto) >= 0 ? 'kpi-icon-blue' : 'kpi-icon-orange'">
+                  <v-icon size="20" color="white">{{ (datos.saldoAnterior + datos.saldoNeto) >= 0 ? 'mdi-scale-balance' : 'mdi-alert-outline' }}</v-icon>
                 </div>
-                <span class="kpi-badge" :class="datos.saldoNeto >= 0 ? 'kpi-badge-blue' : 'kpi-badge-orange'">
-                  <v-icon size="11">mdi-calculator</v-icon> SALDO NETO
+                <span class="kpi-badge" :class="(datos.saldoAnterior + datos.saldoNeto) >= 0 ? 'kpi-badge-blue' : 'kpi-badge-orange'">
+                  <v-icon size="11">mdi-calculator</v-icon> SALDO FINAL
                 </span>
               </div>
-              <div class="kpi-value" :class="datos.saldoNeto >= 0 ? 'kpi-val-blue' : 'kpi-val-orange'">{{ fmt(datos.saldoNeto) }}</div>
-              <div class="kpi-label">Saldo del Período</div>
-              <div class="kpi-sub">Ingresos − Egresos</div>
+              <div class="kpi-value" :class="(datos.saldoAnterior + datos.saldoNeto) >= 0 ? 'kpi-val-blue' : 'kpi-val-orange'">{{ fmt(datos.saldoAnterior + datos.saldoNeto) }}</div>
+              <div class="kpi-label">Saldo Final</div>
+              <div class="kpi-sub">Anterior + Ing − Egr</div>
             </div>
           </div>
 
