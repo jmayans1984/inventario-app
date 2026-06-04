@@ -1162,6 +1162,44 @@
       </v-card>
     </v-dialog>
 
+    <!-- ⚠️ POPUP: Ubicaciones distintas entre archivos -->
+    <v-dialog v-model="dlgUbicDiferente" max-width="420">
+      <v-card rounded="lg">
+        <v-card-text class="pa-6">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(245,158,11,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <v-icon size="24" color="#f59e0b">mdi-alert-outline</v-icon>
+            </div>
+            <div>
+              <div style="font-size:15px;font-weight:700;color:rgb(var(--v-theme-on-surface))">Centros de costo distintos</div>
+              <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5);margin-top:2px">Los dos archivos tienen ubicaciones diferentes</div>
+            </div>
+          </div>
+          <div style="background:rgba(var(--v-theme-on-surface),0.04);border-radius:10px;padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <v-icon size="13" color="#06b6d4">mdi-file-chart-outline</v-icon>
+              <span style="color:rgba(var(--v-theme-on-surface),0.55);min-width:80px">Resumen:</span>
+              <strong>{{ resumen?.ubicacion }}</strong>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <v-icon size="13" color="#8b5cf6">mdi-package-variant-closed</v-icon>
+              <span style="color:rgba(var(--v-theme-on-surface),0.55);min-width:80px">Artículos:</span>
+              <strong>{{ articulos?.ubicacion }}</strong>
+            </div>
+          </div>
+          <p style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5);margin-top:14px;margin-bottom:0">
+            Verifica que estés cargando los archivos correctos para el mismo local antes de continuar.
+          </p>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn color="#f59e0b" variant="flat" @click="dlgUbicDiferente = false">Entendido</v-btn>
+          <v-spacer />
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar de confirmación -->
     <v-snackbar
       v-model="snackbarSuccess"
@@ -1288,6 +1326,17 @@ function fmtDec(val) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(parseFloat(val || 0))
+}
+
+// ─── Aviso de ubicación distinta entre archivos ───────────────
+const dlgUbicDiferente = ref(false)
+
+function verificarUbicaciones() {
+  if (!resumen.value?.ubicacion || !articulos.value?.ubicacion) return
+  const norm = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  if (norm(resumen.value.ubicacion) !== norm(articulos.value.ubicacion)) {
+    dlgUbicDiferente.value = true
+  }
 }
 
 // ─── Guardar Resumen en Contabilidad ─────────────────────────
@@ -2074,10 +2123,12 @@ async function processFile(file, forcedType) {
       resumenFileName.value = file.name
       resumen.value = parseResumen(buffer, file.name)
       activeTab.value = 'resumen'
+      verificarUbicaciones()
     } else {
       articulosFileName.value = file.name
       articulos.value = parseArticulos(buffer, file.name)
       activeTab.value = 'articulos'
+      verificarUbicaciones()
       await enrichWithRecetas()
       await fetchMappings()
       await calcularConsumo()
