@@ -81,21 +81,21 @@
           </div>
         </div>
 
-        <!-- Facturas pendientes -->
+        <!-- Facturas pendientes (por pagar al proveedor) -->
         <div class="dkpi" style="cursor:pointer" @click="ir('/tesoreria/procesos/facturas-compra')">
-          <div class="dkpi-accent" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#f59e0b' : '#94a3b8' }"></div>
-          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? 'rgba(245,158,11,0.12)' : 'rgba(148,163,184,0.1)' }">
-            <v-icon size="22" :color="(resumen?.facturasPend?.cantidad || 0) > 0 ? '#f59e0b' : '#94a3b8'">mdi-file-clock-outline</v-icon>
+          <div class="dkpi-accent" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#ef4444' : '#94a3b8' }"></div>
+          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(148,163,184,0.1)' }">
+            <v-icon size="22" :color="(resumen?.facturasPend?.cantidad || 0) > 0 ? '#ef4444' : '#94a3b8'">mdi-file-clock-outline</v-icon>
           </div>
           <div class="dkpi-body">
-            <div class="dkpi-label">Facturas Pendientes</div>
-            <div class="dkpi-value" :style="{ color: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#f59e0b' : '#94a3b8' }">
+            <div class="dkpi-label">Facturas por Pagar</div>
+            <div class="dkpi-value" :style="{ color: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#ef4444' : '#94a3b8' }">
               <span v-if="cargando" class="dkpi-skel"></span>
               <span v-else>{{ resumen?.facturasPend?.cantidad || 0 }}</span>
             </div>
             <div class="dkpi-sub">
               <v-icon size="11" color="#94a3b8">mdi-currency-usd</v-icon>
-              {{ fmt(resumen?.facturasPend?.valor || 0) }} por cobrar
+              {{ fmt(resumen?.facturasPend?.valor || 0) }} pendiente
             </div>
           </div>
         </div>
@@ -395,11 +395,12 @@ function fmtFecha(f) {
 /* ══ KPI CARDS ═══════════════════════════════════════════════ */
 .dash-kpis {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
 
-@media (max-width: 540px) { .dash-kpis { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .dash-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px)  { .dash-kpis { grid-template-columns: 1fr; } }
 
 .dkpi {
   background: rgb(var(--v-theme-surface));
