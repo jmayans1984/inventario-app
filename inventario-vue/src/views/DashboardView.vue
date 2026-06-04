@@ -41,10 +41,10 @@
               {{ resumen?.gastos?.cantidad || 0 }} registros · día {{ resumen?.gastos?.maxDia || 0 }}
             </div>
             <div v-if="!cargando && resumen?.gastos?.variacion != null" class="dkpi-trend">
-              <v-icon size="13" :color="resumen.gastos.variacion <= 0 ? '#10b981' : '#ef4444'">
-                {{ resumen.gastos.variacion <= 0 ? 'mdi-trending-down' : 'mdi-trending-up' }}
+              <v-icon size="13" :color="resumen.gastos.variacion >= 0 ? '#10b981' : '#ef4444'">
+                {{ resumen.gastos.variacion >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
               </v-icon>
-              <span :style="{ color: resumen.gastos.variacion <= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
+              <span :style="{ color: resumen.gastos.variacion >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
                 {{ resumen.gastos.variacion >= 0 ? '+' : '' }}{{ resumen.gastos.variacion.toFixed(1) }}%
               </span>
               <span style="font-size:10px; color:rgba(var(--v-theme-on-surface),0.4)">vs día {{ resumen.gastos.maxDia }} mes ant.</span>
