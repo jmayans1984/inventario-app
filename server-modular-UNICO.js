@@ -5517,53 +5517,59 @@ app.get('/api/dashboard/resumen', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
-        const [gastosRes, saldoRes, ventasRes, facturasRes, ultimosGastosRes] = await Promise.all([
-            // Gastos del mes (con proveedor)
+        // Paso 1: obtener ventas del mes + max_dia importado (base para todas las comparaciones)
+        const ventasRes = await pool.query(
+            `WITH mes_actual AS (
+                SELECT COALESCE(SUM(ventas_brutas), 0) AS total,
+                       COUNT(*) AS cant,
+                       COALESCE(MAX(EXTRACT(DAY FROM fecha::date)), EXTRACT(DAY FROM CURRENT_DATE)) AS max_dia
+                FROM ventas
+                WHERE empresa = $1
+                  AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
+             ),
+             mes_anterior AS (
+                SELECT COALESCE(SUM(ventas_brutas), 0) AS total
+                FROM ventas
+                WHERE empresa = $1
+                  AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+                  AND EXTRACT(DAY FROM fecha::date) <= (SELECT max_dia FROM mes_actual)
+             )
+             SELECT (SELECT total   FROM mes_actual)  AS total_actual,
+                    (SELECT cant    FROM mes_actual)   AS cant_actual,
+                    (SELECT max_dia FROM mes_actual)   AS max_dia,
+                    (SELECT total   FROM mes_anterior) AS total_anterior`,
+            [empresa]
+        );
+        const maxDia = parseInt(ventasRes.rows[0].max_dia || 1);
+
+        // Paso 2: resto de queries usando maxDia como referencia de período
+        const [gastosRes, saldoRes, facturasRes, ultimosGastosRes] = await Promise.all([
+            // Gastos del mes actual + comparación mes anterior (mismos días)
             pool.query(
-                `SELECT COUNT(*) AS cant, COALESCE(SUM(total), 0) AS total
+                `SELECT
+                    COALESCE(SUM(CASE WHEN DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE) THEN total ELSE 0 END), 0) AS total_actual,
+                    COUNT(CASE WHEN DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) AS cant_actual,
+                    COALESCE(SUM(CASE WHEN DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+                                      AND EXTRACT(DAY FROM fecha::date) <= $2 THEN total ELSE 0 END), 0) AS total_anterior
                  FROM gastos
-                 WHERE empresa = $1
-                   AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
-                   AND proveedor IS NOT NULL AND proveedor <> ''`,
-                [empresa]
+                 WHERE empresa = $1 AND proveedor IS NOT NULL AND proveedor <> ''`,
+                [empresa, maxDia]
             ),
-            // Saldo bancario total acumulado
+            // Saldo bancario total acumulado + saldo al mismo día del mes anterior
             pool.query(
-                `SELECT COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo
+                `SELECT
+                    COALESCE(SUM(ingreso), 0) - COALESCE(SUM(egreso), 0) AS saldo_actual,
+                    COALESCE(SUM(CASE WHEN fecha::date <= (DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + ($2 - 1) * INTERVAL '1 day')::date THEN ingreso ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN fecha::date <= (DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') + ($2 - 1) * INTERVAL '1 day')::date THEN egreso  ELSE 0 END), 0) AS saldo_anterior
                  FROM moviban WHERE empresa = $1`,
-                [empresa]
-            ),
-            // Ventas del mes actual + comparación con mismo período del mes anterior
-            pool.query(
-                `WITH mes_actual AS (
-                    SELECT COALESCE(SUM(ventas_brutas), 0) AS total,
-                           COUNT(*) AS cant,
-                           COALESCE(MAX(EXTRACT(DAY FROM fecha::date)), EXTRACT(DAY FROM CURRENT_DATE)) AS max_dia
-                    FROM ventas
-                    WHERE empresa = $1
-                      AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
-                 ),
-                 mes_anterior AS (
-                    SELECT COALESCE(SUM(ventas_brutas), 0) AS total
-                    FROM ventas
-                    WHERE empresa = $1
-                      AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
-                      AND EXTRACT(DAY FROM fecha::date) <= (SELECT max_dia FROM mes_actual)
-                 )
-                 SELECT
-                    (SELECT total   FROM mes_actual)   AS total_actual,
-                    (SELECT cant    FROM mes_actual)    AS cant_actual,
-                    (SELECT max_dia FROM mes_actual)    AS max_dia,
-                    (SELECT total   FROM mes_anterior)  AS total_anterior`,
-                [empresa]
+                [empresa, maxDia]
             ),
             // Facturas pendientes/por verificar (cliente = empresa)
             pool.query(
                 `SELECT COUNT(*) AS cantidad,
                         COALESCE(SUM(total - COALESCE(valor_pagado, 0)), 0) AS valor
                  FROM factura_venta
-                 WHERE cliente = $1
-                   AND estado IN ('PENDIENTE', 'POR VERIFICAR')`,
+                 WHERE cliente = $1 AND estado IN ('PENDIENTE', 'POR VERIFICAR')`,
                 [empresa]
             ),
             // Últimos 6 gastos
@@ -5577,19 +5583,33 @@ app.get('/api/dashboard/resumen', async (req, res) => {
                 [empresa]
             )
         ]);
+
+        // Calcular variaciones
+        const calcVar = (actual, anterior) => anterior > 0 ? ((actual - anterior) / anterior * 100) : null;
+
+        const vActual   = parseFloat(ventasRes.rows[0].total_actual   || 0);
+        const vAnterior = parseFloat(ventasRes.rows[0].total_anterior || 0);
+        const gActual   = parseFloat(gastosRes.rows[0].total_actual   || 0);
+        const gAnterior = parseFloat(gastosRes.rows[0].total_anterior || 0);
+        const sActual   = parseFloat(saldoRes.rows[0].saldo_actual    || 0);
+        const sAnterior = parseFloat(saldoRes.rows[0].saldo_anterior  || 0);
+
         res.json({
             success: true,
             data: {
-                gastos:        { total: parseFloat(gastosRes.rows[0].total),   cantidad: parseInt(gastosRes.rows[0].cant) },
-                saldoBancario: parseFloat(saldoRes.rows[0].saldo || 0),
-                ventasMes: (() => {
-                    const actual   = parseFloat(ventasRes.rows[0].total_actual   || 0);
-                    const anterior = parseFloat(ventasRes.rows[0].total_anterior || 0);
-                    const maxDia   = parseInt(ventasRes.rows[0].max_dia          || 0);
-                    const variacion = anterior > 0 ? ((actual - anterior) / anterior * 100) : null;
-                    return { total: actual, cantidad: parseInt(ventasRes.rows[0].cant_actual || 0), totalAnterior: anterior, variacion, maxDia };
-                })(),
-                facturasPend:  { cantidad: parseInt(facturasRes.rows[0].cantidad), valor: parseFloat(facturasRes.rows[0].valor) },
+                gastos: {
+                    total: gActual, cantidad: parseInt(gastosRes.rows[0].cant_actual || 0),
+                    totalAnterior: gAnterior, variacion: calcVar(gActual, gAnterior), maxDia
+                },
+                saldoBancario: {
+                    total: sActual,
+                    totalAnterior: sAnterior, variacion: calcVar(sActual, sAnterior), maxDia
+                },
+                ventasMes: {
+                    total: vActual, cantidad: parseInt(ventasRes.rows[0].cant_actual || 0),
+                    totalAnterior: vAnterior, variacion: calcVar(vActual, vAnterior), maxDia
+                },
+                facturasPend: { cantidad: parseInt(facturasRes.rows[0].cantidad), valor: parseFloat(facturasRes.rows[0].valor) },
                 ultimosGastos: ultimosGastosRes.rows
             }
         });

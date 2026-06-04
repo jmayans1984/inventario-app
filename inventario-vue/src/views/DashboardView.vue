@@ -38,26 +38,52 @@
             </div>
             <div class="dkpi-sub">
               <v-icon size="11" color="#94a3b8">mdi-file-document-outline</v-icon>
-              {{ resumen?.gastos?.cantidad || 0 }} registros este mes
+              {{ resumen?.gastos?.cantidad || 0 }} registros · día {{ resumen?.gastos?.maxDia || 0 }}
+            </div>
+            <div v-if="!cargando && resumen?.gastos?.variacion != null" class="dkpi-trend">
+              <v-icon size="13" :color="resumen.gastos.variacion <= 0 ? '#10b981' : '#ef4444'">
+                {{ resumen.gastos.variacion <= 0 ? 'mdi-trending-down' : 'mdi-trending-up' }}
+              </v-icon>
+              <span :style="{ color: resumen.gastos.variacion <= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
+                {{ resumen.gastos.variacion >= 0 ? '+' : '' }}{{ resumen.gastos.variacion.toFixed(1) }}%
+              </span>
+              <span style="font-size:10px; color:rgba(var(--v-theme-on-surface),0.4)">vs día {{ resumen.gastos.maxDia }} mes ant.</span>
+            </div>
+            <div v-else-if="!cargando && resumen?.gastos?.variacion == null" class="dkpi-sub" style="margin-top:4px">
+              <v-icon size="11" color="#94a3b8">mdi-minus</v-icon>
+              Sin datos mes anterior
             </div>
           </div>
         </div>
 
         <!-- Saldo bancario total -->
         <div class="dkpi">
-          <div class="dkpi-accent" :style="{ background: (resumen?.saldoBancario || 0) >= 0 ? '#06b6d4' : '#ef4444' }"></div>
-          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.saldoBancario || 0) >= 0 ? 'rgba(6,182,212,0.12)' : 'rgba(239,68,68,0.12)' }">
-            <v-icon size="22" :color="(resumen?.saldoBancario || 0) >= 0 ? '#06b6d4' : '#ef4444'">mdi-bank-outline</v-icon>
+          <div class="dkpi-accent" :style="{ background: (resumen?.saldoBancario?.total || 0) >= 0 ? '#06b6d4' : '#ef4444' }"></div>
+          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.saldoBancario?.total || 0) >= 0 ? 'rgba(6,182,212,0.12)' : 'rgba(239,68,68,0.12)' }">
+            <v-icon size="22" :color="(resumen?.saldoBancario?.total || 0) >= 0 ? '#06b6d4' : '#ef4444'">mdi-bank-outline</v-icon>
           </div>
           <div class="dkpi-body">
             <div class="dkpi-label">Saldo Bancario Total</div>
-            <div class="dkpi-value" :style="{ color: (resumen?.saldoBancario || 0) >= 0 ? '#06b6d4' : '#ef4444' }">
+            <div class="dkpi-value" :style="{ color: (resumen?.saldoBancario?.total || 0) >= 0 ? '#06b6d4' : '#ef4444' }">
               <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ fmt(resumen?.saldoBancario || 0) }}</span>
+              <span v-else>{{ fmt(resumen?.saldoBancario?.total || 0) }}</span>
             </div>
             <div class="dkpi-sub">
               <v-icon size="11" color="#94a3b8">mdi-swap-horizontal</v-icon>
               Ingresos − egresos acumulados
+            </div>
+            <div v-if="!cargando && resumen?.saldoBancario?.variacion != null" class="dkpi-trend">
+              <v-icon size="13" :color="resumen.saldoBancario.variacion >= 0 ? '#10b981' : '#ef4444'">
+                {{ resumen.saldoBancario.variacion >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
+              </v-icon>
+              <span :style="{ color: resumen.saldoBancario.variacion >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
+                {{ resumen.saldoBancario.variacion >= 0 ? '+' : '' }}{{ resumen.saldoBancario.variacion.toFixed(1) }}%
+              </span>
+              <span style="font-size:10px; color:rgba(var(--v-theme-on-surface),0.4)">vs día {{ resumen.saldoBancario.maxDia }} mes ant.</span>
+            </div>
+            <div v-else-if="!cargando && resumen?.saldoBancario?.variacion == null" class="dkpi-sub" style="margin-top:4px">
+              <v-icon size="11" color="#94a3b8">mdi-minus</v-icon>
+              Sin datos mes anterior
             </div>
           </div>
         </div>
