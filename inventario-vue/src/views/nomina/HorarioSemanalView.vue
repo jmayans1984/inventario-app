@@ -61,22 +61,22 @@
             </div>
             <div v-for="d in DIAS" :key="d.offset" class="sg-turno-cell"
                  @click="abrirEditar(emp, d.offset)">
-              <template v-if="getTurno(emp.id, semanaActual.semana_inicio, d.offset)">
-                <div class="sg-turno-horas">
-                  {{ getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.real_inicio?.slice(0,5) || getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.prog_inicio?.slice(0,5) || '—' }}
-                  –
-                  {{ getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.real_fin?.slice(0,5) || getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.prog_fin?.slice(0,5) || '—' }}
-                </div>
-                <div class="sg-turno-total" v-if="!getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.es_dia_libre"
-                     :class="getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.ajustado ? 'ajustado':''">
-                  {{ (getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.real_horas ?? getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.prog_horas ?? 0).toFixed(1) }}h
-                </div>
-                <div class="sg-libre" v-if="getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.es_dia_libre">
-                  {{ getTurno(emp.id, semanaActual.semana_inicio, d.offset)?.ausencia_tipo || 'LIBRE' }}
-                </div>
-              </template>
-              <template v-else>
-                <div class="sg-sin-turno">+</div>
+              <template v-for="t in [getTurno(emp.id, semanaActual.semana_inicio, d.offset)]" :key="0">
+                <template v-if="t">
+                  <div v-if="!t.es_dia_libre">
+                    <div class="sg-turno-horas">
+                      {{ (t.real_inicio || t.prog_inicio || '—').slice(0,5) }}
+                      – {{ (t.real_fin || t.prog_fin || '—').slice(0,5) }}
+                    </div>
+                    <div class="sg-turno-total" :class="t.ajustado ? 'ajustado':''">
+                      {{ fmtHoras(t.real_horas ?? t.prog_horas) }}h
+                    </div>
+                  </div>
+                  <div v-else class="sg-libre">{{ t.ausencia_tipo || 'LIBRE' }}</div>
+                </template>
+                <template v-else>
+                  <div class="sg-sin-turno">+</div>
+                </template>
               </template>
             </div>
           </template>
@@ -103,7 +103,7 @@
 
       <!-- Version badge -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.3);margin-top:16px">
-        v1.6.0 | Empleados activos: {{ empleadosActivos.length }} | Turno abierto: {{ turnoEdit ? 'Sí' : 'No' }}
+        v1.7.0 | Empleados activos: {{ empleadosActivos.length }} | Turno abierto: {{ turnoEdit ? 'Sí' : 'No' }}
       </div>
     </div>
 
@@ -281,6 +281,10 @@ function addDays(dateStr, days) {
   } catch {
     return null
   }
+}
+
+function fmtHoras(v) {
+  return parseFloat(v ?? 0).toFixed(1)
 }
 
 function totalHorasEmp(empId) {
