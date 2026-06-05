@@ -103,7 +103,7 @@
 
       <!-- Version badge -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.3);margin-top:16px">
-        v1.7.0 | Empleados activos: {{ empleadosActivos.length }} | Turno abierto: {{ turnoEdit ? 'Sí' : 'No' }}
+        v1.8.0 | Empleados activos: {{ empleadosActivos.length }} | Centro: {{ ccostoSelId || 'TODOS' }}
       </div>
     </div>
 
@@ -229,30 +229,11 @@ const turnoEdit = ref(null)
 const guardandoTurno = ref(false)
 
 const empleadosUnicos = computed(() => {
-  // Si no hay empleados activos cargados, retornar vacío
   if (empleadosActivos.value.length === 0) return []
-
-  // Si NO hay ccosto seleccionado, mostrar TODOS los empleados activos
-  if (!ccostoSelId.value) {
-    return empleadosActivos.value.sort((a,b) => a.apellido.localeCompare(b.apellido))
-  }
-
-  // Si hay ccosto seleccionado:
-  // 1. Primero buscar empleados con turnos en ese ccosto
-  const conTurnos = new Set()
-  detalle.value
-    .filter(d => d.ccosto === ccostoSelId.value)
-    .forEach(d => conTurnos.add(d.empleado_id))
-
-  // 2. Si hay empleados con turnos en este ccosto, mostrar esos
-  if (conTurnos.size > 0) {
-    return empleadosActivos.value
-      .filter(e => conTurnos.has(e.id))
-      .sort((a,b) => a.apellido.localeCompare(b.apellido))
-  }
-
-  // 3. Si NO hay empleados con turnos en este ccosto, mostrar TODOS para agregar
-  return empleadosActivos.value.sort((a,b) => a.apellido.localeCompare(b.apellido))
+  // Siempre mostrar TODOS los empleados activos
+  // El filtro de ccosto solo afecta QUÉ TURNOS se muestran en la grilla,
+  // no qué empleados aparecen en las filas
+  return [...empleadosActivos.value].sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
 
 function getNombreDisplay(emp) {
@@ -266,7 +247,13 @@ function getTurno(empId, semanaInicio, offset) {
   if (!semanaInicio) return null
   const fecha = addDays(semanaInicio, offset)
   if (!fecha) return null
-  return detalle.value.find(d => d.empleado_id === empId && d.fecha?.split('T')[0] === fecha) || null
+  return detalle.value.find(d => {
+    if (d.empleado_id !== empId) return false
+    if (d.fecha?.split('T')[0] !== fecha) return false
+    // Si hay un ccosto seleccionado, filtrar por ese ccosto
+    if (ccostoSelId.value) return d.ccosto === ccostoSelId.value
+    return true
+  }) || null
 }
 
 function addDays(dateStr, days) {
