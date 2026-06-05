@@ -5532,13 +5532,19 @@ app.get('/api/configuracion/cuentas', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
+        const { grupo } = req.query;
+        const params = [empresa];
+        let whereExtra = '';
+        if (grupo) {
+            params.push(grupo);
+            whereExtra = ` AND TRIM(c.grupo) = TRIM($2)`;
+        }
         const result = await pool.query(
-            `SELECT c.codigo, TRIM(c.cuenta) AS cuenta, TRIM(c.grupo) AS grupo, g.nombre AS grupo_nombre
+            `SELECT c.codigo, TRIM(c.cuenta) AS cuenta, TRIM(c.grupo) AS grupo
              FROM cuentas c
-             LEFT JOIN grupo_gastos g ON TRIM(g.codigo) = TRIM(c.grupo)
-             WHERE c.empresa = $1
-             ORDER BY c.grupo, c.cuenta`,
-            [empresa]
+             WHERE c.empresa = $1${whereExtra}
+             ORDER BY c.cuenta`,
+            params
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {
