@@ -36,6 +36,11 @@
           <span>Cargando configuración...</span>
         </div>
 
+        <!-- Debug temporal: cuántas cuentas se cargaron -->
+        <div v-if="!loadingCfg && cuentas.length === 0" class="cfg-err-msg" style="padding:8px 0 12px; font-size:11px">
+          ⚠️ No se cargaron cuentas contables — verifica que la empresa tiene cuentas en la tabla CUENTAS
+        </div>
+
         <div v-else class="cfg-ctas-table">
           <div v-for="row in CFG_ROWS" :key="row.key" class="cfg-cta-row">
             <span class="cfg-cta-label">{{ row.label }}</span>
@@ -255,7 +260,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import MainLayout from '../components/layouts/MainLayout.vue'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -284,11 +289,21 @@ const savingCfg  = ref(false)
 const cfgSaveOk  = ref(false)
 const cfgSaveErr = ref('')
 
+// Mapa grupo → cuentas, computed para reactividad garantizada
+const cuentasPorGrupo = computed(() => {
+  const map = {}
+  for (const c of cuentas.value) {
+    const g = String(c.grupo || '').trim()
+    if (!map[g]) map[g] = []
+    map[g].push(c)
+  }
+  return map
+})
+
 function cuentasFiltradas(key) {
   const g = selGrupo[key]
   if (!g) return []
-  const gTrim = String(g).trim()
-  return cuentas.value.filter(c => String(c.grupo || '').trim() === gTrim)
+  return cuentasPorGrupo.value[String(g).trim()] || []
 }
 
 function onGrupoChange(key) {
@@ -298,16 +313,27 @@ function onGrupoChange(key) {
 async function cargarConfigContable() {
   loadingCfg.value = true
   try {
-    const [gruposRes, cuentasRes, cfgRes] = await Promise.all([
-      api.get('/grupo-gastos'),
+    // 1. Grupos no necesita empresa — siempre funciona
+    const gruposRes = await api.get('/grupo-gastos')
+    grupos.value = gruposRes.data?.data || []
+
+    // 2. Cuentas y config sí necesitan empresa — manejados por separado
+    if (!empresa.value) {
+      console.warn('[Configuracion] empresa vacía al cargar — reintentando con watch')
+      loadingCfg.value = false
+      return
+    }
+
+    const [cuentasRes, cfgRes] = await Promise.all([
       api.get('/configuracion/cuentas', { params: { empresa: empresa.value } }),
       api.get('/config-general',        { params: { empresa: empresa.value } }),
     ])
-    grupos.value  = gruposRes.data?.data  || []
+
     cuentas.value = cuentasRes.data?.data || []
+    console.log('[Configuracion] cuentas cargadas:', cuentas.value.length,
+                'grupos únicos:', [...new Set(cuentas.value.map(c => c.grupo))])
 
     const cfg = cfgRes.data?.data || {}
-    // Pre-seleccionar grupo y cuenta para cada fila
     for (const row of CFG_ROWS) {
       const codigoCuenta = cfg[row.key] ? String(cfg[row.key]).trim() : null
       selCuenta[row.key] = codigoCuenta
@@ -319,11 +345,16 @@ async function cargarConfigContable() {
       }
     }
   } catch (e) {
-    console.error('cargarConfigContable:', e)
+    console.error('[Configuracion] error al cargar:', e)
   } finally {
     loadingCfg.value = false
   }
 }
+
+// Retry si empresa no estaba lista al montar
+watch(empresa, (val) => {
+  if (val && cuentas.value.length === 0) cargarConfigContable()
+}, { immediate: false })
 
 async function guardarConfigContable() {
   savingCfg.value = true
