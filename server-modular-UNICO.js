@@ -8348,7 +8348,7 @@ app.get('/api/nomina/semanas/:id/detalle', async (req, res) => {
         const semana = await pool.query('SELECT * FROM nom_semana WHERE id=$1', [req.params.id]);
         const detalle = await pool.query(
             `SELECT sd.*, e.nombre, e.apellido, e.tipo_empleado, e.es_por_horas,
-                    e.valor_hora, e.ccosto AS ccosto_default,
+                    e.valor_hora, e.ccosto AS ccosto_default, e.empresa_contratista,
                     COALESCE(cc.nombre, sd.ccosto) AS ccosto_nombre
              FROM nom_semana_detalle sd
              JOIN nom_empleados e ON e.id = sd.empleado_id
