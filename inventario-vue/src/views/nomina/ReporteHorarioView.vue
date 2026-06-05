@@ -17,7 +17,7 @@
           </select>
           <v-btn color="#8b5cf6" variant="flat" size="small" :disabled="!semanaActual"
                  @click="imprimirPDF">
-            <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir PDF
+            <v-icon size="14" class="mr-1">mdi-open-in-new</v-icon> Abrir PDF en nueva pestaña
           </v-btn>
         </div>
       </div>
@@ -256,7 +256,105 @@ async function cargarDetalle() {
   detalle.value = r.data.detalle || []
 }
 
-function imprimirPDF() { window.print() }
+function imprimirPDF() {
+  const ventana = window.open('', '_blank')
+  if (!ventana) { alert('Activa los pop-ups para abrir el reporte en nueva pestaña'); return }
+
+  const estilos = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; background: white; color: #111; }
+    .pagina { padding: 24px 20px; page-break-after: always; }
+    .pagina:last-child { page-break-after: auto; }
+    .encabezado { text-align: center; margin-bottom: 14px; }
+    .titulo { font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-bottom: 4px; }
+    .ccosto-nombre { font-size: 14px; font-weight: 800; color: #0088aa; margin-bottom: 3px; text-transform: uppercase; }
+    .periodo { font-size: 11px; color: #666; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
+    th { background: #1e3a5f; color: white; padding: 6px 5px; text-align: center; font-size: 9px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); }
+    th.th-emp { text-align: left; min-width: 130px; padding-left: 8px; }
+    .rh-fecha { font-size: 7px; font-weight: 400; display: block; }
+    td { border: 1px solid #ddd; padding: 5px 4px; vertical-align: middle; text-align: center; }
+    td.td-emp { text-align: left; padding: 6px 8px; min-width: 130px; }
+    .emp-nombre { font-weight: 700; font-size: 10px; }
+    .emp-sub { font-size: 8px; color: #888; margin-top: 1px; }
+    .turno-horas { font-size: 9px; font-weight: 700; color: #006688; line-height: 1.3; }
+    .turno-h { font-size: 8px; color: #888; }
+    .libre { font-size: 8px; color: #aaa; font-style: italic; text-transform: uppercase; }
+    .vacio { font-size: 11px; color: #ccc; }
+    .td-total { font-weight: 800; font-size: 11px; text-align: center; white-space: nowrap; }
+    .ot { display: block; font-size: 7px; background: #fee; color: #c00; padding: 1px 3px; border-radius: 2px; margin-top: 1px; font-weight: 800; }
+    tr.footer-row td { background: #f5f5f5; font-size: 8px; font-weight: 700; color: #555; }
+    tr.footer-row td.td-emp { text-align: left; font-size: 8px; }
+    .pie { font-size: 8px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 6px; margin-top: 6px; }
+    @media print {
+      .pagina { page-break-after: always; }
+      table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      tr.footer-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  `
+
+  const genTurno = (t) => {
+    if (!t) return `<span class="vacio">—</span>`
+    if (t.es_dia_libre) return `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
+    const ini = (t.real_inicio || t.prog_inicio || '').slice(0,5)
+    const fin = (t.real_fin   || t.prog_fin   || '').slice(0,5)
+    const hrs = parseFloat(t.real_horas ?? t.prog_horas ?? 0).toFixed(1)
+    return `<div class="turno-horas">${ini}<br/>${fin}</div><div class="turno-h">${hrs}h</div>`
+  }
+
+  let body = ''
+  ccostosConEmpleados.value.forEach(cc => {
+    const emps = empleadosDelCcosto(cc.codigo)
+    body += `<div class="pagina">
+      <div class="encabezado">
+        <div class="titulo">HORARIO DE TRABAJO</div>
+        <div class="ccosto-nombre">${cc.nombre}</div>
+        <div class="periodo">${fmtFecha(semanaActual.value.semana_inicio)} &mdash; ${fmtFecha(semanaActual.value.semana_fin)}</div>
+      </div>`
+
+    if (emps.length) {
+      body += `<table><thead><tr>
+        <th class="th-emp">EMPLEADO</th>
+        ${DIAS.map(d => `<th>${d.label}<span class="rh-fecha">${fmtDiaMes(semanaActual.value.semana_inicio, d.offset)}</span></th>`).join('')}
+        <th>TOTAL</th></tr></thead><tbody>`
+
+      emps.forEach(emp => {
+        const total = totalHorasEmpCcosto(emp.id, cc.codigo)
+        const isOT  = parseFloat(total) > 40
+        body += `<tr>
+          <td class="td-emp">
+            <div class="emp-nombre">${emp.apellido}, ${emp.nombre}</div>
+            <div class="emp-sub">${emp.empresa_contratista ? emp.empresa_contratista + ' · ' : ''}${emp.tipo_empleado}</div>
+          </td>
+          ${DIAS.map(d => `<td>${genTurno(getTurnoCcosto(emp.id, d.offset, cc.codigo))}</td>`).join('')}
+          <td class="td-total">${total}h${isOT ? '<span class="ot">OT</span>' : ''}</td>
+        </tr>`
+      })
+
+      // Fila de totales por día
+      body += `<tr class="footer-row">
+        <td class="td-emp">TOTAL CENTRO</td>
+        ${DIAS.map(d => `<td>${totalHorasDiaCcosto(d.offset, cc.codigo)}h</td>`).join('')}
+        <td class="td-total">${totalHorasCcosto(cc.codigo)}h</td>
+      </tr>`
+
+      body += `</tbody></table>`
+    } else {
+      body += `<p style="text-align:center;color:#aaa;padding:20px;font-size:11px">Sin empleados asignados a este centro esta semana.</p>`
+    }
+
+    body += `<div class="pie">${cc.nombre} &nbsp;·&nbsp; ${fmtFecha(semanaActual.value.semana_inicio)} al ${fmtFecha(semanaActual.value.semana_fin)} &nbsp;·&nbsp; ${emps.length} empleado(s) &nbsp;·&nbsp; Generado ${new Date().toLocaleDateString('es-US')}</div>
+    </div>`
+  })
+
+  ventana.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Horario de Trabajo — ${fmtFecha(semanaActual.value.semana_inicio)}</title>
+    <style>${estilos}</style></head><body>${body}</body></html>`)
+  ventana.document.close()
+  ventana.focus()
+  // Pequeño delay para que carguen los estilos antes de imprimir
+  setTimeout(() => ventana.print(), 500)
+}
 
 onMounted(cargarSemanas)
 </script>
