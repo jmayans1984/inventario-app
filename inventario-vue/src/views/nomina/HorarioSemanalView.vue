@@ -103,7 +103,7 @@
 
       <!-- Version badge -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.3);margin-top:16px">
-        v1.5.0 | Empleados activos: {{ empleadosActivos.length }} | Turno abierto: {{ turnoEdit ? 'Sí' : 'No' }}
+        v1.6.0 | Empleados activos: {{ empleadosActivos.length }} | Turno abierto: {{ turnoEdit ? 'Sí' : 'No' }}
       </div>
     </div>
 
@@ -272,7 +272,9 @@ function getTurno(empId, semanaInicio, offset) {
 function addDays(dateStr, days) {
   if (!dateStr) return null
   try {
-    const d = new Date(dateStr + 'T00:00:00')
+    // Siempre limpiar la parte de tiempo antes de parsear
+    const dateOnly = String(dateStr).split('T')[0]
+    const d = new Date(dateOnly + 'T00:00:00')
     if (isNaN(d.getTime())) return null
     d.setDate(d.getDate() + days)
     return d.toISOString().split('T')[0]
