@@ -28,6 +28,10 @@
             <v-icon size="14" class="mr-1">mdi-auto-fix</v-icon> Generar desde Plantilla
           </v-btn>
           <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'"
+                 size="small" color="#8b5cf6" variant="flat" :loading="copiando" @click="copiarSemanaAnterior">
+            <v-icon size="14" class="mr-1">mdi-content-copy</v-icon> Copiar Semana Anterior
+          </v-btn>
+          <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'"
                  size="small" color="#f59e0b" variant="flat" @click="publicar">
             <v-icon size="14" class="mr-1">mdi-send</v-icon> Publicar
           </v-btn>
@@ -187,7 +191,7 @@
 
       <!-- Version -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.2);margin-top:4px">
-        v2.3.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
+        v2.4.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
       </div>
     </div>
 
@@ -324,6 +328,7 @@ const empleadosActivos = ref([])
 const ccostos          = ref([])
 const horarioConfigs   = ref([])
 const cargando         = ref(false)
+const copiando         = ref(false)
 
 // empleadosAgregados: { [ccostoId]: [emp, ...] }
 const empleadosAgregados = ref({})
@@ -566,6 +571,19 @@ async function crearSemana() {
     cargarDetalle()
   } catch(e) { alert(e?.response?.data?.error || e.message) }
   finally { creandoSemana.value = false }
+}
+
+async function copiarSemanaAnterior() {
+  if (!semanaSelId.value) return
+  if (!confirm('¿Copiar el horario completo de la semana anterior?\n\nSolo se copiarán los días que aún no tengan turno asignado.')) return
+  copiando.value = true
+  try {
+    const r = await api.post(`/nomina/semanas/${semanaSelId.value}/copiar-anterior`, { empresa: empresa.value })
+    alert(r.data.message || '✅ Semana copiada correctamente')
+    await cargarDetalle()
+  } catch(e) {
+    alert('❌ ' + (e?.response?.data?.error || e.message))
+  } finally { copiando.value = false }
 }
 
 async function generarHorario() {

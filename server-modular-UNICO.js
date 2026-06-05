@@ -8362,6 +8362,91 @@ app.get('/api/nomina/semanas/:id/detalle', async (req, res) => {
 });
 
 // Generar detalle desde plantilla de empleados activos
+// Copiar horario de la semana anterior
+app.post('/api/nomina/semanas/:id/copiar-anterior', async (req, res) => {
+    const { empresa } = req.body;
+    try {
+        // 1. Obtener la semana actual
+        const semana = await pool.query('SELECT * FROM nom_semana WHERE id=$1', [req.params.id]);
+        if (!semana.rows.length) return res.status(404).json({ success: false, error: 'Semana no encontrada' });
+        const s = semana.rows[0];
+
+        // 2. Calcular el inicio de la semana anterior (7 días antes)
+        const inicioActual = String(s.semana_inicio).split('T')[0];
+        const d = new Date(inicioActual + 'T00:00:00');
+        d.setDate(d.getDate() - 7);
+        const inicioPrevio = d.toISOString().split('T')[0];
+
+        // 3. Buscar la semana anterior
+        const semanaPrevia = await pool.query(
+            `SELECT * FROM nom_semana WHERE empresa=$1
+             AND DATE(semana_inicio) = DATE($2::date)`,
+            [empresa, inicioPrevio]
+        );
+
+        if (!semanaPrevia.rows.length) {
+            return res.status(404).json({
+                success: false,
+                error: `No existe la semana del ${inicioPrevio} en el sistema. Créala primero.`
+            });
+        }
+
+        // 4. Obtener todos los turnos de la semana anterior
+        const detallesPrevios = await pool.query(
+            'SELECT * FROM nom_semana_detalle WHERE semana_id=$1 ORDER BY empleado_id, fecha',
+            [semanaPrevia.rows[0].id]
+        );
+
+        if (!detallesPrevios.rows.length) {
+            return res.json({ success: true, copiados: 0, message: 'La semana anterior no tiene turnos programados.' });
+        }
+
+        let copiados = 0;
+        let omitidos = 0;
+
+        for (const det of detallesPrevios.rows) {
+            // Calcular la fecha equivalente en la semana actual (+7 días)
+            const fechaBase = String(det.fecha).split('T')[0];
+            const fd = new Date(fechaBase + 'T00:00:00');
+            fd.setDate(fd.getDate() + 7);
+            const fechaNueva = fd.toISOString().split('T')[0];
+
+            // Verificar que no exista ya en la semana actual
+            const existe = await pool.query(
+                'SELECT id FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3 AND ccosto=$4',
+                [req.params.id, det.empleado_id, fechaNueva, det.ccosto || '']
+            );
+            if (existe.rows.length) { omitidos++; continue; }
+
+            // Usar las horas reales de la semana anterior como programadas para esta semana
+            const progInicio = det.real_inicio || det.prog_inicio;
+            const progFin    = det.real_fin    || det.prog_fin;
+            const progHoras  = det.real_horas  || det.prog_horas;
+
+            await pool.query(
+                `INSERT INTO nom_semana_detalle
+                 (semana_id, empleado_id, fecha, ccosto,
+                  prog_inicio, prog_fin, prog_horas, prog_cruza_medianoche,
+                  real_inicio, real_fin, real_horas,
+                  es_dia_libre, ausencia_tipo, notas)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+                [req.params.id, det.empleado_id, fechaNueva, det.ccosto || '',
+                 progInicio, progFin, progHoras, det.prog_cruza_medianoche || false,
+                 progInicio, progFin, progHoras,
+                 det.es_dia_libre || false, det.ausencia_tipo || '', det.notas || '']
+            );
+            copiados++;
+        }
+
+        res.json({
+            success: true,
+            copiados,
+            omitidos,
+            message: `✅ ${copiados} turno(s) copiados de la semana del ${inicioPrevio}.${omitidos > 0 ? ` (${omitidos} ya existían)` : ''}`
+        });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.post('/api/nomina/semanas/:id/generar', async (req, res) => {
     const { empresa, config_id } = req.body;
     try {
