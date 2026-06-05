@@ -8421,13 +8421,48 @@ app.post('/api/nomina/semanas/:id/generar', async (req, res) => {
 app.post('/api/nomina/semanas/detalle', async (req, res) => {
     const { semana_id, empleado_id, fecha, real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas } = req.body;
     try {
-        // Verificar que no exista ya para este empleado + fecha + ccosto (mismo centro)
+        // 1. Verificar que no exista ya para este empleado + fecha + ccosto (mismo centro)
         const exists = await pool.query(
             'SELECT id FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3 AND ccosto=$4',
             [semana_id, empleado_id, fecha, ccosto||'']
         );
         if (exists.rows.length) {
             return res.status(400).json({ success: false, error: 'Ya existe un turno para este empleado en esta fecha y centro de costo' });
+        }
+
+        // 2. Si no es día libre, verificar que no haya traslape de horario en OTRO centro ese mismo día
+        if (!es_dia_libre && real_inicio && real_fin) {
+            const otrosTurnos = await pool.query(
+                `SELECT id, ccosto, real_inicio, real_fin FROM nom_semana_detalle
+                 WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3
+                   AND ccosto != $4 AND NOT es_dia_libre
+                   AND real_inicio IS NOT NULL AND real_fin IS NOT NULL`,
+                [semana_id, empleado_id, fecha, ccosto||'']
+            );
+
+            // Función para convertir HH:MM a minutos (con soporte medianoche)
+            const toMins = (t) => {
+                const [h, m] = t.slice(0,5).split(':').map(Number);
+                return h * 60 + m;
+            };
+            const newStart = toMins(real_inicio);
+            let newEnd = toMins(real_fin);
+            if (newEnd <= newStart) newEnd += 24 * 60; // cruza medianoche
+
+            for (const t of otrosTurnos.rows) {
+                let exStart = toMins(t.real_inicio);
+                let exEnd   = toMins(t.real_fin);
+                if (exEnd <= exStart) exEnd += 24 * 60;
+
+                // ¿Se solapan?
+                const overlaps = newStart < exEnd && newEnd > exStart;
+                if (overlaps) {
+                    return res.status(400).json({
+                        success: false,
+                        error: `Conflicto de horario: el empleado ya tiene turno ${t.real_inicio?.slice(0,5)}-${t.real_fin?.slice(0,5)} en el centro "${t.ccosto}" ese mismo día`
+                    });
+                }
+            }
         }
 
         const r = await pool.query(

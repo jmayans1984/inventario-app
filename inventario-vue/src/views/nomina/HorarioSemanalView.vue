@@ -124,13 +124,58 @@
         </div>
       </template>
 
+      <!-- RESUMEN TOTAL DE HORAS -->
+      <div v-if="semanaActual && resumenEmpleados.length" class="nom-card resumen-card">
+        <div class="resumen-titulo">
+          <v-icon size="16" color="#8b5cf6" class="mr-1">mdi-chart-bar</v-icon>
+          RESUMEN SEMANAL — HORAS TOTALES POR EMPLEADO
+        </div>
+        <table class="resumen-tabla">
+          <thead>
+            <tr>
+              <th style="text-align:left">EMPLEADO</th>
+              <th>TIPO</th>
+              <th>CENTROS</th>
+              <th>HORAS REG.</th>
+              <th>HORAS OT</th>
+              <th>TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in resumenEmpleados" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
+              <td class="resumen-nombre">{{ r.apellido }}, {{ r.nombre }}
+                <span v-if="r.empresa_contratista" class="resumen-empresa">{{ r.empresa_contratista }}</span>
+              </td>
+              <td><span class="sg-emp-badge" :class="r.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ r.tipo_empleado }}</span></td>
+              <td class="ta-c">
+                <span v-for="cc in r.centros" :key="cc" class="ccosto-chip">{{ cc }}</span>
+              </td>
+              <td class="ta-c resumen-reg">{{ r.regular.toFixed(1) }}h</td>
+              <td class="ta-c resumen-ot">
+                <span v-if="r.overtime > 0" class="ot-badge">+{{ r.overtime.toFixed(1) }}h OT</span>
+                <span v-else style="color:rgba(var(--v-theme-on-surface),0.3)">—</span>
+              </td>
+              <td class="ta-c resumen-total">{{ r.total.toFixed(1) }}h</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="resumen-footer">
+              <td colspan="3"><strong>TOTAL EMPRESA</strong></td>
+              <td class="ta-c"><strong>{{ resumenTotales.regular.toFixed(1) }}h</strong></td>
+              <td class="ta-c"><strong style="color:#ef4444">{{ resumenTotales.overtime.toFixed(1) }}h OT</strong></td>
+              <td class="ta-c"><strong>{{ resumenTotales.total.toFixed(1) }}h</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
       <div v-else-if="!semanaSelId" class="nom-card" style="padding:32px;text-align:center;color:rgba(var(--v-theme-on-surface),0.4)">
         Selecciona una semana o crea una nueva.
       </div>
 
       <!-- Version -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.2);margin-top:4px">
-        v2.1.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
+        v2.2.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
       </div>
     </div>
 
@@ -303,6 +348,40 @@ const editCcostoNombre = computed(() =>
 
 // Resetear empleados agregados al cambiar semana
 watch(semanaSelId, () => { empleadosAgregados.value = {} })
+
+// Resumen total de horas por empleado (todos los centros combinados)
+const resumenEmpleados = computed(() => {
+  const map = {}
+  detalle.value.filter(d => !d.es_dia_libre).forEach(d => {
+    if (!map[d.empleado_id]) {
+      map[d.empleado_id] = {
+        id: d.empleado_id,
+        nombre: d.nombre,
+        apellido: d.apellido,
+        empresa_contratista: d.empresa_contratista,
+        tipo_empleado: d.tipo_empleado,
+        total: 0,
+        centros: new Set()
+      }
+    }
+    map[d.empleado_id].total += parseFloat(d.real_horas ?? d.prog_horas ?? 0)
+    if (d.ccosto) map[d.empleado_id].centros.add(d.ccosto)
+  })
+  return Object.values(map)
+    .map(e => ({
+      ...e,
+      centros: [...e.centros],
+      regular: Math.min(e.total, 40),
+      overtime: Math.max(e.total - 40, 0)
+    }))
+    .sort((a,b) => a.apellido.localeCompare(b.apellido))
+})
+
+const resumenTotales = computed(() => ({
+  regular:  resumenEmpleados.value.reduce((s,e) => s + e.regular,  0),
+  overtime: resumenEmpleados.value.reduce((s,e) => s + e.overtime, 0),
+  total:    resumenEmpleados.value.reduce((s,e) => s + e.total,    0)
+}))
 
 // Empleados que van en la grilla de un ccosto específico
 function empleadosParaCcosto(ccostoId) {
@@ -654,6 +733,24 @@ onMounted(cargarSemanas)
 .mt-3 { margin-top: 12px; } .mb-3 { margin-bottom: 12px; } .mt-2 { margin-top: 8px; } .pt-2 { padding-top: 8px !important; } .pb-2 { padding-bottom: 8px !important; } .pt-0 { padding-top: 0 !important; }
 .cfg-edit-check { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
 .horas-calculadas { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #10b981; font-weight: 700; padding: 6px 10px; background: rgba(16,185,129,0.08); border-radius: 8px; }
+/* Resumen de horas */
+.resumen-card { border-radius: 14px !important; overflow: hidden; }
+.resumen-titulo { padding: 14px 18px; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.07); display: flex; align-items: center; }
+.resumen-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
+.resumen-tabla th { padding: 8px 12px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; background: rgba(var(--v-theme-on-surface),0.03); border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.07); }
+.resumen-tabla td { padding: 10px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); }
+.resumen-tabla tbody tr:hover { background: rgba(var(--v-theme-on-surface),0.03); }
+.row-ot { background: rgba(239,68,68,0.03) !important; }
+.resumen-nombre { font-weight: 600; }
+.resumen-empresa { font-size: 10px; color: rgba(var(--v-theme-on-surface),0.4); margin-left: 6px; font-weight: 400; }
+.resumen-reg   { color: #10b981; font-weight: 700; }
+.resumen-ot    { }
+.resumen-total { font-weight: 800; }
+.ta-c { text-align: center; }
+.ot-badge { background: rgba(239,68,68,0.12); color: #ef4444; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 5px; }
+.ccosto-chip { display: inline-block; font-size: 9px; font-weight: 700; background: rgba(var(--v-theme-on-surface),0.08); color: rgba(var(--v-theme-on-surface),0.5); padding: 1px 5px; border-radius: 3px; margin: 1px 2px; }
+.resumen-footer td { padding: 10px 12px; font-size: 12px; background: rgba(var(--v-theme-on-surface),0.04); border-top: 2px solid rgba(var(--v-theme-on-surface),0.1); }
+
 .d-flex { display: flex; } .align-center { align-items: center; } .justify-space-between { justify-content: space-between; }
 .mr-1 { margin-right: 4px; } .pa-3 { padding: 12px; } .pa-4 { padding: 16px; }
 </style>
