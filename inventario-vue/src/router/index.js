@@ -66,8 +66,16 @@ const routes = [
   // RECETAS — patrón general
   { path: '/recetas/:section?/:item?', component: () => import('../views/RecetasView.vue'), meta: { requiresAuth: true } },
 
-  // NÓMINA
-  { path: '/nomina/:section?/:item?', component: () => import('../views/NominaView.vue'), meta: { requiresAuth: true } },
+  // NÓMINA — vistas específicas (antes del catch-all)
+  { path: '/nomina/configuracion/empleados',      component: () => import('../views/nomina/EmpleadosView.vue'),         meta: { requiresAuth: true } },
+  { path: '/nomina/configuracion/cargos',         component: () => import('../views/nomina/CargosView.vue'),            meta: { requiresAuth: true } },
+  { path: '/nomina/configuracion/fiscal',         component: () => import('../views/nomina/ConfigFiscalNominaView.vue'), meta: { requiresAuth: true } },
+  { path: '/nomina/configuracion/horario-config', component: () => import('../views/nomina/HorarioConfigView.vue'),     meta: { requiresAuth: true } },
+  { path: '/nomina/procesos/horario',             component: () => import('../views/nomina/HorarioSemanalView.vue'),    meta: { requiresAuth: true } },
+  { path: '/nomina/procesos/liquidacion',         component: () => import('../views/nomina/LiquidacionNominaView.vue'), meta: { requiresAuth: true } },
+  { path: '/nomina/reportes/horario',             component: () => import('../views/nomina/ReporteHorarioView.vue'),    meta: { requiresAuth: true } },
+  { path: '/nomina/reportes/recibos',             component: () => import('../views/nomina/RecibosNominaView.vue'),     meta: { requiresAuth: true } },
+  { path: '/nomina/:section?/:item?',             component: () => import('../views/NominaView.vue'),                   meta: { requiresAuth: true } },
 
   // GERENCIA ESPECÍFICAS
   { path: '/gerencia/reportes/ejecutivo', component: () => import('../views/gerencia/DashboardEjecutivoView.vue'), meta: { requiresAuth: true } },

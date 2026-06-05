@@ -7790,6 +7790,902 @@ app.put('/api/permisos-modulos/:empresa', async (req, res) => {
 });
 
 // ================================================================
+// MÓDULO: NÓMINA
+// ================================================================
+
+// ── Crear tablas si no existen ─────────────────────────────────
+async function crearTablasNomina() {
+    const sqls = [
+        `CREATE TABLE IF NOT EXISTS nom_cargos (
+            id SERIAL PRIMARY KEY, empresa INT4,
+            nombre VARCHAR(100) NOT NULL, descripcion VARCHAR(500),
+            activo BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_empleados (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL,
+            nombre VARCHAR(100) NOT NULL, apellido VARCHAR(100) NOT NULL,
+            fecha_nacimiento DATE, email VARCHAR(150), telefono VARCHAR(25),
+            direccion VARCHAR(250), ciudad VARCHAR(100), estado_residencia VARCHAR(50),
+            pais VARCHAR(50) DEFAULT 'USA', zipcode VARCHAR(10),
+            cargo_id INT4, ccosto VARCHAR(3),
+            fecha_ingreso DATE, fecha_retiro DATE, motivo_retiro VARCHAR(300),
+            estado VARCHAR(15) DEFAULT 'ACTIVO',
+            tipo_empleado VARCHAR(5) DEFAULT 'W2',
+            tipo_contrato VARCHAR(15) DEFAULT 'FULL_TIME',
+            empresa_contratista VARCHAR(150),
+            es_por_horas BOOLEAN DEFAULT TRUE,
+            valor_hora NUMERIC(10,2), monto_fijo_semanal NUMERIC(10,2),
+            frecuencia_pago VARCHAR(10) DEFAULT 'WEEKLY',
+            ssn VARCHAR(15), permiso_trabajo VARCHAR(50),
+            w4_filing_status VARCHAR(25) DEFAULT 'SINGLE',
+            w4_multiple_jobs BOOLEAN DEFAULT FALSE,
+            w4_claim_dependents NUMERIC(10,2) DEFAULT 0,
+            w4_other_income NUMERIC(10,2) DEFAULT 0,
+            w4_deductions NUMERIC(10,2) DEFAULT 0,
+            w4_extra_withholding NUMERIC(10,2) DEFAULT 0,
+            w4_exempt BOOLEAN DEFAULT FALSE,
+            wc_rate NUMERIC(6,4), wc_code VARCHAR(20),
+            foto BYTEA, foto_nombre VARCHAR(100), notas VARCHAR(1000),
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_empleado_historial (
+            id SERIAL PRIMARY KEY, empleado_id INT4 NOT NULL,
+            tipo VARCHAR(20) NOT NULL, fecha DATE NOT NULL,
+            tipo_empleado VARCHAR(5), valor_hora NUMERIC(10,2),
+            monto_fijo_semanal NUMERIC(10,2), empresa_contratista VARCHAR(150),
+            motivo VARCHAR(300), observaciones VARCHAR(500),
+            created_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_horario_config (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL,
+            nombre VARCHAR(100) NOT NULL, descripcion VARCHAR(300),
+            activo BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_horario_config_dia (
+            id SERIAL PRIMARY KEY, config_id INT4 NOT NULL,
+            dia_semana INT NOT NULL,
+            hora_inicio TIME, hora_fin TIME,
+            cruza_medianoche BOOLEAN DEFAULT FALSE,
+            horas_default NUMERIC(4,2), activo BOOLEAN DEFAULT TRUE
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_semana (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL,
+            semana_inicio DATE NOT NULL, semana_fin DATE NOT NULL,
+            estado VARCHAR(20) DEFAULT 'BORRADOR',
+            publicado_en TIMESTAMP, notas VARCHAR(500),
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_semana_detalle (
+            id SERIAL PRIMARY KEY, semana_id INT4 NOT NULL, empleado_id INT4 NOT NULL,
+            fecha DATE NOT NULL, ccosto VARCHAR(3),
+            prog_inicio TIME, prog_fin TIME, prog_horas NUMERIC(4,2),
+            prog_cruza_medianoche BOOLEAN DEFAULT FALSE,
+            real_inicio TIME, real_fin TIME, real_horas NUMERIC(4,2),
+            es_dia_libre BOOLEAN DEFAULT FALSE,
+            ausencia_tipo VARCHAR(30), notas VARCHAR(300), ajustado BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_liquidacion (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL,
+            semana_inicio DATE NOT NULL, semana_fin DATE NOT NULL,
+            semana_id INT4, estado VARCHAR(20) DEFAULT 'BORRADOR',
+            total_bruto NUMERIC(14,2) DEFAULT 0,
+            total_deducciones_emp NUMERIC(14,2) DEFAULT 0,
+            total_aportes_er NUMERIC(14,2) DEFAULT 0,
+            total_neto NUMERIC(14,2) DEFAULT 0,
+            notas VARCHAR(500),
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_liquidacion_linea (
+            id SERIAL PRIMARY KEY, liquidacion_id INT4 NOT NULL, empleado_id INT4 NOT NULL,
+            tipo_empleado VARCHAR(5),
+            horas_regulares NUMERIC(5,2) DEFAULT 0, horas_overtime NUMERIC(5,2) DEFAULT 0,
+            valor_hora NUMERIC(10,2), valor_hora_ot NUMERIC(10,2),
+            bruto_regular NUMERIC(12,2) DEFAULT 0, bruto_overtime NUMERIC(12,2) DEFAULT 0,
+            bruto_base NUMERIC(12,2) DEFAULT 0, monto_adicional NUMERIC(12,2) DEFAULT 0,
+            total_bruto NUMERIC(12,2) DEFAULT 0,
+            federal_income_tax NUMERIC(10,2) DEFAULT 0,
+            social_security_emp NUMERIC(10,2) DEFAULT 0,
+            medicare_emp NUMERIC(10,2) DEFAULT 0,
+            medicare_adicional NUMERIC(10,2) DEFAULT 0,
+            workers_comp NUMERIC(10,2) DEFAULT 0,
+            otras_deducciones NUMERIC(10,2) DEFAULT 0,
+            total_deducciones NUMERIC(10,2) DEFAULT 0,
+            social_security_er NUMERIC(10,2) DEFAULT 0,
+            medicare_er NUMERIC(10,2) DEFAULT 0,
+            futa NUMERIC(10,2) DEFAULT 0, suta NUMERIC(10,2) DEFAULT 0,
+            total_aportes_er NUMERIC(10,2) DEFAULT 0,
+            total_neto NUMERIC(12,2) DEFAULT 0,
+            empresa_contratista VARCHAR(150), es_monto_fijo BOOLEAN DEFAULT FALSE,
+            ytd_bruto NUMERIC(14,2) DEFAULT 0, notas VARCHAR(300),
+            created_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_liquidacion_ccosto (
+            id SERIAL PRIMARY KEY, linea_id INT4 NOT NULL,
+            ccosto VARCHAR(3) NOT NULL,
+            horas NUMERIC(5,2) DEFAULT 0,
+            costo_bruto NUMERIC(12,2) DEFAULT 0,
+            costo_total NUMERIC(12,2) DEFAULT 0
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_config_fiscal (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL, anio INT4 NOT NULL,
+            ss_rate NUMERIC(6,5) DEFAULT 0.062,
+            ss_wage_base NUMERIC(10,2) DEFAULT 168600,
+            medicare_rate NUMERIC(6,5) DEFAULT 0.0145,
+            medicare_adicional_rate NUMERIC(6,5) DEFAULT 0.009,
+            medicare_adicional_threshold NUMERIC(10,2) DEFAULT 200000,
+            futa_rate NUMERIC(6,5) DEFAULT 0.006,
+            futa_wage_base NUMERIC(10,2) DEFAULT 7000,
+            suta_rate NUMERIC(6,5) DEFAULT 0.027,
+            suta_wage_base NUMERIC(10,2) DEFAULT 7000,
+            ot_threshold_hours NUMERIC(4,1) DEFAULT 40.0,
+            ot_multiplier NUMERIC(4,2) DEFAULT 1.50,
+            fl_min_wage NUMERIC(6,2) DEFAULT 13.00,
+            wc_default_rate NUMERIC(6,4) DEFAULT 0.0,
+            activo BOOLEAN DEFAULT TRUE,
+            UNIQUE(empresa, anio)
+        )`
+    ];
+    for (const sql of sqls) {
+        try { await pool.query(sql); } catch(e) { console.error('nom table error:', e.message); }
+    }
+    console.log('✅ Tablas de nómina verificadas');
+}
+crearTablasNomina();
+
+// ── Cálculo de Federal Income Tax (IRS Percentage Method 2024) ──
+function calcularFederalIncomeTax(brutoAnualizado, filingStatus) {
+    if (!filingStatus || filingStatus === 'EXEMPT') return 0;
+    // Standard deductions 2024
+    const stdDeductions = {
+        'SINGLE': 14600, 'HEAD_OF_HOUSEHOLD': 21900,
+        'MARRIED_JOINTLY': 29200, 'MARRIED_SEPARATELY': 14600
+    };
+    const deduccion = stdDeductions[filingStatus] || 14600;
+    const taxableIncome = Math.max(0, brutoAnualizado - deduccion);
+
+    // Tax brackets 2024 — Single & Married Separately
+    const bracketsSingle = [
+        [0, 11600, 0.10, 0],
+        [11600, 47150, 0.12, 1160],
+        [47150, 100525, 0.22, 5426],
+        [100525, 191950, 0.24, 17168.50],
+        [191950, 243725, 0.32, 39110.50],
+        [243725, 609350, 0.35, 55678.50],
+        [609350, Infinity, 0.37, 183647.25]
+    ];
+    // MFJ brackets (approximately double)
+    const bracketsMFJ = [
+        [0, 23200, 0.10, 0],
+        [23200, 94300, 0.12, 2320],
+        [94300, 201050, 0.22, 10852],
+        [201050, 383900, 0.24, 34337],
+        [383900, 487450, 0.32, 78221],
+        [487450, 731200, 0.35, 111357],
+        [731200, Infinity, 0.37, 196669.50]
+    ];
+    const bracketsHoH = [
+        [0, 16550, 0.10, 0],
+        [16550, 63100, 0.12, 1655],
+        [63100, 100500, 0.22, 7241],
+        [100500, 191950, 0.24, 15469],
+        [191950, 243700, 0.32, 37417],
+        [243700, 609350, 0.35, 54951],
+        [609350, Infinity, 0.37, 183254.75]
+    ];
+    let brackets = bracketsSingle;
+    if (filingStatus === 'MARRIED_JOINTLY') brackets = bracketsMFJ;
+    else if (filingStatus === 'HEAD_OF_HOUSEHOLD') brackets = bracketsHoH;
+
+    let taxAnual = 0;
+    for (const [low, high, rate, baseTax] of brackets) {
+        if (taxableIncome > low) {
+            const amt = Math.min(taxableIncome, high) - low;
+            taxAnual = baseTax + amt * rate;
+            if (taxableIncome <= high) break;
+        }
+    }
+    return Math.max(0, taxAnual);
+}
+
+function calcularRetenciones(empleado, totalBruto, ytdBruto, cfg) {
+    if (empleado.tipo_empleado === '1099') {
+        return { federal_income_tax:0, social_security_emp:0, medicare_emp:0,
+                 medicare_adicional:0, workers_comp:0, otras_deducciones:0, total_deducciones:0,
+                 social_security_er:0, medicare_er:0, futa:0, suta:0, total_aportes_er:0 };
+    }
+    const bruto = parseFloat(totalBruto) || 0;
+    const ytd   = parseFloat(ytdBruto)   || 0;
+    const ssRate         = parseFloat(cfg.ss_rate || 0.062);
+    const ssWageBase     = parseFloat(cfg.ss_wage_base || 168600);
+    const medRate        = parseFloat(cfg.medicare_rate || 0.0145);
+    const medAdicRate    = parseFloat(cfg.medicare_adicional_rate || 0.009);
+    const medAdicThresh  = parseFloat(cfg.medicare_adicional_threshold || 200000);
+    const futaRate       = parseFloat(cfg.futa_rate || 0.006);
+    const futaBase       = parseFloat(cfg.futa_wage_base || 7000);
+    const sutaRate       = parseFloat(cfg.suta_rate || 0.027);
+    const sutaBase       = parseFloat(cfg.suta_wage_base || 7000);
+    const wcRate         = parseFloat(empleado.wc_rate || cfg.wc_default_rate || 0);
+
+    // Social Security (6.2% employee + 6.2% employer, up to wage base)
+    const ssEligible = Math.max(0, Math.min(bruto, ssWageBase - ytd));
+    const ss_emp = ssEligible * ssRate;
+    const ss_er  = ssEligible * ssRate;
+
+    // Medicare (1.45% employee + 1.45% employer, no limit)
+    const med_emp = bruto * medRate;
+    const med_er  = bruto * medRate;
+
+    // Additional Medicare (0.9% employee only, over $200K/year)
+    const medAdicEligible = Math.max(0, Math.min(bruto, (ytd + bruto) > medAdicThresh
+        ? bruto - Math.max(0, medAdicThresh - ytd) : 0));
+    const med_adic = medAdicEligible * medAdicRate;
+
+    // FUTA (employer only, 6% effectively 0.6% after credit, first $7000)
+    const futaEligible = Math.max(0, Math.min(bruto, futaBase - ytd));
+    const futa = futaEligible * futaRate;
+
+    // SUTA - FL Reemployment (employer only, ~2.7% first $7000)
+    const sutaEligible = Math.max(0, Math.min(bruto, sutaBase - ytd));
+    const suta = sutaEligible * sutaRate;
+
+    // Federal Income Tax
+    let fed_tax = 0;
+    if (!empleado.w4_exempt) {
+        const annualizado = bruto * 52;
+        const adj = annualizado
+            + parseFloat(empleado.w4_other_income || 0)
+            - parseFloat(empleado.w4_deductions || 0);
+        const taxAnual = calcularFederalIncomeTax(adj, empleado.w4_filing_status || 'SINGLE');
+        const weekly = taxAnual / 52;
+        const creditAnual = parseFloat(empleado.w4_claim_dependents || 0);
+        const creditWeekly = creditAnual / 52;
+        fed_tax = Math.max(0, weekly - creditWeekly + parseFloat(empleado.w4_extra_withholding || 0));
+    }
+
+    // Workers Comp (employee portion if applicable)
+    const workers_comp = bruto * wcRate;
+
+    const total_deducciones = fed_tax + ss_emp + med_emp + med_adic + workers_comp;
+    const total_aportes_er  = ss_er + med_er + futa + suta;
+
+    return {
+        federal_income_tax: +fed_tax.toFixed(2),
+        social_security_emp: +ss_emp.toFixed(2),
+        medicare_emp: +med_emp.toFixed(2),
+        medicare_adicional: +med_adic.toFixed(2),
+        workers_comp: +workers_comp.toFixed(2),
+        otras_deducciones: 0,
+        total_deducciones: +total_deducciones.toFixed(2),
+        social_security_er: +ss_er.toFixed(2),
+        medicare_er: +med_er.toFixed(2),
+        futa: +futa.toFixed(2),
+        suta: +suta.toFixed(2),
+        total_aportes_er: +total_aportes_er.toFixed(2)
+    };
+}
+
+// ── CARGOS ──────────────────────────────────────────────────────
+app.get('/api/nomina/cargos', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const r = await pool.query(
+            'SELECT * FROM nom_cargos WHERE empresa = $1 AND activo = TRUE ORDER BY nombre',
+            [empresa]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/nomina/cargos', async (req, res) => {
+    const { empresa, nombre, descripcion } = req.body;
+    try {
+        const r = await pool.query(
+            'INSERT INTO nom_cargos (empresa, nombre, descripcion) VALUES ($1,$2,$3) RETURNING *',
+            [empresa, nombre, descripcion]
+        );
+        res.json({ success: true, data: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.delete('/api/nomina/cargos/:id', async (req, res) => {
+    try {
+        await pool.query('UPDATE nom_cargos SET activo=FALSE WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── EMPLEADOS ───────────────────────────────────────────────────
+app.get('/api/nomina/empleados', async (req, res) => {
+    const { empresa, estado } = req.query;
+    try {
+        let where = 'WHERE e.empresa = $1';
+        const params = [empresa];
+        if (estado && estado !== 'TODOS') { where += ' AND e.estado = $2'; params.push(estado); }
+        const r = await pool.query(
+            `SELECT e.*, c.nombre AS cargo_nombre,
+                    COALESCE(cc.nombre, e.ccosto) AS ccosto_nombre
+             FROM nom_empleados e
+             LEFT JOIN nom_cargos c ON c.id = e.cargo_id
+             LEFT JOIN ccostos cc ON cc.codigo = e.ccosto AND cc.empresa = e.empresa
+             ${where}
+             ORDER BY e.apellido, e.nombre`,
+            params
+        );
+        res.json({ success: true, data: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.get('/api/nomina/empleados/:id', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT e.*, c.nombre AS cargo_nombre
+             FROM nom_empleados e
+             LEFT JOIN nom_cargos c ON c.id = e.cargo_id
+             WHERE e.id = $1`, [req.params.id]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'No encontrado' });
+        res.json({ success: true, data: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/nomina/empleados', async (req, res) => {
+    const d = req.body;
+    try {
+        const r = await pool.query(
+            `INSERT INTO nom_empleados (empresa,nombre,apellido,fecha_nacimiento,email,telefono,
+             direccion,ciudad,estado_residencia,pais,zipcode,cargo_id,ccosto,
+             fecha_ingreso,estado,tipo_empleado,tipo_contrato,empresa_contratista,
+             es_por_horas,valor_hora,monto_fijo_semanal,frecuencia_pago,
+             ssn,permiso_trabajo,w4_filing_status,w4_multiple_jobs,w4_claim_dependents,
+             w4_other_income,w4_deductions,w4_extra_withholding,w4_exempt,
+             wc_rate,wc_code,notas)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+             $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34)
+             RETURNING id`,
+            [d.empresa,d.nombre,d.apellido,d.fecha_nacimiento||null,d.email,d.telefono,
+             d.direccion,d.ciudad,d.estado_residencia,d.pais||'USA',d.zipcode,
+             d.cargo_id||null,d.ccosto,d.fecha_ingreso,d.estado||'ACTIVO',
+             d.tipo_empleado||'W2',d.tipo_contrato||'FULL_TIME',d.empresa_contratista,
+             d.es_por_horas!==false,d.valor_hora||null,d.monto_fijo_semanal||null,
+             d.frecuencia_pago||'WEEKLY',d.ssn,d.permiso_trabajo,
+             d.w4_filing_status||'SINGLE',d.w4_multiple_jobs||false,
+             d.w4_claim_dependents||0,d.w4_other_income||0,d.w4_deductions||0,
+             d.w4_extra_withholding||0,d.w4_exempt||false,
+             d.wc_rate||null,d.wc_code,d.notas]
+        );
+        // Registrar en historial
+        await pool.query(
+            `INSERT INTO nom_empleado_historial (empleado_id,tipo,fecha,tipo_empleado,valor_hora,monto_fijo_semanal,empresa_contratista,motivo)
+             VALUES ($1,'INGRESO',$2,$3,$4,$5,$6,'Alta inicial')`,
+            [r.rows[0].id, d.fecha_ingreso, d.tipo_empleado||'W2', d.valor_hora||null,
+             d.monto_fijo_semanal||null, d.empresa_contratista]
+        );
+        res.json({ success: true, data: { id: r.rows[0].id } });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.put('/api/nomina/empleados/:id', async (req, res) => {
+    const d = req.body;
+    try {
+        await pool.query(
+            `UPDATE nom_empleados SET
+             nombre=$1,apellido=$2,fecha_nacimiento=$3,email=$4,telefono=$5,
+             direccion=$6,ciudad=$7,estado_residencia=$8,pais=$9,zipcode=$10,
+             cargo_id=$11,ccosto=$12,estado=$13,tipo_empleado=$14,tipo_contrato=$15,
+             empresa_contratista=$16,es_por_horas=$17,valor_hora=$18,monto_fijo_semanal=$19,
+             frecuencia_pago=$20,ssn=$21,permiso_trabajo=$22,w4_filing_status=$23,
+             w4_multiple_jobs=$24,w4_claim_dependents=$25,w4_other_income=$26,
+             w4_deductions=$27,w4_extra_withholding=$28,w4_exempt=$29,
+             wc_rate=$30,wc_code=$31,notas=$32,fecha_retiro=$33,motivo_retiro=$34,
+             updated_at=NOW()
+             WHERE id=$35`,
+            [d.nombre,d.apellido,d.fecha_nacimiento||null,d.email,d.telefono,
+             d.direccion,d.ciudad,d.estado_residencia,d.pais||'USA',d.zipcode,
+             d.cargo_id||null,d.ccosto,d.estado,d.tipo_empleado,d.tipo_contrato,
+             d.empresa_contratista,d.es_por_horas!==false,d.valor_hora||null,
+             d.monto_fijo_semanal||null,d.frecuencia_pago||'WEEKLY',d.ssn,d.permiso_trabajo,
+             d.w4_filing_status||'SINGLE',d.w4_multiple_jobs||false,
+             d.w4_claim_dependents||0,d.w4_other_income||0,d.w4_deductions||0,
+             d.w4_extra_withholding||0,d.w4_exempt||false,
+             d.wc_rate||null,d.wc_code,d.notas,d.fecha_retiro||null,d.motivo_retiro,
+             req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Foto empleado
+app.post('/api/nomina/empleados/:id/foto', async (req, res) => {
+    const { fotoBase64, fotoNombre } = req.body;
+    try {
+        const buf = Buffer.from(fotoBase64, 'base64');
+        await pool.query('UPDATE nom_empleados SET foto=$1, foto_nombre=$2 WHERE id=$3',
+            [buf, fotoNombre, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/nomina/empleados/:id/foto', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT foto, foto_nombre FROM nom_empleados WHERE id=$1', [req.params.id]);
+        if (!r.rows[0]?.foto) return res.status(404).end();
+        const ext = (r.rows[0].foto_nombre||'foto.jpg').split('.').pop().toLowerCase();
+        const mime = { jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp' };
+        res.setHeader('Content-Type', mime[ext]||'image/jpeg');
+        res.send(r.rows[0].foto);
+    } catch(e) { res.status(500).end(); }
+});
+
+// Historial
+app.get('/api/nomina/empleados/:id/historial', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT * FROM nom_empleado_historial WHERE empleado_id=$1 ORDER BY fecha DESC',
+            [req.params.id]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/nomina/empleados/:id/historial', async (req, res) => {
+    const { tipo, fecha, tipo_empleado, valor_hora, monto_fijo_semanal, empresa_contratista, motivo, observaciones } = req.body;
+    try {
+        const r = await pool.query(
+            `INSERT INTO nom_empleado_historial
+             (empleado_id,tipo,fecha,tipo_empleado,valor_hora,monto_fijo_semanal,empresa_contratista,motivo,observaciones)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [req.params.id, tipo, fecha, tipo_empleado, valor_hora||null, monto_fijo_semanal||null,
+             empresa_contratista, motivo, observaciones]
+        );
+        res.json({ success: true, data: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── CONFIGURACIÓN DE HORARIOS ────────────────────────────────────
+app.get('/api/nomina/horario-config', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const configs = await pool.query(
+            'SELECT * FROM nom_horario_config WHERE empresa=$1 AND activo=TRUE ORDER BY nombre', [empresa]
+        );
+        const ids = configs.rows.map(c => c.id);
+        let dias = [];
+        if (ids.length) {
+            const d = await pool.query(
+                `SELECT * FROM nom_horario_config_dia WHERE config_id = ANY($1) ORDER BY config_id, dia_semana`,
+                [ids]
+            );
+            dias = d.rows;
+        }
+        const data = configs.rows.map(c => ({
+            ...c,
+            dias: dias.filter(d => d.config_id === c.id)
+        }));
+        res.json({ success: true, data });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/nomina/horario-config', async (req, res) => {
+    const { empresa, nombre, descripcion, dias } = req.body;
+    try {
+        const r = await pool.query(
+            'INSERT INTO nom_horario_config (empresa, nombre, descripcion) VALUES ($1,$2,$3) RETURNING id',
+            [empresa, nombre, descripcion]
+        );
+        const configId = r.rows[0].id;
+        if (dias?.length) {
+            for (const d of dias) {
+                await pool.query(
+                    `INSERT INTO nom_horario_config_dia (config_id,dia_semana,hora_inicio,hora_fin,cruza_medianoche,horas_default,activo)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+                    [configId, d.dia_semana, d.hora_inicio||null, d.hora_fin||null,
+                     d.cruza_medianoche||false, d.horas_default||null, d.activo!==false]
+                );
+            }
+        }
+        res.json({ success: true, data: { id: configId } });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.put('/api/nomina/horario-config/:id', async (req, res) => {
+    const { nombre, descripcion, dias } = req.body;
+    try {
+        await pool.query('UPDATE nom_horario_config SET nombre=$1, descripcion=$2 WHERE id=$3',
+            [nombre, descripcion, req.params.id]);
+        if (dias?.length) {
+            await pool.query('DELETE FROM nom_horario_config_dia WHERE config_id=$1', [req.params.id]);
+            for (const d of dias) {
+                await pool.query(
+                    `INSERT INTO nom_horario_config_dia (config_id,dia_semana,hora_inicio,hora_fin,cruza_medianoche,horas_default,activo)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+                    [req.params.id, d.dia_semana, d.hora_inicio||null, d.hora_fin||null,
+                     d.cruza_medianoche||false, d.horas_default||null, d.activo!==false]
+                );
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── SEMANAS ──────────────────────────────────────────────────────
+app.get('/api/nomina/semanas', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const r = await pool.query(
+            'SELECT * FROM nom_semana WHERE empresa=$1 ORDER BY semana_inicio DESC LIMIT 12', [empresa]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/nomina/semanas', async (req, res) => {
+    const { empresa, semana_inicio, semana_fin, notas } = req.body;
+    try {
+        // Check no duplicate
+        const dup = await pool.query(
+            'SELECT id FROM nom_semana WHERE empresa=$1 AND semana_inicio=$2', [empresa, semana_inicio]
+        );
+        if (dup.rows.length) return res.status(400).json({ success: false, error: 'Ya existe una semana para esa fecha' });
+        const r = await pool.query(
+            'INSERT INTO nom_semana (empresa, semana_inicio, semana_fin, notas) VALUES ($1,$2,$3,$4) RETURNING *',
+            [empresa, semana_inicio, semana_fin, notas]
+        );
+        res.json({ success: true, data: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Obtener detalle de una semana
+app.get('/api/nomina/semanas/:id/detalle', async (req, res) => {
+    try {
+        const semana = await pool.query('SELECT * FROM nom_semana WHERE id=$1', [req.params.id]);
+        const detalle = await pool.query(
+            `SELECT sd.*, e.nombre, e.apellido, e.tipo_empleado, e.es_por_horas,
+                    e.valor_hora, e.ccosto AS ccosto_default,
+                    COALESCE(cc.nombre, sd.ccosto) AS ccosto_nombre
+             FROM nom_semana_detalle sd
+             JOIN nom_empleados e ON e.id = sd.empleado_id
+             LEFT JOIN ccostos cc ON cc.codigo = sd.ccosto
+             WHERE sd.semana_id = $1
+             ORDER BY e.apellido, e.nombre, sd.fecha`,
+            [req.params.id]
+        );
+        res.json({ success: true, semana: semana.rows[0], detalle: detalle.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Generar detalle desde plantilla de empleados activos
+app.post('/api/nomina/semanas/:id/generar', async (req, res) => {
+    const { empresa, config_id } = req.body;
+    try {
+        const semana = await pool.query('SELECT * FROM nom_semana WHERE id=$1', [req.params.id]);
+        if (!semana.rows.length) return res.status(404).json({ success: false, error: 'Semana no encontrada' });
+        const s = semana.rows[0];
+
+        // Get active employees
+        const empleados = await pool.query(
+            'SELECT * FROM nom_empleados WHERE empresa=$1 AND estado=\'ACTIVO\'', [empresa]
+        );
+
+        // Get schedule config (use provided config_id or first active)
+        const configQuery = config_id
+            ? await pool.query('SELECT * FROM nom_horario_config_dia WHERE config_id=$1 AND activo=TRUE', [config_id])
+            : await pool.query(`SELECT d.* FROM nom_horario_config_dia d
+                                JOIN nom_horario_config c ON c.id=d.config_id
+                                WHERE c.empresa=$1 AND c.activo=TRUE AND d.activo=TRUE
+                                ORDER BY c.id LIMIT 7`, [empresa]);
+        const diasConfig = configQuery.rows; // dia_semana → 1=Mon..7=Sun
+
+        // Generate dates Mon-Sun
+        const inicio = new Date(s.semana_inicio);
+        for (const emp of empleados.rows) {
+            for (let i = 0; i < 7; i++) {
+                const fecha = new Date(inicio);
+                fecha.setDate(inicio.getDate() + i);
+                const diaSemana = i + 1; // 1=Mon..7=Sun
+                const diaConfig = diasConfig.find(d => d.dia_semana === diaSemana);
+                const fechaStr = fecha.toISOString().split('T')[0];
+
+                // Skip if already exists
+                const exists = await pool.query(
+                    'SELECT id FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3',
+                    [s.id, emp.id, fechaStr]
+                );
+                if (exists.rows.length) continue;
+
+                await pool.query(
+                    `INSERT INTO nom_semana_detalle
+                     (semana_id, empleado_id, fecha, ccosto, prog_inicio, prog_fin, prog_horas,
+                      prog_cruza_medianoche, real_inicio, real_fin, real_horas, es_dia_libre)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+                    [s.id, emp.id, fechaStr, emp.ccosto,
+                     diaConfig?.hora_inicio||null, diaConfig?.hora_fin||null,
+                     diaConfig?.horas_default||null, diaConfig?.cruza_medianoche||false,
+                     diaConfig?.hora_inicio||null, diaConfig?.hora_fin||null,
+                     diaConfig?.horas_default||null, !diaConfig]
+                );
+            }
+        }
+        res.json({ success: true, message: 'Horario generado correctamente' });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Actualizar un detalle (ajuste de horas)
+app.put('/api/nomina/semanas/detalle/:detalleId', async (req, res) => {
+    const { real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas } = req.body;
+    try {
+        await pool.query(
+            `UPDATE nom_semana_detalle SET
+             real_inicio=$1, real_fin=$2, real_horas=$3, ccosto=$4,
+             es_dia_libre=$5, ausencia_tipo=$6, notas=$7, ajustado=TRUE, updated_at=NOW()
+             WHERE id=$8`,
+            [real_inicio||null, real_fin||null, real_horas||null, ccosto,
+             es_dia_libre||false, ausencia_tipo, notas, req.params.detalleId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Publicar semana
+app.put('/api/nomina/semanas/:id/publicar', async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE nom_semana SET estado=\'PUBLICADO\', publicado_en=NOW() WHERE id=$1', [req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── LIQUIDACIÓN DE NÓMINA ────────────────────────────────────────
+app.get('/api/nomina/liquidaciones', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const r = await pool.query(
+            'SELECT * FROM nom_liquidacion WHERE empresa=$1 ORDER BY semana_inicio DESC LIMIT 24', [empresa]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/nomina/liquidaciones', async (req, res) => {
+    const { empresa, semana_inicio, semana_fin, semana_id, notas } = req.body;
+    try {
+        const dup = await pool.query(
+            'SELECT id FROM nom_liquidacion WHERE empresa=$1 AND semana_inicio=$2', [empresa, semana_inicio]
+        );
+        if (dup.rows.length) return res.status(400).json({ success: false, error: 'Ya existe una nómina para esa semana' });
+        const r = await pool.query(
+            'INSERT INTO nom_liquidacion (empresa,semana_inicio,semana_fin,semana_id,notas) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+            [empresa, semana_inicio, semana_fin, semana_id||null, notas]
+        );
+        res.json({ success: true, data: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Obtener detalle de una liquidación
+app.get('/api/nomina/liquidaciones/:id', async (req, res) => {
+    try {
+        const liq = await pool.query('SELECT * FROM nom_liquidacion WHERE id=$1', [req.params.id]);
+        const lineas = await pool.query(
+            `SELECT ll.*, e.nombre, e.apellido, e.tipo_empleado AS tipo_emp_actual
+             FROM nom_liquidacion_linea ll
+             JOIN nom_empleados e ON e.id = ll.empleado_id
+             WHERE ll.liquidacion_id=$1 ORDER BY e.apellido, e.nombre`,
+            [req.params.id]
+        );
+        // Get ccosto breakdown for each line
+        const ids = lineas.rows.map(l => l.id);
+        let ccostos = [];
+        if (ids.length) {
+            const cc = await pool.query(
+                'SELECT * FROM nom_liquidacion_ccosto WHERE linea_id = ANY($1)', [ids]
+            );
+            ccostos = cc.rows;
+        }
+        const data = lineas.rows.map(l => ({
+            ...l,
+            ccostos: ccostos.filter(c => c.linea_id === l.id)
+        }));
+        res.json({ success: true, liquidacion: liq.rows[0], lineas: data });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Calcular nómina (genera/actualiza líneas)
+app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
+    const { empresa } = req.body;
+    try {
+        const liq = await pool.query('SELECT * FROM nom_liquidacion WHERE id=$1', [req.params.id]);
+        if (!liq.rows.length) return res.status(404).json({ success: false, error: 'No encontrada' });
+        const l = liq.rows[0];
+        if (l.estado === 'APROBADA' || l.estado === 'PAGADA')
+            return res.status(400).json({ success: false, error: 'Nómina ya aprobada' });
+
+        // Get fiscal config for current year
+        const anio = new Date(l.semana_fin).getFullYear();
+        let cfg = {};
+        const cfgR = await pool.query(
+            'SELECT * FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2', [empresa, anio]
+        );
+        if (cfgR.rows.length) cfg = cfgR.rows[0];
+        else cfg = { ss_rate:0.062, ss_wage_base:168600, medicare_rate:0.0145,
+                     medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
+                     futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
+                     ot_threshold_hours:40, ot_multiplier:1.5, wc_default_rate:0 };
+
+        // Get hours from nom_semana_detalle if linked, else from existing lines
+        let horasPorEmpleado = {};
+        if (l.semana_id) {
+            const det = await pool.query(
+                `SELECT empleado_id, ccosto, COALESCE(real_horas, prog_horas, 0) AS horas
+                 FROM nom_semana_detalle
+                 WHERE semana_id=$1 AND es_dia_libre=FALSE`, [l.semana_id]
+            );
+            for (const row of det.rows) {
+                if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
+                const cc = row.ccosto || 'GEN';
+                horasPorEmpleado[row.empleado_id][cc] = (horasPorEmpleado[row.empleado_id][cc] || 0)
+                    + parseFloat(row.horas || 0);
+            }
+        }
+
+        // Get all active employees
+        const empleados = await pool.query(
+            'SELECT * FROM nom_empleados WHERE empresa=$1 AND estado=\'ACTIVO\'', [empresa]
+        );
+
+        // Delete existing lines
+        await pool.query(
+            'DELETE FROM nom_liquidacion_ccosto WHERE linea_id IN (SELECT id FROM nom_liquidacion_linea WHERE liquidacion_id=$1)',
+            [req.params.id]
+        );
+        await pool.query('DELETE FROM nom_liquidacion_linea WHERE liquidacion_id=$1', [req.params.id]);
+
+        let totalBruto = 0, totalDed = 0, totalER = 0, totalNeto = 0;
+        const otThreshold = parseFloat(cfg.ot_threshold_hours || 40);
+        const otMult = parseFloat(cfg.ot_multiplier || 1.5);
+
+        for (const emp of empleados.rows) {
+            // Get YTD bruto for this employee (current year)
+            const ytdR = await pool.query(
+                `SELECT COALESCE(SUM(ll.total_bruto),0) AS ytd
+                 FROM nom_liquidacion_linea ll
+                 JOIN nom_liquidacion l ON l.id=ll.liquidacion_id
+                 WHERE ll.empleado_id=$1 AND l.empresa=$2
+                   AND EXTRACT(YEAR FROM l.semana_fin)=$3 AND l.estado IN ('APROBADA','PAGADA')`,
+                [emp.id, empresa, anio]
+            );
+            const ytdBruto = parseFloat(ytdR.rows[0].ytd || 0);
+
+            let horasRegulares = 0, horasOT = 0;
+            const ccHoras = horasPorEmpleado[emp.id] || {};
+            const totalHoras = Object.values(ccHoras).reduce((s, h) => s + h, 0);
+
+            let brutoRegular = 0, brutoOT = 0, brutoBase = 0;
+            let esMontoFijo = false;
+
+            if (emp.tipo_empleado === '1099' && !emp.es_por_horas) {
+                // Fixed amount 1099
+                esMontoFijo = true;
+                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+            } else {
+                const valorHora = parseFloat(emp.valor_hora || 0);
+                const valorHoraOT = valorHora * otMult;
+                if (totalHoras <= otThreshold) {
+                    horasRegulares = totalHoras;
+                } else {
+                    horasRegulares = otThreshold;
+                    horasOT = totalHoras - otThreshold;
+                }
+                brutoRegular = horasRegulares * valorHora;
+                brutoOT = horasOT * valorHoraOT;
+            }
+
+            const totalBrutoEmp = brutoRegular + brutoOT + brutoBase;
+            const taxes = calcularRetenciones(emp, totalBrutoEmp, ytdBruto, cfg);
+            const totalNeto = totalBrutoEmp - taxes.total_deducciones;
+
+            const lineaR = await pool.query(
+                `INSERT INTO nom_liquidacion_linea
+                 (liquidacion_id,empleado_id,tipo_empleado,horas_regulares,horas_overtime,
+                  valor_hora,valor_hora_ot,bruto_regular,bruto_overtime,bruto_base,es_monto_fijo,
+                  total_bruto,federal_income_tax,social_security_emp,medicare_emp,
+                  medicare_adicional,workers_comp,otras_deducciones,total_deducciones,
+                  social_security_er,medicare_er,futa,suta,total_aportes_er,total_neto,ytd_bruto,
+                  empresa_contratista)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+                 RETURNING id`,
+                [req.params.id, emp.id, emp.tipo_empleado,
+                 horasRegulares, horasOT,
+                 emp.valor_hora||0, (emp.valor_hora||0)*otMult,
+                 brutoRegular, brutoOT, brutoBase, esMontoFijo,
+                 totalBrutoEmp, taxes.federal_income_tax, taxes.social_security_emp,
+                 taxes.medicare_emp, taxes.medicare_adicional, taxes.workers_comp,
+                 taxes.otras_deducciones, taxes.total_deducciones,
+                 taxes.social_security_er, taxes.medicare_er, taxes.futa, taxes.suta,
+                 taxes.total_aportes_er, totalNeto, ytdBruto, emp.empresa_contratista]
+            );
+            const lineaId = lineaR.rows[0].id;
+
+            // Insert ccosto breakdown
+            for (const [cc, horas] of Object.entries(ccHoras)) {
+                const pct = totalHoras > 0 ? horas / totalHoras : 0;
+                await pool.query(
+                    'INSERT INTO nom_liquidacion_ccosto (linea_id,ccosto,horas,costo_bruto,costo_total) VALUES ($1,$2,$3,$4,$5)',
+                    [lineaId, cc, horas, totalBrutoEmp * pct, (totalBrutoEmp + taxes.total_aportes_er) * pct]
+                );
+            }
+
+            totalBruto += totalBrutoEmp;
+            totalDed   += taxes.total_deducciones;
+            totalER    += taxes.total_aportes_er;
+            totalNeto  += (totalBrutoEmp - taxes.total_deducciones);
+        }
+
+        // Update liquidacion totals
+        await pool.query(
+            `UPDATE nom_liquidacion SET total_bruto=$1,total_deducciones_emp=$2,total_aportes_er=$3,
+             total_neto=$4,updated_at=NOW() WHERE id=$5`,
+            [totalBruto, totalDed, totalER, totalNeto, req.params.id]
+        );
+
+        res.json({ success: true, message: 'Nómina calculada correctamente',
+                   totales: { totalBruto, totalDed, totalER, totalNeto } });
+    } catch(e) {
+        console.error('Error calcular nómina:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Aprobar nómina
+app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE nom_liquidacion SET estado=\'APROBADA\', updated_at=NOW() WHERE id=$1', [req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── CONFIGURACIÓN FISCAL ─────────────────────────────────────────
+app.get('/api/nomina/config-fiscal', async (req, res) => {
+    const { empresa } = req.query;
+    const anio = req.query.anio || new Date().getFullYear();
+    try {
+        const r = await pool.query(
+            'SELECT * FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2', [empresa, anio]
+        );
+        if (r.rows.length) return res.json({ success: true, data: r.rows[0] });
+        // Return defaults
+        res.json({ success: true, data: {
+            empresa, anio, ss_rate:0.062, ss_wage_base:168600,
+            medicare_rate:0.0145, medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
+            futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
+            ot_threshold_hours:40, ot_multiplier:1.5, fl_min_wage:13.00, wc_default_rate:0
+        }});
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.put('/api/nomina/config-fiscal', async (req, res) => {
+    const d = req.body;
+    try {
+        await pool.query(
+            `INSERT INTO nom_config_fiscal (empresa,anio,ss_rate,ss_wage_base,medicare_rate,
+             medicare_adicional_rate,medicare_adicional_threshold,futa_rate,futa_wage_base,
+             suta_rate,suta_wage_base,ot_threshold_hours,ot_multiplier,fl_min_wage,wc_default_rate)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+             ON CONFLICT (empresa,anio) DO UPDATE SET
+             ss_rate=$3,ss_wage_base=$4,medicare_rate=$5,medicare_adicional_rate=$6,
+             medicare_adicional_threshold=$7,futa_rate=$8,futa_wage_base=$9,
+             suta_rate=$10,suta_wage_base=$11,ot_threshold_hours=$12,ot_multiplier=$13,
+             fl_min_wage=$14,wc_default_rate=$15`,
+            [d.empresa,d.anio,d.ss_rate,d.ss_wage_base,d.medicare_rate,
+             d.medicare_adicional_rate,d.medicare_adicional_threshold,
+             d.futa_rate,d.futa_wage_base,d.suta_rate,d.suta_wage_base,
+             d.ot_threshold_hours,d.ot_multiplier,d.fl_min_wage,d.wc_default_rate]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── FIN MÓDULO NÓMINA ────────────────────────────────────────────
+
+// ================================================================
 // INICIAR SERVIDOR
 // ================================================================
 

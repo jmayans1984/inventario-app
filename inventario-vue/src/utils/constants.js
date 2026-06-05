@@ -147,14 +147,18 @@ export const MODULES = [
     path: '/nomina',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Empleados', icon: 'mdi-account-tie-outline', path: '/nomina/configuracion/empleados' },
-        { name: 'Conceptos de Pago', icon: 'mdi-cash-multiple', path: '/nomina/configuracion/conceptos' },
+        { name: 'Empleados',          icon: 'mdi-account-tie-outline',    path: '/nomina/configuracion/empleados' },
+        { name: 'Cargos',             icon: 'mdi-briefcase-outline',       path: '/nomina/configuracion/cargos' },
+        { name: 'Plantilla Horario',  icon: 'mdi-clock-outline',           path: '/nomina/configuracion/horario-config' },
+        { name: 'Config. Fiscal',     icon: 'mdi-bank-outline',            path: '/nomina/configuracion/fiscal' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
-        { name: 'Liquidación de Nómina', icon: 'mdi-calculator', path: '/nomina/procesos/liquidacion' },
+        { name: 'Horario Semanal',    icon: 'mdi-calendar-week',           path: '/nomina/procesos/horario' },
+        { name: 'Liquidación',        icon: 'mdi-calculator-variant',      path: '/nomina/procesos/liquidacion' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
-        { name: 'Colilla de Pago', icon: 'mdi-file-document-outline', path: '/nomina/reportes/colilla' },
+        { name: 'Horario para Publicar', icon: 'mdi-calendar-clock',      path: '/nomina/reportes/horario' },
+        { name: 'Recibos de Pago',    icon: 'mdi-file-document-outline',  path: '/nomina/reportes/recibos' },
       ]},
     ],
   },
