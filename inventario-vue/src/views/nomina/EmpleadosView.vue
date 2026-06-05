@@ -11,12 +11,12 @@
         </div>
         <div class="nom-header-actions">
           <v-btn-toggle v-model="filtroEstado" mandatory density="compact" color="#8b5cf6">
-            <v-btn value="TODOS"    size="small">Todos</v-btn>
-            <v-btn value="ACTIVO"   size="small">Activos</v-btn>
-            <v-btn value="INACTIVO" size="small">Inactivos</v-btn>
+            <v-btn value="TODOS"    size="small">TODOS</v-btn>
+            <v-btn value="ACTIVO"   size="small">ACTIVOS</v-btn>
+            <v-btn value="INACTIVO" size="small">INACTIVOS</v-btn>
           </v-btn-toggle>
           <v-btn color="#8b5cf6" variant="flat" size="small" prepend-icon="mdi-plus" @click="nuevo">
-            Nuevo Empleado
+            NUEVO EMPLEADO
           </v-btn>
         </div>
       </div>
@@ -24,7 +24,7 @@
       <!-- TABLA -->
       <div class="nom-card">
         <div v-if="cargando" class="nom-loading">
-          <v-progress-circular indeterminate color="#8b5cf6" size="28" /><span>Cargando...</span>
+          <v-progress-circular indeterminate color="#8b5cf6" size="28" /><span>CARGANDO...</span>
         </div>
         <table v-else class="nom-table">
           <thead>
@@ -35,7 +35,7 @@
           </thead>
           <tbody>
             <tr v-if="!filtrados.length">
-              <td colspan="8" class="nom-empty">Sin empleados</td>
+              <td colspan="8" class="nom-empty">SIN EMPLEADOS</td>
             </tr>
             <tr v-for="e in filtrados" :key="e.id" class="nom-row" @click="editar(e)">
               <td class="nom-id">{{ e.id }}</td>
@@ -73,7 +73,7 @@
     <v-navigation-drawer v-model="drawer" location="right" width="600" temporary>
       <div class="drw-wrap">
         <div class="drw-header">
-          <span class="drw-title">{{ editando?.id ? 'Editar Empleado' : 'Nuevo Empleado' }}</span>
+          <span class="drw-title">{{ editando?.id ? 'EDITAR EMPLEADO' : 'NUEVO EMPLEADO' }}</span>
           <v-btn icon="mdi-close" size="small" variant="text" @click="drawer=false" />
         </div>
 
@@ -221,7 +221,7 @@
             <div class="drw-section-title">INFORMACIÓN W-4 (RETENCIÓN FEDERAL)</div>
             <div class="drw-w4-note">
               <v-icon size="14" color="#f59e0b">mdi-information-outline</v-icon>
-              Florida no tiene impuesto estatal. Los datos solicitados son del formulario W-4 federal 2024.
+              FLORIDA NO TIENE IMPUESTO ESTATAL. LOS DATOS SOLICITADOS SON DEL FORMULARIO W-4 FEDERAL 2024.
             </div>
             <div class="drw-grid-2">
               <div class="drw-field"><label>FILING STATUS</label>
@@ -235,7 +235,7 @@
                 <label>EXENTO DE RETENCIÓN</label>
                 <div class="drw-check-row">
                   <input type="checkbox" v-model="form.w4_exempt" class="drw-check" />
-                  <span style="font-size:12px;color:rgba(255,255,255,0.6)">Marcar si el empleado es EXEMPT</span>
+                  <span style="font-size:12px;color:rgba(255,255,255,0.6)">MARCAR SI EL EMPLEADO ES EXEMPT</span>
                 </div>
               </div>
               <div class="drw-field">
@@ -272,10 +272,10 @@
         </div>
 
         <div class="drw-footer">
-          <v-btn variant="text" color="#94a3b8" @click="drawer=false">Cancelar</v-btn>
+          <v-btn variant="text" color="#94a3b8" @click="drawer=false">CANCELAR</v-btn>
           <v-btn color="#8b5cf6" variant="flat" :loading="guardando" @click="guardar">
             <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
-            {{ editando?.id ? 'Actualizar' : 'Registrar' }}
+            {{ editando?.id ? 'ACTUALIZAR' : 'REGISTRAR' }}
           </v-btn>
         </div>
       </div>
@@ -475,7 +475,7 @@ function onFoto(e) {
 async function guardar() {
   formErr.value = ''
   if (!form.value.nombre || !form.value.apellido || !form.value.fecha_ingreso) {
-    formErr.value = 'Nombre, apellido y fecha de ingreso son requeridos'
+    formErr.value = 'NOMBRE, APELLIDO Y FECHA DE INGRESO SON REQUERIDOS'
     return
   }
   guardando.value = true
@@ -493,7 +493,7 @@ async function guardar() {
         fotoBase64: fotoBase64.value, fotoNombre: fotoNombre.value
       })
     }
-    snackMsg.value = editando.value?.id ? 'Empleado actualizado' : 'Empleado registrado'
+    snackMsg.value = editando.value?.id ? 'EMPLEADO ACTUALIZADO' : 'EMPLEADO REGISTRADO'
     snack.value    = true
     drawer.value   = false
     cargar()
