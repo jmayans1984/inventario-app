@@ -20,6 +20,12 @@
               {{ fmtFecha(s.semana_inicio) }} al {{ fmtFecha(s.semana_fin) }}
             </option>
           </select>
+          <select v-if="semanaActual" v-model="ccostoSelId" class="drw-select" style="width:200px">
+            <option value="">— Todos los centros —</option>
+            <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">
+              {{ c.nombre }}
+            </option>
+          </select>
           <v-btn size="small" variant="outlined" color="#06b6d4" @click="dlgNuevaSemana=true">
             <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva Semana
           </v-btn>
@@ -142,12 +148,13 @@
                 <label>Horas reales</label>
                 <input v-model="turnoEdit.real_horas" type="number" step="0.25" class="drw-input" />
               </div>
-              <div class="drw-field">
-                <label>Centro de Costo</label>
-                <select v-model="turnoEdit.ccosto" class="drw-select">
-                  <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">{{ c.nombre }}</option>
-                </select>
-              </div>
+            </div>
+            <div class="drw-field mt-3">
+              <label>Centro de Costo</label>
+              <select v-model="turnoEdit.ccosto" class="drw-select">
+                <option value="">— Seleccionar —</option>
+                <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">{{ c.nombre }}</option>
+              </select>
             </div>
           </template>
           <template v-else>
@@ -196,6 +203,7 @@ const semanaActual = ref(null)
 const detalle = ref([])
 const ccostos = ref([])
 const horarioConfigs = ref([])
+const ccostoSelId = ref('')
 const cargando = ref(false)
 
 const dlgNuevaSemana = ref(false)
@@ -216,7 +224,23 @@ const guardandoTurno = ref(false)
 
 const empleadosUnicos = computed(() => {
   const map = {}
-  detalle.value.forEach(d => { if (!map[d.empleado_id]) map[d.empleado_id] = { id: d.empleado_id, nombre: d.nombre, apellido: d.apellido, tipo_empleado: d.tipo_empleado, empresa_contratista: d.empresa_contratista } })
+  // Filtrar por ccosto si está seleccionado
+  const filtrado = ccostoSelId.value
+    ? detalle.value.filter(d => d.ccosto === ccostoSelId.value)
+    : detalle.value
+
+  filtrado.forEach(d => {
+    if (!map[d.empleado_id]) {
+      map[d.empleado_id] = {
+        id: d.empleado_id,
+        nombre: d.nombre,
+        apellido: d.apellido,
+        tipo_empleado: d.tipo_empleado,
+        empresa_contratista: d.empresa_contratista,
+        ccosto: d.ccosto
+      }
+    }
+  })
   return Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
 
