@@ -107,21 +107,12 @@
               <div>Sin empleados asignados a este centro</div>
             </div>
 
-            <!-- Footer: totales + botón agregar -->
-            <div class="sg-footer">
-              <div class="sg-totales">
-                <div v-for="emp in empleadosParaCcosto(cc.codigo)" :key="emp.id" class="sg-total-row">
-                  <span class="sg-total-nombre">{{ emp.apellido }}, {{ emp.nombre }}</span>
-                  <span class="sg-total-horas">{{ totalHorasEmpCcosto(emp.id, cc.codigo) }}h</span>
-                  <span v-if="parseFloat(totalHorasEmpCcosto(emp.id, cc.codigo)) > 40" class="sg-ot-badge">
-                    OT
-                  </span>
-                </div>
-              </div>
+            <!-- Footer: solo botón agregar -->
+            <div class="sg-footer-simple">
               <v-btn v-if="semanaActual.estado !== 'CERRADO'"
-                     color="#06b6d4" variant="flat" size="small" class="sg-add-emp-btn"
+                     color="#06b6d4" variant="flat" size="small"
                      @click="abrirAgregarEmp(cc.codigo)">
-                <v-icon size="14" class="mr-1">mdi-account-plus</v-icon> Agregar
+                <v-icon size="14" class="mr-1">mdi-account-plus</v-icon> Agregar Empleado
               </v-btn>
             </div>
           </div>
@@ -191,7 +182,7 @@
 
       <!-- Version -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.2);margin-top:4px">
-        v2.4.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
+        v2.5.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
       </div>
     </div>
 
@@ -755,13 +746,7 @@ onMounted(cargarSemanas)
 .sg-sin-turno { font-size: 20px; color: rgba(var(--v-theme-on-surface),0.12); }
 
 /* Footer */
-.sg-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 8px 14px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.07); background: rgba(var(--v-theme-on-surface),0.02); }
-.sg-totales { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
-.sg-total-row { display: flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 5px; background: rgba(var(--v-theme-on-surface),0.04); font-size: 10px; }
-.sg-total-nombre { font-weight: 600; }
-.sg-total-horas  { color: #06b6d4; font-weight: 700; }
-.sg-ot-badge { font-size: 9px; font-weight: 800; background: rgba(239,68,68,0.15); color: #ef4444; padding: 1px 4px; border-radius: 3px; }
-.sg-add-emp-btn { flex-shrink: 0; }
+.sg-footer-simple { display: flex; align-items: center; justify-content: flex-end; padding: 8px 14px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.07); background: rgba(var(--v-theme-on-surface),0.02); }
 
 /* Dialog agregar empleado */
 .emp-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }

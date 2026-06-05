@@ -8362,87 +8362,95 @@ app.get('/api/nomina/semanas/:id/detalle', async (req, res) => {
 });
 
 // Generar detalle desde plantilla de empleados activos
-// Copiar horario de la semana anterior
+// Copiar horario de la semana anterior (todo en SQL para evitar errores de timezone)
 app.post('/api/nomina/semanas/:id/copiar-anterior', async (req, res) => {
     const { empresa } = req.body;
+    const semanaId = req.params.id;
     try {
-        // 1. Obtener la semana actual
-        const semana = await pool.query('SELECT * FROM nom_semana WHERE id=$1', [req.params.id]);
-        if (!semana.rows.length) return res.status(404).json({ success: false, error: 'Semana no encontrada' });
-        const s = semana.rows[0];
+        // 1. Verificar que exista la semana actual y obtener fecha de inicio
+        const semanaActual = await pool.query(
+            `SELECT id, TO_CHAR(semana_inicio, 'YYYY-MM-DD') AS inicio FROM nom_semana WHERE id=$1`,
+            [semanaId]
+        );
+        if (!semanaActual.rows.length) return res.status(404).json({ success: false, error: 'Semana no encontrada' });
+        const inicioStr = semanaActual.rows[0].inicio;
 
-        // 2. Calcular el inicio de la semana anterior (7 días antes)
-        const inicioActual = String(s.semana_inicio).split('T')[0];
-        const d = new Date(inicioActual + 'T00:00:00');
-        d.setDate(d.getDate() - 7);
-        const inicioPrevio = d.toISOString().split('T')[0];
-
-        // 3. Buscar la semana anterior
+        // 2. Buscar la semana anterior usando SQL (7 días antes, sin JavaScript Date)
         const semanaPrevia = await pool.query(
-            `SELECT * FROM nom_semana WHERE empresa=$1
-             AND DATE(semana_inicio) = DATE($2::date)`,
-            [empresa, inicioPrevio]
+            `SELECT id, TO_CHAR(semana_inicio, 'YYYY-MM-DD') AS inicio
+             FROM nom_semana
+             WHERE empresa=$1
+               AND semana_inicio::date = ($2::date - interval '7 days')::date`,
+            [empresa, inicioStr]
         );
 
         if (!semanaPrevia.rows.length) {
+            const prevStr = await pool.query(
+                `SELECT TO_CHAR($1::date - interval '7 days', 'DD/MM/YYYY') AS fecha`,
+                [inicioStr]
+            );
+            const fechaDisplay = prevStr.rows[0]?.fecha || '7 días antes';
             return res.status(404).json({
                 success: false,
-                error: `No existe la semana del ${inicioPrevio} en el sistema. Créala primero.`
+                error: `No existe la semana del ${fechaDisplay} en el sistema. Créala primero para poder copiarla.`
             });
         }
 
-        // 4. Obtener todos los turnos de la semana anterior
-        const detallesPrevios = await pool.query(
-            'SELECT * FROM nom_semana_detalle WHERE semana_id=$1 ORDER BY empleado_id, fecha',
-            [semanaPrevia.rows[0].id]
+        const semanaAnteriorId = semanaPrevia.rows[0].id;
+
+        // 3. Copiar todos los turnos en un solo INSERT...SELECT con SQL
+        //    Las fechas se ajustan +7 días directamente en SQL
+        //    Solo inserta donde no exista ya (mismo empleado+fecha+ccosto)
+        const insertR = await pool.query(
+            `INSERT INTO nom_semana_detalle
+               (semana_id, empleado_id, fecha, ccosto,
+                prog_inicio, prog_fin, prog_horas, prog_cruza_medianoche,
+                real_inicio, real_fin, real_horas,
+                es_dia_libre, ausencia_tipo, notas, ajustado)
+             SELECT
+               $1,
+               d.empleado_id,
+               (d.fecha::date + interval '7 days')::date,
+               d.ccosto,
+               COALESCE(d.real_inicio, d.prog_inicio),
+               COALESCE(d.real_fin,    d.prog_fin),
+               COALESCE(d.real_horas,  d.prog_horas),
+               d.prog_cruza_medianoche,
+               COALESCE(d.real_inicio, d.prog_inicio),
+               COALESCE(d.real_fin,    d.prog_fin),
+               COALESCE(d.real_horas,  d.prog_horas),
+               d.es_dia_libre,
+               d.ausencia_tipo,
+               d.notas,
+               FALSE
+             FROM nom_semana_detalle d
+             WHERE d.semana_id = $2
+               AND NOT EXISTS (
+                 SELECT 1 FROM nom_semana_detalle ex
+                 WHERE ex.semana_id    = $1
+                   AND ex.empleado_id  = d.empleado_id
+                   AND ex.fecha        = (d.fecha::date + interval '7 days')::date
+                   AND ex.ccosto       = d.ccosto
+               )`,
+            [semanaId, semanaAnteriorId]
         );
 
-        if (!detallesPrevios.rows.length) {
-            return res.json({ success: true, copiados: 0, message: 'La semana anterior no tiene turnos programados.' });
-        }
+        const copiados = insertR.rowCount || 0;
 
-        let copiados = 0;
-        let omitidos = 0;
-
-        for (const det of detallesPrevios.rows) {
-            // Calcular la fecha equivalente en la semana actual (+7 días)
-            const fechaBase = String(det.fecha).split('T')[0];
-            const fd = new Date(fechaBase + 'T00:00:00');
-            fd.setDate(fd.getDate() + 7);
-            const fechaNueva = fd.toISOString().split('T')[0];
-
-            // Verificar que no exista ya en la semana actual
-            const existe = await pool.query(
-                'SELECT id FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3 AND ccosto=$4',
-                [req.params.id, det.empleado_id, fechaNueva, det.ccosto || '']
-            );
-            if (existe.rows.length) { omitidos++; continue; }
-
-            // Usar las horas reales de la semana anterior como programadas para esta semana
-            const progInicio = det.real_inicio || det.prog_inicio;
-            const progFin    = det.real_fin    || det.prog_fin;
-            const progHoras  = det.real_horas  || det.prog_horas;
-
-            await pool.query(
-                `INSERT INTO nom_semana_detalle
-                 (semana_id, empleado_id, fecha, ccosto,
-                  prog_inicio, prog_fin, prog_horas, prog_cruza_medianoche,
-                  real_inicio, real_fin, real_horas,
-                  es_dia_libre, ausencia_tipo, notas)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-                [req.params.id, det.empleado_id, fechaNueva, det.ccosto || '',
-                 progInicio, progFin, progHoras, det.prog_cruza_medianoche || false,
-                 progInicio, progFin, progHoras,
-                 det.es_dia_libre || false, det.ausencia_tipo || '', det.notas || '']
-            );
-            copiados++;
-        }
+        // 4. Contar cuántos se omitieron (ya existían)
+        const totalPrevios = await pool.query(
+            'SELECT COUNT(*) FROM nom_semana_detalle WHERE semana_id=$1',
+            [semanaAnteriorId]
+        );
+        const omitidos = parseInt(totalPrevios.rows[0].count) - copiados;
 
         res.json({
             success: true,
             copiados,
             omitidos,
-            message: `✅ ${copiados} turno(s) copiados de la semana del ${inicioPrevio}.${omitidos > 0 ? ` (${omitidos} ya existían)` : ''}`
+            message: copiados === 0
+                ? 'La semana anterior no tenía turnos, o todos ya existían en esta semana.'
+                : `✅ ${copiados} turno(s) copiados de la semana anterior.${omitidos > 0 ? ` (${omitidos} ya existían y se conservaron)` : ''}`
         });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
