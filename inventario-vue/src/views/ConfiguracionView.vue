@@ -40,36 +40,38 @@
           <div v-for="row in CFG_ROWS" :key="row.key" class="cfg-cta-row">
             <span class="cfg-cta-label">{{ row.label }}</span>
 
-            <!-- Dropdown 1: Grupo de gastos -->
-            <v-select
+            <!-- CBB1: Grupo (native select — sin problemas de reactividad) -->
+            <select
               v-model="selGrupo[row.key]"
-              :items="grupos"
-              item-title="nombre"
-              item-value="codigo"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Grupo..."
-              class="cfg-sel"
-              bg-color="rgb(var(--v-theme-surface))"
-              @update:modelValue="onGrupoChange(row.key)"
-            />
+              class="cfg-native-sel"
+              @change="onGrupoChange(row.key)"
+            >
+              <option value="">— Grupo —</option>
+              <option v-for="g in grupos" :key="g.codigo" :value="g.codigo">
+                {{ g.nombre }}
+              </option>
+            </select>
 
-            <!-- Dropdown 2: Cuenta contable — cargada desde API al elegir grupo -->
-            <v-select
-              v-model="selCuenta[row.key]"
-              :items="rowCuentas[row.key] || []"
-              item-title="cuenta"
-              item-value="codigo"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Cuenta..."
-              :disabled="!selGrupo[row.key]"
-              :loading="rowLoading[row.key]"
-              class="cfg-sel"
-              bg-color="rgb(var(--v-theme-surface))"
-            />
+            <!-- CBB2: Cuenta del grupo seleccionado -->
+            <div class="cfg-sel-wrap">
+              <select
+                v-model="selCuenta[row.key]"
+                class="cfg-native-sel"
+                :disabled="!selGrupo[row.key] || rowLoading[row.key]"
+              >
+                <option value="">
+                  {{ rowLoading[row.key] ? 'Cargando...' : '— Cuenta —' }}
+                </option>
+                <option v-for="c in (rowCuentas[row.key] || [])" :key="c.codigo" :value="c.codigo">
+                  {{ c.cuenta }}
+                </option>
+              </select>
+              <v-progress-circular
+                v-if="rowLoading[row.key]"
+                size="14" width="2" indeterminate color="#06b6d4"
+                class="cfg-sel-spin"
+              />
+            </div>
           </div>
         </div>
 
@@ -286,64 +288,61 @@ const savingCfg  = ref(false)
 const cfgSaveOk  = ref(false)
 const cfgSaveErr = ref('')
 
-// Busca en la API las cuentas para un grupo específico
-async function fetchCuentasGrupo(key, grupoCodigo) {
-  if (!grupoCodigo) { rowCuentas[key] = []; return }
+// Cuando cambia el grupo: limpiar cuenta y cargar cuentas del grupo
+async function onGrupoChange(key) {
+  selCuenta[key] = ''
+  const g = selGrupo[key]
+  if (!g) { rowCuentas[key] = []; return }
   rowLoading[key] = true
   try {
     const res = await api.get('/configuracion/cuentas', {
-      params: { empresa: empresa.value, grupo: grupoCodigo }
+      params: { empresa: empresa.value, grupo: g }
     })
     rowCuentas[key] = res.data?.data || []
+    console.log(`[onGrupoChange] key=${key} grupo=${g} cuentas=${rowCuentas[key].length}`)
   } catch (e) {
-    console.error(`fetchCuentasGrupo(${key}, ${grupoCodigo}):`, e)
+    console.error('[onGrupoChange] error:', e)
     rowCuentas[key] = []
   } finally {
     rowLoading[key] = false
   }
 }
 
-async function onGrupoChange(key) {
-  selCuenta[key] = null
-  await fetchCuentasGrupo(key, selGrupo[key])
-}
-
 async function cargarConfigContable() {
   loadingCfg.value = true
   try {
-    // 1. Grupos (sin empresa)
+    // 1. Grupos no necesita empresa
     const gruposRes = await api.get('/grupo-gastos')
     grupos.value = gruposRes.data?.data || []
+    console.log('[Configuracion] grupos cargados:', grupos.value.length, grupos.value.map(g => g.codigo + ':' + g.nombre))
 
-    if (!empresa.value) {
-      loadingCfg.value = false
-      return
-    }
+    if (!empresa.value) { loadingCfg.value = false; return }
 
-    // 2. Configuración guardada
-    const cfgRes = await api.get('/config-general', { params: { empresa: empresa.value } })
-    const cfg = cfgRes.data?.data || {}
+    // 2. Configuración guardada + todas las cuentas para pre-cargar grupos
+    const [cfgRes, allCtasRes] = await Promise.all([
+      api.get('/config-general',        { params: { empresa: empresa.value } }),
+      api.get('/configuracion/cuentas', { params: { empresa: empresa.value } }),
+    ])
+    const cfg     = cfgRes.data?.data     || {}
+    const allCtas = allCtasRes.data?.data || []
+    console.log('[Configuracion] cuentas totales:', allCtas.length)
 
-    // 3. Para cada fila: pre-seleccionar grupo y cargar sus cuentas desde la API
-    await Promise.all(CFG_ROWS.map(async (row) => {
-      const codigoCuenta = cfg[row.key] ? String(cfg[row.key]).trim() : null
+    // 3. Pre-seleccionar grupo y cuenta para cada fila
+    for (const row of CFG_ROWS) {
+      const codigoCuenta = cfg[row.key] ? String(cfg[row.key]).trim() : ''
+      const cta = allCtas.find(c => String(c.codigo).trim() === codigoCuenta)
+      const grupoCodigo = cta ? String(cta.grupo).trim() : ''
+
+      selGrupo[row.key]  = grupoCodigo
       selCuenta[row.key] = codigoCuenta
 
-      if (codigoCuenta) {
-        // Buscar a qué grupo pertenece esta cuenta
-        const ctaRes = await api.get('/configuracion/cuentas', {
-          params: { empresa: empresa.value }
-        })
-        const allCtas = ctaRes.data?.data || []
-        const cta = allCtas.find(c => String(c.codigo || '').trim() === codigoCuenta)
-        const grupoCodigo = cta?.grupo ? String(cta.grupo).trim() : null
-        selGrupo[row.key] = grupoCodigo
-        if (grupoCodigo) await fetchCuentasGrupo(row.key, grupoCodigo)
+      // Pre-cargar cuentas del grupo si hay grupo seleccionado
+      if (grupoCodigo) {
+        rowCuentas[row.key] = allCtas.filter(c => String(c.grupo).trim() === grupoCodigo)
       } else {
-        selGrupo[row.key] = null
         rowCuentas[row.key] = []
       }
-    }))
+    }
 
   } catch (e) {
     console.error('[Configuracion] error al cargar:', e)
@@ -534,7 +533,7 @@ onMounted(() => {
 .cfg-loading { display: flex; align-items: center; gap: 10px; padding: 16px 0; font-size: 13px; color: rgba(var(--v-theme-on-surface),0.5); }
 
 /* ═══ CONFIGURACIÓN CONTABLE ═══ */
-.cfg-ctas-table { display: flex; flex-direction: column; gap: 10px; }
+.cfg-ctas-table { display: flex; flex-direction: column; gap: 8px; }
 
 .cfg-cta-row {
   display: grid;
@@ -553,7 +552,27 @@ onMounted(() => {
   color: rgba(var(--v-theme-on-surface),0.65); text-transform: uppercase;
 }
 
-.cfg-sel { min-width: 0; }
+/* Native selects */
+.cfg-native-sel {
+  width: 100%; height: 38px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--v-theme-on-surface),0.2);
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  appearance: auto;
+  transition: border-color 0.15s;
+}
+.cfg-native-sel:focus { border-color: #06b6d4; }
+.cfg-native-sel:disabled { opacity: 0.4; cursor: not-allowed; }
+.cfg-native-sel option { background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
+
+.cfg-sel-wrap { position: relative; display: flex; align-items: center; }
+.cfg-sel-wrap .cfg-native-sel { flex: 1; }
+.cfg-sel-spin { position: absolute; right: 28px; pointer-events: none; }
 
 .cfg-ctas-actions {
   display: flex; align-items: center; justify-content: flex-end; gap: 12px;
