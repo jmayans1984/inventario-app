@@ -39,7 +39,7 @@
       </div>
 
       <!-- GRILLA SEMANAL -->
-      <div v-if="semanaActual && detalle.length" class="nom-card">
+      <div v-if="semanaActual && semanaActual.semana_inicio && detalle.length" class="nom-card">
         <div class="semana-grid" :style="`grid-template-columns: 180px repeat(${DIAS.length}, 1fr)`">
           <!-- Header días -->
           <div class="sg-header-emp">EMPLEADO</div>
@@ -228,14 +228,22 @@ function getNombreDisplay(emp) {
 }
 
 function getTurno(empId, semanaInicio, offset) {
+  if (!semanaInicio) return null
   const fecha = addDays(semanaInicio, offset)
+  if (!fecha) return null
   return detalle.value.find(d => d.empleado_id === empId && d.fecha?.split('T')[0] === fecha) || null
 }
 
 function addDays(dateStr, days) {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
+  if (!dateStr) return null
+  try {
+    const d = new Date(dateStr + 'T00:00:00')
+    if (isNaN(d.getTime())) return null
+    d.setDate(d.getDate() + days)
+    return d.toISOString().split('T')[0]
+  } catch {
+    return null
+  }
 }
 
 function totalHorasEmp(empId) {
@@ -252,9 +260,14 @@ function fmtFecha(f) {
   return `${parseInt(d)} ${meses[parseInt(m)]} ${y}`
 }
 function fmtDiaMes(inicio, offset) {
-  const f = addDays(inicio, offset)
-  const [,m,d] = f.split('-')
-  return `${parseInt(d)}/${parseInt(m)}`
+  if (!inicio) return '—'
+  try {
+    const f = addDays(inicio, offset)
+    const [,m,d] = f.split('-')
+    return `${parseInt(d)}/${parseInt(m)}`
+  } catch {
+    return '—'
+  }
 }
 function fmtFechaCorta(f) {
   if (!f) return ''
