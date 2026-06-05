@@ -201,6 +201,7 @@ const semanas = ref([])
 const semanaSelId = ref('')
 const semanaActual = ref(null)
 const detalle = ref([])
+const empleadosActivos = ref([])
 const ccostos = ref([])
 const horarioConfigs = ref([])
 const ccostoSelId = ref('')
@@ -223,24 +224,42 @@ const turnoEdit = ref(null)
 const guardandoTurno = ref(false)
 
 const empleadosUnicos = computed(() => {
+  // Mostrar TODOS los empleados activos
+  // Si hay ccosto seleccionado, priorizar esos pero mostrar todos disponibles
   const map = {}
-  // Filtrar por ccosto si está seleccionado
-  const filtrado = ccostoSelId.value
-    ? detalle.value.filter(d => d.ccosto === ccostoSelId.value)
-    : detalle.value
 
-  filtrado.forEach(d => {
-    if (!map[d.empleado_id]) {
-      map[d.empleado_id] = {
-        id: d.empleado_id,
-        nombre: d.nombre,
-        apellido: d.apellido,
-        tipo_empleado: d.tipo_empleado,
-        empresa_contratista: d.empresa_contratista,
-        ccosto: d.ccosto
-      }
+  // Primero agregar todos los empleados activos
+  empleadosActivos.value.forEach(e => {
+    map[e.id] = {
+      id: e.id,
+      nombre: e.nombre,
+      apellido: e.apellido,
+      tipo_empleado: e.tipo_empleado,
+      empresa_contratista: e.empresa_contratista,
+      ccosto: e.ccosto
     }
   })
+
+  // Si hay ccosto seleccionado, mantener solo los que tienen turnos en ese ccosto
+  if (ccostoSelId.value) {
+    const conTurnos = new Set()
+    detalle.value
+      .filter(d => d.ccosto === ccostoSelId.value)
+      .forEach(d => conTurnos.add(d.empleado_id))
+
+    // Filtrar: mostrar empleados del ccosto + todos los demás para poder agregar nuevos
+    const filtrado = {}
+    Object.keys(map).forEach(empId => {
+      if (conTurnos.has(parseInt(empId))) {
+        filtrado[empId] = map[empId]
+      }
+    })
+    // Si no hay empleados con turnos en este ccosto, mostrar todos para agregar
+    return Object.keys(filtrado).length > 0
+      ? Object.values(filtrado).sort((a,b) => a.apellido.localeCompare(b.apellido))
+      : Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
+  }
+
   return Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
 
@@ -300,14 +319,16 @@ function fmtFechaCorta(f) {
 }
 
 async function cargarSemanas() {
-  const [semsR, ccR, hcR] = await Promise.all([
+  const [semsR, ccR, hcR, empR] = await Promise.all([
     api.get('/nomina/semanas', { params: { empresa: empresa.value } }),
     api.get('/ccostos',        { params: { empresa: empresa.value } }),
     api.get('/nomina/horario-config', { params: { empresa: empresa.value } }),
+    api.get('/nomina/empleados', { params: { empresa: empresa.value, estado: 'ACTIVO' } }),
   ])
   semanas.value = semsR.data?.data || []
   ccostos.value = ccR.data?.data || ccR.data || []
   horarioConfigs.value = hcR.data?.data || []
+  empleadosActivos.value = empR.data?.data || []
   if (semanas.value.length && !semanaSelId.value) {
     semanaSelId.value = semanas.value[0].id
     cargarDetalle()
@@ -395,12 +416,17 @@ function abrirEditar(emp, offset) {
     real_inicio: diaConfig?.hora_inicio||'',
     real_fin: diaConfig?.hora_fin||'',
     real_horas: diaConfig?.horas_default||0,
-    ccosto: emp.ccosto||'',
+    ccosto: ccostoSelId.value || emp.ccosto || '',
     es_dia_libre: !diaConfig,
     ausencia_tipo: '',
     notas: ''
   }
-  dlgEditar.value = true
+  try {
+    dlgEditar.value = true
+  } catch(e) {
+    console.error('Error al abrir editar:', e)
+    alert('❌ Error: ' + e.message)
+  }
 }
 
 async function guardarTurno() {
