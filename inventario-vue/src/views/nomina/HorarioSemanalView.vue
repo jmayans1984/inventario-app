@@ -100,6 +100,11 @@
       <div v-else-if="!semanaSelId" class="nom-card" style="padding:32px;text-align:center;color:rgba(var(--v-theme-on-surface),0.4)">
         Selecciona una semana o crea una nueva.
       </div>
+
+      <!-- Version badge -->
+      <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.3);margin-top:16px">
+        v1.5.0 | Empleados activos: {{ empleadosActivos.length }} | Turno abierto: {{ turnoEdit ? 'Sí' : 'No' }}
+      </div>
     </div>
 
     <!-- Dialog nueva semana -->
@@ -224,43 +229,30 @@ const turnoEdit = ref(null)
 const guardandoTurno = ref(false)
 
 const empleadosUnicos = computed(() => {
-  // Mostrar TODOS los empleados activos
-  // Si hay ccosto seleccionado, priorizar esos pero mostrar todos disponibles
-  const map = {}
+  // Si no hay empleados activos cargados, retornar vacío
+  if (empleadosActivos.value.length === 0) return []
 
-  // Primero agregar todos los empleados activos
-  empleadosActivos.value.forEach(e => {
-    map[e.id] = {
-      id: e.id,
-      nombre: e.nombre,
-      apellido: e.apellido,
-      tipo_empleado: e.tipo_empleado,
-      empresa_contratista: e.empresa_contratista,
-      ccosto: e.ccosto
-    }
-  })
-
-  // Si hay ccosto seleccionado, mantener solo los que tienen turnos en ese ccosto
-  if (ccostoSelId.value) {
-    const conTurnos = new Set()
-    detalle.value
-      .filter(d => d.ccosto === ccostoSelId.value)
-      .forEach(d => conTurnos.add(d.empleado_id))
-
-    // Filtrar: mostrar empleados del ccosto + todos los demás para poder agregar nuevos
-    const filtrado = {}
-    Object.keys(map).forEach(empId => {
-      if (conTurnos.has(parseInt(empId))) {
-        filtrado[empId] = map[empId]
-      }
-    })
-    // Si no hay empleados con turnos en este ccosto, mostrar todos para agregar
-    return Object.keys(filtrado).length > 0
-      ? Object.values(filtrado).sort((a,b) => a.apellido.localeCompare(b.apellido))
-      : Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
+  // Si NO hay ccosto seleccionado, mostrar TODOS los empleados activos
+  if (!ccostoSelId.value) {
+    return empleadosActivos.value.sort((a,b) => a.apellido.localeCompare(b.apellido))
   }
 
-  return Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
+  // Si hay ccosto seleccionado:
+  // 1. Primero buscar empleados con turnos en ese ccosto
+  const conTurnos = new Set()
+  detalle.value
+    .filter(d => d.ccosto === ccostoSelId.value)
+    .forEach(d => conTurnos.add(d.empleado_id))
+
+  // 2. Si hay empleados con turnos en este ccosto, mostrar esos
+  if (conTurnos.size > 0) {
+    return empleadosActivos.value
+      .filter(e => conTurnos.has(e.id))
+      .sort((a,b) => a.apellido.localeCompare(b.apellido))
+  }
+
+  // 3. Si NO hay empleados con turnos en este ccosto, mostrar TODOS para agregar
+  return empleadosActivos.value.sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
 
 function getNombreDisplay(emp) {
@@ -329,6 +321,9 @@ async function cargarSemanas() {
   ccostos.value = ccR.data?.data || ccR.data || []
   horarioConfigs.value = hcR.data?.data || []
   empleadosActivos.value = empR.data?.data || []
+
+  console.log('📋 Empleados activos cargados:', empleadosActivos.value.length, empleadosActivos.value)
+
   if (semanas.value.length && !semanaSelId.value) {
     semanaSelId.value = semanas.value[0].id
     cargarDetalle()
