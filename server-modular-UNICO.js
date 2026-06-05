@@ -8186,7 +8186,7 @@ app.put('/api/nomina/empleados/:id', async (req, res) => {
              cargo_id=$10,ccosto=$11,estado=$12,tipo_empleado=$13,tipo_contrato=$14,
              empresa_contratista=$15,es_por_horas=$16,valor_hora=$17,monto_fijo_semanal=$18,
              frecuencia_pago=$19,ssn=$20,permiso_trabajo=$21,fecha_vencimiento_permiso=$22,
-             w4_filing_status=$23,w4_claim_dependentes=$24,w4_extra_withholding=$25,w4_exempt=$26,
+             w4_filing_status=$23,w4_claim_dependents=$24,w4_extra_withholding=$25,w4_exempt=$26,
              wc_rate=$27,wc_code=$28,notas=$29,fecha_retiro=$30,motivo_retiro=$31,
              updated_at=NOW()
              WHERE id=$32`,
