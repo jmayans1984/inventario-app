@@ -97,34 +97,45 @@
             </div>
           </div>
 
+          <!-- TABS -->
+          <v-tabs v-model="tabActual" class="drw-tabs">
+            <v-tab value="personal">PERSONAL</v-tab>
+            <v-tab value="direccion">DIRECCIÓN</v-tab>
+            <v-tab value="laboral">LABORAL</v-tab>
+            <v-tab value="compensacion">COMPENSACIÓN</v-tab>
+            <v-tab value="w4">W-4</v-tab>
+            <v-tab value="wc">WORKERS COMP</v-tab>
+            <v-tab value="notas">NOTAS</v-tab>
+          </v-tabs>
+
           <!-- Secciones del formulario -->
-          <div class="drw-section">
+          <div v-show="tabActual === 'personal'" class="drw-section">
             <div class="drw-section-title">INFORMACIÓN PERSONAL</div>
             <div class="drw-grid-2">
-              <div class="drw-field"><label>NOMBRE *</label><input v-model="form.nombre" class="drw-input" /></div>
-              <div class="drw-field"><label>APELLIDO *</label><input v-model="form.apellido" class="drw-input" /></div>
+              <div class="drw-field"><label>NOMBRE *</label><input v-model="form.nombre" @input="form.nombre = form.nombre.toUpperCase()" class="drw-input" /></div>
+              <div class="drw-field"><label>APELLIDO *</label><input v-model="form.apellido" @input="form.apellido = form.apellido.toUpperCase()" class="drw-input" /></div>
               <div class="drw-field"><label>FECHA NACIMIENTO</label><input v-model="form.fecha_nacimiento" type="date" class="drw-input" /></div>
-              <div class="drw-field"><label>EMAIL</label><input v-model="form.email" type="email" class="drw-input" /></div>
-              <div class="drw-field"><label>TELÉFONO</label><input v-model="form.telefono" class="drw-input" /></div>
-              <div class="drw-field"><label>SSN (SOCIAL SECURITY)</label><input v-model="form.ssn" class="drw-input" placeholder="XXX-XX-XXXX" /></div>
+              <div class="drw-field"><label>EMAIL</label><input v-model="form.email" @input="form.email = form.email.toUpperCase()" type="email" class="drw-input" /></div>
+              <div class="drw-field"><label>TELÉFONO</label><input v-model="form.telefono" @input="form.telefono = form.telefono.toUpperCase()" class="drw-input" /></div>
+              <div class="drw-field"><label>SSN (SOCIAL SECURITY)</label><input v-model="form.ssn" @input="form.ssn = form.ssn.toUpperCase()" class="drw-input" placeholder="XXX-XX-XXXX" /></div>
             </div>
           </div>
 
-          <div class="drw-section">
+          <div v-show="tabActual === 'direccion'" class="drw-section">
             <div class="drw-section-title">DIRECCIÓN</div>
             <div class="drw-grid-2">
-              <div class="drw-field drw-span-2"><label>DIRECCIÓN</label><input v-model="form.direccion" class="drw-input" /></div>
+              <div class="drw-field drw-span-2"><label>DIRECCIÓN</label><input v-model="form.direccion" @input="form.direccion = form.direccion.toUpperCase()" class="drw-input" /></div>
               <div class="drw-field"><label>ESTADO *</label>
                 <v-select v-model="form.estado_residencia" :items="usaStates" item-title="name" item-value="code" @update:model-value="form.ciudad=''" clearable density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field"><label>CIUDAD *</label>
                 <v-select v-model="form.ciudad" :items="ciudadesDelEstado" :disabled="!form.estado_residencia" clearable density="compact" variant="outlined"></v-select>
               </div>
-              <div class="drw-field"><label>ZIP CODE</label><input v-model="form.zipcode" class="drw-input" /></div>
+              <div class="drw-field"><label>ZIP CODE</label><input v-model="form.zipcode" @input="form.zipcode = form.zipcode.toUpperCase()" class="drw-input" /></div>
             </div>
           </div>
 
-          <div class="drw-section">
+          <div v-show="tabActual === 'laboral'" class="drw-section">
             <div class="drw-section-title">INFORMACIÓN LABORAL</div>
             <div class="drw-grid-2">
               <div class="drw-field"><label>TIPO EMPLEADO *</label>
@@ -135,7 +146,7 @@
               </div>
               <div class="drw-field" v-if="form.tipo_empleado === '1099'">
                 <label>EMPRESA CONTRATISTA</label>
-                <input v-model="form.empresa_contratista" class="drw-input" />
+                <input v-model="form.empresa_contratista" @input="form.empresa_contratista = form.empresa_contratista.toUpperCase()" class="drw-input" />
               </div>
               <div class="drw-field"><label>CARGO</label>
                 <v-select v-model="form.cargo_id" :items="cargos" item-title="nombre" item-value="id" clearable density="compact" variant="outlined"></v-select>
@@ -155,10 +166,10 @@
               </div>
               <div class="drw-field" v-if="form.estado === 'INACTIVO'" style="grid-column:span 2">
                 <label>MOTIVO RETIRO</label>
-                <input v-model="form.motivo_retiro" class="drw-input" />
+                <input v-model="form.motivo_retiro" @input="form.motivo_retiro = form.motivo_retiro.toUpperCase()" class="drw-input" />
               </div>
               <div class="drw-field"><label># PERMISO DE TRABAJO</label>
-                <input v-model="form.permiso_trabajo" class="drw-input" />
+                <input v-model="form.permiso_trabajo" @input="form.permiso_trabajo = form.permiso_trabajo.toUpperCase()" class="drw-input" />
               </div>
               <div class="drw-field"><label>FECHA VENCIMIENTO PERMISO</label>
                 <input v-model="form.fecha_vencimiento_permiso" type="date" class="drw-input" />
@@ -166,7 +177,7 @@
             </div>
           </div>
 
-          <div class="drw-section">
+          <div v-show="tabActual === 'compensacion'" class="drw-section">
             <div class="drw-section-title">COMPENSACIÓN</div>
             <div class="drw-grid-2">
               <div class="drw-field"><label>TIPO DE PAGO</label>
@@ -187,7 +198,7 @@
           </div>
 
           <!-- W4 solo para W2 -->
-          <div class="drw-section" v-if="form.tipo_empleado === 'W2'">
+          <div v-show="tabActual === 'w4' && form.tipo_empleado === 'W2'" class="drw-section">
             <div class="drw-section-title">INFORMACIÓN W-4 (RETENCIÓN FEDERAL)</div>
             <div class="drw-w4-note">
               <v-icon size="14" color="#f59e0b">mdi-information-outline</v-icon>
@@ -207,7 +218,7 @@
               <div class="drw-field">
                 <label>CRÉDITO POR DEPENDIENTES ($)</label>
                 <input v-model="form.w4_claim_dependents" type="number" step="1" min="0" class="drw-input"
-                       placeholder="Ej: 2000 por hijo" />
+                       placeholder="EJ: 2000 POR HIJO" />
               </div>
               <div class="drw-field">
                 <label>RETENCIÓN EXTRA POR PERÍODO ($)</label>
@@ -215,23 +226,28 @@
               </div>
             </div>
           </div>
+          <div v-show="tabActual === 'w4' && form.tipo_empleado !== 'W2'" class="drw-section">
+            <div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">
+              W-4 SOLO APLICA A EMPLEADOS W2
+            </div>
+          </div>
 
-          <div class="drw-section">
+          <div v-show="tabActual === 'wc'" class="drw-section">
             <div class="drw-section-title">WORKERS' COMPENSATION</div>
             <div class="drw-grid-2">
               <div class="drw-field"><label>CÓDIGO CLASIFICACIÓN WC</label>
-                <input v-model="form.wc_code" class="drw-input" placeholder="Ej: 9082 (RESTAURANT)" />
+                <input v-model="form.wc_code" @input="form.wc_code = form.wc_code.toUpperCase()" class="drw-input" placeholder="EJ: 9082 (RESTAURANT)" />
               </div>
               <div class="drw-field"><label>TASA WC (%)</label>
                 <input v-model="form.wc_rate" type="number" step="0.0001" min="0" class="drw-input"
-                       placeholder="Ej: 0.0525" />
+                       placeholder="EJ: 0.0525" />
               </div>
             </div>
           </div>
 
-          <div class="drw-section">
+          <div v-show="tabActual === 'notas'" class="drw-section">
             <div class="drw-section-title">NOTAS</div>
-            <textarea v-model="form.notas" class="drw-textarea" rows="3" placeholder="Observaciones internas..."></textarea>
+            <textarea v-model="form.notas" @input="form.notas = form.notas.toUpperCase()" class="drw-textarea" rows="10" placeholder="OBSERVACIONES INTERNAS..."></textarea>
           </div>
 
           <div v-if="formErr" class="drw-error">{{ formErr }}</div>
@@ -342,6 +358,7 @@ const editando    = ref(null)
 const fotoPreview = ref(null)
 const fotoBase64  = ref(null)
 const fotoNombre  = ref(null)
+const tabActual   = ref('personal')
 
 const filtrados = computed(() => {
   if (filtroEstado.value === 'TODOS') return empleados.value
@@ -386,6 +403,7 @@ function nuevo() {
   fotoPreview.value = null
   fotoBase64.value  = null
   formErr.value   = ''
+  tabActual.value = 'personal'
   drawer.value    = true
 }
 
@@ -417,6 +435,7 @@ function editar(e) {
   fotoPreview.value = null
   fotoBase64.value  = null
   formErr.value     = ''
+  tabActual.value   = 'personal'
   // Load photo
   if (e.id) {
     api.get(`/nomina/empleados/${e.id}/foto`, { responseType: 'blob' })
@@ -578,18 +597,29 @@ onMounted(cargar)
 }
 .drw-input:focus { border-color: #8b5cf6; background: rgba(var(--v-theme-on-surface),0.08); }
 
-.drw-select {
-  height: 34px; padding: 0 10px; border-radius: 7px;
-  border: 1.5px solid rgba(var(--v-theme-on-surface),0.25);
-  background: rgba(var(--v-theme-on-surface),0.06);
-  color: rgb(var(--v-theme-on-surface)); font-size: 12px; font-weight: 500;
-  outline: none; transition: all 0.15s; cursor: pointer;
-  appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat; background-position: right 8px center; background-size: 16px;
-  padding-right: 30px;
+:deep(.drw-field .v-select) {
+  font-size: 12px !important;
 }
-.drw-select:disabled { opacity: 0.5; cursor: not-allowed; }
-.drw-select:focus { border-color: #8b5cf6; background-color: rgba(var(--v-theme-on-surface),0.09); }
+:deep(.drw-field .v-select .v-field__input) {
+  font-size: 12px !important;
+  padding: 0 10px !important;
+  min-height: 34px !important;
+}
+:deep(.drw-field .v-select .v-field__control) {
+  min-height: 34px !important;
+}
+
+.drw-tabs {
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.1);
+}
+:deep(.drw-tabs .v-tab) {
+  font-size: 10px !important;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  min-height: 40px !important;
+  padding: 0 12px !important;
+}
 
 .drw-textarea {
   padding: 8px 10px; border-radius: 7px; width: 100%;
