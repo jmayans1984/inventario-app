@@ -308,11 +308,17 @@ async function crearSemana() {
 
 async function generarHorario() {
   if (!semanaSelId.value) return
-  const cfgId = horarioConfigs.value[0]?.id || null
-  await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
-    empresa: empresa.value, config_id: cfgId
-  })
-  cargarDetalle()
+  try {
+    const cfgId = horarioConfigs.value[0]?.id || null
+    if (!cfgId) { alert('⚠️ No hay plantillas de horario disponibles. Crea una primero.'); return }
+    await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
+      empresa: empresa.value, config_id: cfgId
+    })
+    await cargarDetalle()
+  } catch(e) {
+    console.error('Error al generar horario:', e)
+    alert('❌ Error al generar horario: ' + (e?.response?.data?.error || e.message))
+  }
 }
 
 async function publicar() {
