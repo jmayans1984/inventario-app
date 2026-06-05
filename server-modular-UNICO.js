@@ -5512,6 +5512,126 @@ app.get('/', (req, res) => {
 // CONTABILIDAD - GESTIÓN DE GASTOS (CRUD) + MOVIBAN
 // ================================================================
 
+// ================================================================
+// MÓDULO: CONFIGURACIÓN GENERAL
+// ================================================================
+
+// GET /api/grupo-gastos — lista todos los grupos (sin filtro de empresa)
+app.get('/api/grupo-gastos', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT codigo, nombre, tipo FROM grupo_gastos ORDER BY nombre');
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/grupo-gastos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/configuracion/cuentas?empresa=X — cuentas con su grupo
+app.get('/api/configuracion/cuentas', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const result = await pool.query(
+            `SELECT c.codigo, c.cuenta, c.grupo, g.nombre AS grupo_nombre
+             FROM cuentas c
+             LEFT JOIN grupo_gastos g ON g.codigo = c.grupo
+             WHERE c.empresa = $1
+             ORDER BY c.grupo, c.cuenta`,
+            [empresa]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/configuracion/cuentas:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/configuracion/usuarios?empresa=X
+app.get('/api/configuracion/usuarios', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const result = await pool.query(
+            'SELECT codigo, usuario, nombre, nivel FROM usuarios WHERE empresa = $1 ORDER BY nombre',
+            [empresa]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/configuracion/usuarios:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/configuracion/usuarios
+app.post('/api/configuracion/usuarios', async (req, res) => {
+    const { codigo, usuario, nombre, clave, empresa } = req.body;
+    if (!codigo || !usuario || !nombre || !clave || !empresa)
+        return res.status(400).json({ success: false, error: 'Campos requeridos: codigo, usuario, nombre, clave' });
+    try {
+        await pool.query(
+            'INSERT INTO usuarios (codigo, usuario, nombre, clave, nivel, empresa) VALUES ($1, $2, $3, $4, 1, $5)',
+            [parseInt(codigo), usuario.toUpperCase(), nombre.toUpperCase(), clave, parseInt(empresa)]
+        );
+        res.json({ success: true, data: { codigo: parseInt(codigo), usuario: usuario.toUpperCase(), nombre: nombre.toUpperCase(), nivel: 1 } });
+    } catch (error) {
+        const msg = error.code === '23505' ? 'Ya existe un usuario con ese código' : error.message;
+        console.error('Error POST /api/configuracion/usuarios:', error.message);
+        res.status(400).json({ success: false, error: msg });
+    }
+});
+
+// DELETE /api/configuracion/usuarios/:codigo?empresa=X
+app.delete('/api/configuracion/usuarios/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { empresa } = req.query;
+    try {
+        await pool.query('DELETE FROM usuarios WHERE codigo = $1 AND empresa = $2', [parseInt(codigo), parseInt(empresa)]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/configuracion/usuarios:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/empresa/logo?empresa=X — devuelve la imagen como binario
+app.get('/api/empresa/logo', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const result = await pool.query('SELECT logo, logo_nombre FROM empresas WHERE codigo = $1', [empresa]);
+        if (!result.rows[0]?.logo) return res.status(404).json({ success: false, error: 'Sin logo' });
+        const { logo, logo_nombre } = result.rows[0];
+        const ext = (logo_nombre || 'logo.png').split('.').pop().toLowerCase();
+        const mimeMap = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+        res.setHeader('Content-Type', mimeMap[ext] || 'image/png');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.send(logo);
+    } catch (error) {
+        console.error('Error GET /api/empresa/logo:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/empresa/logo — guarda logo como bytea
+app.post('/api/empresa/logo', async (req, res) => {
+    const { empresa, logoBase64, logoNombre } = req.body;
+    if (!empresa || !logoBase64) return res.status(400).json({ success: false, error: 'empresa y logoBase64 requeridos' });
+    try {
+        const buffer = Buffer.from(logoBase64, 'base64');
+        await pool.query(
+            'UPDATE empresas SET logo = $1, logo_nombre = $2 WHERE codigo = $3',
+            [buffer, logoNombre || 'logo.png', parseInt(empresa)]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error POST /api/empresa/logo:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── FIN CONFIGURACIÓN GENERAL ──────────────────────────────────
+
 // GET /api/dashboard/resumen - KPIs para la pantalla de inicio
 app.get('/api/dashboard/resumen', async (req, res) => {
     const { empresa } = req.query;
