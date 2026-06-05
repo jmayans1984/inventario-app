@@ -128,8 +128,8 @@
               <div class="drw-field"><label>ESTADO *</label>
                 <v-select v-model="form.estado_residencia" :items="usaStates" item-title="name" item-value="code" @update:model-value="form.ciudad=''" clearable density="compact" variant="outlined"></v-select>
               </div>
-              <div class="drw-field"><label>CIUDAD *</label>
-                <v-select v-model="form.ciudad" :items="ciudadesDelEstado" :disabled="!form.estado_residencia" clearable density="compact" variant="outlined"></v-select>
+              <div class="drw-field"><label>CIUDAD</label>
+                <input v-model="form.ciudad" @input="form.ciudad = form.ciudad.toUpperCase()" class="drw-input" :disabled="!form.estado_residencia" placeholder="ESCRIBE LA CIUDAD" />
               </div>
               <div class="drw-field"><label>ZIP CODE</label><input v-model="form.zipcode" @input="form.zipcode = form.zipcode.toUpperCase()" class="drw-input" /></div>
             </div>
@@ -334,16 +334,6 @@ const usaStates = [
   { code: 'WY', name: 'WYOMING' }
 ]
 
-const ciudadesxEstado = {
-  'FL': ['MIAMI', 'TAMPA', 'ORLANDO', 'JACKSONVILLE', 'FORT LAUDERDALE', 'MIAMI BEACH', 'TALLAHASSEE', 'PALM BEACH', 'NAPLES', 'PENSACOLA', 'CLEARWATER', 'DAYTONA BEACH', 'GAINESVILLE', 'LAKELAND', 'SARASOTA'],
-  'AL': ['BIRMINGHAM', 'MONTGOMERY', 'MOBILE', 'HUNTSVILLE', 'AUBURN', 'DOTHAN', 'TUSCALOOSA', 'GADSDEN'],
-  'GA': ['ATLANTA', 'SAVANNAH', 'AUGUSTA', 'COLUMBUS', 'MACON', 'ATHENS', 'MARIETTA', 'KENNESAW'],
-  'TX': ['HOUSTON', 'DALLAS', 'AUSTIN', 'SAN ANTONIO', 'FORT WORTH', 'CORPUS CHRISTI', 'EL PASO', 'ARLINGTON', 'IRVING'],
-  'NY': ['NEW YORK', 'BUFFALO', 'ALBANY', 'ROCHESTER', 'YONKERS', 'SYRACUSE', 'BROOKLYN', 'QUEENS'],
-  'CA': ['LOS ANGELES', 'SAN FRANCISCO', 'SAN DIEGO', 'SACRAMENTO', 'LONG BEACH', 'OAKLAND', 'ANAHEIM', 'SANTA ANA'],
-  // Agregar más ciudades según sea necesario
-}
-
 const empleados   = ref([])
 const cargos      = ref([])
 const ccostos     = ref([])
@@ -363,10 +353,6 @@ const tabActual   = ref('personal')
 const filtrados = computed(() => {
   if (filtroEstado.value === 'TODOS') return empleados.value
   return empleados.value.filter(e => e.estado === filtroEstado.value)
-})
-
-const ciudadesDelEstado = computed(() => {
-  return ciudadesxEstado[form.value.estado_residencia] || []
 })
 
 // Nombre display: muestra empresa para 1099, solo nombre para W2

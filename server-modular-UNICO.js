@@ -7933,6 +7933,21 @@ async function crearTablasNomina() {
 }
 crearTablasNomina();
 
+// ── Agregar columna faltante a nom_empleados ──
+async function agregarColumnasNomina() {
+    const columnaSql = `
+        ALTER TABLE nom_empleados
+        ADD COLUMN IF NOT EXISTS fecha_vencimiento_permiso DATE;
+    `;
+    try {
+        await pool.query(columnaSql);
+        console.log('✅ Columna fecha_vencimiento_permiso verificada');
+    } catch(e) {
+        console.error('Columna ya existe o error:', e.message);
+    }
+}
+agregarColumnasNomina();
+
 // ── Cálculo de Federal Income Tax (IRS Percentage Method 2024) ──
 function calcularFederalIncomeTax(brutoAnualizado, filingStatus) {
     if (!filingStatus || filingStatus === 'EXEMPT') return 0;
