@@ -101,86 +101,91 @@
           <div class="drw-section">
             <div class="drw-section-title">INFORMACIÓN PERSONAL</div>
             <div class="drw-grid-2">
-              <div class="drw-field"><label>Nombre *</label><input v-model="form.nombre" class="drw-input" /></div>
-              <div class="drw-field"><label>Apellido *</label><input v-model="form.apellido" class="drw-input" /></div>
-              <div class="drw-field"><label>Fecha Nacimiento</label><input v-model="form.fecha_nacimiento" type="date" class="drw-input" /></div>
-              <div class="drw-field"><label>Email</label><input v-model="form.email" type="email" class="drw-input" /></div>
-              <div class="drw-field"><label>Teléfono</label><input v-model="form.telefono" class="drw-input" /></div>
-              <div class="drw-field"><label>SSN (Social Security)</label><input v-model="form.ssn" class="drw-input" placeholder="XXX-XX-XXXX" /></div>
+              <div class="drw-field"><label>NOMBRE *</label><input v-model="form.nombre" class="drw-input" /></div>
+              <div class="drw-field"><label>APELLIDO *</label><input v-model="form.apellido" class="drw-input" /></div>
+              <div class="drw-field"><label>FECHA NACIMIENTO</label><input v-model="form.fecha_nacimiento" type="date" class="drw-input" /></div>
+              <div class="drw-field"><label>EMAIL</label><input v-model="form.email" type="email" class="drw-input" /></div>
+              <div class="drw-field"><label>TELÉFONO</label><input v-model="form.telefono" class="drw-input" /></div>
+              <div class="drw-field"><label>SSN (SOCIAL SECURITY)</label><input v-model="form.ssn" class="drw-input" placeholder="XXX-XX-XXXX" /></div>
             </div>
           </div>
 
           <div class="drw-section">
             <div class="drw-section-title">DIRECCIÓN</div>
             <div class="drw-grid-2">
-              <div class="drw-field drw-span-2"><label>Dirección</label><input v-model="form.direccion" class="drw-input" /></div>
-              <div class="drw-field"><label>Ciudad</label><input v-model="form.ciudad" class="drw-input" /></div>
-              <div class="drw-field"><label>Estado</label>
-                <select v-model="form.estado_residencia" class="drw-select">
-                  <option value="FL">Florida</option>
-                  <option value="AL">Alabama</option><option value="GA">Georgia</option>
-                  <option value="TX">Texas</option><option value="NY">New York</option>
-                  <option value="">Otro</option>
+              <div class="drw-field drw-span-2"><label>DIRECCIÓN</label><input v-model="form.direccion" class="drw-input" /></div>
+              <div class="drw-field"><label>ESTADO *</label>
+                <select v-model="form.estado_residencia" @change="form.ciudad=''" class="drw-select">
+                  <option value="">— SELECCIONAR ESTADO —</option>
+                  <option v-for="st in usaStates" :key="st.code" :value="st.code">{{ st.name }}</option>
                 </select>
               </div>
-              <div class="drw-field"><label>Zip Code</label><input v-model="form.zipcode" class="drw-input" /></div>
-              <div class="drw-field"><label>País</label><input v-model="form.pais" class="drw-input" /></div>
+              <div class="drw-field"><label>CIUDAD *</label>
+                <select v-model="form.ciudad" class="drw-select" :disabled="!form.estado_residencia">
+                  <option value="">— SELECCIONAR CIUDAD —</option>
+                  <option v-for="city in ciudadesDelEstado" :key="city" :value="city">{{ city }}</option>
+                </select>
+              </div>
+              <div class="drw-field"><label>ZIP CODE</label><input v-model="form.zipcode" class="drw-input" /></div>
             </div>
           </div>
 
           <div class="drw-section">
             <div class="drw-section-title">INFORMACIÓN LABORAL</div>
             <div class="drw-grid-2">
-              <div class="drw-field"><label>Tipo Empleado *</label>
+              <div class="drw-field"><label>TIPO EMPLEADO *</label>
                 <select v-model="form.tipo_empleado" class="drw-select">
-                  <option value="W2">W2 — Empleado</option>
-                  <option value="1099">1099 — Contratista</option>
+                  <option value="W2">W2 — EMPLEADO</option>
+                  <option value="1099">1099 — CONTRATISTA</option>
                 </select>
               </div>
-              <div class="drw-field"><label>Tipo Contrato</label>
+              <div class="drw-field"><label>TIPO CONTRATO</label>
                 <select v-model="form.tipo_contrato" class="drw-select">
-                  <option value="FULL_TIME">Full Time</option>
-                  <option value="PART_TIME">Part Time</option>
-                  <option value="TEMPORAL">Temporal</option>
-                  <option value="SEASONAL">Seasonal</option>
+                  <option value="FULL_TIME">FULL TIME</option>
+                  <option value="PART_TIME">PART TIME</option>
+                  <option value="TEMPORAL">TEMPORAL</option>
+                  <option value="SEASONAL">SEASONAL</option>
                 </select>
               </div>
               <div class="drw-field" v-if="form.tipo_empleado === '1099'">
-                <label>Empresa Contratista</label>
+                <label>EMPRESA CONTRATISTA</label>
                 <input v-model="form.empresa_contratista" class="drw-input" />
               </div>
-              <div class="drw-field"><label>Cargo</label>
+              <div class="drw-field"><label>CARGO</label>
                 <select v-model="form.cargo_id" class="drw-select">
-                  <option value="">— Seleccionar —</option>
+                  <option value="">— SELECCIONAR —</option>
                   <option v-for="c in cargos" :key="c.id" :value="c.id">{{ c.nombre }}</option>
                 </select>
               </div>
-              <div class="drw-field"><label>Centro de Costo</label>
+              <div class="drw-field"><label>CENTRO DE COSTO</label>
                 <select v-model="form.ccosto" class="drw-select">
-                  <option value="">— Seleccionar —</option>
+                  <option value="">— SELECCIONAR —</option>
                   <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">{{ c.nombre }}</option>
                 </select>
               </div>
-              <div class="drw-field"><label>Fecha Ingreso *</label>
+              <div class="drw-field"><label>FECHA INGRESO *</label>
                 <input v-model="form.fecha_ingreso" type="date" class="drw-input" />
               </div>
-              <div class="drw-field"><label>Estado</label>
+              <div class="drw-field"><label>ESTADO</label>
                 <select v-model="form.estado" class="drw-select">
-                  <option value="ACTIVO">Activo</option>
-                  <option value="INACTIVO">Inactivo</option>
-                  <option value="LICENCIA">Licencia</option>
+                  <option value="ACTIVO">ACTIVO</option>
+                  <option value="INACTIVO">INACTIVO</option>
+                  <option value="LICENCIA">LICENCIA</option>
                 </select>
               </div>
               <div class="drw-field" v-if="form.estado === 'INACTIVO'">
-                <label>Fecha Retiro</label>
+                <label>FECHA RETIRO</label>
                 <input v-model="form.fecha_retiro" type="date" class="drw-input" />
               </div>
               <div class="drw-field" v-if="form.estado === 'INACTIVO'" style="grid-column:span 2">
-                <label>Motivo Retiro</label>
+                <label>MOTIVO RETIRO</label>
                 <input v-model="form.motivo_retiro" class="drw-input" />
               </div>
-              <div class="drw-field"><label># Permiso de Trabajo</label>
+              <div class="drw-field"><label># PERMISO DE TRABAJO</label>
                 <input v-model="form.permiso_trabajo" class="drw-input" />
+              </div>
+              <div class="drw-field"><label>FECHA VENCIMIENTO PERMISO</label>
+                <input v-model="form.fecha_vencimiento_permiso" type="date" class="drw-input" />
               </div>
             </div>
           </div>
@@ -188,24 +193,24 @@
           <div class="drw-section">
             <div class="drw-section-title">COMPENSACIÓN</div>
             <div class="drw-grid-2">
-              <div class="drw-field"><label>Tipo de Pago</label>
+              <div class="drw-field"><label>TIPO DE PAGO</label>
                 <select v-model="form.es_por_horas" class="drw-select">
-                  <option :value="true">Por Hora</option>
-                  <option :value="false">Monto Fijo Semanal</option>
+                  <option :value="true">POR HORA</option>
+                  <option :value="false">MONTO FIJO SEMANAL</option>
                 </select>
               </div>
               <div class="drw-field" v-if="form.es_por_horas">
-                <label>Valor por Hora ($)</label>
+                <label>VALOR POR HORA ($)</label>
                 <input v-model="form.valor_hora" type="number" step="0.01" min="0" class="drw-input" />
               </div>
               <div class="drw-field" v-else>
-                <label>Monto Fijo Semanal ($)</label>
+                <label>MONTO FIJO SEMANAL ($)</label>
                 <input v-model="form.monto_fijo_semanal" type="number" step="0.01" min="0" class="drw-input" />
               </div>
-              <div class="drw-field"><label>Frecuencia de Pago</label>
+              <div class="drw-field"><label>FRECUENCIA DE PAGO</label>
                 <select v-model="form.frecuencia_pago" class="drw-select">
-                  <option value="WEEKLY">Semanal</option>
-                  <option value="BIWEEKLY">Quincenal</option>
+                  <option value="WEEKLY">SEMANAL</option>
+                  <option value="BIWEEKLY">QUINCENAL</option>
                 </select>
               </div>
             </div>
@@ -213,41 +218,33 @@
 
           <!-- W4 solo para W2 -->
           <div class="drw-section" v-if="form.tipo_empleado === 'W2'">
-            <div class="drw-section-title">INFORMACIÓN W-4 (Retención Federal)</div>
+            <div class="drw-section-title">INFORMACIÓN W-4 (RETENCIÓN FEDERAL)</div>
             <div class="drw-w4-note">
               <v-icon size="14" color="#f59e0b">mdi-information-outline</v-icon>
-              Florida no tiene impuesto estatal. Solo aplica retención federal.
+              Florida no tiene impuesto estatal. Los datos solicitados son del formulario W-4 federal 2024.
             </div>
             <div class="drw-grid-2">
-              <div class="drw-field"><label>Filing Status</label>
+              <div class="drw-field"><label>FILING STATUS</label>
                 <select v-model="form.w4_filing_status" class="drw-select">
-                  <option value="SINGLE">Single / Married Filing Sep.</option>
-                  <option value="MARRIED_JOINTLY">Married Filing Jointly</option>
-                  <option value="HEAD_OF_HOUSEHOLD">Head of Household</option>
+                  <option value="SINGLE">SINGLE / MARRIED FILING SEP.</option>
+                  <option value="MARRIED_JOINTLY">MARRIED FILING JOINTLY</option>
+                  <option value="HEAD_OF_HOUSEHOLD">HEAD OF HOUSEHOLD</option>
                 </select>
               </div>
               <div class="drw-field">
-                <label>Exento de retención</label>
+                <label>EXENTO DE RETENCIÓN</label>
                 <div class="drw-check-row">
                   <input type="checkbox" v-model="form.w4_exempt" class="drw-check" />
                   <span style="font-size:12px;color:rgba(255,255,255,0.6)">Marcar si el empleado es EXEMPT</span>
                 </div>
               </div>
               <div class="drw-field">
-                <label>Crédito por Dependientes ($)</label>
+                <label>CRÉDITO POR DEPENDIENTES ($)</label>
                 <input v-model="form.w4_claim_dependents" type="number" step="1" min="0" class="drw-input"
                        placeholder="Ej: 2000 por hijo" />
               </div>
               <div class="drw-field">
-                <label>Otros Ingresos Anuales ($)</label>
-                <input v-model="form.w4_other_income" type="number" step="1" min="0" class="drw-input" />
-              </div>
-              <div class="drw-field">
-                <label>Deducciones Adicionales ($)</label>
-                <input v-model="form.w4_deductions" type="number" step="1" min="0" class="drw-input" />
-              </div>
-              <div class="drw-field">
-                <label>Retención Extra por Período ($)</label>
+                <label>RETENCIÓN EXTRA POR PERÍODO ($)</label>
                 <input v-model="form.w4_extra_withholding" type="number" step="0.01" min="0" class="drw-input" />
               </div>
             </div>
@@ -256,10 +253,10 @@
           <div class="drw-section">
             <div class="drw-section-title">WORKERS' COMPENSATION</div>
             <div class="drw-grid-2">
-              <div class="drw-field"><label>Código de Clasificación WC</label>
-                <input v-model="form.wc_code" class="drw-input" placeholder="Ej: 9082 (Restaurant)" />
+              <div class="drw-field"><label>CÓDIGO CLASIFICACIÓN WC</label>
+                <input v-model="form.wc_code" class="drw-input" placeholder="Ej: 9082 (RESTAURANT)" />
               </div>
-              <div class="drw-field"><label>Tasa WC (%)</label>
+              <div class="drw-field"><label>TASA WC (%)</label>
                 <input v-model="form.wc_rate" type="number" step="0.0001" min="0" class="drw-input"
                        placeholder="Ej: 0.0525" />
               </div>
@@ -301,6 +298,70 @@ import { useAuthStore } from '../../stores/auth'
 const authStore = useAuthStore()
 const empresa   = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
 
+// Base de datos de ciudades por estado USA
+const usaStates = [
+  { code: 'FL', name: 'FLORIDA' },
+  { code: 'AL', name: 'ALABAMA' },
+  { code: 'AK', name: 'ALASKA' },
+  { code: 'AZ', name: 'ARIZONA' },
+  { code: 'AR', name: 'ARKANSAS' },
+  { code: 'CA', name: 'CALIFORNIA' },
+  { code: 'CO', name: 'COLORADO' },
+  { code: 'CT', name: 'CONNECTICUT' },
+  { code: 'DE', name: 'DELAWARE' },
+  { code: 'GA', name: 'GEORGIA' },
+  { code: 'HI', name: 'HAWAII' },
+  { code: 'ID', name: 'IDAHO' },
+  { code: 'IL', name: 'ILLINOIS' },
+  { code: 'IN', name: 'INDIANA' },
+  { code: 'IA', name: 'IOWA' },
+  { code: 'KS', name: 'KANSAS' },
+  { code: 'KY', name: 'KENTUCKY' },
+  { code: 'LA', name: 'LOUISIANA' },
+  { code: 'ME', name: 'MAINE' },
+  { code: 'MD', name: 'MARYLAND' },
+  { code: 'MA', name: 'MASSACHUSETTS' },
+  { code: 'MI', name: 'MICHIGAN' },
+  { code: 'MN', name: 'MINNESOTA' },
+  { code: 'MS', name: 'MISSISSIPPI' },
+  { code: 'MO', name: 'MISSOURI' },
+  { code: 'MT', name: 'MONTANA' },
+  { code: 'NE', name: 'NEBRASKA' },
+  { code: 'NV', name: 'NEVADA' },
+  { code: 'NH', name: 'NEW HAMPSHIRE' },
+  { code: 'NJ', name: 'NEW JERSEY' },
+  { code: 'NM', name: 'NEW MEXICO' },
+  { code: 'NY', name: 'NEW YORK' },
+  { code: 'NC', name: 'NORTH CAROLINA' },
+  { code: 'ND', name: 'NORTH DAKOTA' },
+  { code: 'OH', name: 'OHIO' },
+  { code: 'OK', name: 'OKLAHOMA' },
+  { code: 'OR', name: 'OREGON' },
+  { code: 'PA', name: 'PENNSYLVANIA' },
+  { code: 'RI', name: 'RHODE ISLAND' },
+  { code: 'SC', name: 'SOUTH CAROLINA' },
+  { code: 'SD', name: 'SOUTH DAKOTA' },
+  { code: 'TN', name: 'TENNESSEE' },
+  { code: 'TX', name: 'TEXAS' },
+  { code: 'UT', name: 'UTAH' },
+  { code: 'VT', name: 'VERMONT' },
+  { code: 'VA', name: 'VIRGINIA' },
+  { code: 'WA', name: 'WASHINGTON' },
+  { code: 'WV', name: 'WEST VIRGINIA' },
+  { code: 'WI', name: 'WISCONSIN' },
+  { code: 'WY', name: 'WYOMING' }
+]
+
+const ciudadesxEstado = {
+  'FL': ['MIAMI', 'TAMPA', 'ORLANDO', 'JACKSONVILLE', 'FORT LAUDERDALE', 'MIAMI BEACH', 'TALLAHASSEE', 'PALM BEACH', 'NAPLES', 'PENSACOLA', 'CLEARWATER', 'DAYTONA BEACH', 'GAINESVILLE', 'LAKELAND', 'SARASOTA'],
+  'AL': ['BIRMINGHAM', 'MONTGOMERY', 'MOBILE', 'HUNTSVILLE', 'AUBURN', 'DOTHAN', 'TUSCALOOSA', 'GADSDEN'],
+  'GA': ['ATLANTA', 'SAVANNAH', 'AUGUSTA', 'COLUMBUS', 'MACON', 'ATHENS', 'MARIETTA', 'KENNESAW'],
+  'TX': ['HOUSTON', 'DALLAS', 'AUSTIN', 'SAN ANTONIO', 'FORT WORTH', 'CORPUS CHRISTI', 'EL PASO', 'ARLINGTON', 'IRVING'],
+  'NY': ['NEW YORK', 'BUFFALO', 'ALBANY', 'ROCHESTER', 'YONKERS', 'SYRACUSE', 'BROOKLYN', 'QUEENS'],
+  'CA': ['LOS ANGELES', 'SAN FRANCISCO', 'SAN DIEGO', 'SACRAMENTO', 'LONG BEACH', 'OAKLAND', 'ANAHEIM', 'SANTA ANA'],
+  // Agregar más ciudades según sea necesario
+}
+
 const empleados   = ref([])
 const cargos      = ref([])
 const ccostos     = ref([])
@@ -321,15 +382,19 @@ const filtrados = computed(() => {
   return empleados.value.filter(e => e.estado === filtroEstado.value)
 })
 
+const ciudadesDelEstado = computed(() => {
+  return ciudadesxEstado[form.value.estado_residencia] || []
+})
+
 const formDefault = () => ({
   nombre:'', apellido:'', fecha_nacimiento:'', email:'', telefono:'',
-  direccion:'', ciudad:'', estado_residencia:'FL', pais:'USA', zipcode:'',
+  direccion:'', ciudad:'', estado_residencia:'FL', zipcode:'',
   cargo_id:'', ccosto:'', fecha_ingreso:'', fecha_retiro:'', motivo_retiro:'',
   estado:'ACTIVO', tipo_empleado:'W2', tipo_contrato:'FULL_TIME', empresa_contratista:'',
   es_por_horas:true, valor_hora:'', monto_fijo_semanal:'', frecuencia_pago:'WEEKLY',
-  ssn:'', permiso_trabajo:'',
-  w4_filing_status:'SINGLE', w4_multiple_jobs:false, w4_claim_dependents:0,
-  w4_other_income:0, w4_deductions:0, w4_extra_withholding:0, w4_exempt:false,
+  ssn:'', permiso_trabajo:'', fecha_vencimiento_permiso:'',
+  w4_filing_status:'SINGLE', w4_claim_dependents:0,
+  w4_extra_withholding:0, w4_exempt:false,
   wc_rate:'', wc_code:'', notas:''
 })
 const form = ref(formDefault())
@@ -365,7 +430,7 @@ function editar(e) {
     fecha_nacimiento: e.fecha_nacimiento?.split('T')[0] || '',
     email: e.email||'', telefono: e.telefono||'',
     direccion: e.direccion||'', ciudad: e.ciudad||'',
-    estado_residencia: e.estado_residencia||'FL', pais: e.pais||'USA', zipcode: e.zipcode||'',
+    estado_residencia: e.estado_residencia||'FL', zipcode: e.zipcode||'',
     cargo_id: e.cargo_id||'', ccosto: e.ccosto||'',
     fecha_ingreso: e.fecha_ingreso?.split('T')[0]||'',
     fecha_retiro: e.fecha_retiro?.split('T')[0]||'',
@@ -376,12 +441,9 @@ function editar(e) {
     es_por_horas: e.es_por_horas !== false,
     valor_hora: e.valor_hora||'', monto_fijo_semanal: e.monto_fijo_semanal||'',
     frecuencia_pago: e.frecuencia_pago||'WEEKLY',
-    ssn: e.ssn||'', permiso_trabajo: e.permiso_trabajo||'',
+    ssn: e.ssn||'', permiso_trabajo: e.permiso_trabajo||'', fecha_vencimiento_permiso: e.fecha_vencimiento_permiso?.split('T')[0]||'',
     w4_filing_status: e.w4_filing_status||'SINGLE',
-    w4_multiple_jobs: e.w4_multiple_jobs||false,
     w4_claim_dependents: e.w4_claim_dependents||0,
-    w4_other_income: e.w4_other_income||0,
-    w4_deductions: e.w4_deductions||0,
     w4_extra_withholding: e.w4_extra_withholding||0,
     w4_exempt: e.w4_exempt||false,
     wc_rate: e.wc_rate||'', wc_code: e.wc_code||'', notas: e.notas||''
@@ -541,14 +603,27 @@ onMounted(cargar)
 .drw-field { display: flex; flex-direction: column; gap: 4px; }
 .drw-field label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase; letter-spacing: 0.4px; }
 
-.drw-input, .drw-select {
+.drw-input {
   height: 34px; padding: 0 10px; border-radius: 7px;
-  border: 1px solid rgba(var(--v-theme-on-surface),0.15);
-  background: rgba(var(--v-theme-on-surface),0.03);
+  border: 1px solid rgba(var(--v-theme-on-surface),0.2);
+  background: rgba(var(--v-theme-on-surface),0.05);
   color: rgb(var(--v-theme-on-surface)); font-size: 12px;
   outline: none; transition: border-color 0.15s;
 }
-.drw-input:focus, .drw-select:focus { border-color: #8b5cf6; }
+.drw-input:focus { border-color: #8b5cf6; background: rgba(var(--v-theme-on-surface),0.08); }
+
+.drw-select {
+  height: 34px; padding: 0 10px; border-radius: 7px;
+  border: 1.5px solid rgba(var(--v-theme-on-surface),0.25);
+  background: rgba(var(--v-theme-on-surface),0.06);
+  color: rgb(var(--v-theme-on-surface)); font-size: 12px; font-weight: 500;
+  outline: none; transition: all 0.15s; cursor: pointer;
+  appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 16px;
+  padding-right: 30px;
+}
+.drw-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.drw-select:focus { border-color: #8b5cf6; background-color: rgba(var(--v-theme-on-surface),0.09); }
 
 .drw-textarea {
   padding: 8px 10px; border-radius: 7px; width: 100%;

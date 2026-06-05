@@ -7816,7 +7816,7 @@ async function crearTablasNomina() {
             es_por_horas BOOLEAN DEFAULT TRUE,
             valor_hora NUMERIC(10,2), monto_fijo_semanal NUMERIC(10,2),
             frecuencia_pago VARCHAR(10) DEFAULT 'WEEKLY',
-            ssn VARCHAR(15), permiso_trabajo VARCHAR(50),
+            ssn VARCHAR(15), permiso_trabajo VARCHAR(50), fecha_vencimiento_permiso DATE,
             w4_filing_status VARCHAR(25) DEFAULT 'SINGLE',
             w4_multiple_jobs BOOLEAN DEFAULT FALSE,
             w4_claim_dependents NUMERIC(10,2) DEFAULT 0,
@@ -8132,23 +8132,21 @@ app.post('/api/nomina/empleados', async (req, res) => {
     try {
         const r = await pool.query(
             `INSERT INTO nom_empleados (empresa,nombre,apellido,fecha_nacimiento,email,telefono,
-             direccion,ciudad,estado_residencia,pais,zipcode,cargo_id,ccosto,
+             direccion,ciudad,estado_residencia,zipcode,cargo_id,ccosto,
              fecha_ingreso,estado,tipo_empleado,tipo_contrato,empresa_contratista,
              es_por_horas,valor_hora,monto_fijo_semanal,frecuencia_pago,
-             ssn,permiso_trabajo,w4_filing_status,w4_multiple_jobs,w4_claim_dependents,
-             w4_other_income,w4_deductions,w4_extra_withholding,w4_exempt,
-             wc_rate,wc_code,notas)
+             ssn,permiso_trabajo,fecha_vencimiento_permiso,w4_filing_status,w4_claim_dependents,
+             w4_extra_withholding,w4_exempt,wc_rate,wc_code,notas)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-             $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34)
+             $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
              RETURNING id`,
             [d.empresa,d.nombre,d.apellido,d.fecha_nacimiento||null,d.email,d.telefono,
-             d.direccion,d.ciudad,d.estado_residencia,d.pais||'USA',d.zipcode,
+             d.direccion,d.ciudad,d.estado_residencia,d.zipcode,
              d.cargo_id||null,d.ccosto,d.fecha_ingreso,d.estado||'ACTIVO',
              d.tipo_empleado||'W2',d.tipo_contrato||'FULL_TIME',d.empresa_contratista,
              d.es_por_horas!==false,d.valor_hora||null,d.monto_fijo_semanal||null,
-             d.frecuencia_pago||'WEEKLY',d.ssn,d.permiso_trabajo,
-             d.w4_filing_status||'SINGLE',d.w4_multiple_jobs||false,
-             d.w4_claim_dependents||0,d.w4_other_income||0,d.w4_deductions||0,
+             d.frecuencia_pago||'WEEKLY',d.ssn,d.permiso_trabajo,d.fecha_vencimiento_permiso||null,
+             d.w4_filing_status||'SINGLE',d.w4_claim_dependents||0,
              d.w4_extra_withholding||0,d.w4_exempt||false,
              d.wc_rate||null,d.wc_code,d.notas]
         );
@@ -8169,23 +8167,21 @@ app.put('/api/nomina/empleados/:id', async (req, res) => {
         await pool.query(
             `UPDATE nom_empleados SET
              nombre=$1,apellido=$2,fecha_nacimiento=$3,email=$4,telefono=$5,
-             direccion=$6,ciudad=$7,estado_residencia=$8,pais=$9,zipcode=$10,
-             cargo_id=$11,ccosto=$12,estado=$13,tipo_empleado=$14,tipo_contrato=$15,
-             empresa_contratista=$16,es_por_horas=$17,valor_hora=$18,monto_fijo_semanal=$19,
-             frecuencia_pago=$20,ssn=$21,permiso_trabajo=$22,w4_filing_status=$23,
-             w4_multiple_jobs=$24,w4_claim_dependents=$25,w4_other_income=$26,
-             w4_deductions=$27,w4_extra_withholding=$28,w4_exempt=$29,
-             wc_rate=$30,wc_code=$31,notas=$32,fecha_retiro=$33,motivo_retiro=$34,
+             direccion=$6,ciudad=$7,estado_residencia=$8,zipcode=$9,
+             cargo_id=$10,ccosto=$11,estado=$12,tipo_empleado=$13,tipo_contrato=$14,
+             empresa_contratista=$15,es_por_horas=$16,valor_hora=$17,monto_fijo_semanal=$18,
+             frecuencia_pago=$19,ssn=$20,permiso_trabajo=$21,fecha_vencimiento_permiso=$22,
+             w4_filing_status=$23,w4_claim_dependentes=$24,w4_extra_withholding=$25,w4_exempt=$26,
+             wc_rate=$27,wc_code=$28,notas=$29,fecha_retiro=$30,motivo_retiro=$31,
              updated_at=NOW()
-             WHERE id=$35`,
+             WHERE id=$32`,
             [d.nombre,d.apellido,d.fecha_nacimiento||null,d.email,d.telefono,
-             d.direccion,d.ciudad,d.estado_residencia,d.pais||'USA',d.zipcode,
+             d.direccion,d.ciudad,d.estado_residencia,d.zipcode,
              d.cargo_id||null,d.ccosto,d.estado,d.tipo_empleado,d.tipo_contrato,
              d.empresa_contratista,d.es_por_horas!==false,d.valor_hora||null,
              d.monto_fijo_semanal||null,d.frecuencia_pago||'WEEKLY',d.ssn,d.permiso_trabajo,
-             d.w4_filing_status||'SINGLE',d.w4_multiple_jobs||false,
-             d.w4_claim_dependents||0,d.w4_other_income||0,d.w4_deductions||0,
-             d.w4_extra_withholding||0,d.w4_exempt||false,
+             d.fecha_vencimiento_permiso||null,d.w4_filing_status||'SINGLE',
+             d.w4_claim_dependents||0,d.w4_extra_withholding||0,d.w4_exempt||false,
              d.wc_rate||null,d.wc_code,d.notas,d.fecha_retiro||null,d.motivo_retiro,
              req.params.id]
         );
