@@ -103,7 +103,7 @@
 
       <!-- Version badge -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.3);margin-top:16px">
-        v1.8.0 | Empleados activos: {{ empleadosActivos.length }} | Centro: {{ ccostoSelId || 'TODOS' }}
+        v1.9.0 | Empleados activos: {{ empleadosActivos.length }} | Centro: {{ ccostoSelId || 'TODOS' }}
       </div>
     </div>
 
@@ -129,12 +129,13 @@
     </v-dialog>
 
     <!-- Dialog editar turno -->
-    <v-dialog v-model="dlgEditar" max-width="420">
+    <v-dialog v-model="dlgEditar" max-width="380">
       <v-card rounded="lg" v-if="turnoEdit">
         <v-card-title class="pa-4" style="font-size:14px;font-weight:700">
-          {{ editEmp?.apellido }}, {{ editEmp?.nombre }} — {{ fmtFechaCorta(editFecha) }}
+          {{ editEmp?.apellido }}, {{ editEmp?.nombre }}
+          <span style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.45);margin-left:8px">{{ fmtFechaCorta(editFecha) }}</span>
         </v-card-title>
-        <v-card-text>
+        <v-card-text class="pt-0">
           <label class="cfg-edit-check mb-3">
             <input type="checkbox" v-model="turnoEdit.es_dia_libre" />
             <span style="font-size:13px;margin-left:8px">Día libre / Ausencia</span>
@@ -142,31 +143,27 @@
           <template v-if="!turnoEdit.es_dia_libre">
             <div class="drw-grid-2 mt-3">
               <div class="drw-field">
-                <label>Entrada real</label>
-                <input v-model="turnoEdit.real_inicio" type="time" class="drw-input" />
+                <label>Entrada</label>
+                <input v-model="turnoEdit.real_inicio" type="time" class="drw-input"
+                       @change="calcularHorasAuto" />
               </div>
               <div class="drw-field">
-                <label>Salida real</label>
-                <input v-model="turnoEdit.real_fin" type="time" class="drw-input" />
-              </div>
-              <div class="drw-field">
-                <label>Horas reales</label>
-                <input v-model="turnoEdit.real_horas" type="number" step="0.25" class="drw-input" />
+                <label>Salida</label>
+                <input v-model="turnoEdit.real_fin" type="time" class="drw-input"
+                       @change="calcularHorasAuto" />
               </div>
             </div>
-            <div class="drw-field mt-3">
-              <label>Centro de Costo</label>
-              <select v-model="turnoEdit.ccosto" class="drw-select">
-                <option value="">— Seleccionar —</option>
-                <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">{{ c.nombre }}</option>
-              </select>
+            <!-- Horas calculadas automáticamente -->
+            <div v-if="turnoEdit.real_horas > 0" class="horas-calculadas mt-2">
+              <v-icon size="14" color="#10b981">mdi-clock-check</v-icon>
+              <span>{{ fmtHoras(turnoEdit.real_horas) }} horas calculadas</span>
             </div>
           </template>
           <template v-else>
             <div class="drw-field mt-3">
               <label>Tipo de ausencia</label>
               <select v-model="turnoEdit.ausencia_tipo" class="drw-select">
-                <option value="">Libre</option>
+                <option value="">Libre / Descanso</option>
                 <option value="ENFERMEDAD">Enfermedad</option>
                 <option value="VACACIONES">Vacaciones</option>
                 <option value="SIN_PAGO">Sin pago</option>
@@ -176,10 +173,10 @@
           </template>
           <div class="drw-field mt-3">
             <label>Notas</label>
-            <input v-model="turnoEdit.notas" class="drw-input" />
+            <input v-model="turnoEdit.notas" class="drw-input" placeholder="Opcional..." />
           </div>
         </v-card-text>
-        <v-card-actions class="pa-4">
+        <v-card-actions class="pa-4 pt-0">
           <v-spacer/>
           <v-btn variant="text" @click="dlgEditar=false">Cancelar</v-btn>
           <v-btn color="#8b5cf6" variant="flat" :loading="guardandoTurno" @click="guardarTurno">Guardar</v-btn>
@@ -272,6 +269,15 @@ function addDays(dateStr, days) {
 
 function fmtHoras(v) {
   return parseFloat(v ?? 0).toFixed(1)
+}
+
+function calcularHorasAuto() {
+  if (!turnoEdit.value?.real_inicio || !turnoEdit.value?.real_fin) return
+  const [h1, m1] = turnoEdit.value.real_inicio.split(':').map(Number)
+  const [h2, m2] = turnoEdit.value.real_fin.split(':').map(Number)
+  let mins = (h2 * 60 + m2) - (h1 * 60 + m1)
+  if (mins <= 0) mins += 24 * 60 // pasa medianoche
+  turnoEdit.value.real_horas = parseFloat((mins / 60).toFixed(2))
 }
 
 function totalHorasEmp(empId) {
@@ -369,8 +375,13 @@ async function generarHorario() {
 
 async function publicar() {
   if (!semanaSelId.value) return
-  await api.put(`/nomina/semanas/${semanaSelId.value}/publicar`)
-  cargarDetalle()
+  try {
+    await api.put(`/nomina/semanas/${semanaSelId.value}/publicar`)
+    await cargarDetalle()
+  } catch(e) {
+    console.error('Error al publicar:', e)
+    alert('❌ Error al publicar: ' + (e?.response?.data?.error || e.message))
+  }
 }
 
 function abrirEditar(emp, offset) {
@@ -512,6 +523,7 @@ onMounted(cargarSemanas)
 .drw-field { display: flex; flex-direction: column; gap: 4px; }
 .drw-field label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase; }
 .drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; }
-.mt-3 { margin-top: 12px; } .mb-3 { margin-bottom: 12px; }
+.mt-3 { margin-top: 12px; } .mb-3 { margin-bottom: 12px; } .mt-2 { margin-top: 8px; } .pt-0 { padding-top: 0 !important; }
 .cfg-edit-check { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.horas-calculadas { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #10b981; font-weight: 700; padding: 6px 10px; background: rgba(16,185,129,0.08); border-radius: 8px; }
 </style>

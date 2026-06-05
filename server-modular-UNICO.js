@@ -8421,13 +8421,13 @@ app.post('/api/nomina/semanas/:id/generar', async (req, res) => {
 app.post('/api/nomina/semanas/detalle', async (req, res) => {
     const { semana_id, empleado_id, fecha, real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas } = req.body;
     try {
-        // Verificar que no exista ya
+        // Verificar que no exista ya para este empleado + fecha + ccosto (mismo centro)
         const exists = await pool.query(
-            'SELECT id FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3',
-            [semana_id, empleado_id, fecha]
+            'SELECT id FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3 AND ccosto=$4',
+            [semana_id, empleado_id, fecha, ccosto||'']
         );
         if (exists.rows.length) {
-            return res.status(400).json({ success: false, error: 'Ya existe un turno para este empleado en esta fecha' });
+            return res.status(400).json({ success: false, error: 'Ya existe un turno para este empleado en esta fecha y centro de costo' });
         }
 
         const r = await pool.query(
