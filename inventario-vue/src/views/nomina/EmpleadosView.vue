@@ -115,16 +115,10 @@
             <div class="drw-grid-2">
               <div class="drw-field drw-span-2"><label>DIRECCIÓN</label><input v-model="form.direccion" class="drw-input" /></div>
               <div class="drw-field"><label>ESTADO *</label>
-                <select v-model="form.estado_residencia" @change="form.ciudad=''" class="drw-select">
-                  <option value="">— SELECCIONAR ESTADO —</option>
-                  <option v-for="st in usaStates" :key="st.code" :value="st.code">{{ st.name }}</option>
-                </select>
+                <v-select v-model="form.estado_residencia" :items="usaStates" item-title="name" item-value="code" @update:model-value="form.ciudad=''" clearable density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field"><label>CIUDAD *</label>
-                <select v-model="form.ciudad" class="drw-select" :disabled="!form.estado_residencia">
-                  <option value="">— SELECCIONAR CIUDAD —</option>
-                  <option v-for="city in ciudadesDelEstado" :key="city" :value="city">{{ city }}</option>
-                </select>
+                <v-select v-model="form.ciudad" :items="ciudadesDelEstado" :disabled="!form.estado_residencia" clearable density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field"><label>ZIP CODE</label><input v-model="form.zipcode" class="drw-input" /></div>
             </div>
@@ -134,44 +128,26 @@
             <div class="drw-section-title">INFORMACIÓN LABORAL</div>
             <div class="drw-grid-2">
               <div class="drw-field"><label>TIPO EMPLEADO *</label>
-                <select v-model="form.tipo_empleado" class="drw-select">
-                  <option value="W2">W2 — EMPLEADO</option>
-                  <option value="1099">1099 — CONTRATISTA</option>
-                </select>
+                <v-select v-model="form.tipo_empleado" :items="[{title:'W2 — EMPLEADO',value:'W2'},{title:'1099 — CONTRATISTA',value:'1099'}]" density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field"><label>TIPO CONTRATO</label>
-                <select v-model="form.tipo_contrato" class="drw-select">
-                  <option value="FULL_TIME">FULL TIME</option>
-                  <option value="PART_TIME">PART TIME</option>
-                  <option value="TEMPORAL">TEMPORAL</option>
-                  <option value="SEASONAL">SEASONAL</option>
-                </select>
+                <v-select v-model="form.tipo_contrato" :items="[{title:'FULL TIME',value:'FULL_TIME'},{title:'PART TIME',value:'PART_TIME'},{title:'TEMPORAL',value:'TEMPORAL'},{title:'SEASONAL',value:'SEASONAL'}]" density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field" v-if="form.tipo_empleado === '1099'">
                 <label>EMPRESA CONTRATISTA</label>
                 <input v-model="form.empresa_contratista" class="drw-input" />
               </div>
               <div class="drw-field"><label>CARGO</label>
-                <select v-model="form.cargo_id" class="drw-select">
-                  <option value="">— SELECCIONAR —</option>
-                  <option v-for="c in cargos" :key="c.id" :value="c.id">{{ c.nombre }}</option>
-                </select>
+                <v-select v-model="form.cargo_id" :items="cargos" item-title="nombre" item-value="id" clearable density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field"><label>CENTRO DE COSTO</label>
-                <select v-model="form.ccosto" class="drw-select">
-                  <option value="">— SELECCIONAR —</option>
-                  <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">{{ c.nombre }}</option>
-                </select>
+                <v-select v-model="form.ccosto" :items="ccostos" item-title="nombre" item-value="codigo" clearable density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field"><label>FECHA INGRESO *</label>
                 <input v-model="form.fecha_ingreso" type="date" class="drw-input" />
               </div>
               <div class="drw-field"><label>ESTADO</label>
-                <select v-model="form.estado" class="drw-select">
-                  <option value="ACTIVO">ACTIVO</option>
-                  <option value="INACTIVO">INACTIVO</option>
-                  <option value="LICENCIA">LICENCIA</option>
-                </select>
+                <v-select v-model="form.estado" :items="[{title:'ACTIVO',value:'ACTIVO'},{title:'INACTIVO',value:'INACTIVO'},{title:'LICENCIA',value:'LICENCIA'}]" density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field" v-if="form.estado === 'INACTIVO'">
                 <label>FECHA RETIRO</label>
@@ -194,10 +170,7 @@
             <div class="drw-section-title">COMPENSACIÓN</div>
             <div class="drw-grid-2">
               <div class="drw-field"><label>TIPO DE PAGO</label>
-                <select v-model="form.es_por_horas" class="drw-select">
-                  <option :value="true">POR HORA</option>
-                  <option :value="false">MONTO FIJO SEMANAL</option>
-                </select>
+                <v-select v-model="form.es_por_horas" :items="[{title:'POR HORA',value:true},{title:'MONTO FIJO SEMANAL',value:false}]" density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field" v-if="form.es_por_horas">
                 <label>VALOR POR HORA ($)</label>
@@ -208,10 +181,7 @@
                 <input v-model="form.monto_fijo_semanal" type="number" step="0.01" min="0" class="drw-input" />
               </div>
               <div class="drw-field"><label>FRECUENCIA DE PAGO</label>
-                <select v-model="form.frecuencia_pago" class="drw-select">
-                  <option value="WEEKLY">SEMANAL</option>
-                  <option value="BIWEEKLY">QUINCENAL</option>
-                </select>
+                <v-select v-model="form.frecuencia_pago" :items="[{title:'SEMANAL',value:'WEEKLY'},{title:'QUINCENAL',value:'BIWEEKLY'}]" density="compact" variant="outlined"></v-select>
               </div>
             </div>
           </div>
@@ -225,11 +195,7 @@
             </div>
             <div class="drw-grid-2">
               <div class="drw-field"><label>FILING STATUS</label>
-                <select v-model="form.w4_filing_status" class="drw-select">
-                  <option value="SINGLE">SINGLE / MARRIED FILING SEP.</option>
-                  <option value="MARRIED_JOINTLY">MARRIED FILING JOINTLY</option>
-                  <option value="HEAD_OF_HOUSEHOLD">HEAD OF HOUSEHOLD</option>
-                </select>
+                <v-select v-model="form.w4_filing_status" :items="[{title:'SINGLE / MARRIED FILING SEP.',value:'SINGLE'},{title:'MARRIED FILING JOINTLY',value:'MARRIED_JOINTLY'},{title:'HEAD OF HOUSEHOLD',value:'HEAD_OF_HOUSEHOLD'}]" density="compact" variant="outlined"></v-select>
               </div>
               <div class="drw-field">
                 <label>EXENTO DE RETENCIÓN</label>
