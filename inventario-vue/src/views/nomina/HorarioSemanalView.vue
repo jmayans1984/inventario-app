@@ -22,9 +22,7 @@
           </select>
           <select v-if="semanaActual" v-model="ccostoSelId" class="drw-select" style="width:200px">
             <option value="">— Todos los centros —</option>
-            <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">
-              {{ c.nombre }}
-            </option>
+            <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">{{ c.nombre }}</option>
           </select>
           <v-btn size="small" variant="outlined" color="#06b6d4" @click="dlgNuevaSemana=true">
             <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva Semana
@@ -45,8 +43,8 @@
       </div>
 
       <!-- GRILLA SEMANAL -->
-      <div v-if="semanaActual && semanaActual.semana_inicio && detalle.length" class="nom-card">
-        <div class="semana-grid" :style="`grid-template-columns: 180px repeat(${DIAS.length}, 1fr)`">
+      <div v-if="semanaActual && semanaActual.semana_inicio" class="nom-card">
+        <div v-if="empleadosUnicos.length" class="semana-grid" :style="`grid-template-columns: 190px repeat(${DIAS.length}, 1fr)`">
           <!-- Header días -->
           <div class="sg-header-emp">EMPLEADO</div>
           <div v-for="d in DIAS" :key="d.offset" class="sg-header-dia">
@@ -63,7 +61,7 @@
                  @click="abrirEditar(emp, d.offset)">
               <template v-for="t in [getTurno(emp.id, semanaActual.semana_inicio, d.offset)]" :key="0">
                 <template v-if="t">
-                  <div v-if="!t.es_dia_libre">
+                  <div v-if="!t.es_dia_libre" style="width:100%;text-align:center">
                     <div class="sg-turno-horas">
                       {{ (t.real_inicio || t.prog_inicio || '—').slice(0,5) }}
                       – {{ (t.real_fin || t.prog_fin || '—').slice(0,5) }}
@@ -71,6 +69,7 @@
                     <div class="sg-turno-total" :class="t.ajustado ? 'ajustado':''">
                       {{ fmtHoras(t.real_horas ?? t.prog_horas) }}h
                     </div>
+                    <v-icon size="11" color="rgba(var(--v-theme-on-surface),0.2)" class="sg-del-icon">mdi-pencil</v-icon>
                   </div>
                   <div v-else class="sg-libre">{{ t.ausencia_tipo || 'LIBRE' }}</div>
                 </template>
@@ -82,28 +81,40 @@
           </template>
         </div>
 
-        <!-- Totales por empleado -->
-        <div class="sg-totales">
-          <div v-for="emp in empleadosUnicos" :key="emp.id" class="sg-total-row">
-            <span class="sg-total-nombre">{{ getNombreDisplay(emp) }}</span>
-            <span class="sg-total-horas">{{ totalHorasEmp(emp.id) }}h total</span>
-            <span v-if="totalHorasEmp(emp.id) > 40" class="sg-ot-badge">
-              OT: {{ (totalHorasEmp(emp.id) - 40).toFixed(1) }}h
-            </span>
+        <!-- Sin empleados -->
+        <div v-else style="padding:24px;text-align:center;color:rgba(var(--v-theme-on-surface),0.35);font-size:13px">
+          {{ ccostoSelId ? 'No hay empleados asignados a este centro. Usa el botón para agregar.' : 'Selecciona un centro de costos.' }}
+        </div>
+
+        <!-- Totales + botón agregar -->
+        <div class="sg-footer">
+          <div class="sg-totales">
+            <div v-for="emp in empleadosUnicos" :key="emp.id" class="sg-total-row">
+              <span class="sg-total-nombre">{{ getNombreDisplay(emp) }}</span>
+              <span class="sg-total-horas">{{ totalHorasEmp(emp.id) }}h</span>
+              <span v-if="parseFloat(totalHorasEmp(emp.id)) > 40" class="sg-ot-badge">
+                OT: {{ (parseFloat(totalHorasEmp(emp.id)) - 40).toFixed(1) }}h
+              </span>
+            </div>
           </div>
+          <v-btn v-if="semanaActual.estado !== 'CERRADO' && ccostoSelId"
+                 color="#06b6d4" variant="flat" size="small" class="sg-add-emp-btn"
+                 @click="dlgAgregarEmp=true">
+            <v-icon size="14" class="mr-1">mdi-account-plus</v-icon> Agregar Empleado
+          </v-btn>
         </div>
       </div>
 
       <div v-else-if="semanaSelId && !cargando" class="nom-card" style="padding:32px;text-align:center;color:rgba(var(--v-theme-on-surface),0.4)">
-        Semana sin horario generado. Haz clic en "Generar desde Plantilla".
+        Semana sin horario. Selecciona un centro y agrega empleados, o usa "Generar desde Plantilla".
       </div>
       <div v-else-if="!semanaSelId" class="nom-card" style="padding:32px;text-align:center;color:rgba(var(--v-theme-on-surface),0.4)">
         Selecciona una semana o crea una nueva.
       </div>
 
       <!-- Version badge -->
-      <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.3);margin-top:16px">
-        v1.9.0 | Empleados activos: {{ empleadosActivos.length }} | Centro: {{ ccostoSelId || 'TODOS' }}
+      <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.25);margin-top:8px">
+        v2.0.0 | Empleados en vista: {{ empleadosUnicos.length }} | Centro: {{ ccostoSelId || 'TODOS' }}
       </div>
     </div>
 
@@ -128,14 +139,46 @@
       </v-card>
     </v-dialog>
 
-    <!-- Dialog editar turno -->
+    <!-- Dialog AGREGAR EMPLEADO -->
+    <v-dialog v-model="dlgAgregarEmp" max-width="420" scrollable>
+      <v-card rounded="lg">
+        <v-card-title class="pa-4 d-flex align-center justify-space-between" style="font-size:14px;font-weight:700">
+          <span>Agregar Empleado al Centro</span>
+          <v-btn icon="mdi-close" size="x-small" variant="text" @click="dlgAgregarEmp=false"/>
+        </v-card-title>
+        <v-card-text class="pa-3 pt-0">
+          <input v-model="buscarEmp" class="drw-input mb-3" placeholder="Buscar empleado..." style="width:100%" />
+          <div class="emp-list">
+            <div v-if="empleadosParaAgregar.length === 0"
+                 style="text-align:center;padding:20px;color:rgba(var(--v-theme-on-surface),0.4);font-size:12px">
+              Todos los empleados ya están en este centro
+            </div>
+            <div v-for="e in empleadosParaAgregar" :key="e.id"
+                 class="emp-list-item" @click="agregarEmpleadoAVista(e)">
+              <div>
+                <div style="font-size:13px;font-weight:600">{{ e.apellido }}, {{ e.nombre }}</div>
+                <div style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.45)">
+                  {{ e.cargo_nombre || 'Sin cargo' }} · {{ e.ccosto_nombre || e.ccosto || '—' }}
+                </div>
+              </div>
+              <span class="sg-emp-badge" :class="e.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ e.tipo_empleado }}</span>
+            </div>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog editar/crear turno -->
     <v-dialog v-model="dlgEditar" max-width="380">
       <v-card rounded="lg" v-if="turnoEdit">
-        <v-card-title class="pa-4" style="font-size:14px;font-weight:700">
+        <v-card-title class="pa-4 pb-2" style="font-size:14px;font-weight:700">
           {{ editEmp?.apellido }}, {{ editEmp?.nombre }}
-          <span style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.45);margin-left:8px">{{ fmtFechaCorta(editFecha) }}</span>
+          <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.45);font-weight:400;margin-top:2px">
+            {{ fmtFechaLarga(editFecha) }}
+            <span v-if="ccostoSelId" style="margin-left:6px">· {{ ccostoNombre }}</span>
+          </div>
         </v-card-title>
-        <v-card-text class="pt-0">
+        <v-card-text class="pa-4 pt-0">
           <label class="cfg-edit-check mb-3">
             <input type="checkbox" v-model="turnoEdit.es_dia_libre" />
             <span style="font-size:13px;margin-left:8px">Día libre / Ausencia</span>
@@ -144,16 +187,13 @@
             <div class="drw-grid-2 mt-3">
               <div class="drw-field">
                 <label>Entrada</label>
-                <input v-model="turnoEdit.real_inicio" type="time" class="drw-input"
-                       @change="calcularHorasAuto" />
+                <input v-model="turnoEdit.real_inicio" type="time" class="drw-input" @change="calcularHorasAuto" />
               </div>
               <div class="drw-field">
                 <label>Salida</label>
-                <input v-model="turnoEdit.real_fin" type="time" class="drw-input"
-                       @change="calcularHorasAuto" />
+                <input v-model="turnoEdit.real_fin" type="time" class="drw-input" @change="calcularHorasAuto" />
               </div>
             </div>
-            <!-- Horas calculadas automáticamente -->
             <div v-if="turnoEdit.real_horas > 0" class="horas-calculadas mt-2">
               <v-icon size="14" color="#10b981">mdi-clock-check</v-icon>
               <span>{{ fmtHoras(turnoEdit.real_horas) }} horas calculadas</span>
@@ -177,6 +217,11 @@
           </div>
         </v-card-text>
         <v-card-actions class="pa-4 pt-0">
+          <!-- Botón eliminar solo si el turno existe -->
+          <v-btn v-if="turnoEdit.id" color="#ef4444" variant="text" size="small"
+                 :loading="eliminandoTurno" @click="eliminarTurno">
+            <v-icon size="14" class="mr-1">mdi-delete</v-icon> Eliminar
+          </v-btn>
           <v-spacer/>
           <v-btn variant="text" @click="dlgEditar=false">Cancelar</v-btn>
           <v-btn color="#8b5cf6" variant="flat" :loading="guardandoTurno" @click="guardarTurno">Guardar</v-btn>
@@ -185,6 +230,7 @@
     </v-dialog>
   </MainLayout>
 </template>
+
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
@@ -199,39 +245,95 @@ const DIAS = [
   { label:'Jue', offset:3 },{ label:'Vie', offset:4 },{ label:'Sáb', offset:5 },{ label:'Dom', offset:6 }
 ]
 
-const semanas = ref([])
-const semanaSelId = ref('')
-const semanaActual = ref(null)
-const detalle = ref([])
+const semanas         = ref([])
+const semanaSelId     = ref('')
+const semanaActual    = ref(null)
+const detalle         = ref([])
 const empleadosActivos = ref([])
-const ccostos = ref([])
-const horarioConfigs = ref([])
-const ccostoSelId = ref('')
-const cargando = ref(false)
+const empleadosAgregados = ref([]) // Añadidos manualmente para este ccosto
+const ccostos         = ref([])
+const horarioConfigs  = ref([])
+const ccostoSelId     = ref('')
+const cargando        = ref(false)
 
-const dlgNuevaSemana = ref(false)
+const dlgNuevaSemana  = ref(false)
 const nuevaSemanaInicio = ref('')
-const nuevaSemanaFin = computed(() => {
+const nuevaSemanaFin  = computed(() => {
   if (!nuevaSemanaInicio.value) return ''
   const d = new Date(nuevaSemanaInicio.value + 'T00:00:00')
   d.setDate(d.getDate() + 6)
   return d.toISOString().split('T')[0]
 })
-const creandoSemana = ref(false)
+const creandoSemana   = ref(false)
 
-const dlgEditar = ref(false)
-const editEmp = ref(null)
-const editFecha = ref('')
-const turnoEdit = ref(null)
-const guardandoTurno = ref(false)
+const dlgAgregarEmp   = ref(false)
+const buscarEmp       = ref('')
 
+const dlgEditar       = ref(false)
+const editEmp         = ref(null)
+const editFecha       = ref('')
+const turnoEdit       = ref(null)
+const guardandoTurno  = ref(false)
+const eliminandoTurno = ref(false)
+
+// Resetear empleados agregados al cambiar ccosto o semana
+watch(ccostoSelId, () => { empleadosAgregados.value = [] })
+watch(semanaSelId, () => { empleadosAgregados.value = [] })
+
+// Nombre del ccosto seleccionado
+const ccostoNombre = computed(() => {
+  if (!ccostoSelId.value) return ''
+  return ccostos.value.find(c => c.codigo === ccostoSelId.value)?.nombre || ccostoSelId.value
+})
+
+// Empleados que aparecen en la grilla:
+// - Los asignados a este ccosto por defecto (emp.ccosto === ccostoSelId)
+// - Los que ya tienen turnos en este ccosto esta semana
+// - Los que el usuario agregó manualmente
 const empleadosUnicos = computed(() => {
   if (empleadosActivos.value.length === 0) return []
-  // Siempre mostrar TODOS los empleados activos
-  // El filtro de ccosto solo afecta QUÉ TURNOS se muestran en la grilla,
-  // no qué empleados aparecen en las filas
-  return [...empleadosActivos.value].sort((a,b) => a.apellido.localeCompare(b.apellido))
+
+  if (!ccostoSelId.value) {
+    // Sin filtro: mostrar solo los que tienen turnos esta semana
+    const conTurnos = new Set(detalle.value.map(d => d.empleado_id))
+    if (conTurnos.size === 0) return []
+    return empleadosActivos.value
+      .filter(e => conTurnos.has(e.id))
+      .sort((a,b) => a.apellido.localeCompare(b.apellido))
+  }
+
+  // Con ccosto seleccionado:
+  const conTurnosCcosto = new Set(
+    detalle.value.filter(d => d.ccosto === ccostoSelId.value).map(d => d.empleado_id)
+  )
+  const agregadosIds = new Set(empleadosAgregados.value.map(e => e.id))
+
+  return empleadosActivos.value
+    .filter(e =>
+      e.ccosto === ccostoSelId.value ||   // asignados por defecto a este centro
+      conTurnosCcosto.has(e.id) ||         // tienen turno aquí esta semana
+      agregadosIds.has(e.id)               // agregados manualmente
+    )
+    .sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
+
+// Empleados disponibles para agregar (no están ya en la grilla)
+const empleadosParaAgregar = computed(() => {
+  const yaEnGrilla = new Set(empleadosUnicos.value.map(e => e.id))
+  const q = buscarEmp.value.toLowerCase()
+  return empleadosActivos.value
+    .filter(e => !yaEnGrilla.has(e.id))
+    .filter(e => !q || `${e.apellido} ${e.nombre}`.toLowerCase().includes(q))
+    .sort((a,b) => a.apellido.localeCompare(b.apellido))
+})
+
+function agregarEmpleadoAVista(emp) {
+  if (!empleadosAgregados.value.find(e => e.id === emp.id)) {
+    empleadosAgregados.value.push(emp)
+  }
+  dlgAgregarEmp.value = false
+  buscarEmp.value = ''
+}
 
 function getNombreDisplay(emp) {
   if (emp.tipo_empleado === '1099' && emp.empresa_contratista) {
@@ -247,7 +349,6 @@ function getTurno(empId, semanaInicio, offset) {
   return detalle.value.find(d => {
     if (d.empleado_id !== empId) return false
     if (d.fecha?.split('T')[0] !== fecha) return false
-    // Si hay un ccosto seleccionado, filtrar por ese ccosto
     if (ccostoSelId.value) return d.ccosto === ccostoSelId.value
     return true
   }) || null
@@ -256,35 +357,30 @@ function getTurno(empId, semanaInicio, offset) {
 function addDays(dateStr, days) {
   if (!dateStr) return null
   try {
-    // Siempre limpiar la parte de tiempo antes de parsear
     const dateOnly = String(dateStr).split('T')[0]
     const d = new Date(dateOnly + 'T00:00:00')
     if (isNaN(d.getTime())) return null
     d.setDate(d.getDate() + days)
     return d.toISOString().split('T')[0]
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
-function fmtHoras(v) {
-  return parseFloat(v ?? 0).toFixed(1)
-}
+function fmtHoras(v) { return parseFloat(v ?? 0).toFixed(1) }
 
 function calcularHorasAuto() {
   if (!turnoEdit.value?.real_inicio || !turnoEdit.value?.real_fin) return
   const [h1, m1] = turnoEdit.value.real_inicio.split(':').map(Number)
   const [h2, m2] = turnoEdit.value.real_fin.split(':').map(Number)
   let mins = (h2 * 60 + m2) - (h1 * 60 + m1)
-  if (mins <= 0) mins += 24 * 60 // pasa medianoche
+  if (mins <= 0) mins += 24 * 60
   turnoEdit.value.real_horas = parseFloat((mins / 60).toFixed(2))
 }
 
 function totalHorasEmp(empId) {
-  return detalle.value
-    .filter(d => d.empleado_id === empId && !d.es_dia_libre)
-    .reduce((s, d) => s + parseFloat(d.real_horas ?? d.prog_horas ?? 0), 0)
-    .toFixed(1)
+  const rows = ccostoSelId.value
+    ? detalle.value.filter(d => d.empleado_id === empId && !d.es_dia_libre && d.ccosto === ccostoSelId.value)
+    : detalle.value.filter(d => d.empleado_id === empId && !d.es_dia_libre)
+  return rows.reduce((s, d) => s + parseFloat(d.real_horas ?? d.prog_horas ?? 0), 0).toFixed(1)
 }
 
 function fmtFecha(f) {
@@ -295,18 +391,20 @@ function fmtFecha(f) {
 }
 function fmtDiaMes(inicio, offset) {
   if (!inicio) return '—'
-  try {
-    const f = addDays(inicio, offset)
-    const [,m,d] = f.split('-')
-    return `${parseInt(d)}/${parseInt(m)}`
-  } catch {
-    return '—'
-  }
+  try { const f = addDays(inicio, offset); const [,m,d] = f.split('-'); return `${parseInt(d)}/${parseInt(m)}` }
+  catch { return '—' }
 }
 function fmtFechaCorta(f) {
   if (!f) return ''
   const [,m,d] = f.split('-')
   return `${parseInt(d)}/${parseInt(m)}`
+}
+function fmtFechaLarga(f) {
+  if (!f) return ''
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+  const dateOnly = String(f).split('T')[0]
+  const d = new Date(dateOnly + 'T00:00:00')
+  return `${dias[d.getDay()]} ${fmtFechaCorta(dateOnly)}`
 }
 
 async function cargarSemanas() {
@@ -316,13 +414,10 @@ async function cargarSemanas() {
     api.get('/nomina/horario-config', { params: { empresa: empresa.value } }),
     api.get('/nomina/empleados', { params: { empresa: empresa.value, estado: 'ACTIVO' } }),
   ])
-  semanas.value = semsR.data?.data || []
-  ccostos.value = ccR.data?.data || ccR.data || []
+  semanas.value        = semsR.data?.data || []
+  ccostos.value        = ccR.data?.data || ccR.data || []
   horarioConfigs.value = hcR.data?.data || []
   empleadosActivos.value = empR.data?.data || []
-
-  console.log('📋 Empleados activos cargados:', empleadosActivos.value.length, empleadosActivos.value)
-
   if (semanas.value.length && !semanaSelId.value) {
     semanaSelId.value = semanas.value[0].id
     cargarDetalle()
@@ -341,14 +436,12 @@ async function cargarDetalle() {
 
 async function crearSemana() {
   if (!nuevaSemanaInicio.value) return
-  // Ensure it's a Monday
   const d = new Date(nuevaSemanaInicio.value + 'T00:00:00')
   if (d.getDay() !== 1) { alert('La fecha debe ser un lunes'); return }
   creandoSemana.value = true
   try {
     const r = await api.post('/nomina/semanas', {
-      empresa: empresa.value, semana_inicio: nuevaSemanaInicio.value,
-      semana_fin: nuevaSemanaFin.value
+      empresa: empresa.value, semana_inicio: nuevaSemanaInicio.value, semana_fin: nuevaSemanaFin.value
     })
     dlgNuevaSemana.value = false
     await cargarSemanas()
@@ -362,15 +455,10 @@ async function generarHorario() {
   if (!semanaSelId.value) return
   try {
     const cfgId = horarioConfigs.value[0]?.id || null
-    if (!cfgId) { alert('⚠️ No hay plantillas de horario disponibles. Crea una primero.'); return }
-    await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
-      empresa: empresa.value, config_id: cfgId
-    })
+    if (!cfgId) { alert('⚠️ No hay plantillas de horario. Crea una primero.'); return }
+    await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, { empresa: empresa.value, config_id: cfgId })
     await cargarDetalle()
-  } catch(e) {
-    console.error('Error al generar horario:', e)
-    alert('❌ Error al generar horario: ' + (e?.response?.data?.error || e.message))
-  }
+  } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
 }
 
 async function publicar() {
@@ -378,20 +466,15 @@ async function publicar() {
   try {
     await api.put(`/nomina/semanas/${semanaSelId.value}/publicar`)
     await cargarDetalle()
-  } catch(e) {
-    console.error('Error al publicar:', e)
-    alert('❌ Error al publicar: ' + (e?.response?.data?.error || e.message))
-  }
+  } catch(e) { alert('❌ Error al publicar: ' + (e?.response?.data?.error || e.message)) }
 }
 
 function abrirEditar(emp, offset) {
   if (semanaActual.value?.estado === 'CERRADO') return
   const fecha = addDays(semanaActual.value.semana_inicio, offset)
   if (!fecha) return
-  const diaSemana = offset + 1 // 1=Mon..7=Sun
+  const diaSemana = offset + 1
   const t = getTurno(emp.id, semanaActual.value.semana_inicio, offset)
-
-  // Buscar horario por defecto de la plantilla para este día
   const diaConfig = horarioConfigs.value.length > 0
     ? horarioConfigs.value[0].dias?.find(d => d.dia_semana === diaSemana)
     : null
@@ -400,66 +483,72 @@ function abrirEditar(emp, offset) {
   editFecha.value = fecha
   turnoEdit.value = t ? {
     id: t.id,
-    real_inicio: t.real_inicio?.slice(0,5)||t.prog_inicio?.slice(0,5)||diaConfig?.hora_inicio||'',
-    real_fin: t.real_fin?.slice(0,5)||t.prog_fin?.slice(0,5)||diaConfig?.hora_fin||'',
-    real_horas: t.real_horas ?? t.prog_horas ?? diaConfig?.horas_default ?? 0,
-    ccosto: t.ccosto||emp.ccosto||'',
-    es_dia_libre: t.es_dia_libre||false,
-    ausencia_tipo: t.ausencia_tipo||'',
-    notas: t.notas||''
+    real_inicio: t.real_inicio?.slice(0,5) || t.prog_inicio?.slice(0,5) || diaConfig?.hora_inicio || '',
+    real_fin:    t.real_fin?.slice(0,5)    || t.prog_fin?.slice(0,5)    || diaConfig?.hora_fin    || '',
+    real_horas:  t.real_horas ?? t.prog_horas ?? diaConfig?.horas_default ?? 0,
+    ccosto:      t.ccosto || emp.ccosto || '',
+    es_dia_libre: t.es_dia_libre || false,
+    ausencia_tipo: t.ausencia_tipo || '',
+    notas: t.notas || ''
   } : {
     id: null,
     semana_id: semanaActual.value.id,
     empleado_id: emp.id,
-    fecha: fecha,
-    real_inicio: diaConfig?.hora_inicio||'',
-    real_fin: diaConfig?.hora_fin||'',
-    real_horas: diaConfig?.horas_default||0,
+    fecha,
+    real_inicio: diaConfig?.hora_inicio || '',
+    real_fin:    diaConfig?.hora_fin    || '',
+    real_horas:  diaConfig?.horas_default || 0,
     ccosto: ccostoSelId.value || emp.ccosto || '',
     es_dia_libre: !diaConfig,
     ausencia_tipo: '',
     notas: ''
   }
-  try {
-    dlgEditar.value = true
-  } catch(e) {
-    console.error('Error al abrir editar:', e)
-    alert('❌ Error: ' + e.message)
-  }
+  dlgEditar.value = true
 }
 
 async function guardarTurno() {
   if (!turnoEdit.value) return
   guardandoTurno.value = true
   try {
-    // Turno nuevo: POST
     if (!turnoEdit.value.id) {
-      await api.post(`/nomina/semanas/detalle`, {
-        semana_id: turnoEdit.value.semana_id,
-        empleado_id: turnoEdit.value.empleado_id,
-        fecha: turnoEdit.value.fecha,
-        real_inicio: turnoEdit.value.real_inicio||null,
-        real_fin: turnoEdit.value.real_fin||null,
-        real_horas: turnoEdit.value.real_horas||0,
-        ccosto: turnoEdit.value.ccosto||'',
-        es_dia_libre: turnoEdit.value.es_dia_libre||false,
-        ausencia_tipo: turnoEdit.value.ausencia_tipo||'',
-        notas: turnoEdit.value.notas||''
+      await api.post('/nomina/semanas/detalle', {
+        semana_id:    turnoEdit.value.semana_id,
+        empleado_id:  turnoEdit.value.empleado_id,
+        fecha:        turnoEdit.value.fecha,
+        real_inicio:  turnoEdit.value.real_inicio || null,
+        real_fin:     turnoEdit.value.real_fin    || null,
+        real_horas:   turnoEdit.value.real_horas  || 0,
+        ccosto:       turnoEdit.value.ccosto      || '',
+        es_dia_libre: turnoEdit.value.es_dia_libre || false,
+        ausencia_tipo: turnoEdit.value.ausencia_tipo || '',
+        notas:        turnoEdit.value.notas || ''
       })
     } else {
-      // Turno existente: PUT
       await api.put(`/nomina/semanas/detalle/${turnoEdit.value.id}`, turnoEdit.value)
     }
     dlgEditar.value = false
     await cargarDetalle()
   } catch(e) {
-    console.error('Error al guardar turno:', e)
     alert('❌ Error: ' + (e?.response?.data?.error || e.message))
   } finally { guardandoTurno.value = false }
 }
 
+async function eliminarTurno() {
+  if (!turnoEdit.value?.id) return
+  if (!confirm(`¿Eliminar turno de ${editEmp.value?.apellido}, ${editEmp.value?.nombre} el ${fmtFechaCorta(editFecha.value)}?`)) return
+  eliminandoTurno.value = true
+  try {
+    await api.delete(`/nomina/semanas/detalle/${turnoEdit.value.id}`)
+    dlgEditar.value = false
+    await cargarDetalle()
+  } catch(e) {
+    alert('❌ Error al eliminar: ' + (e?.response?.data?.error || e.message))
+  } finally { eliminandoTurno.value = false }
+}
+
 onMounted(cargarSemanas)
 </script>
+
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 16px; }
 .nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#0c2340,#1a3a6e); border-radius: 14px; padding: 20px 24px; flex-wrap: wrap; }
@@ -500,30 +589,46 @@ onMounted(cargarSemanas)
 .sg-turno-cell {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.06);
   border-right: 1px solid rgba(var(--v-theme-on-surface),0.06);
-  padding: 8px 6px; text-align: center; cursor: pointer;
-  transition: background 0.12s; min-height: 56px;
+  padding: 6px; text-align: center; cursor: pointer;
+  transition: background 0.12s; min-height: 56px; position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .sg-turno-cell:hover { background: rgba(139,92,246,0.06); }
-.sg-turno-horas { font-size: 10px; font-weight: 600; color: #06b6d4; }
+.sg-turno-cell:hover .sg-del-icon { opacity: 1 !important; }
+.sg-del-icon { position: absolute; top: 3px; right: 3px; opacity: 0; transition: opacity 0.15s; }
+.sg-turno-horas { font-size: 10px; font-weight: 600; color: #06b6d4; line-height: 1.3; }
 .sg-turno-total { font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); margin-top: 2px; }
 .ajustado { color: #f59e0b; }
 .sg-libre { font-size: 10px; color: rgba(var(--v-theme-on-surface),0.3); }
-.sg-sin-turno { font-size: 18px; color: rgba(var(--v-theme-on-surface),0.15); }
+.sg-sin-turno { font-size: 20px; color: rgba(var(--v-theme-on-surface),0.15); line-height: 1; }
 
-/* Totales */
-.sg-totales { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.07); background: rgba(var(--v-theme-on-surface),0.02); }
-.sg-total-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 8px; background: rgba(var(--v-theme-on-surface),0.04); }
+/* Footer grid */
+.sg-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.07); background: rgba(var(--v-theme-on-surface),0.02); }
+.sg-totales { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.sg-total-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 6px; background: rgba(var(--v-theme-on-surface),0.04); }
 .sg-total-nombre { font-size: 11px; font-weight: 600; }
 .sg-total-horas { font-size: 11px; color: #06b6d4; font-weight: 700; }
-.sg-ot-badge { font-size: 10px; font-weight: 800; background: rgba(239,68,68,0.15); color: #ef4444; padding: 2px 6px; border-radius: 4px; }
+.sg-ot-badge { font-size: 10px; font-weight: 800; background: rgba(239,68,68,0.15); color: #ef4444; padding: 2px 5px; border-radius: 4px; }
+.sg-add-emp-btn { flex-shrink: 0; }
+
+/* Dialog agregar empleado */
+.emp-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.emp-list-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(var(--v-theme-on-surface),0.08);
+  transition: background 0.12s;
+}
+.emp-list-item:hover { background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.3); }
 
 .drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; }
 .drw-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .drw-field { display: flex; flex-direction: column; gap: 4px; }
 .drw-field label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase; }
-.drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; }
-.mt-3 { margin-top: 12px; } .mb-3 { margin-bottom: 12px; } .mt-2 { margin-top: 8px; } .pt-0 { padding-top: 0 !important; }
+.drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; box-sizing: border-box; }
+.mt-3 { margin-top: 12px; } .mb-3 { margin-bottom: 12px; } .mt-2 { margin-top: 8px; }
 .cfg-edit-check { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
 .horas-calculadas { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #10b981; font-weight: 700; padding: 6px 10px; background: rgba(16,185,129,0.08); border-radius: 8px; }
+.d-flex { display: flex; } .align-center { align-items: center; } .justify-space-between { justify-content: space-between; }
+.mr-1 { margin-right: 4px; } .pa-3 { padding: 12px; } .pa-4 { padding: 16px; } .pt-0 { padding-top: 0 !important; } .pb-2 { padding-bottom: 8px !important; }
 </style>

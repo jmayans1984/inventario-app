@@ -8458,6 +8458,14 @@ app.put('/api/nomina/semanas/detalle/:detalleId', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Eliminar un detalle de turno
+app.delete('/api/nomina/semanas/detalle/:detalleId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM nom_semana_detalle WHERE id=$1', [req.params.detalleId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Publicar semana
 app.put('/api/nomina/semanas/:id/publicar', async (req, res) => {
     try {
