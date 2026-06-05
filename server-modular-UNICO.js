@@ -8587,6 +8587,18 @@ app.put('/api/nomina/semanas/detalle/:detalleId', async (req, res) => {
 });
 
 // Eliminar un detalle de turno
+// Eliminar semana completa (y todos sus turnos)
+app.delete('/api/nomina/semanas/:id', async (req, res) => {
+    try {
+        // Primero borrar todos los detalles de esa semana
+        await pool.query('DELETE FROM nom_semana_detalle WHERE semana_id=$1', [req.params.id]);
+        // Luego borrar la semana
+        const r = await pool.query('DELETE FROM nom_semana WHERE id=$1 RETURNING id', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'Semana no encontrada' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.delete('/api/nomina/semanas/detalle/:detalleId', async (req, res) => {
     try {
         await pool.query('DELETE FROM nom_semana_detalle WHERE id=$1', [req.params.detalleId]);

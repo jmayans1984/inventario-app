@@ -43,21 +43,23 @@
                 <div class="rh-cargo">{{ emp.tipo_empleado }}</div>
               </td>
               <td v-for="d in DIAS" :key="d.offset" class="rh-turno">
-                <template v-if="getTurno(emp.id, d.offset) && !getTurno(emp.id, d.offset).es_dia_libre">
-                  <span class="rh-horas">
-                    {{ getTurno(emp.id, d.offset).real_inicio?.slice(0,5) || getTurno(emp.id, d.offset).prog_inicio?.slice(0,5) || '' }}
-                    <br/>{{ getTurno(emp.id, d.offset).real_fin?.slice(0,5) || getTurno(emp.id, d.offset).prog_fin?.slice(0,5) || '' }}
-                    <br/><span class="rh-h">{{ (getTurno(emp.id, d.offset).real_horas ?? getTurno(emp.id, d.offset).prog_horas ?? 0).toFixed(1) }}h</span>
-                  </span>
-                </template>
-                <template v-else-if="getTurno(emp.id, d.offset) && getTurno(emp.id, d.offset).es_dia_libre">
-                  <span class="rh-libre">{{ getTurno(emp.id, d.offset).ausencia_tipo || 'LIBRE' }}</span>
-                </template>
-                <template v-else>
-                  <span class="rh-libre">—</span>
+                <template v-for="t in [getTurno(emp.id, d.offset)]" :key="0">
+                  <template v-if="t && !t.es_dia_libre">
+                    <span class="rh-horas">
+                      {{ (t.real_inicio || t.prog_inicio || '').slice(0,5) }}
+                      <br/>{{ (t.real_fin || t.prog_fin || '').slice(0,5) }}
+                      <br/><span class="rh-h">{{ fmtHoras(t.real_horas ?? t.prog_horas) }}h</span>
+                    </span>
+                  </template>
+                  <template v-else-if="t && t.es_dia_libre">
+                    <span class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
+                  </template>
+                  <template v-else>
+                    <span class="rh-libre">—</span>
+                  </template>
                 </template>
               </td>
-              <td class="rh-total">{{ totalHorasEmp(emp.id).toFixed(1) }}h
+              <td class="rh-total">{{ fmtHoras(totalHorasEmp(emp.id)) }}h
                 <span v-if="totalHorasEmp(emp.id) > 40" class="rh-ot">OT</span>
               </td>
             </tr>
@@ -100,15 +102,23 @@ const empleadosUnicos = computed(() => {
   return Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
 
+function addDays(dateStr, days) {
+  if (!dateStr) return null
+  try {
+    const dateOnly = String(dateStr).split('T')[0]
+    const d = new Date(dateOnly + 'T00:00:00')
+    if (isNaN(d.getTime())) return null
+    d.setDate(d.getDate() + days)
+    return d.toISOString().split('T')[0]
+  } catch { return null }
+}
 function getTurno(empId, offset) {
   if (!semanaActual.value) return null
   const fecha = addDays(semanaActual.value.semana_inicio, offset)
+  if (!fecha) return null
   return detalle.value.find(d => d.empleado_id === empId && d.fecha?.split('T')[0] === fecha) || null
 }
-function addDays(dateStr, days) {
-  const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
-}
+function fmtHoras(v) { return parseFloat(v ?? 0).toFixed(1) }
 function totalHorasEmp(empId) {
   return detalle.value.filter(d => d.empleado_id === empId && !d.es_dia_libre)
     .reduce((s, d) => s + parseFloat(d.real_horas ?? d.prog_horas ?? 0), 0)
@@ -119,8 +129,9 @@ function fmtFecha(f) {
   return `${parseInt(d)} ${meses[parseInt(m)]} ${y}`
 }
 function fmtDiaMes(inicio, offset) {
-  const f = addDays(inicio, offset); const [,m,d] = f.split('-')
-  return `${parseInt(d)}/${parseInt(m)}`
+  if (!inicio) return '—'
+  try { const f = addDays(inicio, offset); const [,m,d] = f.split('-'); return `${parseInt(d)}/${parseInt(m)}` }
+  catch { return '—' }
 }
 
 async function cargarSemanas() {

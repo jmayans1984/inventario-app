@@ -39,6 +39,10 @@
                  @click="$router.push('/nomina/reportes/horario')">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
           </v-btn>
+          <v-btn v-if="semanaActual" size="small" color="#ef4444" variant="outlined"
+                 :loading="borrando" @click="borrarSemana">
+            <v-icon size="14" class="mr-1">mdi-trash-can</v-icon> Borrar Semana
+          </v-btn>
         </div>
       </div>
 
@@ -182,7 +186,7 @@
 
       <!-- Version -->
       <div style="text-align:center;font-size:10px;color:rgba(var(--v-theme-on-surface),0.2);margin-top:4px">
-        v2.5.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
+        v2.6.0 · {{ ccostos.length }} centros · {{ empleadosActivos.length }} empleados activos
       </div>
     </div>
 
@@ -320,6 +324,7 @@ const ccostos          = ref([])
 const horarioConfigs   = ref([])
 const cargando         = ref(false)
 const copiando         = ref(false)
+const borrando         = ref(false)
 
 // empleadosAgregados: { [ccostoId]: [emp, ...] }
 const empleadosAgregados = ref({})
@@ -562,6 +567,22 @@ async function crearSemana() {
     cargarDetalle()
   } catch(e) { alert(e?.response?.data?.error || e.message) }
   finally { creandoSemana.value = false }
+}
+
+async function borrarSemana() {
+  if (!semanaSelId.value || !semanaActual.value) return
+  const label = `${fmtFecha(semanaActual.value.semana_inicio)} — ${fmtFecha(semanaActual.value.semana_fin)}`
+  if (!confirm(`⚠️ ¿Borrar COMPLETAMENTE la semana "${label}"?\n\nEsto eliminará la semana y TODOS sus turnos.\nEsta acción no se puede deshacer.`)) return
+  borrando.value = true
+  try {
+    await api.delete(`/nomina/semanas/${semanaSelId.value}`)
+    semanaSelId.value = ''
+    semanaActual.value = null
+    detalle.value = []
+    await cargarSemanas()
+  } catch(e) {
+    alert('❌ Error al borrar: ' + (e?.response?.data?.error || e.message))
+  } finally { borrando.value = false }
 }
 
 async function copiarSemanaAnterior() {
