@@ -17,7 +17,7 @@
           </select>
           <v-btn color="#8b5cf6" variant="flat" size="small" :disabled="!semanaActual"
                  @click="imprimirPDF">
-            <v-icon size="14" class="mr-1">mdi-open-in-new</v-icon> Abrir PDF en nueva pestaña
+            <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
           </v-btn>
         </div>
       </div>
@@ -45,7 +45,6 @@
                   {{ d.label }}<br/>
                   <span class="rh-fecha">{{ fmtDiaMes(semanaActual.semana_inicio, d.offset) }}</span>
                 </th>
-                <th class="th-total">TOTAL</th>
               </tr>
             </thead>
             <tbody>
@@ -74,21 +73,8 @@
                     </template>
                   </template>
                 </td>
-                <td class="rh-total">
-                  <span>{{ totalHorasEmpCcosto(emp.id, cc.codigo) }}h</span>
-                  <span v-if="parseFloat(totalHorasEmpCcosto(emp.id, cc.codigo)) > 40" class="rh-ot">OT</span>
-                </td>
               </tr>
             </tbody>
-            <tfoot>
-              <tr class="rh-footer-row">
-                <td>TOTAL CENTRO</td>
-                <td v-for="d in DIAS" :key="d.offset" class="rh-turno ta-c">
-                  {{ totalHorasDiaCcosto(d.offset, cc.codigo) }}h
-                </td>
-                <td class="rh-total">{{ totalHorasCcosto(cc.codigo) }}h</td>
-              </tr>
-            </tfoot>
           </table>
 
           <div v-else class="rh-sin-emp">Sin empleados asignados a este centro esta semana.</div>
@@ -316,27 +302,17 @@ function imprimirPDF() {
       body += `<table><thead><tr>
         <th class="th-emp">EMPLEADO</th>
         ${DIAS.map(d => `<th>${d.label}<span class="rh-fecha">${fmtDiaMes(semanaActual.value.semana_inicio, d.offset)}</span></th>`).join('')}
-        <th>TOTAL</th></tr></thead><tbody>`
+        </tr></thead><tbody>`
 
       emps.forEach(emp => {
-        const total = totalHorasEmpCcosto(emp.id, cc.codigo)
-        const isOT  = parseFloat(total) > 40
         body += `<tr>
           <td class="td-emp">
             <div class="emp-nombre">${emp.apellido}, ${emp.nombre}</div>
             <div class="emp-sub">${emp.empresa_contratista ? emp.empresa_contratista + ' · ' : ''}${emp.tipo_empleado}</div>
           </td>
           ${DIAS.map(d => `<td>${genTurno(getTurnoCcosto(emp.id, d.offset, cc.codigo))}</td>`).join('')}
-          <td class="td-total">${total}h${isOT ? '<span class="ot">OT</span>' : ''}</td>
         </tr>`
       })
-
-      // Fila de totales por día
-      body += `<tr class="footer-row">
-        <td class="td-emp">TOTAL CENTRO</td>
-        ${DIAS.map(d => `<td>${totalHorasDiaCcosto(d.offset, cc.codigo)}h</td>`).join('')}
-        <td class="td-total">${totalHorasCcosto(cc.codigo)}h</td>
-      </tr>`
 
       body += `</tbody></table>`
     } else {
