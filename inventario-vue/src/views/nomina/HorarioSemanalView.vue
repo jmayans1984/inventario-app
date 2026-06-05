@@ -343,26 +343,69 @@ async function publicar() {
 function abrirEditar(emp, offset) {
   if (semanaActual.value?.estado === 'CERRADO') return
   const fecha = addDays(semanaActual.value.semana_inicio, offset)
+  if (!fecha) return
+  const diaSemana = offset + 1 // 1=Mon..7=Sun
   const t = getTurno(emp.id, semanaActual.value.semana_inicio, offset)
+
+  // Buscar horario por defecto de la plantilla para este día
+  const diaConfig = horarioConfigs.value.length > 0
+    ? horarioConfigs.value[0].dias?.find(d => d.dia_semana === diaSemana)
+    : null
+
   editEmp.value = emp
   editFecha.value = fecha
   turnoEdit.value = t ? {
-    id: t.id, real_inicio: t.real_inicio?.slice(0,5)||t.prog_inicio?.slice(0,5)||'',
-    real_fin: t.real_fin?.slice(0,5)||t.prog_fin?.slice(0,5)||'',
-    real_horas: t.real_horas ?? t.prog_horas ?? 0,
-    ccosto: t.ccosto||'', es_dia_libre: t.es_dia_libre||false,
-    ausencia_tipo: t.ausencia_tipo||'', notas: t.notas||''
-  } : { id: null, real_inicio:'', real_fin:'', real_horas:0, ccosto:'', es_dia_libre:false, ausencia_tipo:'', notas:'' }
+    id: t.id,
+    real_inicio: t.real_inicio?.slice(0,5)||t.prog_inicio?.slice(0,5)||diaConfig?.hora_inicio||'',
+    real_fin: t.real_fin?.slice(0,5)||t.prog_fin?.slice(0,5)||diaConfig?.hora_fin||'',
+    real_horas: t.real_horas ?? t.prog_horas ?? diaConfig?.horas_default ?? 0,
+    ccosto: t.ccosto||emp.ccosto||'',
+    es_dia_libre: t.es_dia_libre||false,
+    ausencia_tipo: t.ausencia_tipo||'',
+    notas: t.notas||''
+  } : {
+    id: null,
+    semana_id: semanaActual.value.id,
+    empleado_id: emp.id,
+    fecha: fecha,
+    real_inicio: diaConfig?.hora_inicio||'',
+    real_fin: diaConfig?.hora_fin||'',
+    real_horas: diaConfig?.horas_default||0,
+    ccosto: emp.ccosto||'',
+    es_dia_libre: !diaConfig,
+    ausencia_tipo: '',
+    notas: ''
+  }
   dlgEditar.value = true
 }
 
 async function guardarTurno() {
-  if (!turnoEdit.value?.id) return
+  if (!turnoEdit.value) return
   guardandoTurno.value = true
   try {
-    await api.put(`/nomina/semanas/detalle/${turnoEdit.value.id}`, turnoEdit.value)
+    // Turno nuevo: POST
+    if (!turnoEdit.value.id) {
+      await api.post(`/nomina/semanas/detalle`, {
+        semana_id: turnoEdit.value.semana_id,
+        empleado_id: turnoEdit.value.empleado_id,
+        fecha: turnoEdit.value.fecha,
+        real_inicio: turnoEdit.value.real_inicio||null,
+        real_fin: turnoEdit.value.real_fin||null,
+        real_horas: turnoEdit.value.real_horas||0,
+        ccosto: turnoEdit.value.ccosto||'',
+        es_dia_libre: turnoEdit.value.es_dia_libre||false,
+        ausencia_tipo: turnoEdit.value.ausencia_tipo||'',
+        notas: turnoEdit.value.notas||''
+      })
+    } else {
+      // Turno existente: PUT
+      await api.put(`/nomina/semanas/detalle/${turnoEdit.value.id}`, turnoEdit.value)
+    }
     dlgEditar.value = false
-    cargarDetalle()
+    await cargarDetalle()
+  } catch(e) {
+    console.error('Error al guardar turno:', e)
+    alert('❌ Error: ' + (e?.response?.data?.error || e.message))
   } finally { guardandoTurno.value = false }
 }
 

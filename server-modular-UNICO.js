@@ -8417,6 +8417,31 @@ app.post('/api/nomina/semanas/:id/generar', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// Crear un nuevo detalle de turno
+app.post('/api/nomina/semanas/detalle', async (req, res) => {
+    const { semana_id, empleado_id, fecha, real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas } = req.body;
+    try {
+        // Verificar que no exista ya
+        const exists = await pool.query(
+            'SELECT id FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3',
+            [semana_id, empleado_id, fecha]
+        );
+        if (exists.rows.length) {
+            return res.status(400).json({ success: false, error: 'Ya existe un turno para este empleado en esta fecha' });
+        }
+
+        const r = await pool.query(
+            `INSERT INTO nom_semana_detalle
+             (semana_id, empleado_id, fecha, real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas, ajustado)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE)
+             RETURNING id`,
+            [semana_id, empleado_id, fecha, real_inicio||null, real_fin||null, real_horas||null,
+             ccosto||'', es_dia_libre||false, ausencia_tipo||'', notas||'']
+        );
+        res.json({ success: true, data: { id: r.rows[0].id } });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Actualizar un detalle (ajuste de horas)
 app.put('/api/nomina/semanas/detalle/:detalleId', async (req, res) => {
     const { real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas } = req.body;
