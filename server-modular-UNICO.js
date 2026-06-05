@@ -5519,7 +5519,7 @@ app.get('/', (req, res) => {
 // GET /api/grupo-gastos — lista todos los grupos (sin filtro de empresa)
 app.get('/api/grupo-gastos', async (req, res) => {
     try {
-        const result = await pool.query('SELECT codigo, nombre, tipo FROM grupo_gastos ORDER BY nombre');
+        const result = await pool.query('SELECT TRIM(codigo) AS codigo, TRIM(nombre) AS nombre, TRIM(tipo) AS tipo FROM grupo_gastos ORDER BY nombre');
         res.json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error GET /api/grupo-gastos:', error.message);
@@ -5533,9 +5533,9 @@ app.get('/api/configuracion/cuentas', async (req, res) => {
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
         const result = await pool.query(
-            `SELECT c.codigo, c.cuenta, c.grupo, g.nombre AS grupo_nombre
+            `SELECT c.codigo, TRIM(c.cuenta) AS cuenta, TRIM(c.grupo) AS grupo, g.nombre AS grupo_nombre
              FROM cuentas c
-             LEFT JOIN grupo_gastos g ON g.codigo = c.grupo
+             LEFT JOIN grupo_gastos g ON TRIM(g.codigo) = TRIM(c.grupo)
              WHERE c.empresa = $1
              ORDER BY c.grupo, c.cuenta`,
             [empresa]

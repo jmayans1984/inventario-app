@@ -287,7 +287,8 @@ const cfgSaveErr = ref('')
 function cuentasFiltradas(key) {
   const g = selGrupo[key]
   if (!g) return []
-  return cuentas.value.filter(c => c.grupo === g)
+  const gTrim = String(g).trim()
+  return cuentas.value.filter(c => String(c.grupo || '').trim() === gTrim)
 }
 
 function onGrupoChange(key) {
@@ -308,11 +309,11 @@ async function cargarConfigContable() {
     const cfg = cfgRes.data?.data || {}
     // Pre-seleccionar grupo y cuenta para cada fila
     for (const row of CFG_ROWS) {
-      const codigoCuenta = cfg[row.key] || null
+      const codigoCuenta = cfg[row.key] ? String(cfg[row.key]).trim() : null
       selCuenta[row.key] = codigoCuenta
       if (codigoCuenta) {
-        const cta = cuentas.value.find(c => c.codigo === codigoCuenta)
-        selGrupo[row.key] = cta?.grupo || null
+        const cta = cuentas.value.find(c => String(c.codigo || '').trim() === codigoCuenta)
+        selGrupo[row.key] = cta?.grupo ? String(cta.grupo).trim() : null
       } else {
         selGrupo[row.key] = null
       }
