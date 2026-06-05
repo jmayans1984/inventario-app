@@ -50,7 +50,7 @@
           <!-- Filas por empleado -->
           <template v-for="emp in empleadosUnicos" :key="emp.id">
             <div class="sg-emp-cell">
-              <div class="sg-emp-nombre">{{ emp.apellido }}, {{ emp.nombre }}</div>
+              <div class="sg-emp-nombre">{{ getNombreDisplay(emp) }}</div>
               <span class="sg-emp-badge" :class="emp.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ emp.tipo_empleado }}</span>
             </div>
             <div v-for="d in DIAS" :key="d.offset" class="sg-turno-cell"
@@ -79,7 +79,7 @@
         <!-- Totales por empleado -->
         <div class="sg-totales">
           <div v-for="emp in empleadosUnicos" :key="emp.id" class="sg-total-row">
-            <span class="sg-total-nombre">{{ emp.apellido }}, {{ emp.nombre }}</span>
+            <span class="sg-total-nombre">{{ getNombreDisplay(emp) }}</span>
             <span class="sg-total-horas">{{ totalHorasEmp(emp.id) }}h total</span>
             <span v-if="totalHorasEmp(emp.id) > 40" class="sg-ot-badge">
               OT: {{ (totalHorasEmp(emp.id) - 40).toFixed(1) }}h
@@ -216,9 +216,16 @@ const guardandoTurno = ref(false)
 
 const empleadosUnicos = computed(() => {
   const map = {}
-  detalle.value.forEach(d => { if (!map[d.empleado_id]) map[d.empleado_id] = { id: d.empleado_id, nombre: d.nombre, apellido: d.apellido, tipo_empleado: d.tipo_empleado } })
+  detalle.value.forEach(d => { if (!map[d.empleado_id]) map[d.empleado_id] = { id: d.empleado_id, nombre: d.nombre, apellido: d.apellido, tipo_empleado: d.tipo_empleado, empresa_contratista: d.empresa_contratista } })
   return Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
+
+function getNombreDisplay(emp) {
+  if (emp.tipo_empleado === '1099' && emp.empresa_contratista) {
+    return `${emp.apellido}, ${emp.nombre} - ${emp.empresa_contratista}`
+  }
+  return `${emp.apellido}, ${emp.nombre}`
+}
 
 function getTurno(empId, semanaInicio, offset) {
   const fecha = addDays(semanaInicio, offset)

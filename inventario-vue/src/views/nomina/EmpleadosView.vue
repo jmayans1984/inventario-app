@@ -40,7 +40,7 @@
             <tr v-for="e in filtrados" :key="e.id" class="nom-row" @click="editar(e)">
               <td class="nom-id">{{ e.id }}</td>
               <td>
-                <div class="nom-nombre">{{ e.apellido }}, {{ e.nombre }}</div>
+                <div class="nom-nombre">{{ getNombreDisplay(e) }}</div>
                 <div class="nom-email">{{ e.email }}</div>
               </td>
               <td>
@@ -368,6 +368,14 @@ const filtrados = computed(() => {
 const ciudadesDelEstado = computed(() => {
   return ciudadesxEstado[form.value.estado_residencia] || []
 })
+
+// Nombre display: muestra empresa para 1099, solo nombre para W2
+function getNombreDisplay(emp) {
+  if (emp.tipo_empleado === '1099' && emp.empresa_contratista) {
+    return `${emp.apellido}, ${emp.nombre} - ${emp.empresa_contratista}`
+  }
+  return `${emp.apellido}, ${emp.nombre}`
+}
 
 const formDefault = () => ({
   nombre:'', apellido:'', fecha_nacimiento:'', email:'', telefono:'',

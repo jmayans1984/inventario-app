@@ -33,7 +33,7 @@
           <!-- Empleado -->
           <div class="rec-emp-row">
             <div>
-              <div class="rec-emp-nombre">{{ l.apellido }}, {{ l.nombre }}</div>
+              <div class="rec-emp-nombre">{{ getNombreDisplay(l) }}</div>
               <div class="rec-emp-tipo">
                 <span class="rec-badge" :class="l.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ l.tipo_empleado }}</span>
                 {{ l.tipo_empleado === 'W2' ? 'Employee' : 'Independent Contractor' }}
@@ -170,6 +170,12 @@ function fmtFecha(f) {
   return `${parseInt(d)} ${meses[parseInt(m)]} ${y}`
 }
 function fmt(v) { return parseFloat(v||0).toFixed(2) }
+function getNombreDisplay(emp) {
+  if (emp.tipo_empleado === '1099' && emp.empresa_contratista) {
+    return `${emp.apellido}, ${emp.nombre} - ${emp.empresa_contratista}`
+  }
+  return `${emp.apellido}, ${emp.nombre}`
+}
 function imprimirTodos() { window.print() }
 
 onMounted(cargar)
