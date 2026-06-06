@@ -8966,23 +8966,29 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
             const codigo = String(codNum).padStart(10, '0');
             codNum++;
 
-            // Gasto (P&L — costo empresa completo, usando cuenta contable configurada)
+            // Gasto (P&L — usando el mismo patrón del sistema)
+            // proveedor = null (nomina no tiene proveedor específico)
+            // cuenta = código contable configurado (o null si no está configurado)
+            // factura = null (referencia interna)
+            // empresa = l.empresa desde la BD (tipo correcto)
+            const cuentaInsert = (cuentaNomina && cuentaNomina !== 'NOMINA') ? cuentaNomina : null;
             await client.query(
-                `INSERT INTO gastos (codigo, fecha, proveedor, concepto, cuenta, factura,
-                                     subtotal, impuestos, total, ccosto, forma_pago, estado, empresa)
-                 VALUES ($1, $2, 'NOMINA', $3, $4, $5, $6, 0, $6, '', 'TRANSFERENCIA', 'PAGADA', $7)`,
-                [codigo, entry.fecha, entry.concepto, cuentaNomina, `NOM-${req.params.id}`, entry.costo, empresa]
+                `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
+                                     forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
+                 VALUES ($1, $2, NULL, NULL, '',
+                         'NOMINA', $3, $4, $5, 0, $5, $6, 'PAGADA')`,
+                [codigo, entry.fecha, cuentaInsert, entry.concepto, entry.costo, l.empresa]
             );
 
-            // Movimiento bancario (solo lo que sale del banco = neto pagado)
-            if (banco) {
+            // Movimiento bancario (solo si se seleccionó una cuenta bancaria)
+            if (banco && banco !== '') {
                 const numStr = String(movNum).padStart(10, '0');
                 movNum++;
                 await client.query(
                     `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
                                          banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
-                     VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, $7, 'EMPLEADOS', NULL, '')`,
-                    [numStr, entry.fecha, entry.concepto, entry.neto, banco, empresa, codigo]
+                     VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, $7, NULL, NULL, '')`,
+                    [numStr, entry.fecha, entry.concepto, entry.neto, banco, l.empresa, codigo]
                 );
             }
 

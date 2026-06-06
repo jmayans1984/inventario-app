@@ -492,6 +492,11 @@ async function abrirAprobar() {
 }
 
 async function confirmarAprobar() {
+  // Banco es OPCIONAL — solo advertir si está vacío, no bloquear
+  if (!bancoSelAprobar.value) {
+    const continuar = confirm('⚠️ No seleccionaste una cuenta bancaria.\n\nSe creará el gasto contable pero NO se registrará movimiento bancario.\n\n¿Continuar de todas formas?')
+    if (!continuar) return
+  }
   aprobando.value = true
   try {
     const r = await api.put(`/nomina/liquidaciones/${liqSelId.value}/aprobar`, {
