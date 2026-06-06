@@ -7394,6 +7394,7 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                        dr.cantidad,
                        COALESCE(dr.tipo, 'ARTICULO') AS tipo,
                        COALESCE(a.nombre, r2.nombre, dr.articulo) AS nombre_item,
+                       COALESCE(a.nombre, r2.nombre, dr.articulo) AS articulo_nombre,
                        COALESCE(a.und, r2.und, '') AS und,
                        COALESCE(CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
                                      THEN r2.valor
@@ -7406,7 +7407,9 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                        COALESCE(dr.vr_total, CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
                                                    THEN r2.valor * dr.cantidad
                                                    ELSE a.valor * dr.cantidad
-                                              END, 0) AS vr_total
+                                              END, 0) AS vr_total,
+                       CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
+                            THEN true ELSE false END AS es_subreceta
                 FROM detalle_recetas dr
                 LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo) AND COALESCE(dr.tipo, 'ARTICULO') = 'ARTICULO'
                 LEFT JOIN recetas r2 ON TRIM(r2.codigo) = TRIM(dr.articulo) AND COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
