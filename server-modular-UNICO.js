@@ -8966,30 +8966,34 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
             const codigo = String(codNum).padStart(10, '0');
             codNum++;
 
-            // Gasto (P&L — usando el mismo patrón del sistema)
-            // proveedor = null (nomina no tiene proveedor específico)
-            // cuenta = código contable configurado (o null si no está configurado)
-            // factura = null (referencia interna)
-            // empresa = l.empresa desde la BD (tipo correcto)
-            const cuentaInsert = (cuentaNomina && cuentaNomina !== 'NOMINA') ? cuentaNomina : null;
-            await client.query(
-                `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
-                                     forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
-                 VALUES ($1, $2, NULL, NULL, '',
-                         'NOMINA', $3, $4, $5, 0, $5, $6, 'PAGADA')`,
-                [codigo, entry.fecha, cuentaInsert, entry.concepto, entry.costo, l.empresa]
-            );
+            // Gasto contable — null para campos con restricción de longitud desconocida
+            // cuenta = null por ahora (gastos.cuenta es VARCHAR(3), códigos >3 chars no caben)
+            // proveedor = null (no aplica para nómina)
+            try {
+                await client.query(
+                    `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
+                                         forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
+                     VALUES ($1, $2, NULL, NULL, '', 'NOMINA', NULL, $3, $4, 0, $4, $5, 'PAGADA')`,
+                    [codigo, entry.fecha, entry.concepto, entry.costo, l.empresa]
+                );
+            } catch(eGasto) {
+                throw new Error('Error al insertar gasto: ' + eGasto.message);
+            }
 
             // Movimiento bancario (solo si se seleccionó una cuenta bancaria)
             if (banco && banco !== '') {
-                const numStr = String(movNum).padStart(10, '0');
-                movNum++;
-                await client.query(
-                    `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
-                                         banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
-                     VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, $7, NULL, NULL, '')`,
-                    [numStr, entry.fecha, entry.concepto, entry.neto, banco, l.empresa, codigo]
-                );
+                try {
+                    const numStr = String(movNum).padStart(10, '0');
+                    movNum++;
+                    await client.query(
+                        `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
+                                             banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                         VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, $7, NULL, NULL, '')`,
+                        [numStr, entry.fecha, entry.concepto, entry.neto, banco, l.empresa, codigo]
+                    );
+                } catch(eMoviban) {
+                    throw new Error('Error al insertar movimiento bancario: ' + eMoviban.message);
+                }
             }
 
             gastosCreados.push({ codigo, fecha: entry.fecha, concepto: entry.concepto, total: entry.costo });
