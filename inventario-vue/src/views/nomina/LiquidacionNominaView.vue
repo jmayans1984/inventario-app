@@ -290,15 +290,12 @@
               <template #item="{ props, item }">
                 <v-list-item v-bind="props">
                   <template #title>
-                    <span style="font-size:12px">
-                      <strong>{{ item.raw.nombre_cta }}</strong>
-                      <span style="opacity:0.55;margin-left:6px">· {{ item.raw.nombre_banco }} · {{ item.raw.tipo_cuenta }}</span>
-                    </span>
+                    <span style="font-size:12px">{{ item.raw.nombre_cta }}</span>
                   </template>
                 </v-list-item>
               </template>
               <template #selection="{ item }">
-                <span style="font-size:12px">{{ item.raw.nombre_cta }} — {{ item.raw.nombre_banco }}</span>
+                <span style="font-size:12px">{{ item.raw.nombre_cta }}</span>
               </template>
             </v-select>
             <span style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:4px;display:block">
