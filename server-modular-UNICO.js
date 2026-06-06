@@ -7805,6 +7805,19 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
     }
 })();
 
+// Auto-migración: columna tipo en detalle_recetas (subrecetas jerárquicas)
+(async () => {
+    try {
+        await pool.query(`
+            ALTER TABLE detalle_recetas
+            ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'ARTICULO'
+        `);
+        console.log('✅ Columna detalle_recetas.tipo lista');
+    } catch (err) {
+        console.error('❌ Error migrando detalle_recetas.tipo:', err.message);
+    }
+})();
+
 // GET /api/empresas/clientes — solo empresas tipo CLIENTE
 app.get('/api/empresas/clientes', async (req, res) => {
     try {
