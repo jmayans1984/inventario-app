@@ -7358,7 +7358,23 @@ app.get('/api/recetas', async (req, res) => {
     }
 });
 
-// GET /api/recetas/:codigo - Obtener receta con sus ingredientes
+// GET /api/recetas/para-selector - Recetas disponibles como subrecetas (con costo)
+app.get('/api/recetas/para-selector', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT r.codigo, r.nombre, COALESCE(r.valor, 0) AS valor, COALESCE(r.und, 'UND') AS und
+            FROM recetas r
+            WHERE COALESCE(r.subproducto, 'NO') = 'SI'
+            ORDER BY r.nombre
+        `);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/recetas/para-selector:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/recetas/:codigo - Obtener receta con sus ingredientes (jerárquico)
 app.get('/api/recetas/:codigo', async (req, res) => {
     const { codigo } = req.params;
     try {
@@ -7376,15 +7392,24 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                 SELECT dr.codigo AS id,
                        dr.articulo,
                        dr.cantidad,
-                       COALESCE(a.nombre, dr.articulo) AS articulo_nombre,
-                       COALESCE(a.und, '')              AS und,
-                       COALESCE(a.valor, 0)             AS precio_unit,
-                       COALESCE(dr.vr_unit, a.valor, 0) AS vr_unit,
-                       COALESCE(dr.vr_total, COALESCE(a.valor,0) * dr.cantidad, 0) AS vr_total,
-                       CASE WHEN EXISTS(SELECT 1 FROM recetas r2 WHERE r2.codigo = dr.articulo AND COALESCE(r2.subproducto,'NO') = 'SI')
-                            THEN true ELSE false END AS es_subreceta
+                       COALESCE(dr.tipo, 'ARTICULO') AS tipo,
+                       COALESCE(a.nombre, r2.nombre, dr.articulo) AS nombre_item,
+                       COALESCE(a.und, r2.und, '') AS und,
+                       COALESCE(CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
+                                     THEN r2.valor
+                                     ELSE a.valor
+                                END, 0) AS precio_unit,
+                       COALESCE(dr.vr_unit, CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
+                                                   THEN r2.valor
+                                                   ELSE a.valor
+                                              END, 0) AS vr_unit,
+                       COALESCE(dr.vr_total, CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
+                                                   THEN r2.valor * dr.cantidad
+                                                   ELSE a.valor * dr.cantidad
+                                              END, 0) AS vr_total
                 FROM detalle_recetas dr
-                LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo)
+                LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo) AND COALESCE(dr.tipo, 'ARTICULO') = 'ARTICULO'
+                LEFT JOIN recetas r2 ON TRIM(r2.codigo) = TRIM(dr.articulo) AND COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
                 WHERE dr.receta = $1
                 ORDER BY dr.codigo
             `, [codigo])
@@ -7525,7 +7550,7 @@ app.delete('/api/recetas/:codigo', async (req, res) => {
 });
 
 // PUT /api/recetas/:codigo/ingredientes - Guardar ingredientes (reemplaza todo)
-// detalle_recetas: codigo(PK), receta, articulo, cantidad, vr_unit, vr_total
+// detalle_recetas: codigo(PK), receta, articulo, cantidad, vr_unit, vr_total, tipo (ARTICULO|RECETA)
 app.put('/api/recetas/:codigo/ingredientes', async (req, res) => {
     const { codigo } = req.params;
     const { ingredientes } = req.body;
@@ -7534,6 +7559,12 @@ app.put('/api/recetas/:codigo/ingredientes', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+        // Agregar columna tipo si no existe (una sola vez)
+        await client.query(`
+            ALTER TABLE detalle_recetas
+            ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'ARTICULO'
+        `);
+
         await client.query('DELETE FROM detalle_recetas WHERE receta = $1', [codigo]);
         // Obtener max código para generar PK
         const maxRes = await client.query(
@@ -7546,10 +7577,11 @@ app.put('/api/recetas/:codigo/ingredientes', async (req, res) => {
             const vrUnit  = parseFloat(ing.precio_unit) || 0;
             const cant    = parseFloat(ing.cantidad) || 0;
             const vrTotal = vrUnit * cant;
+            const tipo    = ing.tipo === 'RECETA' ? 'RECETA' : 'ARTICULO';
             await client.query(`
-                INSERT INTO detalle_recetas (codigo, receta, articulo, cantidad, vr_unit, vr_total)
-                VALUES ($1, $2, $3, $4, $5, $6)
-            `, [String(nextCod).padStart(6,'0'), codigo, ing.articulo, cant, vrUnit, vrTotal]);
+                INSERT INTO detalle_recetas (codigo, receta, articulo, cantidad, vr_unit, vr_total, tipo)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `, [String(nextCod).padStart(6,'0'), codigo, ing.articulo, cant, vrUnit, vrTotal, tipo]);
             nextCod++;
         }
         await client.query('COMMIT');
@@ -7563,30 +7595,44 @@ app.put('/api/recetas/:codigo/ingredientes', async (req, res) => {
     }
 });
 
-// POST /api/recetas/:codigo/calcular-costo - Calcular costo de una receta
+// POST /api/recetas/:codigo/calcular-costo - Calcular costo de una receta (RECURSIVO con jerárquico)
 app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
     const { codigo } = req.params;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        // Costo = SUM(articulo.valor * detalle.cantidad)
-        const costoRes = await client.query(`
-            SELECT COALESCE(SUM(COALESCE(a.valor, 0) * dr.cantidad), 0) AS costo_total
-            FROM detalle_recetas dr
-            LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo)
-            WHERE dr.receta = $1
-        `, [codigo]);
-        const costoTotal = parseFloat(costoRes.rows[0].costo_total) || 0;
 
-        // Actualizar vr_unit y vr_total en detalle también
-        await client.query(`
-            UPDATE detalle_recetas dr
-            SET vr_unit  = COALESCE(a.valor, 0),
-                vr_total = COALESCE(a.valor, 0) * dr.cantidad
-            FROM articulos a
-            WHERE TRIM(a.codigo) = TRIM(dr.articulo)
-              AND dr.receta = $1
-        `, [codigo]);
+        // Función recursiva para calcular costo expandiendo subrecetas
+        async function calcularCostoRecursivo(recetaCod) {
+            const detalleRes = await client.query(`
+                SELECT dr.codigo, dr.articulo, dr.cantidad, COALESCE(dr.tipo, 'ARTICULO') AS tipo
+                FROM detalle_recetas dr
+                WHERE dr.receta = $1
+            `, [recetaCod]);
+
+            let costoTotal = 0;
+            for (const det of detalleRes.rows) {
+                let precio = 0;
+                if (det.tipo === 'ARTICULO') {
+                    // Obtener precio del artículo
+                    const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
+                    precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
+                } else if (det.tipo === 'RECETA') {
+                    // Obtener costo de la receta (ya calculado)
+                    const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
+                    precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
+                }
+                costoTotal += precio * parseFloat(det.cantidad);
+                // Actualizar vr_unit y vr_total en detalle
+                await client.query(`
+                    UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2
+                    WHERE codigo = $3
+                `, [precio, precio * parseFloat(det.cantidad), det.codigo]);
+            }
+            return costoTotal;
+        }
+
+        const costoTotal = await calcularCostoRecursivo(codigo);
 
         // Guardar costo en recetas.valor
         await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
@@ -7608,46 +7654,72 @@ app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
     }
 });
 
-// POST /api/recetas/recalcular-todos - 2 pasadas: subproductos primero, luego resto
+// POST /api/recetas/recalcular-todos - 3 pasadas: directas → subrecetas → finales (jerárquico)
 app.post('/api/recetas/recalcular-todos', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         const recetasRes = await client.query(
-            `SELECT codigo, subproducto FROM recetas ORDER BY subproducto DESC, nombre`
+            `SELECT codigo, subproducto FROM recetas ORDER BY nombre`
         );
         const recetas = recetasRes.rows;
         const resultados = [];
 
-        async function calcular(codigo, subproducto) {
-            const costoRes = await client.query(`
-                SELECT COALESCE(SUM(COALESCE(a.valor, 0) * dr.cantidad), 0) AS costo_total
+        // Función para calcular costo recursivo
+        async function calcularCosto(codigo, subproducto) {
+            const detalleRes = await client.query(`
+                SELECT dr.codigo, dr.articulo, dr.cantidad, COALESCE(dr.tipo, 'ARTICULO') AS tipo
                 FROM detalle_recetas dr
-                LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo)
                 WHERE dr.receta = $1
             `, [codigo]);
-            const costo = parseFloat(costoRes.rows[0].costo_total) || 0;
-            await client.query(`
-                UPDATE detalle_recetas dr
-                SET vr_unit  = COALESCE(a.valor, 0),
-                    vr_total = COALESCE(a.valor, 0) * dr.cantidad
-                FROM articulos a
-                WHERE TRIM(a.codigo) = TRIM(dr.articulo) AND dr.receta = $1
-            `, [codigo]);
-            await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costo, codigo]);
-            if (subproducto === 'SI') {
-                await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costo, codigo]);
+
+            let costoTotal = 0;
+            for (const det of detalleRes.rows) {
+                let precio = 0;
+                if (det.tipo === 'ARTICULO') {
+                    const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
+                    precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
+                } else if (det.tipo === 'RECETA') {
+                    const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
+                    precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
+                }
+                costoTotal += precio * parseFloat(det.cantidad);
+                await client.query(
+                    'UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2 WHERE codigo = $3',
+                    [precio, precio * parseFloat(det.cantidad), det.codigo]
+                );
             }
-            return { codigo, costo };
+
+            await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+            if (subproducto === 'SI') {
+                await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+            }
+            return { codigo, costo: costoTotal };
         }
 
-        // Pasada 1: subproductos (actualizan articulos)
+        // Pasada 1: Recetas que SOLO usan artículos directos (sin subrecetas como ingredientes)
         for (const r of recetas) {
-            if (r.subproducto === 'SI') resultados.push(await calcular(r.codigo, r.subproducto));
+            const usaSubrecs = await client.query(
+                `SELECT COUNT(*) AS cnt FROM detalle_recetas WHERE receta = $1 AND tipo = 'RECETA'`,
+                [r.codigo]
+            );
+            if (parseInt(usaSubrecs.rows[0].cnt) === 0) {
+                resultados.push(await calcularCosto(r.codigo, r.subproducto));
+            }
         }
-        // Pasada 2: el resto (ya ven los precios actualizados de subproductos)
+
+        // Pasada 2: Subrecetas (pueden usar otras subrecetas pero están marcadas como SI)
         for (const r of recetas) {
-            if (r.subproducto !== 'SI') resultados.push(await calcular(r.codigo, r.subproducto));
+            if (r.subproducto === 'SI') {
+                const yaCalc = resultados.find(x => x.codigo === r.codigo);
+                if (!yaCalc) resultados.push(await calcularCosto(r.codigo, r.subproducto));
+            }
+        }
+
+        // Pasada 3: El resto (recetas finales que ya ven todos los precios actualizados)
+        for (const r of recetas) {
+            const yaCalc = resultados.find(x => x.codigo === r.codigo);
+            if (!yaCalc) resultados.push(await calcularCosto(r.codigo, r.subproducto));
         }
 
         await client.query('COMMIT');

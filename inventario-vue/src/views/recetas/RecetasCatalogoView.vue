@@ -186,26 +186,59 @@
 
         <v-card-text class="pa-4">
           <!-- AGREGAR INGREDIENTE -->
-          <div class="add-ing-row">
-            <v-autocomplete v-model="articuloSeleccionado" :items="articulos"
-              item-title="nombre" return-object
-              label="Buscar artículo / subproducto..." variant="outlined" density="compact"
-              hide-details clearable style="flex:1;min-width:200px">
-              <template #item="{ props, item }">
-                <v-list-item v-bind="props">
-                  <template #append>
-                    <span class="text-caption text-medium-emphasis">{{ item.raw.und }} · {{ fmt(item.raw.valor) }}</span>
-                  </template>
-                </v-list-item>
-              </template>
-            </v-autocomplete>
-            <v-text-field v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
-              variant="outlined" density="compact" hide-details style="max-width:100px" />
-            <v-btn color="#f59e0b" variant="flat" icon size="small"
-              :disabled="!articuloSeleccionado || !ingNuevo.cantidad"
-              @click="agregarIngrediente">
-              <v-icon>mdi-plus</v-icon>
-            </v-btn>
+          <div class="add-ing-group">
+            <!-- SELECTOR TIPO -->
+            <div class="type-selector">
+              <v-btn-toggle v-model="tipoIngredienteNuevo" rounded="lg" density="compact" color="#f59e0b">
+                <v-btn value="ARTICULO" size="small" class="btn-type">
+                  <v-icon start size="16">mdi-food-apple-outline</v-icon>Artículo
+                </v-btn>
+                <v-btn value="RECETA" size="small" class="btn-type">
+                  <v-icon start size="16">mdi-link-variant</v-icon>Subreceta
+                </v-btn>
+              </v-btn-toggle>
+            </div>
+
+            <!-- BÚSQUEDA ARTÍCULOS O RECETAS -->
+            <div class="add-ing-row">
+              <v-autocomplete
+                v-if="tipoIngredienteNuevo === 'ARTICULO'"
+                v-model="articuloSeleccionado" :items="articulos"
+                item-title="nombre" return-object
+                label="Buscar artículo..." variant="outlined" density="compact"
+                hide-details clearable style="flex:1;min-width:200px">
+                <template #item="{ props, item }">
+                  <v-list-item v-bind="props">
+                    <template #append>
+                      <span class="text-caption text-medium-emphasis">{{ item.raw.und }} · {{ fmt(item.raw.valor) }}</span>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+
+              <v-autocomplete
+                v-else
+                v-model="recetaSeleccionada" :items="subrecetas"
+                item-title="nombre" return-object
+                label="Buscar subreceta..." variant="outlined" density="compact"
+                hide-details clearable style="flex:1;min-width:200px">
+                <template #item="{ props, item }">
+                  <v-list-item v-bind="props">
+                    <template #append>
+                      <span class="text-caption text-medium-emphasis">{{ item.raw.und }} · {{ fmt(item.raw.valor) }}</span>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+
+              <v-text-field v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
+                variant="outlined" density="compact" hide-details style="max-width:100px" />
+              <v-btn color="#f59e0b" variant="flat" icon size="small"
+                :disabled="(tipoIngredienteNuevo === 'ARTICULO' && !articuloSeleccionado) || (tipoIngredienteNuevo === 'RECETA' && !recetaSeleccionada) || !ingNuevo.cantidad"
+                @click="agregarIngrediente">
+                <v-icon>mdi-plus</v-icon>
+              </v-btn>
+            </div>
           </div>
 
           <!-- TABLA INGREDIENTES -->
@@ -223,14 +256,14 @@
               Sin ingredientes — agrega usando el buscador de arriba
             </div>
             <div v-for="(ing, idx) in ingredientes" :key="idx" class="ing-row"
-              :class="{ 'ing-subreceta': ing.es_subreceta }">
+              :class="{ 'ing-subreceta': ing.tipo === 'RECETA' }">
               <div class="ing-nombre">
-                <v-icon v-if="ing.es_subreceta" size="12" color="#8b5cf6" class="mr-1">mdi-link-variant</v-icon>
-                {{ ing.articulo_nombre || ing.articulo }}
+                <v-icon v-if="ing.tipo === 'RECETA'" size="12" color="#8b5cf6" class="mr-1">mdi-link-variant</v-icon>
+                {{ ing.nombre_item || ing.articulo_nombre || ing.articulo }}
               </div>
               <div class="text-center">
-                <v-chip v-if="ing.es_subreceta" color="purple" size="x-small" variant="tonal">SUBRECETA</v-chip>
-                <v-chip v-else color="teal" size="x-small" variant="tonal">INSUMO</v-chip>
+                <v-chip v-if="ing.tipo === 'RECETA'" color="purple" size="x-small" variant="tonal">SUBRECETA</v-chip>
+                <v-chip v-else color="teal" size="x-small" variant="tonal">ARTÍCULO</v-chip>
               </div>
               <div class="text-right">
                 <v-text-field v-model="ing.cantidad" type="number" min="0" variant="plain"
@@ -353,7 +386,10 @@ const recetaActual        = ref(null)
 const ingredientes        = ref([])
 const guardandoIng        = ref(false)
 const ingNuevo            = ref({ cantidad: 1 })
+const tipoIngredienteNuevo = ref('ARTICULO')  // ARTICULO o RECETA
 const articuloSeleccionado = ref(null)   // objeto completo del articulo elegido
+const recetaSeleccionada  = ref(null)    // objeto completo de la subreceta elegida
+const subrecetas          = ref([])      // lista de subrecetas disponibles
 
 // Dialog eliminar
 const dlgEliminar     = ref(false)
@@ -408,9 +444,12 @@ async function cargarRecetas() {
 
 async function cargarArticulos() {
   try {
-    const r = await fetch(`${API_BASE}/articulos`)
-    const j = await r.json()
-    articulos.value = j.data || []
+    const [ra, rs] = await Promise.all([
+      fetch(`${API_BASE}/articulos`).then(r => r.json()),
+      fetch(`${API_BASE}/recetas/para-selector`).then(r => r.json()),
+    ])
+    articulos.value = ra.data || []
+    subrecetas.value = rs.data || []
   } catch { /* silencioso */ }
 }
 
@@ -467,7 +506,9 @@ async function abrirIngredientes(receta) {
   recetaActual.value     = receta
   ingredientes.value     = []
   ingNuevo.value         = { cantidad: 1 }
+  tipoIngredienteNuevo.value = 'ARTICULO'
   articuloSeleccionado.value = null
+  recetaSeleccionada.value = null
   dlgIng.value = true
   try {
     const r = await fetch(`${API_BASE}/recetas/${receta.codigo}`)
@@ -478,29 +519,42 @@ async function abrirIngredientes(receta) {
           ...i,
           cantidad:    parseFloat(i.cantidad) || 0,
           precio_unit: parseFloat(i.precio_unit) || 0,
+          tipo:        i.tipo || 'ARTICULO',
         }))
-        .sort((a, b) => (a.articulo_nombre || '').localeCompare(b.articulo_nombre || '', 'es'))
+        .sort((a, b) => (a.nombre_item || '').localeCompare(b.nombre_item || '', 'es'))
     }
   } catch { err('Error al cargar ingredientes') }
 }
 
 function agregarIngrediente() {
-  const art = articuloSeleccionado.value
-  if (!art) { err('Selecciona un artículo de la lista'); return }
-  if (ingredientes.value.find(i => i.articulo === art.codigo)) {
-    err('Este artículo ya está en la receta'); return
+  let item, tipo
+
+  if (tipoIngredienteNuevo.value === 'ARTICULO') {
+    item = articuloSeleccionado.value
+    if (!item) { err('Selecciona un artículo de la lista'); return }
+    tipo = 'ARTICULO'
+  } else {
+    item = recetaSeleccionada.value
+    if (!item) { err('Selecciona una subreceta de la lista'); return }
+    tipo = 'RECETA'
   }
-  const esSubreceta = recetas.value.some(r => r.codigo === art.codigo && r.subproducto === 'SI')
+
+  if (ingredientes.value.find(i => i.articulo === item.codigo && i.tipo === tipo)) {
+    err('Este ingrediente ya está en la receta'); return
+  }
+
   ingredientes.value.push({
-    articulo:        art.codigo,
-    articulo_nombre: art.nombre,
+    articulo:        item.codigo,
+    nombre_item:     item.nombre,
     cantidad:        parseFloat(ingNuevo.value.cantidad) || 1,
-    und:             art.und || '',
-    precio_unit:     parseFloat(art.valor) || 0,
-    es_subreceta:    esSubreceta,
+    und:             item.und || '',
+    precio_unit:     parseFloat(item.valor) || 0,
+    tipo:            tipo,
   })
-  ingredientes.value.sort((a, b) => (a.articulo_nombre || '').localeCompare(b.articulo_nombre || '', 'es'))
+  ingredientes.value.sort((a, b) => (a.nombre_item || '').localeCompare(b.nombre_item || '', 'es'))
   articuloSeleccionado.value = null
+  recetaSeleccionada.value = null
+  tipoIngredienteNuevo.value = 'ARTICULO'
   ingNuevo.value = { cantidad: 1 }
 }
 
@@ -511,9 +565,10 @@ async function guardarIngredientes() {
   guardandoIng.value = true
   try {
     const payload = ingredientes.value.map(i => ({
-      articulo:   i.articulo,
-      cantidad:   parseFloat(i.cantidad) || 0,
+      articulo:    i.articulo,
+      cantidad:    parseFloat(i.cantidad) || 0,
       precio_unit: parseFloat(i.precio_unit) || 0,
+      tipo:        i.tipo || 'ARTICULO',
     }))
     const r = await fetch(`${API_BASE}/recetas/${recetaActual.value.codigo}/ingredientes`, {
       method: 'PUT',
@@ -522,7 +577,7 @@ async function guardarIngredientes() {
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
-    // Recalcular costo automáticamente
+    // Recalcular costo automáticamente (ahora con lógica recursiva)
     await fetch(`${API_BASE}/recetas/${recetaActual.value.codigo}/calcular-costo`, { method: 'POST' })
     ok('Ingredientes guardados y costo actualizado')
     dlgIng.value = false
@@ -583,6 +638,9 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .font-mono { font-family: monospace; }
 .dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
 .info-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; color: rgba(var(--v-theme-on-surface),.7); }
+.add-ing-group { display: flex; flex-direction: column; gap: 12px; }
+.type-selector { display: flex; align-items: center; }
+.btn-type { font-size: 12px; }
 .add-ing-row { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
 .ing-table { border: 1px solid rgba(var(--v-theme-on-surface),.1); border-radius: 12px; overflow: hidden; }
 .ing-header { display: grid; grid-template-columns: 1fr 70px 80px 60px 100px 100px 32px; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.04); font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; }
