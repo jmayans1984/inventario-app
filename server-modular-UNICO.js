@@ -9279,7 +9279,7 @@ app.get('/api/nomina/reporte', async (req, res) => {
                     COALESCE(SUM(ll.total_bruto+ll.total_aportes_er),0) AS costo_empresa
                 FROM nom_liquidacion l
                 JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
-                LEFT JOIN empleados e ON e.id = ll.empleado_id
+                LEFT JOIN nom_empleados e ON e.id = ll.empleado_id
                 WHERE l.empresa=$1 AND l.estado='APROBADA'
                   AND l.semana_inicio>=$2 AND l.semana_fin<=$3
                 GROUP BY e.id, e.nombre, e.apellido, e.tipo_empleado, ll.tipo_empleado, ll.empleado_id

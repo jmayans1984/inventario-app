@@ -425,6 +425,8 @@ onMounted(cargar)
 .rn-table-wrap { overflow-x: auto; }
 .rn-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .rn-table th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.45); background: rgba(var(--v-theme-on-surface),.03); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); white-space: nowrap; }
+.rn-table th.ta-r { text-align: right; }
+.rn-table th.ta-c { text-align: center; }
 .rn-table td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
 .rn-table tbody tr:hover { background: rgba(var(--v-theme-on-surface),.03); }
 .rn-tfoot td { padding: 10px 14px; background: rgba(var(--v-theme-on-surface),.04); border-top: 2px solid rgba(var(--v-theme-on-surface),.12); font-size: 13px; }
