@@ -8873,8 +8873,35 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         if (l.estado !== 'BORRADOR')
             return res.status(400).json({ success: false, error: 'Solo se pueden aprobar nóminas en BORRADOR' });
 
+        // Helper robusto: PostgreSQL devuelve Date objects, no strings
+        const toDateStr = (d) => {
+            if (!d) return null;
+            if (d instanceof Date) {
+                const y  = d.getUTCFullYear();
+                const m  = String(d.getUTCMonth()+1).padStart(2,'0');
+                const dd = String(d.getUTCDate()).padStart(2,'0');
+                return `${y}-${m}-${dd}`;
+            }
+            return String(d).split('T')[0]; // fallback si ya es string
+        };
+        const fmtDate = (d) => {
+            if (d instanceof Date) return toDateStr(d);
+            const parts = String(d).split('-');
+            return d; // ya es string YYYY-MM-DD
+        };
+        const fmtLabel = (dateStr) => {
+            const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            const [, m, dd] = dateStr.split('-').map(Number);
+            return `${dd} ${meses[m-1]}`;
+        };
+
+        const inicioStr = toDateStr(l.semana_inicio);
+        const finStr    = toDateStr(l.semana_fin);
+        const inicio    = new Date(inicioStr + 'T12:00:00');
+        const fin       = new Date(finStr    + 'T12:00:00');
+
         // Obtener cuenta contable configurada para nómina
-        const anioLiq = new Date(String(l.semana_fin).split('T')[0] + 'T12:00:00').getFullYear();
+        const anioLiq = fin.getFullYear() || new Date().getFullYear();
         const cfgR = await client.query(
             'SELECT cuenta_nomina FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2',
             [empresa, anioLiq]
@@ -8883,22 +8910,7 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
 
         const totalCosto = parseFloat(l.total_bruto || 0) + parseFloat(l.total_aportes_er || 0);
         const totalNeto  = parseFloat(l.total_neto  || 0);
-
-        // Helper: date object → YYYY-MM-DD string
-        const fmtDate = (d) => {
-            const y = d.getFullYear();
-            const m = String(d.getMonth()+1).padStart(2,'0');
-            const dd = String(d.getDate()).padStart(2,'0');
-            return `${y}-${m}-${dd}`;
-        };
-        const fmtLabel = (d) => {
-            const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-            return `${d.getDate()} ${meses[d.getMonth()]}`;
-        };
-
-        const inicio = new Date(String(l.semana_inicio).split('T')[0] + 'T12:00:00');
-        const fin    = new Date(String(l.semana_fin).split('T')[0]   + 'T12:00:00');
-        const labelBase = `NOMINA ${fmtLabel(inicio)} - ${fmtLabel(fin)} ${fin.getFullYear()}`;
+        const labelBase = `NOMINA ${fmtLabel(inicioStr)} - ${fmtLabel(finStr)} ${anioLiq}`;
 
         // 2. Prorratear por mes si la semana cruza
         const entries = [];
@@ -8915,7 +8927,7 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
             }
             const diasMes2 = 7 - diasMes1;
             // Último día del primer mes
-            const ultMes1 = new Date(inicio.getFullYear(), inicio.getMonth()+1, 0);
+            const ultMes1 = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth()+1, 0));
             const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
             entries.push({
                 fecha:   fmtDate(ultMes1),
@@ -8931,19 +8943,22 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
             });
         }
 
-        // 3. Código de gasto siguiente (mismo patrón que el sistema)
+        // 3. Código de gasto siguiente — seguro para códigos no numéricos
         const codR = await client.query(
-            `SELECT COALESCE(MAX(CAST(codigo AS INTEGER)), 0)+1 AS n FROM gastos WHERE empresa=$1`,
+            `SELECT COALESCE(MAX(CASE WHEN codigo ~ '^[0-9]+$' THEN CAST(codigo AS BIGINT) ELSE 0 END), 0)+1 AS n
+             FROM gastos WHERE empresa=$1`,
             [empresa]
         );
-        let codNum = parseInt(codR.rows[0].n) || 1;
+        let codNum = parseInt(codR.rows[0]?.n) || 1;
+        if (isNaN(codNum) || codNum < 1) codNum = 1;
 
         // 4. Número de moviban siguiente
         const numR = await client.query(
             `SELECT COALESCE(MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END), 0)+1 AS n
              FROM moviban WHERE empresa=$1`, [empresa]
         );
-        let movNum = parseInt(numR.rows[0].n) || 1;
+        let movNum = parseInt(numR.rows[0]?.n) || 1;
+        if (isNaN(movNum) || movNum < 1) movNum = 1;
 
         // 5. Insertar gastos + movibanes (uno por cada segmento mensual)
         const gastosCreados = [];
