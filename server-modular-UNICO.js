@@ -8966,15 +8966,16 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
             const codigo = String(codNum).padStart(10, '0');
             codNum++;
 
-            // Gasto contable — null para campos con restricción de longitud desconocida
-            // cuenta = null por ahora (gastos.cuenta es VARCHAR(3), códigos >3 chars no caben)
-            // proveedor = null (no aplica para nómina)
+            // Gasto contable
+            // forma_pago = codigo de la cuenta bancaria seleccionada (mismo patron del sistema)
+            // cuenta = null (cuentas.codigo es VARCHAR(3), no encajan codigos contables mas largos)
+            // proveedor = null (no aplica para nomina)
             try {
                 await client.query(
                     `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
                                          forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
-                     VALUES ($1, $2, NULL, NULL, '', 'TRF', NULL, $3, $4, 0, $4, $5, 'PAGADA')`,
-                    [codigo, entry.fecha, entry.concepto, entry.costo, l.empresa]
+                     VALUES ($1, $2, NULL, NULL, '', $3, NULL, $4, $5, 0, $5, $6, 'PAGADA')`,
+                    [codigo, entry.fecha, banco || '', entry.concepto, entry.costo, l.empresa]
                 );
             } catch(eGasto) {
                 throw new Error('Error al insertar gasto: ' + eGasto.message);
