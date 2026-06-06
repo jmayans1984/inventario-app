@@ -512,18 +512,23 @@ async function abrirIngredientes(receta) {
   dlgIng.value = true
   try {
     const r = await fetch(`${API_BASE}/recetas/${receta.codigo}`)
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const j = await r.json()
-    if (j.success) {
-      ingredientes.value = (j.data.ingredientes || [])
-        .map(i => ({
-          ...i,
-          cantidad:    parseFloat(i.cantidad) || 0,
-          precio_unit: parseFloat(i.precio_unit) || 0,
-          tipo:        i.tipo || 'ARTICULO',
-        }))
-        .sort((a, b) => (a.nombre_item || '').localeCompare(b.nombre_item || '', 'es'))
-    }
-  } catch { err('Error al cargar ingredientes') }
+    if (!j.success) throw new Error(j.error || 'Respuesta inválida')
+    ingredientes.value = (j.data.ingredientes || [])
+      .map(i => ({
+        ...i,
+        cantidad:    parseFloat(i.cantidad) || 0,
+        precio_unit: parseFloat(i.precio_unit) || 0,
+        vr_unit:     parseFloat(i.vr_unit) || 0,
+        vr_total:    parseFloat(i.vr_total) || 0,
+        tipo:        i.tipo || 'ARTICULO',
+      }))
+      .sort((a, b) => (a.nombre_item || a.articulo_nombre || '').localeCompare(b.nombre_item || b.articulo_nombre || '', 'es'))
+  } catch (e) {
+    console.error('Error cargando ingredientes:', e)
+    err(`Error: ${e.message}`)
+  }
 }
 
 function agregarIngrediente() {
