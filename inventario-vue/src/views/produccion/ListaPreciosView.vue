@@ -17,20 +17,13 @@
           <div class="lp-icon-wrap"><v-icon size="22" color="white">mdi-tag-multiple-outline</v-icon></div>
           <div>
             <h1 class="lp-title">LISTAS DE PRECIOS</h1>
-            <p class="lp-sub">Cada lista define un margen de ganancia y aplica a uno de los 3 niveles de precio</p>
+            <p class="lp-sub">Configura las condiciones de precio y crédito para tus clientes</p>
           </div>
         </div>
         <v-btn color="#06b6d4" variant="flat" rounded="lg" @click="abrirModal()">
           <v-icon start>mdi-plus</v-icon>Nueva Lista
         </v-btn>
       </div>
-
-      <!-- FÓRMULA INFO -->
-      <v-alert type="info" variant="tonal" density="compact" class="mb-5" icon="mdi-calculator-variant-outline">
-        <strong>Fórmula:</strong> Precio Venta = Precio Costo ÷ (1 − Margen%)
-        &nbsp;·&nbsp; Ej: costo $100 con margen 35% → $100 ÷ 0.65 = <strong>$153.85</strong>
-        &nbsp;·&nbsp; El margen es sobre el precio de venta.
-      </v-alert>
 
       <!-- TABLA -->
       <div class="lp-table-card">
@@ -48,9 +41,7 @@
           <thead>
             <tr>
               <th>NOMBRE DE LISTA</th>
-              <th class="ta-c">NIVEL DE PRECIO</th>
               <th class="ta-c">% MARGEN</th>
-              <th class="ta-c">DIVISOR</th>
               <th class="ta-c">DÍAS CRÉDITO</th>
               <th class="ta-c">ESTADO</th>
               <th class="ta-c">ACCIONES</th>
@@ -60,15 +51,7 @@
             <tr v-for="lp in listas" :key="lp.id" class="lp-row">
               <td class="lp-nombre">{{ lp.lista }}</td>
               <td class="ta-c">
-                <span :class="`nivel-badge nivel-${lp.nivel}`">
-                  Precio {{ lp.nivel }}
-                </span>
-              </td>
-              <td class="ta-c">
                 <span class="pct-badge">{{ fmtPct(lp.margen) }}</span>
-              </td>
-              <td class="ta-c divisor-text">
-                {{ lp.margen > 0 ? '÷ ' + (1 - lp.margen).toFixed(4) : '—' }}
               </td>
               <td class="ta-c">
                 <span class="dias-badge">{{ lp.dias_credito ?? 0 }} días</span>
@@ -99,7 +82,7 @@
           <div class="dlg-icon"><v-icon size="20" color="white">mdi-tag-multiple-outline</v-icon></div>
           <div class="dlg-titles">
             <div class="dlg-title">{{ editando ? 'Editar Lista' : 'Nueva Lista de Precios' }}</div>
-            <div class="dlg-sub">Un margen · Un nivel de precio</div>
+            <div class="dlg-sub">Configura el nombre, margen y días de crédito</div>
           </div>
           <v-btn icon="mdi-close" size="small" variant="text" color="white" @click="dlg=false" />
         </div>
@@ -116,44 +99,28 @@
 
           <v-divider class="mb-4" />
 
-          <!-- Nivel + Margen + Días -->
-          <div class="dlg-section-label">PRECIO Y CONDICIÓN</div>
-          <div class="dlg-row-3">
+          <!-- Margen + Días -->
+          <div class="dlg-section-label">CONDICIONES</div>
+          <div class="dlg-row-2">
             <div>
-              <div class="dlg-field-label">Nivel de precio *</div>
-              <v-select v-model="form.nivel" :items="niveles" item-title="label" item-value="val"
-                variant="outlined" density="compact" hide-details />
-              <div class="dlg-hint">¿Qué campo de precio actualiza?</div>
-            </div>
-            <div>
-              <div class="dlg-field-label">% Margen</div>
+              <div class="dlg-field-label">% Margen sobre precio de venta</div>
               <v-text-field v-model.number="form.margen_pct" type="number" min="0" max="99"
                 variant="outlined" density="compact" hide-details suffix="%" placeholder="0"
                 @update:model-value="syncMargen" />
-              <div class="dlg-hint">Margen sobre precio de venta</div>
             </div>
             <div>
               <div class="dlg-field-label">Días Crédito</div>
               <v-text-field v-model.number="form.dias_credito" type="number" min="0"
                 variant="outlined" density="compact" hide-details placeholder="0" />
-              <div class="dlg-hint">0 = contado</div>
             </div>
           </div>
 
-          <!-- Simulador -->
-          <div v-if="form.margen_pct > 0" class="dlg-simulator mt-4">
+          <!-- Simulador compacto -->
+          <div v-if="form.margen_pct > 0" class="dlg-simulator mt-3">
             <div class="sim-row">
-              <span class="sim-lbl">Fórmula:</span>
-              <span class="sim-formula">Costo ÷ (1 − {{ form.margen_pct }}%) = Costo ÷ {{ (1 - form.margen_pct/100).toFixed(4) }}</span>
-            </div>
-            <div class="sim-row mt-2">
               <span class="sim-lbl">Ejemplo con costo:</span>
               <input v-model.number="simCosto" type="number" min="0" class="sim-input" />
               <span class="sim-result">→ <strong>{{ simPrecio }}</strong></span>
-            </div>
-            <div class="sim-nivel mt-2">
-              <v-icon size="13" color="#06b6d4">mdi-information-outline</v-icon>
-              Este precio se guarda en <strong>precio_venta{{ form.nivel }}</strong> de cada producto
             </div>
           </div>
 
