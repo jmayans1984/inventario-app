@@ -6719,7 +6719,10 @@ app.get('/api/produccion/productos-venta', async (req, res) => {
         const r = await pool.query(
             `SELECT pv.codigo, pv.nombre, pv.descripcion, pv.unidad, pv.grupo,
                     gpv.nombre AS grupo_nombre, pv.precio_costo,
-                    pv.precio_venta1, pv.precio_venta2, pv.precio_venta3, pv.control
+                    pv.precio_venta1, pv.precio_venta2, pv.precio_venta3,
+                    COALESCE(pv.stock_minimo, 0) AS stock_minimo,
+                    COALESCE(pv.activo, 'SI') AS activo,
+                    COALESCE(pv.control, 'SI') AS control
              FROM productos_venta pv
              LEFT JOIN grupo_productos_venta gpv ON gpv.codigo = pv.grupo
              ${where} ORDER BY pv.grupo, pv.nombre`,
@@ -6734,18 +6737,19 @@ app.get('/api/produccion/productos-venta', async (req, res) => {
 
 app.post('/api/produccion/productos-venta', async (req, res) => {
     const { codigo, nombre, descripcion, unidad, grupo, precio_costo,
-            precio_venta1, precio_venta2, precio_venta3, control } = req.body;
+            precio_venta1, precio_venta2, precio_venta3, stock_minimo, control } = req.body;
     if (!codigo || !nombre) return res.status(400).json({ success: false, error: 'codigo y nombre son requeridos' });
     try {
         await pool.query(
             `INSERT INTO productos_venta
                (codigo, nombre, descripcion, unidad, grupo, precio_costo,
-                precio_venta1, precio_venta2, precio_venta3, control)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+                precio_venta1, precio_venta2, precio_venta3, stock_minimo, control)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
             [codigo.toUpperCase(), nombre, descripcion || '', unidad || 'UND',
              grupo || null, parseFloat(precio_costo) || 0,
              parseFloat(precio_venta1) || 0, parseFloat(precio_venta2) || 0,
-             parseFloat(precio_venta3) || 0, control || 'SI']
+             parseFloat(precio_venta3) || 0, parseFloat(stock_minimo) || 0,
+             control || 'SI']
         );
         const r = await pool.query(
             `SELECT pv.codigo, pv.nombre, pv.descripcion, pv.unidad, pv.grupo,
@@ -6767,16 +6771,17 @@ app.post('/api/produccion/productos-venta', async (req, res) => {
 app.put('/api/produccion/productos-venta/:codigo', async (req, res) => {
     const { codigo } = req.params;
     const { nombre, descripcion, unidad, grupo, precio_costo,
-            precio_venta1, precio_venta2, precio_venta3, control } = req.body;
+            precio_venta1, precio_venta2, precio_venta3, stock_minimo, control } = req.body;
     try {
         await pool.query(
             `UPDATE productos_venta SET nombre=$1, descripcion=$2, unidad=$3, grupo=$4,
-             precio_costo=$5, precio_venta1=$6, precio_venta2=$7, precio_venta3=$8, control=$9
-             WHERE codigo=$10`,
+             precio_costo=$5, precio_venta1=$6, precio_venta2=$7, precio_venta3=$8,
+             stock_minimo=$9, control=$10
+             WHERE codigo=$11`,
             [nombre, descripcion || '', unidad || 'UND', grupo || null,
              parseFloat(precio_costo) || 0, parseFloat(precio_venta1) || 0,
              parseFloat(precio_venta2) || 0, parseFloat(precio_venta3) || 0,
-             control || 'SI', codigo]
+             parseFloat(stock_minimo) || 0, control || 'SI', codigo]
         );
         res.json({ success: true });
     } catch (e) {
