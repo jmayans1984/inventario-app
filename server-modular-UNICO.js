@@ -8692,26 +8692,51 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
                      futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
                      ot_threshold_hours:40, ot_multiplier:1.5, wc_default_rate:0 };
 
-        // Get hours from nom_semana_detalle if linked, else from existing lines
+        // Obtener horas desde el horario de la semana (deduplicadas por empleado+fecha+ccosto)
         let horasPorEmpleado = {};
+        let empleadosEnSemana = new Set(); // empleados que tienen turnos en esta semana
+
         if (l.semana_id) {
+            // Deduplicar: solo un registro por empleado+fecha+ccosto (tomar el MAX de horas)
             const det = await pool.query(
-                `SELECT empleado_id, ccosto, COALESCE(real_horas, prog_horas, 0) AS horas
-                 FROM nom_semana_detalle
-                 WHERE semana_id=$1 AND es_dia_libre=FALSE`, [l.semana_id]
+                `SELECT empleado_id, ccosto,
+                        SUM(COALESCE(real_horas, prog_horas, 0)) AS horas
+                 FROM (
+                   SELECT DISTINCT ON (empleado_id, fecha, ccosto)
+                          empleado_id, fecha, ccosto,
+                          COALESCE(real_horas, prog_horas, 0) AS real_horas,
+                          prog_horas
+                   FROM nom_semana_detalle
+                   WHERE semana_id=$1 AND es_dia_libre=FALSE
+                   ORDER BY empleado_id, fecha, ccosto, updated_at DESC NULLS LAST
+                 ) sub
+                 GROUP BY empleado_id, ccosto`,
+                [l.semana_id]
             );
             for (const row of det.rows) {
+                empleadosEnSemana.add(parseInt(row.empleado_id));
                 if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
                 const cc = row.ccosto || 'GEN';
-                horasPorEmpleado[row.empleado_id][cc] = (horasPorEmpleado[row.empleado_id][cc] || 0)
-                    + parseFloat(row.horas || 0);
+                horasPorEmpleado[row.empleado_id][cc] = parseFloat(row.horas || 0);
             }
         }
 
-        // Get all active employees
-        const empleados = await pool.query(
-            'SELECT * FROM nom_empleados WHERE empresa=$1 AND estado=\'ACTIVO\'', [empresa]
-        );
+        // Obtener empleados:
+        // - Si está vinculado a semana: los que tienen turnos en esa semana (sin importar estado actual)
+        // - Si no está vinculado: todos los activos de la empresa
+        let empleados;
+        if (l.semana_id && empleadosEnSemana.size > 0) {
+            const ids = [...empleadosEnSemana];
+            empleados = await pool.query(
+                `SELECT * FROM nom_empleados WHERE id = ANY($1) ORDER BY apellido, nombre`,
+                [ids]
+            );
+        } else {
+            empleados = await pool.query(
+                `SELECT * FROM nom_empleados WHERE empresa=$1 AND estado='ACTIVO' ORDER BY apellido, nombre`,
+                [empresa]
+            );
+        }
 
         // Delete existing lines
         await pool.query(
