@@ -8816,6 +8816,20 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
     }
 });
 
+// Eliminar liquidación (solo BORRADOR)
+app.delete('/api/nomina/liquidaciones/:id', async (req, res) => {
+    try {
+        const liq = await pool.query('SELECT estado FROM nom_liquidacion WHERE id=$1', [req.params.id]);
+        if (!liq.rows.length) return res.status(404).json({ success: false, error: 'No encontrada' });
+        if (liq.rows[0].estado !== 'BORRADOR')
+            return res.status(400).json({ success: false, error: 'Solo se pueden eliminar nóminas en BORRADOR' });
+        await pool.query('DELETE FROM nom_liquidacion_ccosto WHERE linea_id IN (SELECT id FROM nom_liquidacion_linea WHERE liquidacion_id=$1)', [req.params.id]);
+        await pool.query('DELETE FROM nom_liquidacion_linea WHERE liquidacion_id=$1', [req.params.id]);
+        await pool.query('DELETE FROM nom_liquidacion WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // Aprobar nómina
 app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
     try {

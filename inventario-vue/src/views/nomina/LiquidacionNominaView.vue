@@ -1,116 +1,301 @@
 <template>
   <MainLayout>
     <div class="nom-wrap">
+
+      <!-- ── HEADER ── -->
       <div class="nom-header">
         <div class="nom-header-icon"><v-icon size="20" color="white">mdi-calculator-variant</v-icon></div>
         <div class="flex-1">
           <h1 class="nom-title">LIQUIDACIÓN DE NÓMINA</h1>
           <p class="nom-sub" v-if="liqActual">
-            Semana {{ fmtFecha(liqActual.semana_inicio) }} — {{ fmtFecha(liqActual.semana_fin) }}
+            {{ fmtFecha(liqActual.semana_inicio) }} — {{ fmtFecha(liqActual.semana_fin) }}
             <span class="estado-badge" :class="`estado-${liqActual.estado?.toLowerCase()}`">{{ liqActual.estado }}</span>
           </p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <select v-model="liqSelId" class="drw-select" @change="cargarDetalle" style="width:210px">
+          <select v-model="liqSelId" class="drw-select" @change="cargarDetalle" style="width:230px">
             <option value="">— Seleccionar nómina —</option>
             <option v-for="l in liquidaciones" :key="l.id" :value="l.id">
               {{ fmtFecha(l.semana_inicio) }} · {{ l.estado }}
             </option>
           </select>
-          <v-btn size="small" color="#06b6d4" variant="outlined" @click="dlgNueva=true">
-            <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva
+          <v-btn size="small" color="#8b5cf6" variant="outlined" @click="dlgNueva=true">
+            <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva Nómina
           </v-btn>
-          <v-btn v-if="liqActual && liqActual.estado==='BORRADOR'" size="small" color="#8b5cf6" variant="flat"
+          <v-btn v-if="liqActual?.estado==='BORRADOR'" size="small" color="#8b5cf6" variant="flat"
                  :loading="calculando" @click="calcular">
             <v-icon size="14" class="mr-1">mdi-calculator</v-icon> Calcular
           </v-btn>
-          <v-btn v-if="liqActual && liqActual.estado==='BORRADOR' && lineas.length"
+          <v-btn v-if="liqActual?.estado==='BORRADOR' && lineas.length"
                  size="small" color="#10b981" variant="flat" @click="aprobar">
             <v-icon size="14" class="mr-1">mdi-check-circle</v-icon> Aprobar
+          </v-btn>
+          <v-btn v-if="liqActual?.estado==='APROBADA'" size="small" color="#06b6d4" variant="flat"
+                 @click="$router.push('/nomina/reportes/recibos')">
+            <v-icon size="14" class="mr-1">mdi-file-document</v-icon> Ver Recibos
+          </v-btn>
+          <v-btn v-if="liqActual?.estado==='BORRADOR'" size="small" color="#ef4444" variant="text"
+                 :loading="borrando" @click="borrarLiq">
+            <v-icon size="14">mdi-trash-can</v-icon>
           </v-btn>
         </div>
       </div>
 
-      <!-- KPI Row -->
-      <div v-if="liqActual" class="liq-kpis">
-        <div class="lkpi"><div class="lkpi-label">Bruto Total</div><div class="lkpi-val" style="color:#8b5cf6">${{ fmt(liqActual.total_bruto) }}</div></div>
-        <div class="lkpi"><div class="lkpi-label">Deducciones Empleados</div><div class="lkpi-val" style="color:#ef4444">${{ fmt(liqActual.total_deducciones_emp) }}</div></div>
-        <div class="lkpi"><div class="lkpi-label">Aportes Empleador</div><div class="lkpi-val" style="color:#f59e0b">${{ fmt(liqActual.total_aportes_er) }}</div></div>
-        <div class="lkpi"><div class="lkpi-label">Neto a Pagar Empleados</div><div class="lkpi-val" style="color:#10b981">${{ fmt(liqActual.total_neto) }}</div></div>
-        <div class="lkpi"><div class="lkpi-label">Costo Total Empresa</div><div class="lkpi-val" style="color:#06b6d4">${{ fmt((parseFloat(liqActual.total_bruto||0)+parseFloat(liqActual.total_aportes_er||0)).toFixed(2)) }}</div></div>
+      <!-- ── FLUJO DE PASOS ── -->
+      <div v-if="liqActual" class="pasos-bar">
+        <div class="paso" :class="{ activo: true, completado: true }">
+          <v-icon size="16">mdi-plus-circle</v-icon> <span>1. Crear</span>
+        </div>
+        <div class="paso-linea"></div>
+        <div class="paso" :class="{ activo: lineas.length > 0, completado: lineas.length > 0 }">
+          <v-icon size="16">mdi-calculator</v-icon> <span>2. Calcular</span>
+        </div>
+        <div class="paso-linea"></div>
+        <div class="paso" :class="{ activo: liqActual.estado==='APROBADA', completado: liqActual.estado==='APROBADA' }">
+          <v-icon size="16">mdi-check-circle</v-icon> <span>3. Aprobar</span>
+        </div>
       </div>
 
-      <!-- Tabla de líneas -->
+      <!-- ── KPI CARDS ── -->
+      <div v-if="liqActual && lineas.length" class="liq-kpis">
+        <div class="lkpi">
+          <div class="lkpi-icon" style="background:rgba(139,92,246,0.1)"><v-icon size="18" color="#8b5cf6">mdi-cash-multiple</v-icon></div>
+          <div>
+            <div class="lkpi-label">Bruto Total</div>
+            <div class="lkpi-val" style="color:#8b5cf6">{{ fmtMoney(liqActual.total_bruto) }}</div>
+          </div>
+        </div>
+        <div class="lkpi">
+          <div class="lkpi-icon" style="background:rgba(239,68,68,0.1)"><v-icon size="18" color="#ef4444">mdi-minus-circle</v-icon></div>
+          <div>
+            <div class="lkpi-label">Deducciones Emp.</div>
+            <div class="lkpi-val" style="color:#ef4444">{{ fmtMoney(liqActual.total_deducciones_emp) }}</div>
+          </div>
+        </div>
+        <div class="lkpi">
+          <div class="lkpi-icon" style="background:rgba(16,185,129,0.1)"><v-icon size="18" color="#10b981">mdi-cash-check</v-icon></div>
+          <div>
+            <div class="lkpi-label">Neto a Pagar</div>
+            <div class="lkpi-val" style="color:#10b981">{{ fmtMoney(liqActual.total_neto) }}</div>
+          </div>
+        </div>
+        <div class="lkpi">
+          <div class="lkpi-icon" style="background:rgba(245,158,11,0.1)"><v-icon size="18" color="#f59e0b">mdi-office-building</v-icon></div>
+          <div>
+            <div class="lkpi-label">Aportes Empleador</div>
+            <div class="lkpi-val" style="color:#f59e0b">{{ fmtMoney(liqActual.total_aportes_er) }}</div>
+          </div>
+        </div>
+        <div class="lkpi">
+          <div class="lkpi-icon" style="background:rgba(6,182,212,0.1)"><v-icon size="18" color="#06b6d4">mdi-domain</v-icon></div>
+          <div>
+            <div class="lkpi-label">Costo Total Empresa</div>
+            <div class="lkpi-val" style="color:#06b6d4">{{ fmtMoney(parseFloat(liqActual.total_bruto||0)+parseFloat(liqActual.total_aportes_er||0)) }}</div>
+          </div>
+        </div>
+        <div class="lkpi">
+          <div class="lkpi-icon" style="background:rgba(var(--v-theme-on-surface),0.06)"><v-icon size="18">mdi-account-group</v-icon></div>
+          <div>
+            <div class="lkpi-label">Empleados</div>
+            <div class="lkpi-val">{{ lineas.length }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TABLA DE LÍNEAS ── -->
       <div v-if="lineas.length" class="nom-card" style="overflow-x:auto">
-        <table class="nom-table liq-table">
+        <table class="nom-table">
           <thead>
             <tr>
-              <th>EMPLEADO</th><th>TIPO</th>
-              <th class="ta-r">HRS REG</th><th class="ta-r">HRS OT</th>
-              <th class="ta-r">$/HR</th><th class="ta-r">BRUTO</th>
-              <th class="ta-r">FIT</th><th class="ta-r">SS</th><th class="ta-r">MED</th>
-              <th class="ta-r">DEDUC.</th><th class="ta-r">NETO</th>
-              <th class="ta-r">COST. EMP.</th>
+              <th style="width:28px"></th>
+              <th>EMPLEADO</th>
+              <th>TIPO</th>
+              <th class="ta-r">HRS REG</th>
+              <th class="ta-r">HRS OT</th>
+              <th class="ta-r">$/HR</th>
+              <th class="ta-r">BRUTO REG</th>
+              <th class="ta-r">BRUTO OT</th>
+              <th class="ta-r">BRUTO TOTAL</th>
+              <th class="ta-r">DEDUCCIONES</th>
+              <th class="ta-r">NETO</th>
+              <th class="ta-r">COSTO EMP.</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="l in lineas" :key="l.id" class="nom-row">
-              <td><strong>{{ l.apellido }}, {{ l.nombre }}</strong></td>
-              <td><span class="nom-badge" :class="l.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ l.tipo_empleado }}</span></td>
-              <td class="ta-r">{{ l.horas_regulares?.toFixed(1) }}</td>
-              <td class="ta-r" :class="l.horas_overtime > 0 ? 'ot-hrs':''">{{ l.horas_overtime?.toFixed(1) }}</td>
-              <td class="ta-r">${{ fmt(l.valor_hora) }}</td>
-              <td class="ta-r font-bold">${{ fmt(l.total_bruto) }}</td>
-              <td class="ta-r text-dim">${{ fmt(l.federal_income_tax) }}</td>
-              <td class="ta-r text-dim">${{ fmt(l.social_security_emp) }}</td>
-              <td class="ta-r text-dim">${{ fmt(l.medicare_emp) }}</td>
-              <td class="ta-r" style="color:#ef4444">${{ fmt(l.total_deducciones) }}</td>
-              <td class="ta-r" style="color:#10b981;font-weight:700">${{ fmt(l.total_neto) }}</td>
-              <td class="ta-r text-dim">${{ fmt((parseFloat(l.total_bruto||0)+parseFloat(l.total_aportes_er||0)).toFixed(2)) }}</td>
-            </tr>
+            <template v-for="l in lineas" :key="l.id">
+              <!-- Fila principal -->
+              <tr class="nom-row" @click="toggleExpand(l.id)" style="cursor:pointer">
+                <td class="ta-c">
+                  <v-icon size="14" style="color:rgba(var(--v-theme-on-surface),0.3)">
+                    {{ expandido.has(l.id) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+                  </v-icon>
+                </td>
+                <td>
+                  <div style="font-weight:700;font-size:12px">{{ l.apellido }}, {{ l.nombre }}</div>
+                  <div v-if="l.empresa_contratista" style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4)">{{ l.empresa_contratista }}</div>
+                </td>
+                <td>
+                  <span class="nom-badge" :class="l.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ l.tipo_empleado }}</span>
+                </td>
+                <td class="ta-r">{{ fmtNum(l.horas_regulares) }}h</td>
+                <td class="ta-r" :class="parseFloat(l.horas_overtime)>0?'ot-hrs':''">
+                  {{ fmtNum(l.horas_overtime) }}h
+                </td>
+                <td class="ta-r dim">{{ l.es_monto_fijo ? 'FIJO' : fmtMoney(l.valor_hora) }}</td>
+                <td class="ta-r dim">{{ fmtMoney(l.bruto_regular) }}</td>
+                <td class="ta-r" :class="parseFloat(l.bruto_overtime)>0?'ot-hrs':''">
+                  {{ parseFloat(l.bruto_overtime)>0 ? fmtMoney(l.bruto_overtime) : '—' }}
+                </td>
+                <td class="ta-r bold">{{ fmtMoney(l.total_bruto) }}</td>
+                <td class="ta-r" style="color:#ef4444">-{{ fmtMoney(l.total_deducciones) }}</td>
+                <td class="ta-r neto">{{ fmtMoney(l.total_neto) }}</td>
+                <td class="ta-r dim">{{ fmtMoney(parseFloat(l.total_bruto||0)+parseFloat(l.total_aportes_er||0)) }}</td>
+              </tr>
+
+              <!-- Fila expandida: deducciones detalladas -->
+              <tr v-if="expandido.has(l.id)" class="expand-row">
+                <td colspan="12">
+                  <div class="expand-grid">
+                    <div class="expand-section">
+                      <div class="expand-titulo">DEDUCCIONES EMPLEADO</div>
+                      <div class="expand-item" v-if="parseFloat(l.federal_income_tax)>0">
+                        <span>Federal Income Tax (FIT)</span><span>-{{ fmtMoney(l.federal_income_tax) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.social_security_emp)>0">
+                        <span>Social Security (6.2%)</span><span>-{{ fmtMoney(l.social_security_emp) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.medicare_emp)>0">
+                        <span>Medicare (1.45%)</span><span>-{{ fmtMoney(l.medicare_emp) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.medicare_adicional)>0">
+                        <span>Medicare Adicional (0.9%)</span><span>-{{ fmtMoney(l.medicare_adicional) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.workers_comp)>0">
+                        <span>Workers' Comp</span><span>-{{ fmtMoney(l.workers_comp) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.otras_deducciones)>0">
+                        <span>Otras Deducciones</span><span>-{{ fmtMoney(l.otras_deducciones) }}</span>
+                      </div>
+                      <div class="expand-item total" v-if="l.tipo_empleado==='1099'">
+                        <span>Sin deducciones (1099)</span><span>—</span>
+                      </div>
+                    </div>
+
+                    <div class="expand-section">
+                      <div class="expand-titulo">APORTES EMPLEADOR (informativo)</div>
+                      <div class="expand-item">
+                        <span>Social Security (6.2%)</span><span>{{ fmtMoney(l.social_security_er) }}</span>
+                      </div>
+                      <div class="expand-item">
+                        <span>Medicare (1.45%)</span><span>{{ fmtMoney(l.medicare_er) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.futa)>0">
+                        <span>FUTA</span><span>{{ fmtMoney(l.futa) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.suta)>0">
+                        <span>FL Reemployment Tax</span><span>{{ fmtMoney(l.suta) }}</span>
+                      </div>
+                    </div>
+
+                    <div class="expand-section" v-if="l.ccostos?.length">
+                      <div class="expand-titulo">DESGLOSE POR CENTRO DE COSTO</div>
+                      <div class="expand-item" v-for="cc in l.ccostos" :key="cc.ccosto">
+                        <span>{{ cc.ccosto }} — {{ fmtNum(cc.horas) }}h</span>
+                        <span>{{ fmtMoney(cc.costo_bruto) }}</span>
+                      </div>
+                    </div>
+
+                    <div class="expand-section resumen">
+                      <div class="expand-titulo">RESUMEN</div>
+                      <div class="expand-item"><span>Bruto</span><span>{{ fmtMoney(l.total_bruto) }}</span></div>
+                      <div class="expand-item" style="color:#ef4444"><span>Deducciones</span><span>-{{ fmtMoney(l.total_deducciones) }}</span></div>
+                      <div class="expand-item neto-resumen"><span>NETO A PAGAR</span><span>{{ fmtMoney(l.total_neto) }}</span></div>
+                      <div class="expand-item" style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:4px">
+                        <span>YTD Bruto acumulado</span><span>{{ fmtMoney(l.ytd_bruto) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
+          <tfoot>
+            <tr class="footer-row">
+              <td colspan="8" style="text-align:right;font-size:11px;font-weight:700;padding:8px 10px">TOTALES →</td>
+              <td class="ta-r bold">{{ fmtMoney(liqActual.total_bruto) }}</td>
+              <td class="ta-r" style="color:#ef4444;font-weight:700">-{{ fmtMoney(liqActual.total_deducciones_emp) }}</td>
+              <td class="ta-r neto bold">{{ fmtMoney(liqActual.total_neto) }}</td>
+              <td class="ta-r dim">{{ fmtMoney(parseFloat(liqActual.total_bruto||0)+parseFloat(liqActual.total_aportes_er||0)) }}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 
-      <div v-else-if="liqSelId && !cargando" class="nom-card" style="padding:32px;text-align:center;color:rgba(var(--v-theme-on-surface),0.4)">
-        Nómina vacía. Haz clic en "Calcular" para procesar los datos del horario.
+      <!-- ── ESTADO VACÍO ── -->
+      <div v-else-if="liqSelId && !cargando" class="nom-card estado-vacio">
+        <v-icon size="48" color="rgba(var(--v-theme-on-surface),0.15)">mdi-calculator-variant-outline</v-icon>
+        <div style="margin-top:12px;font-weight:700">Nómina sin calcular</div>
+        <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:4px">
+          Haz clic en <strong>"Calcular"</strong> para procesar las horas del horario y generar los valores de pago.
+        </div>
+      </div>
+      <div v-else-if="!liqSelId" class="nom-card estado-vacio">
+        <v-icon size="48" color="rgba(var(--v-theme-on-surface),0.15)">mdi-cash-register</v-icon>
+        <div style="margin-top:12px;font-weight:700">Selecciona una nómina</div>
+        <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:4px">
+          O crea una nueva con el botón <strong>"+ Nueva Nómina"</strong>
+        </div>
       </div>
     </div>
 
-    <!-- Dialog nueva nómina -->
-    <v-dialog v-model="dlgNueva" max-width="420">
+    <!-- ── DIALOG NUEVA NÓMINA ── -->
+    <v-dialog v-model="dlgNueva" max-width="460">
       <v-card rounded="lg">
-        <v-card-title class="pa-4" style="font-size:15px;font-weight:700">Nueva Nómina Semanal</v-card-title>
-        <v-card-text>
+        <v-card-title class="pa-4 pb-2" style="font-size:15px;font-weight:700">
+          Nueva Nómina Semanal
+        </v-card-title>
+        <v-card-text class="pa-4 pt-2">
+          <!-- Vincular a semana -->
           <div class="drw-field mb-3">
-            <label>Semana publicada (opcional — para tomar horas)</label>
-            <select v-model="nuevaLiqSemanaId" class="drw-select">
-              <option value="">— Sin vincular —</option>
+            <label>Semana del horario (opcional)</label>
+            <select v-model="nuevaLiqSemanaId" class="drw-select" @change="onSemanaChange">
+              <option value="">— Sin vincular a horario —</option>
               <option v-for="s in semanasDisponibles" :key="s.id" :value="s.id">
-                {{ fmtFecha(s.semana_inicio) }} — {{ s.estado }}
+                {{ fmtFecha(s.semana_inicio) }} — {{ fmtFecha(s.semana_fin) }} · {{ s.estado }}
               </option>
             </select>
+            <span v-if="nuevaLiqSemanaId" style="font-size:10px;color:#10b981;margin-top:4px">
+              ✅ Las horas se tomarán del horario seleccionado
+            </span>
           </div>
+          <!-- Fechas -->
           <div class="drw-grid-2">
             <div class="drw-field">
-              <label>Inicio (Lunes)</label>
-              <input v-model="nuevaLiqInicio" type="date" class="drw-input" @change="calcNuevaFin"/>
+              <label>Inicio de período</label>
+              <input v-model="nuevaLiqInicio" type="date" class="drw-input" @change="calcNuevaFin" />
             </div>
             <div class="drw-field">
-              <label>Fin (Domingo)</label>
-              <input v-model="nuevaLiqFin" type="date" class="drw-input" readonly/>
+              <label>Fin de período</label>
+              <input v-model="nuevaLiqFin" type="date" class="drw-input" :readonly="!!nuevaLiqSemanaId" />
             </div>
           </div>
+          <div v-if="nuevaLiqInicio && nuevaLiqFin" class="periodo-preview">
+            <v-icon size="14" color="#8b5cf6">mdi-calendar-range</v-icon>
+            {{ fmtFecha(nuevaLiqInicio) }} — {{ fmtFecha(nuevaLiqFin) }}
+          </div>
         </v-card-text>
-        <v-card-actions class="pa-4">
+        <v-card-actions class="pa-4 pt-0">
           <v-spacer/>
           <v-btn variant="text" @click="dlgNueva=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :loading="creandoLiq" @click="crearLiq">Crear</v-btn>
+          <v-btn color="#8b5cf6" variant="flat" :loading="creandoLiq"
+                 :disabled="!nuevaLiqInicio || !nuevaLiqFin"
+                 @click="crearLiq">Crear Nómina</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
   </MainLayout>
 </template>
+
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
@@ -120,32 +305,42 @@ import { useAuthStore } from '../../stores/auth'
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
 
-const liquidaciones = ref([])
+const liquidaciones      = ref([])
 const semanasDisponibles = ref([])
-const liqSelId = ref('')
-const liqActual = ref(null)
-const lineas = ref([])
-const cargando = ref(false)
-const calculando = ref(false)
+const liqSelId    = ref('')
+const liqActual   = ref(null)
+const lineas      = ref([])
+const cargando    = ref(false)
+const calculando  = ref(false)
+const borrando    = ref(false)
+const expandido   = ref(new Set())
 
-const dlgNueva = ref(false)
+const dlgNueva        = ref(false)
 const nuevaLiqSemanaId = ref('')
-const nuevaLiqInicio = ref('')
-const nuevaLiqFin = ref('')
-const creandoLiq = ref(false)
+const nuevaLiqInicio  = ref('')
+const nuevaLiqFin     = ref('')
+const creandoLiq      = ref(false)
 
-function calcNuevaFin() {
-  if (!nuevaLiqInicio.value) return
-  const d = new Date(nuevaLiqInicio.value + 'T00:00:00')
-  // Auto-fill from linked semana if available
+function toggleExpand(id) {
+  if (expandido.value.has(id)) expandido.value.delete(id)
+  else expandido.value.add(id)
+  // Trigger reactivity
+  expandido.value = new Set(expandido.value)
+}
+
+function onSemanaChange() {
   const sem = semanasDisponibles.value.find(s => s.id == nuevaLiqSemanaId.value)
   if (sem) {
-    nuevaLiqInicio.value = sem.semana_inicio?.split('T')[0]
-    nuevaLiqFin.value    = sem.semana_fin?.split('T')[0]
-  } else {
-    d.setDate(d.getDate() + 6)
-    nuevaLiqFin.value = d.toISOString().split('T')[0]
+    nuevaLiqInicio.value = String(sem.semana_inicio).split('T')[0]
+    nuevaLiqFin.value    = String(sem.semana_fin).split('T')[0]
   }
+}
+
+function calcNuevaFin() {
+  if (!nuevaLiqInicio.value || nuevaLiqSemanaId.value) return
+  const d = new Date(nuevaLiqInicio.value + 'T00:00:00')
+  d.setDate(d.getDate() + 6)
+  nuevaLiqFin.value = d.toISOString().split('T')[0]
 }
 
 async function cargar() {
@@ -162,26 +357,30 @@ async function cargar() {
 }
 
 async function cargarDetalle() {
-  if (!liqSelId.value) { liqActual.value = null; lineas.value = []; return }
+  if (!liqSelId.value) { liqActual.value = null; lineas.value = []; expandido.value = new Set(); return }
   cargando.value = true
   try {
     const r = await api.get(`/nomina/liquidaciones/${liqSelId.value}`)
     liqActual.value = r.data.liquidacion
     lineas.value    = r.data.lineas || []
+    expandido.value = new Set()
   } finally { cargando.value = false }
 }
 
 async function crearLiq() {
-  if (!nuevaLiqInicio.value) return
+  if (!nuevaLiqInicio.value || !nuevaLiqFin.value) return
   creandoLiq.value = true
   try {
     const r = await api.post('/nomina/liquidaciones', {
       empresa: empresa.value,
       semana_inicio: nuevaLiqInicio.value,
-      semana_fin: nuevaLiqFin.value,
-      semana_id: nuevaLiqSemanaId.value || null
+      semana_fin:    nuevaLiqFin.value,
+      semana_id:     nuevaLiqSemanaId.value || null
     })
     dlgNueva.value = false
+    nuevaLiqSemanaId.value = ''
+    nuevaLiqInicio.value = ''
+    nuevaLiqFin.value = ''
     await cargar()
     liqSelId.value = r.data.data?.id
     cargarDetalle()
@@ -193,15 +392,29 @@ async function calcular() {
   calculando.value = true
   try {
     await api.post(`/nomina/liquidaciones/${liqSelId.value}/calcular`, { empresa: empresa.value })
-    cargarDetalle()
-  } catch(e) { alert(e?.response?.data?.error || e.message) }
+    await cargarDetalle()
+  } catch(e) { alert('❌ ' + (e?.response?.data?.error || e.message)) }
   finally { calculando.value = false }
 }
 
 async function aprobar() {
-  if (!confirm('¿Aprobar esta nómina? Esta acción es irreversible.')) return
-  await api.put(`/nomina/liquidaciones/${liqSelId.value}/aprobar`)
-  cargarDetalle()
+  const periodo = `${fmtFecha(liqActual.value?.semana_inicio)} — ${fmtFecha(liqActual.value?.semana_fin)}`
+  if (!confirm(`¿Aprobar la nómina del ${periodo}?\n\nNeto a pagar: ${fmtMoney(liqActual.value?.total_neto)}\n\nEsta acción no se puede deshacer.`)) return
+  try {
+    await api.put(`/nomina/liquidaciones/${liqSelId.value}/aprobar`)
+    await cargarDetalle()
+  } catch(e) { alert('❌ ' + (e?.response?.data?.error || e.message)) }
+}
+
+async function borrarLiq() {
+  if (!confirm('¿Eliminar esta nómina en BORRADOR? Se borrarán todos los datos calculados.')) return
+  borrando.value = true
+  try {
+    await api.delete(`/nomina/liquidaciones/${liqSelId.value}`)
+    liqSelId.value = ''
+    await cargar()
+  } catch(e) { alert('❌ ' + (e?.response?.data?.error || e.message)) }
+  finally { borrando.value = false }
 }
 
 function fmtFecha(f) {
@@ -210,44 +423,80 @@ function fmtFecha(f) {
   const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   return `${parseInt(d)} ${meses[parseInt(m)]} ${y}`
 }
-function fmt(v) { return parseFloat(v||0).toFixed(2) }
+function fmtMoney(v) {
+  return '$' + parseFloat(v||0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })
+}
+function fmtNum(v) { return parseFloat(v||0).toFixed(1) }
 
 onMounted(cargar)
 </script>
+
 <style scoped>
-.nom-wrap { display: flex; flex-direction: column; gap: 16px; }
+.nom-wrap { display: flex; flex-direction: column; gap: 14px; }
 .nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#1a0a2e,#3b1a5e); border-radius: 14px; padding: 20px 24px; flex-wrap: wrap; }
 .nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(139,92,246,0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
 .nom-sub   { font-size: 12px; color: rgba(255,255,255,0.5); margin: 0; display: flex; align-items: center; gap: 8px; }
 .flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; }
+
+/* Pasos */
+.pasos-bar { display: flex; align-items: center; gap: 0; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 12px; padding: 12px 20px; }
+.paso { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.3); }
+.paso.activo { color: rgba(var(--v-theme-on-surface),0.6); }
+.paso.completado { color: #10b981; }
+.paso-linea { flex: 1; height: 1px; background: rgba(var(--v-theme-on-surface),0.1); margin: 0 12px; }
+
+/* Estado badges */
 .estado-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
 .estado-borrador { background: rgba(148,163,184,0.15); color: #94a3b8; }
 .estado-aprobada { background: rgba(16,185,129,0.15); color: #10b981; }
 .estado-pagada   { background: rgba(6,182,212,0.15); color: #06b6d4; }
 
-.liq-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 10px; }
-.lkpi { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 12px; padding: 14px 16px; }
-.lkpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(var(--v-theme-on-surface),0.4); margin-bottom: 6px; }
-.lkpi-val { font-size: 20px; font-weight: 800; }
+/* KPI */
+.liq-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 10px; }
+.lkpi { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+.lkpi-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.lkpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.4); margin-bottom: 4px; }
+.lkpi-val { font-size: 18px; font-weight: 800; }
 
+/* Tabla */
 .nom-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .nom-table thead { background: rgba(var(--v-theme-on-surface),0.04); }
-.nom-table th { padding: 8px 10px; text-align: left; font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); white-space: nowrap; }
-.nom-row td { padding: 10px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); }
-.nom-row:hover td { background: rgba(var(--v-theme-primary),0.03) !important; }
+.nom-table th { padding: 9px 10px; text-align: left; font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); white-space: nowrap; }
+.nom-row td { padding: 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); transition: background 0.1s; }
+.nom-row:hover td { background: rgba(139,92,246,0.04); }
 .ta-r { text-align: right; }
-.font-bold { font-weight: 700; }
-.text-dim { color: rgba(var(--v-theme-on-surface),0.55); }
+.ta-c { text-align: center; }
+.bold { font-weight: 700; }
+.dim  { color: rgba(var(--v-theme-on-surface),0.5); }
+.neto { color: #10b981; font-weight: 800; }
 .ot-hrs { color: #ef4444; font-weight: 700; }
 .nom-badge { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 .badge-w2   { background: rgba(139,92,246,0.15); color: #8b5cf6; }
 .badge-1099 { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; }
-.drw-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.footer-row td { background: rgba(var(--v-theme-on-surface),0.04); border-top: 2px solid rgba(var(--v-theme-on-surface),0.1); padding: 8px 10px; }
+
+/* Expandido */
+.expand-row td { padding: 0; background: rgba(var(--v-theme-on-surface),0.02); border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.06); }
+.expand-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; padding: 16px 20px; }
+.expand-section { padding: 0 12px; border-right: 1px solid rgba(var(--v-theme-on-surface),0.06); }
+.expand-section:last-child { border-right: none; }
+.expand-titulo { font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.35); text-transform: uppercase; margin-bottom: 8px; }
+.expand-item { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.04); }
+.expand-item span:last-child { font-weight: 600; }
+.neto-resumen { font-weight: 800 !important; color: #10b981; border-top: 1px solid rgba(var(--v-theme-on-surface),0.1); margin-top: 4px; padding-top: 6px; }
+.resumen .expand-item { font-size: 12px; }
+
+/* Empty state */
+.estado-vacio { padding: 48px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+
+/* Dialog */
+.drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; }
+.drw-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .drw-field { display: flex; flex-direction: column; gap: 4px; }
 .drw-field label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase; }
-.drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; }
-.mb-3 { margin-bottom: 12px; }
+.drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; box-sizing: border-box; }
+.mb-3 { margin-bottom: 12px; } .pt-2 { padding-top: 8px !important; } .pa-4 { padding: 16px; } .pb-2 { padding-bottom: 8px !important; } .pt-0 { padding-top: 0 !important; }
+.periodo-preview { margin-top: 10px; font-size: 12px; font-weight: 700; color: #8b5cf6; display: flex; align-items: center; gap: 6px; }
 </style>
