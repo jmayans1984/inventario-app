@@ -8762,7 +8762,7 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
 
             const totalBrutoEmp = brutoRegular + brutoOT + brutoBase;
             const taxes = calcularRetenciones(emp, totalBrutoEmp, ytdBruto, cfg);
-            const totalNeto = totalBrutoEmp - taxes.total_deducciones;
+            const netoEmp = totalBrutoEmp - taxes.total_deducciones;  // renombrado para no chocar con let totalNeto
 
             const lineaR = await pool.query(
                 `INSERT INTO nom_liquidacion_linea
@@ -8782,7 +8782,7 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
                  taxes.medicare_emp, taxes.medicare_adicional, taxes.workers_comp,
                  taxes.otras_deducciones, taxes.total_deducciones,
                  taxes.social_security_er, taxes.medicare_er, taxes.futa, taxes.suta,
-                 taxes.total_aportes_er, totalNeto, ytdBruto, emp.empresa_contratista]
+                 taxes.total_aportes_er, netoEmp, ytdBruto, emp.empresa_contratista]
             );
             const lineaId = lineaR.rows[0].id;
 
@@ -8798,7 +8798,7 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
             totalBruto += totalBrutoEmp;
             totalDed   += taxes.total_deducciones;
             totalER    += taxes.total_aportes_er;
-            totalNeto  += (totalBrutoEmp - taxes.total_deducciones);
+            totalNeto  += netoEmp;
         }
 
         // Update liquidacion totals
