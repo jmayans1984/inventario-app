@@ -264,7 +264,7 @@
             </thead>
             <tbody>
               <tr v-for="d in detalleLineas" :key="d.codigo">
-                <td class="font-weight-medium">{{ d.nombre_producto || d.producto_venta }}</td>
+                <td class="font-weight-medium">{{ d.producto_nombre || d.nombre_producto || d.producto_venta }}</td>
                 <td class="ta-r">{{ d.cantidad }}</td>
                 <td class="ta-r font-mono">{{ fmt(d.precio_unitario) }}</td>
                 <td class="ta-r font-mono text-success">{{ fmt(d.subtotal) }}</td>
@@ -502,7 +502,7 @@ async function verDetalle(o) {
   loadingDetalle.value = true
   try {
     const r = await fetch(`${API_BASE}/ordenes-compra/${o.codigo}/detalles`).then(r => r.json())
-    detalleLineas.value = r.data || []
+    detalleLineas.value = r.detalles || r.data || []
   } catch (e) { console.error(e) }
   finally { loadingDetalle.value = false }
 }
