@@ -8655,13 +8655,14 @@ app.get('/api/nomina/liquidaciones/:id', async (req, res) => {
         );
         // Get ccosto breakdown for each line
         const ids = lineas.rows.map(l => l.id);
+        const empresaLiq = liq.rows[0]?.empresa;
         let ccostos = [];
         if (ids.length) {
             const cc = await pool.query(
                 `SELECT lc.*, COALESCE(cc.nombre, lc.ccosto) AS ccosto_nombre
                  FROM nom_liquidacion_ccosto lc
-                 LEFT JOIN ccostos cc ON cc.codigo = lc.ccosto
-                 WHERE lc.linea_id = ANY($1)`, [ids]
+                 LEFT JOIN ccostos cc ON cc.codigo = lc.ccosto AND cc.empresa = $2
+                 WHERE lc.linea_id = ANY($1)`, [ids, empresaLiq]
             );
             ccostos = cc.rows;
         }
