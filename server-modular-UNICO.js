@@ -4159,8 +4159,42 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
 });
 
 // POST /api/ordenes-compra/crear - Crear orden de compra con detalles
+// GET /api/empresas/proveedor — empresa tipo PROVEEDOR (para que el cliente la identifique)
+app.get('/api/empresas/proveedor', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT codigo, nombre, tipo_empresa FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'No hay empresa proveedor registrada' });
+        res.json({ success: true, data: r.rows[0] });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET /api/ordenes-compra/mis-ordenes?cliente=X — órdenes de un cliente específico
+app.get('/api/ordenes-compra/mis-ordenes', async (req, res) => {
+    const { cliente } = req.query;
+    if (!cliente) return res.status(400).json({ success: false, error: 'cliente es requerido' });
+    try {
+        const r = await pool.query(`
+            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.tipo_precio,
+                   oc.dias_credito, oc.estado, oc.total, oc.observaciones,
+                   oc.empresa, e.nombre AS proveedor_nombre
+            FROM ordenes_compra oc
+            LEFT JOIN empresas e ON CAST(e.codigo AS TEXT) = CAST(oc.empresa AS TEXT)
+            WHERE CAST(oc.cliente AS TEXT) = $1
+            ORDER BY oc.fecha DESC
+        `, [String(cliente)]);
+        res.json({ success: true, data: r.rows });
+    } catch (e) {
+        console.error('Error GET /api/ordenes-compra/mis-ordenes:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.post('/api/ordenes-compra/crear', async (req, res) => {
-    const { empresa, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;
+    const { empresa, cliente, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;
 
     if (!empresa || !tipo_precio || !detalles || detalles.length === 0) {
         return res.status(400).json({
@@ -4168,6 +4202,8 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
             error: 'Faltan parámetros obligatorios'
         });
     }
+    // cliente = quien hace el pedido (puede ser diferente a empresa/proveedor)
+    const clienteId = cliente || empresa;
 
     const client = await pool.connect();
 
@@ -4206,7 +4242,7 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
             codigoOrden,
             fechaHoy,
             fecha_entrega || null,
-            empresa,
+            clienteId,
             tipoPrecioMapeado,
             dias_credito || 0,
             total,
