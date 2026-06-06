@@ -679,11 +679,12 @@ async function abrirSoportes(o) {
   dlgSoportes.value = true
   try {
     const r = await fetch(`${API_BASE}/soportes-entrega/${o.codigo}`).then(r => r.json())
-    soportes.value = (r.data || []).map(s => ({
-      ...s,
-      url: s.archivo_data ? `data:${s.tipo_archivo || 'image/jpeg'};base64,${s.archivo_data}` : null,
-      tipo_mime: s.tipo_archivo || 'image/jpeg',
-    }))
+    soportes.value = (r.data || []).map(s => {
+      // El backend ya devuelve archivo_data como "data:mime;base64,..." completo
+      const url = s.archivo_data || null
+      const mime = s.tipo_archivo || (url ? url.split(';')[0].replace('data:', '') : 'image/jpeg')
+      return { ...s, url, tipo_mime: mime }
+    })
   } catch (e) { err('Error al cargar soportes') }
   finally { loadingSoportes.value = false }
 }
