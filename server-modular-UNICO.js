@@ -3854,6 +3854,27 @@ app.get('/api/ordenes-compra/entrega/pendientes', async (req, res) => {
     }
 });
 
+// GET /api/ordenes-compra/mis-ordenes?cliente=X — DEBE ir ANTES de /:codigo para no ser capturado como wildcard
+app.get('/api/ordenes-compra/mis-ordenes', async (req, res) => {
+    const { cliente } = req.query;
+    if (!cliente) return res.status(400).json({ success: false, error: 'cliente es requerido' });
+    try {
+        const r = await pool.query(`
+            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.tipo_precio,
+                   oc.dias_credito, oc.estado, oc.total, oc.observaciones,
+                   oc.empresa, e.nombre AS proveedor_nombre
+            FROM ordenes_compra oc
+            LEFT JOIN empresas e ON CAST(e.codigo AS TEXT) = CAST(oc.empresa AS TEXT)
+            WHERE CAST(oc.cliente AS TEXT) = $1
+            ORDER BY oc.fecha DESC
+        `, [String(cliente)]);
+        res.json({ success: true, data: r.rows });
+    } catch (e) {
+        console.error('Error GET /api/ordenes-compra/mis-ordenes:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // GET /api/ordenes-compra - Obtener órdenes de compra con filtros
 app.get('/api/ordenes-compra', async (req, res) => {
     const { empresa, fechaDesde, fechaHasta, estado } = req.query;
@@ -4172,26 +4193,6 @@ app.get('/api/empresas/proveedor', async (req, res) => {
     }
 });
 
-// GET /api/ordenes-compra/mis-ordenes?cliente=X — órdenes de un cliente específico
-app.get('/api/ordenes-compra/mis-ordenes', async (req, res) => {
-    const { cliente } = req.query;
-    if (!cliente) return res.status(400).json({ success: false, error: 'cliente es requerido' });
-    try {
-        const r = await pool.query(`
-            SELECT oc.codigo, oc.fecha, oc.fecha_entrega, oc.tipo_precio,
-                   oc.dias_credito, oc.estado, oc.total, oc.observaciones,
-                   oc.empresa, e.nombre AS proveedor_nombre
-            FROM ordenes_compra oc
-            LEFT JOIN empresas e ON CAST(e.codigo AS TEXT) = CAST(oc.empresa AS TEXT)
-            WHERE CAST(oc.cliente AS TEXT) = $1
-            ORDER BY oc.fecha DESC
-        `, [String(cliente)]);
-        res.json({ success: true, data: r.rows });
-    } catch (e) {
-        console.error('Error GET /api/ordenes-compra/mis-ordenes:', e);
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
 
 app.post('/api/ordenes-compra/crear', async (req, res) => {
     const { empresa, cliente, tipo_precio, fecha_entrega, dias_credito, observaciones, detalles, total } = req.body;

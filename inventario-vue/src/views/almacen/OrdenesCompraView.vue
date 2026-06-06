@@ -99,8 +99,8 @@
     </div>
 
     <!-- ══ DIALOG NUEVA ORDEN ══ -->
-    <v-dialog v-model="dlgNueva" fullscreen persistent>
-      <v-card style="overflow:hidden;display:flex;flex-direction:column;height:100vh">
+    <v-dialog v-model="dlgNueva" max-width="1100" persistent scrollable>
+      <v-card rounded="xl" style="overflow:hidden;display:flex;flex-direction:column;max-height:88vh">
 
         <!-- Header -->
         <div class="nueva-header">
@@ -179,8 +179,10 @@
                     type="number" min="0" step="1"
                     class="cant-input"
                     :class="{ 'cant-input--active': (cantidades[p.codigo] || 0) > 0 }"
+                    :data-codigo="p.codigo"
                     @input="setCant(p.codigo, $event.target.value)"
                     @focus="$event.target.select()"
+                    @keydown.enter="navegarEnter($event, p.codigo)"
                     placeholder="0"
                   />
                   <button class="cant-btn" @click="ajustarCant(p.codigo, 1)">+</button>
@@ -199,9 +201,10 @@
         <div class="nueva-footer">
           <div class="nueva-footer-opciones">
             <div class="footer-field">
-              <div class="footer-field-label">Fecha de entrega deseada</div>
+              <div class="footer-field-label">Fecha de entrega <span style="color:#ef4444">*</span></div>
               <v-text-field v-model="nuevaFechaEntrega" type="date" variant="outlined" density="compact"
-                hide-details style="max-width:180px" />
+                hide-details style="max-width:180px"
+                :error="fechaError" />
             </div>
             <div class="footer-field">
               <div class="footer-field-label">Observaciones</div>
@@ -350,6 +353,7 @@ const productosAgrupados = computed(() => {
 const itemsPedido = computed(() =>
   Object.values(cantidades).filter(c => parseFloat(c) > 0).length
 )
+const fechaError = computed(() => !nuevaFechaEntrega.value && itemsPedido.value > 0)
 
 const totalPedido = computed(() =>
   productos.value.reduce((s, p) => {
@@ -425,8 +429,23 @@ async function abrirNuevoPedido() {
   dlgNueva.value = true
 }
 
+function navegarEnter(e, codigo) {
+  // Al presionar Enter en una celda de cantidad, salta a la siguiente
+  const inputs = [...document.querySelectorAll('.cant-input')]
+  const idx = inputs.findIndex(el => el.dataset.codigo === codigo)
+  if (idx >= 0 && idx < inputs.length - 1) {
+    e.preventDefault()
+    inputs[idx + 1].focus()
+    inputs[idx + 1].select()
+  }
+}
+
 async function enviarOrden() {
   if (itemsPedido.value === 0) return
+  if (!nuevaFechaEntrega.value) {
+    err('La fecha de entrega es obligatoria')
+    return
+  }
   enviando.value = true
   try {
     const empresa = getEmpresa()
