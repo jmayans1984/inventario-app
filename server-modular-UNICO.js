@@ -6803,10 +6803,24 @@ app.delete('/api/produccion/productos-venta/:codigo', async (req, res) => {
 
 // ── LISTA DE PRECIOS (config_listas_precios) ────────────────────
 
+// Auto-migración: columnas de margen en config_listas_precios
+(async () => {
+    try {
+        await pool.query(`ALTER TABLE config_listas_precios ADD COLUMN IF NOT EXISTS margen_venta1 NUMERIC(6,4) DEFAULT 0`);
+        await pool.query(`ALTER TABLE config_listas_precios ADD COLUMN IF NOT EXISTS margen_venta2 NUMERIC(6,4) DEFAULT 0`);
+        await pool.query(`ALTER TABLE config_listas_precios ADD COLUMN IF NOT EXISTS margen_venta3 NUMERIC(6,4) DEFAULT 0`);
+        console.log('✅ Columnas margen_venta en config_listas_precios listas');
+    } catch (e) { console.error('Error migrando config_listas_precios:', e.message); }
+})();
+
 app.get('/api/produccion/lista-precios', async (req, res) => {
     try {
         const r = await pool.query(
-            `SELECT id, lista, activo, dias_credito FROM config_listas_precios ORDER BY lista`
+            `SELECT id, lista, activo, dias_credito,
+                    COALESCE(margen_venta1, 0) AS margen_venta1,
+                    COALESCE(margen_venta2, 0) AS margen_venta2,
+                    COALESCE(margen_venta3, 0) AS margen_venta3
+             FROM config_listas_precios ORDER BY lista`
         );
         res.json({ success: true, data: r.rows });
     } catch (e) {
@@ -6816,13 +6830,15 @@ app.get('/api/produccion/lista-precios', async (req, res) => {
 });
 
 app.post('/api/produccion/lista-precios', async (req, res) => {
-    const { lista, activo, dias_credito } = req.body;
+    const { lista, activo, dias_credito, margen_venta1, margen_venta2, margen_venta3 } = req.body;
     if (!lista) return res.status(400).json({ success: false, error: 'lista es requerida' });
     try {
         const r = await pool.query(
-            `INSERT INTO config_listas_precios (lista, activo, dias_credito)
-             VALUES ($1, $2, $3) RETURNING id, lista, activo, dias_credito`,
-            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0]
+            `INSERT INTO config_listas_precios (lista, activo, dias_credito, margen_venta1, margen_venta2, margen_venta3)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id, lista, activo, dias_credito, margen_venta1, margen_venta2, margen_venta3`,
+            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0,
+             parseFloat(margen_venta1) || 0, parseFloat(margen_venta2) || 0, parseFloat(margen_venta3) || 0]
         );
         res.json({ success: true, data: r.rows[0] });
     } catch (e) {
@@ -6834,15 +6850,56 @@ app.post('/api/produccion/lista-precios', async (req, res) => {
 
 app.put('/api/produccion/lista-precios/:id', async (req, res) => {
     const { id } = req.params;
-    const { lista, activo, dias_credito } = req.body;
+    const { lista, activo, dias_credito, margen_venta1, margen_venta2, margen_venta3 } = req.body;
     try {
         await pool.query(
-            `UPDATE config_listas_precios SET lista=$1, activo=$2, dias_credito=$3 WHERE id=$4`,
-            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0, parseInt(id)]
+            `UPDATE config_listas_precios
+             SET lista=$1, activo=$2, dias_credito=$3,
+                 margen_venta1=$4, margen_venta2=$5, margen_venta3=$6
+             WHERE id=$7`,
+            [lista.toUpperCase(), activo || 'SI', parseInt(dias_credito) || 0,
+             parseFloat(margen_venta1) || 0, parseFloat(margen_venta2) || 0,
+             parseFloat(margen_venta3) || 0, parseInt(id)]
         );
         res.json({ success: true });
     } catch (e) {
         console.error('Error PUT /api/produccion/lista-precios:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST /api/produccion/lista-precios/:id/recalcular — recalcula precios de TODOS los productos usando los márgenes
+// Fórmula: precio_venta = precio_costo / (1 - margen)
+app.post('/api/produccion/lista-precios/:id/recalcular', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const configRes = await pool.query(
+            `SELECT margen_venta1, margen_venta2, margen_venta3 FROM config_listas_precios WHERE id=$1`,
+            [parseInt(id)]
+        );
+        if (!configRes.rows.length) return res.status(404).json({ success: false, error: 'Lista no encontrada' });
+
+        const { margen_venta1, margen_venta2, margen_venta3 } = configRes.rows[0];
+        const m1 = parseFloat(margen_venta1) || 0;
+        const m2 = parseFloat(margen_venta2) || 0;
+        const m3 = parseFloat(margen_venta3) || 0;
+
+        // Sólo calcula si el margen es válido (< 1 para no dividir por cero o negativo)
+        const pv1 = m1 > 0 && m1 < 1 ? `ROUND(precio_costo / (1 - ${m1}), 2)` : 'precio_venta1';
+        const pv2 = m2 > 0 && m2 < 1 ? `ROUND(precio_costo / (1 - ${m2}), 2)` : 'precio_venta2';
+        const pv3 = m3 > 0 && m3 < 1 ? `ROUND(precio_costo / (1 - ${m3}), 2)` : 'precio_venta3';
+
+        const result = await pool.query(
+            `UPDATE productos_venta
+             SET precio_venta1 = ${pv1},
+                 precio_venta2 = ${pv2},
+                 precio_venta3 = ${pv3}
+             WHERE precio_costo > 0
+             RETURNING codigo`
+        );
+        res.json({ success: true, actualizados: result.rowCount });
+    } catch (e) {
+        console.error('Error POST /api/produccion/lista-precios/:id/recalcular:', e);
         res.status(500).json({ success: false, error: e.message });
     }
 });

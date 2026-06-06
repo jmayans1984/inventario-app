@@ -206,7 +206,13 @@
           <v-divider class="my-4" />
 
           <!-- Precios -->
-          <div class="dlg-section-label">PRECIOS</div>
+          <div class="dlg-section-label" style="display:flex;align-items:center;justify-content:space-between">
+            <span>PRECIOS</span>
+            <v-btn v-if="margenesConfig.m1 > 0 || margenesConfig.m2 > 0 || margenesConfig.m3 > 0"
+              size="x-small" variant="tonal" color="#f59e0b" @click="calcularPrecios">
+              <v-icon start size="13">mdi-calculator-variant-outline</v-icon>Auto-calcular
+            </v-btn>
+          </div>
           <div class="dlg-row" style="grid-template-columns:repeat(4,1fr)">
             <div>
               <div class="dlg-field-label">Costo</div>
@@ -333,6 +339,18 @@ const margen1 = computed(() => {
   const v = parseFloat(form.value.precio_venta1) || 0
   return v > 0 ? ((v - c) / v * 100) : 0
 })
+
+// Márgenes de la lista de precios activa
+const margenesConfig = ref({ m1: 0, m2: 0, m3: 0 })
+
+function calcularPrecios() {
+  const costo = parseFloat(form.value.precio_costo) || 0
+  if (!costo) return
+  const { m1, m2, m3 } = margenesConfig.value
+  if (m1 > 0 && m1 < 1) form.value.precio_venta1 = Math.round(costo / (1 - m1) * 100) / 100
+  if (m2 > 0 && m2 < 1) form.value.precio_venta2 = Math.round(costo / (1 - m2) * 100) / 100
+  if (m3 > 0 && m3 < 1) form.value.precio_venta3 = Math.round(costo / (1 - m3) * 100) / 100
+}
 const formControlBool = computed({
   get: () => form.value.control === 'SI',
   set: (v) => { form.value.control = v ? 'SI' : 'NO' }
@@ -373,12 +391,22 @@ function sigCodigo() {
 async function cargar() {
   loading.value = true
   try {
-    const [rp, rg] = await Promise.all([
+    const [rp, rg, rl] = await Promise.all([
       api.get('/produccion/productos-venta'),
-      api.get('/produccion/grupo-productos')
+      api.get('/produccion/grupo-productos'),
+      api.get('/produccion/lista-precios'),
     ])
     productos.value = rp.data?.data || []
     grupos.value    = rg.data?.data || []
+    // Cargar márgenes de la primera lista activa
+    const listaActiva = (rl.data?.data || []).find(l => l.activo === 'SI')
+    if (listaActiva) {
+      margenesConfig.value = {
+        m1: parseFloat(listaActiva.margen_venta1) || 0,
+        m2: parseFloat(listaActiva.margen_venta2) || 0,
+        m3: parseFloat(listaActiva.margen_venta3) || 0,
+      }
+    }
   } catch (e) { err('Error al cargar productos') }
   finally { loading.value = false }
 }
