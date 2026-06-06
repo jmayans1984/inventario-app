@@ -168,152 +168,184 @@
       </v-card>
     </v-dialog>
 
-    <!-- DIALOG: INGREDIENTES -->
-    <v-dialog v-model="dlgIng" max-width="820" persistent scrollable>
-      <v-card rounded="xl">
-        <v-card-title class="d-flex align-center gap-3 pa-5 pb-3">
-          <div class="dlg-icon-wrap"><v-icon size="18" color="white">mdi-format-list-bulleted</v-icon></div>
-          <div>
-            <div>Ingredientes — <strong>{{ recetaActual?.nombre }}</strong></div>
-            <div class="text-caption text-medium-emphasis">Cód: {{ recetaActual?.codigo }} · {{ recetaActual?.grupo_receta || '—' }}</div>
+    <!-- DIALOG: INGREDIENTES (redesign) -->
+    <v-dialog v-model="dlgIng" max-width="960" persistent scrollable>
+      <v-card rounded="xl" style="overflow:hidden; display:flex; flex-direction:column; max-height:90vh">
+
+        <!-- ── HEADER ── -->
+        <div class="ing-dlg-header">
+          <div class="ing-dlg-icon">
+            <v-icon size="20" color="white">mdi-format-list-bulleted</v-icon>
           </div>
-          <v-spacer />
-          <v-chip :color="recetaActual?.subproducto==='SI' ? 'purple' : 'cyan'" size="small" variant="tonal" label>
-            {{ recetaActual?.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
-          </v-chip>
-        </v-card-title>
+          <div class="ing-dlg-titles">
+            <div class="ing-dlg-receta-nombre">{{ recetaActual?.nombre }}</div>
+            <div class="ing-dlg-receta-meta">
+              Cód: <strong>{{ recetaActual?.codigo }}</strong>
+              <span v-if="recetaActual?.grupo_receta"> · {{ recetaActual.grupo_receta }}</span>
+            </div>
+          </div>
+          <div class="ing-dlg-header-right">
+            <v-chip :color="recetaActual?.subproducto==='SI' ? 'purple' : 'cyan'"
+              size="small" variant="tonal" label class="mr-2">
+              {{ recetaActual?.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
+            </v-chip>
+            <v-chip color="amber" size="small" variant="tonal" label>
+              {{ ingredientes.length }} ingrediente{{ ingredientes.length !== 1 ? 's' : '' }}
+            </v-chip>
+          </div>
+        </div>
+
+        <!-- ── AGREGAR INGREDIENTE ── -->
+        <div class="ing-add-panel">
+          <div class="ing-add-label">AGREGAR</div>
+          <div class="ing-add-controls">
+            <!-- Toggle tipo -->
+            <v-btn-toggle v-model="tipoIngredienteNuevo" rounded="lg" density="compact" color="#f59e0b" style="flex-shrink:0">
+              <v-btn value="ARTICULO" size="small">
+                <v-icon size="15" class="mr-1">mdi-food-apple-outline</v-icon>Artículo
+              </v-btn>
+              <v-btn value="RECETA" size="small">
+                <v-icon size="15" class="mr-1">mdi-link-variant</v-icon>Subreceta
+              </v-btn>
+            </v-btn-toggle>
+
+            <!-- Buscador dinámico -->
+            <v-autocomplete
+              v-if="tipoIngredienteNuevo === 'ARTICULO'"
+              v-model="articuloSeleccionado" :items="articulos"
+              item-title="nombre" return-object
+              :label="'Buscar artículo... (' + articulos.length + ' disponibles)'"
+              variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:240px">
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :subtitle="item.raw.und + ' · ' + fmt(item.raw.valor)" />
+              </template>
+            </v-autocomplete>
+            <v-autocomplete
+              v-else
+              v-model="recetaSeleccionada" :items="subrecetas"
+              item-title="nombre" return-object
+              :label="'Buscar subreceta... (' + subrecetas.length + ' disponibles)'"
+              variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:240px">
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :subtitle="item.raw.und + ' · ' + fmt(item.raw.valor)" />
+              </template>
+            </v-autocomplete>
+
+            <!-- Cantidad -->
+            <v-text-field v-model="ingNuevo.cantidad" label="Cantidad" type="number" min="0.001"
+              variant="outlined" density="compact" hide-details style="width:110px;flex-shrink:0" />
+
+            <!-- Botón agregar -->
+            <v-btn color="#f59e0b" variant="flat" rounded="lg" height="40"
+              :disabled="(tipoIngredienteNuevo === 'ARTICULO' && !articuloSeleccionado) || (tipoIngredienteNuevo === 'RECETA' && !recetaSeleccionada) || !ingNuevo.cantidad"
+              @click="agregarIngrediente">
+              <v-icon size="18" class="mr-1">mdi-plus</v-icon> Agregar
+            </v-btn>
+          </div>
+        </div>
+
         <v-divider />
 
-        <v-card-text class="pa-4">
-          <!-- AGREGAR INGREDIENTE -->
-          <div class="add-ing-group">
-            <!-- SELECTOR TIPO -->
-            <div class="type-selector">
-              <v-btn-toggle v-model="tipoIngredienteNuevo" rounded="lg" density="compact" color="#f59e0b">
-                <v-btn value="ARTICULO" size="small" class="btn-type">
-                  <v-icon start size="16">mdi-food-apple-outline</v-icon>Artículo
-                </v-btn>
-                <v-btn value="RECETA" size="small" class="btn-type">
-                  <v-icon start size="16">mdi-link-variant</v-icon>Subreceta
-                </v-btn>
-              </v-btn-toggle>
+        <!-- ── TABLA INGREDIENTES ── -->
+        <div style="flex:1; overflow-y:auto; min-height:0">
+
+          <!-- Encabezado fijo -->
+          <div class="ing-tbl-head">
+            <span class="col-nombre">INGREDIENTE / ARTÍCULO</span>
+            <span class="col-tipo">TIPO</span>
+            <span class="col-cant">CANTIDAD</span>
+            <span class="col-und">UND</span>
+            <span class="col-vunit">VALOR UNIT.</span>
+            <span class="col-sub">SUBTOTAL</span>
+            <span class="col-del"></span>
+          </div>
+
+          <!-- Vacío -->
+          <div v-if="ingredientes.length === 0" class="ing-tbl-empty">
+            <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)" class="mb-2">mdi-text-box-plus-outline</v-icon>
+            <div>Sin ingredientes — usa el buscador de arriba para agregar</div>
+          </div>
+
+          <!-- Filas -->
+          <div v-for="(ing, idx) in ingredientes" :key="idx"
+            class="ing-tbl-row" :class="{ 'ing-tbl-row--sub': ing.tipo === 'RECETA', 'ing-tbl-row--alt': idx % 2 === 1 }">
+
+            <div class="col-nombre ing-item-nombre">
+              <v-icon v-if="ing.tipo === 'RECETA'" size="13" color="#8b5cf6">mdi-link-variant</v-icon>
+              <v-icon v-else size="13" color="#14b8a6">mdi-food-apple-outline</v-icon>
+              <span>{{ ing.nombre_item || ing.articulo_nombre || ing.articulo }}</span>
             </div>
 
-            <!-- BÚSQUEDA ARTÍCULOS O RECETAS -->
-            <div class="add-ing-row">
-              <v-autocomplete
-                v-if="tipoIngredienteNuevo === 'ARTICULO'"
-                v-model="articuloSeleccionado" :items="articulos"
-                item-title="nombre" return-object
-                label="Buscar artículo..." variant="outlined" density="compact"
-                hide-details clearable style="flex:1;min-width:200px">
-                <template #item="{ props, item }">
-                  <v-list-item v-bind="props">
-                    <template #append>
-                      <span class="text-caption text-medium-emphasis">{{ item.raw.und }} · {{ fmt(item.raw.valor) }}</span>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-autocomplete>
+            <div class="col-tipo">
+              <span v-if="ing.tipo === 'RECETA'" class="badge-sub">SUBRECETA</span>
+              <span v-else class="badge-art">ARTÍCULO</span>
+            </div>
 
-              <v-autocomplete
-                v-else
-                v-model="recetaSeleccionada" :items="subrecetas"
-                item-title="nombre" return-object
-                label="Buscar subreceta..." variant="outlined" density="compact"
-                hide-details clearable style="flex:1;min-width:200px">
-                <template #item="{ props, item }">
-                  <v-list-item v-bind="props">
-                    <template #append>
-                      <span class="text-caption text-medium-emphasis">{{ item.raw.und }} · {{ fmt(item.raw.valor) }}</span>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-autocomplete>
+            <div class="col-cant">
+              <v-text-field v-model="ing.cantidad" type="number" min="0" variant="outlined"
+                density="compact" hide-details class="cant-field" @change="recalcSubtotal(ing)" />
+            </div>
 
-              <v-text-field v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
-                variant="outlined" density="compact" hide-details style="max-width:100px" />
-              <v-btn color="#f59e0b" variant="flat" icon size="small"
-                :disabled="(tipoIngredienteNuevo === 'ARTICULO' && !articuloSeleccionado) || (tipoIngredienteNuevo === 'RECETA' && !recetaSeleccionada) || !ingNuevo.cantidad"
-                @click="agregarIngrediente">
-                <v-icon>mdi-plus</v-icon>
+            <div class="col-und">{{ ing.und || '—' }}</div>
+
+            <div class="col-vunit font-mono">{{ fmt(ing.precio_unit) }}</div>
+
+            <div class="col-sub font-mono subtotal-val">
+              {{ fmt((parseFloat(ing.precio_unit)||0) * (parseFloat(ing.cantidad)||0)) }}
+            </div>
+
+            <div class="col-del">
+              <v-btn icon size="x-small" variant="text" color="error" @click="quitarIngrediente(idx)">
+                <v-icon size="16">mdi-delete-outline</v-icon>
               </v-btn>
             </div>
           </div>
 
-          <!-- TABLA INGREDIENTES -->
-          <div class="ing-table mt-3" style="max-height:380px;overflow-y:auto">
-            <div class="ing-header">
-              <span>ARTÍCULO / INGREDIENTE</span>
-              <span class="text-center">TIPO</span>
-              <span class="text-right">CANT</span>
-              <span>UND</span>
-              <span class="text-right">VALOR UNIT</span>
-              <span class="text-right">SUBTOTAL</span>
-              <span></span>
-            </div>
-            <div v-if="ingredientes.length === 0" class="ing-empty">
-              Sin ingredientes — agrega usando el buscador de arriba
-            </div>
-            <div v-for="(ing, idx) in ingredientes" :key="idx" class="ing-row"
-              :class="{ 'ing-subreceta': ing.tipo === 'RECETA' }">
-              <div class="ing-nombre">
-                <v-icon v-if="ing.tipo === 'RECETA'" size="12" color="#8b5cf6" class="mr-1">mdi-link-variant</v-icon>
-                {{ ing.nombre_item || ing.articulo_nombre || ing.articulo }}
-              </div>
-              <div class="text-center">
-                <v-chip v-if="ing.tipo === 'RECETA'" color="purple" size="x-small" variant="tonal">SUBRECETA</v-chip>
-                <v-chip v-else color="teal" size="x-small" variant="tonal">ARTÍCULO</v-chip>
-              </div>
-              <div class="text-right">
-                <v-text-field v-model="ing.cantidad" type="number" min="0" variant="plain"
-                  density="compact" hide-details class="cant-input" @change="recalcSubtotal(ing)" />
-              </div>
-              <div class="text-caption text-medium-emphasis">{{ ing.und }}</div>
-              <div class="text-right text-caption font-mono">{{ fmt(ing.precio_unit) }}</div>
-              <div class="text-right font-mono subtotal-col">{{ fmt((parseFloat(ing.precio_unit)||0) * (parseFloat(ing.cantidad)||0)) }}</div>
-              <div class="text-center">
-                <v-btn icon size="x-small" variant="text" color="error" @click="quitarIngrediente(idx)">
-                  <v-icon size="14">mdi-close</v-icon>
-                </v-btn>
-              </div>
-            </div>
-            <!-- TOTAL -->
-            <div v-if="ingredientes.length > 0" class="ing-total-row">
-              <span class="font-weight-bold" style="grid-column:1/6">COSTO TOTAL</span>
-              <span class="text-right font-mono font-weight-bold total-val">{{ fmt(costoTotal) }}</span>
-              <span></span>
-            </div>
+          <!-- Fila total -->
+          <div v-if="ingredientes.length > 0" class="ing-tbl-total">
+            <span class="col-nombre" style="grid-column:1/6; font-weight:700; font-size:13px;">
+              COSTO TOTAL ({{ ingredientes.length }} ingredientes)
+            </span>
+            <span class="col-sub font-mono" style="font-weight:800; font-size:16px; color:#f59e0b;">
+              {{ fmt(costoTotal) }}
+            </span>
+            <span class="col-del"></span>
           </div>
+        </div>
 
-          <!-- RESUMEN -->
-          <div v-if="recetaActual?.precio_venta > 0" class="costo-resumen mt-3">
-            <div class="cr-item">
-              <span class="cr-lbl">Costo</span>
-              <span class="cr-val" style="color:#ef4444">{{ fmt(costoTotal) }}</span>
-            </div>
-            <div class="cr-item">
-              <span class="cr-lbl">Precio Venta</span>
-              <span class="cr-val">{{ fmt(recetaActual.precio_venta) }}</span>
-            </div>
-            <div class="cr-item">
-              <span class="cr-lbl">Margen $</span>
-              <span class="cr-val" style="color:#22c55e">{{ fmt(recetaActual.precio_venta - costoTotal) }}</span>
-            </div>
-            <div class="cr-item">
-              <span class="cr-lbl">% Costo</span>
-              <span class="cr-val" :style="{ color: colorPctStr(pctCosto) }">{{ pctCosto.toFixed(1) }}%</span>
-            </div>
+        <!-- ── RESUMEN COSTOS (solo si tiene precio venta) ── -->
+        <div v-if="recetaActual?.precio_venta > 0" class="ing-resumen-bar">
+          <div class="resumen-item">
+            <span class="resumen-lbl">COSTO</span>
+            <span class="resumen-val" style="color:#ef4444">{{ fmt(costoTotal) }}</span>
           </div>
-        </v-card-text>
+          <div class="resumen-sep">→</div>
+          <div class="resumen-item">
+            <span class="resumen-lbl">PRECIO VENTA</span>
+            <span class="resumen-val">{{ fmt(recetaActual.precio_venta) }}</span>
+          </div>
+          <div class="resumen-sep">=</div>
+          <div class="resumen-item">
+            <span class="resumen-lbl">MARGEN</span>
+            <span class="resumen-val" style="color:#22c55e">{{ fmt(recetaActual.precio_venta - costoTotal) }}</span>
+          </div>
+          <div class="resumen-sep">|</div>
+          <div class="resumen-item">
+            <span class="resumen-lbl">% COSTO</span>
+            <span class="resumen-val" :style="{ color: colorPctStr(pctCosto) }">{{ pctCosto.toFixed(1) }}%</span>
+          </div>
+        </div>
 
-        <v-divider />
-        <v-card-actions class="pa-4 justify-end gap-2">
-          <v-btn variant="text" @click="dlgIng=false">Cancelar</v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoIng" @click="guardarIngredientes">
+        <!-- ── ACTIONS ── -->
+        <div class="ing-dlg-footer">
+          <v-btn variant="text" @click="dlgIng=false" color="default">
+            <v-icon start>mdi-close</v-icon>Cancelar
+          </v-btn>
+          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoIng" @click="guardarIngredientes" size="large">
             <v-icon start>mdi-content-save-outline</v-icon>Guardar Ingredientes
           </v-btn>
-        </v-card-actions>
+        </div>
+
       </v-card>
     </v-dialog>
 
@@ -640,26 +672,127 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .kpi-val { font-size: 22px; font-weight: 800; color: #f59e0b; }
 .kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; }
 .rc-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
-.font-mono { font-family: monospace; }
-.dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
+.font-mono { font-family: 'Courier New', monospace; }
+
+/* ── DIALOG INGREDIENTES ── */
+.ing-dlg-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 20px 16px;
+  background: linear-gradient(135deg, #1e3a5f, #1a3050);
+  flex-shrink: 0;
+}
+.ing-dlg-icon {
+  width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg,#f59e0b,#d97706);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(245,158,11,.35);
+}
+.ing-dlg-titles { flex: 1; min-width: 0; }
+.ing-dlg-receta-nombre { font-size: 17px; font-weight: 800; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ing-dlg-receta-meta { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 2px; }
+.ing-dlg-header-right { display: flex; align-items: center; flex-shrink: 0; gap: 6px; }
+
+/* ── PANEL AGREGAR ── */
+.ing-add-panel {
+  padding: 14px 20px;
+  background: rgba(var(--v-theme-on-surface), .02);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
+  flex-shrink: 0;
+}
+.ing-add-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  color: rgba(var(--v-theme-on-surface), .4); text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.ing-add-controls { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+
+/* ── TABLA ── */
+/* Columnas: nombre | tipo | cantidad | und | valor | subtotal | delete */
+.ing-tbl-head,
+.ing-tbl-row,
+.ing-tbl-total {
+  display: grid;
+  grid-template-columns: 1fr 90px 110px 60px 110px 110px 40px;
+  align-items: center;
+  padding: 0 20px;
+}
+.ing-tbl-head {
+  padding-top: 10px; padding-bottom: 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .45);
+  background: rgba(var(--v-theme-on-surface), .03);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
+  position: sticky; top: 0; z-index: 1;
+}
+.ing-tbl-row {
+  padding-top: 9px; padding-bottom: 9px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .05);
+  font-size: 13px;
+  transition: background .12s;
+}
+.ing-tbl-row:hover { background: rgba(var(--v-theme-on-surface), .04); }
+.ing-tbl-row--alt { background: rgba(var(--v-theme-on-surface), .02); }
+.ing-tbl-row--sub { background: rgba(139,92,246,.04); }
+.ing-tbl-row--sub:hover { background: rgba(139,92,246,.08); }
+.ing-tbl-total {
+  padding-top: 12px; padding-bottom: 12px;
+  background: rgba(var(--v-theme-on-surface), .04);
+  border-top: 2px solid rgba(var(--v-theme-on-surface), .12);
+}
+
+.ing-tbl-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 48px 24px;
+  color: rgba(var(--v-theme-on-surface), .35); font-size: 13px; text-align: center;
+}
+
+/* Alineaciones de columnas */
+.col-nombre { display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; }
+.col-tipo { }
+.col-cant { padding-right: 8px; }
+.col-und { font-size: 12px; color: rgba(var(--v-theme-on-surface), .5); }
+.col-vunit { text-align: right; font-size: 12px; color: rgba(var(--v-theme-on-surface), .7); }
+.col-sub { text-align: right; }
+.col-del { display: flex; justify-content: center; }
+
+.ing-item-nombre { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.badge-sub {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+  background: rgba(139,92,246,.15); color: #8b5cf6; letter-spacing: .4px;
+}
+.badge-art {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+  background: rgba(20,184,166,.12); color: #14b8a6; letter-spacing: .4px;
+}
+
+.cant-field { max-width: 90px; }
+.cant-field :deep(.v-field__input) { padding: 4px 8px !important; font-size: 13px; }
+.cant-field :deep(.v-field) { border-radius: 6px; }
+
+.subtotal-val { color: rgba(var(--v-theme-on-surface), .85); font-size: 13px; }
+
+/* ── RESUMEN BAR ── */
+.ing-resumen-bar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 12px 20px;
+  background: rgba(var(--v-theme-on-surface), .03);
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .08);
+  flex-shrink: 0;
+}
+.resumen-item { display: flex; flex-direction: column; align-items: center; }
+.resumen-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; color: rgba(var(--v-theme-on-surface), .4); text-transform: uppercase; margin-bottom: 1px; }
+.resumen-val { font-size: 15px; font-weight: 800; font-family: 'Courier New', monospace; }
+.resumen-sep { font-size: 18px; color: rgba(var(--v-theme-on-surface), .2); font-weight: 300; }
+
+/* ── FOOTER ── */
+.ing-dlg-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .1);
+  flex-shrink: 0;
+}
+
 .info-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; color: rgba(var(--v-theme-on-surface),.7); }
-.add-ing-group { display: flex; flex-direction: column; gap: 12px; }
-.type-selector { display: flex; align-items: center; }
-.btn-type { font-size: 12px; }
-.add-ing-row { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
-.ing-table { border: 1px solid rgba(var(--v-theme-on-surface),.1); border-radius: 12px; overflow: hidden; }
-.ing-header { display: grid; grid-template-columns: 1fr 70px 80px 60px 100px 100px 32px; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.04); font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; }
-.ing-row { display: grid; grid-template-columns: 1fr 70px 80px 60px 100px 100px 32px; padding: 5px 12px; border-top: 1px solid rgba(var(--v-theme-on-surface),.06); align-items: center; font-size: 13px; }
-.ing-subreceta { background: rgba(139,92,246,.04); }
-.ing-nombre { display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ing-empty { padding: 24px; text-align: center; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
-.cant-input :deep(.v-field__input) { padding: 2px 4px; font-size: 13px; }
-.subtotal-col { color: rgba(var(--v-theme-on-surface),.8); }
-.ing-total-row { display: grid; grid-template-columns: 1fr 70px 80px 60px 100px 100px 32px; padding: 8px 12px; border-top: 2px solid rgba(var(--v-theme-on-surface),.12); background: rgba(var(--v-theme-on-surface),.03); font-size: 13px; align-items: center; }
-.total-val { color: #f59e0b; font-size: 15px; }
-.costo-resumen { display: flex; gap: 0; border: 1px solid rgba(var(--v-theme-on-surface),.1); border-radius: 12px; overflow: hidden; }
-.cr-item { flex: 1; padding: 12px 16px; text-align: center; border-right: 1px solid rgba(var(--v-theme-on-surface),.08); }
-.cr-item:last-child { border-right: none; }
-.cr-lbl { display: block; font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
-.cr-val { font-size: 15px; font-weight: 700; font-family: monospace; }
+.dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
 </style>
