@@ -4215,20 +4215,18 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
         const tipoPrecioMapeado = tipo_precio === 'precio_venta1' ? 'PRECIO1' :
                                   tipo_precio === 'precio_venta2' ? 'PRECIO2' : 'PRECIO3';
 
-        // Obtener máximo consecutivo de orden para esta empresa
+        // Consecutivo basado en el CLIENTE (empresa activa que hace el pedido)
         const codigoResult = await client.query(`
-            SELECT COALESCE(MAX(CAST(SUBSTRING(codigo, LENGTH(codigo) - 4) AS INTEGER)), 0) + 1 as numero_orden
+            SELECT COALESCE(MAX(
+                CAST(SPLIT_PART(codigo, '-', 3) AS INTEGER)
+            ), 0) + 1 AS numero_orden
             FROM ordenes_compra
-            WHERE empresa = $1 AND codigo LIKE 'OC-%'
-        `, [empresa]);
+            WHERE CAST(cliente AS TEXT) = $1
+              AND codigo LIKE 'OC-%'
+        `, [String(clienteId)]);
 
         const numeroOrden = String(codigoResult.rows[0].numero_orden).padStart(5, '0');
-        const codigoOrden = `OC-${empresa}-${numeroOrden}`;
-
-        // Validar longitud del código
-        if (codigoOrden.length > 20) {
-            throw new Error('Código de orden excede longitud máxima (20 caracteres)');
-        }
+        const codigoOrden = `OC-${clienteId}-${numeroOrden}`;
 
         // Insertar orden de compra
         const fechaHoy = new Date().toISOString().split('T')[0];
