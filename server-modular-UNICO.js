@@ -8973,7 +8973,7 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
                 await client.query(
                     `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
                                          forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
-                     VALUES ($1, $2, NULL, NULL, '', 'NOMINA', NULL, $3, $4, 0, $4, $5, 'PAGADA')`,
+                     VALUES ($1, $2, NULL, NULL, '', 'TRF', NULL, $3, $4, 0, $4, $5, 'PAGADA')`,
                     [codigo, entry.fecha, entry.concepto, entry.costo, l.empresa]
                 );
             } catch(eGasto) {
