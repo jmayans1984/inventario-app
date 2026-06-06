@@ -86,6 +86,31 @@
             </div>
           </div>
 
+          <!-- CUENTA CONTABLE NÓMINA -->
+          <div class="cfg-section">
+            <div class="cfg-section-title">CONTABILIDAD — CUENTA DE GASTOS DE NÓMINA</div>
+            <div class="cfg-info"><v-icon size="13" color="#8b5cf6">mdi-information-outline</v-icon>
+              Selecciona la cuenta contable a la que se cargará el gasto de nómina al aprobar.
+              Esta cuenta aparecerá en tu estado de pérdidas y ganancias.
+            </div>
+            <div class="cfg-row">
+              <div class="cfg-item" style="grid-column: 1 / -1; max-width: 500px">
+                <label>Cuenta contable de salarios / nómina</label>
+                <div class="cfg-hint">Se usará automáticamente al aprobar cada nómina</div>
+                <select v-model="cfg.cuenta_nomina" class="drw-input drw-select-full">
+                  <option value="">— Sin vincular (usará 'NOMINA' como texto) —</option>
+                  <option v-for="c in cuentasContables" :key="c.codigo" :value="c.codigo">
+                    {{ c.codigo }} — {{ c.cuenta }}
+                  </option>
+                </select>
+                <div v-if="cfg.cuenta_nomina" style="margin-top:6px;font-size:11px;color:#10b981;display:flex;align-items:center;gap:4px">
+                  <v-icon size="12" color="#10b981">mdi-check-circle</v-icon>
+                  Al aprobar nóminas se usará: <strong>{{ cfg.cuenta_nomina }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Overtime + WC + Min wage -->
           <div class="cfg-section">
             <div class="cfg-section-title">OVERTIME Y PARÁMETROS GENERALES</div>
@@ -139,17 +164,23 @@ const anios = [anioActual + 1, anioActual, anioActual - 1]
 const cargando = ref(false)
 const guardando = ref(false)
 const saved = ref(false)
+const cuentasContables = ref([])
 const cfg = ref({
   ss_rate: 0.062, ss_wage_base: 168600,
   medicare_rate: 0.0145, medicare_adicional_rate: 0.009, medicare_adicional_threshold: 200000,
   futa_rate: 0.006, futa_wage_base: 7000, suta_rate: 0.027, suta_wage_base: 7000,
-  ot_threshold_hours: 40, ot_multiplier: 1.5, fl_min_wage: 13.00, wc_default_rate: 0
+  ot_threshold_hours: 40, ot_multiplier: 1.5, fl_min_wage: 13.00, wc_default_rate: 0,
+  cuenta_nomina: ''
 })
 async function cargar() {
   cargando.value = true
   try {
-    const r = await api.get('/nomina/config-fiscal', { params: { empresa: empresa.value, anio: anio.value } })
-    if (r.data?.data) cfg.value = r.data.data
+    const [cfgR, cuentasR] = await Promise.all([
+      api.get('/nomina/config-fiscal', { params: { empresa: empresa.value, anio: anio.value } }),
+      api.get('/gastos/cuentas-contables', { params: { empresa: empresa.value } })
+    ])
+    if (cfgR.data?.data) cfg.value = { ...cfg.value, ...cfgR.data.data }
+    cuentasContables.value = cuentasR.data?.cuentas || []
   } finally { cargando.value = false }
 }
 async function guardar() {
@@ -167,6 +198,7 @@ onMounted(cargar)
 .nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(6,182,212,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
 .nom-sub   { font-size: 12px; color: rgba(255,255,255,0.45); margin: 0; }
+.drw-select-full { width: 100%; height: 36px; }
 .flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; }
 .pa-6 { padding: 24px; }

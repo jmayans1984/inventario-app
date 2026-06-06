@@ -7922,6 +7922,7 @@ async function crearTablasNomina() {
             ot_multiplier NUMERIC(4,2) DEFAULT 1.50,
             fl_min_wage NUMERIC(6,2) DEFAULT 13.00,
             wc_default_rate NUMERIC(6,4) DEFAULT 0.0,
+            cuenta_nomina VARCHAR(50) DEFAULT '',
             activo BOOLEAN DEFAULT TRUE,
             UNIQUE(empresa, anio)
         )`
@@ -7935,16 +7936,15 @@ crearTablasNomina();
 
 // ── Agregar columna faltante a nom_empleados ──
 async function agregarColumnasNomina() {
-    const columnaSql = `
-        ALTER TABLE nom_empleados
-        ADD COLUMN IF NOT EXISTS fecha_vencimiento_permiso DATE;
-    `;
-    try {
-        await pool.query(columnaSql);
-        console.log('✅ Columna fecha_vencimiento_permiso verificada');
-    } catch(e) {
-        console.error('Columna ya existe o error:', e.message);
+    const queries = [
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS fecha_vencimiento_permiso DATE`,
+        `ALTER TABLE nom_config_fiscal ADD COLUMN IF NOT EXISTS cuenta_nomina VARCHAR(50) DEFAULT ''`
+    ];
+    for (const sql of queries) {
+        try { await pool.query(sql); }
+        catch(e) { console.error('Migración nomina:', e.message); }
     }
+    console.log('✅ Columnas de nómina verificadas');
 }
 agregarColumnasNomina();
 
@@ -8873,6 +8873,14 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         if (l.estado !== 'BORRADOR')
             return res.status(400).json({ success: false, error: 'Solo se pueden aprobar nóminas en BORRADOR' });
 
+        // Obtener cuenta contable configurada para nómina
+        const anioLiq = new Date(String(l.semana_fin).split('T')[0] + 'T12:00:00').getFullYear();
+        const cfgR = await client.query(
+            'SELECT cuenta_nomina FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2',
+            [empresa, anioLiq]
+        );
+        const cuentaNomina = cfgR.rows[0]?.cuenta_nomina || 'NOMINA';
+
         const totalCosto = parseFloat(l.total_bruto || 0) + parseFloat(l.total_aportes_er || 0);
         const totalNeto  = parseFloat(l.total_neto  || 0);
 
@@ -8943,12 +8951,12 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
             const codigo = String(codNum).padStart(10, '0');
             codNum++;
 
-            // Gasto (P&L — costo empresa completo)
+            // Gasto (P&L — costo empresa completo, usando cuenta contable configurada)
             await client.query(
                 `INSERT INTO gastos (codigo, fecha, proveedor, concepto, cuenta, factura,
                                      subtotal, impuestos, total, ccosto, forma_pago, estado, empresa)
-                 VALUES ($1, $2, 'NOMINA', $3, 'NOMINA', $4, $5, 0, $5, '', 'TRANSFERENCIA', 'PAGADA', $6)`,
-                [codigo, entry.fecha, entry.concepto, `NOM-${req.params.id}`, entry.costo, empresa]
+                 VALUES ($1, $2, 'NOMINA', $3, $4, $5, $6, 0, $6, '', 'TRANSFERENCIA', 'PAGADA', $7)`,
+                [codigo, entry.fecha, entry.concepto, cuentaNomina, `NOM-${req.params.id}`, entry.costo, empresa]
             );
 
             // Movimiento bancario (solo lo que sale del banco = neto pagado)
@@ -9006,7 +9014,8 @@ app.get('/api/nomina/config-fiscal', async (req, res) => {
             empresa, anio, ss_rate:0.062, ss_wage_base:168600,
             medicare_rate:0.0145, medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
             futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
-            ot_threshold_hours:40, ot_multiplier:1.5, fl_min_wage:13.00, wc_default_rate:0
+            ot_threshold_hours:40, ot_multiplier:1.5, fl_min_wage:13.00, wc_default_rate:0,
+            cuenta_nomina:''
         }});
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -9017,17 +9026,18 @@ app.put('/api/nomina/config-fiscal', async (req, res) => {
         await pool.query(
             `INSERT INTO nom_config_fiscal (empresa,anio,ss_rate,ss_wage_base,medicare_rate,
              medicare_adicional_rate,medicare_adicional_threshold,futa_rate,futa_wage_base,
-             suta_rate,suta_wage_base,ot_threshold_hours,ot_multiplier,fl_min_wage,wc_default_rate)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+             suta_rate,suta_wage_base,ot_threshold_hours,ot_multiplier,fl_min_wage,wc_default_rate,cuenta_nomina)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
              ON CONFLICT (empresa,anio) DO UPDATE SET
              ss_rate=$3,ss_wage_base=$4,medicare_rate=$5,medicare_adicional_rate=$6,
              medicare_adicional_threshold=$7,futa_rate=$8,futa_wage_base=$9,
              suta_rate=$10,suta_wage_base=$11,ot_threshold_hours=$12,ot_multiplier=$13,
-             fl_min_wage=$14,wc_default_rate=$15`,
+             fl_min_wage=$14,wc_default_rate=$15,cuenta_nomina=$16`,
             [d.empresa,d.anio,d.ss_rate,d.ss_wage_base,d.medicare_rate,
              d.medicare_adicional_rate,d.medicare_adicional_threshold,
              d.futa_rate,d.futa_wage_base,d.suta_rate,d.suta_wage_base,
-             d.ot_threshold_hours,d.ot_multiplier,d.fl_min_wage,d.wc_default_rate]
+             d.ot_threshold_hours,d.ot_multiplier,d.fl_min_wage,d.wc_default_rate,
+             d.cuenta_nomina||'']
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
