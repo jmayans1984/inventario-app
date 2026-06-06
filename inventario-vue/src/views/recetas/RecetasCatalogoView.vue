@@ -90,6 +90,14 @@
                   </v-btn>
                 </template>
               </v-tooltip>
+              <v-tooltip text="Ver productos de inventario vinculados">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon size="x-small" variant="tonal" color="teal"
+                    @click="abrirProductos(item)">
+                    <v-icon size="16">mdi-package-variant-closed</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
               <v-tooltip text="Editar receta">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="x-small" variant="tonal" color="blue"
@@ -394,6 +402,68 @@
       </v-card>
     </v-dialog>
 
+    <!-- DIALOG: PRODUCTOS DE INVENTARIO -->
+    <v-dialog v-model="dlgProductos" max-width="640">
+      <v-card rounded="xl" style="overflow:hidden">
+
+        <div class="ing-dlg-header">
+          <div class="ing-dlg-icon" style="background:linear-gradient(135deg,#0d9488,#0f766e)">
+            <v-icon size="20" color="white">mdi-package-variant-closed</v-icon>
+          </div>
+          <div class="ing-dlg-titles">
+            <div class="ing-dlg-receta-nombre">{{ recetaProductos?.nombre }}</div>
+            <div class="ing-dlg-receta-meta">Productos de inventario vinculados · Cód: <strong>{{ recetaProductos?.codigo }}</strong></div>
+          </div>
+          <v-chip color="teal" size="small" variant="tonal" label>
+            {{ productosReceta.length }} producto{{ productosReceta.length !== 1 ? 's' : '' }}
+          </v-chip>
+        </div>
+
+        <v-progress-linear v-if="loadingProductos" indeterminate color="teal" height="3" />
+
+        <!-- Vacío -->
+        <div v-if="!loadingProductos && productosReceta.length === 0" class="ing-tbl-empty" style="min-height:160px">
+          <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)" class="mb-2">mdi-package-variant</v-icon>
+          <div>Esta receta no tiene productos de inventario vinculados</div>
+          <div class="text-caption mt-1" style="color:rgba(var(--v-theme-on-surface),.35)">
+            Los productos se vinculan desde el módulo de Almacén
+          </div>
+        </div>
+
+        <!-- Tabla productos -->
+        <div v-else-if="productosReceta.length > 0" style="max-height:420px;overflow-y:auto">
+          <!-- Encabezado -->
+          <div class="prod-tbl-head">
+            <span>CÓDIGO</span>
+            <span>NOMBRE</span>
+            <span>GRUPO</span>
+            <span class="text-center">CANT</span>
+            <span>UND</span>
+            <span class="text-center">CONTROL</span>
+          </div>
+          <div v-for="(p, idx) in productosReceta" :key="p.codigo"
+            class="prod-tbl-row" :class="{ 'prod-tbl-row--alt': idx % 2 === 1 }">
+            <div class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.5)">{{ p.codigo }}</div>
+            <div class="font-weight-500">{{ p.nombre }}</div>
+            <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.5)">{{ p.grupo_nombre || p.grupo || '—' }}</div>
+            <div class="text-center font-mono">{{ p.cant }}</div>
+            <div class="text-caption">{{ p.und || '—' }}</div>
+            <div class="text-center">
+              <span v-if="p.control === 'SI'" class="badge-control-si">ACTIVO</span>
+              <span v-else class="badge-control-no">NO</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ing-dlg-footer">
+          <v-btn variant="text" @click="dlgProductos=false">
+            <v-icon start size="16">mdi-close</v-icon>Cerrar
+          </v-btn>
+        </div>
+
+      </v-card>
+    </v-dialog>
+
     <!-- DIALOG ELIMINAR -->
     <v-dialog v-model="dlgEliminar" max-width="400">
       <v-card rounded="xl">
@@ -467,6 +537,12 @@ const tipoIngredienteNuevo = ref('ARTICULO')  // ARTICULO o RECETA
 const articuloSeleccionado = ref(null)   // objeto completo del articulo elegido
 const recetaSeleccionada  = ref(null)    // objeto completo de la subreceta elegida
 const subrecetas          = ref([])      // lista de subrecetas disponibles
+
+// Dialog productos de inventario
+const dlgProductos    = ref(false)
+const recetaProductos = ref(null)
+const productosReceta = ref([])
+const loadingProductos = ref(false)
 
 // Dialog eliminar
 const dlgEliminar     = ref(false)
@@ -666,6 +742,24 @@ async function guardarIngredientes() {
     await cargarRecetas()
   } catch (e) { err(e.message) }
   finally { guardandoIng.value = false }
+}
+
+async function abrirProductos(receta) {
+  recetaProductos.value = receta
+  productosReceta.value = []
+  loadingProductos.value = true
+  dlgProductos.value = true
+  try {
+    const r = await fetch(`${API_BASE}/recetas/${receta.codigo}/productos`)
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    productosReceta.value = j.data || []
+  } catch (e) {
+    err(`Error cargando productos: ${e.message}`)
+  } finally {
+    loadingProductos.value = false
+  }
 }
 
 function confirmarEliminar(receta) {
@@ -893,6 +987,33 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   padding: 12px 20px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+
+/* ── TABLA PRODUCTOS INVENTARIO ── */
+.prod-tbl-head,
+.prod-tbl-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 120px 70px 60px 80px;
+  align-items: center;
+  padding: 8px 20px;
+  font-size: 12px;
+  gap: 8px;
+}
+.prod-tbl-head {
+  font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .4);
+  background: rgba(var(--v-theme-on-surface), .03);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+.prod-tbl-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface), .05); }
+.prod-tbl-row--alt { background: rgba(var(--v-theme-on-surface), .02); }
+.badge-control-si {
+  font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  background: rgba(20,184,166,.12); color: #0d9488;
+}
+.badge-control-no {
+  font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  background: rgba(var(--v-theme-on-surface),.07); color: rgba(var(--v-theme-on-surface),.4);
 }
 
 .info-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; color: rgba(var(--v-theme-on-surface),.7); }

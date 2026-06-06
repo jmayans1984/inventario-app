@@ -7358,6 +7358,31 @@ app.get('/api/recetas', async (req, res) => {
     }
 });
 
+// GET /api/recetas/:codigo/productos - Productos de inventario vinculados a esta receta
+app.get('/api/recetas/:codigo/productos', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT dp.articulo AS codigo,
+                   COALESCE(p.nombre, dp.articulo) AS nombre,
+                   dp.cant,
+                   COALESCE(p.und, '') AS und,
+                   COALESCE(p.grupo, '') AS grupo,
+                   COALESCE(gp.nombre, p.grupo, '') AS grupo_nombre,
+                   COALESCE(p.control, 'NO') AS control
+            FROM detalle_productos dp
+            LEFT JOIN productos p ON TRIM(p.codigo::text) = TRIM(dp.articulo::text)
+            LEFT JOIN grupo_productos gp ON TRIM(gp.codigo::text) = TRIM(p.grupo::text)
+            WHERE TRIM(dp.receta::text) = $1
+            ORDER BY p.nombre
+        `, [codigo]);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/recetas/:codigo/productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/recetas/para-selector - Recetas disponibles como subrecetas (con costo)
 app.get('/api/recetas/para-selector', async (req, res) => {
     try {
