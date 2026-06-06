@@ -32,10 +32,21 @@
       <div v-else-if="liqActual && lineas.length" class="recibos-grid">
         <div v-for="l in lineas" :key="l.id" class="recibo">
           <!-- Header azul -->
-          <div class="rec-header">
-            <div class="rec-empresa">{{ empresaNombre }}</div>
-            <div class="rec-titulo">RECIBO DE PAGO</div>
-            <div class="rec-periodo">{{ fmtFecha(liqActual.semana_inicio) }} — {{ fmtFecha(liqActual.semana_fin) }}</div>
+          <div class="rec-header-container">
+            <div class="rec-header">
+              <div class="rec-empresa">{{ empresaNombre }}</div>
+              <div class="rec-titulo">RECIBO DE PAGO</div>
+              <div class="rec-periodo">{{ fmtFecha(liqActual.semana_inicio) }} — {{ fmtFecha(liqActual.semana_fin) }}</div>
+            </div>
+            <v-btn
+              size="x-small"
+              icon="mdi-printer"
+              color="white"
+              variant="text"
+              @click="imprimirRecibo(l)"
+              class="rec-print-btn"
+              title="Imprimir este recibo"
+            />
           </div>
 
           <!-- Empleado + NET PAY -->
@@ -228,6 +239,108 @@ async function cargarLineas() {
   } finally { cargando.value = false }
 }
 
+function imprimirRecibo(linea) {
+  if (!liqActual.value) return
+
+  const ventana = window.open('', '_blank')
+  if (!ventana) { alert('Activa los pop-ups para imprimir el recibo'); return }
+
+  const periodo = `${fmtFecha(liqActual.value.semana_inicio)} — ${fmtFecha(liqActual.value.semana_fin)}`
+  const empNombre = empresaNombre.value
+
+  const estilos = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; background: white; color: #111; padding: 20px; }
+    .recibo { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+    .rec-header { background: #1e3a5f; padding: 10px 14px; }
+    .rec-empresa { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.8px; }
+    .rec-titulo  { font-size: 14px; font-weight: 800; color: white; margin: 2px 0; }
+    .rec-periodo { font-size: 10px; color: rgba(255,255,255,0.55); }
+    .rec-emp-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #eee; }
+    .rec-emp-nombre { font-size: 13px; font-weight: 700; }
+    .rec-emp-tipo   { font-size: 10px; color: #888; margin-top: 2px; }
+    .rec-badge { font-size: 8px; font-weight: 800; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
+    .badge-w2   { background: #ede9fe; color: #7c3aed; }
+    .badge-1099 { background: #fef3c7; color: #b45309; }
+    .rec-neto-big { text-align: right; font-size: 20px; font-weight: 800; color: #059669; }
+    .rec-neto-big .label { font-size: 9px; color: #888; }
+    .sec-title { font-size: 8px; font-weight: 800; letter-spacing: 0.8px; color: #999; text-transform: uppercase; padding: 5px 14px 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    th { padding: 3px 8px; text-align: left; font-size: 8px; font-weight: 800; color: #999; text-transform: uppercase; background: #f9f9f9; }
+    th.ta-r { text-align: right; }
+    td { padding: 3px 8px; border-bottom: 1px solid #f0f0f0; }
+    td.ta-r { text-align: right; }
+    tr.total td { background: #f5f5f5; font-weight: 700; font-size: 11px; padding: 5px 8px; }
+    .rec-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f0fdf4; border-top: 1px solid #bbf7d0; }
+    .rec-ytd { font-size: 10px; color: #444; }
+    .rec-net { font-size: 18px; font-weight: 800; color: #059669; text-align: right; }
+    @media print { .recibo { page-break-inside: avoid; } .rec-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  `
+
+  const nombre = getNombreDisplay(linea)
+  const esW2 = linea.tipo_empleado === 'W2'
+  const badge = `<span class="rec-badge ${esW2?'badge-w2':'badge-1099'}">${linea.tipo_empleado}</span>`
+  const tipo = esW2 ? 'Employee' : 'Independent Contractor'
+
+  let earnings = ''
+  if (parseFloat(linea.horas_regulares)>0) earnings += `
+    <tr><td>Regular Pay</td><td class="ta-r">${fmtNum(linea.horas_regulares)}</td>
+    <td class="ta-r">${fmtMoney(linea.valor_hora)}</td><td class="ta-r">${fmtMoney(linea.bruto_regular)}</td></tr>`
+  if (parseFloat(linea.horas_overtime)>0) earnings += `
+    <tr><td>Overtime (1.5×)</td><td class="ta-r">${fmtNum(linea.horas_overtime)}</td>
+    <td class="ta-r">${fmtMoney(linea.valor_hora_ot)}</td><td class="ta-r">${fmtMoney(linea.bruto_overtime)}</td></tr>`
+  if (parseFloat(linea.bruto_base)>0) earnings += `
+    <tr><td>${linea.es_monto_fijo?'Fixed Weekly':'Base Salary'}</td><td class="ta-r">—</td>
+    <td class="ta-r">—</td><td class="ta-r">${fmtMoney(linea.bruto_base)}</td></tr>`
+
+  let deductions = ''
+  if (esW2) {
+    if (parseFloat(linea.federal_income_tax)>0) deductions += `<tr><td>Federal Income Tax</td><td class="ta-r">-${fmtMoney(linea.federal_income_tax)}</td></tr>`
+    if (parseFloat(linea.social_security_emp)>0) deductions += `<tr><td>Social Security (6.2%)</td><td class="ta-r">-${fmtMoney(linea.social_security_emp)}</td></tr>`
+    if (parseFloat(linea.medicare_emp)>0) deductions += `<tr><td>Medicare (1.45%)</td><td class="ta-r">-${fmtMoney(linea.medicare_emp)}</td></tr>`
+    if (parseFloat(linea.workers_comp)>0) deductions += `<tr><td>Workers' Comp</td><td class="ta-r">-${fmtMoney(linea.workers_comp)}</td></tr>`
+  }
+
+  const recibo = `
+    <div class="recibo">
+      <div class="rec-header">
+        <div class="rec-empresa">${empNombre}</div>
+        <div class="rec-titulo">RECIBO DE PAGO</div>
+        <div class="rec-periodo">${periodo}</div>
+      </div>
+      <div class="rec-emp-row">
+        <div>
+          <div class="rec-emp-nombre">${nombre}</div>
+          <div class="rec-emp-tipo">${badge} ${tipo}</div>
+        </div>
+        <div class="rec-neto-big">
+          <div class="label">NET PAY</div>
+          ${fmtMoney(linea.total_neto)}
+        </div>
+      </div>
+      <div class="sec-title">EARNINGS</div>
+      <table><thead><tr><th>DESCRIPTION</th><th class="ta-r">HRS</th><th class="ta-r">RATE</th><th class="ta-r">AMOUNT</th></tr></thead>
+      <tbody>${earnings}<tr class="total"><td colspan="3">Gross Pay</td><td class="ta-r">${fmtMoney(linea.total_bruto)}</td></tr></tbody></table>
+      ${esW2 && deductions ? `
+      <div class="sec-title">DEDUCTIONS</div>
+      <table><tbody>${deductions}
+      <tr class="total"><td>Total Deductions</td><td class="ta-r">-${fmtMoney(linea.total_deducciones)}</td></tr></tbody></table>` : ''}
+      <div class="rec-footer">
+        <div class="rec-ytd"><div style="font-size:8px;color:#888">YTD GROSS</div>${fmtMoney(linea.ytd_bruto)}</div>
+        <div class="rec-net"><div style="font-size:8px;color:#888">NET PAY</div>${fmtMoney(linea.total_neto)}</div>
+      </div>
+    </div>`
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Recibo de Pago — ${nombre}</title>
+    <style>${estilos}</style></head>
+    <body>${recibo}</body></html>`
+
+  ventana.document.write(html)
+  ventana.document.close()
+  ventana.focus()
+}
+
 function imprimirTodos() {
   if (!lineas.value.length || !liqActual.value) return
 
@@ -360,7 +473,11 @@ onMounted(cargar)
 .recibos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(390px,1fr)); gap: 16px; }
 .recibo { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.1); border-radius: 12px; overflow: hidden; }
 
-.rec-header { background: #1e3a5f; padding: 12px 16px; }
+.rec-header-container { display: flex; align-items: flex-start; justify-content: space-between; background: #1e3a5f; padding: 12px 16px; gap: 8px; }
+.rec-header { flex: 1; }
+.rec-print-btn { flex-shrink: 0; }
+
+.rec-header { background: #1e3a5f; padding: 0; }
 .rec-empresa { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.8px; }
 .rec-titulo  { font-size: 15px; font-weight: 800; color: #fff; margin: 2px 0; }
 .rec-periodo { font-size: 11px; color: rgba(255,255,255,0.55); }
