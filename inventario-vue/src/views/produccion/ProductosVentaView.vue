@@ -400,6 +400,7 @@ const dlgRecalc    = ref(false)
 const editando     = ref(false)
 const eliminando   = ref(null)
 const recalculando = ref(false)
+const listas       = ref([])   // listas de precios disponibles para el popup
 // Selección de listas para recalcular: { 1: listaObj|null, 2: ..., 3: ... }
 const recalcSel    = ref({ 1: null, 2: null, 3: null })
 const algunSeleccionado = computed(() => Object.values(recalcSel.value).some(v => v?.id))
@@ -485,8 +486,9 @@ async function cargar() {
     ])
     productos.value = rp.data?.data || []
     grupos.value    = rg.data?.data || []
+    listas.value    = (rl.data?.data || []).filter(l => l.activo === 'SI')
     // Cargar márgenes de la primera lista activa
-    const listaActiva = (rl.data?.data || []).find(l => l.activo === 'SI')
+    const listaActiva = listas.value[0]
     if (listaActiva) {
       margenesConfig.value = {
         m1: parseFloat(listaActiva.margen_venta1) || 0,
