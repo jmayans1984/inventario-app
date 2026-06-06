@@ -20,9 +20,14 @@
             <p class="pv-sub">Catálogo completo de productos disponibles para clientes</p>
           </div>
         </div>
-        <v-btn color="#06b6d4" variant="flat" rounded="lg" @click="abrirModal()">
-          <v-icon start>mdi-plus</v-icon>Nuevo Producto
-        </v-btn>
+        <div class="d-flex gap-2">
+          <v-btn color="#f59e0b" variant="tonal" rounded="lg" @click="dlgRecalc=true">
+            <v-icon start>mdi-calculator-variant-outline</v-icon>Recalcular Precios
+          </v-btn>
+          <v-btn color="#06b6d4" variant="flat" rounded="lg" @click="abrirModal()">
+            <v-icon start>mdi-plus</v-icon>Nuevo Producto
+          </v-btn>
+        </div>
       </div>
 
       <!-- KPIs -->
@@ -293,6 +298,62 @@
       </v-card>
     </v-dialog>
 
+    <!-- ══ DIALOG RECALCULAR PRECIOS ══ -->
+    <v-dialog v-model="dlgRecalc" max-width="480" persistent>
+      <v-card rounded="xl" style="overflow:hidden">
+        <div style="background:linear-gradient(135deg,#b45309,#92400e);padding:16px 20px;display:flex;align-items:center;gap:12px">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <v-icon size="20" color="white">mdi-calculator-variant-outline</v-icon>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;color:white">Recalcular Precios</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.55)">Actualiza precio_venta del nivel seleccionado</div>
+          </div>
+          <v-btn icon="mdi-close" size="small" variant="text" color="white" @click="dlgRecalc=false" />
+        </div>
+        <v-card-text class="pa-5">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(var(--v-theme-on-surface),.4);margin-bottom:10px">
+            SELECCIONA LA LISTA DE PRECIOS
+          </div>
+          <div v-if="listas.length === 0" style="font-size:13px;color:rgba(var(--v-theme-on-surface),.5);padding:12px 0">
+            No hay listas de precios configuradas. Ve a Proveeduría → Lista de Precios para crear una.
+          </div>
+          <div v-else class="recalc-listas">
+            <div v-for="lp in listas" :key="lp.id"
+              class="recalc-lista-item"
+              :class="{ 'recalc-lista-item--sel': listaRecalcSel?.id === lp.id }"
+              @click="listaRecalcSel = lp">
+              <div class="d-flex align-center gap-3">
+                <span :class="`nivel-badge nivel-${lp.nivel}`">Precio {{ lp.nivel }}</span>
+                <div>
+                  <div style="font-size:13px;font-weight:600">{{ lp.lista }}</div>
+                  <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),.5)">
+                    Margen {{ fmtPct(lp.margen) }} · Divisor ÷ {{ (1 - lp.margen).toFixed(4) }}
+                    · {{ lp.dias_credito ?? 0 }} días crédito
+                  </div>
+                </div>
+              </div>
+              <v-icon v-if="listaRecalcSel?.id === lp.id" size="18" color="#f59e0b">mdi-check-circle</v-icon>
+            </div>
+          </div>
+
+          <v-alert v-if="listaRecalcSel" type="warning" variant="tonal" density="compact" class="mt-3" icon="mdi-alert-outline">
+            Se actualizará <strong>precio_venta{{ listaRecalcSel.nivel }}</strong> de
+            <strong>todos</strong> los productos con precio de costo mayor a 0.
+          </v-alert>
+        </v-card-text>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid rgba(var(--v-theme-on-surface),.08)">
+          <v-btn variant="text" @click="dlgRecalc=false;listaRecalcSel=null">Cancelar</v-btn>
+          <v-btn color="#f59e0b" variant="flat" rounded="lg"
+            :disabled="!listaRecalcSel"
+            :loading="recalculando"
+            @click="ejecutarRecalculo">
+            <v-icon start>mdi-refresh</v-icon>Recalcular
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snack.show" :color="snack.color" timeout="3000" location="bottom right">
       {{ snack.msg }}
     </v-snackbar>
@@ -313,10 +374,13 @@ const toggling    = ref(null)
 const busqueda    = ref('')
 const filtroGrupo  = ref('')
 const filtroControl = ref('')
-const dlg         = ref(false)
-const dlgEliminar = ref(false)
-const editando    = ref(false)
-const eliminando  = ref(null)
+const dlg            = ref(false)
+const dlgEliminar    = ref(false)
+const dlgRecalc      = ref(false)
+const editando       = ref(false)
+const eliminando     = ref(null)
+const listaRecalcSel = ref(null)
+const recalculando   = ref(false)
 const msgError    = ref('')
 const errores     = ref({})
 const snack = ref({ show: false, msg: '', color: 'success' })
@@ -380,6 +444,7 @@ const gruposAgrupados = computed(() => {
 
 // Helpers
 function fmt(n) { return '$' + (parseFloat(n) || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+function fmtPct(v) { const n = parseFloat(v) || 0; return n > 0 ? (n * 100).toFixed(1) + '%' : '—' }
 function ok(msg)  { snack.value = { show: true, msg, color: 'success' } }
 function err(msg) { snack.value = { show: true, msg, color: 'error' } }
 function sigCodigo() {
@@ -481,6 +546,20 @@ async function toggleControl(p) {
   finally { toggling.value = null }
 }
 
+async function ejecutarRecalculo() {
+  if (!listaRecalcSel.value) return
+  recalculando.value = true
+  try {
+    const r = await api.post(`/produccion/lista-precios/${listaRecalcSel.value.id}/recalcular`)
+    ok(`✅ ${r.data.actualizados} productos actualizados en precio_venta${r.data.nivel}`)
+    dlgRecalc.value = false
+    listaRecalcSel.value = null
+    await cargar()
+  } catch (e) {
+    err(e?.response?.data?.error || e.message)
+  } finally { recalculando.value = false }
+}
+
 function confirmarEliminar(p) { eliminando.value = p; dlgEliminar.value = true }
 async function eliminar() {
   guardando.value = true
@@ -565,4 +644,14 @@ onMounted(cargar)
 .pv-toggle-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface),.45); margin-top: 2px; }
 .pv-margen-info { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: rgba(var(--v-theme-on-surface),.6); }
 .pv-msg-error { display: flex; align-items: center; font-size: 12px; color: #ef4444; background: rgba(239,68,68,.07); border-radius: 8px; padding: 8px 12px; }
+
+/* Recalcular dialog */
+.recalc-listas { display: flex; flex-direction: column; gap: 8px; }
+.recalc-lista-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid rgba(var(--v-theme-on-surface),.1); border-radius: 10px; cursor: pointer; transition: all .15s; }
+.recalc-lista-item:hover { background: rgba(var(--v-theme-on-surface),.03); border-color: #f59e0b; }
+.recalc-lista-item--sel { border-color: #f59e0b; background: rgba(245,158,11,.05); }
+.nivel-badge { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.nivel-1 { background: rgba(34,197,94,.12);  color: #16a34a; }
+.nivel-2 { background: rgba(6,182,212,.12);  color: #0891b2; }
+.nivel-3 { background: rgba(139,92,246,.12); color: #7c3aed; }
 </style>

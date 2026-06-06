@@ -79,15 +79,6 @@
                 </span>
               </td>
               <td class="ta-c">
-                <v-tooltip :text="`Recalcular precio_venta${lp.nivel} de todos los productos`">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-calculator-variant-outline" size="x-small"
-                      variant="tonal" color="#f59e0b" class="mr-1"
-                      :loading="recalculando === lp.id"
-                      :disabled="!lp.margen"
-                      @click="recalcular(lp)" />
-                  </template>
-                </v-tooltip>
                 <v-btn icon="mdi-pencil-outline" size="x-small" variant="tonal" color="#06b6d4" class="mr-1"
                   @click="abrirModal(lp)" />
                 <v-btn icon="mdi-delete-outline" size="x-small" variant="tonal" color="error"
@@ -194,29 +185,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- CONFIRM RECALCULAR -->
-    <v-dialog v-model="dlgRecalc" max-width="420">
-      <v-card rounded="xl" class="pa-6 text-center">
-        <v-icon size="48" color="#f59e0b" class="mb-3">mdi-calculator-variant-outline</v-icon>
-        <p class="text-subtitle-1 font-weight-bold mb-1">¿Recalcular precios?</p>
-        <p class="text-caption text-medium-emphasis mb-1">
-          Lista: <strong>{{ listaPendiente?.lista }}</strong> · Margen: <strong>{{ fmtPct(listaPendiente?.margen) }}</strong>
-        </p>
-        <p class="text-caption text-medium-emphasis mb-4">
-          Se actualizará <strong>precio_venta{{ listaPendiente?.nivel }}</strong> de todos los productos
-          con precio de costo mayor a 0 usando:<br>
-          <code>precio_venta{{ listaPendiente?.nivel }} = costo ÷ {{ listaPendiente ? (1 - listaPendiente.margen).toFixed(4) : '?' }}</code>
-        </p>
-        <div class="d-flex gap-2 justify-center">
-          <v-btn variant="text" @click="dlgRecalc=false">Cancelar</v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg"
-            :loading="recalculando === listaPendiente?.id"
-            @click="confirmarRecalcular">
-            <v-icon start>mdi-refresh</v-icon>Recalcular
-          </v-btn>
-        </div>
-      </v-card>
-    </v-dialog>
 
     <!-- CONFIRM ELIMINAR -->
     <v-dialog v-model="dlgEliminar" max-width="360">
@@ -243,17 +211,14 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 
-const listas       = ref([])
-const loading      = ref(false)
-const guardando    = ref(false)
-const recalculando = ref(null)
-const dlg          = ref(false)
-const dlgRecalc    = ref(false)
-const dlgEliminar  = ref(false)
-const editando     = ref(false)
-const eliminando   = ref(null)
-const listaPendiente = ref(null)
-const msgError     = ref('')
+const listas      = ref([])
+const loading     = ref(false)
+const guardando   = ref(false)
+const dlg         = ref(false)
+const dlgEliminar = ref(false)
+const editando    = ref(false)
+const eliminando  = ref(null)
+const msgError    = ref('')
 const errores      = ref({})
 const simCosto     = ref(100)
 const snack = ref({ show: false, msg: '', color: 'success' })
@@ -351,19 +316,6 @@ async function guardar() {
   } catch (e) {
     msgError.value = e?.response?.data?.error || e.message
   } finally { guardando.value = false }
-}
-
-function recalcular(lp) { listaPendiente.value = lp; dlgRecalc.value = true }
-
-async function confirmarRecalcular() {
-  recalculando.value = listaPendiente.value.id
-  try {
-    const r = await api.post(`/produccion/lista-precios/${listaPendiente.value.id}/recalcular`)
-    ok(`✅ ${r.data.actualizados} productos actualizados en precio_venta${r.data.nivel}`)
-    dlgRecalc.value = false
-  } catch (e) {
-    err(e?.response?.data?.error || e.message)
-  } finally { recalculando.value = null }
 }
 
 function confirmarEliminar(lp) { eliminando.value = lp; dlgEliminar.value = true }

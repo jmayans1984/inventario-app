@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-Dl10_N4G.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

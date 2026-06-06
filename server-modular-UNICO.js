@@ -6888,7 +6888,7 @@ app.post('/api/produccion/lista-precios/:id/recalcular', async (req, res) => {
         const campo = `precio_venta${nv}`;
         const result = await pool.query(
             `UPDATE productos_venta
-             SET ${campo} = ROUND(precio_costo / (1 - $1), 2)
+             SET ${campo} = ROUND(precio_costo / (1.0 - $1::numeric), 2)
              WHERE precio_costo > 0
              RETURNING codigo`,
             [m]
