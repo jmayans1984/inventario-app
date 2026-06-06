@@ -466,8 +466,8 @@ onMounted(cargar)
 .nom-table th { padding: 9px 10px; text-align: left; font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); white-space: nowrap; }
 .nom-row td { padding: 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); transition: background 0.1s; }
 .nom-row:hover td { background: rgba(139,92,246,0.04); }
-.ta-r { text-align: right; }
-.ta-c { text-align: center; }
+.ta-r { text-align: right !important; }
+.ta-c { text-align: center !important; }
 .bold { font-weight: 700; }
 .dim  { color: rgba(var(--v-theme-on-surface),0.5); }
 .neto { color: #10b981; font-weight: 800; }
