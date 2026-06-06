@@ -311,13 +311,6 @@
             <div class="det-title">Soportes de Entrega</div>
             <div class="det-sub">{{ ordenSoportes?.codigo }}</div>
           </div>
-          <!-- Subir soporte -->
-          <label class="soporte-upload-btn">
-            <v-icon size="16" class="mr-1">mdi-upload</v-icon> Subir
-            <input type="file" accept="image/*,application/pdf" style="display:none"
-              @change="subirSoporte" />
-          </label>
-          <v-btn icon="mdi-close" size="small" variant="text" @click="dlgSoportes=false" />
         </div>
 
         <v-card-text class="pa-4">
@@ -330,16 +323,34 @@
 
           <div v-else class="soporte-grid">
             <div v-for="s in soportes" :key="s.id" class="soporte-item">
-              <img v-if="s.tipo_mime?.startsWith('image')" :src="s.url" class="soporte-img"
-                @click="abrirImagen(s.url)" />
-              <div v-else class="soporte-file">
-                <v-icon size="28" color="#06b6d4">mdi-file-pdf-box</v-icon>
-                <div class="soporte-name">{{ s.nombre_archivo }}</div>
+              <div class="soporte-img-wrap">
+                <img v-if="s.tipo_mime?.startsWith('image')" :src="s.url" class="soporte-img"
+                  @click="abrirImagen(s.url)" />
+                <div v-else class="soporte-file">
+                  <v-icon size="28" color="#06b6d4">mdi-file-pdf-box</v-icon>
+                  <div class="soporte-name">{{ s.nombre_archivo }}</div>
+                </div>
+                <!-- Botón descargar encima de la imagen -->
+                <v-btn
+                  icon="mdi-download"
+                  size="x-small"
+                  variant="flat"
+                  color="#06b6d4"
+                  class="soporte-download-btn"
+                  @click.stop="descargarSoporte(s)"
+                />
               </div>
               <div class="soporte-fecha">{{ fmtFecha(s.fecha_subida) }}</div>
             </div>
           </div>
         </v-card-text>
+
+        <!-- Footer con botón cerrar rojo -->
+        <div style="display:flex;justify-content:flex-end;padding:12px 16px;border-top:1px solid rgba(var(--v-theme-on-surface),.08)">
+          <v-btn color="error" variant="flat" rounded="lg" @click="dlgSoportes=false">
+            <v-icon start size="15">mdi-close</v-icon>Cerrar
+          </v-btn>
+        </div>
       </v-card>
     </v-dialog>
 
@@ -691,6 +702,13 @@ async function abrirSoportes(o) {
 
 function abrirImagen(url) { imagenActual.value = url; dlgImagen.value = true }
 
+function descargarSoporte(s) {
+  const a = document.createElement('a')
+  a.href = s.url
+  a.download = s.nombre_archivo || `soporte-${s.id}`
+  a.click()
+}
+
 async function subirSoporte(e) {
   const file = e.target.files[0]
   if (!file || !ordenSoportes.value) return
@@ -972,12 +990,13 @@ onMounted(cargar)
 .footer-total { font-size: 16px; font-weight: 800; color: #10b981; font-family: monospace; }
 
 /* Soportes */
-.soporte-upload-btn { display: flex; align-items: center; padding: 4px 12px; border-radius: 8px; background: rgba(255,255,255,.15); color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
-.soporte-upload-btn:hover { background: rgba(255,255,255,.25); }
-.soporte-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.soporte-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.soporte-img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; border: 1px solid rgba(var(--v-theme-on-surface),.1); transition: opacity .15s; }
+.soporte-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.soporte-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.soporte-img-wrap { position: relative; width: 100%; }
+.soporte-img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; border: 1px solid rgba(var(--v-theme-on-surface),.1); transition: opacity .15s; display: block; }
 .soporte-img:hover { opacity: .85; }
+.soporte-download-btn { position: absolute; top: 6px; right: 6px; opacity: 0; transition: opacity .15s; }
+.soporte-img-wrap:hover .soporte-download-btn { opacity: 1; }
 .soporte-file { width: 100%; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; border: 1px dashed rgba(var(--v-theme-on-surface),.2); background: rgba(var(--v-theme-on-surface),.02); }
 .soporte-name { font-size: 10px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; padding: 0 4px; word-break: break-all; }
 .soporte-fecha { font-size: 10px; color: rgba(var(--v-theme-on-surface),.4); }
