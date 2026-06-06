@@ -159,6 +159,7 @@ export const MODULES = [
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Horario para Publicar', icon: 'mdi-calendar-clock',      path: '/nomina/reportes/horario' },
         { name: 'Recibos de Pago',    icon: 'mdi-file-document-outline',  path: '/nomina/reportes/recibos' },
+        { name: 'Reporte de Nómina',  icon: 'mdi-chart-bar',              path: '/nomina/reportes/nomina' },
       ]},
     ],
   },
