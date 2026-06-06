@@ -113,58 +113,103 @@
     </div>
 
     <!-- DIALOG: NUEVA / EDITAR RECETA -->
-    <v-dialog v-model="dlgReceta" max-width="520" persistent>
-      <v-card rounded="xl">
-        <v-card-title class="d-flex align-center gap-3 pa-5 pb-3">
-          <div class="dlg-icon-wrap"><v-icon size="18" color="white">mdi-chef-hat</v-icon></div>
-          {{ editando ? 'Editar Receta' : 'Nueva Receta' }}
-        </v-card-title>
-        <v-divider />
-        <v-card-text class="pa-5">
-          <v-row dense>
-            <v-col cols="4">
-              <v-text-field v-model="form.codigo" label="Código *" variant="outlined"
-                density="compact" hide-details :disabled="editando" :error-messages="errCodigo" />
-            </v-col>
-            <v-col cols="8">
-              <v-text-field v-model="form.nombre" label="Nombre *" variant="outlined"
-                density="compact" hide-details :error-messages="errNombre" />
-            </v-col>
-            <v-col cols="4">
-              <v-autocomplete v-model="form.grupo_receta"
-                :items="gruposReceta"
-                item-title="nombre"
-                item-value="codigo"
-                label="Grupo"
-                variant="outlined" density="compact" hide-details
-                clearable placeholder="Seleccionar grupo..." />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="form.und" label="Unidad" variant="outlined"
-                density="compact" hide-details />
-            </v-col>
-            <v-col cols="4">
-              <v-text-field v-model="form.precio_venta" label="Precio Venta" type="number"
-                min="0" variant="outlined" density="compact" hide-details prefix="$" />
-            </v-col>
-            <v-col cols="12">
-              <v-switch v-model="form.es_subproducto" color="#f59e0b" density="compact" hide-details
-                label="¿Es subproducto? (salsa, base, carne, etc. — se usa como ingrediente en otras recetas)" />
-            </v-col>
-          </v-row>
-          <div v-if="form.es_subproducto" class="info-box mt-2">
-            <v-icon size="15" color="#f59e0b">mdi-information-outline</v-icon>
-            Al guardar, esta receta también se registrará en <strong>Artículos</strong> con su costo calculado, permitiendo usarla como ingrediente en otras recetas.
+    <v-dialog v-model="dlgReceta" max-width="500" persistent>
+      <v-card rounded="xl" style="overflow:hidden">
+
+        <!-- Header -->
+        <div class="form-dlg-header">
+          <div class="form-dlg-icon">
+            <v-icon size="18" color="white">mdi-chef-hat</v-icon>
           </div>
-        </v-card-text>
-        <v-divider />
-        <v-card-actions class="pa-4 justify-end gap-2">
-          <v-btn variant="text" @click="dlgReceta=false">Cancelar</v-btn>
+          <div>
+            <div class="form-dlg-title">{{ editando ? 'Editar Receta' : 'Nueva Receta' }}</div>
+            <div class="form-dlg-sub">{{ editando ? `Cód. ${form.codigo}` : 'Completa los datos de la receta' }}</div>
+          </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="form-dlg-body">
+
+          <!-- Fila 1: Código + Nombre -->
+          <div class="form-field-label">Identificación</div>
+          <div class="form-row-2" style="grid-template-columns: 140px 1fr">
+            <div>
+              <div class="form-field-sublabel">Código *</div>
+              <v-text-field v-model="form.codigo" placeholder="ej. 5001"
+                variant="outlined" density="compact" hide-details
+                :disabled="editando" :error-messages="errCodigo"
+                class="form-field-sm" />
+            </div>
+            <div>
+              <div class="form-field-sublabel">Nombre *</div>
+              <v-text-field v-model="form.nombre" placeholder="ej. Hamburguesa de Carne"
+                variant="outlined" density="compact" hide-details
+                :error-messages="errNombre" class="form-field-sm" />
+            </div>
+          </div>
+
+          <v-divider class="my-4" />
+
+          <!-- Fila 2: Grupo + Unidad + Precio -->
+          <div class="form-field-label">Clasificación</div>
+          <div class="form-row-3">
+            <div>
+              <div class="form-field-sublabel">Grupo</div>
+              <v-autocomplete v-model="form.grupo_receta"
+                :items="gruposReceta" item-title="nombre" item-value="codigo"
+                placeholder="Sin grupo" variant="outlined" density="compact"
+                hide-details clearable class="form-field-sm" />
+            </div>
+            <div>
+              <div class="form-field-sublabel">Unidad</div>
+              <v-text-field v-model="form.und" placeholder="UND, KG, LT..."
+                variant="outlined" density="compact" hide-details class="form-field-sm" />
+            </div>
+            <div>
+              <div class="form-field-sublabel">Precio Venta</div>
+              <v-text-field v-model="form.precio_venta" type="number" min="0"
+                placeholder="0.00" variant="outlined" density="compact"
+                hide-details prefix="$" class="form-field-sm" />
+            </div>
+          </div>
+
+          <v-divider class="my-4" />
+
+          <!-- Toggle subproducto -->
+          <div class="form-subprod-row" :class="{ 'form-subprod-row--on': form.es_subproducto }"
+            @click="form.es_subproducto = !form.es_subproducto">
+            <div class="form-subprod-left">
+              <v-icon size="18" :color="form.es_subproducto ? '#f59e0b' : 'rgba(var(--v-theme-on-surface),.3)'">
+                mdi-link-variant
+              </v-icon>
+              <div>
+                <div class="form-subprod-title">¿Es subproducto?</div>
+                <div class="form-subprod-desc">Salsas, bases, preparaciones — se puede usar como ingrediente en otras recetas</div>
+              </div>
+            </div>
+            <v-switch v-model="form.es_subproducto" color="#f59e0b" density="compact"
+              hide-details @click.stop />
+          </div>
+
+          <!-- Info box cuando es subproducto -->
+          <div v-if="form.es_subproducto" class="form-info-box">
+            <v-icon size="14" color="#f59e0b">mdi-information-outline</v-icon>
+            <span>Al guardar, se registrará en <strong>Artículos</strong> con su costo calculado para usarse como ingrediente.</span>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="form-dlg-footer">
+          <v-btn variant="text" color="default" @click="dlgReceta=false">
+            <v-icon start size="16">mdi-close</v-icon>Cancelar
+          </v-btn>
           <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardando" @click="guardarReceta">
-            <v-icon start>mdi-content-save-outline</v-icon>
+            <v-icon start size="16">mdi-content-save-outline</v-icon>
             {{ editando ? 'Guardar Cambios' : 'Crear Receta' }}
           </v-btn>
-        </v-card-actions>
+        </div>
+
       </v-card>
     </v-dialog>
 
@@ -791,6 +836,63 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
   padding: 14px 20px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), .1);
   flex-shrink: 0;
+}
+
+/* ── DIALOG NUEVA/EDITAR RECETA ── */
+.form-dlg-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px 14px;
+  background: linear-gradient(135deg, #1e3a5f, #1a3050);
+}
+.form-dlg-icon {
+  width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 3px 10px rgba(245,158,11,.3);
+}
+.form-dlg-title { font-size: 15px; font-weight: 700; color: white; line-height: 1.2; }
+.form-dlg-sub { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; }
+
+.form-dlg-body { padding: 20px 20px 16px; }
+
+.form-field-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .4); margin-bottom: 10px;
+}
+.form-field-sublabel {
+  font-size: 11px; color: rgba(var(--v-theme-on-surface), .5);
+  margin-bottom: 4px; font-weight: 500;
+}
+.form-field-sm :deep(.v-field__input) { font-size: 13px; }
+.form-field-sm :deep(.v-label) { font-size: 13px; }
+
+.form-row-2 { display: grid; gap: 12px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 100px 130px; gap: 12px; }
+
+.form-subprod-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(var(--v-theme-on-surface), .1);
+  background: rgba(var(--v-theme-on-surface), .02);
+  transition: all .15s;
+}
+.form-subprod-row:hover { background: rgba(var(--v-theme-on-surface), .04); }
+.form-subprod-row--on { border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.04); }
+.form-subprod-left { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; }
+.form-subprod-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+.form-subprod-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface), .5); margin-top: 2px; line-height: 1.4; }
+
+.form-info-box {
+  display: flex; align-items: flex-start; gap: 7px;
+  margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+  background: rgba(245,158,11,.07); border: 1px solid rgba(245,158,11,.2);
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), .7); line-height: 1.5;
+}
+
+.form-dlg-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .08);
 }
 
 .info-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; color: rgba(var(--v-theme-on-surface),.7); }
