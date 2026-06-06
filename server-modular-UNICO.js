@@ -8912,13 +8912,27 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         const totalNeto  = parseFloat(l.total_neto  || 0);
         const labelBase = `NOMINA ${fmtLabel(inicioStr)} - ${fmtLabel(finStr)} ${anioLiq}`;
 
-        // 2. Prorratear por mes si la semana cruza
-        const entries = [];
+        // 2. Obtener desglose de costos por centro de costos
+        const ccR = await client.query(
+            `SELECT COALESCE(lc.ccosto,'') AS ccosto, SUM(lc.costo_total) AS costo
+             FROM nom_liquidacion_ccosto lc
+             JOIN nom_liquidacion_linea ll ON ll.id = lc.linea_id
+             WHERE ll.liquidacion_id = $1
+             GROUP BY lc.ccosto
+             ORDER BY lc.ccosto`,
+            [req.params.id]
+        );
+        let costosPorCcosto = ccR.rows.map(r => ({ ccosto: r.ccosto || '', costo: parseFloat(r.costo || 0) }));
+        if (costosPorCcosto.length === 0) {
+            costosPorCcosto = [{ ccosto: '', costo: totalCosto }];
+        }
+
+        // 3. Calcular distribución por mes (1 o 2 segmentos)
+        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const segmentos = []; // [{ fecha, label, ratio }]
         if (inicio.getMonth() === fin.getMonth() && inicio.getFullYear() === fin.getFullYear()) {
-            // Misma mes — un solo asiento
-            entries.push({ fecha: fmtDate(fin), concepto: labelBase, costo: totalCosto, neto: totalNeto });
+            segmentos.push({ fecha: fmtDate(fin), label: labelBase, ratio: 1 });
         } else {
-            // Cruza meses — contar días en cada mes
             let diasMes1 = 0;
             let cursor = new Date(inicio);
             while (cursor.getMonth() === inicio.getMonth()) {
@@ -8926,24 +8940,40 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
                 cursor.setDate(cursor.getDate() + 1);
             }
             const diasMes2 = 7 - diasMes1;
-            // Último día del primer mes
             const ultMes1 = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth()+1, 0));
-            const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-            entries.push({
-                fecha:   fmtDate(ultMes1),
-                concepto: `${labelBase} (${diasMes1}d ${meses[inicio.getMonth()]})`,
-                costo: parseFloat((totalCosto * diasMes1 / 7).toFixed(2)),
-                neto:  parseFloat((totalNeto  * diasMes1 / 7).toFixed(2))
+            segmentos.push({
+                fecha: fmtDate(ultMes1),
+                label: `${labelBase} (${diasMes1}d ${meses[inicio.getMonth()]})`,
+                ratio: diasMes1 / 7
             });
-            entries.push({
-                fecha:   fmtDate(fin),
-                concepto: `${labelBase} (${diasMes2}d ${meses[fin.getMonth()]})`,
-                costo: parseFloat((totalCosto * diasMes2 / 7).toFixed(2)),
-                neto:  parseFloat((totalNeto  * diasMes2 / 7).toFixed(2))
+            segmentos.push({
+                fecha: fmtDate(fin),
+                label: `${labelBase} (${diasMes2}d ${meses[fin.getMonth()]})`,
+                ratio: diasMes2 / 7
             });
         }
 
-        // 3. Código de gasto siguiente — seguro para códigos no numéricos
+        // 4. Construir entries: cada combinación segmento × ccosto = 1 gasto
+        const entries = [];
+        for (const seg of segmentos) {
+            for (const cc of costosPorCcosto) {
+                entries.push({
+                    fecha:   seg.fecha,
+                    concepto: cc.ccosto ? `${seg.label} - CC ${cc.ccosto}` : seg.label,
+                    ccosto:  cc.ccosto,
+                    costo:   parseFloat((cc.costo * seg.ratio).toFixed(2))
+                });
+            }
+        }
+
+        // 5. Movimientos bancarios: uno por segmento (suma del neto del mes)
+        const movibanEntries = segmentos.map(seg => ({
+            fecha:    seg.fecha,
+            concepto: seg.label,
+            neto:     parseFloat((totalNeto * seg.ratio).toFixed(2))
+        }));
+
+        // 6. Códigos siguientes
         const codR = await client.query(
             `SELECT COALESCE(MAX(CASE WHEN codigo ~ '^[0-9]+$' THEN CAST(codigo AS BIGINT) ELSE 0 END), 0)+1 AS n
              FROM gastos WHERE empresa=$1`,
@@ -8952,7 +8982,6 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         let codNum = parseInt(codR.rows[0]?.n) || 1;
         if (isNaN(codNum) || codNum < 1) codNum = 1;
 
-        // 4. Número de moviban siguiente
         const numR = await client.query(
             `SELECT COALESCE(MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END), 0)+1 AS n
              FROM moviban WHERE empresa=$1`, [empresa]
@@ -8960,53 +8989,73 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         let movNum = parseInt(numR.rows[0]?.n) || 1;
         if (isNaN(movNum) || movNum < 1) movNum = 1;
 
-        // 5. Insertar gastos + movibanes (uno por cada segmento mensual)
+        // 7. Preparar valores SAFE para campos VARCHAR cortos
+        //    forma_pago = código de la cuenta bancaria (debe caber en su columna)
+        //    cuenta = código contable configurado (debe caber en su columna VARCHAR(3) probable)
+        //    ccosto = código del centro de costos
+        const truncate = (s, n) => s ? String(s).substring(0, n) : '';
+        const formaPago = truncate(banco, 3); // gastos.forma_pago suele ser VARCHAR(3)
+        const cuentaContable = (cuentaNomina && cuentaNomina !== 'NOMINA') ? truncate(cuentaNomina, 3) : null;
+
+        // 8. Insertar gastos
         const gastosCreados = [];
         for (const entry of entries) {
             const codigo = String(codNum).padStart(10, '0');
             codNum++;
+            const ccostoSafe = truncate(entry.ccosto, 3);
 
-            // Gasto contable
-            // forma_pago = codigo de la cuenta bancaria seleccionada (mismo patron del sistema)
-            // cuenta = null (cuentas.codigo es VARCHAR(3), no encajan codigos contables mas largos)
-            // proveedor = null (no aplica para nomina)
             try {
                 await client.query(
                     `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
                                          forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
-                     VALUES ($1, $2, NULL, NULL, '', $3, NULL, $4, $5, 0, $5, $6, 'PAGADA')`,
-                    [codigo, entry.fecha, banco || '', entry.concepto, entry.costo, l.empresa]
+                     VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7, 0, $7, $8, 'PAGADA')`,
+                    [codigo, entry.fecha, ccostoSafe, formaPago, cuentaContable,
+                     entry.concepto, entry.costo, l.empresa]
                 );
+                gastosCreados.push({ codigo, fecha: entry.fecha, ccosto: ccostoSafe, total: entry.costo });
             } catch(eGasto) {
-                throw new Error('Error al insertar gasto: ' + eGasto.message);
+                console.error('=== ERROR INSERT GASTO ===');
+                console.error('Mensaje:', eGasto.message);
+                console.error('Valores:', JSON.stringify({
+                    codigo, codigo_len: codigo.length,
+                    fecha: entry.fecha,
+                    ccosto: ccostoSafe, ccosto_len: ccostoSafe.length,
+                    forma_pago: formaPago, forma_pago_len: formaPago.length,
+                    cuenta: cuentaContable, cuenta_len: cuentaContable?.length,
+                    concepto: entry.concepto, concepto_len: entry.concepto?.length,
+                    empresa: l.empresa
+                }));
+                throw new Error(`Error al insertar gasto. Valores: codigo='${codigo}'(${codigo.length}c), ccosto='${ccostoSafe}'(${ccostoSafe.length}c), forma_pago='${formaPago}'(${formaPago.length}c), cuenta='${cuentaContable}'(${cuentaContable?.length||0}c). DB error: ${eGasto.message}`);
             }
+        }
 
-            // Movimiento bancario (solo si se seleccionó una cuenta bancaria)
-            if (banco && banco !== '') {
+        // 9. Insertar movibanes (solo si se seleccionó cuenta bancaria)
+        if (banco && banco !== '') {
+            for (const mov of movibanEntries) {
                 try {
                     const numStr = String(movNum).padStart(10, '0');
                     movNum++;
                     await client.query(
                         `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
                                              banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
-                         VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, $7, NULL, NULL, '')`,
-                        [numStr, entry.fecha, entry.concepto, entry.neto, banco, l.empresa, codigo]
+                         VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, NULL, NULL, NULL, '')`,
+                        [numStr, mov.fecha, mov.concepto, mov.neto, banco, l.empresa]
                     );
                 } catch(eMoviban) {
+                    console.error('=== ERROR INSERT MOVIBAN ===');
+                    console.error('Mensaje:', eMoviban.message);
                     throw new Error('Error al insertar movimiento bancario: ' + eMoviban.message);
                 }
             }
-
-            gastosCreados.push({ codigo, fecha: entry.fecha, concepto: entry.concepto, total: entry.costo });
         }
 
-        // 6. Cambiar estado a APROBADA
+        // 10. Cambiar estado a APROBADA
         await client.query(
             "UPDATE nom_liquidacion SET estado='APROBADA', updated_at=NOW() WHERE id=$1",
             [req.params.id]
         );
 
-        // 7. Cerrar la semana del horario vinculada
+        // 11. Cerrar la semana del horario vinculada
         if (l.semana_id) {
             await client.query(
                 "UPDATE nom_semana SET estado='CERRADO' WHERE id=$1", [l.semana_id]
@@ -9014,9 +9063,18 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         }
 
         await client.query('COMMIT');
+        const numCcostos = costosPorCcosto.length;
+        const numMeses = segmentos.length;
+        let msg = `Nómina aprobada. ${entries.length} gasto(s) contables creado(s)`;
+        if (numCcostos > 1) msg += ` (${numCcostos} centros de costo`;
+        if (numMeses > 1) msg += `${numCcostos > 1 ? ', ' : ' ('}prorrateado en ${numMeses} meses`;
+        if (numCcostos > 1 || numMeses > 1) msg += ')';
+        msg += '.';
+        if (banco) msg += ` ${numMeses} movimiento(s) bancario(s) creado(s).`;
+
         res.json({
             success: true,
-            message: `Nómina aprobada. ${entries.length > 1 ? 'Gasto prorrateado en ' + entries.length + ' meses.' : 'Gasto registrado.'} ${banco ? 'Movimiento bancario creado.' : ''}`,
+            message: msg,
             gastos: gastosCreados
         });
     } catch(e) {
