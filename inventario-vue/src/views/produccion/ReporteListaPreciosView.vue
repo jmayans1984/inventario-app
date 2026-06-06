@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="view-container">
       <!-- BREADCRUMB -->
       <div class="breadcrumb">
-        <span class="bc-root">PRODUCCIÓN</span>
+        <span class="bc-root">PROVEEDURÍA</span>
         <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
         <span class="bc-cat">Informes</span>
         <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>

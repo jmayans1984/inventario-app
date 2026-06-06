@@ -101,7 +101,7 @@ export const MODULES = [
   },
   {
     id: 'produccion',
-    name: 'PRODUCCIÓN',
+    name: 'PROVEEDURÍA',
     icon: 'mdi-store',
     path: '/produccion',
     requiredTipo: 'PROVEEDOR',

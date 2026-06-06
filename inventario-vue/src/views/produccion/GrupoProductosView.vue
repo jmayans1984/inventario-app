@@ -1,10 +1,10 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="pg-container">
 
       <!-- BREADCRUMB -->
       <div class="breadcrumb">
-        <span class="bc-root">PRODUCCIÓN</span>
+        <span class="bc-root">PROVEEDURÍA</span>
         <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
         <span class="bc-cat">Configuración</span>
         <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>

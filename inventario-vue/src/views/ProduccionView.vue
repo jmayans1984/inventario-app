@@ -7,7 +7,7 @@
         <div class="mod-hero-left">
           <div class="mod-hero-icon"><v-icon size="28" color="white">mdi-factory</v-icon></div>
           <div>
-            <div class="mod-hero-title">PRODUCCIÓN</div>
+            <div class="mod-hero-title">PROVEEDURÍA</div>
             <div class="mod-hero-sub">Productos de venta, listas de precios y órdenes de compra</div>
           </div>
         </div>
