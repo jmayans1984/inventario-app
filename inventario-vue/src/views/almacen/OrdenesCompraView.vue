@@ -89,8 +89,26 @@
                 </span>
               </td>
               <td class="ta-c">
-                <v-btn icon="mdi-eye-outline" size="x-small" variant="tonal" color="#10b981"
-                  @click="verDetalle(o)" />
+                <div class="d-flex gap-1 justify-center">
+                  <v-tooltip text="Ver detalle">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" icon="mdi-eye-outline" size="x-small" variant="tonal" color="#10b981"
+                        @click="verDetalle(o)" />
+                    </template>
+                  </v-tooltip>
+                  <v-tooltip text="Soportes de entrega">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" icon="mdi-file-image-outline" size="x-small" variant="tonal" color="#06b6d4"
+                        @click="abrirSoportes(o)" />
+                    </template>
+                  </v-tooltip>
+                  <v-tooltip v-if="o.estado === 'PENDIENTE'" text="Editar orden">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" icon="mdi-pencil-outline" size="x-small" variant="tonal" color="#f59e0b"
+                        @click="abrirEditar(o)" />
+                    </template>
+                  </v-tooltip>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -285,6 +303,176 @@
       </v-card>
     </v-dialog>
 
+    <!-- ══ DIALOG SOPORTES DE ENTREGA ══ -->
+    <v-dialog v-model="dlgSoportes" max-width="640" scrollable>
+      <v-card rounded="xl" style="overflow:hidden">
+        <div class="det-header">
+          <div>
+            <div class="det-title">Soportes de Entrega</div>
+            <div class="det-sub">{{ ordenSoportes?.codigo }}</div>
+          </div>
+          <!-- Subir soporte -->
+          <label class="soporte-upload-btn">
+            <v-icon size="16" class="mr-1">mdi-upload</v-icon> Subir
+            <input type="file" accept="image/*,application/pdf" style="display:none"
+              @change="subirSoporte" />
+          </label>
+          <v-btn icon="mdi-close" size="small" variant="text" @click="dlgSoportes=false" />
+        </div>
+
+        <v-card-text class="pa-4">
+          <v-progress-linear v-if="loadingSoportes" indeterminate color="#06b6d4" height="3" class="mb-3" />
+
+          <div v-if="!loadingSoportes && soportes.length === 0" class="det-obs text-center py-6">
+            <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)" class="mb-2 d-block">mdi-file-image-off-outline</v-icon>
+            No hay soportes de entrega para esta orden
+          </div>
+
+          <div v-else class="soporte-grid">
+            <div v-for="s in soportes" :key="s.id" class="soporte-item">
+              <img v-if="s.tipo_mime?.startsWith('image')" :src="s.url" class="soporte-img"
+                @click="abrirImagen(s.url)" />
+              <div v-else class="soporte-file">
+                <v-icon size="28" color="#06b6d4">mdi-file-pdf-box</v-icon>
+                <div class="soporte-name">{{ s.nombre_archivo }}</div>
+              </div>
+              <div class="soporte-fecha">{{ fmtFecha(s.fecha_subida) }}</div>
+            </div>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- ══ LIGHTBOX IMAGEN ══ -->
+    <v-dialog v-model="dlgImagen" max-width="800">
+      <v-card rounded="xl" style="overflow:hidden;background:#000">
+        <img :src="imagenActual" style="width:100%;max-height:80vh;object-fit:contain" />
+        <v-btn icon="mdi-close" size="small" variant="flat" color="white" style="position:absolute;top:8px;right:8px"
+          @click="dlgImagen=false" />
+      </v-card>
+    </v-dialog>
+
+    <!-- ══ DIALOG EDITAR ORDEN ══ -->
+    <v-dialog v-model="dlgEditar" max-width="1100" persistent scrollable>
+      <v-card rounded="xl" style="overflow:hidden;display:flex;flex-direction:column;max-height:88vh">
+
+        <!-- Header -->
+        <div class="nueva-header">
+          <div class="nueva-header-left">
+            <div class="nueva-icon"><v-icon size="20" color="white">mdi-pencil-outline</v-icon></div>
+            <div>
+              <div class="nueva-title">EDITAR ORDEN — {{ ordenEditando?.codigo }}</div>
+              <div class="nueva-sub">Solo se pueden editar órdenes en estado PENDIENTE</div>
+            </div>
+          </div>
+          <div class="nueva-header-right">
+            <div class="nueva-total-label">TOTAL</div>
+            <div class="nueva-total-val">{{ fmt(totalEdicion) }}</div>
+          </div>
+          <v-btn icon="mdi-close" size="small" variant="text" color="white" @click="dlgEditar=false" />
+        </div>
+
+        <!-- Filtros -->
+        <div class="nueva-filters">
+          <div class="nueva-search">
+            <v-icon size="16" color="rgba(var(--v-theme-on-surface),.4)">mdi-magnify</v-icon>
+            <input v-model="busquedaEdicion" type="text" placeholder="Buscar producto..." class="nueva-search-input" />
+          </div>
+          <select v-model="filtroGrupoEdicion" class="nueva-select">
+            <option value="">Todos los grupos</option>
+            <option v-for="g in gruposProducto" :key="g" :value="g">{{ g }}</option>
+          </select>
+          <span v-if="itemsEdicion > 0" class="items-badge">
+            {{ itemsEdicion }} producto{{ itemsEdicion !== 1 ? 's' : '' }} en pedido
+          </span>
+        </div>
+
+        <!-- Grid productos (mismo estilo) -->
+        <div style="flex:1;overflow-y:auto;min-height:0">
+          <div class="prod-grid-head">
+            <span class="col-prod-nombre">PRODUCTO</span>
+            <span class="col-prod-grupo">GRUPO</span>
+            <span class="col-prod-und ta-c">UND</span>
+            <span class="col-prod-precio ta-r">PRECIO</span>
+            <span class="col-prod-cant ta-c">CANTIDAD</span>
+            <span class="col-prod-sub ta-r">SUBTOTAL</span>
+          </div>
+
+          <template v-for="([grupo, items]) in productosAgrupadosEdicion" :key="grupo">
+            <div class="prod-grupo-header">
+              <v-icon size="13" color="#10b981" class="mr-1">mdi-folder-outline</v-icon>
+              {{ grupo }}
+              <span class="prod-grupo-count">{{ items.length }} ítem{{ items.length !== 1 ? 's' : '' }}</span>
+            </div>
+            <div v-for="p in items" :key="p.codigo"
+              class="prod-row" :class="{ 'prod-row--selected': (cantEdicion[p.codigo] || 0) > 0 }">
+              <div class="col-prod-nombre">
+                <div class="prod-nombre">{{ p.nombre }}</div>
+              </div>
+              <div class="col-prod-grupo dim-text text-caption">{{ p.grupo_nombre || p.grupo || '—' }}</div>
+              <div class="col-prod-und ta-c dim-text">{{ p.unidad || '—' }}</div>
+              <div class="col-prod-precio ta-r font-mono text-success">{{ fmt(getPrecio(p)) }}</div>
+              <div class="col-prod-cant ta-c">
+                <div class="cant-control">
+                  <button class="cant-btn" @click="ajustarCantEdit(p.codigo, -1)">−</button>
+                  <input
+                    :value="cantEdicion[p.codigo] || ''"
+                    type="number" min="0"
+                    class="cant-input"
+                    :class="{ 'cant-input--active': (cantEdicion[p.codigo] || 0) > 0 }"
+                    :data-codigo="`edit-${p.codigo}`"
+                    @input="setCantEdit(p.codigo, $event.target.value)"
+                    @focus="$event.target.select()"
+                    @keydown.enter="navegarEnterEdit($event, p.codigo)"
+                    placeholder="0"
+                  />
+                  <button class="cant-btn" @click="ajustarCantEdit(p.codigo, 1)">+</button>
+                </div>
+              </div>
+              <div class="col-prod-sub ta-r font-mono"
+                :class="(cantEdicion[p.codigo]||0) > 0 ? 'text-success' : 'dim-text'">
+                {{ (cantEdicion[p.codigo]||0) > 0 ? fmt(getPrecio(p) * (cantEdicion[p.codigo]||0)) : '—' }}
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Footer -->
+        <div class="nueva-footer">
+          <div class="nueva-footer-campos">
+            <div class="footer-field">
+              <div class="footer-field-label">Fecha de entrega <span style="color:#ef4444">*</span></div>
+              <v-text-field v-model="editFechaEntrega" type="date" variant="outlined" density="compact"
+                hide-details style="min-width:180px" />
+            </div>
+            <div class="footer-field" style="flex:1">
+              <div class="footer-field-label">Observaciones</div>
+              <v-text-field v-model="editObservaciones" variant="outlined" density="compact"
+                hide-details placeholder="Notas adicionales..." />
+            </div>
+          </div>
+          <div class="nueva-footer-actions">
+            <div v-if="itemsEdicion > 0" class="footer-resumen">
+              <span class="footer-items">{{ itemsEdicion }} productos</span>
+              <span class="footer-sep">·</span>
+              <span class="footer-total">{{ fmt(totalEdicion) }}</span>
+            </div>
+            <v-spacer />
+            <v-btn color="error" variant="tonal" rounded="lg" @click="dlgEditar=false">
+              <v-icon start size="16">mdi-close</v-icon>Cancelar
+            </v-btn>
+            <v-btn color="#f59e0b" variant="flat" rounded="lg"
+              :disabled="itemsEdicion === 0"
+              :loading="guardandoEdicion"
+              @click="guardarEdicion">
+              <v-icon start size="16">mdi-content-save-outline</v-icon>Guardar Cambios
+            </v-btn>
+          </div>
+        </div>
+
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snack.show" :color="snack.color" timeout="4000" location="bottom right">
       {{ snack.msg }}
     </v-snackbar>
@@ -322,6 +510,24 @@ const dlgDetalle    = ref(false)
 const ordenDetalle  = ref(null)
 const detalleLineas = ref([])
 const loadingDetalle = ref(false)
+
+// Dialog soportes
+const dlgSoportes    = ref(false)
+const ordenSoportes  = ref(null)
+const soportes       = ref([])
+const loadingSoportes = ref(false)
+const dlgImagen      = ref(false)
+const imagenActual   = ref('')
+
+// Dialog edición
+const dlgEditar       = ref(false)
+const ordenEditando   = ref(null)
+const cantEdicion     = reactive({})
+const busquedaEdicion = ref('')
+const filtroGrupoEdicion = ref('')
+const editFechaEntrega  = ref('')
+const editObservaciones = ref('')
+const guardandoEdicion  = ref(false)
 
 const snack = ref({ show: false, msg: '', color: 'success' })
 
@@ -365,6 +571,31 @@ const itemsPedido = computed(() =>
   Object.values(cantidades).filter(c => parseFloat(c) > 0).length
 )
 const fechaError = computed(() => !nuevaFechaEntrega.value && itemsPedido.value > 0)
+
+const productosFiltradosEdicion = computed(() => {
+  const q = busquedaEdicion.value.toLowerCase()
+  return productos.value.filter(p => {
+    const mg = !filtroGrupoEdicion.value || (p.grupo_nombre || p.grupo) === filtroGrupoEdicion.value
+    const mq = !q || p.codigo.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q)
+    return mg && mq
+  })
+})
+const productosAgrupadosEdicion = computed(() => {
+  const map = {}
+  productosFiltradosEdicion.value.forEach(p => {
+    const key = p.grupo_nombre || p.grupo || 'SIN GRUPO'
+    if (!map[key]) map[key] = []
+    map[key].push(p)
+  })
+  return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, 'es'))
+})
+const itemsEdicion = computed(() => Object.values(cantEdicion).filter(c => parseFloat(c) > 0).length)
+const totalEdicion = computed(() =>
+  productos.value.reduce((s, p) => {
+    const cant = parseFloat(cantEdicion[p.codigo]) || 0
+    return s + (cant > 0 ? cant * getPrecio(p) : 0)
+  }, 0)
+)
 
 const totalPedido = computed(() =>
   productos.value.reduce((s, p) => {
@@ -438,6 +669,120 @@ async function abrirNuevoPedido() {
   nuevaObservaciones.value = ''
   if (!productos.value.length) await cargarProductos()
   dlgNueva.value = true
+}
+
+// ── Soportes ─────────────────────────────────────────────────
+async function abrirSoportes(o) {
+  ordenSoportes.value = o
+  soportes.value = []
+  loadingSoportes.value = true
+  dlgSoportes.value = true
+  try {
+    const r = await fetch(`${API_BASE}/soportes-entrega/${o.codigo}`).then(r => r.json())
+    soportes.value = (r.data || []).map(s => ({
+      ...s,
+      url: s.archivo_data ? `data:${s.tipo_archivo || 'image/jpeg'};base64,${s.archivo_data}` : null,
+      tipo_mime: s.tipo_archivo || 'image/jpeg',
+    }))
+  } catch (e) { err('Error al cargar soportes') }
+  finally { loadingSoportes.value = false }
+}
+
+function abrirImagen(url) { imagenActual.value = url; dlgImagen.value = true }
+
+async function subirSoporte(e) {
+  const file = e.target.files[0]
+  if (!file || !ordenSoportes.value) return
+  const empresa = getEmpresa()
+  const reader = new FileReader()
+  reader.onload = async (ev) => {
+    const base64 = ev.target.result.split(',')[1]
+    try {
+      await fetch(`${API_BASE}/soportes-entrega/subir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orden: ordenSoportes.value.codigo,
+          imagen_base64: base64,
+          nombre_archivo: file.name,
+          empresa,
+        })
+      })
+      ok('Soporte subido correctamente')
+      await abrirSoportes(ordenSoportes.value)
+    } catch { err('Error al subir soporte') }
+  }
+  reader.readAsDataURL(file)
+  e.target.value = ''
+}
+
+// ── Edición ───────────────────────────────────────────────────
+async function abrirEditar(o) {
+  if (o.estado !== 'PENDIENTE') return
+  ordenEditando.value = o
+  busquedaEdicion.value = ''
+  filtroGrupoEdicion.value = ''
+  editFechaEntrega.value = o.fecha_entrega ? o.fecha_entrega.substring(0, 10) : ''
+  editObservaciones.value = o.observaciones || ''
+  Object.keys(cantEdicion).forEach(k => delete cantEdicion[k])
+  if (!productos.value.length) await cargarProductos()
+  // Pre-cargar cantidades del pedido actual
+  loadingDetalle.value = true
+  try {
+    const r = await fetch(`${API_BASE}/ordenes-compra/${o.codigo}/detalles`).then(r => r.json())
+    ;(r.detalles || r.data || []).forEach(d => {
+      if (parseFloat(d.cantidad) > 0) cantEdicion[d.producto_venta] = parseFloat(d.cantidad)
+    })
+  } catch (e) { console.error(e) }
+  finally { loadingDetalle.value = false }
+  dlgEditar.value = true
+}
+
+function setCantEdit(codigo, val) {
+  const n = parseFloat(val)
+  if (isNaN(n) || n <= 0) { delete cantEdicion[codigo] } else { cantEdicion[codigo] = n }
+}
+function ajustarCantEdit(codigo, delta) {
+  const actual = parseFloat(cantEdicion[codigo]) || 0
+  const nuevo = Math.max(0, actual + delta)
+  if (nuevo === 0) { delete cantEdicion[codigo] } else { cantEdicion[codigo] = nuevo }
+}
+function navegarEnterEdit(e, codigo) {
+  const inputs = [...document.querySelectorAll('[data-codigo^="edit-"]')]
+  const idx = inputs.findIndex(el => el.dataset.codigo === `edit-${codigo}`)
+  if (idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); inputs[idx + 1].focus(); inputs[idx + 1].select() }
+}
+
+async function guardarEdicion() {
+  if (itemsEdicion.value === 0) return
+  if (!editFechaEntrega.value) { err('La fecha de entrega es obligatoria'); return }
+  guardandoEdicion.value = true
+  try {
+    const detalles = productos.value
+      .filter(p => (parseFloat(cantEdicion[p.codigo]) || 0) > 0)
+      .map(p => ({
+        producto_venta: p.codigo,
+        cantidad: parseFloat(cantEdicion[p.codigo]),
+        precio_unitario: getPrecio(p),
+        subtotal: parseFloat(cantEdicion[p.codigo]) * getPrecio(p),
+      }))
+    const r = await fetch(`${API_BASE}/ordenes-compra/${ordenEditando.value.codigo}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fecha_entrega: editFechaEntrega.value,
+        observaciones: editObservaciones.value,
+        detalles,
+        total: totalEdicion.value,
+      })
+    })
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error || j.details)
+    ok('Orden actualizada correctamente')
+    dlgEditar.value = false
+    await cargar()
+  } catch (e) { err(e.message) }
+  finally { guardandoEdicion.value = false }
 }
 
 function navegarEnter(e, codigo) {
@@ -624,6 +969,17 @@ onMounted(cargar)
 .footer-items { font-weight: 600; color: rgba(var(--v-theme-on-surface),.7); }
 .footer-sep { color: rgba(var(--v-theme-on-surface),.3); }
 .footer-total { font-size: 16px; font-weight: 800; color: #10b981; font-family: monospace; }
+
+/* Soportes */
+.soporte-upload-btn { display: flex; align-items: center; padding: 4px 12px; border-radius: 8px; background: rgba(255,255,255,.15); color: white; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.soporte-upload-btn:hover { background: rgba(255,255,255,.25); }
+.soporte-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.soporte-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.soporte-img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; border: 1px solid rgba(var(--v-theme-on-surface),.1); transition: opacity .15s; }
+.soporte-img:hover { opacity: .85; }
+.soporte-file { width: 100%; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; border: 1px dashed rgba(var(--v-theme-on-surface),.2); background: rgba(var(--v-theme-on-surface),.02); }
+.soporte-name { font-size: 10px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; padding: 0 4px; word-break: break-all; }
+.soporte-fecha { font-size: 10px; color: rgba(var(--v-theme-on-surface),.4); }
 
 /* Dialog detalle */
 .det-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg,#065f46,#047857); }
