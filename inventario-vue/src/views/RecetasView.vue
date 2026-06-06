@@ -1,62 +1,96 @@
 <template>
   <MainLayout>
-    <div class="view-container">
-      <div class="breadcrumb-bar mb-5"><span class="bc-root">RECETAS</span></div>
-      <v-row class="mb-5" dense>
-        <v-col cols="12">
-          <div class="module-hero" style="--mc:#f59e0b">
-            <div class="hero-content">
-              <div class="hero-icon-wrap"><v-icon size="32" color="white">mdi-chef-hat</v-icon></div>
-              <div>
-                <p class="hero-title">Módulo de Recetas</p>
-                <p class="hero-sub">Estandarización y control de costos de recetas de restaurante</p>
-              </div>
-            </div>
+    <div class="mod-container">
+
+      <!-- HERO -->
+      <div class="mod-hero" style="background: linear-gradient(135deg,#d97706,#b45309)">
+        <div class="mod-hero-left">
+          <div class="mod-hero-icon"><v-icon size="28" color="white">mdi-chef-hat</v-icon></div>
+          <div>
+            <div class="mod-hero-title">RECETAS</div>
+            <div class="mod-hero-sub">Estandarización de recetas, subrecetas, costos y artículos</div>
           </div>
-        </v-col>
-      </v-row>
-      <v-row dense>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="0" rounded="lg" class="module-card" style="--mc:#f59e0b" @click="router.push('/recetas/configuracion/catalogo')">
-            <v-card-text class="pa-5">
-              <div class="mc-icon-wrap mb-3"><v-icon size="22" color="#f59e0b">mdi-book-open-variant-outline</v-icon></div>
-              <p class="mc-title">Catálogo de Recetas</p>
-              <p class="mc-desc">Crea y gestiona tus recetas</p>
-              <div class="mc-footer mt-3"><span class="mc-count">Ver catálogo</span><v-icon size="14" color="#f59e0b">mdi-arrow-right</v-icon></div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="0" rounded="lg" class="module-card" style="--mc:#f59e0b" @click="router.push('/recetas/configuracion/articulos')">
-            <v-card-text class="pa-5">
-              <div class="mc-icon-wrap mb-3"><v-icon size="22" color="#f59e0b">mdi-food-apple-outline</v-icon></div>
-              <p class="mc-title">Artículos e Insumos</p>
-              <p class="mc-desc">Gestiona ingredientes y precios</p>
-              <div class="mc-footer mt-3"><span class="mc-count">Ver artículos</span><v-icon size="14" color="#f59e0b">mdi-arrow-right</v-icon></div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="0" rounded="lg" class="module-card" style="--mc:#f59e0b" @click="router.push('/recetas/procesos/costos')">
-            <v-card-text class="pa-5">
-              <div class="mc-icon-wrap mb-3"><v-icon size="22" color="#f59e0b">mdi-calculator-variant-outline</v-icon></div>
-              <p class="mc-title">Gestión de Costos</p>
-              <p class="mc-desc">Recalcula costos de recetas</p>
-              <div class="mc-footer mt-3"><span class="mc-count">Ver proceso</span><v-icon size="14" color="#f59e0b">mdi-arrow-right</v-icon></div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="0" rounded="lg" class="module-card" style="--mc:#f59e0b" @click="router.push('/recetas/reportes/costos')">
-            <v-card-text class="pa-5">
-              <div class="mc-icon-wrap mb-3"><v-icon size="22" color="#f59e0b">mdi-file-chart-outline</v-icon></div>
-              <p class="mc-title">Reportes</p>
-              <p class="mc-desc">Costos y fichas técnicas</p>
-              <div class="mc-footer mt-3"><span class="mc-count">Ver reportes</span><v-icon size="14" color="#f59e0b">mdi-arrow-right</v-icon></div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: CONFIGURACIÓN -->
+      <div class="mod-section-label">CONFIGURACIÓN</div>
+      <div class="mod-grid">
+        <div class="mod-card" @click="go('/recetas/configuracion/catalogo')">
+          <div class="mod-card-icon" style="background:rgba(245,158,11,.12)">
+            <v-icon size="22" color="#f59e0b">mdi-book-open-variant-outline</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Catálogo de Recetas</div>
+            <div class="mod-card-desc">Crea y gestiona recetas con subrecetas jerárquicas</div>
+          </div>
+          <v-icon size="16" color="#f59e0b" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
+
+        <div class="mod-card" @click="go('/recetas/configuracion/articulos')">
+          <div class="mod-card-icon" style="background:rgba(245,158,11,.12)">
+            <v-icon size="22" color="#f59e0b">mdi-food-apple-outline</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Artículos e Insumos</div>
+            <div class="mod-card-desc">Gestiona ingredientes y precios de compra</div>
+          </div>
+          <v-icon size="16" color="#f59e0b" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
+
+        <div class="mod-card" @click="go('/recetas/configuracion/precios')">
+          <div class="mod-card-icon" style="background:rgba(245,158,11,.12)">
+            <v-icon size="22" color="#f59e0b">mdi-tag-outline</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Precios de Venta</div>
+            <div class="mod-card-desc">Configura precios de venta de las recetas</div>
+          </div>
+          <v-icon size="16" color="#f59e0b" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: PROCESOS -->
+      <div class="mod-section-label">PROCESOS</div>
+      <div class="mod-grid">
+        <div class="mod-card" @click="go('/recetas/procesos/costos')">
+          <div class="mod-card-icon" style="background:rgba(245,158,11,.12)">
+            <v-icon size="22" color="#f59e0b">mdi-calculator-variant-outline</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Gestión de Costos</div>
+            <div class="mod-card-desc">Recalcula costos de todas las recetas automáticamente</div>
+          </div>
+          <v-icon size="16" color="#f59e0b" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: REPORTES -->
+      <div class="mod-section-label">REPORTES</div>
+      <div class="mod-grid">
+        <div class="mod-card" @click="go('/recetas/reportes/costos')">
+          <div class="mod-card-icon" style="background:rgba(245,158,11,.12)">
+            <v-icon size="22" color="#f59e0b">mdi-file-chart-outline</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Reporte de Costos</div>
+            <div class="mod-card-desc">Análisis de costos, márgenes y % por receta</div>
+          </div>
+          <v-icon size="16" color="#f59e0b" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
+
+        <div class="mod-card" @click="go('/recetas/reportes/fichas')">
+          <div class="mod-card-icon" style="background:rgba(245,158,11,.12)">
+            <v-icon size="22" color="#f59e0b">mdi-file-document-outline</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Fichas Técnicas</div>
+            <div class="mod-card-desc">Visualiza e imprime fichas técnicas de recetas</div>
+          </div>
+          <v-icon size="16" color="#f59e0b" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
+      </div>
+
     </div>
   </MainLayout>
 </template>
@@ -65,22 +99,24 @@
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
 const router = useRouter()
+const go = (path) => router.push(path)
 </script>
 
 <style scoped>
-.view-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.breadcrumb-bar { display: flex; align-items: center; gap: 6px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.module-hero { background: linear-gradient(135deg,#f59e0b,#d97706); border-radius: 16px; padding: 28px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-.hero-content { display: flex; align-items: center; gap: 16px; }
-.hero-icon-wrap { width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
-.hero-title { font-size: 20px; font-weight: 800; color: #fff; margin: 0; }
-.hero-sub { font-size: 13px; color: rgba(255,255,255,0.8); margin: 2px 0 0; }
-.module-card { border: 1px solid rgba(var(--v-theme-on-surface),.07); cursor: pointer; transition: transform .15s,box-shadow .15s; }
-.module-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.1) !important; }
-.mc-icon-wrap { width: 40px; height: 40px; border-radius: 10px; background: rgba(var(--mc-rgb, 245,158,11),.1); display: flex; align-items: center; justify-content: center; }
-.mc-title { font-size: 14px; font-weight: 700; margin: 0 0 2px; }
-.mc-desc { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 0; }
-.mc-footer { display: flex; align-items: center; justify-content: space-between; }
-.mc-count { font-size: 12px; color: var(--mc,#f59e0b); font-weight: 600; }
+.mod-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+.mod-hero { border-radius: 16px; padding: 24px 28px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.mod-hero-left { display: flex; align-items: center; gap: 16px; }
+.mod-hero-icon { width: 52px; height: 52px; border-radius: 13px; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mod-hero-title { font-size: 22px; font-weight: 900; color: white; letter-spacing: .5px; }
+.mod-hero-sub { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 3px; }
+.mod-section-label { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.35); margin: 20px 0 10px; }
+.mod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 4px; }
+.mod-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.07); cursor: pointer; transition: all .15s; }
+.mod-card:hover { border-color: #f59e0b; background: rgba(245,158,11,.03); transform: translateX(3px); }
+.mod-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mod-card-body { flex: 1; min-width: 0; }
+.mod-card-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.mod-card-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); line-height: 1.4; }
+.mod-card-arrow { flex-shrink: 0; opacity: .5; transition: opacity .15s; }
+.mod-card:hover .mod-card-arrow { opacity: 1; }
 </style>
