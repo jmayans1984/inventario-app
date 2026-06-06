@@ -97,12 +97,34 @@
               <div class="cfg-item" style="grid-column: 1 / -1; max-width: 500px">
                 <label>Cuenta contable de salarios / nómina</label>
                 <div class="cfg-hint">Se usará automáticamente al aprobar cada nómina</div>
-                <select v-model="cfg.cuenta_nomina" class="drw-input drw-select-full">
-                  <option value="">— Sin vincular (usará 'NOMINA' como texto) —</option>
-                  <option v-for="c in cuentasContables" :key="c.codigo" :value="c.codigo">
-                    {{ c.codigo }} — {{ c.cuenta }}
-                  </option>
-                </select>
+                <v-select
+                  v-model="cfg.cuenta_nomina"
+                  :items="[{ codigo: '', cuenta: '— Sin vincular (usará NOMINA como texto) —' }, ...cuentasContables]"
+                  item-value="codigo"
+                  item-title="cuenta"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  clearable
+                  placeholder="Seleccionar cuenta..."
+                >
+                  <template #item="{ props, item }">
+                    <v-list-item v-bind="props">
+                      <template #title>
+                        <span v-if="item.raw.codigo" style="font-size:12px">
+                          <strong>{{ item.raw.codigo }}</strong> — {{ item.raw.cuenta }}
+                        </span>
+                        <span v-else style="font-size:12px;opacity:0.5">{{ item.raw.cuenta }}</span>
+                      </template>
+                    </v-list-item>
+                  </template>
+                  <template #selection="{ item }">
+                    <span style="font-size:12px">
+                      <strong v-if="item.raw.codigo">{{ item.raw.codigo }}</strong>
+                      {{ item.raw.codigo ? ' — ' : '' }}{{ item.raw.cuenta }}
+                    </span>
+                  </template>
+                </v-select>
                 <div v-if="cfg.cuenta_nomina" style="margin-top:6px;font-size:11px;color:#10b981;display:flex;align-items:center;gap:4px">
                   <v-icon size="12" color="#10b981">mdi-check-circle</v-icon>
                   Al aprobar nóminas se usará: <strong>{{ cfg.cuenta_nomina }}</strong>
