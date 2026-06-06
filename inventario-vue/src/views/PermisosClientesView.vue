@@ -52,6 +52,9 @@
               <div class="pc-cliente-info">
                 <div class="pc-cliente-nombre">{{ c.nombre }}</div>
                 <div class="pc-cliente-cod">{{ c.codigo }}</div>
+                <div v-if="c.lista_precio_nombre" class="pc-cliente-lista">
+                  {{ c.lista_precio_nombre }}
+                </div>
               </div>
               <v-icon v-if="clienteSeleccionado?.codigo === c.codigo" size="16" color="#f59e0b">mdi-chevron-right</v-icon>
             </div>
@@ -82,6 +85,30 @@
                 Guardar Permisos
               </v-btn>
             </div>
+
+            <!-- Lista de precios asignada -->
+            <div class="pc-lista-precios-row">
+              <div class="pc-lp-label">
+                <v-icon size="15" color="#06b6d4" class="mr-1">mdi-tag-multiple-outline</v-icon>
+                Lista de precios asignada
+              </div>
+              <v-select
+                v-model="listaPrecioId"
+                :items="listasPrecios"
+                item-title="lista"
+                item-value="id"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                placeholder="Sin lista asignada"
+                color="#06b6d4"
+                style="max-width:280px"
+                @update:model-value="guardarListaPrecio"
+              />
+            </div>
+
+            <v-divider class="my-3" />
 
             <v-progress-linear v-if="loadingPermisos" indeterminate color="#f59e0b" height="3" class="mb-4" />
 
@@ -154,9 +181,11 @@ import { API_BASE, MODULES } from '../utils/constants'
 const clientes = ref([])
 const loadingClientes = ref(false)
 const clienteSeleccionado = ref(null)
-const rutasDeshabilitadas = ref([])  // array de rutas deshabilitadas para el cliente seleccionado
+const rutasDeshabilitadas = ref([])
 const loadingPermisos = ref(false)
 const guardando = ref(false)
+const listasPrecios = ref([])
+const listaPrecioId = ref(null)
 
 const snack = ref({ show: false, color: '#22c55e', text: '' })
 
@@ -212,9 +241,12 @@ function toggleItem(path, enabled) {
 async function cargarClientes() {
   loadingClientes.value = true
   try {
-    const r = await fetch(`${API_BASE}/empresas/clientes`)
-    const j = await r.json()
-    if (j.success) clientes.value = j.data
+    const [rc, rl] = await Promise.all([
+      fetch(`${API_BASE}/empresas/clientes`).then(r => r.json()),
+      fetch(`${API_BASE}/produccion/lista-precios`).then(r => r.json()),
+    ])
+    if (rc.success) clientes.value = rc.data
+    if (rl.success) listasPrecios.value = (rl.data || []).filter(l => l.activo === 'SI')
   } catch (e) {
     console.error('Error cargando clientes:', e)
   } finally {
@@ -225,6 +257,7 @@ async function cargarClientes() {
 async function seleccionarCliente(cliente) {
   clienteSeleccionado.value = cliente
   rutasDeshabilitadas.value = []
+  listaPrecioId.value = cliente.lista_precio_id || null
   loadingPermisos.value = true
   try {
     const r = await fetch(`${API_BASE}/permisos-modulos/${cliente.codigo}`)
@@ -238,6 +271,24 @@ async function seleccionarCliente(cliente) {
     rutasDeshabilitadas.value = []
   } finally {
     loadingPermisos.value = false
+  }
+}
+
+async function guardarListaPrecio() {
+  if (!clienteSeleccionado.value) return
+  try {
+    await fetch(`${API_BASE}/empresas/clientes/${clienteSeleccionado.value.codigo}/lista-precio`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lista_precio_id: listaPrecioId.value })
+    })
+    // Actualizar local
+    const idx = clientes.value.findIndex(c => c.codigo === clienteSeleccionado.value.codigo)
+    if (idx >= 0) clientes.value[idx] = { ...clientes.value[idx], lista_precio_id: listaPrecioId.value }
+    const lista = listasPrecios.value.find(l => l.id === listaPrecioId.value)
+    snack.value = { show: true, color: '#22c55e', text: lista ? `Lista "${lista.lista}" asignada` : 'Lista de precios eliminada' }
+  } catch (e) {
+    snack.value = { show: true, color: '#ef4444', text: 'Error al guardar lista de precios' }
   }
 }
 
@@ -560,5 +611,37 @@ onMounted(() => {
   font-size: 11px;
   color: rgba(var(--v-theme-on-surface), 0.35);
   font-style: italic;
+}
+
+/* Lista de precios */
+.pc-lista-precios-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: rgba(6, 182, 212, 0.04);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  border-radius: 10px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.pc-lp-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+/* Chip lista en tarjeta de cliente */
+.pc-cliente-lista {
+  font-size: 10px;
+  color: #0891b2;
+  background: rgba(6, 182, 212, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 2px;
+  display: inline-block;
 }
 </style>

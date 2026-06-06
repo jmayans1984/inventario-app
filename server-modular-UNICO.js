@@ -7905,11 +7905,40 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
     }
 })();
 
+// Auto-migración: columna lista_precio_id en empresas
+(async () => {
+    try {
+        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS lista_precio_id INTEGER DEFAULT NULL`);
+        console.log('✅ Columna empresas.lista_precio_id lista');
+    } catch (e) { console.error('Error migrando empresas.lista_precio_id:', e.message); }
+})();
+
+// PUT /api/empresas/clientes/:codigo/lista-precio — asignar lista de precio a cliente
+app.put('/api/empresas/clientes/:codigo/lista-precio', async (req, res) => {
+    const { codigo } = req.params;
+    const { lista_precio_id } = req.body;
+    try {
+        await pool.query(
+            `UPDATE empresas SET lista_precio_id = $1 WHERE codigo = $2`,
+            [lista_precio_id || null, parseInt(codigo)]
+        );
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error PUT /api/empresas/clientes/:codigo/lista-precio:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // GET /api/empresas/clientes — solo empresas tipo CLIENTE
 app.get('/api/empresas/clientes', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT codigo, nombre, tipo_empresa FROM empresas WHERE tipo_empresa = 'CLIENTE' ORDER BY nombre`
+            `SELECT e.codigo, e.nombre, e.tipo_empresa,
+                    e.lista_precio_id,
+                    clp.lista AS lista_precio_nombre
+             FROM empresas e
+             LEFT JOIN config_listas_precios clp ON clp.id = e.lista_precio_id
+             WHERE e.tipo_empresa = 'CLIENTE' ORDER BY e.nombre`
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {
