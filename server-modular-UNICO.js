@@ -6868,6 +6868,49 @@ app.put('/api/produccion/lista-precios/:id', async (req, res) => {
     }
 });
 
+// POST /api/produccion/productos-venta/recalcular-precios
+// Recalcula los 3 niveles de precio en una sola operación
+// Body: { lista_id_1, lista_id_2, lista_id_3 } (cualquiera puede ser null = no actualizar)
+app.post('/api/produccion/productos-venta/recalcular-precios', async (req, res) => {
+    const { lista_id_1, lista_id_2, lista_id_3 } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        let actualizados = 0;
+        const detalle = [];
+
+        for (const [nivel, listaId] of [[1, lista_id_1], [2, lista_id_2], [3, lista_id_3]]) {
+            if (!listaId) continue;
+            const cfg = await client.query(
+                `SELECT margen, nivel, lista FROM config_listas_precios WHERE id=$1`,
+                [parseInt(listaId)]
+            );
+            if (!cfg.rows.length) continue;
+            const { margen, lista } = cfg.rows[0];
+            const m = parseFloat(margen) || 0;
+            if (m <= 0 || m >= 1) continue;
+
+            const campo = `precio_venta${nivel}`;
+            const r = await client.query(
+                `UPDATE productos_venta
+                 SET ${campo} = ROUND(precio_costo / (1.0 - $1::numeric), 2)
+                 WHERE precio_costo > 0
+                 RETURNING codigo`,
+                [m]
+            );
+            actualizados = Math.max(actualizados, r.rowCount);
+            detalle.push({ nivel, campo, lista, margen: m, actualizados: r.rowCount });
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, actualizados, detalle });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/produccion/productos-venta/recalcular-precios:', e);
+        res.status(500).json({ success: false, error: e.message });
+    } finally { client.release(); }
+});
+
 // POST /api/produccion/lista-precios/:id/recalcular
 // Actualiza precio_venta{nivel} de TODOS los productos usando precio_costo / (1 - margen)
 app.post('/api/produccion/lista-precios/:id/recalcular', async (req, res) => {
