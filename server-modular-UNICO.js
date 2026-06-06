@@ -8658,7 +8658,10 @@ app.get('/api/nomina/liquidaciones/:id', async (req, res) => {
         let ccostos = [];
         if (ids.length) {
             const cc = await pool.query(
-                'SELECT * FROM nom_liquidacion_ccosto WHERE linea_id = ANY($1)', [ids]
+                `SELECT lc.*, COALESCE(cc.nombre, lc.ccosto) AS ccosto_nombre
+                 FROM nom_liquidacion_ccosto lc
+                 LEFT JOIN ccostos cc ON cc.codigo = lc.ccosto
+                 WHERE lc.linea_id = ANY($1)`, [ids]
             );
             ccostos = cc.rows;
         }

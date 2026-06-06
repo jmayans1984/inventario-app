@@ -156,31 +156,38 @@
               <tr v-if="expandido.has(l.id)" class="expand-row">
                 <td colspan="12">
                   <div class="expand-grid">
+                    <!-- DEDUCCIONES EMPLEADO con total -->
                     <div class="expand-section">
                       <div class="expand-titulo">DEDUCCIONES EMPLEADO</div>
-                      <div class="expand-item" v-if="parseFloat(l.federal_income_tax)>0">
-                        <span>Federal Income Tax (FIT)</span><span>-{{ fmtMoney(l.federal_income_tax) }}</span>
-                      </div>
-                      <div class="expand-item" v-if="parseFloat(l.social_security_emp)>0">
-                        <span>Social Security (6.2%)</span><span>-{{ fmtMoney(l.social_security_emp) }}</span>
-                      </div>
-                      <div class="expand-item" v-if="parseFloat(l.medicare_emp)>0">
-                        <span>Medicare (1.45%)</span><span>-{{ fmtMoney(l.medicare_emp) }}</span>
-                      </div>
-                      <div class="expand-item" v-if="parseFloat(l.medicare_adicional)>0">
-                        <span>Medicare Adicional (0.9%)</span><span>-{{ fmtMoney(l.medicare_adicional) }}</span>
-                      </div>
-                      <div class="expand-item" v-if="parseFloat(l.workers_comp)>0">
-                        <span>Workers' Comp</span><span>-{{ fmtMoney(l.workers_comp) }}</span>
-                      </div>
-                      <div class="expand-item" v-if="parseFloat(l.otras_deducciones)>0">
-                        <span>Otras Deducciones</span><span>-{{ fmtMoney(l.otras_deducciones) }}</span>
-                      </div>
-                      <div class="expand-item total" v-if="l.tipo_empleado==='1099'">
-                        <span>Sin deducciones (1099)</span><span>—</span>
-                      </div>
+                      <template v-if="l.tipo_empleado==='1099'">
+                        <div class="expand-item"><span>Sin deducciones (1099)</span><span>—</span></div>
+                      </template>
+                      <template v-else>
+                        <div class="expand-item" v-if="parseFloat(l.federal_income_tax)>0">
+                          <span>Federal Income Tax (FIT)</span><span>-{{ fmtMoney(l.federal_income_tax) }}</span>
+                        </div>
+                        <div class="expand-item" v-if="parseFloat(l.social_security_emp)>0">
+                          <span>Social Security (6.2%)</span><span>-{{ fmtMoney(l.social_security_emp) }}</span>
+                        </div>
+                        <div class="expand-item" v-if="parseFloat(l.medicare_emp)>0">
+                          <span>Medicare (1.45%)</span><span>-{{ fmtMoney(l.medicare_emp) }}</span>
+                        </div>
+                        <div class="expand-item" v-if="parseFloat(l.medicare_adicional)>0">
+                          <span>Medicare Adicional (0.9%)</span><span>-{{ fmtMoney(l.medicare_adicional) }}</span>
+                        </div>
+                        <div class="expand-item" v-if="parseFloat(l.workers_comp)>0">
+                          <span>Workers' Comp</span><span>-{{ fmtMoney(l.workers_comp) }}</span>
+                        </div>
+                        <div class="expand-item" v-if="parseFloat(l.otras_deducciones)>0">
+                          <span>Otras Deducciones</span><span>-{{ fmtMoney(l.otras_deducciones) }}</span>
+                        </div>
+                        <div class="expand-item expand-total">
+                          <span>TOTAL DEDUCCIONES</span><span>-{{ fmtMoney(l.total_deducciones) }}</span>
+                        </div>
+                      </template>
                     </div>
 
+                    <!-- APORTES EMPLEADOR con total -->
                     <div class="expand-section">
                       <div class="expand-titulo">APORTES EMPLEADOR (informativo)</div>
                       <div class="expand-item">
@@ -195,12 +202,16 @@
                       <div class="expand-item" v-if="parseFloat(l.suta)>0">
                         <span>FL Reemployment Tax</span><span>{{ fmtMoney(l.suta) }}</span>
                       </div>
+                      <div class="expand-item expand-total">
+                        <span>TOTAL APORTES</span><span>{{ fmtMoney(l.total_aportes_er) }}</span>
+                      </div>
                     </div>
 
+                    <!-- DESGLOSE POR CCOSTO con nombre -->
                     <div class="expand-section" v-if="l.ccostos?.length">
                       <div class="expand-titulo">DESGLOSE POR CENTRO DE COSTO</div>
                       <div class="expand-item" v-for="cc in l.ccostos" :key="cc.ccosto">
-                        <span>{{ cc.ccosto }} — {{ fmtNum(cc.horas) }}h</span>
+                        <span>{{ cc.ccosto_nombre || cc.ccosto }} — {{ fmtNum(cc.horas) }}h</span>
                         <span>{{ fmtMoney(cc.costo_bruto) }}</span>
                       </div>
                     </div>
@@ -219,15 +230,6 @@
               </tr>
             </template>
           </tbody>
-          <tfoot>
-            <tr class="footer-row">
-              <td colspan="8" style="text-align:right;font-size:11px;font-weight:700;padding:8px 10px">TOTALES →</td>
-              <td class="ta-r bold">{{ fmtMoney(liqActual.total_bruto) }}</td>
-              <td class="ta-r" style="color:#ef4444;font-weight:700">-{{ fmtMoney(liqActual.total_deducciones_emp) }}</td>
-              <td class="ta-r neto bold">{{ fmtMoney(liqActual.total_neto) }}</td>
-              <td class="ta-r dim">{{ fmtMoney(parseFloat(liqActual.total_bruto||0)+parseFloat(liqActual.total_aportes_er||0)) }}</td>
-            </tr>
-          </tfoot>
         </table>
       </div>
 
@@ -486,6 +488,7 @@ onMounted(cargar)
 .expand-item { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.04); }
 .expand-item span:last-child { font-weight: 600; }
 .neto-resumen { font-weight: 800 !important; color: #10b981; border-top: 1px solid rgba(var(--v-theme-on-surface),0.1); margin-top: 4px; padding-top: 6px; }
+.expand-total { font-weight: 800 !important; border-top: 1px solid rgba(var(--v-theme-on-surface),0.1); margin-top: 4px; padding-top: 6px; color: rgba(var(--v-theme-on-surface),0.8); }
 .resumen .expand-item { font-size: 12px; }
 
 /* Empty state */
