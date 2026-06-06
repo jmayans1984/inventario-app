@@ -90,6 +90,17 @@
       <!-- SECCIÓN: REPORTES -->
       <div class="mod-section-label">REPORTES</div>
       <div class="mod-grid">
+        <div class="mod-card" @click="go('/nomina/reportes/nomina')">
+          <div class="mod-card-icon" style="background:rgba(236,72,153,.12)">
+            <v-icon size="22" color="#ec4899">mdi-chart-bar</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Reporte de Nómina</div>
+            <div class="mod-card-desc">Costos por período, empleado, centro de costo e impuestos</div>
+          </div>
+          <v-icon size="16" color="#ec4899" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
+
         <div class="mod-card" @click="go('/nomina/reportes/horario')">
           <div class="mod-card-icon" style="background:rgba(236,72,153,.12)">
             <v-icon size="22" color="#ec4899">mdi-calendar-clock-outline</v-icon>

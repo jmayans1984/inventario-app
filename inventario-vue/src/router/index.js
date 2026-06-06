@@ -75,6 +75,7 @@ const routes = [
   { path: '/nomina/procesos/liquidacion',         component: () => import('../views/nomina/LiquidacionNominaView.vue'), meta: { requiresAuth: true } },
   { path: '/nomina/reportes/horario',             component: () => import('../views/nomina/ReporteHorarioView.vue'),    meta: { requiresAuth: true } },
   { path: '/nomina/reportes/recibos',             component: () => import('../views/nomina/RecibosNominaView.vue'),     meta: { requiresAuth: true } },
+  { path: '/nomina/reportes/nomina',              component: () => import('../views/nomina/ReporteNominaView.vue'),     meta: { requiresAuth: true } },
   { path: '/nomina/:section?/:item?',             component: () => import('../views/NominaView.vue'),                   meta: { requiresAuth: true } },
 
   // GERENCIA ESPECÍFICAS

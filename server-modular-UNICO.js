@@ -9200,6 +9200,148 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
     } finally { client.release(); }
 });
 
+// ── REPORTE DE NÓMINA ────────────────────────────────────────────
+// GET /api/nomina/reporte — resumen analítico por período
+// Parámetros: empresa, fechaInicio, fechaFin, vista (periodo|empleado|ccosto|impuestos)
+app.get('/api/nomina/reporte', async (req, res) => {
+    const { empresa, fechaInicio, fechaFin, vista = 'periodo' } = req.query;
+    if (!empresa || !fechaInicio || !fechaFin)
+        return res.status(400).json({ success: false, error: 'empresa, fechaInicio y fechaFin son requeridos' });
+    try {
+        // KPIs globales siempre
+        const kpiRes = await pool.query(`
+            SELECT
+                COUNT(DISTINCT l.id)                           AS total_nominas,
+                COUNT(DISTINCT ll.empleado_id)                  AS total_empleados,
+                COALESCE(SUM(ll.total_bruto), 0)               AS total_bruto,
+                COALESCE(SUM(ll.total_deducciones), 0)         AS total_deducciones,
+                COALESCE(SUM(ll.total_aportes_er), 0)          AS total_aportes_er,
+                COALESCE(SUM(ll.total_neto), 0)                AS total_neto,
+                COALESCE(SUM(ll.federal_income_tax), 0)        AS federal_income_tax,
+                COALESCE(SUM(ll.social_security_emp), 0)       AS social_security_emp,
+                COALESCE(SUM(ll.social_security_er), 0)        AS social_security_er,
+                COALESCE(SUM(ll.medicare_emp), 0)              AS medicare_emp,
+                COALESCE(SUM(ll.medicare_er), 0)               AS medicare_er,
+                COALESCE(SUM(ll.futa), 0)                      AS futa,
+                COALESCE(SUM(ll.suta), 0)                      AS suta,
+                COALESCE(SUM(ll.workers_comp), 0)              AS workers_comp,
+                COALESCE(SUM(ll.total_bruto + ll.total_aportes_er), 0) AS costo_total_empresa
+            FROM nom_liquidacion l
+            JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+            WHERE l.empresa = $1
+              AND l.estado = 'APROBADA'
+              AND l.semana_inicio >= $2
+              AND l.semana_fin   <= $3
+        `, [empresa, fechaInicio, fechaFin]);
+
+        let rows = [];
+
+        if (vista === 'periodo') {
+            // Por nómina/período
+            const r = await pool.query(`
+                SELECT
+                    l.id,
+                    TO_CHAR(l.semana_inicio,'YYYY-MM-DD') AS semana_inicio,
+                    TO_CHAR(l.semana_fin,   'YYYY-MM-DD') AS semana_fin,
+                    COUNT(DISTINCT ll.empleado_id)          AS empleados,
+                    COALESCE(SUM(ll.total_bruto),0)         AS total_bruto,
+                    COALESCE(SUM(ll.total_deducciones),0)   AS total_deducciones,
+                    COALESCE(SUM(ll.total_aportes_er),0)    AS total_aportes_er,
+                    COALESCE(SUM(ll.total_neto),0)          AS total_neto,
+                    COALESCE(SUM(ll.total_bruto+ll.total_aportes_er),0) AS costo_empresa
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                WHERE l.empresa=$1 AND l.estado='APROBADA'
+                  AND l.semana_inicio>=$2 AND l.semana_fin<=$3
+                GROUP BY l.id, l.semana_inicio, l.semana_fin
+                ORDER BY l.semana_inicio DESC
+            `, [empresa, fechaInicio, fechaFin]);
+            rows = r.rows;
+
+        } else if (vista === 'empleado') {
+            // Por empleado
+            const r = await pool.query(`
+                SELECT
+                    e.id AS empleado_id,
+                    COALESCE(e.nombre||' '||e.apellido, e.nombre, 'Empleado '||ll.empleado_id) AS nombre,
+                    COALESCE(e.tipo_empleado, ll.tipo_empleado, '—') AS tipo_empleado,
+                    COUNT(DISTINCT l.id)                         AS total_nominas,
+                    COALESCE(SUM(ll.horas_regulares),0)          AS horas_regulares,
+                    COALESCE(SUM(ll.horas_overtime),0)           AS horas_overtime,
+                    COALESCE(SUM(ll.total_bruto),0)              AS total_bruto,
+                    COALESCE(SUM(ll.total_deducciones),0)        AS total_deducciones,
+                    COALESCE(SUM(ll.federal_income_tax),0)       AS federal_income_tax,
+                    COALESCE(SUM(ll.social_security_emp),0)      AS social_security_emp,
+                    COALESCE(SUM(ll.medicare_emp),0)             AS medicare_emp,
+                    COALESCE(SUM(ll.workers_comp),0)             AS workers_comp,
+                    COALESCE(SUM(ll.total_aportes_er),0)         AS total_aportes_er,
+                    COALESCE(SUM(ll.total_neto),0)               AS total_neto,
+                    COALESCE(SUM(ll.total_bruto+ll.total_aportes_er),0) AS costo_empresa
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                LEFT JOIN empleados e ON e.id = ll.empleado_id
+                WHERE l.empresa=$1 AND l.estado='APROBADA'
+                  AND l.semana_inicio>=$2 AND l.semana_fin<=$3
+                GROUP BY e.id, e.nombre, e.apellido, e.tipo_empleado, ll.tipo_empleado, ll.empleado_id
+                ORDER BY total_bruto DESC
+            `, [empresa, fechaInicio, fechaFin]);
+            rows = r.rows;
+
+        } else if (vista === 'ccosto') {
+            // Por centro de costo
+            const r = await pool.query(`
+                SELECT
+                    lc.ccosto,
+                    COALESCE(cc.nombre, lc.ccosto) AS ccosto_nombre,
+                    COUNT(DISTINCT ll.empleado_id)       AS empleados,
+                    COALESCE(SUM(lc.horas),0)            AS horas,
+                    COALESCE(SUM(lc.costo_bruto),0)      AS costo_bruto,
+                    COALESCE(SUM(lc.costo_total),0)      AS costo_total
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll  ON ll.liquidacion_id = l.id
+                JOIN nom_liquidacion_ccosto lc ON lc.linea_id = ll.id
+                LEFT JOIN ccostos cc ON cc.codigo = lc.ccosto AND cc.empresa = l.empresa
+                WHERE l.empresa=$1 AND l.estado='APROBADA'
+                  AND l.semana_inicio>=$2 AND l.semana_fin<=$3
+                GROUP BY lc.ccosto, cc.nombre
+                ORDER BY costo_total DESC
+            `, [empresa, fechaInicio, fechaFin]);
+            rows = r.rows;
+
+        } else if (vista === 'impuestos') {
+            // Por tipo de impuesto/deducción — resumen en columnas
+            const r = await pool.query(`
+                SELECT
+                    TO_CHAR(l.semana_inicio,'YYYY-MM-DD') AS semana_inicio,
+                    TO_CHAR(l.semana_fin,   'YYYY-MM-DD') AS semana_fin,
+                    COALESCE(SUM(ll.federal_income_tax),0)   AS federal_income_tax,
+                    COALESCE(SUM(ll.social_security_emp),0)  AS ss_emp,
+                    COALESCE(SUM(ll.social_security_er),0)   AS ss_er,
+                    COALESCE(SUM(ll.medicare_emp),0)         AS medicare_emp,
+                    COALESCE(SUM(ll.medicare_er),0)          AS medicare_er,
+                    COALESCE(SUM(ll.futa),0)                 AS futa,
+                    COALESCE(SUM(ll.suta),0)                 AS suta,
+                    COALESCE(SUM(ll.workers_comp),0)         AS workers_comp,
+                    COALESCE(SUM(ll.total_deducciones),0)    AS total_deducciones,
+                    COALESCE(SUM(ll.total_aportes_er),0)     AS total_aportes_er,
+                    COALESCE(SUM(ll.federal_income_tax+ll.social_security_emp+ll.social_security_er+ll.medicare_emp+ll.medicare_er+ll.futa+ll.suta+ll.workers_comp),0) AS total_impuestos
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                WHERE l.empresa=$1 AND l.estado='APROBADA'
+                  AND l.semana_inicio>=$2 AND l.semana_fin<=$3
+                GROUP BY l.id, l.semana_inicio, l.semana_fin
+                ORDER BY l.semana_inicio DESC
+            `, [empresa, fechaInicio, fechaFin]);
+            rows = r.rows;
+        }
+
+        res.json({ success: true, kpis: kpiRes.rows[0], data: rows, vista });
+    } catch (error) {
+        console.error('Error GET /api/nomina/reporte:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ── CONFIGURACIÓN FISCAL ─────────────────────────────────────────
 app.get('/api/nomina/config-fiscal', async (req, res) => {
     const { empresa } = req.query;
