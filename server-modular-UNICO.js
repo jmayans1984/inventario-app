@@ -8859,14 +8859,137 @@ app.delete('/api/nomina/liquidaciones/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Aprobar nómina
+// Aprobar nómina — transacción completa
 app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
+    const { empresa, banco } = req.body;
+    const client = await pool.connect();
     try {
-        await pool.query(
-            'UPDATE nom_liquidacion SET estado=\'APROBADA\', updated_at=NOW() WHERE id=$1', [req.params.id]
+        await client.query('BEGIN');
+
+        // 1. Verificar estado
+        const liq = await client.query('SELECT * FROM nom_liquidacion WHERE id=$1', [req.params.id]);
+        if (!liq.rows.length) return res.status(404).json({ success: false, error: 'No encontrada' });
+        const l = liq.rows[0];
+        if (l.estado !== 'BORRADOR')
+            return res.status(400).json({ success: false, error: 'Solo se pueden aprobar nóminas en BORRADOR' });
+
+        const totalCosto = parseFloat(l.total_bruto || 0) + parseFloat(l.total_aportes_er || 0);
+        const totalNeto  = parseFloat(l.total_neto  || 0);
+
+        // Helper: date object → YYYY-MM-DD string
+        const fmtDate = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth()+1).padStart(2,'0');
+            const dd = String(d.getDate()).padStart(2,'0');
+            return `${y}-${m}-${dd}`;
+        };
+        const fmtLabel = (d) => {
+            const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            return `${d.getDate()} ${meses[d.getMonth()]}`;
+        };
+
+        const inicio = new Date(String(l.semana_inicio).split('T')[0] + 'T12:00:00');
+        const fin    = new Date(String(l.semana_fin).split('T')[0]   + 'T12:00:00');
+        const labelBase = `NOMINA ${fmtLabel(inicio)} - ${fmtLabel(fin)} ${fin.getFullYear()}`;
+
+        // 2. Prorratear por mes si la semana cruza
+        const entries = [];
+        if (inicio.getMonth() === fin.getMonth() && inicio.getFullYear() === fin.getFullYear()) {
+            // Misma mes — un solo asiento
+            entries.push({ fecha: fmtDate(fin), concepto: labelBase, costo: totalCosto, neto: totalNeto });
+        } else {
+            // Cruza meses — contar días en cada mes
+            let diasMes1 = 0;
+            let cursor = new Date(inicio);
+            while (cursor.getMonth() === inicio.getMonth()) {
+                diasMes1++;
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            const diasMes2 = 7 - diasMes1;
+            // Último día del primer mes
+            const ultMes1 = new Date(inicio.getFullYear(), inicio.getMonth()+1, 0);
+            const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            entries.push({
+                fecha:   fmtDate(ultMes1),
+                concepto: `${labelBase} (${diasMes1}d ${meses[inicio.getMonth()]})`,
+                costo: parseFloat((totalCosto * diasMes1 / 7).toFixed(2)),
+                neto:  parseFloat((totalNeto  * diasMes1 / 7).toFixed(2))
+            });
+            entries.push({
+                fecha:   fmtDate(fin),
+                concepto: `${labelBase} (${diasMes2}d ${meses[fin.getMonth()]})`,
+                costo: parseFloat((totalCosto * diasMes2 / 7).toFixed(2)),
+                neto:  parseFloat((totalNeto  * diasMes2 / 7).toFixed(2))
+            });
+        }
+
+        // 3. Código de gasto siguiente (mismo patrón que el sistema)
+        const codR = await client.query(
+            `SELECT COALESCE(MAX(CAST(codigo AS INTEGER)), 0)+1 AS n FROM gastos WHERE empresa=$1`,
+            [empresa]
         );
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+        let codNum = parseInt(codR.rows[0].n) || 1;
+
+        // 4. Número de moviban siguiente
+        const numR = await client.query(
+            `SELECT COALESCE(MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END), 0)+1 AS n
+             FROM moviban WHERE empresa=$1`, [empresa]
+        );
+        let movNum = parseInt(numR.rows[0].n) || 1;
+
+        // 5. Insertar gastos + movibanes (uno por cada segmento mensual)
+        const gastosCreados = [];
+        for (const entry of entries) {
+            const codigo = String(codNum).padStart(10, '0');
+            codNum++;
+
+            // Gasto (P&L — costo empresa completo)
+            await client.query(
+                `INSERT INTO gastos (codigo, fecha, proveedor, concepto, cuenta, factura,
+                                     subtotal, impuestos, total, ccosto, forma_pago, estado, empresa)
+                 VALUES ($1, $2, 'NOMINA', $3, 'NOMINA', $4, $5, 0, $5, '', 'TRANSFERENCIA', 'PAGADA', $6)`,
+                [codigo, entry.fecha, entry.concepto, `NOM-${req.params.id}`, entry.costo, empresa]
+            );
+
+            // Movimiento bancario (solo lo que sale del banco = neto pagado)
+            if (banco) {
+                const numStr = String(movNum).padStart(10, '0');
+                movNum++;
+                await client.query(
+                    `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
+                                         banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                     VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, $7, 'EMPLEADOS', NULL, '')`,
+                    [numStr, entry.fecha, entry.concepto, entry.neto, banco, empresa, codigo]
+                );
+            }
+
+            gastosCreados.push({ codigo, fecha: entry.fecha, concepto: entry.concepto, total: entry.costo });
+        }
+
+        // 6. Cambiar estado a APROBADA
+        await client.query(
+            "UPDATE nom_liquidacion SET estado='APROBADA', updated_at=NOW() WHERE id=$1",
+            [req.params.id]
+        );
+
+        // 7. Cerrar la semana del horario vinculada
+        if (l.semana_id) {
+            await client.query(
+                "UPDATE nom_semana SET estado='CERRADO' WHERE id=$1", [l.semana_id]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: `Nómina aprobada. ${entries.length > 1 ? 'Gasto prorrateado en ' + entries.length + ' meses.' : 'Gasto registrado.'} ${banco ? 'Movimiento bancario creado.' : ''}`,
+            gastos: gastosCreados
+        });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('Error al aprobar nómina:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    } finally { client.release(); }
 });
 
 // ── CONFIGURACIÓN FISCAL ─────────────────────────────────────────

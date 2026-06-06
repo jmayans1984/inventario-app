@@ -27,7 +27,7 @@
             <v-icon size="14" class="mr-1">mdi-calculator</v-icon> Calcular
           </v-btn>
           <v-btn v-if="liqActual?.estado==='BORRADOR' && lineas.length"
-                 size="small" color="#10b981" variant="flat" @click="aprobar">
+                 size="small" color="#10b981" variant="flat" @click="abrirAprobar">
             <v-icon size="14" class="mr-1">mdi-check-circle</v-icon> Aprobar
           </v-btn>
           <v-btn v-if="liqActual?.estado==='APROBADA'" size="small" color="#06b6d4" variant="flat"
@@ -250,6 +250,58 @@
       </div>
     </div>
 
+    <!-- ── DIALOG APROBAR NÓMINA ── -->
+    <v-dialog v-model="dlgAprobar" max-width="480">
+      <v-card rounded="lg">
+        <v-card-title class="pa-4 pb-2" style="font-size:15px;font-weight:700">
+          <v-icon size="18" color="#10b981" class="mr-2">mdi-check-circle</v-icon>
+          Aprobar Nómina
+        </v-card-title>
+        <v-card-text class="pa-4 pt-2">
+          <!-- Resumen -->
+          <div class="aprobar-resumen">
+            <div class="aprobar-item"><span>Período</span><span>{{ fmtFecha(liqActual?.semana_inicio) }} — {{ fmtFecha(liqActual?.semana_fin) }}</span></div>
+            <div class="aprobar-item"><span>Bruto empleados</span><span>{{ fmtMoney(liqActual?.total_bruto) }}</span></div>
+            <div class="aprobar-item"><span>Aportes empleador</span><span>{{ fmtMoney(liqActual?.total_aportes_er) }}</span></div>
+            <div class="aprobar-item bold"><span>Costo total empresa</span><span style="color:#8b5cf6">{{ fmtMoney(parseFloat(liqActual?.total_bruto||0)+parseFloat(liqActual?.total_aportes_er||0)) }}</span></div>
+            <div class="aprobar-item neto"><span>NETO A PAGAR empleados</span><span>{{ fmtMoney(liqActual?.total_neto) }}</span></div>
+          </div>
+
+          <!-- Info prorrateo si cruza meses -->
+          <div v-if="cruzaMeses" class="prorate-info mt-3">
+            <v-icon size="14" color="#f59e0b">mdi-information</v-icon>
+            <span>Esta semana cruza dos meses. El gasto se prorrateará en dos asientos contables.</span>
+          </div>
+
+          <!-- Cuenta bancaria -->
+          <div class="drw-field mt-3">
+            <label>Cuenta bancaria de pago</label>
+            <select v-model="bancoSelAprobar" class="drw-select">
+              <option value="">— Sin registrar movimiento bancario —</option>
+              <option v-for="c in cuentasBancarias" :key="c.codigo" :value="c.codigo">
+                {{ c.banco }} — {{ c.nombre }} ({{ c.tipo }})
+              </option>
+            </select>
+            <span style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:3px">
+              Si seleccionas una cuenta, se registrará el egreso en MOVIBAN
+            </span>
+          </div>
+
+          <div class="aprobar-advertencia mt-3">
+            <v-icon size="14" color="#ef4444">mdi-alert</v-icon>
+            <span>Al aprobar: se creará el gasto en contabilidad, se cerrará la semana del horario y no se podrá modificar la nómina.</span>
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer/>
+          <v-btn variant="text" @click="dlgAprobar=false">Cancelar</v-btn>
+          <v-btn color="#10b981" variant="flat" :loading="aprobando" @click="confirmarAprobar">
+            <v-icon size="14" class="mr-1">mdi-check-circle</v-icon> Confirmar y Aprobar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- ── DIALOG NUEVA NÓMINA ── -->
     <v-dialog v-model="dlgNueva" max-width="460">
       <v-card rounded="lg">
@@ -322,6 +374,11 @@ const nuevaLiqSemanaId = ref('')
 const nuevaLiqInicio  = ref('')
 const nuevaLiqFin     = ref('')
 const creandoLiq      = ref(false)
+
+const dlgAprobar      = ref(false)
+const bancoSelAprobar = ref('')
+const cuentasBancarias = ref([])
+const aprobando       = ref(false)
 
 function toggleExpand(id) {
   if (expandido.value.has(id)) expandido.value.delete(id)
@@ -399,13 +456,37 @@ async function calcular() {
   finally { calculando.value = false }
 }
 
-async function aprobar() {
-  const periodo = `${fmtFecha(liqActual.value?.semana_inicio)} — ${fmtFecha(liqActual.value?.semana_fin)}`
-  if (!confirm(`¿Aprobar la nómina del ${periodo}?\n\nNeto a pagar: ${fmtMoney(liqActual.value?.total_neto)}\n\nEsta acción no se puede deshacer.`)) return
+const cruzaMeses = computed(() => {
+  if (!liqActual.value) return false
+  const ini = String(liqActual.value.semana_inicio).split('T')[0]
+  const fin = String(liqActual.value.semana_fin).split('T')[0]
+  return ini.slice(0,7) !== fin.slice(0,7) // diferentes año-mes
+})
+
+async function abrirAprobar() {
+  // Cargar cuentas bancarias si no están cargadas
+  if (!cuentasBancarias.value.length) {
+    try {
+      const r = await api.get('/cuentas-bancarias', { params: { empresa: empresa.value } })
+      cuentasBancarias.value = r.data?.data || r.data || []
+    } catch(e) { cuentasBancarias.value = [] }
+  }
+  bancoSelAprobar.value = ''
+  dlgAprobar.value = true
+}
+
+async function confirmarAprobar() {
+  aprobando.value = true
   try {
-    await api.put(`/nomina/liquidaciones/${liqSelId.value}/aprobar`)
+    const r = await api.put(`/nomina/liquidaciones/${liqSelId.value}/aprobar`, {
+      empresa: empresa.value,
+      banco: bancoSelAprobar.value || null
+    })
+    dlgAprobar.value = false
+    alert(`✅ ${r.data.message}`)
     await cargarDetalle()
   } catch(e) { alert('❌ ' + (e?.response?.data?.error || e.message)) }
+  finally { aprobando.value = false }
 }
 
 async function borrarLiq() {
@@ -500,6 +581,14 @@ onMounted(cargar)
 .drw-field { display: flex; flex-direction: column; gap: 4px; }
 .drw-field label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase; }
 .drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; box-sizing: border-box; }
-.mb-3 { margin-bottom: 12px; } .pt-2 { padding-top: 8px !important; } .pa-4 { padding: 16px; } .pb-2 { padding-bottom: 8px !important; } .pt-0 { padding-top: 0 !important; }
+.mb-3 { margin-bottom: 12px; } .mt-3 { margin-top: 12px; } .pt-2 { padding-top: 8px !important; } .pa-4 { padding: 16px; } .pb-2 { padding-bottom: 8px !important; } .pt-0 { padding-top: 0 !important; }
 .periodo-preview { margin-top: 10px; font-size: 12px; font-weight: 700; color: #8b5cf6; display: flex; align-items: center; gap: 6px; }
+/* Dialog aprobar */
+.aprobar-resumen { background: rgba(var(--v-theme-on-surface),0.03); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.aprobar-item { display: flex; justify-content: space-between; font-size: 12px; }
+.aprobar-item span:last-child { font-weight: 600; }
+.aprobar-item.bold { border-top: 1px solid rgba(var(--v-theme-on-surface),0.08); padding-top: 6px; margin-top: 2px; font-weight: 700; }
+.aprobar-item.neto span { color: #10b981; font-weight: 800; font-size: 13px; }
+.prorate-info { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #f59e0b; background: rgba(245,158,11,0.08); padding: 8px 12px; border-radius: 8px; }
+.aprobar-advertencia { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; color: rgba(var(--v-theme-on-surface),0.5); background: rgba(239,68,68,0.05); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.1); }
 </style>
