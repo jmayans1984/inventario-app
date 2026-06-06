@@ -241,7 +241,7 @@ function imprimirTodos() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; background: white; color: #111; }
     .pagina { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
-    @media print { .pagina { gap: 8px; } }
+    @media print { .pagina { grid-template-columns: 1fr !important; gap: 4px !important; padding: 8px; } }
     .recibo { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
     .rec-header { background: #1e3a5f; padding: 10px 14px; }
     .rec-empresa { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.8px; }
@@ -266,7 +266,8 @@ function imprimirTodos() {
     .rec-ytd { font-size: 10px; color: #444; }
     .rec-net { font-size: 18px; font-weight: 800; color: #059669; text-align: right; }
     @media print {
-      .recibo { page-break-inside: avoid; }
+      .pagina { grid-template-columns: 1fr !important; gap: 4px !important; }
+      .recibo { page-break-inside: avoid; page-break-after: always; }
       .rec-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .rec-footer  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
@@ -336,7 +337,6 @@ function imprimirTodos() {
   ventana.document.write(html)
   ventana.document.close()
   ventana.focus()
-  setTimeout(() => ventana.print(), 500)
 }
 
 onMounted(cargar)
