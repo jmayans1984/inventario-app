@@ -8861,7 +8861,7 @@ app.delete('/api/nomina/liquidaciones/:id', async (req, res) => {
 
 // Aprobar nómina — transacción completa
 app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
-    const { empresa, banco } = req.body;
+    const { empresa, banco, fechaPago } = req.body;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -8959,7 +8959,7 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
             for (const cc of costosPorCcosto) {
                 entries.push({
                     fecha:   seg.fecha,
-                    concepto: cc.ccosto ? `${seg.label} - CC ${cc.ccosto}` : seg.label,
+                    concepto: seg.label,   // sin sufijo de ccosto
                     ccosto:  cc.ccosto,
                     costo:   parseFloat((cc.costo * seg.ratio).toFixed(2))
                 });
@@ -8998,6 +8998,9 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         const cuentaContable = (cuentaNomina && cuentaNomina !== 'NOMINA') ? truncate(cuentaNomina, 3) : null;
 
         // 8. Insertar gastos
+        // fechaPago: fecha indicada por el usuario (cuando realmente pagó via ADP)
+        // entry.fecha: fecha contable del período (para prorrateo mensual de P&G)
+        const fechaGasto = fechaPago || finStr; // usar fecha de pago si existe, sino fin período
         const gastosCreados = [];
         for (const entry of entries) {
             const codigo = String(codNum).padStart(10, '0');
@@ -9008,8 +9011,8 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
                 await client.query(
                     `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
                                          forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
-                     VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7, 0, $7, $8, 'PAGADA')`,
-                    [codigo, entry.fecha, ccostoSafe, formaPago, cuentaContable,
+                     VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7, 0, $7, $8, 'PENDIENTE')`,
+                    [codigo, fechaGasto, ccostoSafe, formaPago, cuentaContable,
                      entry.concepto, entry.costo, l.empresa]
                 );
                 gastosCreados.push({ codigo, fecha: entry.fecha, ccosto: ccostoSafe, total: entry.costo });
@@ -9039,7 +9042,7 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
                         `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
                                              banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
                          VALUES ('EGR', $1, $2, $3, NULL, 0, $4, $5, 'NO', $6, NULL, NULL, NULL, '')`,
-                        [numStr, mov.fecha, mov.concepto, mov.neto, banco, l.empresa]
+                        [numStr, fechaGasto, mov.concepto, mov.neto, banco, l.empresa]
                     );
                 } catch(eMoviban) {
                     console.error('=== ERROR INSERT MOVIBAN ===');

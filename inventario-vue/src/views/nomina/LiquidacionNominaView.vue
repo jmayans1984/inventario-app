@@ -273,6 +273,15 @@
             <span>Esta semana cruza dos meses. El gasto se prorrateará en dos asientos contables.</span>
           </div>
 
+          <!-- Fecha de pago -->
+          <div class="drw-field mt-3">
+            <label>Fecha de pago (cuando ADP pagó los empleados)</label>
+            <input v-model="fechaPagoAprobar" type="date" class="drw-input" />
+            <span style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:3px;display:block">
+              Se usará como fecha en gastos y movimiento bancario. Si no la indicas, se usa la fecha fin del período.
+            </span>
+          </div>
+
           <!-- Cuenta bancaria -->
           <div class="drw-field mt-3">
             <label>Cuenta bancaria de pago</label>
@@ -393,6 +402,7 @@ const creandoLiq      = ref(false)
 
 const dlgAprobar      = ref(false)
 const bancoSelAprobar = ref('')
+const fechaPagoAprobar = ref('')
 const cuentasBancarias = ref([])
 const aprobando       = ref(false)
 
@@ -488,6 +498,7 @@ async function abrirAprobar() {
     } catch(e) { cuentasBancarias.value = [] }
   }
   bancoSelAprobar.value = ''
+  fechaPagoAprobar.value = ''
   dlgAprobar.value = true
 }
 
@@ -501,7 +512,8 @@ async function confirmarAprobar() {
   try {
     const r = await api.put(`/nomina/liquidaciones/${liqSelId.value}/aprobar`, {
       empresa: empresa.value,
-      banco: bancoSelAprobar.value || null
+      banco: bancoSelAprobar.value || null,
+      fechaPago: fechaPagoAprobar.value || null
     })
     dlgAprobar.value = false
     alert(`✅ ${r.data.message}`)
