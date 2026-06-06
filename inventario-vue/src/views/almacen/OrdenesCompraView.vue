@@ -197,31 +197,42 @@
 
         </div>
 
-        <!-- Footer con opciones y envío -->
+        <!-- Footer -->
         <div class="nueva-footer">
-          <div class="nueva-footer-opciones">
+
+          <!-- Fila 1: campos -->
+          <div class="nueva-footer-campos">
             <div class="footer-field">
               <div class="footer-field-label">Fecha de entrega <span style="color:#ef4444">*</span></div>
               <v-text-field v-model="nuevaFechaEntrega" type="date" variant="outlined" density="compact"
-                hide-details style="max-width:180px"
-                :error="fechaError" />
+                hide-details :error="fechaError" style="min-width:180px" />
             </div>
-            <div class="footer-field">
+            <div class="footer-field" style="flex:1">
               <div class="footer-field-label">Observaciones</div>
               <v-text-field v-model="nuevaObservaciones" variant="outlined" density="compact"
-                hide-details placeholder="Notas adicionales..." style="max-width:320px" />
+                hide-details placeholder="Notas adicionales para el proveedor..." />
             </div>
           </div>
+
+          <!-- Fila 2: resumen + acciones -->
           <div class="nueva-footer-actions">
-            <v-btn variant="text" @click="dlgNueva=false">Cancelar</v-btn>
-            <v-btn color="#10b981" variant="flat" rounded="lg" size="large"
+            <div v-if="itemsPedido > 0" class="footer-resumen">
+              <span class="footer-items">{{ itemsPedido }} producto{{ itemsPedido !== 1 ? 's' : '' }}</span>
+              <span class="footer-sep">·</span>
+              <span class="footer-total">{{ fmt(totalPedido) }}</span>
+            </div>
+            <v-spacer />
+            <v-btn color="error" variant="tonal" rounded="lg" @click="dlgNueva=false">
+              <v-icon start size="16">mdi-close</v-icon>Cancelar
+            </v-btn>
+            <v-btn color="#10b981" variant="flat" rounded="lg"
               :disabled="itemsPedido === 0"
               :loading="enviando"
               @click="enviarOrden">
-              <v-icon start>mdi-send-outline</v-icon>
-              Enviar Orden ({{ itemsPedido }} prods · {{ fmt(totalPedido) }})
+              <v-icon start size="16">mdi-send-outline</v-icon>Enviar Orden
             </v-btn>
           </div>
+
         </div>
 
       </v-card>
@@ -604,11 +615,15 @@ onMounted(cargar)
 .cant-input:focus { border-color: #10b981; }
 
 /* Footer */
-.nueva-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 20px; border-top: 1px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.02); flex-shrink: 0; flex-wrap: wrap; }
-.nueva-footer-opciones { display: flex; gap: 16px; flex-wrap: wrap; }
-.nueva-footer-actions { display: flex; gap: 10px; align-items: center; }
+.nueva-footer { display: flex; flex-direction: column; gap: 10px; padding: 14px 20px; border-top: 1px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.02); flex-shrink: 0; }
+.nueva-footer-campos { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.nueva-footer-actions { display: flex; align-items: center; gap: 10px; }
 .footer-field { display: flex; flex-direction: column; gap: 4px; }
 .footer-field-label { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.4); }
+.footer-resumen { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.footer-items { font-weight: 600; color: rgba(var(--v-theme-on-surface),.7); }
+.footer-sep { color: rgba(var(--v-theme-on-surface),.3); }
+.footer-total { font-size: 16px; font-weight: 800; color: #10b981; font-family: monospace; }
 
 /* Dialog detalle */
 .det-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg,#065f46,#047857); }
