@@ -335,50 +335,28 @@
 
             <!-- TAB PRECIOS -->
             <div class="dlg-section mt-6">
-              <div class="dlg-section-title">💰 PRECIOS DE VENTA</div>
+              <div class="dlg-section-title">💰 COSTO DEL PRODUCTO</div>
               <v-row dense>
-                <!-- PRECIO 1 -->
-                <v-col cols="12" sm="4">
+                <!-- PRECIO COSTO -->
+                <v-col cols="12">
                   <v-text-field
-                    v-model.number="form.precio_venta1"
-                    label="Precio Nivel 1"
+                    v-model.number="form.precio_costo"
+                    label="Precio de Costo *"
                     variant="outlined"
                     density="compact"
                     type="number"
                     step="0.01"
                     prefix="$"
                     hide-details
-                  />
-                </v-col>
-
-                <!-- PRECIO 2 -->
-                <v-col cols="12" sm="4">
-                  <v-text-field
-                    v-model.number="form.precio_venta2"
-                    label="Precio Nivel 2"
-                    variant="outlined"
-                    density="compact"
-                    type="number"
-                    step="0.01"
-                    prefix="$"
-                    hide-details
-                  />
-                </v-col>
-
-                <!-- PRECIO 3 -->
-                <v-col cols="12" sm="4">
-                  <v-text-field
-                    v-model.number="form.precio_venta3"
-                    label="Precio Nivel 3"
-                    variant="outlined"
-                    density="compact"
-                    type="number"
-                    step="0.01"
-                    prefix="$"
-                    hide-details
+                    hint="Los precios de venta se calculan automáticamente usando los márgenes configurados"
+                    persistent-hint
                   />
                 </v-col>
               </v-row>
+              <div class="dlg-hint mt-3">
+                <v-icon size="16" color="#06b6d4">mdi-information-outline</v-icon>
+                <span>Los precios de venta (Niveles 1, 2, 3) se calculan automáticamente</span>
+              </div>
             </div>
 
             <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-5">
@@ -428,9 +406,7 @@ const form      = ref({
   grupo: null,
   control: 'SI',
   para_venta: 'NO',
-  precio_venta1: 0,
-  precio_venta2: 0,
-  precio_venta3: 0
+  precio_costo: 0
 })
 
 // ── Computed ──────────────────────────────────────────────────
@@ -492,9 +468,7 @@ async function abrirCrear() {
     grupo: null,
     control: 'SI',
     para_venta: 'NO',
-    precio_venta1: 0,
-    precio_venta2: 0,
-    precio_venta3: 0
+    precio_costo: 0
   }
   // Obtener próximo código internamente (no se muestra, solo para el POST)
   try {
@@ -515,9 +489,7 @@ function abrirEditar(p) {
     grupo:   p.grupo || null,
     control: p.control || 'NO',
     para_venta: p.para_venta || 'NO',
-    precio_venta1: p.precio_venta1 || 0,
-    precio_venta2: p.precio_venta2 || 0,
-    precio_venta3: p.precio_venta3 || 0,
+    precio_costo: p.precio_costo || 0,
   }
   dlgForm.value = true
 }
@@ -547,9 +519,7 @@ async function guardar() {
       grupo:   form.value.grupo || null,
       control: form.value.control || 'NO',
       para_venta: form.value.para_venta || 'NO',
-      precio_venta1: parseFloat(form.value.precio_venta1) || 0,
-      precio_venta2: parseFloat(form.value.precio_venta2) || 0,
-      precio_venta3: parseFloat(form.value.precio_venta3) || 0,
+      precio_costo: parseFloat(form.value.precio_costo) || 0,
     }
     if (editando.value) {
       const res = await productosAlmacenService.actualizarProducto(payload.codigo, payload)
@@ -687,4 +657,15 @@ onMounted(cargar)
 }
 
 .th-venta { width: 110px; text-align: center; }
+
+.dlg-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(6, 182, 212, 0.7);
+  padding: 8px;
+  background: rgba(6, 182, 212, 0.08);
+  border-radius: 6px;
+}
 </style>

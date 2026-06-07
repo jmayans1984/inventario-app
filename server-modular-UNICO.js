@@ -328,6 +328,7 @@ app.get('/api/almacen/productos', async (req, res) => {
         let query = `
             SELECT p.codigo, p.nombre, p.und, p.grupo,
                    g.nombre AS grupo_nombre, p.control, p.para_venta,
+                   COALESCE(p.precio_costo, 0) AS precio_costo,
                    COALESCE(p.precio_venta1, 0) AS precio_venta1,
                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
                    COALESCE(p.precio_venta3, 0) AS precio_venta3
@@ -363,7 +364,7 @@ app.get('/api/almacen/productos', async (req, res) => {
 
 // POST /api/almacen/productos — crear producto
 app.post('/api/almacen/productos', async (req, res) => {
-    const { codigo, nombre, und, grupo, control, para_venta, precio_venta1, precio_venta2, precio_venta3 } = req.body;
+    const { codigo, nombre, und, grupo, control, para_venta, precio_costo } = req.body;
     if (!codigo || !nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: codigo, nombre, und' });
     }
@@ -372,9 +373,27 @@ app.post('/api/almacen/productos', async (req, res) => {
         if (existe.rows.length > 0) {
             return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
         }
+
+        const pc = parseFloat(precio_costo) || 0;
+
+        // Obtener márgenes de config_listas_precios para calcular precios automáticamente
+        const cfgRes = await pool.query(
+            `SELECT margen_venta1, margen_venta2, margen_venta3 FROM config_listas_precios LIMIT 1`
+        );
+        let pv1 = 0, pv2 = 0, pv3 = 0;
+        if (cfgRes.rows.length > 0 && pc > 0) {
+            const cfg = cfgRes.rows[0];
+            const m1 = parseFloat(cfg.margen_venta1) || 0;
+            const m2 = parseFloat(cfg.margen_venta2) || 0;
+            const m3 = parseFloat(cfg.margen_venta3) || 0;
+            if (m1 > 0 && m1 < 1) pv1 = Math.round(pc / (1 - m1) * 100) / 100;
+            if (m2 > 0 && m2 < 1) pv2 = Math.round(pc / (1 - m2) * 100) / 100;
+            if (m3 > 0 && m3 < 1) pv3 = Math.round(pc / (1 - m3) * 100) / 100;
+        }
+
         await pool.query(
-            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, precio_venta1, precio_venta2, precio_venta3)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, precio_costo, precio_venta1, precio_venta2, precio_venta3)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [
                 codigo,
                 nombre.trim(),
@@ -382,13 +401,15 @@ app.post('/api/almacen/productos', async (req, res) => {
                 grupo || null,
                 control || 'NO',
                 para_venta || 'NO',
-                parseFloat(precio_venta1) || 0,
-                parseFloat(precio_venta2) || 0,
-                parseFloat(precio_venta3) || 0
+                pc,
+                pv1,
+                pv2,
+                pv3
             ]
         );
         const nuevo = await pool.query(
             `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta,
+                    COALESCE(p.precio_costo, 0) AS precio_costo,
                     COALESCE(p.precio_venta1, 0) AS precio_venta1,
                     COALESCE(p.precio_venta2, 0) AS precio_venta2,
                     COALESCE(p.precio_venta3, 0) AS precio_venta3
@@ -405,24 +426,42 @@ app.post('/api/almacen/productos', async (req, res) => {
 // PUT /api/almacen/productos/:codigo — actualizar producto
 app.put('/api/almacen/productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, und, grupo, control, para_venta, precio_venta1, precio_venta2, precio_venta3 } = req.body;
+    const { nombre, und, grupo, control, para_venta, precio_costo } = req.body;
     if (!nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: nombre, und' });
     }
     try {
+        const pc = parseFloat(precio_costo) || 0;
+
+        // Obtener márgenes para calcular precios automáticamente
+        const cfgRes = await pool.query(
+            `SELECT margen_venta1, margen_venta2, margen_venta3 FROM config_listas_precios LIMIT 1`
+        );
+        let pv1 = 0, pv2 = 0, pv3 = 0;
+        if (cfgRes.rows.length > 0 && pc > 0) {
+            const cfg = cfgRes.rows[0];
+            const m1 = parseFloat(cfg.margen_venta1) || 0;
+            const m2 = parseFloat(cfg.margen_venta2) || 0;
+            const m3 = parseFloat(cfg.margen_venta3) || 0;
+            if (m1 > 0 && m1 < 1) pv1 = Math.round(pc / (1 - m1) * 100) / 100;
+            if (m2 > 0 && m2 < 1) pv2 = Math.round(pc / (1 - m2) * 100) / 100;
+            if (m3 > 0 && m3 < 1) pv3 = Math.round(pc / (1 - m3) * 100) / 100;
+        }
+
         const result = await pool.query(
             `UPDATE productos
-             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, precio_venta1=$6, precio_venta2=$7, precio_venta3=$8
-             WHERE codigo=$9`,
+             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, precio_costo=$6, precio_venta1=$7, precio_venta2=$8, precio_venta3=$9
+             WHERE codigo=$10`,
             [
                 nombre.trim(),
                 und.trim(),
                 grupo || null,
                 control || 'NO',
                 para_venta || 'NO',
-                parseFloat(precio_venta1) || 0,
-                parseFloat(precio_venta2) || 0,
-                parseFloat(precio_venta3) || 0,
+                pc,
+                pv1,
+                pv2,
+                pv3,
                 codigo
             ]
         );
@@ -431,6 +470,7 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
         }
         const actualizado = await pool.query(
             `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta,
+                    COALESCE(p.precio_costo, 0) AS precio_costo,
                     COALESCE(p.precio_venta1, 0) AS precio_venta1,
                     COALESCE(p.precio_venta2, 0) AS precio_venta2,
                     COALESCE(p.precio_venta3, 0) AS precio_venta3
@@ -6771,9 +6811,10 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 
 // ── PRODUCTOS ────────────────────────────────────────────────────
-// Asegurar columnaspara_venta en productos (franquicia/proveeduría)
+// Asegurar columnas en productos (franquicia/proveeduría/precios)
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS para_venta VARCHAR(2) DEFAULT 'NO'`).catch(() => {});
-// Asegurar campos de precios de venta en productos
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_costo NUMERIC(12,2) DEFAULT 0`).catch(() => {});
+// Campos de precios de venta (calculados automáticamente)
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta1 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta2 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
