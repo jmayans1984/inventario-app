@@ -24,7 +24,7 @@
         </div>
       </div>
 
-      <!-- CONTROLES -->
+      <!-- CONTROLES EN UNA FILA -->
       <div class="prx-controles">
         <div class="prx-search">
           <v-icon size="18" style="color:rgba(var(--v-theme-on-surface),.4)">mdi-magnify</v-icon>
@@ -56,17 +56,17 @@
         <span>Lista: <strong>{{ listaActual.lista }}</strong> — Margen: <strong>{{ (listaActual.margen * 100).toFixed(1) }}%</strong> — Fórmula: Precio Venta = Precio Costo ÷ (1 - {{ (listaActual.margen * 100).toFixed(1) }}%)</span>
       </div>
 
-      <!-- GRID AGRUPADO -->
-      <div class="prx-grid-wrap">
+      <!-- TABLA AGRUPADA -->
+      <div class="prx-table-wrap">
         <div v-if="loading" class="prx-loading">
           <v-progress-circular indeterminate color="#0891b2" size="36" />
         </div>
 
-        <div v-else class="prx-grupos">
-          <template v-if="productosAgrupados.length === 0">
-            <div class="prx-empty">No hay productos</div>
-          </template>
+        <template v-else-if="productosAgrupados.length === 0">
+          <div class="prx-empty">No hay productos</div>
+        </template>
 
+        <template v-else>
           <template v-for="grupo in productosAgrupados" :key="grupo.key">
             <!-- HEADER DE GRUPO -->
             <div class="grupo-header">
@@ -75,63 +75,60 @@
               <span class="grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
             </div>
 
-            <!-- GRID DE PRODUCTOS -->
-            <div class="grupo-grid">
-              <div v-for="p in grupo.items" :key="p.codigo" class="precio-card" :class="{ 'card-modificado': p._modificado }">
-                <div class="card-header">
-                  <span class="badge-cod">{{ p.codigo }}</span>
-                  <span class="card-nombre">{{ p.nombre }}</span>
-                  <span class="badge-und">{{ p.und }}</span>
-                </div>
-
-                <div class="card-costo">
-                  <label>Precio Costo</label>
-                  <div class="input-wrap">
-                    <span>$</span>
-                    <input
-                      v-model.number="p.precio_costo"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      class="precio-input"
-                      @input="calcularPreciosFila(p)"
-                      @keydown.enter="saltarSiguiente(grupo, p)"
-                    />
-                  </div>
-                </div>
-
-                <div class="card-precios">
-                  <div class="precio-nivel">
-                    <small>Nivel 1</small>
-                    <strong>${{ calcPrecio(p.precio_costo, 1) }}</strong>
-                  </div>
-                  <div class="precio-nivel">
-                    <small>Nivel 2</small>
-                    <strong>${{ calcPrecio(p.precio_costo, 2) }}</strong>
-                  </div>
-                  <div class="precio-nivel">
-                    <small>Nivel 3</small>
-                    <strong>${{ calcPrecio(p.precio_costo, 3) }}</strong>
-                  </div>
-                </div>
-
-                <div class="card-action">
-                  <v-btn
-                    icon
-                    size="small"
-                    variant="text"
-                    :color="p._modificado ? '#10b981' : '#cbd5e1'"
-                    :loading="p._guardando"
-                    @click="guardarFila(p)"
-                    :title="p._modificado ? 'Guardar cambio' : 'Sin cambios'"
-                  >
-                    <v-icon>{{ p._modificado ? 'mdi-content-save' : 'mdi-check' }}</v-icon>
-                  </v-btn>
-                </div>
-              </div>
-            </div>
+            <!-- TABLA DE PRODUCTOS -->
+            <table class="prx-table">
+              <thead>
+                <tr>
+                  <th>CÓDIGO</th>
+                  <th>NOMBRE</th>
+                  <th>UND</th>
+                  <th>PRECIO COSTO</th>
+                  <th>PRECIO VENTA 1</th>
+                  <th>PRECIO VENTA 2</th>
+                  <th>PRECIO VENTA 3</th>
+                  <th>ACCIÓN</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in grupo.items" :key="p.codigo" :class="{ 'fila-modificada': p._modificado }">
+                  <td class="cod-cell"><span class="badge-cod">{{ p.codigo }}</span></td>
+                  <td class="nombre-cell">{{ p.nombre }}</td>
+                  <td class="und-cell">{{ p.und }}</td>
+                  <td class="precio-input-cell">
+                    <div class="input-wrap">
+                      <span class="currency">$</span>
+                      <input
+                        v-model.number="p.precio_costo"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="precio-input"
+                        @input="calcularPreciosFila(p)"
+                        @keydown.enter="saltarSiguiente(grupo, p)"
+                      />
+                    </div>
+                  </td>
+                  <td class="precio-venta-cell">{{ calcPrecio(p.precio_costo, 1) }}</td>
+                  <td class="precio-venta-cell">{{ calcPrecio(p.precio_costo, 2) }}</td>
+                  <td class="precio-venta-cell">{{ calcPrecio(p.precio_costo, 3) }}</td>
+                  <td class="action-cell">
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      :color="p._modificado ? '#10b981' : '#cbd5e1'"
+                      :loading="p._guardando"
+                      @click="guardarFila(p)"
+                      :title="p._modificado ? 'Guardar cambio' : 'Sin cambios'"
+                    >
+                      <v-icon size="18">{{ p._modificado ? 'mdi-content-save' : 'mdi-check' }}</v-icon>
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </template>
-        </div>
+        </template>
       </div>
 
       <div v-if="!loading && productosFiltrados.length > 0" class="prx-total">
@@ -238,7 +235,7 @@ async function cargar() {
       _modificado: false,
       _guardando: false,
     }))
-    grupos.value       = resG.data || []
+    grupos.value = resG.data || []
     listasPrecios.value = resL.data || []
     if (listasPrecios.value.length > 0 && !listaSeleccionada.value) {
       listaSeleccionada.value = listasPrecios.value[0].id
@@ -298,7 +295,7 @@ onMounted(cargar)
 </script>
 
 <style scoped>
-.prx-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.prx-container { padding: 24px; max-width: 1600px; margin: 0 auto; }
 
 .prx-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
 .bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
@@ -324,10 +321,9 @@ onMounted(cargar)
   border-radius: 8px; font-size: 13px; color: rgba(var(--v-theme-on-surface),.8);
 }
 
-.prx-grid-wrap { margin-bottom: 16px; }
+.prx-table-wrap { margin-bottom: 16px; }
 .prx-loading { display: flex; justify-content: center; padding: 60px; }
-
-.prx-grupos { display: flex; flex-direction: column; gap: 20px; }
+.prx-empty { text-align: center; padding: 50px 20px; color: rgba(var(--v-theme-on-surface),.4); }
 
 .grupo-header {
   display: flex; align-items: center; gap: 8px;
@@ -335,46 +331,72 @@ onMounted(cargar)
   background: rgba(139,92,246,.08);
   border-left: 3px solid #8b5cf6;
   border-radius: 8px;
-  margin-top: 12px;
+  margin: 20px 0 12px 0;
 }
 .grupo-nombre { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #8b5cf6; }
 .grupo-count { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
 
-.grupo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.precio-card {
+.prx-table {
+  width: 100%;
+  border-collapse: collapse;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface),.08);
-  border-radius: 10px;
-  padding: 14px;
-  transition: all .15s;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.precio-card:hover { border-color: rgba(var(--v-theme-on-surface),.15); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-.card-modificado { background: rgba(245,158,11,.05); border-color: #f59e0b; }
-
-.card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; }
-.card-nombre { font-size: 13px; font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
-.badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-
-.card-costo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.prx-table thead {
+  background: rgba(var(--v-theme-on-surface),.05);
+  border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1);
 }
-.card-costo label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: rgba(var(--v-theme-on-surface),.5); }
+
+.prx-table th {
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: rgba(var(--v-theme-on-surface),.6);
+  text-align: left;
+  border-right: 1px solid rgba(var(--v-theme-on-surface),.05);
+}
+
+.prx-table th:last-child { border-right: none; }
+
+.prx-table tbody tr {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
+  transition: background-color .15s;
+}
+
+.prx-table tbody tr:hover {
+  background: rgba(var(--v-theme-on-surface),.03);
+}
+
+.fila-modificada {
+  background: rgba(245,158,11,.08) !important;
+}
+
+.prx-table td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+  border-right: 1px solid rgba(var(--v-theme-on-surface),.05);
+}
+
+.prx-table td:last-child { border-right: none; }
+
+.cod-cell {
+  font-weight: 600;
+  width: 70px;
+}
+
+.badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
+
+.nombre-cell { font-weight: 500; min-width: 180px; }
+.und-cell { width: 60px; text-align: center; font-weight: 500; }
+
+.precio-input-cell { width: 130px; }
+.precio-venta-cell { width: 110px; text-align: right; color: #10b981; font-weight: 600; }
 
 .input-wrap {
   display: flex;
@@ -383,47 +405,27 @@ onMounted(cargar)
   background: rgba(var(--v-theme-on-surface),.05);
   border: 1px solid rgba(var(--v-theme-on-surface),.15);
   border-radius: 6px;
-  padding: 4px 6px;
+  padding: 6px;
 }
-.input-wrap span { color: rgba(var(--v-theme-on-surface),.5); font-size: 12px; }
+
+.currency { color: rgba(var(--v-theme-on-surface),.5); font-size: 13px; font-weight: 600; }
 
 .precio-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
   text-align: right;
-  padding: 2px;
+  padding: 0;
 }
+
 .precio-input::-webkit-outer-spin-button,
 .precio-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
-.card-precios {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-}
+.action-cell { width: 50px; text-align: center; }
 
-.precio-nivel {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px;
-  background: rgba(16,185,129,.06);
-  border-radius: 6px;
-}
-.precio-nivel small { font-size: 10px; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; font-weight: 600; letter-spacing: .2px; }
-.precio-nivel strong { font-size: 14px; color: #10b981; font-weight: 700; }
-
-.card-action {
-  display: flex;
-  justify-content: center;
-  margin-top: 4px;
-}
-
-.prx-empty { text-align: center; padding: 50px 20px; color: rgba(var(--v-theme-on-surface),.4); }
-.prx-total { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; }
+.prx-total { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; margin-top: 12px; }
 </style>

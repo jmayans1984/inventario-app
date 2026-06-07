@@ -34,6 +34,7 @@ const routes = [
   // ALMACÉN ESPECÍFICAS
   { path: '/almacen/configuracion/productos',          component: () => import('../views/almacen/ProductosView.vue'),          meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/almacen/configuracion/precios',            component: () => import('../views/almacen/PreciosProductosView.vue'),    meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/almacen/configuracion/control-stock',      component: () => import('../views/almacen/ControlStockView.vue'),        meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/almacen/configuracion/control-inventario', component: () => import('../views/almacen/ControlInventarioView.vue'),   meta: { requiresAuth: true } },
   { path: '/almacen/procesos/gestion-inventario',      component: () => import('../views/almacen/GestionInventarioView.vue'),  meta: { requiresAuth: true } },
   { path: '/almacen/procesos/toma-fisica',             component: () => import('../views/almacen/TomaFisicaView.vue'),        meta: { requiresAuth: true } },

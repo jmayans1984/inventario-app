@@ -331,7 +331,8 @@ app.get('/api/almacen/productos', async (req, res) => {
                    COALESCE(p.precio_costo, 0) AS precio_costo,
                    COALESCE(p.precio_venta1, 0) AS precio_venta1,
                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
-                   COALESCE(p.precio_venta3, 0) AS precio_venta3
+                   COALESCE(p.precio_venta3, 0) AS precio_venta3,
+                   COALESCE(p.stock_minimo, 0) AS stock_minimo
             FROM productos p
             LEFT JOIN grupo_productos g ON g.codigo = p.grupo
         `;
@@ -392,8 +393,8 @@ app.post('/api/almacen/productos', async (req, res) => {
         }
 
         await pool.query(
-            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, precio_venta1, precio_venta2, precio_venta3)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, precio_venta1, precio_venta2, precio_venta3, stock_minimo)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
             [
                 codigo,
                 nombre.trim(),
@@ -405,7 +406,8 @@ app.post('/api/almacen/productos', async (req, res) => {
                 pc,
                 pv1,
                 pv2,
-                pv3
+                pv3,
+                0
             ]
         );
         const nuevo = await pool.query(
@@ -413,7 +415,8 @@ app.post('/api/almacen/productos', async (req, res) => {
                     COALESCE(p.precio_costo, 0) AS precio_costo,
                     COALESCE(p.precio_venta1, 0) AS precio_venta1,
                     COALESCE(p.precio_venta2, 0) AS precio_venta2,
-                    COALESCE(p.precio_venta3, 0) AS precio_venta3
+                    COALESCE(p.precio_venta3, 0) AS precio_venta3,
+                    COALESCE(p.stock_minimo, 0) AS stock_minimo
              FROM productos p LEFT JOIN grupo_productos g ON g.codigo = p.grupo
              WHERE p.codigo = $1`, [codigo]
         );
@@ -427,12 +430,13 @@ app.post('/api/almacen/productos', async (req, res) => {
 // PUT /api/almacen/productos/:codigo — actualizar producto
 app.put('/api/almacen/productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, und, grupo, control, para_venta, visible_operacional, precio_costo } = req.body;
+    const { nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, stock_minimo } = req.body;
     if (!nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: nombre, und' });
     }
     try {
         const pc = parseFloat(precio_costo) || 0;
+        const sm = parseFloat(stock_minimo) || 0;
 
         // Obtener márgenes para calcular precios automáticamente
         const cfgRes = await pool.query(
@@ -451,8 +455,8 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
 
         const result = await pool.query(
             `UPDATE productos
-             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, visible_operacional=$6, precio_costo=$7, precio_venta1=$8, precio_venta2=$9, precio_venta3=$10
-             WHERE codigo=$11`,
+             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, visible_operacional=$6, precio_costo=$7, precio_venta1=$8, precio_venta2=$9, precio_venta3=$10, stock_minimo=$11
+             WHERE codigo=$12`,
             [
                 nombre.trim(),
                 und.trim(),
@@ -464,6 +468,7 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
                 pv1,
                 pv2,
                 pv3,
+                sm,
                 codigo
             ]
         );
@@ -6851,6 +6856,8 @@ pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_costo NUMERIC(
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta1 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta2 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
+// Campo de control de stock
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0`).catch(() => {});
 
 app.get('/api/produccion/grupo-productos', async (req, res) => {
     try {
