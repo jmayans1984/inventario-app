@@ -7114,26 +7114,26 @@ async function verificarYGenerarNotificacionesStock(codigo, ccosto, empresa) {
         const stock_minimo = parseFloat(producto.stock_minimo) || 0;
         const nombre_producto = producto.nombre;
 
+        // Formatear números: sin decimales innecesarios
+        const fmt = n => Number(parseFloat(n).toFixed(2)).toString();
+
         // Determinar tipo de notificación según stock
         let tipo = null;
         let titulo = null;
         let mensaje = null;
 
         if (stock_actual < 0) {
-            // Stock negativo = ERROR en inventario
             tipo = 'alerta_general';
-            titulo = `⚠️ ERROR: ${nombre_producto} en NEGATIVO`;
-            mensaje = `El producto "${nombre_producto}" (${codigo}) se encuentra en NEGATIVO: ${stock_actual} unidades en ${ccosto}. Verificar error en el inventario inmediatamente.`;
+            titulo = `⚠️ ${nombre_producto} en NEGATIVO`;
+            mensaje = `El producto ${nombre_producto} se encuentra en NEGATIVO: ${fmt(stock_actual)} unidades. Verificar error en el inventario inmediatamente.`;
         } else if (stock_actual === 0) {
-            // Stock fuera (cero)
             tipo = 'stock_fuera';
             titulo = `🔴 FUERA DE STOCK: ${nombre_producto}`;
-            mensaje = `El producto "${nombre_producto}" (${codigo}) está FUERA DE STOCK (0 unidades) en ${ccosto}.`;
+            mensaje = `El producto ${nombre_producto} está FUERA DE STOCK (0 unidades).`;
         } else if (stock_actual < stock_minimo) {
-            // Stock bajo
             tipo = 'stock_bajo';
             titulo = `🟡 STOCK BAJO: ${nombre_producto}`;
-            mensaje = `El producto "${nombre_producto}" (${codigo}) está por debajo del mínimo. Stock actual: ${stock_actual} | Mínimo: ${stock_minimo} en ${ccosto}.`;
+            mensaje = `El producto ${nombre_producto} está por debajo del mínimo. Stock actual: ${fmt(stock_actual)} | Stock Mínimo: ${fmt(stock_minimo)}`;
         }
 
         // Si hay notificación que generar
@@ -7275,6 +7275,41 @@ app.delete('/api/notificaciones/:id', async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         console.error('Error DELETE /api/notificaciones/:id:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// DELETE /api/notificaciones — eliminar TODAS las notificaciones del usuario
+app.delete('/api/notificaciones', async (req, res) => {
+    try {
+        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+
+        // Obtener todas las notificaciones que le corresponden al usuario
+        const notifs = await pool.query(
+            `SELECT DISTINCT n.id FROM notificaciones n
+             LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
+             WHERE COALESCE(nu.leida, 'NO') != 'ELIMINADA'
+               AND n.fecha_creacion > NOW() - INTERVAL '30 days'`,
+            [usuarioCod]
+        );
+
+        if (notifs.rows.length > 0) {
+            const ids = notifs.rows.map(r => r.id);
+            // Insertar/actualizar todas como ELIMINADA
+            for (const id of ids) {
+                await pool.query(
+                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida, fecha_lectura)
+                     VALUES ($1, $2, 'ELIMINADA', NOW())
+                     ON CONFLICT (notificacion_id, usuario_codigo)
+                     DO UPDATE SET leida = 'ELIMINADA', fecha_lectura = NOW()`,
+                    [id, usuarioCod]
+                );
+            }
+        }
+        res.json({ success: true, eliminadas: notifs.rows.length });
+    } catch (e) {
+        console.error('Error DELETE /api/notificaciones:', e);
         res.status(500).json({ success: false, error: e.message });
     }
 });

@@ -155,15 +155,24 @@
               <!-- Header del panel -->
               <div class="notif-panel-header">
                 <span class="notif-panel-title">Notificaciones</span>
-                <v-btn
-                  v-if="notificaciones.length > 0"
-                  variant="text"
-                  size="x-small"
-                  color="#0891b2"
-                  @click.stop="marcarTodasLeidas"
-                >
-                  Marcar todas leídas
-                </v-btn>
+                <div v-if="notificaciones.length > 0" class="notif-header-btns">
+                  <v-btn
+                    variant="text"
+                    size="x-small"
+                    color="#0891b2"
+                    @click.stop="marcarTodasLeidas"
+                  >
+                    Marcar leídas
+                  </v-btn>
+                  <v-btn
+                    variant="text"
+                    size="x-small"
+                    color="#ef4444"
+                    @click.stop="eliminarTodas"
+                  >
+                    Eliminar todas
+                  </v-btn>
+                </div>
               </div>
 
               <!-- Lista vacía -->
@@ -401,6 +410,16 @@ async function marcarTodasLeidas() {
     notificacionesSinLeer.value = 0
   } catch (e) {
     console.error('Error marcando todas como leídas:', e)
+  }
+}
+
+async function eliminarTodas() {
+  try {
+    await notificacionesService.eliminarTodasNotificaciones()
+    notificaciones.value = []
+    notificacionesSinLeer.value = 0
+  } catch (e) {
+    console.error('Error eliminando todas:', e)
   }
 }
 
@@ -687,6 +706,11 @@ const handleLogout = () => {
   font-size: 13px;
   font-weight: 700;
   color: rgb(var(--v-theme-on-surface));
+}
+
+.notif-header-btns {
+  display: flex;
+  gap: 4px;
 }
 
 .notif-empty {
