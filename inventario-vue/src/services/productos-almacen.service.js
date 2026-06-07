@@ -38,6 +38,11 @@ export const productosAlmacenService = {
     const res = await api.patch(`${BASE}/${codigo}/toggle-para-venta`)
     return res.data
   },
+
+  async toggleVisibleOperacional(codigo) {
+    const res = await api.patch(`${BASE}/${codigo}/toggle-visible-operacional`)
+    return res.data
+  },
 }
 
 export default productosAlmacenService

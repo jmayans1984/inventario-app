@@ -131,6 +131,7 @@
               <th class="th-nom">NOMBRE</th>
               <th class="th-und">UNIDAD</th>
               <th class="th-ctrl">CONTROL</th>
+              <th class="th-venta">OPERACIONAL</th>
               <th class="th-venta">FRANQUICIA</th>
               <th class="th-acc">ACCIONES</th>
             </tr>
@@ -138,7 +139,7 @@
           <tbody>
             <template v-if="productosAgrupados.length === 0">
               <tr>
-                <td colspan="6" class="prd-empty">
+                <td colspan="7" class="prd-empty">
                   <v-icon size="36" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
                   <p style="color:rgba(var(--v-theme-on-surface),.4);margin:8px 0 0">No hay productos</p>
                 </td>
@@ -148,7 +149,7 @@
             <template v-for="grupo in productosAgrupados" :key="grupo.key">
               <!-- FILA DE GRUPO -->
               <tr class="grupo-header-row">
-                <td colspan="6" class="grupo-header-cell">
+                <td colspan="7" class="grupo-header-cell">
                   <v-icon size="15" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
                   <span class="grupo-header-name">{{ grupo.nombre }}</span>
                   <span class="grupo-header-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
@@ -166,6 +167,15 @@
                     size="small"
                   >
                     {{ p.control === 'SI' ? 'SÍ' : 'NO' }}
+                  </v-chip>
+                </td>
+                <td>
+                  <v-chip
+                    :color="p.visible_operacional === 'SI' ? 'warning' : 'default'"
+                    variant="flat"
+                    size="small"
+                  >
+                    {{ p.visible_operacional === 'SI' ? 'SÍ' : 'NO' }}
                   </v-chip>
                 </td>
                 <td>
@@ -190,6 +200,18 @@
                       @click="toggleControl(p)"
                     >
                       <v-icon>{{ p.control === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}</v-icon>
+                    </v-btn>
+                    <!-- Toggle visible_operacional -->
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      :color="p.visible_operacional === 'SI' ? '#f59e0b' : '#cbd5e1'"
+                      :title="p.visible_operacional === 'SI' ? 'Ocultar en operacional' : 'Mostrar en operacional'"
+                      :loading="toggling === `${p.codigo}-operacional`"
+                      @click="toggleVisibleOperacional(p)"
+                    >
+                      <v-icon>{{ p.visible_operacional === 'SI' ? 'mdi-truck-outline' : 'mdi-truck-off-outline' }}</v-icon>
                     </v-btn>
                     <!-- Toggle para_venta (franquicia) -->
                     <v-btn
@@ -328,6 +350,26 @@
                   </div>
                 </v-col>
 
+                <!-- Visible Operacional -->
+                <v-col cols="12" md="6">
+                  <div class="config-box">
+                    <div class="config-label">
+                      <v-icon size="18" color="#8b5cf6">mdi-truck-outline</v-icon>
+                      Visible en Operacional
+                    </div>
+                    <v-select
+                      v-model="form.visible_operacional"
+                      :items="[{title: 'SI (Food Trucks)', value: 'SI'}, {title: 'NO (Solo Proveeduría)', value: 'NO'}]"
+                      item-title="title"
+                      item-value="value"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    />
+                    <div class="config-hint">Disponible en centros operacionales</div>
+                  </div>
+                </v-col>
+
                 <!-- Franquicia -->
                 <v-col cols="12" md="6">
                   <div class="config-box">
@@ -430,6 +472,7 @@ const form      = ref({
   grupo: null,
   control: 'SI',
   para_venta: 'NO',
+  visible_operacional: 'SI',
   precio_costo: 0
 })
 
@@ -492,6 +535,7 @@ async function abrirCrear() {
     grupo: null,
     control: 'SI',
     para_venta: 'NO',
+    visible_operacional: 'SI',
     precio_costo: 0
   }
   // Obtener próximo código internamente (no se muestra, solo para el POST)
@@ -513,6 +557,7 @@ function abrirEditar(p) {
     grupo:   p.grupo || null,
     control: p.control || 'NO',
     para_venta: p.para_venta || 'NO',
+    visible_operacional: p.visible_operacional || 'SI',
     precio_costo: p.precio_costo || 0,
   }
   dlgForm.value = true
@@ -543,6 +588,7 @@ async function guardar() {
       grupo:   form.value.grupo || null,
       control: form.value.control || 'NO',
       para_venta: form.value.para_venta || 'NO',
+      visible_operacional: form.value.visible_operacional || 'SI',
       precio_costo: parseFloat(form.value.precio_costo) || 0,
     }
     if (editando.value) {
@@ -588,6 +634,22 @@ async function toggleParaVenta(p) {
   } catch {
     // Revertir si falla
     p.para_venta = anterior
+  } finally {
+    toggling.value = null
+  }
+}
+
+async function toggleVisibleOperacional(p) {
+  toggling.value = `${p.codigo}-operacional`
+  const anterior = p.visible_operacional
+  // Optimistic update
+  p.visible_operacional = p.visible_operacional === 'SI' ? 'NO' : 'SI'
+  try {
+    const res = await productosAlmacenService.toggleVisibleOperacional(p.codigo)
+    p.visible_operacional = res.visible_operacional
+  } catch {
+    // Revertir si falla
+    p.visible_operacional = anterior
   } finally {
     toggling.value = null
   }

@@ -327,7 +327,7 @@ app.get('/api/almacen/productos', async (req, res) => {
 
         let query = `
             SELECT p.codigo, p.nombre, p.und, p.grupo,
-                   g.nombre AS grupo_nombre, p.control, p.para_venta,
+                   g.nombre AS grupo_nombre, p.control, p.para_venta, p.visible_operacional,
                    COALESCE(p.precio_costo, 0) AS precio_costo,
                    COALESCE(p.precio_venta1, 0) AS precio_venta1,
                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
@@ -364,7 +364,7 @@ app.get('/api/almacen/productos', async (req, res) => {
 
 // POST /api/almacen/productos — crear producto
 app.post('/api/almacen/productos', async (req, res) => {
-    const { codigo, nombre, und, grupo, control, para_venta, precio_costo } = req.body;
+    const { codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo } = req.body;
     if (!codigo || !nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: codigo, nombre, und' });
     }
@@ -392,8 +392,8 @@ app.post('/api/almacen/productos', async (req, res) => {
         }
 
         await pool.query(
-            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, precio_costo, precio_venta1, precio_venta2, precio_venta3)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, precio_venta1, precio_venta2, precio_venta3)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
                 codigo,
                 nombre.trim(),
@@ -401,6 +401,7 @@ app.post('/api/almacen/productos', async (req, res) => {
                 grupo || null,
                 control || 'NO',
                 para_venta || 'NO',
+                visible_operacional || 'SI',
                 pc,
                 pv1,
                 pv2,
@@ -408,7 +409,7 @@ app.post('/api/almacen/productos', async (req, res) => {
             ]
         );
         const nuevo = await pool.query(
-            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta,
+            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta, p.visible_operacional,
                     COALESCE(p.precio_costo, 0) AS precio_costo,
                     COALESCE(p.precio_venta1, 0) AS precio_venta1,
                     COALESCE(p.precio_venta2, 0) AS precio_venta2,
@@ -426,7 +427,7 @@ app.post('/api/almacen/productos', async (req, res) => {
 // PUT /api/almacen/productos/:codigo — actualizar producto
 app.put('/api/almacen/productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, und, grupo, control, para_venta, precio_costo } = req.body;
+    const { nombre, und, grupo, control, para_venta, visible_operacional, precio_costo } = req.body;
     if (!nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: nombre, und' });
     }
@@ -450,14 +451,15 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
 
         const result = await pool.query(
             `UPDATE productos
-             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, precio_costo=$6, precio_venta1=$7, precio_venta2=$8, precio_venta3=$9
-             WHERE codigo=$10`,
+             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, visible_operacional=$6, precio_costo=$7, precio_venta1=$8, precio_venta2=$9, precio_venta3=$10
+             WHERE codigo=$11`,
             [
                 nombre.trim(),
                 und.trim(),
                 grupo || null,
                 control || 'NO',
                 para_venta || 'NO',
+                visible_operacional || 'SI',
                 pc,
                 pv1,
                 pv2,
@@ -469,7 +471,7 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Producto no encontrado' });
         }
         const actualizado = await pool.query(
-            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta,
+            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta, p.visible_operacional,
                     COALESCE(p.precio_costo, 0) AS precio_costo,
                     COALESCE(p.precio_venta1, 0) AS precio_venta1,
                     COALESCE(p.precio_venta2, 0) AS precio_venta2,
@@ -514,6 +516,23 @@ app.patch('/api/almacen/productos/:codigo/toggle-para-venta', async (req, res) =
         res.json({ success: true, para_venta: nuevoParaVenta });
     } catch (error) {
         console.error('Error PATCH /api/almacen/productos/:codigo/toggle-para-venta:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PATCH /api/almacen/productos/:codigo/toggle-visible-operacional — alternar SI/NO visible operacional
+app.patch('/api/almacen/productos/:codigo/toggle-visible-operacional', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const actual = await pool.query(`SELECT visible_operacional FROM productos WHERE codigo = $1`, [codigo]);
+        if (actual.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+        }
+        const nuevoVisible = actual.rows[0].visible_operacional === 'SI' ? 'NO' : 'SI';
+        await pool.query(`UPDATE productos SET visible_operacional = $1 WHERE codigo = $2`, [nuevoVisible, codigo]);
+        res.json({ success: true, visible_operacional: nuevoVisible });
+    } catch (error) {
+        console.error('Error PATCH /api/almacen/productos/:codigo/toggle-visible-operacional:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -6813,6 +6832,7 @@ pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VA
 // ── PRODUCTOS ────────────────────────────────────────────────────
 // Asegurar columnas en productos (franquicia/proveeduría/precios)
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS para_venta VARCHAR(2) DEFAULT 'NO'`).catch(() => {});
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS visible_operacional VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_costo NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 // Campos de precios de venta (calculados automáticamente)
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta1 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
