@@ -33,6 +33,11 @@ export const productosAlmacenService = {
     const res = await api.patch(`${BASE}/${codigo}/toggle-control`)
     return res.data
   },
+
+  async toggleParaVenta(codigo) {
+    const res = await api.patch(`${BASE}/${codigo}/toggle-para-venta`)
+    return res.data
+  },
 }
 
 export default productosAlmacenService

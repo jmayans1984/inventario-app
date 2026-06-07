@@ -131,13 +131,14 @@
               <th class="th-nom">NOMBRE</th>
               <th class="th-und">UNIDAD</th>
               <th class="th-ctrl">CONTROL</th>
+              <th class="th-venta">FRANQUICIA</th>
               <th class="th-acc">ACCIONES</th>
             </tr>
           </thead>
           <tbody>
             <template v-if="productosAgrupados.length === 0">
               <tr>
-                <td colspan="5" class="prd-empty">
+                <td colspan="6" class="prd-empty">
                   <v-icon size="36" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
                   <p style="color:rgba(var(--v-theme-on-surface),.4);margin:8px 0 0">No hay productos</p>
                 </td>
@@ -147,7 +148,7 @@
             <template v-for="grupo in productosAgrupados" :key="grupo.key">
               <!-- FILA DE GRUPO -->
               <tr class="grupo-header-row">
-                <td colspan="5" class="grupo-header-cell">
+                <td colspan="6" class="grupo-header-cell">
                   <v-icon size="15" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
                   <span class="grupo-header-name">{{ grupo.nombre }}</span>
                   <span class="grupo-header-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
@@ -167,6 +168,15 @@
                     {{ p.control === 'SI' ? 'SÍ' : 'NO' }}
                   </v-chip>
                 </td>
+                <td>
+                  <v-chip
+                    :color="p.para_venta === 'SI' ? 'info' : 'default'"
+                    variant="flat"
+                    size="small"
+                  >
+                    {{ p.para_venta === 'SI' ? 'SÍ' : 'NO' }}
+                  </v-chip>
+                </td>
                 <td class="td-acc">
                   <div class="acc-btns">
                     <!-- Toggle control con ojito -->
@@ -180,6 +190,18 @@
                       @click="toggleControl(p)"
                     >
                       <v-icon>{{ p.control === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}</v-icon>
+                    </v-btn>
+                    <!-- Toggle para_venta (franquicia) -->
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      :color="p.para_venta === 'SI' ? '#06b6d4' : '#cbd5e1'"
+                      :title="p.para_venta === 'SI' ? 'No vender a franquicia' : 'Vender a franquicia'"
+                      :loading="toggling === `${p.codigo}-venta`"
+                      @click="toggleParaVenta(p)"
+                    >
+                      <v-icon>{{ p.para_venta === 'SI' ? 'mdi-store-outline' : 'mdi-store-off-outline' }}</v-icon>
                     </v-btn>
                     <!-- Editar -->
                     <v-btn
@@ -457,6 +479,22 @@ async function toggleControl(p) {
   } catch {
     // Revertir si falla
     p.control = anterior
+  } finally {
+    toggling.value = null
+  }
+}
+
+async function toggleParaVenta(p) {
+  toggling.value = `${p.codigo}-venta`
+  const anterior = p.para_venta
+  // Optimistic update
+  p.para_venta = p.para_venta === 'SI' ? 'NO' : 'SI'
+  try {
+    const res = await productosAlmacenService.toggleParaVenta(p.codigo)
+    p.para_venta = res.para_venta
+  } catch {
+    // Revertir si falla
+    p.para_venta = anterior
   } finally {
     toggling.value = null
   }
