@@ -8600,7 +8600,7 @@ app.get('/api/empresas/bodega-maestra', async (req, res) => {
             `SELECT e.codigo, e.nombre, e.bodega_maestra,
                     cc.codigo AS centro_costo_codigo, cc.nombre AS centro_costo_nombre
              FROM empresas e
-             LEFT JOIN centrocostos cc ON cc.codigo = e.bodega_maestra
+             LEFT JOIN ccostos cc ON cc.codigo = e.bodega_maestra
              WHERE e.codigo = $1`,
             [empresaCod]
         );
@@ -8625,7 +8625,7 @@ app.put('/api/empresas/bodega-maestra', async (req, res) => {
         // Si se proporciona bodega_maestra, validar que existe el centro de costo
         if (bodega_maestra) {
             const ccResult = await pool.query(
-                `SELECT codigo FROM centrocostos WHERE codigo = $1`,
+                `SELECT codigo FROM ccostos WHERE codigo = $1`,
                 [bodega_maestra]
             );
             if (ccResult.rows.length === 0) {
