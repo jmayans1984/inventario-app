@@ -864,7 +864,20 @@ app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
     if (!empresa || !ccosto) {
         return res.status(400).json({ success: false, error: 'empresa y ccosto son requeridos' });
     }
+    const emp = parseInt(empresa);
     try {
+        // Determinar si el ccosto seleccionado es la bodega maestra
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]
+        );
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+        const esBodegaMaestra = bodegaMaestra && bodegaMaestra === ccosto;
+
+        // Bodega maestra → control = 'SI' (activo) | Punto de venta → visible_operacional = 'SI'
+        const filtroProductos = esBodegaMaestra
+            ? `p.control = 'SI'`
+            : `p.visible_operacional = 'SI'`;
+
         const result = await pool.query(
             `SELECT
                 p.codigo,
@@ -882,9 +895,9 @@ app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
                 ) AS stock_actual
              FROM productos p
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-             WHERE p.control = 'SI'
+             WHERE ${filtroProductos}
              ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
-            [parseInt(empresa), ccosto]
+            [emp, ccosto]
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {
@@ -983,6 +996,20 @@ app.get('/api/almacen/kardex', async (req, res) => {
     }
     const emp = parseInt(empresa);
     try {
+        // Determinar si el ccosto seleccionado es la bodega maestra
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]
+        );
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+        const esBodegaMaestra = bodegaMaestra && bodegaMaestra === ccosto;
+
+        // Filtro según si es bodega maestra o punto de venta
+        // Bodega maestra → control = 'SI' (activo)
+        // Punto de venta  → visible_operacional = 'SI'
+        const filtroProductos = esBodegaMaestra
+            ? `p.control = 'SI'`
+            : `p.visible_operacional = 'SI'`;
+
         const result = await pool.query(
             `SELECT
                 p.codigo,
@@ -1035,7 +1062,7 @@ app.get('/api/almacen/kardex', async (req, res) => {
 
              FROM productos p
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-             WHERE p.control = 'SI'
+             WHERE ${filtroProductos}
              ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
             [emp, ccosto, fecha]
         );
