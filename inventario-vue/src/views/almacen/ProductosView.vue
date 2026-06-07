@@ -239,78 +239,149 @@
           <v-divider />
 
           <v-card-text class="pa-5">
-            <v-row dense>
-              <!-- CÓDIGO — solo lectura, muestra AUTO en creación -->
-              <v-col cols="4">
-                <v-text-field
-                  :model-value="editando ? form.codigo : 'AUTO'"
-                  label="Código"
-                  variant="outlined"
-                  density="compact"
-                  readonly
-                  bg-color="rgba(var(--v-theme-on-surface),0.04)"
-                  hide-details
-                  :style="editando ? '' : 'font-style:italic;opacity:.7'"
-                />
-              </v-col>
+            <!-- TAB BÁSICO -->
+            <div class="dlg-section">
+              <div class="dlg-section-title">📦 INFORMACIÓN BÁSICA</div>
+              <v-row dense>
+                <!-- CÓDIGO -->
+                <v-col cols="4">
+                  <v-text-field
+                    :model-value="editando ? form.codigo : 'AUTO'"
+                    label="Código"
+                    variant="outlined"
+                    density="compact"
+                    readonly
+                    bg-color="rgba(var(--v-theme-on-surface),0.04)"
+                    hide-details
+                    :style="editando ? '' : 'font-style:italic;opacity:.7'"
+                  />
+                </v-col>
 
-              <!-- NOMBRE -->
-              <v-col cols="8">
-                <v-text-field
-                  v-model="form.nombre"
-                  label="Nombre *"
-                  variant="outlined"
-                  density="compact"
-                  maxlength="60"
-                  hide-details="auto"
-                  :error-messages="errores.nombre"
-                  autofocus
-                />
-              </v-col>
+                <!-- NOMBRE -->
+                <v-col cols="8">
+                  <v-text-field
+                    v-model="form.nombre"
+                    label="Nombre *"
+                    variant="outlined"
+                    density="compact"
+                    maxlength="60"
+                    hide-details="auto"
+                    :error-messages="errores.nombre"
+                    autofocus
+                  />
+                </v-col>
 
-              <!-- UNIDAD -->
-              <v-col cols="4">
-                <v-text-field
-                  v-model="form.und"
-                  label="Unidad *"
-                  variant="outlined"
-                  density="compact"
-                  maxlength="10"
-                  hide-details="auto"
-                  :error-messages="errores.und"
-                  placeholder="KG, UND, LT..."
-                />
-              </v-col>
+                <!-- UNIDAD -->
+                <v-col cols="4">
+                  <v-text-field
+                    v-model="form.und"
+                    label="Unidad *"
+                    variant="outlined"
+                    density="compact"
+                    maxlength="10"
+                    hide-details="auto"
+                    :error-messages="errores.und"
+                    placeholder="KG, UND, LT..."
+                  />
+                </v-col>
 
-              <!-- GRUPO -->
-              <v-col cols="8">
-                <v-select
-                  v-model="form.grupo"
-                  :items="grupos"
-                  item-title="nombre"
-                  item-value="codigo"
-                  label="Grupo"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  clearable
-                />
-              </v-col>
+                <!-- GRUPO -->
+                <v-col cols="8">
+                  <v-select
+                    v-model="form.grupo"
+                    :items="grupos"
+                    item-title="nombre"
+                    item-value="codigo"
+                    label="Grupo"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    clearable
+                  />
+                </v-col>
+              </v-row>
+            </div>
 
-              <!-- CONTROL -->
-              <v-col cols="12">
-                <v-select
-                  v-model="form.control"
-                  :items="['SI', 'NO']"
-                  label="Control de Inventario *"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                />
-              </v-col>
-            </v-row>
+            <!-- TAB CONTROL E INVENTARIO -->
+            <div class="dlg-section mt-6">
+              <div class="dlg-section-title">🔍 CONTROL E INVENTARIO</div>
+              <v-row dense>
+                <!-- CONTROL -->
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="form.control"
+                    :items="['SI', 'NO']"
+                    label="Control de Inventario *"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                  />
+                </v-col>
 
-            <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-3">
+                <!-- PARA VENTA / FRANQUICIA -->
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="form.para_venta"
+                    :items="['SI', 'NO']"
+                    label="Vender a Franquicia"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    :color="form.para_venta === 'SI' ? '#06b6d4' : '#cbd5e1'"
+                  />
+                </v-col>
+              </v-row>
+            </div>
+
+            <!-- TAB PRECIOS -->
+            <div class="dlg-section mt-6">
+              <div class="dlg-section-title">💰 PRECIOS DE VENTA</div>
+              <v-row dense>
+                <!-- PRECIO 1 -->
+                <v-col cols="12" sm="4">
+                  <v-text-field
+                    v-model.number="form.precio_venta1"
+                    label="Precio Nivel 1"
+                    variant="outlined"
+                    density="compact"
+                    type="number"
+                    step="0.01"
+                    prefix="$"
+                    hide-details
+                  />
+                </v-col>
+
+                <!-- PRECIO 2 -->
+                <v-col cols="12" sm="4">
+                  <v-text-field
+                    v-model.number="form.precio_venta2"
+                    label="Precio Nivel 2"
+                    variant="outlined"
+                    density="compact"
+                    type="number"
+                    step="0.01"
+                    prefix="$"
+                    hide-details
+                  />
+                </v-col>
+
+                <!-- PRECIO 3 -->
+                <v-col cols="12" sm="4">
+                  <v-text-field
+                    v-model.number="form.precio_venta3"
+                    label="Precio Nivel 3"
+                    variant="outlined"
+                    density="compact"
+                    type="number"
+                    step="0.01"
+                    prefix="$"
+                    hide-details
+                  />
+                </v-col>
+              </v-row>
+            </div>
+
+            <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-5">
               {{ formError }}
             </v-alert>
           </v-card-text>
@@ -350,7 +421,17 @@ const editando  = ref(false)
 const guardando = ref(false)
 const formError = ref('')
 const errores   = ref({ nombre: '', und: '' })
-const form      = ref({ codigo: '', nombre: '', und: '', grupo: null, control: 'SI' })
+const form      = ref({
+  codigo: '',
+  nombre: '',
+  und: '',
+  grupo: null,
+  control: 'SI',
+  para_venta: 'NO',
+  precio_venta1: 0,
+  precio_venta2: 0,
+  precio_venta3: 0
+})
 
 // ── Computed ──────────────────────────────────────────────────
 const conControl = computed(() => productos.value.filter(p => p.control === 'SI').length)
@@ -404,7 +485,17 @@ async function abrirCrear() {
   editando.value  = false
   formError.value = ''
   errores.value   = { nombre: '', und: '' }
-  form.value      = { codigo: '', nombre: '', und: '', grupo: null, control: 'SI' }
+  form.value      = {
+    codigo: '',
+    nombre: '',
+    und: '',
+    grupo: null,
+    control: 'SI',
+    para_venta: 'NO',
+    precio_venta1: 0,
+    precio_venta2: 0,
+    precio_venta3: 0
+  }
   // Obtener próximo código internamente (no se muestra, solo para el POST)
   try {
     const res = await productosAlmacenService.getProximoCodigo()
@@ -423,6 +514,10 @@ function abrirEditar(p) {
     und:     p.und,
     grupo:   p.grupo || null,
     control: p.control || 'NO',
+    para_venta: p.para_venta || 'NO',
+    precio_venta1: p.precio_venta1 || 0,
+    precio_venta2: p.precio_venta2 || 0,
+    precio_venta3: p.precio_venta3 || 0,
   }
   dlgForm.value = true
 }
@@ -451,6 +546,10 @@ async function guardar() {
       und:     form.value.und.trim(),
       grupo:   form.value.grupo || null,
       control: form.value.control || 'NO',
+      para_venta: form.value.para_venta || 'NO',
+      precio_venta1: parseFloat(form.value.precio_venta1) || 0,
+      precio_venta2: parseFloat(form.value.precio_venta2) || 0,
+      precio_venta3: parseFloat(form.value.precio_venta3) || 0,
     }
     if (editando.value) {
       const res = await productosAlmacenService.actualizarProducto(payload.codigo, payload)
@@ -570,4 +669,22 @@ onMounted(cargar)
 
 /* Dialog */
 .dlg-title { font-size: 16px; font-weight: 700; padding: 16px 20px; display: flex; align-items: center; }
+
+/* Dialog Sections */
+.dlg-section { padding: 0; }
+.dlg-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface),.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(6,182,212,.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.th-venta { width: 110px; text-align: center; }
 </style>

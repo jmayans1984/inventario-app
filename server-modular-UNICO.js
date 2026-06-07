@@ -363,7 +363,7 @@ app.get('/api/almacen/productos', async (req, res) => {
 
 // POST /api/almacen/productos — crear producto
 app.post('/api/almacen/productos', async (req, res) => {
-    const { codigo, nombre, und, grupo, control } = req.body;
+    const { codigo, nombre, und, grupo, control, para_venta, precio_venta1, precio_venta2, precio_venta3 } = req.body;
     if (!codigo || !nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: codigo, nombre, und' });
     }
@@ -373,11 +373,25 @@ app.post('/api/almacen/productos', async (req, res) => {
             return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
         }
         await pool.query(
-            `INSERT INTO productos (codigo, nombre, und, grupo, control) VALUES ($1, $2, $3, $4, $5)`,
-            [codigo, nombre.trim(), und.trim(), grupo || null, control || 'NO']
+            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, precio_venta1, precio_venta2, precio_venta3)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+                codigo,
+                nombre.trim(),
+                und.trim(),
+                grupo || null,
+                control || 'NO',
+                para_venta || 'NO',
+                parseFloat(precio_venta1) || 0,
+                parseFloat(precio_venta2) || 0,
+                parseFloat(precio_venta3) || 0
+            ]
         );
         const nuevo = await pool.query(
-            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control
+            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta,
+                    COALESCE(p.precio_venta1, 0) AS precio_venta1,
+                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
+                    COALESCE(p.precio_venta3, 0) AS precio_venta3
              FROM productos p LEFT JOIN grupo_productos g ON g.codigo = p.grupo
              WHERE p.codigo = $1`, [codigo]
         );
@@ -391,20 +405,35 @@ app.post('/api/almacen/productos', async (req, res) => {
 // PUT /api/almacen/productos/:codigo — actualizar producto
 app.put('/api/almacen/productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, und, grupo, control } = req.body;
+    const { nombre, und, grupo, control, para_venta, precio_venta1, precio_venta2, precio_venta3 } = req.body;
     if (!nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: nombre, und' });
     }
     try {
         const result = await pool.query(
-            `UPDATE productos SET nombre=$1, und=$2, grupo=$3, control=$4 WHERE codigo=$5`,
-            [nombre.trim(), und.trim(), grupo || null, control || 'NO', codigo]
+            `UPDATE productos
+             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, precio_venta1=$6, precio_venta2=$7, precio_venta3=$8
+             WHERE codigo=$9`,
+            [
+                nombre.trim(),
+                und.trim(),
+                grupo || null,
+                control || 'NO',
+                para_venta || 'NO',
+                parseFloat(precio_venta1) || 0,
+                parseFloat(precio_venta2) || 0,
+                parseFloat(precio_venta3) || 0,
+                codigo
+            ]
         );
         if (result.rowCount === 0) {
             return res.status(404).json({ success: false, error: 'Producto no encontrado' });
         }
         const actualizado = await pool.query(
-            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control
+            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre, p.control, p.para_venta,
+                    COALESCE(p.precio_venta1, 0) AS precio_venta1,
+                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
+                    COALESCE(p.precio_venta3, 0) AS precio_venta3
              FROM productos p LEFT JOIN grupo_productos g ON g.codigo = p.grupo
              WHERE p.codigo = $1`, [codigo]
         );
