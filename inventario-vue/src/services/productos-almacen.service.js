@@ -45,7 +45,17 @@ export const productosAlmacenService = {
   },
 
   async getListasPrecios() {
-    const res = await api.get('/config-listas-precios/venta')
+    const res = await api.get('/produccion/lista-precios')
+    return res.data
+  },
+
+  async getProductosConPrecios() {
+    const res = await api.get('/almacen/productos')
+    return res.data
+  },
+
+  async actualizarPrecioProducto(codigo, data) {
+    const res = await api.put(`/almacen/productos/${codigo}`, data)
     return res.data
   },
 }

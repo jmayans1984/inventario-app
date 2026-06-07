@@ -86,6 +86,7 @@ export const MODULES = [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
         { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos', requiredTipo: 'PROVEEDOR' },
         { name: 'Control de Inventario', icon: 'mdi-warehouse', path: '/almacen/configuracion/control-inventario' },
+        { name: 'Precios de Compra/Venta', icon: 'mdi-currency-usd', path: '/almacen/configuracion/precios', requiredTipo: 'PROVEEDOR' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },
