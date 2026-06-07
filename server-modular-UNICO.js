@@ -387,6 +387,10 @@ app.get('/api/almacen/control-stock', async (req, res) => {
             tipoEmpresa = empResult.rows[0].tipo_empresa || 'PROVEEDOR';
         }
 
+        // Determinar tipo de empresa para el JOIN (detalle_inventario.empresa puede ser INTEGER)
+        const empInt = parseInt(empresaCod);
+        const empParam = isNaN(empInt) ? empresaCod : empInt;
+
         let query = `
             SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre,
                    p.stock_minimo,
@@ -396,7 +400,7 @@ app.get('/api/almacen/control-stock', async (req, res) => {
             LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1 AND di.empresa = $2
         `;
 
-        const params = [ccosto, empresaCod];
+        const params = [ccosto, empParam];
         const whereClause = [];
 
         // Si es CLIENTE, solo mostrar productos con para_venta='SI'
@@ -419,7 +423,7 @@ app.get('/api/almacen/control-stock', async (req, res) => {
         const result = await pool.query(query, params);
         res.json({ success: true, data: result.rows });
     } catch (error) {
-        console.error('Error GET /api/almacen/control-stock:', error);
+        console.error('Error GET /api/almacen/control-stock:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });

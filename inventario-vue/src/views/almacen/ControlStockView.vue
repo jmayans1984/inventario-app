@@ -297,7 +297,8 @@ async function cargar() {
     }))
   } catch (e) {
     console.error('Error cargando:', e)
-    mostrarSnack('Error al cargar datos', 'error')
+    const msg = e.response?.data?.error || e.message || 'Error al cargar datos'
+    mostrarSnack(`Error: ${msg}`, 'error')
   } finally {
     loading.value = false
   }
