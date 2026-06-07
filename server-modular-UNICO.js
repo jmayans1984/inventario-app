@@ -6986,7 +6986,7 @@ pool.query(`
     try {
         await pool.query(`ALTER TABLE preferencias_notificaciones ADD COLUMN IF NOT EXISTS usuarios_receptores TEXT DEFAULT '[]'`);
     } catch (e) { }
-`).catch(() => {});
+})();
 
 // FUNCIÓN AUXILIAR: Verificar stock y generar notificaciones automáticas
 async function verificarYGenerarNotificacionesStock(codigo, ccosto, empresa) {
