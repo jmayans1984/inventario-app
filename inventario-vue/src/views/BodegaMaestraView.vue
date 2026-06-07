@@ -63,32 +63,59 @@
                   </ul>
                 </div>
 
-                <div class="toggle-wrapper">
-                  <div class="toggle-info">
-                    <span class="toggle-label">Esta bodega es la bodega maestra</span>
-                    <span v-if="bodegaMaestra === 'SI'" class="status-active">
-                      <v-icon size="16">mdi-check-circle</v-icon> Activo
+                <div class="bodega-selector-section">
+                  <div class="selector-label">
+                    <span class="label-text">Centro de Costo - Bodega Maestra</span>
+                    <span v-if="bodegaMaestraActivo" class="status-active">
+                      <v-icon size="16">mdi-check-circle</v-icon> Asignado
                     </span>
                     <span v-else class="status-inactive">
-                      <v-icon size="16">mdi-alert-circle</v-icon> Inactivo
+                      <v-icon size="16">mdi-alert-circle</v-icon> Sin asignar
                     </span>
                   </div>
 
-                  <v-switch
-                    :model-value="bodegaMaestra === 'SI'"
-                    color="#0891b2"
-                    size="large"
-                    @update:model-value="cambiarBodegaMaestra"
-                    :loading="actualizando"
-                  />
+                  <div class="selector-wrapper">
+                    <v-select
+                      v-model="bodegaMaestraSelected"
+                      :items="centrosCosto"
+                      item-title="nombre"
+                      item-value="codigo"
+                      label="Selecciona un Centro de Costo"
+                      placeholder="Elige el centro de costo que será bodega maestra"
+                      variant="outlined"
+                      density="compact"
+                      :loading="cargandoCentros"
+                      clearable
+                      @update:model-value="cambiarBodegaMaestra"
+                    >
+                      <template v-slot:item="{ props, item }">
+                        <v-list-item v-bind="props" :title="`${item.raw.codigo} - ${item.raw.nombre}`" />
+                      </template>
+                      <template v-slot:selection="{ item }">
+                        <span v-if="item.value" class="selected-item">{{ item.raw.codigo }} - {{ item.raw.nombre }}</span>
+                      </template>
+                    </v-select>
+
+                    <v-btn
+                      v-if="bodegaMaestraActivo"
+                      color="#ef4444"
+                      variant="text"
+                      size="small"
+                      @click="desactivarBodegaMaestra"
+                      :loading="actualizando"
+                      class="ml-2"
+                    >
+                      Desactivar
+                    </v-btn>
+                  </div>
                 </div>
               </div>
 
-              <div class="warning-box" v-if="bodegaMaestra === 'SI'">
+              <div class="warning-box" v-if="bodegaMaestraActivo">
                 <v-icon size="18" color="#0891b2">mdi-information-outline</v-icon>
                 <div>
-                  <strong>Bodega Maestra Activa</strong>
-                  <p>Esta bodega es tu bodega principal. Los controles de stock mínimo y alertas de inventario se aplicarán a esta bodega.</p>
+                  <strong>Bodega Maestra Asignada</strong>
+                  <p>El Centro de Costo <strong>{{ bodegaMaestraSelected }}</strong> es tu bodega principal. Los controles de stock mínimo y alertas de inventario se aplicarán a este centro de costo.</p>
                 </div>
               </div>
 
@@ -116,10 +143,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import MainLayout from '../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../stores/auth'
 import { bodegaMaestraService } from '../services/bodega-maestra.service'
+import api from '../services/api'
 
 const authStore = useAuthStore()
 const loading = ref(false)
@@ -129,9 +157,14 @@ const success = ref('')
 
 const empresaCodigo = ref('')
 const empresaNombre = ref('')
-const bodegaMaestra = ref('NO')
+const bodegaMaestraSelected = ref(null) // Código del centro de costo o null
+const centrosCosto = ref([])
+const cargandoCentros = ref(false)
 
 const snack = ref({ show: false, msg: '', color: 'success' })
+
+// Computed para saber si bodega maestra está activo
+const bodegaMaestraActivo = computed(() => !!bodegaMaestraSelected.value)
 
 async function cargar() {
   loading.value = true
@@ -140,8 +173,12 @@ async function cargar() {
     empresaCodigo.value = authStore.empresa
     empresaNombre.value = authStore.empresaNombre
 
+    // Cargar centros de costo disponibles
+    await cargarCentrosCosto()
+
+    // Cargar bodega maestra actual
     const res = await bodegaMaestraService.obtenerBodegaMaestra()
-    bodegaMaestra.value = res.data.bodega_maestra
+    bodegaMaestraSelected.value = res.data.bodega_maestra || null
   } catch (e) {
     console.error('Error cargando:', e)
     error.value = 'Error al cargar información de bodega maestra'
@@ -150,29 +187,59 @@ async function cargar() {
   }
 }
 
-async function cambiarBodegaMaestra(valor) {
+async function cargarCentrosCosto() {
+  cargandoCentros.value = true
+  try {
+    const res = await api.get('/contabilidad/centrocostos')
+    centrosCosto.value = res.data.data || []
+  } catch (e) {
+    console.error('Error cargando centros de costo:', e)
+    mostrarSnack('Error al cargar centros de costo', 'error')
+  } finally {
+    cargandoCentros.value = false
+  }
+}
+
+async function cambiarBodegaMaestra() {
+  if (!bodegaMaestraSelected.value) {
+    mostrarSnack('Selecciona un Centro de Costo', 'warning')
+    return
+  }
+
   actualizando.value = true
   error.value = ''
   success.value = ''
 
   try {
-    const nuevoValor = valor ? 'SI' : 'NO'
-    const res = await bodegaMaestraService.actualizarBodegaMaestra(nuevoValor)
-    bodegaMaestra.value = res.data.bodega_maestra
+    const res = await bodegaMaestraService.actualizarBodegaMaestra(bodegaMaestraSelected.value)
+    bodegaMaestraSelected.value = res.data.bodega_maestra
 
-    if (valor) {
-      success.value = '✓ Bodega Maestra activada correctamente'
-    } else {
-      success.value = '✓ Bodega Maestra desactivada'
-    }
-
+    success.value = '✓ Bodega Maestra asignada correctamente'
     mostrarSnack(success.value, 'success')
   } catch (e) {
     console.error('Error actualizando:', e)
     error.value = e.response?.data?.error || 'Error al actualizar bodega maestra'
     mostrarSnack(error.value, 'error')
-    // Revertir cambio
-    bodegaMaestra.value = bodegaMaestra.value === 'SI' ? 'NO' : 'SI'
+  } finally {
+    actualizando.value = false
+  }
+}
+
+async function desactivarBodegaMaestra() {
+  actualizando.value = true
+  error.value = ''
+  success.value = ''
+
+  try {
+    const res = await bodegaMaestraService.actualizarBodegaMaestra(null)
+    bodegaMaestraSelected.value = null
+
+    success.value = '✓ Bodega Maestra desactivada'
+    mostrarSnack(success.value, 'success')
+  } catch (e) {
+    console.error('Error desactivando:', e)
+    error.value = e.response?.data?.error || 'Error al desactivar bodega maestra'
+    mostrarSnack(error.value, 'error')
   } finally {
     actualizando.value = false
   }
@@ -218,20 +285,21 @@ onMounted(cargar)
 .bodega-description ul { margin: 8px 0 0 20px; padding: 0; }
 .bodega-description li { font-size: 13px; color: rgba(var(--v-theme-on-surface),.7); margin: 4px 0; }
 
-.toggle-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.bodega-selector-section {
   padding: 16px;
   background: rgba(8,145,178,.08);
   border-radius: 8px;
   border: 1px solid rgba(8,145,178,.2);
 }
 
-.toggle-info { display: flex; align-items: center; gap: 12px; }
-.toggle-label { font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
+.selector-label { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.label-text { font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
 .status-active { font-size: 12px; color: #10b981; display: flex; align-items: center; gap: 4px; }
 .status-inactive { font-size: 12px; color: #f59e0b; display: flex; align-items: center; gap: 4px; }
+
+.selector-wrapper { display: flex; gap: 8px; align-items: flex-start; }
+:deep(.selector-wrapper .v-select) { flex: 1; }
+.selected-item { font-weight: 500; color: #0891b2; }
 
 .warning-box {
   display: flex;

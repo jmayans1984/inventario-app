@@ -8457,9 +8457,9 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
 (async () => {
     try {
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS lista_precio_id INTEGER DEFAULT NULL`);
-        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(2) DEFAULT 'NO'`);
-        console.log('✅ Columna empresas.lista_precio_id lista');
-    } catch (e) { console.error('Error migrando empresas.lista_precio_id:', e.message); }
+        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(20) DEFAULT NULL`);
+        console.log('✅ Columnas empresas.lista_precio_id y bodega_maestra listas');
+    } catch (e) { console.error('Error migrando empresas:', e.message); }
 })();
 
 // PUT /api/empresas/clientes/:codigo/lista-precio — asignar lista de precio a cliente
@@ -8503,7 +8503,11 @@ app.get('/api/empresas/bodega-maestra', async (req, res) => {
         if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
 
         const result = await pool.query(
-            `SELECT codigo, nombre, bodega_maestra FROM empresas WHERE codigo = $1`,
+            `SELECT e.codigo, e.nombre, e.bodega_maestra,
+                    cc.codigo AS centro_costo_codigo, cc.nombre AS centro_costo_nombre
+             FROM empresas e
+             LEFT JOIN centrocostos cc ON cc.codigo = e.bodega_maestra
+             WHERE e.codigo = $1`,
             [empresaCod]
         );
         if (result.rows.length === 0) {
@@ -8516,20 +8520,29 @@ app.get('/api/empresas/bodega-maestra', async (req, res) => {
     }
 });
 
-// PUT /api/empresas/bodega-maestra — actualizar la bodega maestra
+// PUT /api/empresas/bodega-maestra — actualizar la bodega maestra (asignar centro de costo)
 app.put('/api/empresas/bodega-maestra', async (req, res) => {
     try {
         const empresaCod = req.query.empresa || req.headers['x-empresa'];
-        const { bodega_maestra } = req.body;
+        const { bodega_maestra } = req.body; // NULL para desactivar, o código del centro de costo
 
         if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
-        if (!bodega_maestra || !['SI', 'NO'].includes(bodega_maestra)) {
-            return res.status(400).json({ success: false, error: 'bodega_maestra debe ser SI o NO' });
+
+        // Si se proporciona bodega_maestra, validar que existe el centro de costo
+        if (bodega_maestra) {
+            const ccResult = await pool.query(
+                `SELECT codigo FROM centrocostos WHERE codigo = $1`,
+                [bodega_maestra]
+            );
+            if (ccResult.rows.length === 0) {
+                return res.status(400).json({ success: false, error: 'Centro de costo no encontrado' });
+            }
         }
 
         const result = await pool.query(
-            `UPDATE empresas SET bodega_maestra = $1 WHERE codigo = $2 RETURNING codigo, nombre, bodega_maestra`,
-            [bodega_maestra, empresaCod]
+            `UPDATE empresas SET bodega_maestra = $1 WHERE codigo = $2
+             RETURNING codigo, nombre, bodega_maestra`,
+            [bodega_maestra || null, empresaCod]
         );
 
         if (result.rows.length === 0) {
