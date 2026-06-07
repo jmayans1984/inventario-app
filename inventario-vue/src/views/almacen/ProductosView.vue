@@ -130,8 +130,8 @@
               <th class="th-cod">CÓDIGO</th>
               <th class="th-nom">NOMBRE</th>
               <th class="th-und">UNIDAD</th>
-              <th class="th-ctrl">CONTROL</th>
-              <th class="th-venta">OPERACIONAL</th>
+              <th class="th-ctrl">ACTIVO</th>
+              <th class="th-venta">PUNTOS DE VENTA</th>
               <th class="th-venta">FRANQUICIA</th>
               <th class="th-acc">ACCIONES</th>
             </tr>
@@ -189,41 +189,45 @@
                 </td>
                 <td class="td-acc">
                   <div class="acc-btns">
-                    <!-- Toggle control con ojito -->
+                    <!-- Toggle control (Activo) -->
                     <v-btn
                       icon
                       size="x-small"
                       variant="text"
-                      :color="p.control === 'SI' ? '#10b981' : '#94a3b8'"
-                      :title="p.control === 'SI' ? 'Deshabilitar control' : 'Habilitar control'"
+                      :color="p.control === 'SI' ? '#10b981' : '#9ca3af'"
+                      :title="p.control === 'SI' ? 'Desactivar producto' : 'Activar producto'"
                       :loading="toggling === p.codigo"
                       @click="toggleControl(p)"
                     >
-                      <v-icon>{{ p.control === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}</v-icon>
+                      <v-icon>{{ p.control === 'SI' ? 'mdi-check-circle' : 'mdi-circle-outline' }}</v-icon>
                     </v-btn>
-                    <!-- Toggle visible_operacional -->
+                    <!-- Toggle visible_operacional (Puntos de Venta) -->
                     <v-btn
                       icon
                       size="x-small"
                       variant="text"
-                      :color="p.visible_operacional === 'SI' ? '#f59e0b' : '#cbd5e1'"
-                      :title="p.visible_operacional === 'SI' ? 'Ocultar en operacional' : 'Mostrar en operacional'"
+                      :color="p.visible_operacional === 'SI' ? '#f59e0b' : '#9ca3af'"
+                      :title="p.visible_operacional === 'SI' ? 'Ocultar en puntos de venta' : 'Mostrar en puntos de venta'"
                       :loading="toggling === `${p.codigo}-operacional`"
                       @click="toggleVisibleOperacional(p)"
+                      :disabled="p.control === 'NO'"
                     >
-                      <v-icon>{{ p.visible_operacional === 'SI' ? 'mdi-truck-outline' : 'mdi-truck-off-outline' }}</v-icon>
+                      <v-icon>{{ p.visible_operacional === 'SI' ? 'mdi-store' : 'mdi-store-off' }}</v-icon>
                     </v-btn>
                     <!-- Toggle para_venta (franquicia) -->
                     <v-btn
                       icon
                       size="x-small"
                       variant="text"
-                      :color="p.para_venta === 'SI' ? '#06b6d4' : '#cbd5e1'"
+                      :color="p.para_venta === 'SI' ? '#06b6d4' : '#9ca3af'"
                       :title="p.para_venta === 'SI' ? 'No vender a franquicia' : 'Vender a franquicia'"
                       :loading="toggling === `${p.codigo}-venta`"
                       @click="toggleParaVenta(p)"
+                      :disabled="p.control === 'NO'"
+                      style="position: relative;"
                     >
-                      <v-icon>{{ p.para_venta === 'SI' ? 'mdi-store-outline' : 'mdi-store-off-outline' }}</v-icon>
+                      <v-icon>mdi-shopping-outline</v-icon>
+                      <v-icon v-if="p.para_venta === 'NO'" size="14" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #9ca3af; font-weight: bold;">mdi-minus</v-icon>
                     </v-btn>
                     <!-- Editar -->
                     <v-btn
@@ -336,51 +340,53 @@
               <v-divider class="my-3" />
 
               <v-row dense>
-                <!-- Control -->
+                <!-- Activo -->
                 <v-col cols="12" md="6">
-                  <div class="config-box">
+                  <div class="config-box" :style="form.control === 'NO' ? 'opacity: 0.6' : ''">
                     <div class="config-label">
-                      <v-icon size="18" color="#10b981">mdi-eye-outline</v-icon>
-                      Control de Inventario
+                      <v-icon size="18" color="#10b981">mdi-check-circle-outline</v-icon>
+                      Producto Activo
                     </div>
                     <v-select
                       v-model="form.control"
-                      :items="[{title: 'SI (Controlar)', value: 'SI'}, {title: 'NO (No controlar)', value: 'NO'}]"
+                      @update:model-value="manejarDesactivacion"
+                      :items="[{title: 'SI (Activo)', value: 'SI'}, {title: 'NO (Inactivo)', value: 'NO'}]"
                       item-title="title"
                       item-value="value"
                       variant="outlined"
                       density="compact"
                       hide-details
                     />
-                    <div class="config-hint">Rastrear cantidad en almacén</div>
+                    <div class="config-hint">Desactivar desactiva puntos de venta y franquicia</div>
                   </div>
                 </v-col>
 
-                <!-- Visible Operacional -->
+                <!-- Puntos de Venta -->
                 <v-col cols="12" md="6">
-                  <div class="config-box">
+                  <div class="config-box" :style="form.control === 'NO' ? 'opacity: 0.5; pointer-events: none' : ''">
                     <div class="config-label">
-                      <v-icon size="18" color="#8b5cf6">mdi-truck-outline</v-icon>
-                      Visible en Operacional
+                      <v-icon size="18" color="#f59e0b">mdi-store-outline</v-icon>
+                      Puntos de Venta
                     </div>
                     <v-select
                       v-model="form.visible_operacional"
-                      :items="[{title: 'SI (Food Trucks)', value: 'SI'}, {title: 'NO (Solo Proveeduría)', value: 'NO'}]"
+                      :items="[{title: 'SI (Disponible)', value: 'SI'}, {title: 'NO (No disponible)', value: 'NO'}]"
                       item-title="title"
                       item-value="value"
                       variant="outlined"
                       density="compact"
                       hide-details
+                      :disabled="form.control === 'NO'"
                     />
-                    <div class="config-hint">Disponible en centros operacionales</div>
+                    <div class="config-hint">Disponible en puntos de venta operacionales</div>
                   </div>
                 </v-col>
 
                 <!-- Franquicia -->
                 <v-col cols="12" md="6">
-                  <div class="config-box">
+                  <div class="config-box" :style="form.control === 'NO' ? 'opacity: 0.5; pointer-events: none' : ''">
                     <div class="config-label">
-                      <v-icon size="18" color="#06b6d4">mdi-store-outline</v-icon>
+                      <v-icon size="18" color="#06b6d4">mdi-shopping-outline</v-icon>
                       Vender a Franquiciados
                     </div>
                     <v-select
@@ -391,6 +397,7 @@
                       variant="outlined"
                       density="compact"
                       hide-details
+                      :disabled="form.control === 'NO'"
                     />
                     <div class="config-hint">Disponible para franquiciados</div>
                   </div>
@@ -666,6 +673,14 @@ async function toggleVisibleOperacional(p) {
     p.visible_operacional = anterior
   } finally {
     toggling.value = null
+  }
+}
+
+function manejarDesactivacion(valor) {
+  if (valor === 'NO') {
+    // Si desactiva el producto, desactivar también los otros campos
+    form.value.visible_operacional = 'NO'
+    form.value.para_venta = 'NO'
   }
 }
 
