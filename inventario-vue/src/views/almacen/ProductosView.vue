@@ -333,15 +333,16 @@
                   />
                 </v-col>
                 <v-col cols="12">
+                  <label class="desc-field-label">Descripción (Opcional)</label>
                   <v-textarea
-                    v-model="form.descripcion"
-                    label="Descripción (Opcional)"
+                    :model-value="form.descripcion"
+                    @update:model-value="v => form.descripcion = v ? v.toUpperCase() : ''"
                     variant="outlined"
                     density="compact"
                     rows="2"
-                    auto-grow
                     hide-details
-                    placeholder="Descripción detallada del producto..."
+                    placeholder="DESCRIPCIÓN DETALLADA DEL PRODUCTO..."
+                    style="text-transform: uppercase;"
                   />
                 </v-col>
               </v-row>
@@ -841,6 +842,16 @@ onMounted(cargar)
   align-items: center;
   gap: 6px;
   color: rgba(var(--v-theme-on-surface),.8);
+}
+
+.desc-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), .6);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
 }
 
 .config-hint {
