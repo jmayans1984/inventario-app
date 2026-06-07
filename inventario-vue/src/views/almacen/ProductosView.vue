@@ -228,40 +228,53 @@
       </div>
 
       <!-- ═══════════════════ DIALOG CREAR / EDITAR ═══════════════════ -->
-      <v-dialog v-model="dlgForm" max-width="480" persistent>
+      <v-dialog v-model="dlgForm" max-width="600" persistent>
         <v-card rounded="lg">
-          <v-card-title class="dlg-title">
-            <v-icon size="20" class="mr-2" color="#0891b2">
-              {{ editando ? 'mdi-pencil' : 'mdi-plus-circle-outline' }}
-            </v-icon>
-            {{ editando ? 'Editar Producto' : 'Nuevo Producto' }}
-          </v-card-title>
+          <!-- HEADER -->
+          <div class="dlg-header">
+            <div class="dlg-header-left">
+              <div class="dlg-header-icon">
+                <v-icon size="24" color="white">{{ editando ? 'mdi-pencil-outline' : 'mdi-package-plus-outline' }}</v-icon>
+              </div>
+              <div>
+                <div class="dlg-header-title">{{ editando ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO' }}</div>
+                <div class="dlg-header-sub">{{ editando ? 'Código: ' + form.codigo : 'Crear nuevo artículo' }}</div>
+              </div>
+            </div>
+            <v-btn icon="mdi-close" size="small" variant="text" @click="cerrarDlg" :disabled="guardando" />
+          </div>
+
+          <!-- TABS -->
+          <v-tabs v-model="dlgTab" class="dlg-tabs">
+            <v-tab value="basico">
+              <v-icon start size="18">mdi-information-outline</v-icon>
+              Básico
+            </v-tab>
+            <v-tab value="configuracion">
+              <v-icon start size="18">mdi-tune-outline</v-icon>
+              Configuración
+            </v-tab>
+            <v-tab value="precios">
+              <v-icon start size="18">mdi-currency-usd</v-icon>
+              Costos
+            </v-tab>
+          </v-tabs>
+
           <v-divider />
 
-          <v-card-text class="pa-5">
+          <!-- CONTENT -->
+          <v-card-text class="pa-6">
             <!-- TAB BÁSICO -->
-            <div class="dlg-section">
-              <div class="dlg-section-title">📦 INFORMACIÓN BÁSICA</div>
+            <div v-show="dlgTab === 'basico'" class="tab-content">
               <v-row dense>
-                <!-- CÓDIGO -->
                 <v-col cols="4">
-                  <v-text-field
-                    :model-value="editando ? form.codigo : 'AUTO'"
-                    label="Código"
-                    variant="outlined"
-                    density="compact"
-                    readonly
-                    bg-color="rgba(var(--v-theme-on-surface),0.04)"
-                    hide-details
-                    :style="editando ? '' : 'font-style:italic;opacity:.7'"
-                  />
+                  <div class="field-label">Código</div>
+                  <div class="field-value">{{ editando ? form.codigo : 'AUTO' }}</div>
                 </v-col>
-
-                <!-- NOMBRE -->
                 <v-col cols="8">
                   <v-text-field
                     v-model="form.nombre"
-                    label="Nombre *"
+                    label="Nombre del Producto *"
                     variant="outlined"
                     density="compact"
                     maxlength="60"
@@ -270,29 +283,25 @@
                     autofocus
                   />
                 </v-col>
-
-                <!-- UNIDAD -->
-                <v-col cols="4">
+                <v-col cols="6">
                   <v-text-field
                     v-model="form.und"
-                    label="Unidad *"
+                    label="Unidad de Medida *"
                     variant="outlined"
                     density="compact"
                     maxlength="10"
                     hide-details="auto"
                     :error-messages="errores.und"
-                    placeholder="KG, UND, LT..."
+                    placeholder="KG, UND, LT"
                   />
                 </v-col>
-
-                <!-- GRUPO -->
-                <v-col cols="8">
+                <v-col cols="6">
                   <v-select
                     v-model="form.grupo"
                     :items="grupos"
                     item-title="nombre"
                     item-value="codigo"
-                    label="Grupo"
+                    label="Grupo (Opcional)"
                     variant="outlined"
                     density="compact"
                     hide-details
@@ -302,68 +311,77 @@
               </v-row>
             </div>
 
-            <!-- TAB CONTROL E INVENTARIO -->
-            <div class="dlg-section mt-6">
-              <div class="dlg-section-title">🔍 CONTROL E INVENTARIO</div>
+            <!-- TAB CONFIGURACIÓN -->
+            <div v-show="dlgTab === 'configuracion'" class="tab-content">
               <v-row dense>
-                <!-- CONTROL -->
-                <v-col cols="12" sm="6">
-                  <v-select
-                    v-model="form.control"
-                    :items="['SI', 'NO']"
-                    label="Control de Inventario *"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                  />
+                <v-col cols="12">
+                  <div class="config-section">
+                    <div class="config-label">
+                      <v-icon size="20" color="#10b981">mdi-eye-outline</v-icon>
+                      Control de Inventario
+                    </div>
+                    <v-select
+                      v-model="form.control"
+                      :items="[{title: 'SI (Controlar)', value: 'SI'}, {title: 'NO (No controlar)', value: 'NO'}]"
+                      item-title="title"
+                      item-value="value"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    />
+                    <div class="config-hint">Marca SI para rastrear cantidad en almacén</div>
+                  </div>
                 </v-col>
-
-                <!-- PARA VENTA / FRANQUICIA -->
-                <v-col cols="12" sm="6">
-                  <v-select
-                    v-model="form.para_venta"
-                    :items="['SI', 'NO']"
-                    label="Vender a Franquicia"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    :color="form.para_venta === 'SI' ? '#06b6d4' : '#cbd5e1'"
-                  />
+                <v-col cols="12">
+                  <div class="config-section mt-4">
+                    <div class="config-label">
+                      <v-icon size="20" color="#06b6d4">mdi-store-outline</v-icon>
+                      Vender a Franquiciados
+                    </div>
+                    <v-select
+                      v-model="form.para_venta"
+                      :items="[{title: 'SI (Vender)', value: 'SI'}, {title: 'NO (No vender)', value: 'NO'}]"
+                      item-title="title"
+                      item-value="value"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    />
+                    <div class="config-hint">Marca SI si este producto se vende a franquiciados</div>
+                  </div>
                 </v-col>
               </v-row>
             </div>
 
             <!-- TAB PRECIOS -->
-            <div class="dlg-section mt-6">
-              <div class="dlg-section-title">💰 COSTO DEL PRODUCTO</div>
+            <div v-show="dlgTab === 'precios'" class="tab-content">
               <v-row dense>
-                <!-- PRECIO COSTO -->
                 <v-col cols="12">
                   <v-text-field
                     v-model.number="form.precio_costo"
-                    label="Precio de Costo *"
+                    label="Precio de Costo"
                     variant="outlined"
                     density="compact"
                     type="number"
                     step="0.01"
                     prefix="$"
                     hide-details
-                    hint="Los precios de venta se calculan automáticamente usando los márgenes configurados"
-                    persistent-hint
                   />
+                  <div class="precio-hint mt-3">
+                    <v-icon size="16">mdi-information-outline</v-icon>
+                    <span>Los precios de venta se calculan automáticamente con los márgenes configurados</span>
+                  </div>
                 </v-col>
               </v-row>
-              <div class="dlg-hint mt-3">
-                <v-icon size="16" color="#06b6d4">mdi-information-outline</v-icon>
-                <span>Los precios de venta (Niveles 1, 2, 3) se calculan automáticamente</span>
-              </div>
             </div>
 
-            <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-5">
+            <!-- ERRORES -->
+            <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-4">
               {{ formError }}
             </v-alert>
           </v-card-text>
 
+          <!-- FOOTER -->
           <v-divider />
           <v-card-actions class="pa-4">
             <v-spacer />
@@ -395,6 +413,7 @@ const filtroGrupo   = ref('TODOS')
 
 // ── Dialog formulario ─────────────────────────────────────────
 const dlgForm   = ref(false)
+const dlgTab    = ref('basico')
 const editando  = ref(false)
 const guardando = ref(false)
 const formError = ref('')
@@ -638,34 +657,93 @@ onMounted(cargar)
 .prd-total { margin-top: 12px; font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; padding-right: 4px; }
 
 /* Dialog */
-.dlg-title { font-size: 16px; font-weight: 700; padding: 16px 20px; display: flex; align-items: center; }
-
-/* Dialog Sections */
-.dlg-section { padding: 0; }
-.dlg-section-title {
-  font-size: 13px;
+.dlg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  background: linear-gradient(135deg, #0891b2, #06b6d4);
+}
+.dlg-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dlg-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dlg-header-title {
+  font-size: 16px;
   font-weight: 700;
-  color: rgba(var(--v-theme-on-surface),.6);
+  color: white;
+}
+.dlg-header-sub {
+  font-size: 12px;
+  color: rgba(255,255,255,.7);
+  margin-top: 2px;
+}
+
+.dlg-tabs {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.1);
+}
+
+.tab-content {
+  padding-top: 8px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface),.5);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid rgba(6,182,212,.2);
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+.field-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0891b2;
+  font-family: monospace;
+  padding: 8px;
+  background: rgba(8,145,178,.08);
+  border-radius: 6px;
+}
+
+.config-section {
+  padding: 12px;
+  background: rgba(var(--v-theme-on-surface),.03);
+  border-radius: 8px;
+}
+.config-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
+.config-hint {
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface),.5);
+  margin-top: 6px;
+}
 
-.th-venta { width: 110px; text-align: center; }
-
-.dlg-hint {
+.precio-hint {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: rgba(6, 182, 212, 0.7);
+  color: rgba(6,182,212,.7);
   padding: 8px;
-  background: rgba(6, 182, 212, 0.08);
+  background: rgba(6,182,212,.08);
   border-radius: 6px;
 }
+
+.th-venta { width: 110px; text-align: center; }
 </style>
