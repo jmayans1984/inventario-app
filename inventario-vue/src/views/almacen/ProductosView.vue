@@ -782,5 +782,27 @@ onMounted(cargar)
   border-left: 3px solid rgba(245,158,11,.4);
 }
 
+/* Tamaño compacto para campos en diálogo */
+.dlg-card :deep(.v-field__input) {
+  font-size: 13px;
+  padding: 0 8px;
+}
+
+.dlg-card :deep(.v-field__input input) {
+  font-size: 13px;
+}
+
+.dlg-card :deep(.v-label) {
+  font-size: 12px !important;
+}
+
+.dlg-card :deep(.v-selection-control__label) {
+  font-size: 12px;
+}
+
+.dlg-card :deep(.v-list-item__content) {
+  font-size: 13px;
+}
+
 .th-venta { width: 110px; text-align: center; }
 </style>
