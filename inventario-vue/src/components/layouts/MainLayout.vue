@@ -151,16 +151,13 @@
               </v-btn>
             </template>
 
-            <div class="notif-panel" @click.stop>
+            <div class="notif-panel">
               <!-- Header del panel -->
               <div class="notif-panel-header">
                 <span class="notif-panel-title">Notificaciones</span>
                 <div v-if="notificaciones.length > 0" class="notif-header-btns">
-                  <button class="notif-hbtn notif-hbtn-blue" @click.stop.prevent="marcarTodasLeidas">
-                    Marcar leídas
-                  </button>
-                  <button class="notif-hbtn notif-hbtn-red" @click.stop.prevent="eliminarTodas">
-                    Eliminar todas
+                  <button class="notif-hbtn notif-hbtn-red" @mousedown.stop.prevent="eliminarTodas">
+                    Limpiar todo
                   </button>
                 </div>
               </div>
@@ -185,21 +182,12 @@
                     <div class="notif-mensaje">{{ n.mensaje }}</div>
                     <div class="notif-fecha">{{ formatFecha(n.fecha_creacion) }}</div>
                   </div>
-                  <div class="notif-actions">
-                    <!-- Marcar como leída -->
-                    <button
-                      v-if="n.leida === 'NO'"
-                      class="notif-action-btn notif-action-check"
-                      title="Marcar como leída"
-                      @click.stop.prevent="marcarLeida(n.id)"
-                    >✓</button>
-                    <!-- Eliminar -->
-                    <button
-                      class="notif-action-btn notif-action-del"
-                      title="Eliminar notificación"
-                      @click.stop.prevent="eliminarNotificacion(n.id)"
-                    >✕</button>
-                  </div>
+                  <!-- X: marcar leída y eliminar del panel -->
+                  <button
+                    class="notif-action-btn notif-action-del"
+                    title="Descartar"
+                    @mousedown.stop.prevent="descartarNotificacion(n)"
+                  >✕</button>
                 </div>
               </div>
             </div>
@@ -368,53 +356,25 @@ async function cargarNotificaciones() {
   }
 }
 
-async function marcarLeida(id) {
-  try {
-    await notificacionesService.marcarComoLeida(id)
-    // Actualizar local sin recargar todo
-    const n = notificaciones.value.find(x => x.id === id)
-    if (n) {
-      n.leida = 'SI'
-      notificacionesSinLeer.value = Math.max(0, notificacionesSinLeer.value - 1)
-    }
-  } catch (e) {
-    console.error('Error marcando como leída:', e)
+// Descartar: marca como leída + elimina del panel inmediatamente (sin esperar API)
+async function descartarNotificacion(n) {
+  // Eliminar del array inmediatamente para feedback visual instantáneo
+  const idx = notificaciones.value.findIndex(x => x.id === n.id)
+  if (idx !== -1) {
+    if (n.leida === 'NO') notificacionesSinLeer.value = Math.max(0, notificacionesSinLeer.value - 1)
+    notificaciones.value.splice(idx, 1)
   }
-}
-
-async function marcarTodasLeidas() {
-  try {
-    const sinLeer = notificaciones.value.filter(n => n.leida === 'NO')
-    await Promise.all(sinLeer.map(n => notificacionesService.marcarComoLeida(n.id)))
-    notificaciones.value.forEach(n => { n.leida = 'SI' })
-    notificacionesSinLeer.value = 0
-  } catch (e) {
-    console.error('Error marcando todas como leídas:', e)
-  }
+  // Llamadas API en background (no bloqueantes)
+  notificacionesService.marcarComoLeida(n.id).catch(() => {})
+  notificacionesService.eliminarNotificacion(n.id).catch(() => {})
 }
 
 async function eliminarTodas() {
-  try {
-    await notificacionesService.eliminarTodasNotificaciones()
-    notificaciones.value = []
-    notificacionesSinLeer.value = 0
-  } catch (e) {
-    console.error('Error eliminando todas:', e)
-  }
-}
-
-async function eliminarNotificacion(id) {
-  try {
-    await notificacionesService.eliminarNotificacion(id)
-    const idx = notificaciones.value.findIndex(x => x.id === id)
-    if (idx !== -1) {
-      const era = notificaciones.value[idx].leida === 'NO'
-      notificaciones.value.splice(idx, 1)
-      if (era) notificacionesSinLeer.value = Math.max(0, notificacionesSinLeer.value - 1)
-    }
-  } catch (e) {
-    console.error('Error eliminando notificación:', e)
-  }
+  // Limpiar panel inmediatamente
+  notificaciones.value = []
+  notificacionesSinLeer.value = 0
+  // API en background
+  notificacionesService.eliminarTodasNotificaciones().catch(() => {})
 }
 
 function formatFecha(fecha) {
