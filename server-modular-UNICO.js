@@ -8705,11 +8705,20 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
 (async () => {
     try {
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS lista_precio_id INTEGER DEFAULT NULL`);
-        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(20) DEFAULT NULL`);
-        // Alterar tipo de la columna si existe y es muy pequeña
-        await pool.query(`ALTER TABLE empresas ALTER COLUMN bodega_maestra TYPE VARCHAR(20)`);
-        console.log('✅ Columnas empresas.lista_precio_id y bodega_maestra listas');
-    } catch (e) { console.error('Error migrando empresas:', e.message); }
+        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(2) DEFAULT NULL`);
+        console.log('✅ Columnas empresas listas');
+    } catch (e) { console.error('Error migrando empresas ADD:', e.message); }
+})();
+
+// Migración separada: ampliar bodega_maestra a VARCHAR(20) usando USING cast
+(async () => {
+    try {
+        await pool.query(`
+            ALTER TABLE empresas
+            ALTER COLUMN bodega_maestra TYPE VARCHAR(20) USING bodega_maestra::VARCHAR(20)
+        `);
+        console.log('✅ Columna bodega_maestra ampliada a VARCHAR(20)');
+    } catch (e) { console.error('Error ampliando bodega_maestra:', e.message); }
 })();
 
 // PUT /api/empresas/clientes/:codigo/lista-precio — asignar lista de precio a cliente
