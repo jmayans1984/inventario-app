@@ -490,13 +490,26 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
 app.patch('/api/almacen/productos/:codigo/toggle-control', async (req, res) => {
     const { codigo } = req.params;
     try {
-        const actual = await pool.query(`SELECT control FROM productos WHERE codigo = $1`, [codigo]);
+        const actual = await pool.query(`SELECT control, visible_operacional, para_venta FROM productos WHERE codigo = $1`, [codigo]);
         if (actual.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Producto no encontrado' });
         }
         const nuevoControl = actual.rows[0].control === 'SI' ? 'NO' : 'SI';
-        await pool.query(`UPDATE productos SET control = $1 WHERE codigo = $2`, [nuevoControl, codigo]);
-        res.json({ success: true, control: nuevoControl });
+
+        // Si desactiva (control = NO), también desactivar los otros campos
+        const nuevoOperacional = nuevoControl === 'NO' ? 'NO' : actual.rows[0].visible_operacional;
+        const nuevoParaVenta = nuevoControl === 'NO' ? 'NO' : actual.rows[0].para_venta;
+
+        await pool.query(
+            `UPDATE productos SET control = $1, visible_operacional = $2, para_venta = $3 WHERE codigo = $4`,
+            [nuevoControl, nuevoOperacional, nuevoParaVenta, codigo]
+        );
+        res.json({
+            success: true,
+            control: nuevoControl,
+            visible_operacional: nuevoOperacional,
+            para_venta: nuevoParaVenta
+        });
     } catch (error) {
         console.error('Error PATCH /api/almacen/productos/:codigo/toggle-control:', error);
         res.status(500).json({ success: false, error: error.message });

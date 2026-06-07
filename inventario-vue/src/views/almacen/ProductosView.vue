@@ -630,15 +630,30 @@ async function guardar() {
 
 async function toggleControl(p) {
   toggling.value = p.codigo
-  const anterior = p.control
+  const anteriorControl = p.control
+  const anteriorOperacional = p.visible_operacional
+  const anteriorVenta = p.para_venta
+
   // Optimistic update
-  p.control = p.control === 'SI' ? 'NO' : 'SI'
+  const nuevoControl = p.control === 'SI' ? 'NO' : 'SI'
+  p.control = nuevoControl
+
+  // Si desactiva, desactivar también los otros
+  if (nuevoControl === 'NO') {
+    p.visible_operacional = 'NO'
+    p.para_venta = 'NO'
+  }
+
   try {
     const res = await productosAlmacenService.toggleControl(p.codigo)
     p.control = res.control
+    p.visible_operacional = res.visible_operacional || (res.control === 'NO' ? 'NO' : anteriorOperacional)
+    p.para_venta = res.para_venta || (res.control === 'NO' ? 'NO' : anteriorVenta)
   } catch {
     // Revertir si falla
-    p.control = anterior
+    p.control = anteriorControl
+    p.visible_operacional = anteriorOperacional
+    p.para_venta = anteriorVenta
   } finally {
     toggling.value = null
   }
