@@ -256,13 +256,10 @@
           <div class="dlg-header">
             <div class="dlg-header-left">
               <div class="dlg-header-icon">
-                <v-icon size="24" color="white">{{ editando ? 'mdi-pencil-outline' : 'mdi-package-plus-outline' }}</v-icon>
+                <v-icon size="28" color="white">{{ editando ? 'mdi-pencil-outline' : 'mdi-package-plus-outline' }}</v-icon>
               </div>
               <div>
-                <div class="dlg-header-title">
-                  <v-icon size="20" color="white" style="margin-right: 8px;">{{ editando ? 'mdi-pencil-outline' : 'mdi-package-plus-outline' }}</v-icon>
-                  {{ editando ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO' }}
-                </div>
+                <div class="dlg-header-title">{{ editando ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO' }}</div>
                 <div class="dlg-header-sub">{{ editando ? 'Código: ' + form.codigo : 'Crear nuevo artículo' }}</div>
               </div>
             </div>
@@ -280,25 +277,27 @@
               <v-divider class="my-3" />
 
               <v-row dense>
-                <v-col cols="12">
-                  <div style="display: flex; gap: 12px; align-items: flex-start;">
-                    <div style="flex-shrink: 0; width: 100px;">
-                      <div class="field-label">Código</div>
-                      <div class="field-value">{{ editando ? form.codigo : 'AUTO' }}</div>
-                    </div>
-                    <div style="flex: 1;">
-                      <v-text-field
-                        v-model="form.nombre"
-                        label="Nombre del Producto *"
-                        variant="outlined"
-                        density="compact"
-                        maxlength="60"
-                        hide-details="auto"
-                        :error-messages="errores.nombre"
-                        autofocus
-                      />
-                    </div>
-                  </div>
+                <v-col cols="3">
+                  <v-text-field
+                    :model-value="editando ? form.codigo : 'AUTO'"
+                    label="Código"
+                    variant="outlined"
+                    density="compact"
+                    readonly
+                    hide-details
+                  />
+                </v-col>
+                <v-col cols="9">
+                  <v-text-field
+                    v-model="form.nombre"
+                    label="Nombre del Producto *"
+                    variant="outlined"
+                    density="compact"
+                    maxlength="60"
+                    hide-details="auto"
+                    :error-messages="errores.nombre"
+                    autofocus
+                  />
                 </v-col>
                 <v-col cols="6">
                   <v-text-field
