@@ -363,6 +363,35 @@ app.get('/api/almacen/productos', async (req, res) => {
     }
 });
 
+// GET /api/almacen/productos-precios — todos los productos con sus precios (sin filtro de flags)
+app.get('/api/almacen/productos-precios', async (req, res) => {
+    try {
+        const { search } = req.query;
+        const params = [];
+        let where = '';
+        if (search) {
+            params.push(`%${search.toUpperCase()}%`);
+            where = `WHERE (UPPER(p.nombre) LIKE $1 OR p.codigo LIKE $1)`;
+        }
+        const result = await pool.query(
+            `SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre,
+                    COALESCE(p.precio_costo,  0) AS precio_costo,
+                    COALESCE(p.precio_venta1, 0) AS precio_venta1,
+                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
+                    COALESCE(p.precio_venta3, 0) AS precio_venta3
+             FROM productos p
+             LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+             ${where}
+             ORDER BY g.codigo NULLS LAST, p.nombre`,
+            params
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/productos-precios:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/almacen/control-stock — obtener productos con stock actual por centro de costo (bodega maestra)
 app.get('/api/almacen/control-stock', async (req, res) => {
     try {
@@ -7648,11 +7677,19 @@ app.delete('/api/produccion/productos-venta/:codigo', async (req, res) => {
 
 app.get('/api/produccion/lista-precios', async (req, res) => {
     try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        const params = [];
+        let where = '';
+        if (empresaCod) {
+            params.push(parseInt(empresaCod));
+            where = `WHERE empresa = $1`;
+        }
         const r = await pool.query(
             `SELECT id, lista, activo, dias_credito,
                     COALESCE(margen, 0)  AS margen,
                     COALESCE(nivel, 1)   AS nivel
-             FROM config_listas_precios ORDER BY nivel, lista`
+             FROM config_listas_precios ${where} ORDER BY nivel, lista`,
+            params
         );
         res.json({ success: true, data: r.rows });
     } catch (e) {

@@ -224,24 +224,27 @@ function recalcularTodos() {
 async function cargar() {
   loading.value = true
   try {
-    const [resP, resG, resL] = await Promise.all([
-      productosAlmacenService.getProductos(),
-      productosAlmacenService.getGrupos(),
+    const [resP, resL] = await Promise.all([
+      productosAlmacenService.getProductosPrecios(),
       productosAlmacenService.getListasPrecios(),
     ])
     productos.value = (resP.data || []).map(p => ({
       ...p,
-      precio_costo: parseFloat(p.precio_costo) || 0,
+      precio_costo:  parseFloat(p.precio_costo)  || 0,
+      precio_venta1: parseFloat(p.precio_venta1) || 0,
+      precio_venta2: parseFloat(p.precio_venta2) || 0,
+      precio_venta3: parseFloat(p.precio_venta3) || 0,
       _modificado: false,
       _guardando: false,
     }))
-    grupos.value = resG.data || []
     listasPrecios.value = resL.data || []
     if (listasPrecios.value.length > 0 && !listaSeleccionada.value) {
       listaSeleccionada.value = listasPrecios.value[0].id
     }
   } catch (e) {
-    console.error('Error cargando:', e)
+    console.error('Error cargando precios:', e)
+    const msg = e.response?.data?.error || e.message || 'Error desconocido'
+    mostrarSnack(`Error al cargar: ${msg}`, 'error')
   } finally {
     loading.value = false
   }

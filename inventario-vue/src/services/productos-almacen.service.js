@@ -49,6 +49,11 @@ export const productosAlmacenService = {
     return res.data
   },
 
+  async getProductosPrecios(params = {}) {
+    const res = await api.get('/almacen/productos-precios', { params })
+    return res.data
+  },
+
   async getProductosConPrecios() {
     const res = await api.get('/almacen/productos')
     return res.data
