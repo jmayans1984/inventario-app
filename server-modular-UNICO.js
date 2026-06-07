@@ -6860,32 +6860,56 @@ pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0`).catch(() => {});
 
 // ── NOTIFICACIONES ────────────────────────────────────────────
+// Tabla base de notificaciones
 pool.query(`
     CREATE TABLE IF NOT EXISTS notificaciones (
         id SERIAL PRIMARY KEY,
         empresa VARCHAR(20),
         titulo VARCHAR(200),
         mensaje TEXT,
-        tipo VARCHAR(20),
-        leida VARCHAR(2) DEFAULT 'NO',
+        tipo VARCHAR(30),
         url VARCHAR(500),
+        id_producto VARCHAR(10),
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
 `).catch(() => {});
 
-pool.query(`ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS id_producto VARCHAR(10)`).catch(() => {});
+// Tabla de seguimiento de lectura por usuario
+pool.query(`
+    CREATE TABLE IF NOT EXISTS notificaciones_usuarios (
+        id SERIAL PRIMARY KEY,
+        notificacion_id INTEGER REFERENCES notificaciones(id) ON DELETE CASCADE,
+        usuario_codigo VARCHAR(20),
+        leida VARCHAR(2) DEFAULT 'NO',
+        fecha_lectura TIMESTAMP,
+        UNIQUE(notificacion_id, usuario_codigo)
+    )
+`).catch(() => {});
 
+// Tabla de preferencias de notificaciones por usuario
+pool.query(`
+    CREATE TABLE IF NOT EXISTS preferencias_notificaciones (
+        id SERIAL PRIMARY KEY,
+        usuario_codigo VARCHAR(20),
+        tipo VARCHAR(30),
+        activa VARCHAR(2) DEFAULT 'SI',
+        UNIQUE(usuario_codigo, tipo)
+    )
+`).catch(() => {});
+
+// Endpoint: obtener notificaciones del usuario actual
 app.get('/api/notificaciones', async (req, res) => {
     try {
-        const empresaCod = req.query.empresa || req.headers['x-empresa'];
-        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
 
         const result = await pool.query(
-            `SELECT id, titulo, mensaje, tipo, leida, url, id_producto, fecha_creacion
-             FROM notificaciones
-             WHERE empresa = $1
-             ORDER BY fecha_creacion DESC LIMIT 50`,
-            [empresaCod]
+            `SELECT n.id, n.titulo, n.mensaje, n.tipo, n.url, n.id_producto, n.fecha_creacion, nu.leida
+             FROM notificaciones n
+             LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
+             WHERE n.fecha_creacion > NOW() - INTERVAL '30 days'
+             ORDER BY n.fecha_creacion DESC LIMIT 50`,
+            [usuarioCod]
         );
         res.json({ success: true, data: result.rows });
     } catch (e) {
@@ -6894,14 +6918,18 @@ app.get('/api/notificaciones', async (req, res) => {
     }
 });
 
+// Endpoint: contar sin leer
 app.get('/api/notificaciones/sin-leer/count', async (req, res) => {
     try {
-        const empresaCod = req.query.empresa || req.headers['x-empresa'];
-        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
 
         const result = await pool.query(
-            `SELECT COUNT(*) as total FROM notificaciones WHERE empresa = $1 AND leida = 'NO'`,
-            [empresaCod]
+            `SELECT COUNT(*) as total
+             FROM notificaciones n
+             LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
+             WHERE (nu.leida = 'NO' OR nu.leida IS NULL)`,
+            [usuarioCod]
         );
         res.json({ success: true, data: { total: result.rows[0].total } });
     } catch (e) {
@@ -6910,10 +6938,20 @@ app.get('/api/notificaciones/sin-leer/count', async (req, res) => {
     }
 });
 
+// Endpoint: marcar como leída
 app.patch('/api/notificaciones/:id/leer', async (req, res) => {
     try {
         const { id } = req.params;
-        await pool.query(`UPDATE notificaciones SET leida = 'SI' WHERE id = $1`, [id]);
+        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+
+        await pool.query(
+            `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida, fecha_lectura)
+             VALUES ($1, $2, 'SI', NOW())
+             ON CONFLICT (notificacion_id, usuario_codigo)
+             DO UPDATE SET leida = 'SI', fecha_lectura = NOW()`,
+            [id, usuarioCod]
+        );
         res.json({ success: true });
     } catch (e) {
         console.error('Error PATCH /api/notificaciones/:id/leer:', e);
@@ -6921,14 +6959,94 @@ app.patch('/api/notificaciones/:id/leer', async (req, res) => {
     }
 });
 
-// Función interna para crear notificación
-async function crearNotificacion(empresa, titulo, mensaje, tipo, url = null, id_producto = null) {
+// Endpoint: obtener preferencias del usuario
+app.get('/api/preferencias-notificaciones', async (req, res) => {
     try {
+        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+
+        const result = await pool.query(
+            `SELECT tipo, activa FROM preferencias_notificaciones WHERE usuario_codigo = $1`,
+            [usuarioCod]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (e) {
+        console.error('Error GET /api/preferencias-notificaciones:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Endpoint: actualizar preferencias
+app.put('/api/preferencias-notificaciones/:tipo', async (req, res) => {
+    try {
+        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        const { tipo } = req.params;
+        const { activa } = req.body;
+
+        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+
         await pool.query(
+            `INSERT INTO preferencias_notificaciones (usuario_codigo, tipo, activa)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (usuario_codigo, tipo)
+             DO UPDATE SET activa = $3`,
+            [usuarioCod, tipo, activa || 'SI']
+        );
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error PUT /api/preferencias-notificaciones/:tipo:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Tipos de notificaciones disponibles
+const TIPOS_NOTIFICACIONES = [
+    { valor: 'stock_fuera', label: 'Stock Fuera (0 unidades)', icon: 'mdi-alert-circle' },
+    { valor: 'stock_bajo', label: 'Stock Bajo (bajo mínimo)', icon: 'mdi-alert' },
+    { valor: 'alerta_general', label: 'Alertas Generales', icon: 'mdi-bell' },
+    { valor: 'actualizaciones', label: 'Actualizaciones del Sistema', icon: 'mdi-refresh' },
+    { valor: 'reportes', label: 'Reportes Completados', icon: 'mdi-file-chart' },
+];
+
+// Función interna para crear notificación (respeta preferencias)
+async function crearNotificacion(empresa, titulo, mensaje, tipo, usuarios_codigo = null, url = null, id_producto = null) {
+    try {
+        // Insertar notificación base
+        const notifRes = await pool.query(
             `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, url, id_producto)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id`,
             [empresa, titulo, mensaje, tipo, url || null, id_producto || null]
         );
+        const notifId = notifRes.rows[0].id;
+
+        // Obtener todos los usuarios de la empresa si no se especificaron
+        let usuariosDestino = usuarios_codigo;
+        if (!usuariosDestino || usuariosDestino.length === 0) {
+            const usuariosRes = await pool.query(
+                `SELECT DISTINCT usuario FROM acceso WHERE empresa = $1`,
+                [empresa]
+            );
+            usuariosDestino = usuariosRes.rows.map(r => r.usuario);
+        }
+
+        // Crear registro para cada usuario que tenga esta notificación activa
+        for (const usuarioCod of usuariosDestino) {
+            const prefRes = await pool.query(
+                `SELECT activa FROM preferencias_notificaciones WHERE usuario_codigo = $1 AND tipo = $2`,
+                [usuarioCod, tipo]
+            );
+
+            // Si no existe preferencia o está activa, crear la notificación
+            if (prefRes.rows.length === 0 || prefRes.rows[0].activa === 'SI') {
+                await pool.query(
+                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                     VALUES ($1, $2, 'NO')
+                     ON CONFLICT DO NOTHING`,
+                    [notifId, usuarioCod]
+                );
+            }
+        }
     } catch (e) {
         console.error('Error creando notificación:', e);
     }
