@@ -8676,6 +8676,8 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
     try {
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS lista_precio_id INTEGER DEFAULT NULL`);
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(20) DEFAULT NULL`);
+        // Alterar tipo de la columna si existe y es muy pequeña
+        await pool.query(`ALTER TABLE empresas ALTER COLUMN bodega_maestra TYPE VARCHAR(20)`);
         console.log('✅ Columnas empresas.lista_precio_id y bodega_maestra listas');
     } catch (e) { console.error('Error migrando empresas:', e.message); }
 })();
