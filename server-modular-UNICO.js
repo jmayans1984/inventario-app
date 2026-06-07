@@ -327,7 +327,10 @@ app.get('/api/almacen/productos', async (req, res) => {
 
         let query = `
             SELECT p.codigo, p.nombre, p.und, p.grupo,
-                   g.nombre AS grupo_nombre, p.control, p.para_venta
+                   g.nombre AS grupo_nombre, p.control, p.para_venta,
+                   COALESCE(p.precio_venta1, 0) AS precio_venta1,
+                   COALESCE(p.precio_venta2, 0) AS precio_venta2,
+                   COALESCE(p.precio_venta3, 0) AS precio_venta3
             FROM productos p
             LEFT JOIN grupo_productos g ON g.codigo = p.grupo
         `;
@@ -6739,8 +6742,12 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 
 // ── PRODUCTOS ────────────────────────────────────────────────────
-// Asegurar columna para_venta en productos (franquicia/proveeduría)
+// Asegurar columnaspara_venta en productos (franquicia/proveeduría)
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS para_venta VARCHAR(2) DEFAULT 'NO'`).catch(() => {});
+// Asegurar campos de precios de venta en productos
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta1 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta2 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 
 app.get('/api/produccion/grupo-productos', async (req, res) => {
     try {

@@ -664,7 +664,9 @@ async function cargar() {
 
 async function cargarProductos() {
   try {
-    const r = await fetch(`${API_BASE}/produccion/productos-venta?control=SI`).then(r => r.json())
+    const empresa = getEmpresa()
+    const url = `${API_BASE}/almacen/productos?empresa=${empresa}`
+    const r = await fetch(url).then(r => r.json())
     productos.value = (r.data || []).filter(p => getPrecio(p) > 0)
   } catch (e) { console.error(e) }
 }
