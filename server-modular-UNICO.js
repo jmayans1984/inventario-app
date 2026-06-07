@@ -8496,6 +8496,53 @@ app.get('/api/empresas/clientes', async (req, res) => {
     }
 });
 
+// GET /api/empresas/bodega-maestra — obtener la bodega maestra de la empresa
+app.get('/api/empresas/bodega-maestra', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT codigo, nombre, bodega_maestra FROM empresas WHERE codigo = $1`,
+            [empresaCod]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        }
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error GET /api/empresas/bodega-maestra:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/empresas/bodega-maestra — actualizar la bodega maestra
+app.put('/api/empresas/bodega-maestra', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        const { bodega_maestra } = req.body;
+
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        if (!bodega_maestra || !['SI', 'NO'].includes(bodega_maestra)) {
+            return res.status(400).json({ success: false, error: 'bodega_maestra debe ser SI o NO' });
+        }
+
+        const result = await pool.query(
+            `UPDATE empresas SET bodega_maestra = $1 WHERE codigo = $2 RETURNING codigo, nombre, bodega_maestra`,
+            [bodega_maestra, empresaCod]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        }
+
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/empresas/bodega-maestra:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/permisos-modulos/:empresa — retorna rutas deshabilitadas para una empresa
 app.get('/api/permisos-modulos/:empresa', async (req, res) => {
     try {
