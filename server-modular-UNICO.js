@@ -311,17 +311,44 @@ app.get('/api/almacen/productos/proximo-codigo', async (req, res) => {
 app.get('/api/almacen/productos', async (req, res) => {
     try {
         const { search } = req.query;
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+
+        // Obtener tipo_empresa para filtrar por para_venta si es CLIENTE (franquiciado)
+        let tipoEmpresa = 'PROVEEDOR'; // default
+        if (empresaCod) {
+            const empResult = await pool.query(
+                `SELECT tipo_empresa FROM empresas WHERE codigo = $1`,
+                [empresaCod]
+            );
+            if (empResult.rows.length > 0) {
+                tipoEmpresa = empResult.rows[0].tipo_empresa || 'PROVEEDOR';
+            }
+        }
+
         let query = `
             SELECT p.codigo, p.nombre, p.und, p.grupo,
-                   g.nombre AS grupo_nombre, p.control
+                   g.nombre AS grupo_nombre, p.control, p.para_venta
             FROM productos p
             LEFT JOIN grupo_productos g ON g.codigo = p.grupo
         `;
         const params = [];
+        let whereClause = [];
+
+        // Si es CLIENTE (franquiciado), solo mostrar productos con para_venta='SI'
+        if (tipoEmpresa === 'CLIENTE') {
+            whereClause.push(`p.para_venta = 'SI'`);
+        }
+
+        // Búsqueda
         if (search) {
             params.push(`%${search.toUpperCase()}%`);
-            query += ` WHERE UPPER(p.nombre) LIKE $1 OR p.codigo LIKE $1`;
+            whereClause.push(`(UPPER(p.nombre) LIKE $${params.length} OR p.codigo LIKE $${params.length})`);
         }
+
+        if (whereClause.length > 0) {
+            query += ` WHERE ` + whereClause.join(` AND `);
+        }
+
         query += ` ORDER BY g.codigo NULLS LAST, p.nombre`;
         const result = await pool.query(query, params);
         res.json({ success: true, data: result.rows });
@@ -398,6 +425,23 @@ app.patch('/api/almacen/productos/:codigo/toggle-control', async (req, res) => {
         res.json({ success: true, control: nuevoControl });
     } catch (error) {
         console.error('Error PATCH /api/almacen/productos/:codigo/toggle-control:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PATCH /api/almacen/productos/:codigo/toggle-para-venta — alternar SI/NO para franquicia
+app.patch('/api/almacen/productos/:codigo/toggle-para-venta', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const actual = await pool.query(`SELECT para_venta FROM productos WHERE codigo = $1`, [codigo]);
+        if (actual.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+        }
+        const nuevoParaVenta = actual.rows[0].para_venta === 'SI' ? 'NO' : 'SI';
+        await pool.query(`UPDATE productos SET para_venta = $1 WHERE codigo = $2`, [nuevoParaVenta, codigo]);
+        res.json({ success: true, para_venta: nuevoParaVenta });
+    } catch (error) {
+        console.error('Error PATCH /api/almacen/productos/:codigo/toggle-para-venta:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -4251,6 +4295,14 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
 
         const codigoOrdenGuardado = ordenResult.rows[0].codigo;
 
+        // Obtener tipo_empresa para validar permisos de productos
+        const empresaTypeResult = await client.query(
+            `SELECT tipo_empresa FROM empresas WHERE codigo = $1`,
+            [empresa]
+        );
+        const esClienteFranquiciado = empresaTypeResult.rows.length > 0 &&
+                                       empresaTypeResult.rows[0].tipo_empresa === 'CLIENTE';
+
         // Insertar detalles de la orden (solo con cantidad > 0)
         let detallesCreados = 0;
         for (const detalle of detalles) {
@@ -4258,6 +4310,22 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
 
             // Solo guardar si cantidad es diferente a 0, null o blanco
             if (cantidad > 0) {
+                // Si es cliente franquiciado, validar que el producto sea para venta
+                if (esClienteFranquiciado) {
+                    const productoCheck = await client.query(
+                        `SELECT codigo, para_venta FROM productos WHERE codigo = $1`,
+                        [detalle.producto_venta]
+                    );
+
+                    if (productoCheck.rows.length === 0) {
+                        throw new Error(`Producto ${detalle.producto_venta} no existe`);
+                    }
+
+                    if (productoCheck.rows[0].para_venta !== 'SI') {
+                        throw new Error(`Producto ${detalle.producto_venta} no está disponible para franquiciados`);
+                    }
+                }
+
                 const insertDetalleQuery = `
                     INSERT INTO detalle_ordenes
                     (orden, producto_venta, cantidad, precio_unitario, subtotal, empresa)
@@ -6669,6 +6737,10 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 // ── GRUPO DE PRODUCTOS DE VENTA ────────────────────────────────
 // Asegurar columna activo en grupo_productos_venta
 pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
+
+// ── PRODUCTOS ────────────────────────────────────────────────────
+// Asegurar columna para_venta en productos (franquicia/proveeduría)
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS para_venta VARCHAR(2) DEFAULT 'NO'`).catch(() => {});
 
 app.get('/api/produccion/grupo-productos', async (req, res) => {
     try {
