@@ -7677,19 +7677,11 @@ app.delete('/api/produccion/productos-venta/:codigo', async (req, res) => {
 
 app.get('/api/produccion/lista-precios', async (req, res) => {
     try {
-        const empresaCod = req.query.empresa || req.headers['x-empresa'];
-        const params = [];
-        let where = '';
-        if (empresaCod) {
-            params.push(parseInt(empresaCod));
-            where = `WHERE empresa = $1`;
-        }
         const r = await pool.query(
             `SELECT id, lista, activo, dias_credito,
                     COALESCE(margen, 0)  AS margen,
                     COALESCE(nivel, 1)   AS nivel
-             FROM config_listas_precios ${where} ORDER BY nivel, lista`,
-            params
+             FROM config_listas_precios ORDER BY nivel, lista`
         );
         res.json({ success: true, data: r.rows });
     } catch (e) {
