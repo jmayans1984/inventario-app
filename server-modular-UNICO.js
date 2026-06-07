@@ -825,6 +825,20 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
         }
 
         await client.query('COMMIT');
+
+        // Generar notificaciones de stock para cada producto actualizado
+        for (const prod of productos) {
+            if (prod.codigo) {
+                // Verificar stock en origen
+                await verificarYGenerarNotificacionesStock(prod.codigo, ccOrigen, empresa);
+
+                // Si es traslado, verificar también en destino
+                if (tipo === 'TRASLADO' && ccDestino) {
+                    await verificarYGenerarNotificacionesStock(prod.codigo, ccDestino, empresa);
+                }
+            }
+        }
+
         res.json({ success: true, registros: registrosCreados });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -933,6 +947,14 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
         }
 
         await client.query('COMMIT');
+
+        // Generar notificaciones de stock para cada producto ajustado
+        for (const aj of ajustes) {
+            if (aj.codigo) {
+                await verificarYGenerarNotificacionesStock(aj.codigo, ccosto, empresa);
+            }
+        }
+
         res.json({ success: true, registros });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -6965,6 +6987,108 @@ pool.query(`
         await pool.query(`ALTER TABLE preferencias_notificaciones ADD COLUMN IF NOT EXISTS usuarios_receptores TEXT DEFAULT '[]'`);
     } catch (e) { }
 `).catch(() => {});
+
+// FUNCIÓN AUXILIAR: Verificar stock y generar notificaciones automáticas
+async function verificarYGenerarNotificacionesStock(codigo, ccosto, empresa) {
+    try {
+        // Obtener stock actual
+        const stockResult = await pool.query(
+            `SELECT COALESCE(SUM(entrada), 0) - COALESCE(SUM(salida), 0) AS stock_actual
+             FROM detalle_inventario
+             WHERE codigo = $1 AND ccosto = $2 AND empresa = $3`,
+            [codigo, ccosto, empresa]
+        );
+        const stock_actual = stockResult.rows[0]?.stock_actual || 0;
+
+        // Obtener stock_minimo del producto
+        const productoResult = await pool.query(
+            `SELECT nombre, stock_minimo FROM productos WHERE codigo = $1`,
+            [codigo]
+        );
+        if (productoResult.rows.length === 0) return;
+
+        const producto = productoResult.rows[0];
+        const stock_minimo = parseFloat(producto.stock_minimo) || 0;
+        const nombre_producto = producto.nombre;
+
+        // Determinar tipo de notificación según stock
+        let tipo = null;
+        let titulo = null;
+        let mensaje = null;
+
+        if (stock_actual < 0) {
+            // Stock negativo = ERROR en inventario
+            tipo = 'alerta_general';
+            titulo = `⚠️ ERROR: ${nombre_producto} en NEGATIVO`;
+            mensaje = `El producto "${nombre_producto}" (${codigo}) se encuentra en NEGATIVO: ${stock_actual} unidades en ${ccosto}. Verificar error en el inventario inmediatamente.`;
+        } else if (stock_actual === 0) {
+            // Stock fuera (cero)
+            tipo = 'stock_fuera';
+            titulo = `🔴 FUERA DE STOCK: ${nombre_producto}`;
+            mensaje = `El producto "${nombre_producto}" (${codigo}) está FUERA DE STOCK (0 unidades) en ${ccosto}.`;
+        } else if (stock_actual < stock_minimo) {
+            // Stock bajo
+            tipo = 'stock_bajo';
+            titulo = `🟡 STOCK BAJO: ${nombre_producto}`;
+            mensaje = `El producto "${nombre_producto}" (${codigo}) está por debajo del mínimo. Stock actual: ${stock_actual} | Mínimo: ${stock_minimo} en ${ccosto}.`;
+        }
+
+        // Si hay notificación que generar
+        if (tipo) {
+            // Obtener preferencias de la empresa
+            const prefsResult = await pool.query(
+                `SELECT usuarios_receptores FROM preferencias_notificaciones
+                 WHERE empresa = $1 AND tipo = $2 AND activa = 'SI'`,
+                [empresa, tipo]
+            );
+
+            if (prefsResult.rows.length > 0 && prefsResult.rows[0].usuarios_receptores) {
+                const usuarios = JSON.parse(prefsResult.rows[0].usuarios_receptores || '[]');
+
+                if (usuarios.length > 0) {
+                    // Crear notificación
+                    const notifResult = await pool.query(
+                        `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, id_producto, fecha_creacion)
+                         VALUES ($1, $2, $3, $4, $5, NOW())
+                         RETURNING id`,
+                        [empresa, titulo, mensaje, tipo, codigo]
+                    );
+
+                    const notif_id = notifResult.rows[0].id;
+
+                    // Crear registro para cada usuario
+                    for (const usuario of usuarios) {
+                        await pool.query(
+                            `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                             VALUES ($1, $2, 'NO')`,
+                            [notif_id, usuario]
+                        ).catch(() => {}); // Ignore errors if user doesn't exist
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Error verificando stock y generando notificaciones:', e);
+    }
+}
+
+// POST /api/verificar-stock/:codigo - Verificar stock y generar notificaciones (para debugging)
+app.post('/api/verificar-stock/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { ccosto } = req.body;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+
+        if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        if (!ccosto) return res.status(400).json({ success: false, error: 'Centro de costo requerido' });
+
+        await verificarYGenerarNotificacionesStock(codigo, ccosto, empresa);
+        res.json({ success: true, message: 'Verificación completada' });
+    } catch (e) {
+        console.error('Error en POST /api/verificar-stock:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 
 // Endpoint: obtener notificaciones del usuario actual
 app.get('/api/notificaciones', async (req, res) => {
