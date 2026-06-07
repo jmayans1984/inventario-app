@@ -363,6 +363,67 @@ app.get('/api/almacen/productos', async (req, res) => {
     }
 });
 
+// GET /api/almacen/control-stock — obtener productos con stock actual por centro de costo (bodega maestra)
+app.get('/api/almacen/control-stock', async (req, res) => {
+    try {
+        const { ccosto } = req.query;
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+
+        if (!empresaCod) {
+            return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        }
+
+        if (!ccosto) {
+            return res.status(400).json({ success: false, error: 'Centro de costo (ccosto) requerido' });
+        }
+
+        // Obtener tipo_empresa para filtrar por para_venta si es CLIENTE
+        let tipoEmpresa = 'PROVEEDOR';
+        const empResult = await pool.query(
+            `SELECT tipo_empresa FROM empresas WHERE codigo = $1`,
+            [empresaCod]
+        );
+        if (empResult.rows.length > 0) {
+            tipoEmpresa = empResult.rows[0].tipo_empresa || 'PROVEEDOR';
+        }
+
+        let query = `
+            SELECT p.codigo, p.nombre, p.und, p.grupo, g.nombre AS grupo_nombre,
+                   p.stock_minimo,
+                   COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0) AS stock_actual
+            FROM productos p
+            LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+            LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1 AND di.empresa = $2
+        `;
+
+        const params = [ccosto, empresaCod];
+        const whereClause = [];
+
+        // Si es CLIENTE, solo mostrar productos con para_venta='SI'
+        if (tipoEmpresa === 'CLIENTE') {
+            whereClause.push(`p.para_venta = 'SI'`);
+        }
+
+        // Mostrar solo productos con control = 'SI'
+        whereClause.push(`p.control = 'SI'`);
+
+        if (whereClause.length > 0) {
+            query += ` WHERE ` + whereClause.join(` AND `);
+        }
+
+        query += `
+            GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.nombre, p.stock_minimo
+            ORDER BY g.codigo NULLS LAST, p.nombre
+        `;
+
+        const result = await pool.query(query, params);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/control-stock:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/almacen/productos — crear producto
 app.post('/api/almacen/productos', async (req, res) => {
     const { codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo } = req.body;

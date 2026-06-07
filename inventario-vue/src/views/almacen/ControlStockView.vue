@@ -24,8 +24,14 @@
         </div>
       </div>
 
+      <!-- INFORMACIÓN DE BODEGA MAESTRA -->
+      <div v-if="!loading && bodegaMaestraCC" class="bodega-info">
+        <v-icon size="18" color="#0891b2">mdi-warehouse</v-icon>
+        <span>Centro de Costo: <strong>{{ bodegaMaestraCC }} - {{ bodegaMaestraNombre }}</strong></span>
+      </div>
+
       <!-- CONTROLES -->
-      <div class="cst-controles">
+      <div v-if="!sinBodegaMaestra" class="cst-controles">
         <div class="cst-search">
           <v-icon size="18" style="color:rgba(var(--v-theme-on-surface),.4)">mdi-magnify</v-icon>
           <input v-model="search" type="text" placeholder="Buscar producto..." class="cst-search-input" @keyup.escape="search=''" />
@@ -54,6 +60,21 @@
         <div v-if="loading" class="cst-loading">
           <v-progress-circular indeterminate color="#ef4444" size="36" />
         </div>
+
+        <template v-else-if="sinBodegaMaestra">
+          <div class="cst-empty-bodega">
+            <v-icon size="48" color="#f59e0b">mdi-alert-outline</v-icon>
+            <p><strong>⚠ No hay Bodega Maestra asignada</strong></p>
+            <p style="font-size:13px;color:rgba(var(--v-theme-on-surface),.6)">
+              Debes asignar un Centro de Costo como Bodega Maestra en <strong>CONFIGURACIÓN > Bodega Maestra / Proveeduría</strong> para poder gestionar el control de stock.
+            </p>
+            <router-link to="/configuracion/bodega-maestra" style="text-decoration:none">
+              <v-btn color="#0891b2" variant="elevated" size="small" prepend-icon="mdi-warehouse">
+                Ir a Bodega Maestra
+              </v-btn>
+            </router-link>
+          </div>
+        </template>
 
         <template v-else-if="productosAgrupados.length === 0">
           <div class="cst-empty">No hay productos con estos filtros</div>
@@ -140,8 +161,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
+import { bodegaMaestraService } from '../../services/bodega-maestra.service'
+import api from '../../services/api'
+
+const router = useRouter()
 
 const productos       = ref([])
 const grupos          = ref([])
@@ -150,6 +176,9 @@ const guardandoTodos  = ref(false)
 const search          = ref('')
 const filtroEstado    = ref('todos')
 const snack           = ref({ show: false, msg: '', color: 'success' })
+const bodegaMaestraCC = ref(null)
+const bodegaMaestraNombre = ref('')
+const sinBodegaMaestra = ref(false)
 
 const opcionesEstado = [
   { value: 'todos', label: 'Todos' },
@@ -243,20 +272,32 @@ function saltarSiguiente(grupo, actual) {
 async function cargar() {
   loading.value = true
   try {
-    const [resP, resG] = await Promise.all([
-      productosAlmacenService.getProductos(),
-      productosAlmacenService.getGrupos(),
-    ])
-    productos.value = (resP.data || []).map(p => ({
+    // Primero, obtener la bodega maestra
+    const resBodega = await bodegaMaestraService.obtenerBodegaMaestra()
+    const ccosto = resBodega.data.bodega_maestra
+
+    if (!ccosto) {
+      sinBodegaMaestra.value = true
+      productos.value = []
+      return
+    }
+
+    bodegaMaestraCC.value = ccosto
+    bodegaMaestraNombre.value = resBodega.data.centro_costo_nombre || ccosto
+    sinBodegaMaestra.value = false
+
+    // Cargar productos del control-stock endpoint (filtrado por bodega maestra)
+    const resP = await api.get(`/almacen/control-stock?ccosto=${ccosto}`)
+    productos.value = (resP.data.data || []).map(p => ({
       ...p,
       stock_minimo: parseFloat(p.stock_minimo) || 0,
       stock_actual: parseFloat(p.stock_actual) || 0,
       _modificado: false,
       _guardando: false,
     }))
-    grupos.value = resG.data || []
   } catch (e) {
     console.error('Error cargando:', e)
+    mostrarSnack('Error al cargar datos', 'error')
   } finally {
     loading.value = false
   }
@@ -452,4 +493,32 @@ onMounted(cargar)
 .estado-fuera { background: rgba(239,68,68,.15); color: #ef4444; }
 
 .cst-total { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; margin-top: 12px; }
+
+.bodega-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(8,145,178,.08);
+  border-left: 3px solid #0891b2;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.cst-empty-bodega {
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(var(--v-theme-on-surface),.6);
+}
+
+.cst-empty-bodega p {
+  margin: 12px 0;
+}
+
+.cst-empty-bodega p:first-of-type {
+  font-size: 16px;
+  margin-top: 16px;
+  color: rgb(var(--v-theme-on-surface));
+}
 </style>

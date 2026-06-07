@@ -1,0 +1,1 @@
+import{M as e}from"./MainLayout-DIwRHncp.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
