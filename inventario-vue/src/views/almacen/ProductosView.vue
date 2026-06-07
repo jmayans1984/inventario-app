@@ -228,8 +228,8 @@
       </div>
 
       <!-- ═══════════════════ DIALOG CREAR / EDITAR ═══════════════════ -->
-      <v-dialog v-model="dlgForm" max-width="600" persistent>
-        <v-card rounded="lg">
+      <v-dialog v-model="dlgForm" max-width="700" persistent>
+        <v-card rounded="lg" class="dlg-card">
           <!-- HEADER -->
           <div class="dlg-header">
             <div class="dlg-header-left">
@@ -244,34 +244,22 @@
             <v-btn icon="mdi-close" size="small" variant="text" @click="cerrarDlg" :disabled="guardando" />
           </div>
 
-          <!-- TABS -->
-          <v-tabs v-model="dlgTab" class="dlg-tabs">
-            <v-tab value="basico">
-              <v-icon start size="18">mdi-information-outline</v-icon>
-              Básico
-            </v-tab>
-            <v-tab value="configuracion">
-              <v-icon start size="18">mdi-tune-outline</v-icon>
-              Configuración
-            </v-tab>
-            <v-tab value="precios">
-              <v-icon start size="18">mdi-currency-usd</v-icon>
-              Costos
-            </v-tab>
-          </v-tabs>
-
-          <v-divider />
-
           <!-- CONTENT -->
           <v-card-text class="pa-6">
-            <!-- TAB BÁSICO -->
-            <div v-show="dlgTab === 'basico'" class="tab-content">
+            <!-- SECCIÓN 1: INFORMACIÓN BÁSICA -->
+            <v-sheet class="dlg-sheet">
+              <div class="sheet-header">
+                <v-icon size="20" color="#0891b2">mdi-information-outline</v-icon>
+                <span class="sheet-title">Información Básica</span>
+              </div>
+              <v-divider class="my-3" />
+
               <v-row dense>
-                <v-col cols="4">
+                <v-col cols="3">
                   <div class="field-label">Código</div>
                   <div class="field-value">{{ editando ? form.codigo : 'AUTO' }}</div>
                 </v-col>
-                <v-col cols="8">
+                <v-col cols="9">
                   <v-text-field
                     v-model="form.nombre"
                     label="Nombre del Producto *"
@@ -309,15 +297,22 @@
                   />
                 </v-col>
               </v-row>
-            </div>
+            </v-sheet>
 
-            <!-- TAB CONFIGURACIÓN -->
-            <div v-show="dlgTab === 'configuracion'" class="tab-content">
+            <!-- SECCIÓN 2: CONFIGURACIÓN -->
+            <v-sheet class="dlg-sheet mt-5">
+              <div class="sheet-header">
+                <v-icon size="20" color="#10b981">mdi-tune-outline</v-icon>
+                <span class="sheet-title">Configuración</span>
+              </div>
+              <v-divider class="my-3" />
+
               <v-row dense>
-                <v-col cols="12">
-                  <div class="config-section">
+                <!-- Control -->
+                <v-col cols="12" md="6">
+                  <div class="config-box">
                     <div class="config-label">
-                      <v-icon size="20" color="#10b981">mdi-eye-outline</v-icon>
+                      <v-icon size="18" color="#10b981">mdi-eye-outline</v-icon>
                       Control de Inventario
                     </div>
                     <v-select
@@ -329,13 +324,15 @@
                       density="compact"
                       hide-details
                     />
-                    <div class="config-hint">Marca SI para rastrear cantidad en almacén</div>
+                    <div class="config-hint">Rastrear cantidad en almacén</div>
                   </div>
                 </v-col>
-                <v-col cols="12">
-                  <div class="config-section mt-4">
+
+                <!-- Franquicia -->
+                <v-col cols="12" md="6">
+                  <div class="config-box">
                     <div class="config-label">
-                      <v-icon size="20" color="#06b6d4">mdi-store-outline</v-icon>
+                      <v-icon size="18" color="#06b6d4">mdi-store-outline</v-icon>
                       Vender a Franquiciados
                     </div>
                     <v-select
@@ -347,16 +344,22 @@
                       density="compact"
                       hide-details
                     />
-                    <div class="config-hint">Marca SI si este producto se vende a franquiciados</div>
+                    <div class="config-hint">Disponible para franquiciados</div>
                   </div>
                 </v-col>
               </v-row>
-            </div>
+            </v-sheet>
 
-            <!-- TAB PRECIOS -->
-            <div v-show="dlgTab === 'precios'" class="tab-content">
+            <!-- SECCIÓN 3: COSTOS -->
+            <v-sheet class="dlg-sheet mt-5">
+              <div class="sheet-header">
+                <v-icon size="20" color="#f59e0b">mdi-currency-usd</v-icon>
+                <span class="sheet-title">Costos</span>
+              </div>
+              <v-divider class="my-3" />
+
               <v-row dense>
-                <v-col cols="12">
+                <v-col cols="12" sm="6">
                   <v-text-field
                     v-model.number="form.precio_costo"
                     label="Precio de Costo"
@@ -367,16 +370,18 @@
                     prefix="$"
                     hide-details
                   />
-                  <div class="precio-hint mt-3">
+                </v-col>
+                <v-col cols="12">
+                  <div class="precio-hint mt-2">
                     <v-icon size="16">mdi-information-outline</v-icon>
                     <span>Los precios de venta se calculan automáticamente con los márgenes configurados</span>
                   </div>
                 </v-col>
               </v-row>
-            </div>
+            </v-sheet>
 
             <!-- ERRORES -->
-            <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-4">
+            <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-5">
               {{ formError }}
             </v-alert>
           </v-card-text>
@@ -386,7 +391,7 @@
           <v-card-actions class="pa-4">
             <v-spacer />
             <v-btn variant="text" @click="cerrarDlg" :disabled="guardando">Cancelar</v-btn>
-            <v-btn color="#0891b2" variant="elevated" :loading="guardando" @click="guardar">
+            <v-btn color="#0891b2" variant="elevated" size="large" :loading="guardando" @click="guardar">
               {{ editando ? 'Guardar Cambios' : 'Crear Producto' }}
             </v-btn>
           </v-card-actions>
@@ -657,92 +662,124 @@ onMounted(cargar)
 .prd-total { margin-top: 12px; font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; padding-right: 4px; }
 
 /* Dialog */
+.dlg-card {
+  overflow: visible !important;
+}
+
 .dlg-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px;
+  padding: 20px 24px;
   background: linear-gradient(135deg, #0891b2, #06b6d4);
 }
+
 .dlg-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
+
 .dlg-header-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
   background: rgba(255,255,255,.2);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
+
 .dlg-header-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: 0.3px;
   color: white;
 }
+
 .dlg-header-sub {
   font-size: 12px;
-  color: rgba(255,255,255,.7);
-  margin-top: 2px;
+  color: rgba(255,255,255,.8);
+  margin-top: 3px;
 }
 
-.dlg-tabs {
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.1);
+/* Sheets */
+.dlg-sheet {
+  padding: 16px;
+  background: rgba(var(--v-theme-on-surface),.02);
+  border: 1px solid rgba(var(--v-theme-on-surface),.08);
+  border-radius: 10px;
 }
 
-.tab-content {
-  padding-top: 8px;
+.sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.sheet-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface),.9);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .field-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: rgba(var(--v-theme-on-surface),.5);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-bottom: 4px;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
 }
+
 .field-value {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: #0891b2;
-  font-family: monospace;
-  padding: 8px;
-  background: rgba(8,145,178,.08);
+  font-family: 'Courier New', monospace;
+  padding: 8px 10px;
+  background: rgba(8,145,178,.12);
   border-radius: 6px;
 }
 
-.config-section {
+.config-box {
   padding: 12px;
-  background: rgba(var(--v-theme-on-surface),.03);
+  background: rgba(var(--v-theme-on-surface),.05);
   border-radius: 8px;
+  border-left: 3px solid rgba(var(--v-theme-on-surface),.2);
 }
+
 .config-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   margin-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
+  color: rgba(var(--v-theme-on-surface),.8);
 }
+
 .config-hint {
-  font-size: 11px;
+  font-size: 10px;
   color: rgba(var(--v-theme-on-surface),.5);
   margin-top: 6px;
+  font-style: italic;
 }
 
 .precio-hint {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 12px;
-  color: rgba(6,182,212,.7);
-  padding: 8px;
-  background: rgba(6,182,212,.08);
-  border-radius: 6px;
+  color: rgba(245,158,11,.8);
+  padding: 10px;
+  background: rgba(245,158,11,.08);
+  border-radius: 8px;
+  border-left: 3px solid rgba(245,158,11,.4);
 }
 
 .th-venta { width: 110px; text-align: center; }
