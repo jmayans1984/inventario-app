@@ -6859,6 +6859,81 @@ pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC
 // Campo de control de stock
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0`).catch(() => {});
 
+// ── NOTIFICACIONES ────────────────────────────────────────────
+pool.query(`
+    CREATE TABLE IF NOT EXISTS notificaciones (
+        id SERIAL PRIMARY KEY,
+        empresa VARCHAR(20),
+        titulo VARCHAR(200),
+        mensaje TEXT,
+        tipo VARCHAR(20),
+        leida VARCHAR(2) DEFAULT 'NO',
+        url VARCHAR(500),
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+`).catch(() => {});
+
+pool.query(`ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS id_producto VARCHAR(10)`).catch(() => {});
+
+app.get('/api/notificaciones', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT id, titulo, mensaje, tipo, leida, url, id_producto, fecha_creacion
+             FROM notificaciones
+             WHERE empresa = $1
+             ORDER BY fecha_creacion DESC LIMIT 50`,
+            [empresaCod]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (e) {
+        console.error('Error GET /api/notificaciones:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/notificaciones/sin-leer/count', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT COUNT(*) as total FROM notificaciones WHERE empresa = $1 AND leida = 'NO'`,
+            [empresaCod]
+        );
+        res.json({ success: true, data: { total: result.rows[0].total } });
+    } catch (e) {
+        console.error('Error GET /api/notificaciones/sin-leer/count:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.patch('/api/notificaciones/:id/leer', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await pool.query(`UPDATE notificaciones SET leida = 'SI' WHERE id = $1`, [id]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error PATCH /api/notificaciones/:id/leer:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Función interna para crear notificación
+async function crearNotificacion(empresa, titulo, mensaje, tipo, url = null, id_producto = null) {
+    try {
+        await pool.query(
+            `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, url, id_producto)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [empresa, titulo, mensaje, tipo, url || null, id_producto || null]
+        );
+    } catch (e) {
+        console.error('Error creando notificación:', e);
+    }
+}
+
 app.get('/api/produccion/grupo-productos', async (req, res) => {
     try {
         const r = await pool.query(

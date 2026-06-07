@@ -131,7 +131,51 @@
 
         <div class="header-right">
           <!-- Notificaciones -->
-          <v-btn icon="mdi-bell-outline" variant="text" size="small" class="header-btn"></v-btn>
+          <v-menu location="bottom end">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon
+                variant="text"
+                size="small"
+                class="header-btn"
+                :color="notificacionesSinLeer > 0 ? 'warning' : 'inherit'"
+              >
+                <v-icon>mdi-bell-outline</v-icon>
+                <v-badge
+                  v-if="notificacionesSinLeer > 0"
+                  color="error"
+                  floating
+                  :content="notificacionesSinLeer > 9 ? '9+' : notificacionesSinLeer"
+                />
+              </v-btn>
+            </template>
+
+            <v-list style="max-width: 400px; max-height: 500px; overflow-y: auto">
+              <v-list-subheader v-if="notificaciones.length === 0" style="text-align: center; font-size: 12px; color: #999">
+                Sin notificaciones
+              </v-list-subheader>
+              <template v-else>
+                <v-list-item v-for="n in notificaciones" :key="n.id" :class="{ 'notif-sin-leer': n.leida === 'NO' }">
+                  <template #prepend>
+                    <v-icon :color="obtenerColorTipo(n.tipo)" size="18">{{ obtenerIconoTipo(n.tipo) }}</v-icon>
+                  </template>
+                  <v-list-item-title style="font-size: 12px; font-weight: 600">{{ n.titulo }}</v-list-item-title>
+                  <v-list-item-subtitle style="font-size: 11px; margin-top: 2px">{{ n.mensaje }}</v-list-item-subtitle>
+                  <template #append>
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      @click.stop="marcarLeida(n.id)"
+                    >
+                      <v-icon size="14">mdi-check</v-icon>
+                    </v-btn>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-list>
+          </v-menu>
 
           <!-- Tema -->
           <v-btn
@@ -186,6 +230,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useAppStore } from '../../stores/app'
 import { MODULES } from '../../utils/constants'
 import { formatFechaLarga } from '../../utils/formatters'
+import { notificacionesService } from '../../services/notificaciones.service'
 
 const router = useRouter()
 const route = useRoute()
@@ -251,7 +296,58 @@ onMounted(() => {
       })
     }
   })
+
+  // Cargar notificaciones
+  cargarNotificaciones()
+  // Refrescar cada 30 segundos
+  setInterval(cargarNotificaciones, 30000)
 })
+
+// Notificaciones
+const notificaciones = ref([])
+const notificacionesSinLeer = ref(0)
+
+function obtenerIconoTipo(tipo) {
+  const iconos = {
+    'stock_bajo': 'mdi-alert-circle-outline',
+    'success': 'mdi-check-circle-outline',
+    'info': 'mdi-information-outline',
+    'warning': 'mdi-alert-outline',
+    'error': 'mdi-close-circle-outline'
+  }
+  return iconos[tipo] || 'mdi-bell-outline'
+}
+
+function obtenerColorTipo(tipo) {
+  const colores = {
+    'stock_bajo': 'error',
+    'success': 'success',
+    'info': 'info',
+    'warning': 'warning',
+    'error': 'error'
+  }
+  return colores[tipo] || 'inherit'
+}
+
+async function cargarNotificaciones() {
+  try {
+    const res = await notificacionesService.obtenerNotificaciones()
+    notificaciones.value = res.data || []
+    const count = await notificacionesService.obtenerCountSinLeer()
+    notificacionesSinLeer.value = count.data.total
+  } catch (e) {
+    console.error('Error cargando notificaciones:', e)
+  }
+}
+
+async function marcarLeida(id) {
+  try {
+    await notificacionesService.marcarComoLeida(id)
+    await cargarNotificaciones()
+  } catch (e) {
+    console.error('Error marcando como leída:', e)
+  }
+}
 
 const toggleTema = () => appStore.toggleTema()
 
@@ -488,4 +584,10 @@ const handleLogout = () => {
 /* ─── CONTENT ─── */
 .main-content { background: rgb(var(--v-theme-background)) !important; transition: background 0.3s; }
 .page-body { padding: 24px; }
+
+/* ─── NOTIFICACIONES ─── */
+.notif-sin-leer {
+  background: rgba(var(--v-theme-warning), 0.08) !important;
+  border-left: 3px solid var(--v-warning-base);
+}
 </style>
