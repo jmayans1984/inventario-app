@@ -1,1 +1,0 @@
-import{M as e}from"./MainLayout-w-lyzE2D.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

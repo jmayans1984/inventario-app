@@ -27,6 +27,14 @@ export const notificacionesService = {
     return res.data
   },
 
+  async eliminarNotificacion(id) {
+    const authStore = useAuthStore()
+    const res = await api.delete(`/notificaciones/${id}`, {
+      params: { usuario: authStore.userName }
+    })
+    return res.data
+  },
+
   async obtenerPreferencias() {
     const authStore = useAuthStore()
     const res = await api.get('/preferencias-notificaciones', {

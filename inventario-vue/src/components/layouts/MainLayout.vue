@@ -151,30 +151,69 @@
               </v-btn>
             </template>
 
-            <v-list style="max-width: 400px; max-height: 500px; overflow-y: auto">
-              <v-list-subheader v-if="notificaciones.length === 0" style="text-align: center; font-size: 12px; color: #999">
-                Sin notificaciones
-              </v-list-subheader>
-              <template v-else>
-                <v-list-item v-for="n in notificaciones" :key="n.id" :class="{ 'notif-sin-leer': n.leida === 'NO' }">
-                  <template #prepend>
-                    <v-icon :color="obtenerColorTipo(n.tipo)" size="18">{{ obtenerIconoTipo(n.tipo) }}</v-icon>
-                  </template>
-                  <v-list-item-title style="font-size: 12px; font-weight: 600">{{ n.titulo }}</v-list-item-title>
-                  <v-list-item-subtitle style="font-size: 11px; margin-top: 2px">{{ n.mensaje }}</v-list-item-subtitle>
-                  <template #append>
+            <div class="notif-panel">
+              <!-- Header del panel -->
+              <div class="notif-panel-header">
+                <span class="notif-panel-title">Notificaciones</span>
+                <v-btn
+                  v-if="notificaciones.length > 0"
+                  variant="text"
+                  size="x-small"
+                  color="#0891b2"
+                  @click.stop="marcarTodasLeidas"
+                >
+                  Marcar todas leídas
+                </v-btn>
+              </div>
+
+              <!-- Lista vacía -->
+              <div v-if="notificaciones.length === 0" class="notif-empty">
+                <v-icon size="32" color="#ccc">mdi-bell-off-outline</v-icon>
+                <p>Sin notificaciones</p>
+              </div>
+
+              <!-- Lista de notificaciones -->
+              <div v-else class="notif-list">
+                <div
+                  v-for="n in notificaciones"
+                  :key="n.id"
+                  class="notif-item"
+                  :class="{ 'notif-sin-leer': n.leida === 'NO' }"
+                >
+                  <v-icon :color="obtenerColorTipo(n.tipo)" size="18" class="notif-icon">{{ obtenerIconoTipo(n.tipo) }}</v-icon>
+                  <div class="notif-body">
+                    <div class="notif-titulo">{{ n.titulo }}</div>
+                    <div class="notif-mensaje">{{ n.mensaje }}</div>
+                    <div class="notif-fecha">{{ formatFecha(n.fecha_creacion) }}</div>
+                  </div>
+                  <div class="notif-actions">
+                    <!-- Marcar como leída (check) - solo si no está leída -->
                     <v-btn
+                      v-if="n.leida === 'NO'"
                       icon
                       size="x-small"
                       variant="text"
+                      color="#10b981"
+                      title="Marcar como leída"
                       @click.stop="marcarLeida(n.id)"
                     >
                       <v-icon size="14">mdi-check</v-icon>
                     </v-btn>
-                  </template>
-                </v-list-item>
-              </template>
-            </v-list>
+                    <!-- Eliminar (X) - siempre visible -->
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      color="#ef4444"
+                      title="Eliminar notificación"
+                      @click.stop="eliminarNotificacion(n.id)"
+                    >
+                      <v-icon size="14">mdi-close</v-icon>
+                    </v-btn>
+                  </div>
+                </div>
+              </div>
+            </div>
           </v-menu>
 
           <!-- Tema -->
@@ -343,10 +382,51 @@ async function cargarNotificaciones() {
 async function marcarLeida(id) {
   try {
     await notificacionesService.marcarComoLeida(id)
-    await cargarNotificaciones()
+    // Actualizar local sin recargar todo
+    const n = notificaciones.value.find(x => x.id === id)
+    if (n) {
+      n.leida = 'SI'
+      notificacionesSinLeer.value = Math.max(0, notificacionesSinLeer.value - 1)
+    }
   } catch (e) {
     console.error('Error marcando como leída:', e)
   }
+}
+
+async function marcarTodasLeidas() {
+  try {
+    const sinLeer = notificaciones.value.filter(n => n.leida === 'NO')
+    await Promise.all(sinLeer.map(n => notificacionesService.marcarComoLeida(n.id)))
+    notificaciones.value.forEach(n => { n.leida = 'SI' })
+    notificacionesSinLeer.value = 0
+  } catch (e) {
+    console.error('Error marcando todas como leídas:', e)
+  }
+}
+
+async function eliminarNotificacion(id) {
+  try {
+    await notificacionesService.eliminarNotificacion(id)
+    const idx = notificaciones.value.findIndex(x => x.id === id)
+    if (idx !== -1) {
+      const era = notificaciones.value[idx].leida === 'NO'
+      notificaciones.value.splice(idx, 1)
+      if (era) notificacionesSinLeer.value = Math.max(0, notificacionesSinLeer.value - 1)
+    }
+  } catch (e) {
+    console.error('Error eliminando notificación:', e)
+  }
+}
+
+function formatFecha(fecha) {
+  if (!fecha) return ''
+  const d = new Date(fecha)
+  const ahora = new Date()
+  const diff = Math.floor((ahora - d) / 1000)
+  if (diff < 60) return 'Ahora'
+  if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`
+  return d.toLocaleDateString('es', { day: '2-digit', month: 'short' })
 }
 
 const toggleTema = () => appStore.toggleTema()
@@ -586,8 +666,94 @@ const handleLogout = () => {
 .page-body { padding: 24px; }
 
 /* ─── NOTIFICACIONES ─── */
+.notif-panel {
+  width: 380px;
+  max-height: 520px;
+  display: flex;
+  flex-direction: column;
+  background: rgb(var(--v-theme-surface));
+}
+
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  flex-shrink: 0;
+}
+
+.notif-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.notif-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  font-size: 12px;
+}
+
+.notif-empty p { margin: 8px 0 0; }
+
+.notif-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
+  transition: background .15s;
+}
+
+.notif-item:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
+
 .notif-sin-leer {
-  background: rgba(var(--v-theme-warning), 0.08) !important;
-  border-left: 3px solid var(--v-warning-base);
+  background: rgba(8, 145, 178, 0.05) !important;
+  border-left: 3px solid #0891b2;
+}
+
+.notif-icon { flex-shrink: 0; margin-top: 2px; }
+
+.notif-body { flex: 1; min-width: 0; }
+
+.notif-titulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-mensaje {
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  margin-top: 2px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notif-fecha {
+  font-size: 10px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  margin-top: 4px;
+}
+
+.notif-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
 }
 </style>

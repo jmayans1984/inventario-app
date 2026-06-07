@@ -7135,10 +7135,12 @@ app.get('/api/notificaciones', async (req, res) => {
         if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
 
         const result = await pool.query(
-            `SELECT n.id, n.titulo, n.mensaje, n.tipo, n.url, n.id_producto, n.fecha_creacion, nu.leida
+            `SELECT n.id, n.titulo, n.mensaje, n.tipo, n.url, n.id_producto, n.fecha_creacion,
+                    COALESCE(nu.leida, 'NO') AS leida
              FROM notificaciones n
              LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
              WHERE n.fecha_creacion > NOW() - INTERVAL '30 days'
+               AND COALESCE(nu.leida, 'NO') != 'ELIMINADA'
              ORDER BY n.fecha_creacion DESC LIMIT 50`,
             [usuarioCod]
         );
@@ -7186,6 +7188,28 @@ app.patch('/api/notificaciones/:id/leer', async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         console.error('Error PATCH /api/notificaciones/:id/leer:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// DELETE /api/notificaciones/:id — eliminar notificación para el usuario (ocultar)
+app.delete('/api/notificaciones/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+
+        // Marcar como leída Y archivar (insertamos con leida=SI y fecha)
+        await pool.query(
+            `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida, fecha_lectura)
+             VALUES ($1, $2, 'ELIMINADA', NOW())
+             ON CONFLICT (notificacion_id, usuario_codigo)
+             DO UPDATE SET leida = 'ELIMINADA', fecha_lectura = NOW()`,
+            [id, usuarioCod]
+        );
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error DELETE /api/notificaciones/:id:', e);
         res.status(500).json({ success: false, error: e.message });
     }
 });
