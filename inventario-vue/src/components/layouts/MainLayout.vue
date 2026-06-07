@@ -131,7 +131,7 @@
 
         <div class="header-right">
           <!-- Notificaciones -->
-          <v-menu location="bottom end">
+          <v-menu location="bottom end" :close-on-content-click="false">
             <template #activator="{ props }">
               <v-btn
                 v-bind="props"
