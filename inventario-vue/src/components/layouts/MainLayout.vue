@@ -151,27 +151,17 @@
               </v-btn>
             </template>
 
-            <div class="notif-panel">
+            <div class="notif-panel" @click.stop>
               <!-- Header del panel -->
               <div class="notif-panel-header">
                 <span class="notif-panel-title">Notificaciones</span>
                 <div v-if="notificaciones.length > 0" class="notif-header-btns">
-                  <v-btn
-                    variant="text"
-                    size="x-small"
-                    color="#0891b2"
-                    @click.stop="marcarTodasLeidas"
-                  >
+                  <button class="notif-hbtn notif-hbtn-blue" @click.stop.prevent="marcarTodasLeidas">
                     Marcar leídas
-                  </v-btn>
-                  <v-btn
-                    variant="text"
-                    size="x-small"
-                    color="#ef4444"
-                    @click.stop="eliminarTodas"
-                  >
+                  </button>
+                  <button class="notif-hbtn notif-hbtn-red" @click.stop.prevent="eliminarTodas">
                     Eliminar todas
-                  </v-btn>
+                  </button>
                 </div>
               </div>
 
@@ -196,29 +186,19 @@
                     <div class="notif-fecha">{{ formatFecha(n.fecha_creacion) }}</div>
                   </div>
                   <div class="notif-actions">
-                    <!-- Marcar como leída (check) - solo si no está leída -->
-                    <v-btn
+                    <!-- Marcar como leída -->
+                    <button
                       v-if="n.leida === 'NO'"
-                      icon
-                      size="x-small"
-                      variant="text"
-                      color="#10b981"
+                      class="notif-action-btn notif-action-check"
                       title="Marcar como leída"
-                      @click.stop="marcarLeida(n.id)"
-                    >
-                      <v-icon size="14">mdi-check</v-icon>
-                    </v-btn>
-                    <!-- Eliminar (X) - siempre visible -->
-                    <v-btn
-                      icon
-                      size="x-small"
-                      variant="text"
-                      color="#ef4444"
+                      @click.stop.prevent="marcarLeida(n.id)"
+                    >✓</button>
+                    <!-- Eliminar -->
+                    <button
+                      class="notif-action-btn notif-action-del"
                       title="Eliminar notificación"
-                      @click.stop="eliminarNotificacion(n.id)"
-                    >
-                      <v-icon size="14">mdi-close</v-icon>
-                    </v-btn>
+                      @click.stop.prevent="eliminarNotificacion(n.id)"
+                    >✕</button>
                   </div>
                 </div>
               </div>
@@ -712,6 +692,41 @@ const handleLogout = () => {
   display: flex;
   gap: 4px;
 }
+
+.notif-hbtn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  transition: background .15s;
+}
+.notif-hbtn-blue { color: #0891b2; }
+.notif-hbtn-blue:hover { background: rgba(8,145,178,.1); }
+.notif-hbtn-red { color: #ef4444; }
+.notif-hbtn-red:hover { background: rgba(239,68,68,.1); }
+
+.notif-action-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.notif-action-check { color: #10b981; }
+.notif-action-check:hover { background: rgba(16,185,129,.15); }
+.notif-action-del { color: #ef4444; }
+.notif-action-del:hover { background: rgba(239,68,68,.15); }
 
 .notif-empty {
   text-align: center;
