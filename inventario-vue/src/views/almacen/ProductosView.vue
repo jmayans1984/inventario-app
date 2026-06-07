@@ -289,7 +289,6 @@
                     <div style="flex: 1;">
                       <v-text-field
                         v-model="form.nombre"
-                        @input="form.nombre = form.nombre.toUpperCase()"
                         label="Nombre del Producto *"
                         variant="outlined"
                         density="compact"
@@ -304,7 +303,6 @@
                 <v-col cols="6">
                   <v-text-field
                     v-model="form.und"
-                    @input="form.und = form.und.toUpperCase()"
                     label="Unidad de Medida *"
                     variant="outlined"
                     density="compact"
@@ -454,7 +452,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 
@@ -483,6 +481,14 @@ const form      = ref({
   para_venta: 'NO',
   visible_operacional: 'SI',
   precio_costo: 0
+})
+
+// ── Watchers ──────────────────────────────────────────────────
+watch(() => form.value.nombre, (newVal) => {
+  if (newVal) form.value.nombre = newVal.toUpperCase()
+})
+watch(() => form.value.und, (newVal) => {
+  if (newVal) form.value.und = newVal.toUpperCase()
 })
 
 // ── Computed ──────────────────────────────────────────────────
