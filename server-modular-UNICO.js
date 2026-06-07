@@ -416,7 +416,7 @@ app.get('/api/almacen/control-stock', async (req, res) => {
         }
 
         query += `
-            GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.nombre, p.stock_minimo
+            GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.codigo, g.nombre, p.stock_minimo
             ORDER BY g.codigo NULLS LAST, p.nombre
         `;
 
@@ -500,8 +500,8 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: nombre, und' });
     }
     try {
-        const pc = parseFloat(precio_costo) || 0;
-        const sm = parseFloat(stock_minimo) || 0;
+        const pc = Math.round((parseFloat(precio_costo) || 0) * 100) / 100;
+        const sm = Math.round((parseFloat(stock_minimo) || 0) * 100) / 100;
 
         // Obtener márgenes para calcular precios automáticamente
         const cfgRes = await pool.query(
@@ -6939,12 +6939,22 @@ pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VA
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS para_venta VARCHAR(2) DEFAULT 'NO'`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS visible_operacional VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_costo NUMERIC(12,2) DEFAULT 0`).catch(() => {});
-// Campos de precios de venta (calculados automáticamente)
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta1 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta2 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
-// Campo de control de stock
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0`).catch(() => {});
+
+// Migración: asegurar precisión de 2 decimales en campos de precios (por si la columna existe con otro tipo)
+(async () => {
+    try {
+        await pool.query(`ALTER TABLE productos ALTER COLUMN precio_costo  TYPE NUMERIC(12,2) USING precio_costo::NUMERIC(12,2)`);
+        await pool.query(`ALTER TABLE productos ALTER COLUMN precio_venta1 TYPE NUMERIC(12,2) USING precio_venta1::NUMERIC(12,2)`);
+        await pool.query(`ALTER TABLE productos ALTER COLUMN precio_venta2 TYPE NUMERIC(12,2) USING precio_venta2::NUMERIC(12,2)`);
+        await pool.query(`ALTER TABLE productos ALTER COLUMN precio_venta3 TYPE NUMERIC(12,2) USING precio_venta3::NUMERIC(12,2)`);
+        await pool.query(`ALTER TABLE productos ALTER COLUMN stock_minimo  TYPE NUMERIC(10,2) USING stock_minimo::NUMERIC(10,2)`);
+        console.log('✅ Precisión de columnas de precios asegurada (2 decimales)');
+    } catch (e) { console.error('Error migrando precisión de precios:', e.message); }
+})();
 
 // ── NOTIFICACIONES ────────────────────────────────────────────
 // Tabla base de notificaciones
