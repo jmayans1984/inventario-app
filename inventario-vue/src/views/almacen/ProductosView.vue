@@ -259,7 +259,10 @@
                 <v-icon size="24" color="white">{{ editando ? 'mdi-pencil-outline' : 'mdi-package-plus-outline' }}</v-icon>
               </div>
               <div>
-                <div class="dlg-header-title">{{ editando ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO' }}</div>
+                <div class="dlg-header-title">
+                  <v-icon size="20" color="white" style="margin-right: 8px;">{{ editando ? 'mdi-pencil-outline' : 'mdi-package-plus-outline' }}</v-icon>
+                  {{ editando ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO' }}
+                </div>
                 <div class="dlg-header-sub">{{ editando ? 'Código: ' + form.codigo : 'Crear nuevo artículo' }}</div>
               </div>
             </div>
@@ -277,25 +280,31 @@
               <v-divider class="my-3" />
 
               <v-row dense>
-                <v-col cols="3">
-                  <div class="field-label">Código</div>
-                  <div class="field-value">{{ editando ? form.codigo : 'AUTO' }}</div>
-                </v-col>
-                <v-col cols="9">
-                  <v-text-field
-                    v-model="form.nombre"
-                    label="Nombre del Producto *"
-                    variant="outlined"
-                    density="compact"
-                    maxlength="60"
-                    hide-details="auto"
-                    :error-messages="errores.nombre"
-                    autofocus
-                  />
+                <v-col cols="12">
+                  <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div style="flex-shrink: 0; width: 100px;">
+                      <div class="field-label">Código</div>
+                      <div class="field-value">{{ editando ? form.codigo : 'AUTO' }}</div>
+                    </div>
+                    <div style="flex: 1;">
+                      <v-text-field
+                        v-model="form.nombre"
+                        @input="form.nombre = form.nombre.toUpperCase()"
+                        label="Nombre del Producto *"
+                        variant="outlined"
+                        density="compact"
+                        maxlength="60"
+                        hide-details="auto"
+                        :error-messages="errores.nombre"
+                        autofocus
+                      />
+                    </div>
+                  </div>
                 </v-col>
                 <v-col cols="6">
                   <v-text-field
                     v-model="form.und"
+                    @input="form.und = form.und.toUpperCase()"
                     label="Unidad de Medida *"
                     variant="outlined"
                     density="compact"
@@ -758,6 +767,8 @@ onMounted(cargar)
   font-weight: 700;
   letter-spacing: 0.3px;
   color: white;
+  display: flex;
+  align-items: center;
 }
 
 .dlg-header-sub {
@@ -799,13 +810,18 @@ onMounted(cargar)
 }
 
 .field-value {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: #0891b2;
   font-family: 'Courier New', monospace;
-  padding: 8px 10px;
+  padding: 6px 10px;
   background: rgba(8,145,178,.12);
   border-radius: 6px;
+  border: 1px solid rgba(8,145,178,.3);
+  display: flex;
+  align-items: center;
+  height: 36px;
+  min-height: 36px;
 }
 
 .config-box {
