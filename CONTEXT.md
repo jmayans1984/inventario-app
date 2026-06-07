@@ -42,35 +42,50 @@
 ### Detalle de Orden
 - ✅ **Campo producto:** Backend retorna `producto_nombre`, frontend leía `nombre_producto` → fallback cascade
 
+## Cambios recientes ✅
+
+### Franquicia + Productos Unificados
+- ✅ **Tabla `productos` expandida** con campos: `para_venta`, `precio_venta1/2/3`
+- ✅ **GET /api/almacen/productos** filtra por `para_venta='SI'` si `tipo_empresa='CLIENTE'` (franquiciado)
+- ✅ **PATCH /api/almacen/productos/:codigo/toggle-para-venta** permite MAYDO marcar qué productos vender a franquiciados
+- ✅ **POST ordenes-compra/crear** valida que CLIENTEs solo ordenen productos con `para_venta='SI'`
+- ✅ **Frontend:** Columna FRANQUICIA con toggle en ProductosView.vue
+- ✅ **OrdenesCompraView** usa `/almacen/productos` (unificado) en lugar de `/produccion/productos-venta`
+
 ## Bugs conocidos pendientes ⚠️
 
-### Proveeduría - Conceptual
-- ❓ **Integración inventario:** ¿Cómo manejar cuando Proveeduría vende productos que también consumen Food Trucks en una misma bodega?
-  - Propuesta: Separar por intención de compra (REVENTA vs CONSUMO) o por tipo de movimiento de salida
-  - **Estado:** En análisis (sesión actual)
+### Proveeduría - Modelo simplificado ✅
+- ✅ **Inventario bodega:** Un solo movimiento en `detalle_inventario` cuando se entrega orden
+- ✅ **Separación catálogo:** Campo `para_venta` diferencia productos MAYDO vs franquiciados
+- **Siguiente:** UI para que MAYDO marque precios por franquiciado (si aplica)
 
 ## Próximos pasos (Orden de prioridad)
 
-### P1 — Proveeduría + P&L
-1. Resolver modelo de inventario bodega única (REVENTA vs CONSUMO)
-2. Agregar 3 centros de costo a MAYDO:
+### P1 — Franquicia + Precios
+1. ✅ Tabla productos unificada con para_venta y precio_venta1/2/3
+2. ⚠️ **EN PROGRESO:** UI para que MAYDO marque qué productos vende a cada franquiciado
+3. ⚠️ **TODO:** Validar que el descargue de inventario funciona cuando franquiciado hace orden
+4. **TODO:** Crear centro de costos "PROVEEDURÍA" si no existe
+
+### P2 — Centros de Costo + P&L
+1. Crear 3 centros de costo en MAYDO:
    - FOOD TRUCK A
    - FOOD TRUCK B
-   - PROVEEDURÍA
-3. Asignar `ccosto` automáticamente a facturas de venta según módulo
-4. Reporte P&L por centro de costo (Ingresos - COGS - Gastos = Utilidad)
+   - PROVEEDURÍA (para franquicia)
+2. Asignar `ccosto` automáticamente a facturas de venta según módulo
+3. Reporte P&L por centro de costo (Ingresos - COGS - Gastos = Utilidad)
 
-### P2 — Reportes por Centro de Costo
+### P3 — Reportes por Centro de Costo
 1. Reporte de ventas por producto/período (ya está en plan)
 2. Kardex por ccosto
 3. Consumo de materia prima distribuido (60/40 FT-A/FT-B, 100% Proveeduría)
 
-### P3 — Facturas de Venta (Proveedor)
+### P4 — Facturas de Venta (Proveedor)
 - Vista para que proveedor vea todas sus facturas a clientes
 - Flujo de aprobación de pago + movimientos bancarios
 - Saldo a favor de cliente (sobrepagos)
 
-### P4 — Integración Contable
+### P5 — Integración Contable
 - Asiento automático al generar factura de venta
 - Conciliación con MOVIBAN
 
