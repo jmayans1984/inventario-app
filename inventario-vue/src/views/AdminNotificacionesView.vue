@@ -248,7 +248,7 @@ async function cargar() {
   loading.value = true
   try {
     const res = await adminNotificacionesService.obtenerTiposNotificaciones()
-    tipos.value = res.data || []
+    tipos.value = res || []
   } catch (e) {
     console.error('Error cargando tipos:', e)
     mostrarSnack('Error al cargar tipos de notificaciones', 'error')
