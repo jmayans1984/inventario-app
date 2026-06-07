@@ -333,15 +333,14 @@
                   />
                 </v-col>
                 <v-col cols="12">
-                  <label class="desc-field-label">Descripción (Opcional)</label>
-                  <v-textarea
+                  <v-text-field
                     :model-value="form.descripcion"
                     @update:model-value="v => form.descripcion = v ? v.toUpperCase() : ''"
+                    label="Descripción (Opcional)"
                     variant="outlined"
                     density="compact"
-                    rows="2"
                     hide-details
-                    placeholder="DESCRIPCIÓN DETALLADA DEL PRODUCTO..."
+                    placeholder="BOLSA X 3700 GRMS..."
                     style="text-transform: uppercase;"
                   />
                 </v-col>
