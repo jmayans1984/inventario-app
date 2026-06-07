@@ -6999,14 +6999,106 @@ app.put('/api/preferencias-notificaciones/:tipo', async (req, res) => {
     }
 });
 
-// Tipos de notificaciones disponibles
-const TIPOS_NOTIFICACIONES = [
-    { valor: 'stock_fuera', label: 'Stock Fuera (0 unidades)', icon: 'mdi-alert-circle' },
-    { valor: 'stock_bajo', label: 'Stock Bajo (bajo mínimo)', icon: 'mdi-alert' },
-    { valor: 'alerta_general', label: 'Alertas Generales', icon: 'mdi-bell' },
-    { valor: 'actualizaciones', label: 'Actualizaciones del Sistema', icon: 'mdi-refresh' },
-    { valor: 'reportes', label: 'Reportes Completados', icon: 'mdi-file-chart' },
+// Tabla de tipos de notificaciones
+pool.query(`
+    CREATE TABLE IF NOT EXISTS tipos_notificaciones (
+        id SERIAL PRIMARY KEY,
+        valor VARCHAR(30) UNIQUE,
+        label VARCHAR(100),
+        descripcion TEXT,
+        icon VARCHAR(50),
+        activo VARCHAR(2) DEFAULT 'SI',
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+`).catch(() => {});
+
+// Insertar tipos de notificaciones por defecto
+const TIPOS_NOTIFICACIONES_DEFAULT = [
+    { valor: 'stock_fuera', label: 'Stock Fuera (0 unidades)', descripcion: 'Alerta cuando un producto no tiene stock disponible', icon: 'mdi-alert-circle' },
+    { valor: 'stock_bajo', label: 'Stock Bajo (bajo mínimo)', descripcion: 'Alerta cuando el stock está por debajo del mínimo', icon: 'mdi-alert' },
+    { valor: 'alerta_general', label: 'Alertas Generales', descripcion: 'Alertas y cambios importantes del sistema', icon: 'mdi-bell' },
+    { valor: 'actualizaciones', label: 'Actualizaciones del Sistema', descripcion: 'Notificaciones sobre mantenimiento y nuevas características', icon: 'mdi-refresh' },
+    { valor: 'reportes', label: 'Reportes Completados', descripcion: 'Notificaciones cuando tus reportes están listos', icon: 'mdi-file-chart' },
 ];
+
+// Insertar tipos por defecto si no existen
+TIPOS_NOTIFICACIONES_DEFAULT.forEach(tipo => {
+    pool.query(
+        `INSERT INTO tipos_notificaciones (valor, label, descripcion, icon)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (valor) DO NOTHING`,
+        [tipo.valor, tipo.label, tipo.descripcion, tipo.icon]
+    ).catch(() => {});
+});
+
+// Endpoint: obtener todos los tipos de notificaciones
+app.get('/api/admin/tipos-notificaciones', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, valor, label, descripcion, icon, activo, fecha_creacion
+             FROM tipos_notificaciones
+             ORDER BY fecha_creacion DESC`
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (e) {
+        console.error('Error GET /api/admin/tipos-notificaciones:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Endpoint: crear tipo de notificación
+app.post('/api/admin/tipos-notificaciones', async (req, res) => {
+    try {
+        const { valor, label, descripcion, icon } = req.body;
+        if (!valor || !label) return res.status(400).json({ success: false, error: 'valor y label requeridos' });
+
+        const result = await pool.query(
+            `INSERT INTO tipos_notificaciones (valor, label, descripcion, icon)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *`,
+            [valor, label, descripcion || null, icon || 'mdi-bell']
+        );
+        res.json({ success: true, data: result.rows[0] });
+    } catch (e) {
+        console.error('Error POST /api/admin/tipos-notificaciones:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Endpoint: actualizar tipo de notificación
+app.put('/api/admin/tipos-notificaciones/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { label, descripcion, icon, activo } = req.body;
+
+        const result = await pool.query(
+            `UPDATE tipos_notificaciones
+             SET label = COALESCE($1, label),
+                 descripcion = COALESCE($2, descripcion),
+                 icon = COALESCE($3, icon),
+                 activo = COALESCE($4, activo)
+             WHERE id = $5
+             RETURNING *`,
+            [label || null, descripcion || null, icon || null, activo || null, id]
+        );
+        res.json({ success: true, data: result.rows[0] });
+    } catch (e) {
+        console.error('Error PUT /api/admin/tipos-notificaciones/:id:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Endpoint: eliminar tipo de notificación
+app.delete('/api/admin/tipos-notificaciones/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await pool.query(`DELETE FROM tipos_notificaciones WHERE id = $1`, [id]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error DELETE /api/admin/tipos-notificaciones/:id:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 
 // Función interna para crear notificación (respeta preferencias)
 async function crearNotificacion(empresa, titulo, mensaje, tipo, usuarios_codigo = null, url = null, id_producto = null) {

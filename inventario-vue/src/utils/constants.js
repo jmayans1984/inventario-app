@@ -191,6 +191,7 @@ export const MODULES = [
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
         { name: 'Preferencias de Notificaciones', icon: 'mdi-bell-cog', path: '/configuracion/notificaciones' },
+        { name: 'Admin - Tipos de Notificaciones', icon: 'mdi-bell-alert', path: '/configuracion/admin-notificaciones', requiredTipo: 'PROVEEDOR' },
         { name: 'Permisos por Cliente', icon: 'mdi-shield-account-outline', path: '/configuracion/permisos-clientes', requiredTipo: 'PROVEEDOR' },
       ]},
     ],
