@@ -7054,8 +7054,17 @@ pool.query(`
 })();
 
 // FUNCIÓN AUXILIAR: Verificar stock y generar notificaciones automáticas
+// SOLO genera notificaciones si el ccosto ES la bodega maestra de la empresa
 async function verificarYGenerarNotificacionesStock(codigo, ccosto, empresa) {
     try {
+        // Verificar que el ccosto sea la bodega maestra — si no, salir sin hacer nada
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`,
+            [parseInt(empresa)]
+        );
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra;
+        if (!bodegaMaestra || bodegaMaestra !== ccosto) return;
+
         // Obtener stock actual
         const stockResult = await pool.query(
             `SELECT COALESCE(SUM(entrada), 0) - COALESCE(SUM(salida), 0) AS stock_actual
