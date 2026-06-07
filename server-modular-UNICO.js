@@ -6981,11 +6981,35 @@ pool.query(`
     )
 `).catch(() => {});
 
-// Agregar columna si no existe (migración)
+// Migración: adaptar tabla preferencias_notificaciones al nuevo esquema empresa-based
 (async () => {
     try {
+        // 1. Agregar columna empresa si no existe
+        await pool.query(`ALTER TABLE preferencias_notificaciones ADD COLUMN IF NOT EXISTS empresa VARCHAR(20)`);
+        // 2. Agregar columna usuarios_receptores si no existe
         await pool.query(`ALTER TABLE preferencias_notificaciones ADD COLUMN IF NOT EXISTS usuarios_receptores TEXT DEFAULT '[]'`);
-    } catch (e) { }
+        // 3. Si existe columna usuario_codigo, copiar datos a empresa
+        const cols = await pool.query(`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'preferencias_notificaciones' AND column_name = 'usuario_codigo'
+        `);
+        if (cols.rows.length > 0) {
+            await pool.query(`UPDATE preferencias_notificaciones SET empresa = usuario_codigo WHERE empresa IS NULL`);
+        }
+        // 4. Intentar agregar el UNIQUE constraint en (empresa, tipo) si no existe
+        await pool.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'preferencias_notificaciones_empresa_tipo_key'
+                ) THEN
+                    ALTER TABLE preferencias_notificaciones ADD CONSTRAINT preferencias_notificaciones_empresa_tipo_key UNIQUE (empresa, tipo);
+                END IF;
+            END$$;
+        `);
+        console.log('✅ Migración preferencias_notificaciones completa');
+    } catch (e) { console.error('Error migrando preferencias_notificaciones:', e.message); }
 })();
 
 // FUNCIÓN AUXILIAR: Verificar stock y generar notificaciones automáticas
@@ -7203,13 +7227,19 @@ app.put('/api/preferencias-notificaciones/:tipo', async (req, res) => {
 
         const usuariosJson = JSON.stringify(usuarios_receptores || []);
 
-        await pool.query(
-            `INSERT INTO preferencias_notificaciones (empresa, tipo, activa, usuarios_receptores)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (empresa, tipo)
-             DO UPDATE SET activa = $3, usuarios_receptores = $4`,
+        // Intentar UPDATE primero, si no existe hacer INSERT
+        const upd = await pool.query(
+            `UPDATE preferencias_notificaciones SET activa = $3, usuarios_receptores = $4
+             WHERE empresa = $1 AND tipo = $2`,
             [empresaCod, tipo, activa || 'SI', usuariosJson]
         );
+        if (upd.rowCount === 0) {
+            await pool.query(
+                `INSERT INTO preferencias_notificaciones (empresa, tipo, activa, usuarios_receptores)
+                 VALUES ($1, $2, $3, $4)`,
+                [empresaCod, tipo, activa || 'SI', usuariosJson]
+            );
+        }
         res.json({ success: true });
     } catch (e) {
         console.error('Error PUT /api/preferencias-notificaciones/:tipo:', e);
