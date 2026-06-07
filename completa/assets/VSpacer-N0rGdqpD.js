@@ -1,0 +1,1 @@
+import{j as e}from"./MainLayout-Bfef38wr.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

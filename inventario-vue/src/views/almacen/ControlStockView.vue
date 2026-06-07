@@ -19,7 +19,7 @@
           </div>
           <div>
             <h1 class="cst-title">CONTROL DE STOCK</h1>
-            <p class="cst-sub">Asigne stock mínimo a cada producto y reciba alertas cuando se agote el inventario</p>
+            <p class="cst-sub">Asigne stock mínimo a cada producto y monitoree su disponibilidad</p>
           </div>
         </div>
       </div>
@@ -33,16 +33,15 @@
         </div>
 
         <v-select
-          v-model="grupoSeleccionado"
-          :items="gruposOpciones"
-          item-title="nombre"
-          item-value="codigo"
-          label="Filtrar por Grupo"
+          v-model="filtroEstado"
+          :items="opcionesEstado"
+          item-title="label"
+          item-value="value"
+          label="Estado"
           variant="outlined"
           density="compact"
           hide-details
-          clearable
-          style="min-width:200px"
+          style="min-width:160px"
         />
 
         <v-btn color="#ef4444" variant="elevated" prepend-icon="mdi-content-save-all" :loading="guardandoTodos" @click="guardarTodos">
@@ -50,80 +49,80 @@
         </v-btn>
       </div>
 
-      <!-- GRID AGRUPADO -->
-      <div class="cst-grid-wrap">
+      <!-- TABLA AGRUPADA -->
+      <div class="cst-table-wrap">
         <div v-if="loading" class="cst-loading">
           <v-progress-circular indeterminate color="#ef4444" size="36" />
         </div>
 
-        <div v-else class="cst-grupos">
-          <template v-if="productosAgrupados.length === 0">
-            <div class="cst-empty">No hay productos</div>
-          </template>
+        <template v-else-if="productosAgrupados.length === 0">
+          <div class="cst-empty">No hay productos con estos filtros</div>
+        </template>
 
+        <template v-else>
           <template v-for="grupo in productosAgrupados" :key="grupo.key">
             <!-- HEADER DE GRUPO -->
             <div class="grupo-header">
-              <v-icon size="15" style="color:#ec4899">mdi-folder-outline</v-icon>
+              <v-icon size="15" style="color:#ef4444">mdi-folder-outline</v-icon>
               <span class="grupo-nombre">{{ grupo.nombre }}</span>
               <span class="grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
             </div>
 
-            <!-- GRID DE PRODUCTOS -->
-            <div class="grupo-grid">
-              <div v-for="p in grupo.items" :key="p.codigo" class="stock-card" :class="{ 'card-modificado': p._modificado }">
-                <div class="card-header">
-                  <span class="badge-cod">{{ p.codigo }}</span>
-                  <span class="card-nombre">{{ p.nombre }}</span>
-                  <span class="badge-und">{{ p.und }}</span>
-                </div>
-
-                <div class="card-stock">
-                  <label>Stock Mínimo</label>
-                  <div class="input-wrap">
-                    <v-icon size="16" style="color:#ef4444">mdi-alert-circle-outline</v-icon>
-                    <input
-                      v-model.number="p.stock_minimo"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      class="stock-input"
-                      @input="marcarModificado(p)"
-                      @keydown.enter="saltarSiguiente(grupo, p)"
-                    />
-                  </div>
-                </div>
-
-                <div class="card-info">
-                  <div class="info-row">
-                    <span class="info-label">Stock Actual:</span>
-                    <span class="info-value" :style="{ color: obtenerColorStock(p) }">{{ p.stock_actual || 0 }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Estado:</span>
-                    <span class="info-badge" :class="obtenerClaseEstado(p)">
+            <!-- TABLA DE PRODUCTOS -->
+            <table class="cst-table">
+              <thead>
+                <tr>
+                  <th>CÓDIGO</th>
+                  <th>NOMBRE</th>
+                  <th>UND</th>
+                  <th>STOCK ACTUAL</th>
+                  <th>STOCK MÍNIMO</th>
+                  <th>ESTADO</th>
+                  <th>ACCIÓN</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in grupo.items" :key="p.codigo" :class="{ 'fila-modificada': p._modificado, 'fila-error': p.stock_actual <= 0, 'fila-warning': p.stock_actual < p.stock_minimo }">
+                  <td class="cod-cell"><span class="badge-cod">{{ p.codigo }}</span></td>
+                  <td class="nombre-cell">{{ p.nombre }}</td>
+                  <td class="und-cell">{{ p.und }}</td>
+                  <td class="stock-cell" :style="{ color: obtenerColorStock(p) }">{{ p.stock_actual || 0 }}</td>
+                  <td class="minimo-cell">
+                    <div class="input-wrap-minimo">
+                      <input
+                        v-model.number="p.stock_minimo"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="minimo-input"
+                        @input="marcarModificado(p)"
+                        @keydown.enter="saltarSiguiente(grupo, p)"
+                      />
+                    </div>
+                  </td>
+                  <td class="estado-cell">
+                    <span class="estado-badge" :class="obtenerClaseEstado(p)">
                       {{ obtenerEstado(p) }}
                     </span>
-                  </div>
-                </div>
-
-                <div class="card-action">
-                  <v-btn
-                    icon
-                    size="small"
-                    variant="text"
-                    :color="p._modificado ? '#10b981' : '#cbd5e1'"
-                    :loading="p._guardando"
-                    @click="guardarFila(p)"
-                    :title="p._modificado ? 'Guardar cambio' : 'Sin cambios'"
-                  >
-                    <v-icon>{{ p._modificado ? 'mdi-content-save' : 'mdi-check' }}</v-icon>
-                  </v-btn>
-                </div>
-              </div>
-            </div>
+                  </td>
+                  <td class="action-cell">
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      :color="p._modificado ? '#10b981' : '#cbd5e1'"
+                      :loading="p._guardando"
+                      @click="guardarFila(p)"
+                      :title="p._modificado ? 'Guardar cambio' : 'Sin cambios'"
+                    >
+                      <v-icon size="18">{{ p._modificado ? 'mdi-content-save' : 'mdi-check' }}</v-icon>
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </template>
-        </div>
+        </template>
       </div>
 
       <div v-if="!loading && productosFiltrados.length > 0" class="cst-total">
@@ -149,19 +148,61 @@ const grupos          = ref([])
 const loading         = ref(false)
 const guardandoTodos  = ref(false)
 const search          = ref('')
-const grupoSeleccionado = ref(null)
+const filtroEstado    = ref('todos')
 const snack           = ref({ show: false, msg: '', color: 'success' })
 
-const gruposOpciones = computed(() => [
-  { codigo: null, nombre: 'Todos los grupos' },
-  ...grupos.value.map(g => ({ codigo: g.codigo, nombre: g.nombre }))
-])
+const opcionesEstado = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'fuera', label: '🔴 Fuera de Stock' },
+  { value: 'bajo', label: '🟡 Bajo Stock' },
+  { value: 'normal', label: '🟢 Normal' },
+]
+
+function obtenerColorStock(p) {
+  const actual = p.stock_actual || 0
+  const minimo = p.stock_minimo || 0
+  if (actual <= 0) return '#ef4444'
+  if (actual < minimo) return '#f59e0b'
+  return '#10b981'
+}
+
+function obtenerEstado(p) {
+  const actual = p.stock_actual || 0
+  const minimo = p.stock_minimo || 0
+  if (actual <= 0) return 'FUERA'
+  if (actual < minimo) return 'BAJO'
+  return 'NORMAL'
+}
+
+function obtenerClaseEstado(p) {
+  const actual = p.stock_actual || 0
+  const minimo = p.stock_minimo || 0
+  if (actual <= 0) return 'estado-fuera'
+  if (actual < minimo) return 'estado-bajo'
+  return 'estado-normal'
+}
+
+function cumpleEstado(p) {
+  const actual = p.stock_actual || 0
+  const minimo = p.stock_minimo || 0
+
+  switch (filtroEstado.value) {
+    case 'fuera':
+      return actual <= 0
+    case 'bajo':
+      return actual > 0 && actual < minimo
+    case 'normal':
+      return actual >= minimo
+    default:
+      return true
+  }
+}
 
 const productosFiltrados = computed(() => {
   let lista = productos.value
   const q = search.value.trim().toUpperCase()
   if (q) lista = lista.filter(p => p.nombre?.toUpperCase().includes(q) || p.codigo?.includes(q))
-  if (grupoSeleccionado.value !== null) lista = lista.filter(p => p.grupo === grupoSeleccionado.value)
+  lista = lista.filter(cumpleEstado)
   return lista
 })
 
@@ -180,30 +221,6 @@ const productosModificados = computed(() =>
   productos.value.filter(p => p._modificado).length
 )
 
-function obtenerColorStock(p) {
-  const actual = p.stock_actual || 0
-  const minimo = p.stock_minimo || 0
-  if (actual < minimo) return '#ef4444'
-  if (actual < minimo * 1.5) return '#f59e0b'
-  return '#10b981'
-}
-
-function obtenerEstado(p) {
-  const actual = p.stock_actual || 0
-  const minimo = p.stock_minimo || 0
-  if (actual < minimo) return 'BAJO'
-  if (actual < minimo * 1.5) return 'CRÍTICO'
-  return 'NORMAL'
-}
-
-function obtenerClaseEstado(p) {
-  const actual = p.stock_actual || 0
-  const minimo = p.stock_minimo || 0
-  if (actual < minimo) return 'estado-bajo'
-  if (actual < minimo * 1.5) return 'estado-critico'
-  return 'estado-normal'
-}
-
 function marcarModificado(p) {
   p._modificado = true
 }
@@ -212,7 +229,7 @@ function saltarSiguiente(grupo, actual) {
   const idx = grupo.items.indexOf(actual)
   if (idx < grupo.items.length - 1) {
     setTimeout(() => {
-      const inputs = document.querySelectorAll('.stock-input')
+      const inputs = document.querySelectorAll('.minimo-input')
       const actualInput = Array.from(inputs).find(inp => inp.value === String(actual.stock_minimo))
       const actualIdx = Array.from(inputs).indexOf(actualInput)
       if (actualIdx >= 0 && actualIdx + 1 < inputs.length) {
@@ -287,7 +304,7 @@ onMounted(cargar)
 </script>
 
 <style scoped>
-.cst-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.cst-container { padding: 24px; max-width: 1600px; margin: 0 auto; }
 
 .cst-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
 .bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
@@ -306,10 +323,9 @@ onMounted(cargar)
 .cst-search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: rgb(var(--v-theme-on-surface)); }
 .cst-search-input::placeholder { color: rgba(var(--v-theme-on-surface),.4); }
 
-.cst-grid-wrap { margin-bottom: 16px; }
+.cst-table-wrap { margin-bottom: 16px; }
 .cst-loading { display: flex; justify-content: center; padding: 60px; }
-
-.cst-grupos { display: flex; flex-direction: column; gap: 20px; }
+.cst-empty { text-align: center; padding: 50px 20px; color: rgba(var(--v-theme-on-surface),.4); }
 
 .grupo-header {
   display: flex; align-items: center; gap: 8px;
@@ -317,95 +333,113 @@ onMounted(cargar)
   background: rgba(239,68,68,.08);
   border-left: 3px solid #ef4444;
   border-radius: 8px;
-  margin-top: 12px;
+  margin: 20px 0 12px 0;
 }
 .grupo-nombre { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #ef4444; }
 .grupo-count { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
 
-.grupo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.stock-card {
+.cst-table {
+  width: 100%;
+  border-collapse: collapse;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface),.08);
-  border-radius: 10px;
-  padding: 14px;
-  transition: all .15s;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.stock-card:hover { border-color: rgba(var(--v-theme-on-surface),.15); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-.card-modificado { background: rgba(239,68,68,.05); border-color: #ef4444; }
-
-.card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
 }
 
-.badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; }
-.card-nombre { font-size: 13px; font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
-.badge-und { background: rgba(239,68,68,.12); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-
-.card-stock {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.cst-table thead {
+  background: rgba(var(--v-theme-on-surface),.05);
+  border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1);
 }
-.card-stock label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: rgba(var(--v-theme-on-surface),.5); }
 
-.input-wrap {
+.cst-table th {
+  padding: 12px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: rgba(var(--v-theme-on-surface),.6);
+  text-align: left;
+  border-right: 1px solid rgba(var(--v-theme-on-surface),.05);
+}
+
+.cst-table th:last-child { border-right: none; }
+
+.cst-table tbody tr {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
+  transition: background-color .15s;
+}
+
+.cst-table tbody tr:hover {
+  background: rgba(var(--v-theme-on-surface),.03);
+}
+
+.fila-modificada {
+  background: rgba(245,158,11,.08) !important;
+}
+
+.fila-error {
+  background: rgba(239,68,68,.06) !important;
+}
+
+.fila-warning {
+  background: rgba(245,158,11,.05) !important;
+}
+
+.cst-table td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+  border-right: 1px solid rgba(var(--v-theme-on-surface),.05);
+}
+
+.cst-table td:last-child { border-right: none; }
+
+.cod-cell {
+  font-weight: 600;
+  width: 70px;
+}
+
+.badge-cod { background: rgba(239,68,68,.15); color: #ef4444; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
+
+.nombre-cell { font-weight: 500; min-width: 180px; }
+.und-cell { width: 60px; text-align: center; font-weight: 500; }
+.stock-cell { width: 100px; text-align: right; font-weight: 700; font-size: 14px; }
+.minimo-cell { width: 120px; }
+.estado-cell { width: 100px; text-align: center; }
+.action-cell { width: 50px; text-align: center; }
+
+.input-wrap-minimo {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background: rgba(var(--v-theme-on-surface),.05);
   border: 1px solid rgba(var(--v-theme-on-surface),.15);
   border-radius: 6px;
   padding: 6px;
 }
 
-.stock-input {
+.minimo-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
   text-align: center;
-  padding: 2px;
-}
-.stock-input::-webkit-outer-spin-button,
-.stock-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-
-.card-info {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  background: rgba(var(--v-theme-on-surface),.04);
-  border-radius: 6px;
+  padding: 0;
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-}
+.minimo-input::-webkit-outer-spin-button,
+.minimo-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
-.info-label { color: rgba(var(--v-theme-on-surface),.5); font-weight: 600; }
-.info-value { font-weight: 700; font-size: 13px; }
-
-.info-badge {
+.estado-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 700;
@@ -414,15 +448,8 @@ onMounted(cargar)
 }
 
 .estado-normal { background: rgba(16,185,129,.15); color: #10b981; }
-.estado-critico { background: rgba(245,158,11,.15); color: #f59e0b; }
-.estado-bajo { background: rgba(239,68,68,.15); color: #ef4444; }
+.estado-bajo { background: rgba(245,158,11,.15); color: #f59e0b; }
+.estado-fuera { background: rgba(239,68,68,.15); color: #ef4444; }
 
-.card-action {
-  display: flex;
-  justify-content: center;
-  margin-top: 4px;
-}
-
-.cst-empty { text-align: center; padding: 50px 20px; color: rgba(var(--v-theme-on-surface),.4); }
-.cst-total { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; }
+.cst-total { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; margin-top: 12px; }
 </style>
