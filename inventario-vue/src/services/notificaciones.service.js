@@ -30,15 +30,15 @@ export const notificacionesService = {
   async obtenerPreferencias() {
     const authStore = useAuthStore()
     const res = await api.get('/preferencias-notificaciones', {
-      params: { usuario: authStore.userName }
+      params: { empresa: authStore.empresa }
     })
     return res.data
   },
 
-  async actualizarPreferencia(tipo, activa) {
+  async actualizarPreferencia(tipo, activa, usuarios_receptores = []) {
     const authStore = useAuthStore()
-    const res = await api.put(`/preferencias-notificaciones/${tipo}`, { activa }, {
-      params: { usuario: authStore.userName }
+    const res = await api.put(`/preferencias-notificaciones/${tipo}`, { activa, usuarios_receptores }, {
+      params: { empresa: authStore.empresa }
     })
     return res.data
   },

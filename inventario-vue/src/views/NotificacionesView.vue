@@ -17,7 +17,7 @@
           </div>
           <div>
             <h1 class="notif-title">PREFERENCIAS DE NOTIFICACIONES</h1>
-            <p class="notif-sub">Elige qué tipos de notificaciones deseas recibir</p>
+            <p class="notif-sub">Configura qué usuarios recibirán cada tipo de notificación</p>
           </div>
         </div>
       </div>
@@ -30,31 +30,64 @@
 
         <template v-else>
           <div class="preferencias-grid">
-            <div v-for="tipo in tiposNotificaciones" :key="tipo.valor" class="pref-card">
+            <div v-for="tipo in tiposNotificaciones" :key="tipo.valor" class="pref-card" :class="{ 'card-activo': tipo.activa === 'SI' }">
               <div class="card-header">
-                <v-icon size="24" :color="obtieneColorTipo(tipo.valor)">{{ tipo.icon }}</v-icon>
-                <h3 class="card-titulo">{{ tipo.label }}</h3>
+                <v-icon size="24" color="#0891b2">mdi-bell</v-icon>
+                <div>
+                  <h3 class="card-titulo">{{ tipo.label }}</h3>
+                  <p class="card-tipo">{{ tipo.valor }}</p>
+                </div>
               </div>
 
-              <p class="card-desc">{{ obtieneDescripcion(tipo.valor) }}</p>
+              <p class="card-desc">{{ tipo.descripcion }}</p>
 
+              <!-- TOGGLE ACTIVA/DESACTIVA -->
               <div class="card-toggle">
                 <v-switch
-                  :model-value="preferencias[tipo.valor]"
+                  :model-value="tipo.activa === 'SI'"
                   color="#0891b2"
                   hide-details
                   :loading="guardandoTipo === tipo.valor"
-                  @update:model-value="togglePreferencia(tipo.valor, $event)"
+                  @update:model-value="toggleNotificacion(tipo, $event)"
+                  label="Activada"
                 />
               </div>
+
+              <!-- SELECTOR DE USUARIOS (solo si está activa) -->
+              <template v-if="tipo.activa === 'SI'">
+                <div class="usuarios-section">
+                  <label class="usuarios-label">Usuarios que recibirán estas notificaciones:</label>
+                  <v-select
+                    :model-value="tipo.usuarios_receptores"
+                    :items="usuariosEmpresa"
+                    item-title="nombre"
+                    item-value="codigo"
+                    label="Selecciona usuarios..."
+                    multiple
+                    chips
+                    variant="outlined"
+                    density="compact"
+                    :loading="guardandoTipo === tipo.valor"
+                    @update:model-value="actualizarUsuariosReceptores(tipo, $event)"
+                  />
+                  <p v-if="tipo.usuarios_receptores.length === 0" class="usuarios-aviso">
+                    ⚠️ Sin usuarios seleccionados - esta notificación no será enviada a nadie
+                  </p>
+                </div>
+              </template>
             </div>
           </div>
 
           <div class="info-box">
             <v-icon size="18" color="#0891b2">mdi-information-outline</v-icon>
-            <span>
-              Las notificaciones desactivadas no serán enviadas a tu usuario, pero otros usuarios de la empresa seguirán recibiendo las suyas según sus propias preferencias.
-            </span>
+            <div>
+              <strong>¿Cómo funciona?</strong>
+              <p style="margin: 4px 0 0 0; font-size: 12px;">
+                1. Activa el tipo de notificación con el toggle<br>
+                2. Selecciona qué usuarios recibirán esa notificación<br>
+                3. Los cambios se guardan automáticamente
+              </p>
+            </div>
           </div>
         </template>
       </div>
@@ -69,97 +102,76 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import MainLayout from '../components/layouts/MainLayout.vue'
 import { notificacionesService } from '../services/notificaciones.service'
+import { useAuthStore } from '../stores/auth'
+import api from '../services/api'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const guardandoTipo = ref(null)
 const snack = ref({ show: false, msg: '', color: 'success' })
-const preferencias = reactive({})
+const tiposNotificaciones = ref([])
+const usuariosEmpresa = ref([])
 
-const tiposNotificaciones = [
-  {
-    valor: 'stock_fuera',
-    label: '🔴 Stock Fuera',
-    icon: 'mdi-alert-circle',
-    desc: 'Alerta cuando un producto no tiene stock disponible'
-  },
-  {
-    valor: 'stock_bajo',
-    label: '🟡 Stock Bajo',
-    icon: 'mdi-alert',
-    desc: 'Alerta cuando el stock está por debajo del mínimo configurado'
-  },
-  {
-    valor: 'alerta_general',
-    label: '📢 Alertas Generales',
-    icon: 'mdi-bell',
-    desc: 'Alertas y cambios importantes del sistema'
-  },
-  {
-    valor: 'actualizaciones',
-    label: '🔄 Actualizaciones del Sistema',
-    icon: 'mdi-refresh',
-    desc: 'Notificaciones sobre mantenimiento y nuevas características'
-  },
-  {
-    valor: 'reportes',
-    label: '📊 Reportes Completados',
-    icon: 'mdi-file-chart',
-    desc: 'Notificaciones cuando tus reportes están listos'
-  },
-]
-
-function obtieneColorTipo(tipo) {
-  const colores = {
-    'stock_fuera': 'error',
-    'stock_bajo': 'warning',
-    'alerta_general': 'info',
-    'actualizaciones': 'primary',
-    'reportes': 'success'
-  }
-  return colores[tipo] || 'inherit'
-}
-
-function obtieneDescripcion(tipo) {
-  const tipo_obj = tiposNotificaciones.find(t => t.valor === tipo)
-  return tipo_obj?.desc || ''
-}
-
-async function cargarPreferencias() {
+async function cargarDatos() {
   loading.value = true
   try {
-    const res = await notificacionesService.obtenerPreferencias()
+    // Cargar preferencias (que incluye tipos de notificaciones del backend)
+    const resPrefs = await notificacionesService.obtenerPreferencias()
+    tiposNotificaciones.value = resPrefs.data || []
 
-    // Inicializar todas como activas (default)
-    tiposNotificaciones.forEach(tipo => {
-      preferencias[tipo.valor] = true
+    // Cargar usuarios de la empresa
+    const resUsers = await api.get('/configuracion/usuarios', {
+      params: { empresa: authStore.empresa }
     })
-
-    // Actualizar con las preferencias guardadas
-    res.data.forEach(pref => {
-      preferencias[pref.tipo] = pref.activa === 'SI'
-    })
+    usuariosEmpresa.value = resUsers.data.data || []
   } catch (e) {
-    console.error('Error cargando preferencias:', e)
-    mostrarSnack('Error al cargar preferencias', 'error')
+    console.error('Error cargando datos:', e)
+    mostrarSnack('Error al cargar datos', 'error')
   } finally {
     loading.value = false
   }
 }
 
-async function togglePreferencia(tipo, valor) {
-  guardandoTipo.value = tipo
+async function toggleNotificacion(tipo, activa) {
+  guardandoTipo.value = tipo.valor
   try {
-    await notificacionesService.actualizarPreferencia(tipo, valor ? 'SI' : 'NO')
-    preferencias[tipo] = valor
-    mostrarSnack(valor ? `✓ ${tipo} activado` : `✗ ${tipo} desactivado`, 'success')
+    // Si se desactiva, limpiar usuarios
+    const usuariosReceptores = activa ? tipo.usuarios_receptores : []
+
+    await notificacionesService.actualizarPreferencia(
+      tipo.valor,
+      activa ? 'SI' : 'NO',
+      usuariosReceptores
+    )
+
+    tipo.activa = activa ? 'SI' : 'NO'
+    mostrarSnack(activa ? '✓ Notificación activada' : '✓ Notificación desactivada', 'success')
   } catch (e) {
-    console.error('Error actualizando preferencia:', e)
-    mostrarSnack('Error al actualizar preferencia', 'error')
-    // Revertir cambio
-    preferencias[tipo] = !valor
+    console.error('Error toggling notificación:', e)
+    mostrarSnack('Error al actualizar', 'error')
+  } finally {
+    guardandoTipo.value = null
+  }
+}
+
+async function actualizarUsuariosReceptores(tipo, usuarios) {
+  guardandoTipo.value = tipo.valor
+  try {
+    tipo.usuarios_receptores = usuarios
+
+    await notificacionesService.actualizarPreferencia(
+      tipo.valor,
+      tipo.activa,
+      usuarios
+    )
+
+    mostrarSnack(`✓ ${usuarios.length} usuario${usuarios.length !== 1 ? 's' : ''} asignado${usuarios.length !== 1 ? 's' : ''}`, 'success')
+  } catch (e) {
+    console.error('Error actualizando usuarios:', e)
+    mostrarSnack('Error al actualizar usuarios', 'error')
   } finally {
     guardandoTipo.value = null
   }
@@ -169,7 +181,7 @@ function mostrarSnack(msg, color = 'success') {
   snack.value = { show: true, msg, color }
 }
 
-onMounted(cargarPreferencias)
+onMounted(cargarDatos)
 </script>
 
 <style scoped>
@@ -191,20 +203,25 @@ onMounted(cargarPreferencias)
 
 .preferencias-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
 
 .pref-card {
   background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface),.08);
+  border: 2px solid rgba(var(--v-theme-on-surface),.08);
   border-radius: 12px;
   padding: 20px;
   transition: all .2s;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.pref-card.card-activo {
+  border-color: #0891b2;
+  background: rgba(8,145,178,.02);
 }
 
 .pref-card:hover {
@@ -214,7 +231,7 @@ onMounted(cargarPreferencias)
 
 .card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -223,6 +240,14 @@ onMounted(cargarPreferencias)
   font-weight: 700;
   margin: 0;
   color: rgb(var(--v-theme-on-surface));
+}
+
+.card-tipo {
+  font-size: 11px;
+  color: #0891b2;
+  margin: 2px 0 0 0;
+  font-family: monospace;
+  font-weight: 600;
 }
 
 .card-desc {
@@ -235,20 +260,51 @@ onMounted(cargarPreferencias)
 
 .card-toggle {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: 8px;
+}
+
+.usuarios-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface),.1);
+}
+
+.usuarios-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: rgba(var(--v-theme-on-surface),.6);
+  margin-bottom: 8px;
+}
+
+.usuarios-aviso {
+  font-size: 12px;
+  color: #f59e0b;
+  margin: 8px 0 0 0;
+  padding: 8px;
+  background: rgba(245,158,11,.08);
+  border-radius: 4px;
 }
 
 .info-box {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 16px;
   background: rgba(8,145,178,.08);
   border-left: 3px solid #0891b2;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: rgba(var(--v-theme-on-surface),.7);
   line-height: 1.5;
+}
+
+.info-box strong {
+  color: #0891b2;
+  display: block;
+  margin-bottom: 4px;
 }
 </style>

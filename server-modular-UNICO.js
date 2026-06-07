@@ -6951,11 +6951,19 @@ pool.query(`
 pool.query(`
     CREATE TABLE IF NOT EXISTS preferencias_notificaciones (
         id SERIAL PRIMARY KEY,
-        usuario_codigo VARCHAR(20),
+        empresa VARCHAR(20),
         tipo VARCHAR(30),
         activa VARCHAR(2) DEFAULT 'SI',
-        UNIQUE(usuario_codigo, tipo)
+        usuarios_receptores TEXT DEFAULT '[]',
+        UNIQUE(empresa, tipo)
     )
+`).catch(() => {});
+
+// Agregar columna si no existe (migración)
+(async () => {
+    try {
+        await pool.query(`ALTER TABLE preferencias_notificaciones ADD COLUMN IF NOT EXISTS usuarios_receptores TEXT DEFAULT '[]'`);
+    } catch (e) { }
 `).catch(() => {});
 
 // Endpoint: obtener notificaciones del usuario actual
@@ -7021,37 +7029,62 @@ app.patch('/api/notificaciones/:id/leer', async (req, res) => {
 });
 
 // Endpoint: obtener preferencias del usuario
+// GET /api/preferencias-notificaciones - obtener todas las preferencias de la empresa con tipos disponibles
 app.get('/api/preferencias-notificaciones', async (req, res) => {
     try {
-        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
-        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
 
-        const result = await pool.query(
-            `SELECT tipo, activa FROM preferencias_notificaciones WHERE usuario_codigo = $1`,
-            [usuarioCod]
+        // Obtener todos los tipos de notificaciones disponibles
+        const tiposResult = await pool.query(
+            `SELECT valor, label, descripcion, icon, activo FROM tipos_notificaciones WHERE activo = 'SI' ORDER BY valor`
         );
-        res.json({ success: true, data: result.rows });
+
+        // Obtener las preferencias de la empresa
+        const prefsResult = await pool.query(
+            `SELECT tipo, activa, usuarios_receptores FROM preferencias_notificaciones WHERE empresa = $1`,
+            [empresaCod]
+        );
+
+        // Mapear tipos con sus preferencias
+        const prefs = {};
+        prefsResult.rows.forEach(pref => {
+            prefs[pref.tipo] = {
+                activa: pref.activa,
+                usuarios_receptores: pref.usuarios_receptores ? JSON.parse(pref.usuarios_receptores) : []
+            };
+        });
+
+        const data = tiposResult.rows.map(tipo => ({
+            ...tipo,
+            activa: prefs[tipo.valor]?.activa || 'NO',
+            usuarios_receptores: prefs[tipo.valor]?.usuarios_receptores || []
+        }));
+
+        res.json({ success: true, data });
     } catch (e) {
         console.error('Error GET /api/preferencias-notificaciones:', e);
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// Endpoint: actualizar preferencias
+// PUT /api/preferencias-notificaciones/:tipo - actualizar preferencia (activa + usuarios receptores)
 app.put('/api/preferencias-notificaciones/:tipo', async (req, res) => {
     try {
-        const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
         const { tipo } = req.params;
-        const { activa } = req.body;
+        const { activa, usuarios_receptores } = req.body;
 
-        if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        const usuariosJson = JSON.stringify(usuarios_receptores || []);
 
         await pool.query(
-            `INSERT INTO preferencias_notificaciones (usuario_codigo, tipo, activa)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (usuario_codigo, tipo)
-             DO UPDATE SET activa = $3`,
-            [usuarioCod, tipo, activa || 'SI']
+            `INSERT INTO preferencias_notificaciones (empresa, tipo, activa, usuarios_receptores)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (empresa, tipo)
+             DO UPDATE SET activa = $3, usuarios_receptores = $4`,
+            [empresaCod, tipo, activa || 'SI', usuariosJson]
         );
         res.json({ success: true });
     } catch (e) {
