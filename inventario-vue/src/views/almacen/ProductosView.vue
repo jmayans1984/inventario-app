@@ -405,31 +405,71 @@
               </v-row>
             </v-sheet>
 
-            <!-- SECCIÓN 3: COSTOS -->
+            <!-- SECCIÓN 3: PRECIOS Y MÁRGENES -->
             <v-sheet class="dlg-sheet mt-5">
               <div class="sheet-header">
                 <v-icon size="20" color="#f59e0b">mdi-currency-usd</v-icon>
-                <span class="sheet-title">Costos</span>
+                <span class="sheet-title">Precios y Márgenes</span>
               </div>
               <v-divider class="my-3" />
 
               <v-row dense>
+                <!-- Precio de Costo -->
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model.number="form.precio_costo"
-                    label="Precio de Costo"
+                    label="Precio de Costo *"
                     variant="outlined"
                     density="compact"
                     type="number"
                     step="0.01"
                     prefix="$"
                     hide-details
+                    @input="recalcularPrecios"
                   />
                 </v-col>
+
+                <!-- Lista de Precios -->
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="form.lista_precios_codigo"
+                    :items="listasPreciosDisponibles"
+                    item-title="nombre"
+                    item-value="codigo"
+                    label="Lista de Precios"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    @update:model-value="recalcularPrecios"
+                  />
+                </v-col>
+
+                <!-- Precios de Venta (Read-only) -->
+                <v-col cols="12">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                    <div class="precio-display">
+                      <div class="precio-label">Precio Nivel 1</div>
+                      <div class="precio-valor">${{ precioVenta1.toFixed(2) }}</div>
+                      <div class="precio-margen" v-if="margen1">Margen: {{ margen1 }}%</div>
+                    </div>
+                    <div class="precio-display">
+                      <div class="precio-label">Precio Nivel 2</div>
+                      <div class="precio-valor">${{ precioVenta2.toFixed(2) }}</div>
+                      <div class="precio-margen" v-if="margen2">Margen: {{ margen2 }}%</div>
+                    </div>
+                    <div class="precio-display">
+                      <div class="precio-label">Precio Nivel 3</div>
+                      <div class="precio-valor">${{ precioVenta3.toFixed(2) }}</div>
+                      <div class="precio-margen" v-if="margen3">Margen: {{ margen3 }}%</div>
+                    </div>
+                  </div>
+                </v-col>
+
+                <!-- Información -->
                 <v-col cols="12">
                   <div class="precio-hint mt-2">
                     <v-icon size="16">mdi-information-outline</v-icon>
-                    <span>Los precios de venta se calculan automáticamente con los márgenes configurados</span>
+                    <span>Los precios se calculan automáticamente: Precio Venta = Precio Costo ÷ (1 - Margen)</span>
                   </div>
                 </v-col>
               </v-row>
@@ -478,6 +518,7 @@ const editando  = ref(false)
 const guardando = ref(false)
 const formError = ref('')
 const errores   = ref({ nombre: '', und: '' })
+const listasPreciosDisponibles = ref([])
 const form      = ref({
   codigo: '',
   nombre: '',
@@ -486,8 +527,17 @@ const form      = ref({
   control: 'SI',
   para_venta: 'NO',
   visible_operacional: 'SI',
-  precio_costo: 0
+  precio_costo: 0,
+  lista_precios_codigo: null
 })
+
+// ── Precios calculados ────────────────────────────────────────
+const precioVenta1 = ref(0)
+const precioVenta2 = ref(0)
+const precioVenta3 = ref(0)
+const margen1 = ref(null)
+const margen2 = ref(null)
+const margen3 = ref(null)
 
 // ── Watchers ──────────────────────────────────────────────────
 watch(() => form.value.nombre, (newVal) => {
@@ -557,17 +607,41 @@ async function abrirCrear() {
     control: 'SI',
     para_venta: 'NO',
     visible_operacional: 'SI',
-    precio_costo: 0
+    precio_costo: 0,
+    lista_precios_codigo: null
   }
+  precioVenta1.value = 0
+  precioVenta2.value = 0
+  precioVenta3.value = 0
+  margen1.value = null
+  margen2.value = null
+  margen3.value = null
+
   // Obtener próximo código internamente (no se muestra, solo para el POST)
   try {
     const res = await productosAlmacenService.getProximoCodigo()
     form.value.codigo = res.codigo || ''
   } catch {}
+
+  // Cargar listas de precios
+  await cargarListasPrecios()
   dlgForm.value = true
 }
 
-function abrirEditar(p) {
+async function cargarListasPrecios() {
+  try {
+    const res = await productosAlmacenService.getListasPrecios()
+    listasPreciosDisponibles.value = res.data || []
+    // Seleccionar la primera lista por defecto
+    if (listasPreciosDisponibles.value.length > 0 && !form.value.lista_precios_codigo) {
+      form.value.lista_precios_codigo = listasPreciosDisponibles.value[0].codigo
+    }
+  } catch (e) {
+    console.error('Error cargando listas de precios:', e)
+  }
+}
+
+async function abrirEditar(p) {
   editando.value  = true
   formError.value = ''
   errores.value   = { nombre: '', und: '' }
@@ -580,7 +654,15 @@ function abrirEditar(p) {
     para_venta: p.para_venta || 'NO',
     visible_operacional: p.visible_operacional || 'SI',
     precio_costo: p.precio_costo || 0,
+    lista_precios_codigo: p.lista_precios_codigo || null
   }
+
+  // Cargar listas de precios
+  await cargarListasPrecios()
+
+  // Recalcular precios
+  recalcularPrecios()
+
   dlgForm.value = true
 }
 
@@ -611,6 +693,10 @@ async function guardar() {
       para_venta: form.value.para_venta || 'NO',
       visible_operacional: form.value.visible_operacional || 'SI',
       precio_costo: parseFloat(form.value.precio_costo) || 0,
+      lista_precios_codigo: form.value.lista_precios_codigo || null,
+      precio_venta1: precioVenta1.value,
+      precio_venta2: precioVenta2.value,
+      precio_venta3: precioVenta3.value,
     }
     if (editando.value) {
       const res = await productosAlmacenService.actualizarProducto(payload.codigo, payload)
@@ -697,6 +783,48 @@ function manejarDesactivacion(valor) {
     form.value.visible_operacional = 'NO'
     form.value.para_venta = 'NO'
   }
+}
+
+function recalcularPrecios() {
+  const costo = parseFloat(form.value.precio_costo) || 0
+  if (costo <= 0) {
+    precioVenta1.value = 0
+    precioVenta2.value = 0
+    precioVenta3.value = 0
+    margen1.value = null
+    margen2.value = null
+    margen3.value = null
+    return
+  }
+
+  // Obtener la lista de precios seleccionada
+  const listaSeleccionada = listasPreciosDisponibles.value.find(
+    l => l.codigo === form.value.lista_precios_codigo
+  )
+
+  if (!listaSeleccionada) {
+    precioVenta1.value = 0
+    precioVenta2.value = 0
+    precioVenta3.value = 0
+    margen1.value = null
+    margen2.value = null
+    margen3.value = null
+    return
+  }
+
+  // Calcular precios: Precio Venta = Precio Costo / (1 - Margen)
+  // Margen debe estar en formato decimal (0.30 = 30%)
+  const margenN1 = parseFloat(listaSeleccionada.margen || 0) / 100
+  const margenN2 = parseFloat(listaSeleccionada.margen || 0) / 100
+  const margenN3 = parseFloat(listaSeleccionada.margen || 0) / 100
+
+  precioVenta1.value = margenN1 > 0 ? costo / (1 - margenN1) : costo
+  precioVenta2.value = margenN2 > 0 ? costo / (1 - margenN2) : costo
+  precioVenta3.value = margenN3 > 0 ? costo / (1 - margenN3) : costo
+
+  margen1.value = listaSeleccionada.margen || null
+  margen2.value = listaSeleccionada.margen || null
+  margen3.value = listaSeleccionada.margen || null
 }
 
 onMounted(cargar)
@@ -893,6 +1021,35 @@ onMounted(cargar)
   background: rgba(245,158,11,.08);
   border-radius: 8px;
   border-left: 3px solid rgba(245,158,11,.4);
+}
+
+.precio-display {
+  padding: 12px;
+  background: rgba(var(--v-theme-on-surface),.05);
+  border-radius: 8px;
+  border: 1px solid rgba(var(--v-theme-on-surface),.1);
+}
+
+.precio-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: rgba(var(--v-theme-on-surface),.5);
+  margin-bottom: 6px;
+}
+
+.precio-valor {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0891b2;
+  margin-bottom: 4px;
+}
+
+.precio-margen {
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface),.4);
+  font-style: italic;
 }
 
 /* Tamaño compacto para campos en diálogo */

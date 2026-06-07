@@ -43,6 +43,11 @@ export const productosAlmacenService = {
     const res = await api.patch(`${BASE}/${codigo}/toggle-visible-operacional`)
     return res.data
   },
+
+  async getListasPrecios() {
+    const res = await api.get('/produccion/lista-precios')
+    return res.data
+  },
 }
 
 export default productosAlmacenService
