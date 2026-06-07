@@ -81,6 +81,7 @@
                 <tr>
                   <th>CÓDIGO</th>
                   <th>NOMBRE</th>
+                  <th>DESCRIPCIÓN</th>
                   <th>UND</th>
                   <th>PRECIO COSTO</th>
                   <th>PRECIO VENTA 1</th>
@@ -93,6 +94,7 @@
                 <tr v-for="p in grupo.items" :key="p.codigo" :class="{ 'fila-modificada': p._modificado }">
                   <td class="cod-cell"><span class="badge-cod">{{ p.codigo }}</span></td>
                   <td class="nombre-cell">{{ p.nombre }}</td>
+                  <td class="desc-cell" :title="p.descripcion">{{ p.descripcion || '—' }}</td>
                   <td class="und-cell">{{ p.und }}</td>
                   <td class="precio-input-cell">
                     <div class="input-wrap">
@@ -395,7 +397,8 @@ onMounted(cargar)
 
 .badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
 
-.nombre-cell { font-weight: 500; min-width: 180px; }
+.nombre-cell { font-weight: 500; min-width: 160px; }
+.desc-cell { font-size: 12px; color: rgba(var(--v-theme-on-surface),.55); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
 .und-cell { width: 60px; text-align: center; font-weight: 500; }
 
 .precio-input-cell { width: 130px; }

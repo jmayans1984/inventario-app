@@ -129,6 +129,7 @@
             <tr>
               <th class="th-cod">CÓDIGO</th>
               <th class="th-nom">NOMBRE</th>
+              <th class="th-desc">DESCRIPCIÓN</th>
               <th class="th-und">UNIDAD</th>
               <th class="th-ctrl" title="Visible en Bodega Maestra (Kardex y Control de Inventario)">BODEGA MAESTRA</th>
               <th class="th-venta" title="Visible en Puntos de Venta (bodegas distintas a la maestra)">PUNTO DE VENTA</th>
@@ -139,7 +140,7 @@
           <tbody>
             <template v-if="productosAgrupados.length === 0">
               <tr>
-                <td colspan="7" class="prd-empty">
+                <td colspan="8" class="prd-empty">
                   <v-icon size="36" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
                   <p style="color:rgba(var(--v-theme-on-surface),.4);margin:8px 0 0">No hay productos</p>
                 </td>
@@ -149,7 +150,7 @@
             <template v-for="grupo in productosAgrupados" :key="grupo.key">
               <!-- FILA DE GRUPO -->
               <tr class="grupo-header-row">
-                <td colspan="7" class="grupo-header-cell">
+                <td colspan="8" class="grupo-header-cell">
                   <v-icon size="15" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
                   <span class="grupo-header-name">{{ grupo.nombre }}</span>
                   <span class="grupo-header-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
@@ -159,6 +160,10 @@
               <tr v-for="p in grupo.items" :key="p.codigo" class="prd-row">
                 <td><span class="badge-cod">{{ p.codigo }}</span></td>
                 <td class="td-nom">{{ p.nombre }}</td>
+                <td class="td-desc">
+                  <span v-if="p.descripcion" class="desc-text" :title="p.descripcion">{{ p.descripcion }}</span>
+                  <span v-else class="desc-empty">—</span>
+                </td>
                 <td><span class="badge-und">{{ p.und }}</span></td>
                 <!-- Chip Bodega Maestra -->
                 <td>
@@ -325,6 +330,18 @@
                     density="compact"
                     hide-details
                     clearable
+                  />
+                </v-col>
+                <v-col cols="12">
+                  <v-textarea
+                    v-model="form.descripcion"
+                    label="Descripción (Opcional)"
+                    variant="outlined"
+                    density="compact"
+                    rows="2"
+                    auto-grow
+                    hide-details
+                    placeholder="Descripción detallada del producto..."
                   />
                 </v-col>
               </v-row>
@@ -523,7 +540,8 @@ async function abrirCrear() {
     control: 'SI',
     para_venta: 'NO',
     visible_operacional: 'SI',
-    precio_costo: 0
+    precio_costo: 0,
+    descripcion: ''
   }
   // Obtener próximo código internamente (no se muestra, solo para el POST)
   try {
@@ -545,7 +563,8 @@ function abrirEditar(p) {
     control: p.control || 'NO',
     para_venta: p.para_venta || 'NO',
     visible_operacional: p.visible_operacional || 'SI',
-    precio_costo: p.precio_costo || 0
+    precio_costo: p.precio_costo || 0,
+    descripcion: p.descripcion || ''
   }
   dlgForm.value = true
 }
@@ -577,6 +596,7 @@ async function guardar() {
       para_venta: form.value.para_venta || 'NO',
       visible_operacional: form.value.visible_operacional || 'SI',
       precio_costo: parseFloat(form.value.precio_costo) || 0,
+      descripcion: form.value.descripcion || null,
     }
     if (editando.value) {
       const res = await productosAlmacenService.actualizarProducto(payload.codigo, payload)
@@ -697,6 +717,10 @@ onMounted(cargar)
 
 .th-cod  { width: 90px; }
 .th-nom  { }
+.th-desc { width: 200px; }
+.td-desc { max-width: 200px; }
+.desc-text { font-size: 12px; color: rgba(var(--v-theme-on-surface),.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 190px; cursor: help; }
+.desc-empty { font-size: 12px; color: rgba(var(--v-theme-on-surface),.25); }
 .th-und  { width: 90px; }
 .th-ctrl { width: 100px; }
 .th-acc  { width: 80px; text-align: center; }

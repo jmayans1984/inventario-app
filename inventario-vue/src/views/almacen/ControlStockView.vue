@@ -95,6 +95,7 @@
                 <tr>
                   <th>CÓDIGO</th>
                   <th>NOMBRE</th>
+                  <th>DESCRIPCIÓN</th>
                   <th>UND</th>
                   <th>STOCK ACTUAL</th>
                   <th>STOCK MÍNIMO</th>
@@ -106,6 +107,7 @@
                 <tr v-for="p in grupo.items" :key="p.codigo" :class="{ 'fila-modificada': p._modificado, 'fila-error': p.stock_actual <= 0, 'fila-warning': p.stock_actual < p.stock_minimo }">
                   <td class="cod-cell"><span class="badge-cod">{{ p.codigo }}</span></td>
                   <td class="nombre-cell">{{ p.nombre }}</td>
+                  <td class="desc-cell" :title="p.descripcion">{{ p.descripcion || '—' }}</td>
                   <td class="und-cell">{{ p.und }}</td>
                   <td class="stock-cell" :style="{ color: obtenerColorStock(p) }">{{ p.stock_actual || 0 }}</td>
                   <td class="minimo-cell">
@@ -445,7 +447,8 @@ onMounted(cargar)
 
 .badge-cod { background: rgba(239,68,68,.15); color: #ef4444; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
 
-.nombre-cell { font-weight: 500; min-width: 180px; }
+.nombre-cell { font-weight: 500; min-width: 150px; }
+.desc-cell { font-size: 12px; color: rgba(var(--v-theme-on-surface),.55); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
 .und-cell { width: 60px; text-align: center; font-weight: 500; }
 .stock-cell { width: 100px; text-align: right; font-weight: 700; font-size: 14px; }
 .minimo-cell { width: 120px; }
