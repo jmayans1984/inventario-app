@@ -301,70 +301,136 @@ async function generar() {
 // ── Exportar PDF ──────────────────────────────────────────────
 function exportarPDF() {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
-  const PW  = doc.internal.pageSize.getWidth()   // 215.9 mm
-  const PH  = doc.internal.pageSize.getHeight()  // 279.4 mm
-  const ML  = 7
-  const MR  = 7
-  const RAYITAS = '__________'
+  const PW = doc.internal.pageSize.getWidth()
+  const PH = doc.internal.pageSize.getHeight()
+  const ML = 8, MR = 8
+  const HEADER_H = 30  // altura del header en cada página
 
-  // ── Código de barras ──────────────────────────────────────
+  // ── Barcode ───────────────────────────────────────────────
   const [y, m, d] = fecha.value.split('-')
-  const mmddyy       = `${m}${d}${y.slice(-2)}`
+  const mmddyy = `${m}${d}${y.slice(-2)}`
   const efectivoCents = Math.round(totalEfectivo.value * 100)
-  const codigoBarras  = mmddyy + String(efectivoCents).padStart(9, '0')
-
+  const codigoBarras = mmddyy + String(efectivoCents).padStart(9, '0')
   const barcodeCanvas = document.createElement('canvas')
   JsBarcode(barcodeCanvas, codigoBarras, {
     format: 'CODE128', displayValue: true,
-    fontSize: 11, textMargin: 2, height: 42, width: 1.5, margin: 4,
+    fontSize: 10, textMargin: 2, height: 38, width: 1.4, margin: 3,
   })
   const barcodeImg = barcodeCanvas.toDataURL('image/png')
 
-  // ── Fecha de impresión ────────────────────────────────────
-  const hoyStr = new Date().toLocaleDateString('es-CO', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
-  })
+  // ── Fecha de impresión (sin timezone) ─────────────────────
+  const hoy = new Date()
+  const mm = String(hoy.getMonth()+1).padStart(2,'0')
+  const dd = String(hoy.getDate()).padStart(2,'0')
+  const yyyy = hoy.getFullYear()
+  const hoyStr = `${mm}/${dd}/${yyyy}`
 
-  // ── Encabezado ────────────────────────────────────────────
-  function drawHeader() {
-    doc.setFillColor(8, 145, 178)
-    doc.rect(0, 0, PW, 22, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('KARDEX DE INVENTARIO', ML, 9)
-    doc.setFontSize(8)
+  // ── Encabezado profesional (se repite en cada hoja) ───────
+  function drawHeader(pageNum, totalPages) {
+    // Banner izquierdo oscuro
+    doc.setFillColor(26, 26, 46)
+    doc.rect(0, 0, 52, HEADER_H, 'F')
+    // Banner derecho gris claro
+    doc.setFillColor(248, 250, 252)
+    doc.rect(52, 0, PW - 52, HEADER_H, 'F')
+    // Línea separadora inferior
+    doc.setDrawColor(8, 145, 178)
+    doc.setLineWidth(0.5)
+    doc.line(0, HEADER_H, PW, HEADER_H)
+
+    // Texto izquierdo
+    doc.setTextColor(148, 163, 184)
+    doc.setFontSize(6)
     doc.setFont('helvetica', 'normal')
-    doc.text(`CENTRO DE COSTOS: ${nombreCcosto.value}  ·  ${fechaFormateada.value}`, ML, 16)
+    doc.text('REPORTE', ML, 8)
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('KARDEX', ML, 15)
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(56, 189, 248)
+    doc.text('INVENTARIO', ML, 21)
+
+    // Datos derecha
+    doc.setTextColor(100, 116, 139)
+    doc.setFontSize(6.5)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CENTRO DE COSTO:', 56, 8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(26, 26, 46)
+    doc.setFontSize(8)
+    doc.text(nombreCcosto.value, 56, 14)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.5)
+    doc.setTextColor(100, 116, 139)
+    doc.text('FECHA:', 140, 8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(26, 26, 46)
+    doc.setFontSize(8)
+    doc.text(fechaFormateada.value, 140, 14)
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.5)
+    doc.setTextColor(100, 116, 139)
+    doc.text('PRODUCTOS:', 56, 21)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(26, 26, 46)
+    doc.text(String(filas.value.length), 56 + doc.getTextWidth('PRODUCTOS:') + 2, 21)
+
+    // Página
+    if (totalPages) {
+      doc.setFontSize(7)
+      doc.setTextColor(148, 163, 184)
+      doc.text(`Pág. ${pageNum} / ${totalPages}`, PW - MR - 18, 14)
+    }
+
     doc.setTextColor(0, 0, 0)
   }
 
   // ── Pie de página ─────────────────────────────────────────
   function drawFooter() {
-    // Fecha de impresión — izquierda, pequeña
-    doc.setFontSize(7)
-    doc.setTextColor(130)
+    doc.setFontSize(6.5)
+    doc.setTextColor(150)
     doc.text(`Impreso: ${hoyStr}`, ML, PH - 4)
-    doc.setTextColor(0, 0, 0)
-    // Código de barras — derecha
-    const bW = 62, bH = 14
+    const bW = 55, bH = 12
     doc.addImage(barcodeImg, 'PNG', PW - MR - bW, PH - bH - 2, bW, bH)
+    doc.setTextColor(0, 0, 0)
   }
 
-  drawHeader()
+  drawHeader(1, null)
 
-  // ── Construir filas de la tabla con grupos ────────────────
+  // ── KPIs debajo del header (solo página 1) ────────────────
+  const kpiY = HEADER_H + 4
+  const kpiW = (PW - ML - MR) / 3
+  const kpiItems = [
+    { label: 'TOTAL ENTRADAS', val: `+${formatNum(totalEntradas.value)}`, color: [16,185,129] },
+    { label: 'TOTAL SALIDAS',  val: `-${formatNum(totalSalidas.value)}`,  color: [245,158,11] },
+    { label: 'TOTAL VENTAS',   val: `-${formatNum(totalVentas.value)}`,   color: [239,68,68] },
+  ]
+  kpiItems.forEach((k, i) => {
+    const x = ML + i * kpiW
+    doc.setFillColor(248, 250, 252)
+    doc.roundedRect(x, kpiY, kpiW - 2, 12, 1, 1, 'F')
+    doc.setFontSize(6)
+    doc.setTextColor(100, 116, 139)
+    doc.setFont('helvetica', 'bold')
+    doc.text(k.label, x + 3, kpiY + 4.5)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...k.color)
+    doc.text(k.val, x + 3, kpiY + 10)
+  })
+  doc.setTextColor(0, 0, 0)
+
+  // ── Construir filas ───────────────────────────────────────
   const body = []
   for (const grupo of productosAgrupados.value) {
     body.push([{
       content: grupo.nombre.toUpperCase(),
-      colSpan: 9,
-      styles: {
-        fontStyle: 'bold', fontSize: 7.5,
-        textColor: [8, 100, 140],
-        halign: 'left',
-        cellPadding: 3,
-      }
+      colSpan: 8,
+      styles: { fontStyle: 'bold', fontSize: 7, textColor: [8,100,140], fillColor: [240,249,255], cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } }
     }])
     for (const p of grupo.items) {
       body.push([
@@ -376,65 +442,59 @@ function exportarPDF() {
         p.salidas_dia  > 0 ? formatNum(p.salidas_dia)  : '—',
         p.ventas_dia   > 0 ? formatNum(p.ventas_dia)   : '—',
         formatNum(p.stock_final),
-        RAYITAS,
       ])
     }
   }
 
-
-  // ── autoTable minimalista ─────────────────────────────────
+  // ── autoTable ─────────────────────────────────────────────
   autoTable(doc, {
-    startY: 26,
+    startY: kpiY + 16,
+    showHead: 'everyPage',
     head: [[
       { content: 'CÓD',   styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
       { content: 'UND',   styles: { halign: 'center' } },
       { content: 'ANT.',  styles: { halign: 'right' } },
-      { content: 'ENT.',  styles: { halign: 'right', textColor: [16,185,129] } },
-      { content: 'SAL.',  styles: { halign: 'right', textColor: [245,158,11] } },
-      { content: 'VEN.',  styles: { halign: 'right', textColor: [239,68,68] } },
-      { content: 'FINAL', styles: { halign: 'right', textColor: [8,145,178] } },
-      { content: 'CANT.', styles: { halign: 'center' } },
+      { content: 'ENT.',  styles: { halign: 'right' } },
+      { content: 'SAL.',  styles: { halign: 'right' } },
+      { content: 'VEN.',  styles: { halign: 'right' } },
+      { content: 'FINAL', styles: { halign: 'right' } },
     ]],
     body,
     theme: 'plain',
     headStyles: {
-      textColor: [80, 80, 80], fontSize: 8, fontStyle: 'bold',
-      cellPadding: 1.5,
-      lineWidth: { bottom: 0.4 }, lineColor: [180, 180, 180],
+      fillColor: [26, 26, 46],
+      textColor: [203, 213, 225],
+      fontSize: 7.5, fontStyle: 'bold',
+      cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
     },
-    bodyStyles: {
-      fontSize: 7.5,
-      cellPadding: 1.2,
-    },
+    bodyStyles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
-      0: { cellWidth: 10,  halign: 'center' },
+      0: { cellWidth: 12, halign: 'center' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 9,   halign: 'center' },
-      3: { cellWidth: 18,  halign: 'right' },
-      4: { cellWidth: 15,  halign: 'right', textColor: [16,185,129] },
-      5: { cellWidth: 15,  halign: 'right', textColor: [245,158,11] },
-      6: { cellWidth: 15,  halign: 'right', textColor: [239,68,68] },
-      7: { cellWidth: 18,  halign: 'right', textColor: [8,145,178] },
-      8: { cellWidth: 28,  halign: 'center', textColor: [160,160,160] },
+      2: { cellWidth: 10, halign: 'center' },
+      3: { cellWidth: 18, halign: 'right' },
+      4: { cellWidth: 16, halign: 'right', textColor: [16,185,129] },
+      5: { cellWidth: 16, halign: 'right', textColor: [245,158,11] },
+      6: { cellWidth: 16, halign: 'right', textColor: [239,68,68] },
+      7: { cellWidth: 18, halign: 'right', textColor: [8,145,178] },
     },
-    margin: { left: ML, right: MR, bottom: 22 },
-    didDrawCell: (data) => {
-      // Asegurar alineación a derecha en columnas numéricas del footer
-      if (data.row.section === 'body' && data.row.index >= filas.value.length - 1) {
-        if (data.column.index >= 3 && data.column.index <= 7) {
-          data.cell.styles.halign = 'right'
-        }
-      }
+    margin: { left: ML, right: MR, bottom: 20, top: HEADER_H + 2 },
+    didDrawPage: (data) => {
+      drawHeader(data.pageNumber, null)
     },
-    didDrawPage: () => drawHeader(),
   })
 
   const totalPgs = doc.internal.getNumberOfPages()
   for (let i = 1; i <= totalPgs; i++) {
     doc.setPage(i)
     drawFooter()
+    // Actualizar número de página en header
+    doc.setFontSize(7)
+    doc.setTextColor(148, 163, 184)
+    doc.text(`Pág. ${i} / ${totalPgs}`, PW - MR - 18, 14)
+    doc.setTextColor(0, 0, 0)
   }
 
   const blob = doc.output('blob')
