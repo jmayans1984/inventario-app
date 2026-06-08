@@ -496,6 +496,7 @@ import { ref, computed, reactive, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth.js'
+import api from '../../services/api.js'
 
 const authStore = useAuthStore()
 const getEmpresa = () => authStore.empresaCodigo || authStore.empresa || localStorage.getItem('empresaActual')
@@ -664,11 +665,15 @@ async function cargar() {
 
 async function cargarProductos() {
   try {
-    const empresa = getEmpresa()
-    const url = `${API_BASE}/almacen/productos?empresa=${empresa}`
-    const r = await fetch(url).then(r => r.json())
-    productos.value = (r.data || []).filter(p => getPrecio(p) > 0)
-  } catch (e) { console.error(e) }
+    // Usar api (Axios) para que mande automáticamente x-empresa y tipo empresa
+    // El backend filtra para_venta='SI' cuando detecta tipo=CLIENTE
+    const r = await api.get('/almacen/productos')
+    const todos = r.data?.data || []
+    // Solo productos con para_venta='SI' (franquicia) con precio asignado
+    productos.value = todos.filter(p =>
+      p.para_venta === 'SI' && getPrecio(p) > 0
+    )
+  } catch (e) { console.error('Error cargando productos:', e) }
 }
 
 // ── Acciones ─────────────────────────────────────────────────
