@@ -225,71 +225,31 @@ function imprimir() {
   })
 
   // Rastrear grupo activo para redibujarlo en saltos de página
-  const totalCols = 6 + centrosCosto.value.length
-
-  // Mapa: índice de fila en body → nombre del grupo al que pertenece
-  // Esto es 100% confiable porque no depende del orden de callbacks
-  const grupoDeRow = {}
-  let ri = 0
-  for (const g of productosAgrupados.value) {
-    const etiqueta = `${g.nombre.toUpperCase()}   (${g.items.length} productos)`
-    grupoDeRow[ri++] = etiqueta          // fila del encabezado de grupo
-    for (const _p of g.items) {
-      grupoDeRow[ri++] = etiqueta        // cada producto del grupo
-    }
-  }
-
-  let grupoActivo = ''
-
   autoTable(doc, {
     head,
     body,
     startY: 23,
-    margin: { left: ML, right: MR, top: 30 },
+    margin: { left: ML, right: MR, top: 23 },
     styles: {
-      fontSize: 6.5,
-      cellPadding: { top: 1.2, bottom: 1.2, left: 1.5, right: 1.5 },
+      fontSize: 7,
+      cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
       lineColor: [180, 180, 180],
       lineWidth: 0.2,
       overflow: 'ellipsize',
-      minCellHeight: 0,
     },
     headStyles: {
       fillColor: [240, 240, 240],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 6.5,
+      fontSize: 7,
       halign: 'center',
-      cellPadding: { top: 1.5, bottom: 1.5, left: 1.5, right: 1.5 },
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 },
     },
     alternateRowStyles: { fillColor: [252, 252, 252] },
     columnStyles: colStyles,
     rowPageBreak: 'avoid',
-
-    // Actualizar grupoActivo usando el mapa precomputado (infalible)
-    willDrawCell(data) {
-      if (data.section === 'body') {
-        const g = grupoDeRow[data.row.index]
-        if (g) grupoActivo = g
-      }
-    },
-
-    // En nuevas páginas: encabezado + banner del grupo activo (continuación)
     didDrawPage(data) {
-      if (data.pageNumber > 1) {
-        drawHeader()
-        if (grupoActivo) {
-          const gY = 22
-          doc.setFillColor(30, 30, 30)
-          doc.rect(ML, gY, PW - ML - MR, 5.5, 'F')
-          doc.setFontSize(7)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(255, 255, 255)
-          doc.text(`${grupoActivo}  (continuación)`, ML + 2, gY + 3.8)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(0, 0, 0)
-        }
-      }
+      if (data.pageNumber > 1) drawHeader()
     },
   })
 
