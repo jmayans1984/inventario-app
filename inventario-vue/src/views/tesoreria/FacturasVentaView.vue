@@ -684,8 +684,8 @@ async function imprimirFactura(codigo) {
       <div class="banner-doc-num">${factura.codigo}</div>
     </div>
     <div class="banner-right">
-      <div class="banner-field"><span class="banner-field-label">Fecha Emisión</span><span class="banner-field-val">${factura.fecha ? new Date(factura.fecha + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
-      <div class="banner-field"><span class="banner-field-label">Fecha Vencimiento</span><span class="banner-field-val accent">${factura.fecha_vencimiento ? new Date(factura.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
+      <div class="banner-field"><span class="banner-field-label">Fecha Emisión</span><span class="banner-field-val">${factura.fecha ? new Date(String(factura.fecha).substring(0,10) + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
+      <div class="banner-field"><span class="banner-field-label">Fecha Vencimiento</span><span class="banner-field-val accent">${factura.fecha_vencimiento ? new Date(String(factura.fecha_vencimiento).substring(0,10) + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
       <div class="banner-field"><span class="banner-field-label">Orden de Compra</span><span class="banner-field-val">${factura.orden_compra || '—'}</span></div>
       <div class="banner-field"><span class="banner-field-label">Estado</span><span class="estado-badge estado-${factura.estado}">${factura.estado}</span></div>
     </div>
