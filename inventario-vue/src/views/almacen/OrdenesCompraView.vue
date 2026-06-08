@@ -936,8 +936,8 @@ function imprimirDetalle() {
         .cond-table td { border: 1px solid #999; padding: 4px; font-weight: bold; background: #f5f5f5; }
         .cond-table .empty { height: 20px; font-weight: normal; background: #fff; }
         .tabla-productos { width: 100%; border-collapse: collapse; font-size: 9px; flex: 1; }
-        .tabla-productos th { border: 1px solid #000; padding: 4px; background: #000; color: #fff; font-weight: bold; text-align: center; }
-        .tabla-productos td { border: 1px solid #ccc; padding: 3px 4px; }
+        .tabla-productos th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px; background: #fff; color: #000; font-weight: bold; text-align: center; }
+        .tabla-productos td { border: none; padding: 3px 4px; }
         .tabla-productos tbody tr { height: 20px; }
         .ta-c { text-align: center; }
         .ta-r { text-align: right; }
@@ -945,9 +945,9 @@ function imprimirDetalle() {
         .resumen { width: 50%; margin-left: auto; margin-bottom: 15px; }
         .resumen-row { display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: 9px; }
         .resumen-row.total { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; background: #f5f5f5; }
-        .footer-firmas { display: flex; gap: 10px; margin-top: 20px; font-size: 8px; }
-        .firma-box { flex: 1; border-top: 1px solid #000; padding-top: 2px; text-align: center; min-height: 120px; }
-        .firma-label { margin-top: 2px; }
+        .footer-firmas { display: flex; gap: 10px; margin-top: 40px; font-size: 8px; }
+        .firma-box { flex: 1; border-top: 1px solid #000; padding-top: 2px; text-align: center; min-height: 200px; }
+        .firma-label { margin-top: 160px; }
       </style>
     </head>
     <body>
