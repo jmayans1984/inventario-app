@@ -936,9 +936,9 @@ function imprimirDetalle() {
         .cond-table td { border: 1px solid #999; padding: 4px; font-weight: bold; background: #f5f5f5; }
         .cond-table .empty { height: 20px; font-weight: normal; background: #fff; }
         .tabla-productos { width: 100%; border-collapse: collapse; font-size: 9px; flex: 1; }
-        .tabla-productos th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px; background: #fff; color: #000; font-weight: bold; text-align: center; }
-        .tabla-productos td { border: none; padding: 3px 4px; }
-        .tabla-productos tbody tr { height: 20px; }
+        .tabla-productos th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 2px; background: #fff; color: #000; font-weight: bold; text-align: center; }
+        .tabla-productos td { border: none; padding: 1px 2px; }
+        .tabla-productos tbody tr { height: auto; }
         .ta-c { text-align: center; }
         .ta-r { text-align: right; }
         .footer-section { margin-top: auto; padding-top: 10px; border-top: 1px solid #ccc; }
@@ -946,8 +946,8 @@ function imprimirDetalle() {
         .resumen-row { display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: 9px; }
         .resumen-row.total { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; background: #f5f5f5; }
         .footer-firmas { display: flex; gap: 10px; margin-top: 40px; font-size: 8px; }
-        .firma-box { flex: 1; border-top: 1px solid #000; padding-top: 2px; text-align: center; min-height: 200px; }
-        .firma-label { margin-top: 160px; }
+        .firma-box { flex: 1; text-align: center; min-height: 80px; display: flex; flex-direction: column; }
+        .firma-label { margin-top: auto; padding-top: 8px; border-top: 1px solid #000; }
       </style>
     </head>
     <body>
@@ -1015,7 +1015,7 @@ function imprimirDetalle() {
                   <td style="font-size:8px">${d.producto_descripcion || d.descripcion || '—'}</td>
                   <td class="ta-c">${d.cantidad}</td>
                   <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
-                  <td class="ta-r" style="border-right: 1px solid #ccc;">$${parseFloat(d.subtotal).toFixed(2)}</td>
+                  <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
                 </tr>
               `).join('')}
               ${Array(Math.max(0, 12 - items.length)).fill().map(() => `
@@ -1025,7 +1025,7 @@ function imprimirDetalle() {
                   <td></td>
                   <td></td>
                   <td></td>
-                  <td style="border-right: 1px solid #ccc;"></td>
+                  <td></td>
                 </tr>
               `).join('')}
             </tbody>
