@@ -442,7 +442,7 @@
               <div class="fact-preview">
                 <div class="fp-row">
                   <span>Cliente:</span>
-                  <strong>{{ ocActual?.empresa_nombre || ocActual?.empresa }}</strong>
+                  <strong>{{ ocActual?.cliente_nombre || ocActual?.cliente }}</strong>
                 </div>
                 <div class="fp-row">
                   <span>Total Factura:</span>
