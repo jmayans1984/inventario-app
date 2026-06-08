@@ -3984,10 +3984,11 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
                 [fechaEntrega, observacionesLimpias, codigo]
             );
 
-            // Obtener bodega maestra de la empresa proveedora
+            // Obtener bodega maestra de la empresa activa en el sistema
+            const empresaActiva = req.headers['x-empresa'] || String(orden.empresa);
             const empresaRes = await client.query(
                 `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
-                [String(orden.empresa)]
+                [String(empresaActiva)]
             );
             const bodegaMaestra = empresaRes.rows[0]?.bodega_maestra || null;
 
