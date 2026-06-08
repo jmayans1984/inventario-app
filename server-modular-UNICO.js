@@ -7111,6 +7111,16 @@ pool.query(`
     )
 `).catch(() => {});
 
+// Tabla para descartes permanentes de notificaciones por usuario
+pool.query(`
+    CREATE TABLE IF NOT EXISTS notificaciones_descartadas (
+        notificacion_id INTEGER REFERENCES notificaciones(id) ON DELETE CASCADE,
+        usuario_codigo VARCHAR(20),
+        fecha_descarte TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (notificacion_id, usuario_codigo)
+    )
+`).catch(() => {});
+
 // Tabla de preferencias de notificaciones por usuario
 pool.query(`
     CREATE TABLE IF NOT EXISTS preferencias_notificaciones (
@@ -7333,6 +7343,10 @@ app.post('/api/verificar-stock/:codigo', async (req, res) => {
 });
 
 // Endpoint: obtener notificaciones del usuario actual
+// ── NOTIFICACIONES: sistema rediseñado ──────────────────────────────
+// Tabla notificaciones_descartadas: PRIMARY KEY (notificacion_id, usuario_codigo)
+// Garantiza que una notificacion descartada nunca vuelve a aparecer
+
 app.get('/api/notificaciones', async (req, res) => {
     try {
         const usuarioCod = req.query.usuario || req.headers['x-usuario'];
@@ -7342,13 +7356,16 @@ app.get('/api/notificaciones', async (req, res) => {
 
         const result = await pool.query(
             `SELECT n.id, n.titulo, n.mensaje, n.tipo, n.url, n.id_producto, n.fecha_creacion,
-                    COALESCE(nu.leida, 'NO') AS leida
+                    CASE WHEN nu.leida = 'SI' THEN 'SI' ELSE 'NO' END AS leida
              FROM notificaciones n
-             LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
+             LEFT JOIN notificaciones_usuarios nu
+               ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
              WHERE n.empresa = $2
-               AND n.fecha_creacion > NOW() - INTERVAL '30 days'
-               AND (nu.leida IS NULL OR nu.leida != 'ELIMINADA')
-             ORDER BY n.fecha_creacion DESC LIMIT 50`,
+               AND n.id NOT IN (
+                 SELECT notificacion_id FROM notificaciones_descartadas WHERE usuario_codigo = $1
+               )
+             ORDER BY n.fecha_creacion DESC
+             LIMIT 50`,
             [usuarioCod, empresaCod]
         );
         res.json({ success: true, data: result.rows });
@@ -7358,7 +7375,6 @@ app.get('/api/notificaciones', async (req, res) => {
     }
 });
 
-// Endpoint: contar sin leer
 app.get('/api/notificaciones/sin-leer/count', async (req, res) => {
     try {
         const usuarioCod = req.query.usuario || req.headers['x-usuario'];
@@ -7369,19 +7385,22 @@ app.get('/api/notificaciones/sin-leer/count', async (req, res) => {
         const result = await pool.query(
             `SELECT COUNT(*) as total
              FROM notificaciones n
-             LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
+             LEFT JOIN notificaciones_usuarios nu
+               ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
              WHERE n.empresa = $2
-               AND (nu.leida = 'NO' OR nu.leida IS NULL)`,
+               AND COALESCE(nu.leida, 'NO') = 'NO'
+               AND n.id NOT IN (
+                 SELECT notificacion_id FROM notificaciones_descartadas WHERE usuario_codigo = $1
+               )`,
             [usuarioCod, empresaCod]
         );
-        res.json({ success: true, data: { total: result.rows[0].total } });
+        res.json({ success: true, data: { total: parseInt(result.rows[0].total) } });
     } catch (e) {
         console.error('Error GET /api/notificaciones/sin-leer/count:', e);
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// Endpoint: marcar como leída
 app.patch('/api/notificaciones/:id/leer', async (req, res) => {
     try {
         const { id } = req.params;
@@ -7402,19 +7421,17 @@ app.patch('/api/notificaciones/:id/leer', async (req, res) => {
     }
 });
 
-// DELETE /api/notificaciones/:id — eliminar notificación para el usuario (ocultar)
+// DELETE individual — descarta permanentemente la notificación para este usuario
 app.delete('/api/notificaciones/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const usuarioCod = req.query.usuario || req.headers['x-usuario'];
         if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
 
-        // Marcar como leída Y archivar (insertamos con leida=SI y fecha)
         await pool.query(
-            `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida, fecha_lectura)
-             VALUES ($1, $2, 'ELIMINADA', NOW())
-             ON CONFLICT (notificacion_id, usuario_codigo)
-             DO UPDATE SET leida = 'ELIMINADA', fecha_lectura = NOW()`,
+            `INSERT INTO notificaciones_descartadas (notificacion_id, usuario_codigo, fecha_descarte)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (notificacion_id, usuario_codigo) DO NOTHING`,
             [id, usuarioCod]
         );
         res.json({ success: true });
@@ -7424,35 +7441,25 @@ app.delete('/api/notificaciones/:id', async (req, res) => {
     }
 });
 
-// DELETE /api/notificaciones — eliminar TODAS las notificaciones del usuario
+// DELETE todas — descarta todas las notificaciones visibles del usuario
 app.delete('/api/notificaciones', async (req, res) => {
     try {
         const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
         if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
 
-        // Obtener todas las notificaciones que le corresponden al usuario
-        const notifs = await pool.query(
-            `SELECT DISTINCT n.id FROM notificaciones n
-             LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
-             WHERE COALESCE(nu.leida, 'NO') != 'ELIMINADA'
-               AND n.fecha_creacion > NOW() - INTERVAL '30 days'`,
-            [usuarioCod]
+        await pool.query(
+            `INSERT INTO notificaciones_descartadas (notificacion_id, usuario_codigo, fecha_descarte)
+             SELECT n.id, $1, NOW()
+             FROM notificaciones n
+             WHERE n.empresa = $2
+               AND n.id NOT IN (
+                 SELECT notificacion_id FROM notificaciones_descartadas WHERE usuario_codigo = $1
+               )
+             ON CONFLICT (notificacion_id, usuario_codigo) DO NOTHING`,
+            [usuarioCod, empresaCod]
         );
-
-        if (notifs.rows.length > 0) {
-            const ids = notifs.rows.map(r => r.id);
-            // Insertar/actualizar todas como ELIMINADA
-            for (const id of ids) {
-                await pool.query(
-                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida, fecha_lectura)
-                     VALUES ($1, $2, 'ELIMINADA', NOW())
-                     ON CONFLICT (notificacion_id, usuario_codigo)
-                     DO UPDATE SET leida = 'ELIMINADA', fecha_lectura = NOW()`,
-                    [id, usuarioCod]
-                );
-            }
-        }
-        res.json({ success: true, eliminadas: notifs.rows.length });
+        res.json({ success: true });
     } catch (e) {
         console.error('Error DELETE /api/notificaciones:', e);
         res.status(500).json({ success: false, error: e.message });

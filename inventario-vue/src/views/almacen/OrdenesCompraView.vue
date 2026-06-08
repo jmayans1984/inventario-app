@@ -672,7 +672,10 @@ function fmt(v) { return '$' + (parseFloat(v) || 0).toLocaleString('en-US', { mi
 function fmtFecha(s) {
   if (!s) return '—'
   const d = new Date(s + (s.includes('T') ? '' : 'T00:00:00'))
-  return d.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${mm}/${dd}/${yyyy}`
 }
 function ok(msg)  { snack.value = { show: true, msg, color: 'success' } }
 function err(msg) { snack.value = { show: true, msg, color: 'error' } }
