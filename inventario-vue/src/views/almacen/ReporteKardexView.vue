@@ -235,7 +235,7 @@ const nombreCcosto = computed(() => {
 const fechaFormateada = computed(() => {
   if (!fecha.value) return ''
   const [y, m, d] = fecha.value.split('-')
-  return `${d}/${m}/${y}`
+  return `${m}/${d}/${y}`
 })
 
 // ── Agrupación ───────────────────────────────────────────────
