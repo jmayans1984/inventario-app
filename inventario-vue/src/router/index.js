@@ -87,6 +87,10 @@ const routes = [
   // GERENCIA — patrón general
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },
 
+  // FORMATOS / DOCUMENTOS
+  { path: '/formatos/documentos', component: () => import('../views/FormatosView.vue'), meta: { requiresAuth: true } },
+  { path: '/formatos/:section?/:item?', component: () => import('../views/FormatosView.vue'), meta: { requiresAuth: true } },
+
   // CONFIGURACIÓN
   { path: '/configuracion/notificaciones', component: () => import('../views/NotificacionesView.vue'), meta: { requiresAuth: true } },
   { path: '/configuracion/bodega-maestra', component: () => import('../views/BodegaMaestraView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },

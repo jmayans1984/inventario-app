@@ -184,6 +184,17 @@ export const MODULES = [
     ],
   },
   {
+    id: 'formatos',
+    name: 'FORMATOS / DOCS',
+    icon: 'mdi-file-document-multiple-outline',
+    path: '/formatos',
+    children: [
+      { name: 'Documentos', icon: 'mdi-file-outline', items: [
+        { name: 'Mis Documentos', icon: 'mdi-folder-open-outline', path: '/formatos/documentos' },
+      ]},
+    ],
+  },
+  {
     id: 'configuracion',
     name: 'CONFIGURACIÓN',
     icon: 'mdi-tune',
