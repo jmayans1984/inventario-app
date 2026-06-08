@@ -948,15 +948,15 @@ function imprimirDetalle() {
     /* ── TABLA ── */
     .tabla-wrap { flex:1; }
     .tabla { width:100%; border-collapse:collapse; }
-    .tabla thead tr { background:#1a1a2e; }
-    .tabla thead th { padding:5px 8px; font-size:7px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#cbd5e1; text-align:left; border:none; }
+    .tabla thead tr { background:#fff; }
+    .tabla thead th { padding:5px 8px; font-size:7px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#1a1a2e; text-align:left; border-top:2px solid #1a1a2e; border-bottom:2px solid #1a1a2e; }
     .tabla thead th.ta-c { text-align:center; }
     .tabla thead th.ta-r { text-align:right; }
-    .tabla tbody tr { border-bottom:1px solid #f1f5f9; }
-    .tabla tbody tr:nth-child(even) { background:#f8fafc; }
+    .tabla tbody tr { border-bottom:none; }
     .tabla tbody tr.empty-row { background:#fff !important; }
-    .tabla tbody tr.empty-row td { color:transparent; border-bottom:1px solid #f1f5f9; }
-    .tabla td { padding:4px 8px; font-size:8px; color:#374151; }
+    .tabla tbody tr.empty-row td { color:transparent; }
+    .tabla tbody tr.last-row td { border-bottom:2px solid #1a1a2e; }
+    .tabla td { padding:3px 8px; font-size:8px; color:#374151; }
     .tabla td.ta-c { text-align:center; }
     .tabla td.ta-r { text-align:right; font-variant-numeric:tabular-nums; }
     .tabla td.cod { font-weight:600; color:#0ea5e9; font-family:monospace; font-size:8px; }
@@ -1061,8 +1061,8 @@ function imprimirDetalle() {
         </tr>
       </thead>
       <tbody>
-        ${items.map(d => `
-        <tr>
+        ${items.map((d, i) => `
+        <tr${filasVacias === 0 && i === items.length - 1 ? ' class="last-row"' : ''}>
           <td class="cod ta-c">${d.producto_venta}</td>
           <td class="prod-name">${d.producto_nombre || d.nombre_producto || ''}</td>
           <td class="det">${d.producto_descripcion || d.descripcion || ''}</td>
@@ -1070,8 +1070,8 @@ function imprimirDetalle() {
           <td class="price ta-r">$${parseFloat(d.precio_unitario).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
           <td class="total-cell ta-r">$${parseFloat(d.subtotal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
         </tr>`).join('')}
-        ${Array(filasVacias).fill().map(() => `
-        <tr class="empty-row">
+        ${Array(filasVacias).fill().map((_, i) => `
+        <tr class="empty-row${i === filasVacias - 1 ? ' last-row' : ''}">
           <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td>
         </tr>`).join('')}
       </tbody>
