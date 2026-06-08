@@ -312,9 +312,8 @@ app.get('/api/almacen/productos', async (req, res) => {
     try {
         const { search } = req.query;
         const empresaCod = req.query.empresa || req.headers['x-empresa'];
-        console.log('DEBUG GET /almacen/productos - empresaCod:', empresaCod, 'x-empresa header:', req.headers['x-empresa']);
 
-        // Obtener tipo_empresa para filtrar por para_venta si es CLIENTE (franquiciado)
+        // Obtener tipo_empresa para verificar que es CLIENTE
         let tipoEmpresa = 'PROVEEDOR'; // default
         if (empresaCod) {
             const empResult = await pool.query(
@@ -324,7 +323,11 @@ app.get('/api/almacen/productos', async (req, res) => {
             if (empResult.rows.length > 0) {
                 tipoEmpresa = empResult.rows[0].tipo_empresa || 'PROVEEDOR';
             }
-            console.log('DEBUG tipoEmpresa para empresa', empresaCod, ':', tipoEmpresa);
+        }
+
+        // Si NO es CLIENTE, no permitir acceso a productos para venta
+        if (tipoEmpresa !== 'CLIENTE') {
+            return res.json({ success: true, data: [] });
         }
 
         let query = `
@@ -342,10 +345,8 @@ app.get('/api/almacen/productos', async (req, res) => {
         const params = [];
         let whereClause = [];
 
-        // Si es CLIENTE (franquiciado), solo mostrar productos con para_venta='SI'
-        if (tipoEmpresa === 'CLIENTE') {
-            whereClause.push(`p.para_venta = 'SI'`);
-        }
+        // SIEMPRE mostrar solo productos con para_venta='SI' para CLIENTE
+        whereClause.push(`p.para_venta = 'SI'`);
 
         // Búsqueda
         if (search) {

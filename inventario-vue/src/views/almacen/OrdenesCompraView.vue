@@ -665,19 +665,16 @@ async function cargar() {
 
 async function cargarProductos() {
   try {
-    // Usar api (Axios) para que mande automáticamente x-empresa y tipo empresa
-    // El backend filtra para_venta='SI' cuando detecta tipo=CLIENTE
+    const tipoEmpresa = authStore.empresaTipo
+    if (tipoEmpresa !== 'CLIENTE') {
+      err('Solo empresas CLIENTE pueden hacer órdenes de compra')
+      return
+    }
     const r = await api.get('/almacen/productos')
-    const todos = r.data?.data || []
-    console.log('Productos recibidos del backend:', todos)
-    // Solo productos con para_venta='SI' (franquicia) con precio asignado
-    productos.value = todos.filter(p =>
-      p.para_venta === 'SI' && getPrecio(p) > 0
-    )
-    console.log('Productos filtrados (para_venta=SI y precio>0):', productos.value)
+    productos.value = r.data?.data || []
   } catch (e) {
     console.error('Error cargando productos:', e)
-    err('Error cargando productos de venta')
+    err('Error cargando productos')
   }
 }
 
