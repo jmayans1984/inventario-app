@@ -325,11 +325,6 @@ app.get('/api/almacen/productos', async (req, res) => {
             }
         }
 
-        // Si NO es CLIENTE, no permitir acceso a productos para venta
-        if (tipoEmpresa !== 'CLIENTE') {
-            return res.json({ success: true, data: [] });
-        }
-
         let query = `
             SELECT p.codigo, p.nombre, p.und, p.grupo,
                    g.nombre AS grupo_nombre, p.control, p.para_venta, p.visible_operacional,
@@ -345,8 +340,10 @@ app.get('/api/almacen/productos', async (req, res) => {
         const params = [];
         let whereClause = [];
 
-        // SIEMPRE mostrar solo productos con para_venta='SI' para CLIENTE
-        whereClause.push(`p.para_venta = 'SI'`);
+        // Solo filtrar para_venta='SI' cuando es CLIENTE (no para PROVEEDOR)
+        if (tipoEmpresa === 'CLIENTE') {
+            whereClause.push(`p.para_venta = 'SI'`);
+        }
 
         // Búsqueda
         if (search) {
