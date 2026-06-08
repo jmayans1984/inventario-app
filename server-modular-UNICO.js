@@ -2641,6 +2641,42 @@ app.get('/api/tesoreria/facturas-venta/:codigo', async (req, res) => {
     }
 });
 
+// GET /api/tesoreria/facturas-venta/:codigo/pdf - Datos completos para PDF de factura
+app.get('/api/tesoreria/facturas-venta/:codigo/pdf', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const facResult = await pool.query(
+            `SELECT fv.codigo, fv.fecha, fv.cliente, fv.orden_compra, fv.subtotal,
+                    fv.impuestos, fv.total, fv.estado, fv.observaciones,
+                    fv.fecha_vencimiento, fv.valor_pagado,
+                    ec.nombre AS cliente_nombre, ec.direccion AS cliente_direccion, ec.telefono AS cliente_telefono,
+                    ep.nombre AS proveedor_nombre, ep.direccion AS proveedor_direccion, ep.telefono AS proveedor_telefono
+             FROM factura_venta fv
+             LEFT JOIN empresas ec ON fv.cliente::text = ec.codigo::text
+             LEFT JOIN ordenes_compra oc ON fv.orden_compra = oc.codigo
+             LEFT JOIN empresas ep ON oc.empresa::text = ep.codigo::text
+             WHERE fv.codigo = $1`,
+            [codigo]
+        );
+        if (facResult.rows.length === 0) return res.status(404).json({ success: false, error: 'Factura no encontrada' });
+
+        const detResult = await pool.query(
+            `SELECT dfv.producto_venta, dfv.cantidad, dfv.precio_unitario, dfv.subtotal,
+                    p.nombre AS producto_nombre
+             FROM detalle_factura_venta dfv
+             LEFT JOIN productos p ON dfv.producto_venta::text = p.codigo::text
+             WHERE dfv.factura = $1
+             ORDER BY p.nombre`,
+            [codigo]
+        );
+
+        res.json({ success: true, factura: facResult.rows[0], detalles: detResult.rows });
+    } catch (e) {
+        console.error('Error GET pdf factura:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // GET /api/tesoreria/facturas-venta/:codigo/soportes - Obtener soportes de pago
 app.get('/api/tesoreria/facturas-venta/:codigo/soportes', async (req, res) => {
     const { codigo } = req.params;

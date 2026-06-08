@@ -202,23 +202,16 @@
                   <span v-else class="text-muted">-</span>
                 </td>
                 <td class="col-acciones">
-                  <v-btn
-                    icon
-                    size="x-small"
-                    variant="text"
-                    @click="abrirDetalle(fact)"
-                    title="Ver detalle y soportes"
-                  >
+                  <v-btn icon size="x-small" variant="text" @click="abrirDetalle(fact)" title="Ver detalle">
                     <v-icon size="18">mdi-eye-outline</v-icon>
+                  </v-btn>
+                  <v-btn icon size="x-small" variant="text" color="#06b6d4" @click="imprimirFactura(fact.codigo)" title="Ver PDF">
+                    <v-icon size="18">mdi-file-pdf-box</v-icon>
                   </v-btn>
                   <v-btn
                     v-if="fact.estado === 'POR VERIFICAR'"
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="success"
-                    @click="abrirAprobacion(fact)"
-                    title="Aprobar pago"
+                    icon size="x-small" variant="text" color="success"
+                    @click="abrirAprobacion(fact)" title="Aprobar pago"
                   >
                     <v-icon size="18">mdi-check-circle-outline</v-icon>
                   </v-btn>
@@ -631,6 +624,121 @@ function getDiasColor(fecha_vencimiento) {
 function getEstadoColor(estado) {
   const map = { 'PENDIENTE': 'warning', 'PAGADA': 'success', 'POR VERIFICAR': 'info' }
   return map[estado] || 'default'
+}
+
+// ── PDF Factura ───────────────────────────────────────────────────────────
+async function imprimirFactura(codigo) {
+  try {
+    const res = await api.get(`/tesoreria/facturas-venta/${codigo}/pdf`)
+    const { factura, detalles } = res.data
+    const subtotal = parseFloat(factura.total) || 0
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Factura ${factura.codigo}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',Arial,sans-serif;font-size:9px;color:#1a1a2e;background:#fff}
+  .page{width:8.5in;min-height:11in;margin:0 auto;padding:30px 35px;display:flex;flex-direction:column}
+  .top-banner{display:flex;align-items:stretch;margin-bottom:18px;border-radius:4px;overflow:hidden;border:1px solid #e2e8f0}
+  .banner-left{background:#1a1a2e;color:#fff;padding:14px 20px;min-width:220px;display:flex;flex-direction:column;justify-content:center}
+  .banner-doc-label{font-size:7px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;margin-bottom:4px}
+  .banner-doc-title{font-size:18px;font-weight:700;letter-spacing:1px;color:#fff}
+  .banner-doc-num{font-size:10px;font-weight:500;color:#38bdf8;margin-top:3px}
+  .banner-right{flex:1;padding:12px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;background:#f8fafc}
+  .banner-field{display:flex;flex-direction:column;gap:2px}
+  .banner-field-label{font-size:6.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8}
+  .banner-field-val{font-size:9px;font-weight:600;color:#1a1a2e}
+  .banner-field-val.accent{color:#0ea5e9}
+  .parties{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .party-card{border:1px solid #e2e8f0;border-radius:4px;overflow:hidden}
+  .party-header{background:#1a1a2e;color:#fff;padding:4px 10px;font-size:6.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+  .party-body{padding:8px 10px;background:#fafafa}
+  .party-name{font-size:9px;font-weight:700;color:#1a1a2e;margin-bottom:2px}
+  .party-detail{font-size:7.5px;color:#64748b;line-height:1.5}
+  .tabla{width:100%;border-collapse:collapse;margin-bottom:16px}
+  .tabla thead tr{background:#1a1a2e}
+  .tabla thead th{padding:5px 8px;font-size:7px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#cbd5e1;text-align:left;border:none}
+  .tabla thead th.ta-r{text-align:right}
+  .tabla thead th.ta-c{text-align:center}
+  .tabla tbody tr{border-bottom:1px solid #f1f5f9}
+  .tabla td{padding:4px 8px;font-size:8px;color:#374151}
+  .tabla td.ta-c{text-align:center}
+  .tabla td.ta-r{text-align:right}
+  .tabla td.last-row{border-bottom:2px solid #1a1a2e}
+  .totals-box{width:260px;margin-left:auto;border:1px solid #e2e8f0;border-radius:4px;overflow:hidden;margin-bottom:20px}
+  .totals-row{display:flex;justify-content:space-between;padding:5px 12px;font-size:8px;border-bottom:1px solid #f1f5f9}
+  .totals-row .lbl{color:#64748b;font-weight:500}
+  .totals-row .val{font-weight:500;color:#374151}
+  .totals-row.grand{background:#1a1a2e;border-bottom:none}
+  .totals-row.grand .lbl{color:#94a3b8;font-weight:700;font-size:8.5px;text-transform:uppercase}
+  .totals-row.grand .val{color:#38bdf8;font-weight:700;font-size:10px}
+  .estado-badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:7px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+  .estado-PENDIENTE{background:rgba(245,158,11,.12);color:#b45309;border:1px solid #f59e0b}
+  .estado-PAGADA{background:rgba(34,197,94,.12);color:#15803d;border:1px solid #22c55e}
+</style></head>
+<body><div class="page">
+  <div class="top-banner">
+    <div class="banner-left">
+      <div class="banner-doc-label">Documento</div>
+      <div class="banner-doc-title">FACTURA<br>DE VENTA</div>
+      <div class="banner-doc-num">${factura.codigo}</div>
+    </div>
+    <div class="banner-right">
+      <div class="banner-field"><span class="banner-field-label">Fecha Emisión</span><span class="banner-field-val">${factura.fecha ? new Date(factura.fecha + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
+      <div class="banner-field"><span class="banner-field-label">Fecha Vencimiento</span><span class="banner-field-val accent">${factura.fecha_vencimiento ? new Date(factura.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
+      <div class="banner-field"><span class="banner-field-label">Orden de Compra</span><span class="banner-field-val">${factura.orden_compra || '—'}</span></div>
+      <div class="banner-field"><span class="banner-field-label">Estado</span><span class="estado-badge estado-${factura.estado}">${factura.estado}</span></div>
+    </div>
+  </div>
+  <div class="parties">
+    <div class="party-card">
+      <div class="party-header">Proveedor / Emisor</div>
+      <div class="party-body">
+        <div class="party-name">${factura.proveedor_nombre || '—'}</div>
+        <div class="party-detail">${factura.proveedor_direccion || ''}${factura.proveedor_telefono ? '<br>Tel: ' + factura.proveedor_telefono : ''}</div>
+      </div>
+    </div>
+    <div class="party-card">
+      <div class="party-header">Cliente / Receptor</div>
+      <div class="party-body">
+        <div class="party-name">${factura.cliente_nombre || factura.cliente}</div>
+        <div class="party-detail">${factura.cliente_direccion || ''}${factura.cliente_telefono ? '<br>Tel: ' + factura.cliente_telefono : ''}</div>
+      </div>
+    </div>
+  </div>
+  <table class="tabla">
+    <thead><tr>
+      <th style="width:8%">Código</th>
+      <th style="width:42%">Producto</th>
+      <th style="width:10%" class="ta-c">Cant.</th>
+      <th style="width:18%" class="ta-r">Vr. Unitario</th>
+      <th style="width:18%" class="ta-r">Subtotal</th>
+    </tr></thead>
+    <tbody>
+      ${detalles.map((d, i) => `
+      <tr${i === detalles.length - 1 ? ' class="last-row"' : ''}>
+        <td class="ta-c">${d.producto_venta}</td>
+        <td>${d.producto_nombre || d.producto_venta}</td>
+        <td class="ta-c">${parseFloat(d.cantidad)}</td>
+        <td class="ta-r">$${parseFloat(d.precio_unitario).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+        <td class="ta-r">$${parseFloat(d.subtotal).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+  <div class="totals-box">
+    <div class="totals-row"><span class="lbl">Subtotal</span><span class="val">$${subtotal.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>
+    <div class="totals-row"><span class="lbl">Impuestos</span><span class="val">${parseFloat(factura.impuestos) > 0 ? '$'+parseFloat(factura.impuestos).toLocaleString('en-US',{minimumFractionDigits:2}) : '—'}</span></div>
+    <div class="totals-row"><span class="lbl">Pagado</span><span class="val">$${parseFloat(factura.valor_pagado||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>
+    <div class="totals-row grand"><span class="lbl">Total</span><span class="val">$${subtotal.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>
+  </div>
+  ${factura.observaciones ? `<div style="font-size:8px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:10px"><strong>Observaciones:</strong> ${factura.observaciones}</div>` : ''}
+</div></body></html>`
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+  } catch (e) {
+    alert('Error al generar PDF: ' + (e?.response?.data?.error || e.message))
+  }
 }
 
 // ── Modal Detalle ─────────────────────────────────────────────────────────
