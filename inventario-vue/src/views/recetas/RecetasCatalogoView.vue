@@ -865,64 +865,162 @@ function colorPctStr(pct) {
   return p <= 30 ? '#22c55e' : p <= 45 ? '#f59e0b' : '#ef4444'
 }
 
-function imprimirReceta() {
+async function imprimirReceta() {
   const receta = recetaActual.value
   if (!receta) return
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const PW = doc.internal.pageSize.getWidth()
+  const PH = doc.internal.pageSize.getHeight()
   const ML = 12, MR = 12
 
-  // ── Encabezado ──
-  doc.setFillColor(245, 158, 11)
-  doc.rect(0, 0, PW, 22, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(13)
+  // ── Encabezado minimalista ──
+  doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text(receta.nombre?.toUpperCase() || '', ML, 10)
+  doc.setTextColor(0, 0, 0)
+  doc.text(receta.nombre?.toUpperCase() || '', ML, 14)
+
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
+  doc.setTextColor(100, 100, 100)
   const grupotxt = receta.grupo_nombre || receta.grupo_receta || ''
-  doc.text(`Código: ${receta.codigo}${grupotxt ? '  ·  ' + grupotxt : ''}  ·  ${receta.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA'}`, ML, 17)
+  const tipoTxt  = receta.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA'
+  doc.text(`Código: ${receta.codigo}${grupotxt ? '  ·  ' + grupotxt : ''}  ·  ${tipoTxt}`, ML, 20)
+
+  // Línea divisoria
+  doc.setDrawColor(0, 0, 0)
+  doc.setLineWidth(0.5)
+  doc.line(ML, 23, PW - MR, 23)
+
   doc.setTextColor(0, 0, 0)
 
-  // ── Tabla ingredientes ──
-  const body = ingredientes.value.map(ing => [
-    ing.nombre_item || ing.articulo_nombre || ing.articulo || '—',
-    ing.tipo === 'RECETA' ? 'Subreceta' : 'Artículo',
-    String(parseFloat(ing.cantidad) || 0),
-    ing.und || '',
-    fmt(ing.precio_unit),
-    fmt((parseFloat(ing.precio_unit) || 0) * (parseFloat(ing.cantidad) || 0))
-  ])
+  // ── Construir filas: ingredientes + sub-ingredientes inline ──
+  const body = []
+
+  for (const ing of ingredientes.value) {
+    const nombre  = ing.nombre_item || ing.articulo_nombre || ing.articulo || '—'
+    const cant    = parseFloat(ing.cantidad) || 0
+    const vunit   = parseFloat(ing.precio_unit) || 0
+    const sub     = vunit * cant
+    const esSubp  = ing.tipo === 'RECETA'
+
+    // Fila principal del ingrediente
+    body.push([
+      { content: nombre, styles: { fontStyle: esSubp ? 'bold' : 'normal', textColor: esSubp ? [80,60,160] : [0,0,0] } },
+      { content: esSubp ? 'Subproducto' : 'Artículo', styles: { halign: 'center', textColor: esSubp ? [80,60,160] : [60,60,60] } },
+      { content: String(cant), styles: { halign: 'center' } },
+      { content: ing.und || '', styles: { halign: 'center' } },
+      { content: fmt(vunit), styles: { halign: 'right' } },
+      { content: fmt(sub), styles: { halign: 'right', fontStyle: 'bold' } },
+    ])
+
+    // Si es subproducto y tiene ingredientes cargados, mostrarlos
+    if (esSubp) {
+      // Intentar obtener ingredientes del subproducto
+      let subIngs = null
+      // Buscar en cache de subprodIngredientes primero
+      const idxCache = Object.keys(subprodIngredientes.value).find(
+        idx => ingredientes.value[idx]?.articulo === ing.articulo
+      )
+      if (idxCache !== undefined) {
+        subIngs = subprodIngredientes.value[idxCache]
+      } else {
+        // Cargar del API
+        try {
+          const r = await fetch(`${API_BASE}/recetas/${ing.articulo}`)
+          const j = await r.json()
+          subIngs = j.data?.ingredientes || []
+        } catch { subIngs = [] }
+      }
+
+      if (subIngs && subIngs.length > 0) {
+        for (const sub of subIngs) {
+          const subCant  = (parseFloat(sub.cantidad) || 0) * cant
+          const subVunit = parseFloat(sub.precio_unit) || 0
+          body.push([
+            { content: `    ↳ ${sub.nombre_item || sub.articulo}`, styles: { fontSize: 7, textColor: [100,80,180], fontStyle: 'italic' } },
+            { content: '', styles: {} },
+            { content: String(Number(subCant.toFixed(3))), styles: { halign: 'center', fontSize: 7, textColor: [130,110,200] } },
+            { content: sub.und || '', styles: { halign: 'center', fontSize: 7, textColor: [130,110,200] } },
+            { content: fmt(subVunit), styles: { halign: 'right', fontSize: 7, textColor: [130,110,200] } },
+            { content: fmt(subVunit * subCant), styles: { halign: 'right', fontSize: 7, textColor: [130,110,200] } },
+          ])
+        }
+      }
+    }
+  }
 
   autoTable(doc, {
     head: [['INGREDIENTE', 'TIPO', 'CANTIDAD', 'UND', 'VALOR UNIT.', 'SUBTOTAL']],
     body,
     startY: 27,
     margin: { left: ML, right: MR },
-    styles: { fontSize: 8.5, cellPadding: 2.5 },
-    headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-    columnStyles: {
-      0: { cellWidth: 60 }, 1: { cellWidth: 22, halign: 'center' },
-      2: { cellWidth: 22, halign: 'center' }, 3: { cellWidth: 16, halign: 'center' },
-      4: { cellWidth: 28, halign: 'right' }, 5: { cellWidth: 28, halign: 'right' }
+    styles: {
+      fontSize: 8.5,
+      cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+      lineColor: [210, 210, 210],
+      lineWidth: 0.15,
+      textColor: [0, 0, 0],
     },
-    alternateRowStyles: { fillColor: [254, 252, 232] },
+    headStyles: {
+      fillColor: [30, 30, 30],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      halign: 'center',
+      cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+    },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
+    columnStyles: {
+      0: { cellWidth: 68 },
+      1: { cellWidth: 24, halign: 'center' },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 14, halign: 'center' },
+      4: { cellWidth: 25, halign: 'right' },
+      5: { cellWidth: 25, halign: 'right' },
+    },
+    rowPageBreak: 'avoid',
+    didDrawPage() {
+      // Encabezado en páginas siguientes
+      if (doc.internal.getCurrentPageInfo().pageNumber > 1) {
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(80, 80, 80)
+        doc.text(`${receta.nombre?.toUpperCase()} (continuación)`, ML, 10)
+        doc.setTextColor(0, 0, 0)
+      }
+    }
   })
 
-  // ── Pie: costo total ──
-  const finalY = doc.lastAutoTable?.finalY || 100
+  // ── Pie: resumen financiero ──
+  const finalY = doc.lastAutoTable?.finalY || 120
+  const piY = finalY + 10
+
+  doc.setLineWidth(0.3)
+  doc.setDrawColor(180, 180, 180)
+  doc.line(ML, piY - 3, PW - MR, piY - 3)
+
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text(`COSTO TOTAL: ${fmt(costoTotal.value)}`, PW - MR, finalY + 8, { align: 'right' })
+  doc.setTextColor(0, 0, 0)
+  doc.text(`COSTO TOTAL: ${fmt(costoTotal.value)}`, PW - MR, piY + 4, { align: 'right' })
+
   if (receta.precio_venta > 0) {
-    doc.setFontSize(9)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Precio Venta: ${fmt(receta.precio_venta)}  |  Margen: ${fmt(receta.precio_venta - costoTotal.value)}  |  % Costo: ${pctCosto.value.toFixed(1)}%`,
-      PW - MR, finalY + 15, { align: 'right' })
+    doc.setTextColor(80, 80, 80)
+    doc.text(
+      `Precio Venta: ${fmt(receta.precio_venta)}   Margen: ${fmt(receta.precio_venta - costoTotal.value)}   % Costo: ${pctCosto.value.toFixed(1)}%`,
+      PW - MR, piY + 11, { align: 'right' }
+    )
   }
 
+  // Fecha de generación
+  doc.setFontSize(7)
+  doc.setTextColor(160, 160, 160)
+  doc.text(`Generado: ${new Date().toLocaleString('es')}`, ML, PH - 6)
+
+  doc.setTextColor(0, 0, 0)
   const blob = doc.output('blob')
   window.open(URL.createObjectURL(blob), '_blank')
 }
