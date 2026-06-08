@@ -230,25 +230,30 @@ function imprimir() {
     startY: 23,
     margin: { left: ML, right: MR },
     styles: {
-      fontSize: 7.5,
-      cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
+      fontSize: 6.5,
+      cellPadding: { top: 1.2, bottom: 1.2, left: 1.5, right: 1.5 },
       lineColor: [180, 180, 180],
       lineWidth: 0.2,
       overflow: 'ellipsize',
+      minCellHeight: 0,
     },
     headStyles: {
       fillColor: [240, 240, 240],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7,
+      fontSize: 6.5,
       halign: 'center',
+      cellPadding: { top: 1.5, bottom: 1.5, left: 1.5, right: 1.5 },
     },
     alternateRowStyles: { fillColor: [252, 252, 252] },
     columnStyles: colStyles,
     rowPageBreak: 'avoid',
   })
 
-  doc.save(`planilla-toma-fisica-${new Date().toISOString().slice(0,10)}.pdf`)
+  // Abrir en nueva pestaña en vez de descargar
+  const blob = doc.output('blob')
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
 }
 
 onMounted(cargar)
