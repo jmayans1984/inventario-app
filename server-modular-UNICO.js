@@ -4343,6 +4343,7 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
                 d.empresa,
                 p.nombre as producto_nombre,
                 p.codigo as producto_codigo,
+                p.descripcion as producto_descripcion,
                 p.grupo,
                 g.nombre AS grupo_nombre
             FROM detalle_ordenes d
@@ -4366,8 +4367,12 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
 
         // Obtener datos de la empresa PROVEEDOR (vendedor)
         const proveedorResult = await pool.query(
-            `SELECT codigo, nombre, direccion, telefono, logo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
+            `SELECT codigo, nombre, direccion, telefono FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
         );
+        const proveedor = proveedorResult.rows[0] || {};
+        if (proveedor.codigo) {
+            proveedor.logo_url = `/api/empresa/logo?empresa=${proveedor.codigo}`;
+        }
 
         // Obtener datos de la empresa CLIENTE (quien hace la orden - envía a)
         const clienteResult = await pool.query(
@@ -4379,7 +4384,7 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
             success: true,
             orden: orden,
             detalles: detallesResult.rows,
-            proveedor: proveedorResult.rows[0] || {},
+            proveedor: proveedor,
             cliente: clienteResult.rows[0] || {}
         });
 

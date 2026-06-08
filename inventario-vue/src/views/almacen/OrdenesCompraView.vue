@@ -161,6 +161,7 @@
           <div class="prod-grid-head">
             <span class="col-prod-nombre">PRODUCTO</span>
             <span class="col-prod-grupo">GRUPO</span>
+            <span class="col-prod-detalles">DETALLES</span>
             <span class="col-prod-und ta-c">UND</span>
             <span class="col-prod-precio ta-r">PRECIO</span>
             <span class="col-prod-cant ta-c">CANTIDAD</span>
@@ -184,9 +185,9 @@
               class="prod-row" :class="{ 'prod-row--selected': (cantidades[p.codigo] || 0) > 0 }">
               <div class="col-prod-nombre">
                 <div class="prod-nombre">{{ p.nombre }}</div>
-                <div v-if="p.descripcion" class="prod-desc">{{ p.descripcion }}</div>
               </div>
               <div class="col-prod-grupo dim-text text-caption">{{ p.grupo_nombre || p.grupo || '—' }}</div>
+              <div class="col-prod-detalles dim-text text-caption">{{ p.descripcion || '—' }}</div>
               <div class="col-prod-und ta-c dim-text">{{ p.unidad || '—' }}</div>
               <div class="col-prod-precio ta-r font-mono text-success">{{ fmt(getPrecio(p)) }}</div>
               <div class="col-prod-cant ta-c">
@@ -411,6 +412,7 @@
           <div class="prod-grid-head">
             <span class="col-prod-nombre">PRODUCTO</span>
             <span class="col-prod-grupo">GRUPO</span>
+            <span class="col-prod-detalles">DETALLES</span>
             <span class="col-prod-und ta-c">UND</span>
             <span class="col-prod-precio ta-r">PRECIO</span>
             <span class="col-prod-cant ta-c">CANTIDAD</span>
@@ -429,6 +431,7 @@
                 <div class="prod-nombre">{{ p.nombre }}</div>
               </div>
               <div class="col-prod-grupo dim-text text-caption">{{ p.grupo_nombre || p.grupo || '—' }}</div>
+              <div class="col-prod-detalles dim-text text-caption">{{ p.descripcion || '—' }}</div>
               <div class="col-prod-und ta-c dim-text">{{ p.unidad || '—' }}</div>
               <div class="col-prod-precio ta-r font-mono text-success">{{ fmt(getPrecio(p)) }}</div>
               <div class="col-prod-cant ta-c">
@@ -948,7 +951,7 @@ function imprimirDetalle() {
         <!-- Header con logo y título -->
         <div class="header">
           <div class="logo">
-            ${empresaProveedor.value?.logo ? `<img src="${empresaProveedor.value.logo}" alt="Logo">` : '[LOGO]'}
+            ${empresaProveedor.value?.logo_url ? `<img src="${empresaProveedor.value.logo_url}" alt="Logo">` : '[LOGO]'}
           </div>
           <div class="titulo-header">
             <div class="titulo-main">ORDEN DE COMPRA</div>
@@ -982,7 +985,7 @@ function imprimirDetalle() {
             <tr>
               <td style="width:25%">FECHA DE ORDEN<div class="empty">${fmtFecha(ordenDetalle.value.fecha)}</div></td>
               <td style="width:25%">FECHA DE ENTREGA<div class="empty">${fmtFecha(ordenDetalle.value.fecha_entrega) || ''}</div></td>
-              <td style="width:50%" colspan="2">DESCRIPCIÓN O DETALLES<div class="empty"></div></td>
+              <td style="width:50%" colspan="2">OBSERVACIONES<div class="empty">${ordenDetalle.value.observaciones || ''}</div></td>
             </tr>
           </table>
         </div>
@@ -992,8 +995,9 @@ function imprimirDetalle() {
           <thead>
             <tr>
               <th style="width:8%">CODIGO</th>
-              <th style="width:45%">DESCRIPCIÓN</th>
-              <th style="width:10%">CANT</th>
+              <th style="width:35%">PRODUCTO</th>
+              <th style="width:12%">DETALLES</th>
+              <th style="width:8%">CANT</th>
               <th style="width:12%">VR. UNITARIO</th>
               <th style="width:15%">TOTAL</th>
             </tr>
@@ -1003,6 +1007,7 @@ function imprimirDetalle() {
               <tr>
                 <td class="ta-c">${d.producto_venta}</td>
                 <td>${d.producto_nombre || d.nombre_producto}</td>
+                <td style="font-size:8px">${d.producto_descripcion || d.descripcion || '—'}</td>
                 <td class="ta-c">${d.cantidad}</td>
                 <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
                 <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
@@ -1127,7 +1132,7 @@ onMounted(cargar)
 /* Grid productos */
 .prod-grid-head {
   display: grid;
-  grid-template-columns: 1fr 120px 70px 110px 140px 110px;
+  grid-template-columns: 1fr 90px 100px 50px 100px 120px 100px;
   padding: 8px 20px;
   font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
   color: rgba(var(--v-theme-on-surface),.4);
@@ -1139,7 +1144,7 @@ onMounted(cargar)
 .prod-grupo-count { margin-left: 8px; font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: 0; color: rgba(var(--v-theme-on-surface),.4); }
 .prod-row {
   display: grid;
-  grid-template-columns: 1fr 120px 70px 110px 140px 110px;
+  grid-template-columns: 1fr 90px 100px 50px 100px 120px 100px;
   padding: 9px 20px;
   align-items: center;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
@@ -1154,6 +1159,7 @@ onMounted(cargar)
 /* Aligns de columnas en grid */
 .col-prod-nombre { }
 .col-prod-grupo { font-size: 11px; }
+.col-prod-detalles { font-size: 11px; }
 .col-prod-und { }
 .col-prod-precio { }
 .col-prod-cant { }
