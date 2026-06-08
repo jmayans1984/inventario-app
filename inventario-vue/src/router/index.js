@@ -88,7 +88,7 @@ const routes = [
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },
 
   // FORMATOS / DOCUMENTOS
-  { path: '/formatos/documentos', component: () => import('../views/FormatosView.vue'), meta: { requiresAuth: true } },
+  { path: '/formatos/planilla-toma-fisica', component: () => import('../views/formatos/PlanillaTomaFisicaView.vue'), meta: { requiresAuth: true } },
   { path: '/formatos/:section?/:item?', component: () => import('../views/FormatosView.vue'), meta: { requiresAuth: true } },
 
   // CONFIGURACIÓN

@@ -189,8 +189,8 @@ export const MODULES = [
     icon: 'mdi-file-document-multiple-outline',
     path: '/formatos',
     children: [
-      { name: 'Documentos', icon: 'mdi-file-outline', items: [
-        { name: 'Mis Documentos', icon: 'mdi-folder-open-outline', path: '/formatos/documentos' },
+      { name: 'Inventario', icon: 'mdi-warehouse', items: [
+        { name: 'Planilla Toma Física', icon: 'mdi-clipboard-list-outline', path: '/formatos/planilla-toma-fisica' },
       ]},
     ],
   },
