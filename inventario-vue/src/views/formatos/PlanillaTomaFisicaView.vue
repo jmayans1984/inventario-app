@@ -225,14 +225,26 @@ function imprimir() {
   })
 
   // Rastrear grupo activo para redibujarlo en saltos de página
-  let grupoActivo = ''
   const totalCols = 6 + centrosCosto.value.length
+
+  // Mapa: índice de fila en body → nombre del grupo al que pertenece
+  // Esto es 100% confiable porque no depende del orden de callbacks
+  const grupoDeRow = {}
+  let ri = 0
+  for (const g of productosAgrupados.value) {
+    const etiqueta = `${g.nombre.toUpperCase()}   (${g.items.length} productos)`
+    grupoDeRow[ri++] = etiqueta          // fila del encabezado de grupo
+    for (const _p of g.items) {
+      grupoDeRow[ri++] = etiqueta        // cada producto del grupo
+    }
+  }
+
+  let grupoActivo = ''
 
   autoTable(doc, {
     head,
     body,
     startY: 23,
-    // margin.top amplio en páginas 2+ para caber encabezado + banner de grupo
     margin: { left: ML, right: MR, top: 30 },
     styles: {
       fontSize: 6.5,
@@ -254,15 +266,15 @@ function imprimir() {
     columnStyles: colStyles,
     rowPageBreak: 'avoid',
 
-    // Rastrear qué grupo está activo según se dibujan las celdas
+    // Actualizar grupoActivo usando el mapa precomputado (infalible)
     willDrawCell(data) {
-      if (data.row.raw?.[0]?.colSpan === totalCols && data.column.index === 0) {
-        grupoActivo = data.row.raw[0].content
+      if (data.section === 'body') {
+        const g = grupoDeRow[data.row.index]
+        if (g) grupoActivo = g
       }
     },
 
-    // didDrawPage se ejecuta cuando termina una página Y jsPDF ya está en la nueva
-    // → aprovechamos para dibujar encabezado + banner de grupo en la nueva página
+    // En nuevas páginas: encabezado + banner del grupo activo (continuación)
     didDrawPage(data) {
       if (data.pageNumber > 1) {
         drawHeader()
