@@ -936,9 +936,9 @@ function imprimirDetalle() {
         .cond-table td { border: 1px solid #999; padding: 4px; font-weight: bold; background: #f5f5f5; }
         .cond-table .empty { height: 20px; font-weight: normal; background: #fff; }
         .tabla-productos { width: 100%; border-collapse: collapse; font-size: 9px; flex: 1; }
-        .tabla-productos th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px; background: #fff; color: #000; font-weight: bold; text-align: center; }
-        .tabla-productos td { border: none; padding: 4px 2px; }
-        .tabla-productos tbody tr { height: auto; }
+        .tabla-productos th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 3px 4px; background: #fff; color: #000; font-weight: bold; text-align: center; }
+        .tabla-productos td { border: none; padding: 1px 4px; font-size: 9px; line-height: 1.1; }
+        .tabla-productos tbody tr { height: 16px; }
         .ta-c { text-align: center; }
         .ta-r { text-align: right; }
         .footer-section { margin-top: auto; padding-top: 10px; border-top: 1px solid #ccc; }
