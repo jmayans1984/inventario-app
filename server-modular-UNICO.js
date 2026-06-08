@@ -358,10 +358,12 @@ app.get('/api/almacen/productos', async (req, res) => {
         }
 
         query += ` ORDER BY g.codigo NULLS LAST, p.nombre`;
+        console.log('DEBUG SQL query:', query);
+        console.log('DEBUG query params:', params);
         const result = await pool.query(query, params);
         console.log('DEBUG productos encontrados:', result.rows.length, '(filtrados para tipoEmpresa:', tipoEmpresa, ')');
-        if (result.rows.length > 0 && result.rows.length <= 3) {
-            console.log('DEBUG primer producto:', result.rows[0]);
+        if (result.rows.length > 0) {
+            console.log('DEBUG primeros 3 productos:', result.rows.slice(0, 3).map(r => ({ codigo: r.codigo, nombre: r.nombre, para_venta: r.para_venta, precio_venta1: r.precio_venta1 })));
         }
         res.json({ success: true, data: result.rows });
     } catch (error) {
