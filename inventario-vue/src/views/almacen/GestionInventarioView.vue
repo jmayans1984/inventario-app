@@ -586,7 +586,8 @@ const productosConControl = computed(() =>
 
 const productosAgrupados = computed(() => {
   const mapa = new Map()
-  for (const p of productosConControl.value) {
+  // Usar productos.value directamente — el filtro (control/visible) ya se aplicó en cargarProductos()
+  for (const p of productos.value) {
     const key    = p.grupo || '__sin_grupo__'
     const nombre = p.grupo_nombre || 'Sin Grupo'
     if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
