@@ -297,8 +297,14 @@
         </v-card>
       </v-dialog>
 
+        <!-- Sin CC seleccionado -->
+        <div v-if="!ccOrigen" class="gi-loading">
+          <v-icon size="36" color="rgba(var(--v-theme-on-surface),.2)">mdi-store-search-outline</v-icon>
+          <span class="ml-3" style="font-size:13px;color:rgba(var(--v-theme-on-surface),.4)">Selecciona un Centro de Costo para cargar los productos</span>
+        </div>
+
         <!-- Loading -->
-        <div v-if="loadingProductos" class="gi-loading">
+        <div v-else-if="loadingProductos" class="gi-loading">
           <v-progress-circular indeterminate color="#0891b2" size="32" />
           <span class="ml-3" style="font-size:13px;color:rgba(var(--v-theme-on-surface),.5)">Cargando productos...</span>
         </div>
@@ -311,7 +317,7 @@
         </div>
 
         <!-- Tabla agrupada -->
-        <table v-else class="gi-table">
+        <table v-else-if="ccOrigen" class="gi-table">
           <thead>
             <tr>
               <th class="th-cod">CÓDIGO</th>
@@ -466,7 +472,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
@@ -593,11 +599,19 @@ async function cargarCcostos() {
 }
 
 async function cargarProductos() {
+  // No cargar si no hay CC seleccionado
+  if (!ccOrigen.value) {
+    productos.value = []
+    return
+  }
   loadingProductos.value = true
   errorProductos.value   = ''
   try {
-    // Sin filtro de empresa — devuelve TODOS los productos
-    const res = await api.get('/almacen/productos')
+    // Usar /api/inventario con ccosto + empresa para aplicar
+    // la lógica de Bodega Maestra (control=SI) vs Punto de Venta (visible_operacional=SI)
+    const res = await api.get('/inventario', {
+      params: { ccosto: ccOrigen.value, empresa: empresa.value }
+    })
     productos.value = res.data?.data || []
   } catch (e) {
     console.error('Error cargando productos:', e)
@@ -606,6 +620,11 @@ async function cargarProductos() {
     loadingProductos.value = false
   }
 }
+
+// Recargar productos cada vez que cambie el CC origen
+watch(ccOrigen, () => {
+  cargarProductos()
+})
 
 // ── Validación ────────────────────────────────────────────────
 function validar() {
@@ -678,7 +697,7 @@ function resetTodo() {
 
 onMounted(() => {
   cargarCcostos()
-  cargarProductos()
+  // NO cargar productos hasta que el usuario seleccione un CC
 })
 
 // ── OCR ────────────────────────────────────────────────────────
