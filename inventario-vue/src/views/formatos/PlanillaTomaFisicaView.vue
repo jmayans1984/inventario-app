@@ -224,11 +224,16 @@ function imprimir() {
     colStyles[6 + i] = { cellWidth: 18, halign: 'center' }
   })
 
+  // Rastrear grupo activo para redibujarlo en saltos de página
+  let grupoActivo = ''
+  const totalCols = 6 + centrosCosto.value.length
+
   autoTable(doc, {
     head,
     body,
     startY: 23,
-    margin: { left: ML, right: MR },
+    // margin.top amplio en páginas 2+ para caber encabezado + banner de grupo
+    margin: { left: ML, right: MR, top: 30 },
     styles: {
       fontSize: 6.5,
       cellPadding: { top: 1.2, bottom: 1.2, left: 1.5, right: 1.5 },
@@ -248,6 +253,32 @@ function imprimir() {
     alternateRowStyles: { fillColor: [252, 252, 252] },
     columnStyles: colStyles,
     rowPageBreak: 'avoid',
+
+    // Rastrear qué grupo está activo según se dibujan las celdas
+    willDrawCell(data) {
+      if (data.row.raw?.[0]?.colSpan === totalCols && data.column.index === 0) {
+        grupoActivo = data.row.raw[0].content
+      }
+    },
+
+    // didDrawPage se ejecuta cuando termina una página Y jsPDF ya está en la nueva
+    // → aprovechamos para dibujar encabezado + banner de grupo en la nueva página
+    didDrawPage(data) {
+      if (data.pageNumber > 1) {
+        drawHeader()
+        if (grupoActivo) {
+          const gY = 22
+          doc.setFillColor(30, 30, 30)
+          doc.rect(ML, gY, PW - ML - MR, 5.5, 'F')
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(255, 255, 255)
+          doc.text(`${grupoActivo}  (continuación)`, ML + 2, gY + 3.8)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(0, 0, 0)
+        }
+      }
+    },
   })
 
   // Abrir en nueva pestaña en vez de descargar
