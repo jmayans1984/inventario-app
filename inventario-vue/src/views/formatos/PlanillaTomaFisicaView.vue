@@ -232,7 +232,7 @@ function imprimir() {
     margin: { left: ML, right: MR, top: 23 },
     styles: {
       fontSize: 7,
-      cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
+      cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 },
       lineColor: [180, 180, 180],
       lineWidth: 0.2,
       overflow: 'ellipsize',
