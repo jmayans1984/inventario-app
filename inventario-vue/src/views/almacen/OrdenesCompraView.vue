@@ -908,7 +908,6 @@ async function verDetalle(o) {
 function imprimirDetalle() {
   const items = detalleLineas.value
   const subtotal = parseFloat(ordenDetalle.value.total) || 0
-  const filasVacias = Math.max(0, 18 - items.length)
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -1062,17 +1061,13 @@ function imprimirDetalle() {
       </thead>
       <tbody>
         ${items.map((d, i) => `
-        <tr${filasVacias === 0 && i === items.length - 1 ? ' class="last-row"' : ''}>
+        <tr${i === items.length - 1 ? ' class="last-row"' : ''}>
           <td class="cod ta-c">${d.producto_venta}</td>
           <td class="prod-name">${d.producto_nombre || d.nombre_producto || ''}</td>
           <td class="det">${d.producto_descripcion || d.descripcion || ''}</td>
           <td class="qty ta-c">${d.cantidad}</td>
           <td class="price ta-r">$${parseFloat(d.precio_unitario).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
           <td class="total-cell ta-r">$${parseFloat(d.subtotal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-        </tr>`).join('')}
-        ${Array(filasVacias).fill().map((_, i) => `
-        <tr class="empty-row${i === filasVacias - 1 ? ' last-row' : ''}">
-          <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td>
         </tr>`).join('')}
       </tbody>
     </table>
