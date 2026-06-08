@@ -4443,17 +4443,17 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
 
         const ordenCliente = checkResult.rows[0].cliente;
 
-        // Actualizar la orden
+        // Actualizar la orden (preservar estado si no se envía)
         const updateQuery = `
             UPDATE ordenes_compra
-            SET fecha_entrega = $1, estado = $2, observaciones = $3, total = $4
+            SET fecha_entrega = $1, estado = COALESCE($2, estado), observaciones = $3, total = $4
             WHERE codigo = $5
             RETURNING codigo
         `;
 
         await client.query(updateQuery, [
             fecha_entrega || null,
-            estado,
+            estado || null,
             observaciones || '',
             total || 0,
             codigo
