@@ -297,16 +297,6 @@
         </v-card>
       </v-dialog>
 
-        <!-- Indicador de filtro activo -->
-        <div v-if="ccOrigen && filtroActivo" class="filtro-badge-wrap">
-          <span v-if="filtroActivo === 'bodega'" class="filtro-badge filtro-bodega">
-            🏭 Filtrando por: BODEGA MAESTRA (control=SI)
-          </span>
-          <span v-else class="filtro-badge filtro-pventa">
-            🏪 Filtrando por: PUNTO DE VENTA (visible_operacional=SI)
-          </span>
-        </div>
-
         <!-- Sin CC seleccionado -->
         <div v-if="!ccOrigen" class="gi-loading">
           <v-icon size="36" color="rgba(var(--v-theme-on-surface),.2)">mdi-store-search-outline</v-icon>
