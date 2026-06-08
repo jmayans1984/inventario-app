@@ -848,22 +848,17 @@ async function guardarEdicion() {
         precio_unitario: getPrecio(p),
         subtotal: parseFloat(cantEdicion[p.codigo]) * getPrecio(p),
       }))
-    const r = await fetch(`${API_BASE}/ordenes-compra/${ordenEditando.value.codigo}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fecha_entrega: editFechaEntrega.value,
-        observaciones: editObservaciones.value,
-        detalles,
-        total: totalEdicion.value,
-      })
+    const res = await api.put(`/ordenes-compra/${ordenEditando.value.codigo}`, {
+      fecha_entrega: editFechaEntrega.value,
+      observaciones: editObservaciones.value,
+      detalles,
+      total: totalEdicion.value,
     })
-    const j = await r.json()
-    if (!j.success) throw new Error(j.error || j.details)
+    if (!res.data?.success) throw new Error(res.data?.details || res.data?.error || 'Error al actualizar')
     ok('Orden actualizada correctamente')
     dlgEditar.value = false
     await cargar()
-  } catch (e) { err(e.message) }
+  } catch (e) { err(e?.response?.data?.details || e?.response?.data?.error || e.message) }
   finally { guardandoEdicion.value = false }
 }
 

@@ -4503,8 +4503,8 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
 
                 const insertDetalleQuery = `
                     INSERT INTO detalle_ordenes
-                    (orden, producto_venta, cantidad, precio_unitario, subtotal)
-                    VALUES ($1, $2, $3, $4, $5)
+                    (orden, producto_venta, cantidad, precio_unitario, subtotal, empresa)
+                    VALUES ($1, $2, $3, $4, $5, $6)
                 `;
 
                 const subtotal = detalle.cantidad * detalle.precio_unitario;
@@ -4513,7 +4513,8 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
                     detalle.producto_venta,
                     detalle.cantidad,
                     detalle.precio_unitario,
-                    subtotal
+                    subtotal,
+                    ordenCliente
                 ]);
             }
             console.log(`Detalles insertados correctamente`);
