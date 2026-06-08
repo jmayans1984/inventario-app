@@ -239,25 +239,20 @@ onMounted(cargar)
 <style>
 /* ── IMPRESIÓN ── */
 @media print {
-  /* Ocultar TODO excepto el documento */
-  body > *:not(.v-application) { display: none !important; }
-
-  .v-navigation-drawer,
+  /* Solo ocultar la barra y el drawer — no tocar el resto */
   .v-app-bar,
   .v-app-bar--fixed,
+  .v-navigation-drawer,
   .v-toolbar,
-  .v-system-bar,
-  header, nav, aside,
-  [class*="app-bar"],
-  [class*="v-toolbar"],
   .no-print { display: none !important; }
 
-  /* Quitar padding del layout de Vuetify */
   body, html { background: white !important; margin: 0; padding: 0; }
   .v-application { background: white !important; }
-  .v-application__wrap { padding: 0 !important; }
-  .v-main,
-  .v-main__wrap { padding: 0 !important; margin: 0 !important; padding-top: 0 !important; }
+
+  /* Quitar el padding-top que deja Vuetify para la app-bar */
+  .v-main { padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
+  .v-main__wrap { padding: 0 !important; }
+
   .ptf-container { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
 
   .doc-wrapper {
@@ -267,7 +262,6 @@ onMounted(cargar)
   }
 
   .doc-grupo { page-break-inside: avoid; }
-
   .doc-grupo-header { background: #000 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .doc-tabla thead th { background: #e8e8e8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
