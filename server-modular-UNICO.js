@@ -4750,14 +4750,13 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
             return res.status(400).json({ success: false, error: 'La orden no tiene productos' });
         }
 
-        // 4. Generar código de factura FV-XXXXXX
+        // 4. Generar código de factura (mismo formato que facturas existentes: 10 dígitos numéricos)
         const numRes = await client.query(
-            `SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 4) AS INTEGER)), 0) + 1 AS num
+            `SELECT COALESCE(MAX(CAST(codigo AS BIGINT)), 0) + 1 AS num
              FROM factura_venta
-             WHERE codigo ~ '^FV-[0-9]+$'`
+             WHERE codigo ~ '^[0-9]+$'`
         );
-        const numFact = String(numRes.rows[0].num).padStart(6, '0');
-        const codigoFactura = `FV-${numFact}`;
+        const codigoFactura = String(numRes.rows[0].num).padStart(10, '0');
 
         // 5. Calcular subtotal e impuestos (0% impuestos por defecto)
         const subtotal = parseFloat(orden.total) || 0;
@@ -4779,7 +4778,7 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
             `INSERT INTO factura_venta
              (codigo, fecha, cliente, orden_compra, subtotal, impuestos, total, estado, observaciones, fecha_vencimiento, valor_pagado)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDIENTE', $8, $9, 0)`,
-            [codigoFactura, fechaHoy, orden.empresa, codigo, subtotal, impuestos, total,
+            [codigoFactura, fechaHoy, orden.cliente, codigo, subtotal, impuestos, total,
              orden.observaciones || '', fechaVencimiento]
         );
 
