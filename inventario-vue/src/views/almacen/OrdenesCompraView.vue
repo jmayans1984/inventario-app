@@ -942,51 +942,51 @@ function imprimirDetalle() {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Inter', Arial, sans-serif; font-size:9px; color:#1a1a2e; background:#fff; }
+    body { font-family: 'Inter', Arial, sans-serif; font-size:13px; color:#1a1a2e; background:#fff; }
     .page { width:8.5in; min-height:11in; margin:0 auto; padding:30px 35px; display:flex; flex-direction:column; }
 
     /* ── TOP BANNER ── */
     .top-banner { display:flex; align-items:stretch; margin-bottom:18px; border-radius:4px; overflow:hidden; border:1px solid #e2e8f0; }
-    .banner-left { background:#1a1a2e; color:#fff; padding:14px 20px; min-width:220px; display:flex; flex-direction:column; justify-content:center; }
-    .banner-doc-label { font-size:7px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#94a3b8; margin-bottom:4px; }
-    .banner-doc-title { font-size:18px; font-weight:700; letter-spacing:1px; color:#fff; }
-    .banner-doc-num { font-size:10px; font-weight:500; color:#38bdf8; margin-top:3px; }
+    .banner-left { background:#1a1a2e; color:#fff; padding:14px 20px; min-width:240px; display:flex; flex-direction:column; justify-content:center; }
+    .banner-doc-label { font-size:11px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#94a3b8; margin-bottom:4px; }
+    .banner-doc-title { font-size:22px; font-weight:700; letter-spacing:1px; color:#fff; }
+    .banner-doc-num { font-size:14px; font-weight:500; color:#38bdf8; margin-top:3px; }
     .banner-right { flex:1; padding:12px 20px; display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:center; background:#f8fafc; }
     .banner-field { display:flex; flex-direction:column; gap:2px; }
-    .banner-field-label { font-size:6.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#94a3b8; }
-    .banner-field-val { font-size:9px; font-weight:600; color:#1a1a2e; }
+    .banner-field-label { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#94a3b8; }
+    .banner-field-val { font-size:13px; font-weight:600; color:#1a1a2e; }
     .banner-field-val.accent { color:#0ea5e9; }
 
     /* ── PARTIES ── */
     .parties { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
     .party-card { border:1px solid #e2e8f0; border-radius:4px; overflow:hidden; }
-    .party-header { background:#1a1a2e; color:#fff; padding:4px 10px; font-size:6.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
+    .party-header { background:#1a1a2e; color:#fff; padding:4px 10px; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
     .party-body { padding:8px 10px; background:#fafafa; }
-    .party-name { font-size:9px; font-weight:700; color:#1a1a2e; margin-bottom:2px; }
-    .party-detail { font-size:7.5px; color:#64748b; line-height:1.5; }
+    .party-name { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:2px; }
+    .party-detail { font-size:11px; color:#64748b; line-height:1.5; }
 
     /* ── OBSERVACIONES ── */
     .obs-bar { border:1px solid #e2e8f0; border-radius:4px; padding:6px 10px; margin-bottom:14px; display:flex; gap:8px; align-items:flex-start; background:#fafafa; }
-    .obs-label { font-size:6.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#94a3b8; white-space:nowrap; margin-top:1px; }
-    .obs-val { font-size:8px; color:#374151; flex:1; }
+    .obs-label { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#94a3b8; white-space:nowrap; margin-top:1px; }
+    .obs-val { font-size:12px; color:#374151; flex:1; }
 
     /* ── TABLA ── */
     .tabla-wrap { }
     .tabla { width:100%; border-collapse:collapse; }
     .tabla thead tr { background:#fff; }
-    .tabla thead th { padding:5px 8px; font-size:7px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#1a1a2e; text-align:left; border-top:2px solid #1a1a2e; border-bottom:2px solid #1a1a2e; }
+    .tabla thead th { padding:6px 8px; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#1a1a2e; text-align:left; border-top:2px solid #1a1a2e; border-bottom:2px solid #1a1a2e; }
     .tabla thead th.ta-c { text-align:center; }
     .tabla thead th.ta-r { text-align:right; }
     .tabla tbody tr { border-bottom:none; }
     .tabla tbody tr.empty-row { background:#fff !important; }
     .tabla tbody tr.empty-row td { color:transparent; }
     .tabla tbody tr.last-row td { border-bottom:2px solid #1a1a2e; }
-    .tabla td { padding:3px 8px; font-size:8px; color:#374151; }
+    .tabla td { padding:4px 8px; font-size:12px; color:#374151; }
     .tabla td.ta-c { text-align:center; }
     .tabla td.ta-r { text-align:right; font-variant-numeric:tabular-nums; }
-    .tabla td.cod { font-weight:600; color:#0ea5e9; font-family:monospace; font-size:8px; }
+    .tabla td.cod { font-weight:600; color:#0ea5e9; font-family:monospace; font-size:12px; }
     .tabla td.prod-name { font-weight:500; color:#1a1a2e; }
-    .tabla td.det { color:#94a3b8; font-size:7.5px; font-style:italic; }
+    .tabla td.det { color:#94a3b8; font-size:11px; font-style:italic; }
     .tabla td.qty { font-weight:600; color:#374151; }
     .tabla td.price { color:#374151; }
     .tabla td.total-cell { font-weight:600; color:#1a1a2e; }
@@ -994,22 +994,22 @@ function imprimirDetalle() {
     /* ── FOOTER ── */
     .footer { margin-top:8px; }
     .footer-top { display:flex; justify-content:flex-end; margin-bottom:20px; }
-    .totals-box { width:260px; border:1px solid #e2e8f0; border-radius:4px; overflow:hidden; }
-    .totals-row { display:flex; justify-content:space-between; padding:5px 12px; font-size:8px; border-bottom:1px solid #f1f5f9; }
+    .totals-box { width:300px; border:1px solid #e2e8f0; border-radius:4px; overflow:hidden; }
+    .totals-row { display:flex; justify-content:space-between; padding:6px 14px; font-size:12px; border-bottom:1px solid #f1f5f9; }
     .totals-row .lbl { color:#64748b; font-weight:500; }
     .totals-row .val { font-weight:500; color:#374151; }
     .totals-row.grand { background:#1a1a2e; border-bottom:none; }
-    .totals-row.grand .lbl { color:#94a3b8; font-weight:700; font-size:8.5px; letter-spacing:.5px; text-transform:uppercase; }
-    .totals-row.grand .val { color:#38bdf8; font-weight:700; font-size:10px; }
+    .totals-row.grand .lbl { color:#94a3b8; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; }
+    .totals-row.grand .val { color:#38bdf8; font-weight:700; font-size:14px; }
 
     /* ── FIRMAS ── */
     .firmas { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:6px; }
     .firma { display:flex; flex-direction:column; }
     .firma-space { height:50px; border-bottom:1px solid #94a3b8; margin-bottom:4px; }
-    .firma-label { font-size:6.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#64748b; text-align:center; }
+    .firma-label { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#64748b; text-align:center; }
 
     /* ── WATERMARK número ── */
-    .doc-number-side { position:fixed; right:10px; top:50%; transform:rotate(90deg) translateX(-50%); font-size:7px; color:#e2e8f0; letter-spacing:2px; font-weight:700; }
+    .doc-number-side { position:fixed; right:10px; top:50%; transform:rotate(90deg) translateX(-50%); font-size:11px; color:#e2e8f0; letter-spacing:2px; font-weight:700; }
   </style>
 </head>
 <body>
