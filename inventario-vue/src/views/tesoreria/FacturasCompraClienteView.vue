@@ -220,12 +220,14 @@
                   <span v-else class="text-muted">-</span>
                 </td>
                 <td class="col-acciones">
-                  <v-btn icon size="x-small" variant="text" @click="abrirDetalle(fact)" title="Ver detalle">
-                    <v-icon size="18">mdi-eye-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon size="x-small" variant="text" color="#06b6d4" @click="imprimirFactura(fact.codigo)" title="Ver PDF">
-                    <v-icon size="18">mdi-file-pdf-box</v-icon>
-                  </v-btn>
+                  <div style="display:flex;align-items:center;justify-content:center;gap:2px">
+                    <v-btn icon size="x-small" variant="text" @click="abrirDetalle(fact)" title="Ver detalle">
+                      <v-icon size="18">mdi-eye-outline</v-icon>
+                    </v-btn>
+                    <v-btn icon size="x-small" variant="text" color="#06b6d4" @click="imprimirFactura(fact.codigo)" title="Ver PDF">
+                      <v-icon size="18">mdi-file-pdf-box</v-icon>
+                    </v-btn>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -582,8 +584,8 @@ async function imprimirFactura(codigo) {
       <div class="banner-doc-num">${factura.codigo}</div>
     </div>
     <div class="banner-right">
-      <div class="banner-field"><span class="banner-field-label">Fecha Emisión</span><span class="banner-field-val">${factura.fecha ? new Date(String(factura.fecha).substring(0,10) + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
-      <div class="banner-field"><span class="banner-field-label">Fecha Vencimiento</span><span class="banner-field-val accent">${factura.fecha_vencimiento ? new Date(String(factura.fecha_vencimiento).substring(0,10) + 'T00:00:00').toLocaleDateString('es') : '—'}</span></div>
+      <div class="banner-field"><span class="banner-field-label">Fecha Emisión</span><span class="banner-field-val">${factura.fecha ? String(factura.fecha).substring(0,10).split('-').reverse().join('/') : '—'}</span></div>
+      <div class="banner-field"><span class="banner-field-label">Fecha Vencimiento</span><span class="banner-field-val accent">${factura.fecha_vencimiento ? String(factura.fecha_vencimiento).substring(0,10).split('-').reverse().join('/') : '—'}</span></div>
       <div class="banner-field"><span class="banner-field-label">Orden de Compra</span><span class="banner-field-val">${factura.orden_compra || '—'}</span></div>
       <div class="banner-field"><span class="banner-field-label">Estado</span><span class="banner-field-val">${factura.estado}</span></div>
     </div>
