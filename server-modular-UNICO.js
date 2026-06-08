@@ -4366,12 +4366,12 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
 
         // Obtener datos de la empresa PROVEEDOR (vendedor)
         const proveedorResult = await pool.query(
-            `SELECT codigo, nombre, direccion, ciudad, estado, postal, telefono, logo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
+            `SELECT codigo, nombre, direccion, telefono, logo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
         );
 
         // Obtener datos de la empresa CLIENTE (quien hace la orden - envía a)
         const clienteResult = await pool.query(
-            `SELECT codigo, nombre, direccion, ciudad, estado, postal, telefono FROM empresas WHERE codigo = $1`,
+            `SELECT codigo, nombre, direccion, telefono FROM empresas WHERE codigo = $1`,
             [orden.cliente]
         );
 

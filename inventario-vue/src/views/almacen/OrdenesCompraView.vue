@@ -963,7 +963,6 @@ function imprimirDetalle() {
             <div class="empresa-content">
               <p><strong>${empresaProveedor.value?.nombre || 'N/A'}</strong></p>
               ${empresaProveedor.value?.direccion ? `<p>${empresaProveedor.value.direccion}</p>` : ''}
-              ${empresaProveedor.value?.ciudad || empresaProveedor.value?.estado || empresaProveedor.value?.postal ? `<p>${[empresaProveedor.value?.ciudad, empresaProveedor.value?.estado, empresaProveedor.value?.postal].filter(Boolean).join(', ')}</p>` : ''}
               ${empresaProveedor.value?.telefono ? `<p>${empresaProveedor.value.telefono}</p>` : ''}
             </div>
           </div>
@@ -972,7 +971,6 @@ function imprimirDetalle() {
             <div class="empresa-content">
               <p><strong>${empresaCliente.value?.nombre || 'N/A'}</strong></p>
               ${empresaCliente.value?.direccion ? `<p>${empresaCliente.value.direccion}</p>` : ''}
-              ${empresaCliente.value?.ciudad || empresaCliente.value?.estado || empresaCliente.value?.postal ? `<p>${[empresaCliente.value?.ciudad, empresaCliente.value?.estado, empresaCliente.value?.postal].filter(Boolean).join(', ')}</p>` : ''}
               ${empresaCliente.value?.telefono ? `<p>${empresaCliente.value.telefono}</p>` : ''}
             </div>
           </div>
