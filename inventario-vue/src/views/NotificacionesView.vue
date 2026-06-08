@@ -1,310 +1,342 @@
-<template>
+﻿<template>
   <MainLayout>
-    <div class="notif-container">
+    <div class="notif-wrap">
 
       <!-- BREADCRUMB -->
-      <div class="notif-breadcrumb">
+      <div class="breadcrumb">
         <span class="bc-root">CONFIGURACIÓN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Preferencias de Notificaciones</span>
+        <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
+        <span class="bc-cur">Preferencias de Notificaciones</span>
       </div>
 
       <!-- HEADER -->
       <div class="notif-header">
-        <div class="notif-header-left">
-          <div class="notif-icon-wrap">
-            <v-icon size="22" color="white">mdi-bell-cog</v-icon>
-          </div>
-          <div>
-            <h1 class="notif-title">PREFERENCIAS DE NOTIFICACIONES</h1>
-            <p class="notif-sub">Configura qué usuarios recibirán cada tipo de notificación</p>
-          </div>
+        <div class="notif-header-icon">
+          <v-icon size="26" color="white">mdi-bell-cog</v-icon>
         </div>
+        <div>
+          <h1 class="notif-title">PREFERENCIAS DE NOTIFICACIONES</h1>
+          <p class="notif-sub">Configura qué notificaciones recibir y quién las recibe</p>
+        </div>
+      </div>
+
+      <!-- LOADING -->
+      <div v-if="loading" class="notif-loading">
+        <v-progress-circular indeterminate color="#06b6d4" size="32" />
+        <span>Cargando preferencias...</span>
       </div>
 
       <!-- CONTENIDO -->
-      <div class="notif-content">
-        <div v-if="loading" class="notif-loading">
-          <v-progress-circular indeterminate color="#0891b2" size="36" />
-        </div>
+      <div v-else>
+        <div class="notif-card">
+          <div class="notif-section-hdr">
+            <div class="notif-section-icon" style="background:rgba(6,182,212,0.12)">
+              <v-icon size="16" color="#06b6d4">mdi-cog-outline</v-icon>
+            </div>
+            <span class="notif-section-title">TIPOS DE NOTIFICACIONES</span>
+          </div>
 
-        <template v-else>
-          <div class="preferencias-grid">
-            <div v-for="tipo in tiposNotificaciones" :key="tipo.valor" class="pref-card" :class="{ 'card-activo': tipo.activa === 'SI' }">
-              <div class="card-header">
-                <v-icon size="24" color="#0891b2">mdi-bell</v-icon>
-                <div>
-                  <h3 class="card-titulo">{{ tipo.label }}</h3>
-                  <p class="card-tipo">{{ tipo.valor }}</p>
+          <div v-if="!tipos.length" class="notif-empty">
+            No hay tipos de notificaciones configurados
+          </div>
+
+          <div v-else class="notif-tipos-list">
+            <div v-for="tipo in tipos" :key="tipo.valor" class="notif-tipo-card">
+              <!-- Encabezado del tipo -->
+              <div class="notif-tipo-header">
+                <div class="notif-tipo-left">
+                  <v-icon size="20" :color="tipo.activa === 'SI' ? '#06b6d4' : '#94a3b8'">
+                    {{ tipo.icon }}
+                  </v-icon>
+                  <div class="notif-tipo-info">
+                    <h3 class="notif-tipo-label">{{ tipo.label }}</h3>
+                    <p class="notif-tipo-desc">{{ tipo.descripcion }}</p>
+                  </div>
                 </div>
-              </div>
-
-              <p class="card-desc">{{ tipo.descripcion }}</p>
-
-              <!-- TOGGLE ACTIVA/DESACTIVA -->
-              <div class="card-toggle">
                 <v-switch
-                  :model-value="tipo.activa === 'SI'"
-                  color="#0891b2"
+                  v-model="tipoActivo[tipo.valor]"
+                  true-value="SI"
+                  false-value="NO"
+                  color="#06b6d4"
                   hide-details
-                  :loading="guardandoTipo === tipo.valor"
-                  @update:model-value="toggleNotificacion(tipo, $event)"
-                  label="Activada"
+                  @update:model-value="onTipoActivoChange(tipo.valor)"
                 />
               </div>
 
-              <!-- SELECTOR DE USUARIOS (solo si está activa) -->
-              <template v-if="tipo.activa === 'SI'">
-                <div class="usuarios-section">
-                  <label class="usuarios-label">Usuarios que recibirán estas notificaciones:</label>
-                  <v-select
-                    :model-value="tipo.usuarios_receptores"
-                    :items="usuariosEmpresa"
-                    item-title="nombre"
-                    item-value="codigo"
-                    label="Selecciona usuarios..."
-                    multiple
-                    chips
-                    variant="outlined"
-                    density="compact"
-                    :loading="guardandoTipo === tipo.valor"
-                    @update:model-value="actualizarUsuariosReceptores(tipo, $event)"
-                  />
-                  <p v-if="tipo.usuarios_receptores.length === 0" class="usuarios-aviso">
-                    ⚠️ Sin usuarios seleccionados - esta notificación no será enviada a nadie
-                  </p>
+              <!-- Selector de usuarios (solo si está activo) -->
+              <div v-if="tipoActivo[tipo.valor] === 'SI'" class="notif-usuarios-section">
+                <label class="notif-usuarios-label">USUARIOS QUE RECIBEN ESTA NOTIFICACIÓN</label>
+
+                <div v-if="!usuarios.length" class="notif-usuarios-empty">
+                  No hay usuarios disponibles
                 </div>
-              </template>
+
+                <div v-else class="notif-usuarios-grid">
+                  <div
+                    v-for="usuario in usuarios"
+                    :key="usuario.codigo"
+                    class="notif-usuario-check"
+                  >
+                    <v-checkbox
+                      :model-value="tipoUsuarios[tipo.valor]?.includes(usuario.codigo)"
+                      :label="`${usuario.nombre} (${usuario.usuario})`"
+                      color="#06b6d4"
+                      hide-details
+                      @update:model-value="onUsuarioChange(tipo.valor, usuario.codigo, $event)"
+                    />
+                  </div>
+                </div>
+
+                <div class="notif-usuarios-actions">
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    color="#06b6d4"
+                    @click="selectAllUsuarios(tipo.valor)"
+                  >
+                    Seleccionar todos
+                  </v-btn>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    color="#ef4444"
+                    @click="deselectAllUsuarios(tipo.valor)"
+                  >
+                    Desseleccionar todos
+                  </v-btn>
+                </div>
+              </div>
+
+              <!-- Mensaje si está desactivo -->
+              <div v-else class="notif-tipo-disabled">
+                Esta notificación está desactivada
+              </div>
             </div>
           </div>
 
-          <div class="info-box">
-            <v-icon size="18" color="#0891b2">mdi-information-outline</v-icon>
-            <div>
-              <strong>¿Cómo funciona?</strong>
-              <p style="margin: 4px 0 0 0; font-size: 12px;">
-                1. Activa el tipo de notificación con el toggle<br>
-                2. Selecciona qué usuarios recibirán esa notificación<br>
-                3. Los cambios se guardan automáticamente
-              </p>
-            </div>
+          <!-- Acciones -->
+          <div class="notif-actions">
+            <span v-if="saveOk" class="notif-ok-msg">
+              <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado correctamente
+            </span>
+            <span v-if="saveErr" class="notif-err-msg">{{ saveErr }}</span>
+            <v-btn
+              color="#06b6d4"
+              variant="flat"
+              size="small"
+              :loading="saving"
+              @click="guardarTodos"
+            >
+              <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+              Guardar Preferencias
+            </v-btn>
           </div>
-        </template>
+        </div>
       </div>
-
-      <!-- SNACKBAR -->
-      <v-snackbar v-model="snack.show" :color="snack.color" :timeout="3000" location="bottom right">
-        {{ snack.msg }}
-      </v-snackbar>
 
     </div>
   </MainLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import MainLayout from '../components/layouts/MainLayout.vue'
-import { notificacionesService } from '../services/notificaciones.service'
-import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
+import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
+const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
+
 const loading = ref(false)
-const guardandoTipo = ref(null)
-const snack = ref({ show: false, msg: '', color: 'success' })
-const tiposNotificaciones = ref([])
-const usuariosEmpresa = ref([])
+const saving = ref(false)
+const saveOk = ref(false)
+const saveErr = ref('')
+
+const tipos = ref([])
+const usuarios = ref([])
+
+const tipoActivo = reactive({})
+const tipoUsuarios = reactive({})
 
 async function cargarDatos() {
   loading.value = true
   try {
-    // Cargar preferencias (que incluye tipos de notificaciones del backend)
-    const resPrefs = await notificacionesService.obtenerPreferencias()
-    tiposNotificaciones.value = resPrefs.data || []
+    const [prefsRes, usrsRes] = await Promise.all([
+      api.get('/preferencias-notificaciones', { params: { empresa: empresa.value } }),
+      api.get('/configuracion/usuarios', { params: { empresa: empresa.value } })
+    ])
 
-    // Cargar usuarios de la empresa
-    const resUsers = await api.get('/configuracion/usuarios', {
-      params: { empresa: authStore.empresa }
+    tipos.value = prefsRes.data?.data || []
+    usuarios.value = usrsRes.data?.data || []
+
+    tipos.value.forEach(tipo => {
+      tipoActivo[tipo.valor] = tipo.activa || 'NO'
+      tipoUsuarios[tipo.valor] = tipo.usuarios_receptores ? [...tipo.usuarios_receptores] : []
     })
-    usuariosEmpresa.value = resUsers.data.data || []
   } catch (e) {
-    console.error('Error cargando datos:', e)
-    mostrarSnack('Error al cargar datos', 'error')
+    console.error('cargarDatos:', e)
+    saveErr.value = 'Error al cargar datos'
   } finally {
     loading.value = false
   }
 }
 
-async function toggleNotificacion(tipo, activa) {
-  guardandoTipo.value = tipo.valor
-  try {
-    // Si se desactiva, limpiar usuarios
-    const usuariosReceptores = activa ? tipo.usuarios_receptores : []
-
-    await notificacionesService.actualizarPreferencia(
-      tipo.valor,
-      activa ? 'SI' : 'NO',
-      usuariosReceptores
-    )
-
-    tipo.activa = activa ? 'SI' : 'NO'
-    mostrarSnack(activa ? '✓ Notificación activada' : '✓ Notificación desactivada', 'success')
-  } catch (e) {
-    console.error('Error toggling notificación:', e)
-    mostrarSnack('Error al actualizar', 'error')
-  } finally {
-    guardandoTipo.value = null
+function onTipoActivoChange(valor) {
+  if (tipoActivo[valor] === 'NO') {
+    tipoUsuarios[valor] = []
   }
 }
 
-async function actualizarUsuariosReceptores(tipo, usuarios) {
-  guardandoTipo.value = tipo.valor
-  try {
-    tipo.usuarios_receptores = usuarios
-
-    await notificacionesService.actualizarPreferencia(
-      tipo.valor,
-      tipo.activa,
-      usuarios
-    )
-
-    mostrarSnack(`✓ ${usuarios.length} usuario${usuarios.length !== 1 ? 's' : ''} asignado${usuarios.length !== 1 ? 's' : ''}`, 'success')
-  } catch (e) {
-    console.error('Error actualizando usuarios:', e)
-    mostrarSnack('Error al actualizar usuarios', 'error')
-  } finally {
-    guardandoTipo.value = null
+function onUsuarioChange(tipoValor, usuarioCodigo, checked) {
+  if (!tipoUsuarios[tipoValor]) {
+    tipoUsuarios[tipoValor] = []
+  }
+  if (checked) {
+    if (!tipoUsuarios[tipoValor].includes(usuarioCodigo)) {
+      tipoUsuarios[tipoValor].push(usuarioCodigo)
+    }
+  } else {
+    tipoUsuarios[tipoValor] = tipoUsuarios[tipoValor].filter(c => c !== usuarioCodigo)
   }
 }
 
-function mostrarSnack(msg, color = 'success') {
-  snack.value = { show: true, msg, color }
+function selectAllUsuarios(tipoValor) {
+  tipoUsuarios[tipoValor] = usuarios.value.map(u => u.codigo)
 }
 
-onMounted(cargarDatos)
+function deselectAllUsuarios(tipoValor) {
+  tipoUsuarios[tipoValor] = []
+}
+
+async function guardarTodos() {
+  saving.value = true
+  saveOk.value = false
+  saveErr.value = ''
+
+  try {
+    const promises = tipos.value.map(tipo =>
+      api.put(`/preferencias-notificaciones/${tipo.valor}`, {
+        activa: tipoActivo[tipo.valor] || 'NO',
+        usuarios_receptores: tipoUsuarios[tipo.valor] || []
+      }, {
+        params: { empresa: empresa.value }
+      })
+    )
+
+    await Promise.all(promises)
+    saveOk.value = true
+    setTimeout(() => { saveOk.value = false }, 3000)
+  } catch (e) {
+    saveErr.value = e?.response?.data?.error || e.message
+  } finally {
+    saving.value = false
+  }
+}
+
+onMounted(() => {
+  if (empresa.value) cargarDatos()
+})
 </script>
 
 <style scoped>
-.notif-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+.notif-wrap { display: flex; flex-direction: column; gap: 20px; }
 
-.notif-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
-.bc-sep { color: rgba(var(--v-theme-on-surface),.3); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.bc-root { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; }
+.bc-cur  { font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 
-.notif-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.notif-header-left { display: flex; align-items: center; gap: 16px; }
-.notif-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#0891b2,#06b6d4); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(8,145,178,.35); flex-shrink: 0; }
-.notif-title { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
-.notif-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
-
-.notif-content { min-height: 400px; }
-.notif-loading { display: flex; justify-content: center; padding: 100px; }
-
-.preferencias-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+.notif-header { display: flex; align-items: center; gap: 16px; }
+.notif-header-icon {
+  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
+  background: linear-gradient(135deg,#06b6d4,#0891b2);
+  display: flex; align-items: center; justify-content: center;
 }
+.notif-title { font-size: 22px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); margin: 0; letter-spacing: 0.3px; }
+.notif-sub   { font-size: 13px; color: rgba(var(--v-theme-on-surface),0.45); margin: 2px 0 0; }
 
-.pref-card {
+.notif-card {
   background: rgb(var(--v-theme-surface));
-  border: 2px solid rgba(var(--v-theme-on-surface),.08);
-  border-radius: 12px;
+  border: 1px solid rgba(var(--v-theme-on-surface),0.07);
+  border-radius: 16px;
   padding: 20px;
-  transition: all .2s;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
-.pref-card.card-activo {
-  border-color: #0891b2;
-  background: rgba(8,145,178,.02);
+.notif-section-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.notif-section-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.notif-section-title {
+  font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
+  color: rgba(var(--v-theme-on-surface),0.6); text-transform: uppercase;
 }
 
-.pref-card:hover {
-  border-color: rgba(var(--v-theme-on-surface),.15);
-  box-shadow: 0 4px 12px rgba(0,0,0,.08);
-}
+.notif-loading { display: flex; align-items: center; gap: 10px; padding: 32px; font-size: 13px; color: rgba(var(--v-theme-on-surface),0.5); justify-content: center; }
 
-.card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
+.notif-empty { padding: 24px; text-align: center; color: rgba(var(--v-theme-on-surface),0.3); font-size: 13px; }
 
-.card-titulo {
-  font-size: 14px;
-  font-weight: 700;
-  margin: 0;
-  color: rgb(var(--v-theme-on-surface));
-}
+.notif-tipos-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
 
-.card-tipo {
-  font-size: 11px;
-  color: #0891b2;
-  margin: 2px 0 0 0;
-  font-family: monospace;
-  font-weight: 600;
-}
-
-.card-desc {
-  font-size: 12px;
-  color: rgba(var(--v-theme-on-surface),.6);
-  margin: 0;
-  line-height: 1.4;
-  flex: 1;
-}
-
-.card-toggle {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 8px;
-}
-
-.usuarios-section {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface),.1);
-}
-
-.usuarios-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .3px;
-  color: rgba(var(--v-theme-on-surface),.6);
-  margin-bottom: 8px;
-}
-
-.usuarios-aviso {
-  font-size: 12px;
-  color: #f59e0b;
-  margin: 8px 0 0 0;
-  padding: 8px;
-  background: rgba(245,158,11,.08);
-  border-radius: 4px;
-}
-
-.info-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+.notif-tipo-card {
+  border: 1px solid rgba(var(--v-theme-on-surface),0.08);
+  border-radius: 12px;
   padding: 16px;
-  background: rgba(8,145,178,.08);
-  border-left: 3px solid #0891b2;
-  border-radius: 8px;
-  font-size: 13px;
-  color: rgba(var(--v-theme-on-surface),.7);
-  line-height: 1.5;
+  transition: background 0.15s, border-color 0.15s;
+}
+.notif-tipo-card:hover { background: rgba(var(--v-theme-on-surface),0.02); border-color: rgba(var(--v-theme-on-surface),0.12); }
+
+.notif-tipo-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 
-.info-box strong {
-  color: #0891b2;
-  display: block;
-  margin-bottom: 4px;
+.notif-tipo-left {
+  display: flex; align-items: flex-start; gap: 12px; flex: 1;
 }
+
+.notif-tipo-info { flex: 1; }
+.notif-tipo-label {
+  font-size: 14px; font-weight: 700; color: rgb(var(--v-theme-on-surface));
+  margin: 0; letter-spacing: 0.2px;
+}
+.notif-tipo-desc {
+  font-size: 12px; color: rgba(var(--v-theme-on-surface),0.5);
+  margin: 4px 0 0;
+}
+
+.notif-usuarios-section {
+  margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface),0.08);
+}
+
+.notif-usuarios-label {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.8px;
+  color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase;
+  display: block; margin-bottom: 12px;
+}
+
+.notif-usuarios-empty { font-size: 12px; color: rgba(var(--v-theme-on-surface),0.3); padding: 8px; }
+
+.notif-usuarios-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px; margin-bottom: 12px;
+}
+
+.notif-usuario-check { padding: 4px; }
+
+.notif-usuarios-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+
+.notif-tipo-disabled {
+  font-size: 12px; color: rgba(var(--v-theme-on-surface),0.4);
+  padding: 8px; font-style: italic;
+}
+
+.notif-actions {
+  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+  padding-top: 20px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.07);
+}
+
+.notif-ok-msg  { font-size: 12px; font-weight: 600; color: #10b981; display: flex; align-items: center; gap: 4px; }
+.notif-err-msg { font-size: 12px; font-weight: 600; color: #ef4444; }
 </style>

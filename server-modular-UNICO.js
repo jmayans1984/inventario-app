@@ -7498,6 +7498,7 @@ pool.query(`
 
 // Insertar tipos de notificaciones por defecto
 const TIPOS_NOTIFICACIONES_DEFAULT = [
+    { valor: 'ORDEN_COMPRA', label: 'Órdenes de Compra', descripcion: 'Notificación cuando un cliente crea o edita una orden de compra', icon: 'mdi-clipboard-list' },
     { valor: 'stock_fuera', label: 'Stock Fuera (0 unidades)', descripcion: 'Alerta cuando un producto no tiene stock disponible', icon: 'mdi-alert-circle' },
     { valor: 'stock_bajo', label: 'Stock Bajo (bajo mínimo)', descripcion: 'Alerta cuando el stock está por debajo del mínimo', icon: 'mdi-alert' },
     { valor: 'alerta_general', label: 'Alertas Generales', descripcion: 'Alertas y cambios importantes del sistema', icon: 'mdi-bell' },
