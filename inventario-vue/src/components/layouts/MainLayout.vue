@@ -266,7 +266,7 @@ function rutaPermitida(path) {
 const modules = computed(() => {
   const tipo = authStore.empresaTipo
   return MODULES
-    .filter(mod => rutaPermitida(mod.path))
+    .filter(mod => rutaPermitida(mod.path) && (!mod.requiredTipo || mod.requiredTipo === tipo))
     .map(mod => ({
       ...mod,
       children: (mod.children || []).map(cat => ({
