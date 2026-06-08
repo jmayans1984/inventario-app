@@ -315,8 +315,8 @@ onMounted(() => {
 
   // Cargar notificaciones
   cargarNotificaciones()
-  // Refrescar cada 30 segundos
-  setInterval(cargarNotificaciones, 30000)
+  // Refrescar cada 60 segundos
+  setInterval(cargarNotificaciones, 60000)
 })
 
 // Notificaciones

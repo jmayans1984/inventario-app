@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-act_x2vg.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

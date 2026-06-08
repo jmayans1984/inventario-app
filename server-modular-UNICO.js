@@ -7157,10 +7157,26 @@ async function crearNotificacionOrdenCompra(codigoOrden, cliente, accion = 'crea
         const usuarios = JSON.parse(prefRes.rows[0].usuarios_receptores || '[]');
         if (usuarios.length === 0) return;
 
+        // Obtener detalles de la orden para fecha de entrega
+        const ordenRes = await pool.query(
+            `SELECT fecha_entrega FROM ordenes_compra WHERE codigo = $1`,
+            [codigoOrden]
+        );
+        const fechaEntrega = ordenRes.rows[0]?.fecha_entrega;
+
+        // Formatear fecha de entrega
+        let fechaFormato = '';
+        if (fechaEntrega) {
+            const fecha = new Date(fechaEntrega);
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const mes = meses[fecha.getMonth()];
+            const dia = fecha.getDate();
+            const año = fecha.getFullYear();
+            fechaFormato = `${mes} ${dia} de ${año}`;
+        }
+
         const titulo = accion === 'creada' ? 'Nueva Orden de Compra' : 'Orden de Compra Modificada';
-        const mensaje = accion === 'creada'
-            ? `Se ha creado una nueva orden de compra: ${codigoOrden}`
-            : `Se ha modificado la orden de compra: ${codigoOrden}`;
+        const mensaje = `Orden de Compra: ${codigoOrden}${fechaFormato ? `, Fecha de Entrega: ${fechaFormato}` : ''}`;
 
         // Crear notificación
         const notifResult = await pool.query(
@@ -7308,7 +7324,7 @@ app.get('/api/notificaciones', async (req, res) => {
              FROM notificaciones n
              LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
              WHERE n.fecha_creacion > NOW() - INTERVAL '30 days'
-               AND COALESCE(nu.leida, 'NO') != 'ELIMINADA'
+               AND (nu.leida IS NULL OR nu.leida != 'ELIMINADA')
              ORDER BY n.fecha_creacion DESC LIMIT 50`,
             [usuarioCod]
         );
