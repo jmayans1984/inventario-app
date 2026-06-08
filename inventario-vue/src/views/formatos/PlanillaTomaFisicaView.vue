@@ -100,6 +100,8 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const authStore = useAuthStore()
 const loading       = ref(false)
@@ -141,7 +143,113 @@ async function cargar() {
   }
 }
 
-function imprimir() { window.print() }
+function imprimir() {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+  const PW = doc.internal.pageSize.getWidth()
+  const ML = 8, MR = 8
+
+  // ── Encabezado ─────────────────────────────────────────────
+  function drawHeader() {
+    doc.setFontSize(13)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    doc.text(empresaNombre.value.toUpperCase(), ML, 12)
+
+    doc.setFontSize(7.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(80, 80, 80)
+    doc.text('PLANILLA DE TOMA FÍSICA DE INVENTARIO', ML, 17)
+
+    // FECHA: _________ (derecha)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    const fechaLabel = 'FECHA: '
+    const fechaX = PW - MR - 55
+    doc.text(fechaLabel, fechaX, 12)
+    doc.setFont('helvetica', 'normal')
+    doc.line(fechaX + doc.getTextWidth(fechaLabel), 12, PW - MR, 12)
+
+    // Línea separadora
+    doc.setLineWidth(0.5)
+    doc.line(ML, 20, PW - MR, 20)
+  }
+
+  drawHeader()
+
+  // ── Construir tabla ────────────────────────────────────────
+  const ccHeaders = centrosCosto.value.map(cc => cc.nombre)
+  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', 'ENTRADA', 'BAJA', ...ccHeaders]]
+
+  const body = []
+  for (const grupo of productosAgrupados.value) {
+    // Fila de grupo
+    body.push([{
+      content: `${grupo.nombre.toUpperCase()}   (${grupo.items.length} productos)`,
+      colSpan: 6 + centrosCosto.value.length,
+      styles: {
+        fontStyle: 'bold',
+        fontSize: 7,
+        fillColor: [30, 30, 30],
+        textColor: [255, 255, 255],
+        cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+      }
+    }])
+    // Filas de productos
+    for (const p of grupo.items) {
+      body.push([
+        p.codigo,
+        p.nombre,
+        p.descripcion || '',
+        p.und,
+        '', // ENTRADA
+        '', // BAJA
+        ...centrosCosto.value.map(() => '') // CC
+      ])
+    }
+  }
+
+  // Calcular ancho dinámico de columnas CC
+  const totalCcWidth = centrosCosto.value.length > 0 ? centrosCosto.value.length * 18 : 0
+  const colStyles = {
+    0: { cellWidth: 12, halign: 'center' },                          // CÓD
+    1: { cellWidth: 38 },                                             // NOMBRE
+    2: { cellWidth: 30, textColor: [80, 80, 80] },                   // DESCRIPCIÓN
+    3: { cellWidth: 10, halign: 'center' },                           // UND
+    4: { cellWidth: 16, halign: 'center' },                           // ENTRADA
+    5: { cellWidth: 14, halign: 'center' },                           // BAJA
+  }
+  // Añadir estilos para CCs
+  centrosCosto.value.forEach((_, i) => {
+    colStyles[6 + i] = { cellWidth: 18, halign: 'center' }
+  })
+
+  autoTable(doc, {
+    head,
+    body,
+    startY: 23,
+    margin: { left: ML, right: MR },
+    styles: {
+      fontSize: 7.5,
+      cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
+      lineColor: [180, 180, 180],
+      lineWidth: 0.2,
+      overflow: 'ellipsize',
+    },
+    headStyles: {
+      fillColor: [240, 240, 240],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      fontSize: 7,
+      halign: 'center',
+    },
+    alternateRowStyles: { fillColor: [252, 252, 252] },
+    columnStyles: colStyles,
+    rowPageBreak: 'avoid',
+  })
+
+  doc.save(`planilla-toma-fisica-${new Date().toISOString().slice(0,10)}.pdf`)
+}
 
 onMounted(cargar)
 </script>
@@ -236,35 +344,3 @@ onMounted(cargar)
 .col-cc   { width: 70px; }
 </style>
 
-<style>
-/* ── IMPRESIÓN ── */
-@media print {
-  /* Solo ocultar la barra y el drawer — no tocar el resto */
-  .v-app-bar,
-  .v-app-bar--fixed,
-  .v-navigation-drawer,
-  .v-toolbar,
-  .no-print { display: none !important; }
-
-  body, html { background: white !important; margin: 0; padding: 0; }
-  .v-application { background: white !important; }
-
-  /* Quitar el padding-top que deja Vuetify para la app-bar */
-  .v-main { padding-top: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
-  .v-main__wrap { padding: 0 !important; }
-
-  .ptf-container { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
-
-  .doc-wrapper {
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    padding: 8mm 10mm !important;
-  }
-
-  .doc-grupo { page-break-inside: avoid; }
-  .doc-grupo-header { background: #000 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .doc-tabla thead th { background: #e8e8e8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-  @page { size: letter portrait; margin: 8mm; }
-}
-</style>
