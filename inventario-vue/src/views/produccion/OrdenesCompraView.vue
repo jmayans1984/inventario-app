@@ -512,7 +512,7 @@
           <div class="modal-footer">
             <v-btn variant="text" @click="modalAjuste = false">Cancelar</v-btn>
             <v-btn color="#f59e0b" variant="flat" :loading="guardandoAjuste" @click="guardarAjuste">
-              Guardar Ajuste y Descargar Inventario
+              Guardar Ajuste
             </v-btn>
           </div>
         </v-card>

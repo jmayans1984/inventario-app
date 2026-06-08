@@ -3975,58 +3975,11 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
                 [fechaEntrega, observacionesLimpias, codigo]
             );
 
-            // Obtener bodega maestra de la empresa activa en el sistema
-            const empresaActiva = req.headers['x-empresa'] || String(orden.empresa);
-            const empresaRes = await client.query(
-                `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
-                [String(empresaActiva)]
-            );
-            const bodegaMaestra = empresaRes.rows[0]?.bodega_maestra || null;
-
-            const productosQuery = await client.query(
-                `SELECT producto_venta, cantidad
-                 FROM detalle_ordenes
-                 WHERE orden = $1`,
-                [codigo]
-            );
-
-            for (const producto of productosQuery.rows) {
-                // Descargar de detalle_inventario (bodega maestra)
-                if (bodegaMaestra) {
-                    await client.query(
-                        `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
-                         VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
-                        [
-                            fechaEntrega,
-                            bodegaMaestra,
-                            producto.producto_venta,
-                            producto.cantidad,
-                            String(orden.empresa),
-                            `SALIDA POR VENTA ${codigo}`
-                        ]
-                    );
-                }
-                // También registrar en detalle_inventario_venta
-                await client.query(
-                    `INSERT INTO detalle_inventario_venta
-                     (fecha, codigo, entrada, salida, tipo, referencia, observaciones)
-                     VALUES ($1, $2, 0, $3, $4, $5, $6)`,
-                    [
-                        fechaEntrega,
-                        producto.producto_venta,
-                        producto.cantidad,
-                        'SALIDA POR VENTA',
-                        codigo,
-                        `SALIDA POR VENTA ${codigo}`
-                    ]
-                );
-            }
-
             await client.query('COMMIT');
 
             res.json({
                 success: true,
-                message: 'Orden marcada como ENTREGADA e inventario descargado'
+                message: 'Orden marcada como ENTREGADA'
             });
             
         } else {
@@ -4541,7 +4494,7 @@ app.put('/api/ordenes-compra/:codigo/ajustar-entrega', async (req, res) => {
 
         const nuevoTotal = detalles.reduce((s, d) => s + (parseFloat(d.cantidad_entregada) * parseFloat(d.precio_unitario)), 0);
 
-        // 1. Actualizar cantidades en detalle_ordenes
+        // Actualizar cantidades en detalle_ordenes
         for (const d of detalles) {
             await client.query(
                 `UPDATE detalle_ordenes SET cantidad = $1, subtotal = $2 WHERE orden = $3 AND producto_venta = $4`,
@@ -4549,41 +4502,14 @@ app.put('/api/ordenes-compra/:codigo/ajustar-entrega', async (req, res) => {
             );
         }
 
-        // 2. Actualizar total de la orden y fecha_entrega
+        // Actualizar total de la orden y fecha_entrega
         await client.query(
             `UPDATE ordenes_compra SET total = $1, fecha_entrega = $2 WHERE codigo = $3`,
             [nuevoTotal, fecha_entrega, codigo]
         );
 
-        // 3. Obtener bodega maestra de la empresa activa
-        const empRes = await client.query(
-            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
-            [String(empresaActiva)]
-        );
-        const bodegaMaestra = empRes.rows[0]?.bodega_maestra;
-
-        // 4. Revertir descarga anterior de inventario para esta orden
-        if (bodegaMaestra) {
-            await client.query(
-                `DELETE FROM detalle_inventario WHERE observaciones = $1 AND ccosto = $2 AND tipo = 'SALIDA' AND empresa::text = $3`,
-                [`SALIDA POR VENTA ${codigo}`, bodegaMaestra, String(empresaActiva)]
-            );
-
-            // 5. Aplicar nueva descarga con cantidades reales entregadas
-            for (const d of detalles) {
-                const cantReal = parseFloat(d.cantidad_entregada) || 0;
-                if (cantReal > 0) {
-                    await client.query(
-                        `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
-                         VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
-                        [fecha_entrega, bodegaMaestra, d.producto_venta, cantReal, String(empresaActiva), `SALIDA POR VENTA ${codigo}`]
-                    );
-                }
-            }
-        }
-
         await client.query('COMMIT');
-        res.json({ success: true, message: 'Entrega ajustada y inventario actualizado' });
+        res.json({ success: true, message: 'Cantidades ajustadas correctamente' });
     } catch (e) {
         await client.query('ROLLBACK');
         console.error('Error ajustar-entrega:', e);
@@ -4844,6 +4770,27 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
             `UPDATE ordenes_compra SET estado = 'FACTURADA' WHERE codigo = $1`,
             [codigo]
         );
+
+        // 10. Descargar del inventario (bodega maestra) con las cantidades reales de la orden
+        const empresaActiva = req.headers['x-empresa'] || String(orden.empresa);
+        const empRes = await client.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
+            [String(empresaActiva)]
+        );
+        const bodegaMaestra = empRes.rows[0]?.bodega_maestra;
+        const fechaHoy = new Date().toISOString().split('T')[0];
+
+        if (bodegaMaestra) {
+            for (const det of detallesRes.rows) {
+                if (parseFloat(det.cantidad) > 0) {
+                    await client.query(
+                        `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                         VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
+                        [fechaHoy, bodegaMaestra, det.producto_venta, det.cantidad, String(empresaActiva), `SALIDA POR VENTA ${codigo}`]
+                    );
+                }
+            }
+        }
 
         await client.query('COMMIT');
 
