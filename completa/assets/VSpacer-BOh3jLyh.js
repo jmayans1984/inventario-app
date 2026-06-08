@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-BTmdMv_Z.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
