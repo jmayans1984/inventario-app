@@ -7113,6 +7113,9 @@ pool.query(`
     )
 `).catch(() => {});
 
+// Migración: eliminar FK constraint detalle_ordenes_producto_venta_fkey
+pool.query(`ALTER TABLE detalle_ordenes DROP CONSTRAINT IF EXISTS detalle_ordenes_producto_venta_fkey`).catch(() => {});
+
 // Migración: adaptar tabla preferencias_notificaciones al nuevo esquema empresa-based
 (async () => {
     try {
