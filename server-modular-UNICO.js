@@ -4342,11 +4342,14 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
                 d.subtotal,
                 d.empresa,
                 p.nombre as producto_nombre,
-                p.codigo as producto_codigo
+                p.codigo as producto_codigo,
+                p.grupo,
+                g.nombre AS grupo_nombre
             FROM detalle_ordenes d
             LEFT JOIN productos p ON d.producto_venta = p.codigo
+            LEFT JOIN grupo_productos g ON g.codigo = p.grupo
             WHERE d.orden = $1
-            ORDER BY d.id
+            ORDER BY g.nombre, p.nombre
         `;
 
         const ordenResult = await pool.query(ordenQuery, [codigo]);
@@ -4687,11 +4690,12 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
         // 3. Obtener detalles de la orden
         const detallesRes = await client.query(
             `SELECT d.producto_venta, d.cantidad, d.precio_unitario, d.subtotal,
-                    p.nombre as producto_nombre
+                    p.nombre as producto_nombre, p.grupo, g.nombre AS grupo_nombre
              FROM detalle_ordenes d
              LEFT JOIN productos p ON d.producto_venta = p.codigo
+             LEFT JOIN grupo_productos g ON g.codigo = p.grupo
              WHERE d.orden = $1
-             ORDER BY d.id`,
+             ORDER BY g.nombre, p.nombre`,
             [codigo]
         );
 

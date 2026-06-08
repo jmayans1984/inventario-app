@@ -257,49 +257,57 @@
     </v-dialog>
 
     <!-- ══ DIALOG DETALLE ORDEN ══ -->
-    <v-dialog v-model="dlgDetalle" max-width="700" scrollable>
-      <v-card rounded="xl" style="overflow:hidden">
+    <v-dialog v-model="dlgDetalle" max-width="900" scrollable>
+      <v-card rounded="xl" style="overflow:hidden;display:flex;flex-direction:column;max-height:88vh">
         <div class="det-header">
-          <div>
-            <div class="det-title">{{ ordenDetalle?.codigo }}</div>
-            <div class="det-sub">{{ fmtFecha(ordenDetalle?.fecha) }} · {{ ordenDetalle?.tipo_precio }}</div>
+          <div class="det-header-left">
+            <div class="det-icon"><v-icon size="20" color="white">mdi-clipboard-text-outline</v-icon></div>
+            <div>
+              <div class="det-title">{{ ordenDetalle?.codigo }}</div>
+              <div class="det-sub">{{ fmtFecha(ordenDetalle?.fecha) }} · {{ proveedor?.nombre }} · {{ ordenDetalle?.tipo_precio }}</div>
+            </div>
           </div>
-          <span :class="`estado-badge estado-${(ordenDetalle?.estado||'').toLowerCase()}`" style="font-size:12px">
-            {{ ordenDetalle?.estado }}
-          </span>
-          <v-btn icon="mdi-close" size="small" variant="text" @click="dlgDetalle=false" />
+          <span :class="`estado-badge estado-${(ordenDetalle?.estado||'').toLowerCase()}`">{{ ordenDetalle?.estado }}</span>
+          <div style="display:flex;gap:8px">
+            <v-btn icon="mdi-printer-outline" size="small" variant="text" color="white" @click="imprimirDetalle" title="Imprimir" />
+          </div>
         </div>
-        <v-card-text class="pa-4">
+        <v-card-text class="pa-4" style="flex:1;overflow-y:auto">
           <v-progress-linear v-if="loadingDetalle" indeterminate color="#10b981" height="3" class="mb-3" />
-          <table v-if="detalleLineas.length" class="det-table">
-            <thead>
-              <tr>
-                <th>PRODUCTO</th>
-                <th class="ta-r">CANT</th>
-                <th class="ta-r">PRECIO UNIT.</th>
-                <th class="ta-r">SUBTOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="d in detalleLineas" :key="d.codigo">
-                <td class="font-weight-medium">{{ d.producto_nombre || d.nombre_producto || d.producto_venta }}</td>
-                <td class="ta-r">{{ d.cantidad }}</td>
-                <td class="ta-r font-mono">{{ fmt(d.precio_unitario) }}</td>
-                <td class="ta-r font-mono text-success">{{ fmt(d.subtotal) }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="det-total">
-                <td colspan="3"><strong>TOTAL</strong></td>
-                <td class="ta-r font-mono"><strong>{{ fmt(ordenDetalle?.total) }}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-          <div v-if="ordenDetalle?.observaciones" class="det-obs mt-3">
+          <div v-if="detalleLineas.length">
+            <template v-for="(grupo, nombre) in detalleAgrupado" :key="nombre">
+              <div class="det-grupo-header">
+                <v-icon size="13" color="#10b981" class="mr-1">mdi-folder-outline</v-icon>
+                {{ nombre }}
+              </div>
+              <table class="det-table">
+                <tbody>
+                  <tr v-for="d in grupo" :key="d.id">
+                    <td class="font-weight-medium" style="width:50%">{{ d.producto_nombre || d.nombre_producto || d.producto_venta }}</td>
+                    <td class="ta-r" style="width:12%">{{ d.cantidad }}</td>
+                    <td class="ta-r font-mono" style="width:19%">{{ fmt(d.precio_unitario) }}</td>
+                    <td class="ta-r font-mono text-success" style="width:19%">{{ fmt(d.subtotal) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </template>
+            <div class="det-total-section">
+              <div class="det-total-row">
+                <span class="det-total-label">TOTAL</span>
+                <span class="det-total-value">{{ fmt(ordenDetalle?.total) }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-if="ordenDetalle?.observaciones" class="det-obs mt-4">
             <v-icon size="14" class="mr-1">mdi-note-outline</v-icon>
-            {{ ordenDetalle.observaciones }}
+            <strong>Observaciones:</strong> {{ ordenDetalle.observaciones }}
           </div>
         </v-card-text>
+        <div style="display:flex;justify-content:flex-end;padding:12px 16px;border-top:1px solid rgba(var(--v-theme-on-surface),.08);gap:8px">
+          <v-btn color="error" variant="flat" rounded="lg" @click="dlgDetalle=false">
+            <v-icon start size="15">mdi-close</v-icon>Cerrar
+          </v-btn>
+        </div>
       </v-card>
     </v-dialog>
 
@@ -616,6 +624,16 @@ const totalPedido = computed(() =>
   }, 0)
 )
 
+const detalleAgrupado = computed(() => {
+  const map = {}
+  detalleLineas.value.forEach(d => {
+    const grupo = d.grupo_nombre || 'SIN GRUPO'
+    if (!map[grupo]) map[grupo] = []
+    map[grupo].push(d)
+  })
+  return Object.fromEntries(Object.entries(map).sort(([a], [b]) => a.localeCompare(b, 'es')))
+})
+
 // ── Helpers ─────────────────────────────────────────────────
 function fmt(v) { return '$' + (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 function fmtFecha(s) {
@@ -880,6 +898,77 @@ async function verDetalle(o) {
   finally { loadingDetalle.value = false }
 }
 
+function imprimirDetalle() {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>${ordenDetalle.value.codigo}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .encabezado { margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .titulo { font-size: 24px; font-weight: bold; margin: 0; }
+        .subtitulo { font-size: 12px; color: #666; margin: 4px 0 0 0; }
+        .info-row { display: flex; gap: 30px; margin-top: 10px; font-size: 12px; }
+        .info-item { }
+        .info-label { font-weight: bold; }
+        .grupo { margin-top: 15px; margin-bottom: 10px; font-weight: bold; font-size: 12px; color: #059669; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th { text-align: left; border-bottom: 1px solid #ddd; padding: 8px; background: #f5f5f5; }
+        td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+        .ta-r { text-align: right; }
+        .total-row { margin-top: 15px; font-weight: bold; display: flex; justify-content: flex-end; gap: 100px; }
+        .obs { margin-top: 15px; font-size: 11px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="encabezado">
+        <div class="titulo">${ordenDetalle.value.codigo}</div>
+        <div class="subtitulo">ORDEN DE COMPRA</div>
+        <div class="info-row">
+          <div class="info-item"><span class="info-label">Proveedor:</span> ${proveedor.value?.nombre || 'N/A'}</div>
+          <div class="info-item"><span class="info-label">Fecha:</span> ${fmtFecha(ordenDetalle.value.fecha)}</div>
+          <div class="info-item"><span class="info-label">Entrega:</span> ${fmtFecha(ordenDetalle.value.fecha_entrega) || 'N/A'}</div>
+          <div class="info-item"><span class="info-label">Estado:</span> ${ordenDetalle.value.estado}</div>
+        </div>
+      </div>
+      ${Object.entries(detalleAgrupado.value).map(([grupo, items]) => `
+        <div class="grupo">${grupo}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>PRODUCTO</th>
+              <th class="ta-r" style="width:60px">CANT</th>
+              <th class="ta-r" style="width:80px">P.UNIT</th>
+              <th class="ta-r" style="width:80px">SUBTOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(d => `
+              <tr>
+                <td>${d.producto_nombre || d.nombre_producto || d.producto_venta}</td>
+                <td class="ta-r">${d.cantidad}</td>
+                <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
+                <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `).join('')}
+      <div class="total-row">
+        <span>TOTAL:</span>
+        <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
+      </div>
+      ${ordenDetalle.value.observaciones ? `<div class="obs"><strong>Observaciones:</strong> ${ordenDetalle.value.observaciones}</div>` : ''}
+    </body>
+    </html>
+  `
+  const ventana = window.open('', '_blank')
+  ventana.document.write(html)
+  ventana.document.close()
+}
+
 onMounted(cargar)
 </script>
 
@@ -1011,14 +1100,21 @@ onMounted(cargar)
 .soporte-fecha { font-size: 10px; color: rgba(var(--v-theme-on-surface),.4); }
 
 /* Dialog detalle */
-.det-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg,#065f46,#047857); }
-.det-title { font-size: 15px; font-weight: 700; color: white; }
-.det-sub { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 1px; }
-.det-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.det-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg,#065f46,#047857); flex-shrink: 0; }
+.det-header-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+.det-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.det-title { font-size: 16px; font-weight: 700; color: white; }
+.det-sub { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 2px; }
+.det-grupo-header { padding: 10px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #059669; display: flex; align-items: center; margin-top: 10px; border-top: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.det-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
 .det-table th { padding: 8px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); background: rgba(var(--v-theme-on-surface),.03); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
 .det-table th.ta-r { text-align: right; }
-.det-table td { padding: 9px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
-.det-total td { padding: 10px 12px; background: rgba(var(--v-theme-on-surface),.04); border-top: 2px solid rgba(var(--v-theme-on-surface),.12); font-size: 13px; }
+.det-table td { padding: 8px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
+.det-table tr:hover td { background: rgba(var(--v-theme-on-surface),.02); }
+.det-total-section { margin-top: 16px; padding-top: 12px; border-top: 2px solid rgba(var(--v-theme-on-surface),.12); }
+.det-total-row { display: flex; justify-content: space-between; padding: 12px 0; font-size: 13px; }
+.det-total-label { font-weight: 700; }
+.det-total-value { font-weight: 700; color: #10b981; font-family: monospace; font-size: 15px; }
 .det-obs { font-size: 12px; color: rgba(var(--v-theme-on-surface),.6); display: flex; align-items: flex-start; gap: 4px; padding: 10px 14px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 8px; }
 .font-weight-medium { font-weight: 500; }
 </style>
