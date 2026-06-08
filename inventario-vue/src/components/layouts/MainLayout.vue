@@ -277,7 +277,7 @@ const modules = computed(() => {
           // Verificar permisos de módulos
           rutaPermitida(item.path)
         ),
-      })).filter(cat => !cat.items || cat.items.length > 0),
+      })).filter(cat => cat.keepEmpty || !cat.items || cat.items.length > 0),
     }))
 })
 

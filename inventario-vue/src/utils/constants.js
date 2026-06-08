@@ -83,7 +83,7 @@ export const MODULES = [
     icon: 'mdi-warehouse',
     path: '/almacen',
     children: [
-      { name: 'Configuración', icon: 'mdi-cog-outline', items: [] },
+      { name: 'Configuración', icon: 'mdi-cog-outline', items: [], keepEmpty: true },
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },
         { name: 'Toma Física', icon: 'mdi-counter', path: '/almacen/procesos/toma-fisica' },
