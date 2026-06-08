@@ -538,9 +538,9 @@ async function guardar(mode = 'new') {
 .tf-kpi--warn .tf-kpi-val { color: #f59e0b; }
 .tf-kpi--ok   .tf-kpi-val { color: #10b981; }
 
-.tf-table-wrap { overflow-x: auto; max-height: 60vh; overflow-y: auto; }
+.tf-table-wrap { overflow-x: auto; }
 .tf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tf-table thead th { position: sticky; top: 0; z-index: 2; background: rgba(var(--v-theme-surface),1); padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); white-space: nowrap; }
+.tf-table thead th { background: rgba(var(--v-theme-surface),1); padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); white-space: nowrap; }
 .th-nom { width: 100%; }
 .th-num { text-align: right !important; }
 
