@@ -83,38 +83,6 @@
       <!-- REPORTE -->
       <div v-if="filas.length > 0" class="kx-reporte-card">
 
-        <!-- INFO DEL REPORTE -->
-        <div class="kx-reporte-header">
-          <div>
-            <span class="kx-reporte-label">Centro de Costo:</span>
-            <span class="kx-reporte-val">{{ nombreCcosto }}</span>
-          </div>
-          <div>
-            <span class="kx-reporte-label">Fecha:</span>
-            <span class="kx-reporte-val">{{ fechaFormateada }}</span>
-          </div>
-          <div>
-            <span class="kx-reporte-label">Productos con movimiento:</span>
-            <span class="kx-reporte-val">{{ filas.length }}</span>
-          </div>
-        </div>
-
-        <!-- KPI TOTALES -->
-        <div class="kx-kpis">
-          <div class="kx-kpi">
-            <span class="kx-kpi-lbl">Total Entradas</span>
-            <span class="kx-kpi-val kx-kpi--entrada">+{{ formatNum(totalEntradas) }}</span>
-          </div>
-          <div class="kx-kpi">
-            <span class="kx-kpi-lbl">Total Salidas</span>
-            <span class="kx-kpi-val kx-kpi--salida">-{{ formatNum(totalSalidas) }}</span>
-          </div>
-          <div class="kx-kpi">
-            <span class="kx-kpi-lbl">Total Ventas</span>
-            <span class="kx-kpi-val kx-kpi--venta">-{{ formatNum(totalVentas) }}</span>
-          </div>
-        </div>
-
         <!-- TABLA -->
         <div class="kx-table-wrap">
           <table class="kx-table" id="kx-tabla">
@@ -165,16 +133,6 @@
                 </tr>
               </template>
 
-              <!-- FILA TOTALES -->
-              <tr class="kx-total-row">
-                <td colspan="3"><strong>TOTALES</strong></td>
-                <td class="td-num"><strong>{{ formatNum(totalStockAnterior) }}</strong></td>
-                <td class="td-num num-entrada"><strong>+{{ formatNum(totalEntradas) }}</strong></td>
-                <td class="td-num num-salida"><strong>{{ formatNum(totalSalidas) }}</strong></td>
-                <td class="td-num num-venta"><strong>{{ formatNum(totalVentas) }}</strong></td>
-                <td class="td-num num-stock"><strong>{{ formatNum(totalStockFinal) }}</strong></td>
-                <td></td>
-              </tr>
             </tbody>
           </table>
         </div>
