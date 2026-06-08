@@ -297,6 +297,16 @@
         </v-card>
       </v-dialog>
 
+        <!-- Indicador de filtro activo -->
+        <div v-if="ccOrigen && filtroActivo" class="filtro-badge-wrap">
+          <span v-if="filtroActivo === 'bodega'" class="filtro-badge filtro-bodega">
+            🏭 Filtrando por: BODEGA MAESTRA (control=SI)
+          </span>
+          <span v-else class="filtro-badge filtro-pventa">
+            🏪 Filtrando por: PUNTO DE VENTA (visible_operacional=SI)
+          </span>
+        </div>
+
         <!-- Sin CC seleccionado -->
         <div v-if="!ccOrigen" class="gi-loading">
           <v-icon size="36" color="rgba(var(--v-theme-on-surface),.2)">mdi-store-search-outline</v-icon>
@@ -493,6 +503,8 @@ const ccostos          = ref([])
 const productos        = ref([])
 const loadingProductos = ref(false)
 const errorProductos   = ref('')
+const bodegaMaestraCC  = ref(null)   // código del CC configurado como bodega maestra
+const filtroActivo     = ref('')     // 'bodega' | 'punto_venta' | ''
 
 // ── Campos del formulario (ref individuales, más confiables) ──
 const fecha         = ref(new Date().toISOString().slice(0, 10))
@@ -599,20 +611,16 @@ async function cargarCcostos() {
 }
 
 async function cargarProductos() {
-  if (!ccOrigen.value) { productos.value = []; return }
+  if (!ccOrigen.value) { productos.value = []; filtroActivo.value = ''; return }
   loadingProductos.value = true
   errorProductos.value   = ''
   try {
-    // Obtener bodega maestra para saber qué filtro aplicar
-    const resBodega = await api.get('/empresas/bodega-maestra')
-    const bodegaMaestra = resBodega.data?.data?.bodega_maestra || null
-    const esBodegaMaestra = bodegaMaestra && (bodegaMaestra === ccOrigen.value)
-
-    // Cargar todos los productos (ya funciona correctamente)
     const res = await api.get('/almacen/productos')
     const todos = res.data?.data || []
 
-    // Filtrar en el frontend según el tipo de bodega
+    const esBodegaMaestra = bodegaMaestraCC.value && (bodegaMaestraCC.value === ccOrigen.value)
+    filtroActivo.value = esBodegaMaestra ? 'bodega' : 'punto_venta'
+
     if (esBodegaMaestra) {
       productos.value = todos.filter(p => p.control === 'SI')
     } else {
@@ -700,9 +708,15 @@ function resetTodo() {
   dlgExito.value      = false
 }
 
-onMounted(() => {
+onMounted(async () => {
   cargarCcostos()
-  // NO cargar productos hasta que el usuario seleccione un CC
+  // Cargar bodega maestra UNA SOLA VEZ al iniciar
+  try {
+    const res = await api.get('/empresas/bodega-maestra')
+    bodegaMaestraCC.value = res.data?.data?.bodega_maestra || null
+  } catch(e) {
+    console.error('Error cargando bodega maestra:', e)
+  }
 })
 
 // ── OCR ────────────────────────────────────────────────────────
@@ -904,6 +918,10 @@ function aplicarOcr() {
 .gi-grid-title  { font-size: 13px; font-weight: 700; display: flex; align-items: center; color: rgba(var(--v-theme-on-surface),.8); }
 .gi-grid-sub    { font-size: 12px; font-weight: 400; color: rgba(var(--v-theme-on-surface),.4); margin-left: 4px; }
 .gi-loading     { display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+.filtro-badge-wrap { padding: 8px 12px 0; }
+.filtro-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.filtro-bodega { background: rgba(16,185,129,.15); color: #10b981; }
+.filtro-pventa  { background: rgba(245,158,11,.15); color: #f59e0b; }
 
 /* Tabla */
 .gi-table  { width: 100%; border-collapse: collapse; font-size: 13px; }
