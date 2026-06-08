@@ -47,6 +47,10 @@ const routes = [
   { path: '/almacen/:section?/:item?', component: () => import('../views/AlmacenView.vue'), meta: { requiresAuth: true } },
 
   // PRODUCCIÓN ESPECÍFICAS (Solo para PROVEEDOR)
+  // Alias de Almacén → abren las mismas vistas pero bajo ruta /produccion para que el menú resalte Proveeduría
+  { path: '/produccion/configuracion/productos',         component: () => import('../views/almacen/ProductosView.vue'),           meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/produccion/configuracion/precios',           component: () => import('../views/almacen/PreciosProductosView.vue'),    meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/produccion/configuracion/control-stock',     component: () => import('../views/almacen/ControlStockView.vue'),        meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/produccion/configuracion/productos-venta',   component: () => import('../views/produccion/ProductosVentaView.vue'),   meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/produccion/configuracion/grupo-productos',   component: () => import('../views/produccion/GrupoProductosView.vue'),   meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/produccion/configuracion/lista-precios',     component: () => import('../views/produccion/ListaPreciosView.vue'),     meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
