@@ -671,7 +671,7 @@ async function cargarProductos() {
       return
     }
     const r = await api.get('/almacen/productos')
-    productos.value = r.data?.data || []
+    productos.value = (r.data?.data || []).filter(p => p.para_venta === 'SI')
   } catch (e) {
     console.error('Error cargando productos:', e)
     err('Error cargando productos')
