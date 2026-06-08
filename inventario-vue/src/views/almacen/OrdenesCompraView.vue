@@ -899,6 +899,8 @@ async function verDetalle(o) {
 }
 
 function imprimirDetalle() {
+  const fechaHoy = new Date().toLocaleDateString('es-CO')
+  const items = detalleLineas.value
   const html = `
     <!DOCTYPE html>
     <html>
@@ -906,61 +908,168 @@ function imprimirDetalle() {
       <meta charset="UTF-8">
       <title>${ordenDetalle.value.codigo}</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .encabezado { margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .titulo { font-size: 24px; font-weight: bold; margin: 0; }
-        .subtitulo { font-size: 12px; color: #666; margin: 4px 0 0 0; }
-        .info-row { display: flex; gap: 30px; margin-top: 10px; font-size: 12px; }
-        .info-item { }
-        .info-label { font-weight: bold; }
-        .grupo { margin-top: 15px; margin-bottom: 10px; font-weight: bold; font-size: 12px; color: #059669; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th { text-align: left; border-bottom: 1px solid #ddd; padding: 8px; background: #f5f5f5; }
-        td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; color: #000; background: #fff; }
+        .page { width: 8.5in; height: 11in; margin: 0 auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .logo { font-weight: bold; font-size: 20px; }
+        .titulo { text-align: right; }
+        .titulo-main { font-size: 18px; font-weight: bold; }
+        .titulo-sub { font-size: 12px; }
+        .fecha-oc { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .fecha-oc-item { display: flex; gap: 30px; }
+        .fecha-oc-row { display: flex; gap: 50px; }
+        .section-header { background: #000; color: #fff; padding: 6px 8px; font-weight: bold; font-size: 10px; margin-top: 12px; margin-bottom: 6px; }
+        .section-content { padding: 0 8px 10px 8px; border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; }
+        .section-content p { margin: 4px 0; font-size: 10px; }
+        .section-content span { display: block; margin: 2px 0; }
+        .table-container { margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        .table-head { background: #000; color: #fff; }
+        .table-head th { padding: 6px 4px; text-align: left; font-weight: bold; border: 1px solid #999; }
+        table td { padding: 4px; border: 1px solid #ccc; }
+        table tr:nth-child(even) { background: #f9f9f9; }
+        .ta-c { text-align: center; }
         .ta-r { text-align: right; }
-        .total-row { margin-top: 15px; font-weight: bold; display: flex; justify-content: flex-end; gap: 100px; }
-        .obs { margin-top: 15px; font-size: 11px; color: #666; }
+        .grupo-row { background: #f5f5f5; font-weight: bold; padding: 4px; }
+        .resumen { margin-top: 15px; width: 40%; margin-left: auto; }
+        .resumen-row { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #ddd; }
+        .resumen-row.total { border-bottom: 2px solid #000; font-weight: bold; background: #f5f5f5; }
+        .observaciones { margin-top: 15px; padding: 8px; border: 1px solid #ccc; font-size: 10px; }
+        .footer { margin-top: 20px; text-align: center; font-size: 9px; color: #666; }
       </style>
     </head>
     <body>
-      <div class="encabezado">
-        <div class="titulo">${ordenDetalle.value.codigo}</div>
-        <div class="subtitulo">ORDEN DE COMPRA</div>
-        <div class="info-row">
-          <div class="info-item"><span class="info-label">Proveedor:</span> ${proveedor.value?.nombre || 'N/A'}</div>
-          <div class="info-item"><span class="info-label">Fecha:</span> ${fmtFecha(ordenDetalle.value.fecha)}</div>
-          <div class="info-item"><span class="info-label">Entrega:</span> ${fmtFecha(ordenDetalle.value.fecha_entrega) || 'N/A'}</div>
-          <div class="info-item"><span class="info-label">Estado:</span> ${ordenDetalle.value.estado}</div>
+      <div class="page">
+        <!-- Header -->
+        <div class="header">
+          <div class="logo">[LOGO]</div>
+          <div class="titulo">
+            <div class="titulo-main">ORDEN DE COMPRA</div>
+            <div class="titulo-sub">
+              <table style="font-size:10px;border-collapse:collapse;width:100%;margin-top:4px">
+                <tr>
+                  <td style="border:1px solid #ccc;padding:2px;font-weight:bold;">FECHA</td>
+                  <td style="border:1px solid #ccc;padding:2px;width:40%">${fmtFecha(ordenDetalle.value.fecha)}</td>
+                  <td style="border:1px solid #ccc;padding:2px;font-weight:bold;">OC #</td>
+                  <td style="border:1px solid #ccc;padding:2px;width:40%">${ordenDetalle.value.codigo}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vendedor y Envía A -->
+        <div style="display:flex;gap:30px;margin-bottom:15px">
+          <div style="flex:1">
+            <div class="section-header">VENDEDOR</div>
+            <div class="section-content">
+              <p>${proveedor.value?.nombre || 'N/A'}</p>
+              <span>[Dirección]</span>
+              <span>[Ciudad, Estado, postal]</span>
+              <span>[Teléfono]</span>
+            </div>
+          </div>
+          <div style="flex:1">
+            <div class="section-header">ENVÍA A</div>
+            <div class="section-content">
+              <p>[Nombre]</p>
+              <span>[Dirección]</span>
+              <span>[Ciudad, Estado, postal]</span>
+              <span>[Teléfono]</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Condiciones -->
+        <div style="display:flex;gap:30px;margin-bottom:15px;font-size:10px">
+          <table style="flex:1">
+            <tr>
+              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">REQUISAR</td>
+              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">EMBARCAR VIA</td>
+              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">F.O.B.</td>
+              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">CONDICIONES DE ENVÍO</td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #ccc;padding:4px;height:30px"></td>
+              <td style="border:1px solid #ccc;padding:4px"></td>
+              <td style="border:1px solid #ccc;padding:4px"></td>
+              <td style="border:1px solid #ccc;padding:4px"></td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Tabla Artículos -->
+        <div class="table-container">
+          <table>
+            <thead class="table-head">
+              <tr>
+                <th style="width:5%">ARTICULO #</th>
+                <th style="width:40%">DESCRIPCIÓN</th>
+                <th style="width:12%">CANT</th>
+                <th style="width:12%">p/u</th>
+                <th style="width:15%">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(d => `
+                <tr>
+                  <td class="ta-c">${d.producto_venta}</td>
+                  <td>${d.producto_nombre || d.nombre_producto}</td>
+                  <td class="ta-c">${d.cantidad}</td>
+                  <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
+                  <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              ${Array(10 - items.length).fill().map(() => `
+                <tr>
+                  <td>&nbsp;</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Resumen -->
+        <div class="resumen">
+          <div class="resumen-row">
+            <span>SUBTOTAL</span>
+            <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
+          </div>
+          <div class="resumen-row">
+            <span>IMPUESTO</span>
+            <span>-</span>
+          </div>
+          <div class="resumen-row">
+            <span>ENVÍO</span>
+            <span>-</span>
+          </div>
+          <div class="resumen-row">
+            <span>OTRO</span>
+            <span>-</span>
+          </div>
+          <div class="resumen-row total">
+            <span>TOTAL</span>
+            <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
+          </div>
+        </div>
+
+        <!-- Observaciones -->
+        ${ordenDetalle.value.observaciones ? `
+          <div class="section-header" style="margin-top:12px">Comentarios o instrucciones especiales</div>
+          <div class="observaciones">
+            ${ordenDetalle.value.observaciones}
+          </div>
+        ` : ''}
+
+        <div class="footer">
+          Fecha de impresión: ${fechaHoy}
         </div>
       </div>
-      ${Object.entries(detalleAgrupado.value).map(([grupo, items]) => `
-        <div class="grupo">${grupo}</div>
-        <table>
-          <thead>
-            <tr>
-              <th>PRODUCTO</th>
-              <th class="ta-r" style="width:60px">CANT</th>
-              <th class="ta-r" style="width:80px">P.UNIT</th>
-              <th class="ta-r" style="width:80px">SUBTOTAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(d => `
-              <tr>
-                <td>${d.producto_nombre || d.nombre_producto || d.producto_venta}</td>
-                <td class="ta-r">${d.cantidad}</td>
-                <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
-                <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `).join('')}
-      <div class="total-row">
-        <span>TOTAL:</span>
-        <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
-      </div>
-      ${ordenDetalle.value.observaciones ? `<div class="obs"><strong>Observaciones:</strong> ${ordenDetalle.value.observaciones}</div>` : ''}
     </body>
     </html>
   `
