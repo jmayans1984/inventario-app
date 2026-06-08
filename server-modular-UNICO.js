@@ -325,54 +325,36 @@ app.get('/api/almacen/productos', async (req, res) => {
             }
         }
 
-        let query;
+        let query = `
+            SELECT p.codigo, p.nombre, p.und, p.grupo,
+                   g.nombre AS grupo_nombre, p.control, p.para_venta, p.visible_operacional,
+                   COALESCE(p.precio_costo, 0) AS precio_costo,
+                   COALESCE(p.precio_venta1, 0) AS precio_venta1,
+                   COALESCE(p.precio_venta2, 0) AS precio_venta2,
+                   COALESCE(p.precio_venta3, 0) AS precio_venta3,
+                   COALESCE(p.stock_minimo, 0) AS stock_minimo,
+                   p.descripcion
+            FROM productos p
+            LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+        `;
         const params = [];
         let whereClause = [];
 
         if (tipoEmpresa === 'CLIENTE') {
-            // Para CLIENTE: solo productos que existen en productos_venta (satisfacen el FK de detalle_ordenes)
-            query = `
-                SELECT pv.codigo, pv.nombre, pv.unidad AS und, pv.grupo,
-                       gpv.nombre AS grupo_nombre, 'SI' AS control, 'SI' AS para_venta, 'SI' AS visible_operacional,
-                       COALESCE(pv.precio_costo, 0) AS precio_costo,
-                       COALESCE(pv.precio_venta1, 0) AS precio_venta1,
-                       COALESCE(pv.precio_venta2, 0) AS precio_venta2,
-                       COALESCE(pv.precio_venta3, 0) AS precio_venta3,
-                       COALESCE(pv.stock_minimo, 0) AS stock_minimo,
-                       pv.descripcion
-                FROM productos_venta pv
-                LEFT JOIN grupo_productos_venta gpv ON gpv.codigo = pv.grupo
-            `;
-            whereClause.push(`COALESCE(pv.activo, 'SI') = 'SI'`);
-        } else {
-            query = `
-                SELECT p.codigo, p.nombre, p.und, p.grupo,
-                       g.nombre AS grupo_nombre, p.control, p.para_venta, p.visible_operacional,
-                       COALESCE(p.precio_costo, 0) AS precio_costo,
-                       COALESCE(p.precio_venta1, 0) AS precio_venta1,
-                       COALESCE(p.precio_venta2, 0) AS precio_venta2,
-                       COALESCE(p.precio_venta3, 0) AS precio_venta3,
-                       COALESCE(p.stock_minimo, 0) AS stock_minimo,
-                       p.descripcion
-                FROM productos p
-                LEFT JOIN grupo_productos g ON g.codigo = p.grupo
-            `;
+            whereClause.push(`p.para_venta = 'SI'`);
         }
 
         // Búsqueda
-        const alias = tipoEmpresa === 'CLIENTE' ? 'pv' : 'p';
         if (search) {
             params.push(`%${search.toUpperCase()}%`);
-            whereClause.push(`(UPPER(${alias}.nombre) LIKE $${params.length} OR ${alias}.codigo LIKE $${params.length})`);
+            whereClause.push(`(UPPER(p.nombre) LIKE $${params.length} OR p.codigo LIKE $${params.length})`);
         }
 
         if (whereClause.length > 0) {
             query += ` WHERE ` + whereClause.join(` AND `);
         }
 
-        query += tipoEmpresa === 'CLIENTE'
-            ? ` ORDER BY gpv.nombre NULLS LAST, pv.nombre`
-            : ` ORDER BY g.codigo NULLS LAST, p.nombre`;
+        query += ` ORDER BY g.codigo NULLS LAST, p.nombre`;
 
         const result = await pool.query(query, params);
         res.json({ success: true, data: result.rows });
@@ -4503,14 +4485,14 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
             for (const detalle of detalles) {
                 console.log(`Insertando detalle:`, detalle);
 
-                // Validar que el producto existe en productos_venta (tabla referenciada por FK)
+                // Validar que el producto existe en productos
                 const productoCheck = await client.query(
-                    `SELECT codigo FROM productos_venta WHERE codigo = $1`,
+                    `SELECT codigo FROM productos WHERE codigo = $1`,
                     [detalle.producto_venta]
                 );
 
                 if (productoCheck.rows.length === 0) {
-                    throw new Error(`Producto ${detalle.producto_venta} no existe en catálogo de venta`);
+                    throw new Error(`Producto ${detalle.producto_venta} no existe`);
                 }
 
                 const insertDetalleQuery = `
