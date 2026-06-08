@@ -4772,21 +4772,21 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
         );
 
         // 10. Descargar del inventario (bodega maestra) con las cantidades reales de la orden
-        const empresaActiva = req.headers['x-empresa'] || String(orden.empresa);
-        const empRes = await client.query(
+        const empresaActivaFact = req.headers['x-empresa'] || String(orden.empresa);
+        const empResFact = await client.query(
             `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
-            [String(empresaActiva)]
+            [String(empresaActivaFact)]
         );
-        const bodegaMaestra = empRes.rows[0]?.bodega_maestra;
-        const fechaHoy = new Date().toISOString().split('T')[0];
+        const bodegaMaestraFact = empResFact.rows[0]?.bodega_maestra;
+        const fechaDescarga = new Date().toISOString().split('T')[0];
 
-        if (bodegaMaestra) {
+        if (bodegaMaestraFact) {
             for (const det of detallesRes.rows) {
                 if (parseFloat(det.cantidad) > 0) {
                     await client.query(
                         `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
                          VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
-                        [fechaHoy, bodegaMaestra, det.producto_venta, det.cantidad, String(empresaActiva), `SALIDA POR VENTA ${codigo}`]
+                        [fechaDescarga, bodegaMaestraFact, det.producto_venta, det.cantidad, String(empresaActivaFact), `SALIDA POR VENTA ${codigo}`]
                     );
                 }
             }
