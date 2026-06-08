@@ -603,17 +603,21 @@ async function cargarProductos() {
   loadingProductos.value = true
   errorProductos.value   = ''
   try {
-    // 1. Obtener bodega maestra de la empresa activa
+    // Obtener bodega maestra para saber qué filtro aplicar
     const resBodega = await api.get('/empresas/bodega-maestra')
     const bodegaMaestra = resBodega.data?.data?.bodega_maestra || null
-    // 2. Determinar filtro: bodega → control='SI' | otro → visible_operacional='SI'
     const esBodegaMaestra = bodegaMaestra && (bodegaMaestra === ccOrigen.value)
-    const filtro = esBodegaMaestra ? 'bodega' : 'punto_venta'
 
-    const res = await api.get('/inventario', {
-      params: { ccosto: ccOrigen.value, filtro }
-    })
-    productos.value = res.data?.data || []
+    // Cargar todos los productos (ya funciona correctamente)
+    const res = await api.get('/almacen/productos')
+    const todos = res.data?.data || []
+
+    // Filtrar en el frontend según el tipo de bodega
+    if (esBodegaMaestra) {
+      productos.value = todos.filter(p => p.control === 'SI')
+    } else {
+      productos.value = todos.filter(p => p.visible_operacional === 'SI')
+    }
   } catch (e) {
     console.error('Error cargando productos:', e)
     errorProductos.value = e?.response?.data?.error || 'Error al cargar productos'
