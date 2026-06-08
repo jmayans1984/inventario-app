@@ -209,7 +209,7 @@
 
         <!-- Footer -->
         <div class="form-dlg-footer">
-          <v-btn variant="text" color="default" @click="dlgReceta=false">
+          <v-btn variant="flat" color="#ef4444" @click="dlgReceta=false">
             <v-icon start size="16">mdi-close</v-icon>Cancelar
           </v-btn>
           <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardando" @click="guardarReceta">
@@ -233,8 +233,10 @@
           <div class="ing-dlg-titles">
             <div class="ing-dlg-receta-nombre">{{ recetaActual?.nombre }}</div>
             <div class="ing-dlg-receta-meta">
-              Cód: <strong>{{ recetaActual?.codigo }}</strong>
-              <span v-if="recetaActual?.grupo_receta"> · {{ recetaActual.grupo_receta }}</span>
+              Código: <strong>{{ recetaActual?.codigo }}</strong>
+              <span v-if="recetaActual?.grupo_nombre || recetaActual?.grupo_receta">
+                · {{ recetaActual.grupo_nombre || recetaActual.grupo_receta }}
+              </span>
             </div>
           </div>
           <div class="ing-dlg-header-right">
@@ -242,9 +244,12 @@
               size="small" variant="tonal" label class="mr-2">
               {{ recetaActual?.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
             </v-chip>
-            <v-chip color="amber" size="small" variant="tonal" label>
+            <v-chip color="amber" size="small" variant="tonal" label class="mr-2">
               {{ ingredientes.length }} ingrediente{{ ingredientes.length !== 1 ? 's' : '' }}
             </v-chip>
+            <v-btn icon size="small" variant="text" color="white" title="Imprimir receta" @click="imprimirReceta">
+              <v-icon size="20">mdi-printer-outline</v-icon>
+            </v-btn>
           </div>
         </div>
 
@@ -391,7 +396,7 @@
 
         <!-- ── ACTIONS ── -->
         <div class="ing-dlg-footer">
-          <v-btn variant="text" @click="dlgIng=false" color="default">
+          <v-btn variant="flat" color="#ef4444" @click="dlgIng=false">
             <v-icon start>mdi-close</v-icon>Cancelar
           </v-btn>
           <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoIng" @click="guardarIngredientes" size="large">
@@ -493,6 +498,8 @@
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const recetas      = ref([])
 const articulos    = ref([])
@@ -788,6 +795,68 @@ function colorPct(pct) {
 function colorPctStr(pct) {
   const p = parseFloat(pct) || 0
   return p <= 30 ? '#22c55e' : p <= 45 ? '#f59e0b' : '#ef4444'
+}
+
+function imprimirReceta() {
+  const receta = recetaActual.value
+  if (!receta) return
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+  const PW = doc.internal.pageSize.getWidth()
+  const ML = 12, MR = 12
+
+  // ── Encabezado ──
+  doc.setFillColor(245, 158, 11)
+  doc.rect(0, 0, PW, 22, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(13)
+  doc.setFont('helvetica', 'bold')
+  doc.text(receta.nombre?.toUpperCase() || '', ML, 10)
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  const grupotxt = receta.grupo_nombre || receta.grupo_receta || ''
+  doc.text(`Código: ${receta.codigo}${grupotxt ? '  ·  ' + grupotxt : ''}  ·  ${receta.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA'}`, ML, 17)
+  doc.setTextColor(0, 0, 0)
+
+  // ── Tabla ingredientes ──
+  const body = ingredientes.value.map(ing => [
+    ing.nombre_item || ing.articulo_nombre || ing.articulo || '—',
+    ing.tipo === 'RECETA' ? 'Subreceta' : 'Artículo',
+    String(parseFloat(ing.cantidad) || 0),
+    ing.und || '',
+    fmt(ing.precio_unit),
+    fmt((parseFloat(ing.precio_unit) || 0) * (parseFloat(ing.cantidad) || 0))
+  ])
+
+  autoTable(doc, {
+    head: [['INGREDIENTE', 'TIPO', 'CANTIDAD', 'UND', 'VALOR UNIT.', 'SUBTOTAL']],
+    body,
+    startY: 27,
+    margin: { left: ML, right: MR },
+    styles: { fontSize: 8.5, cellPadding: 2.5 },
+    headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+    columnStyles: {
+      0: { cellWidth: 60 }, 1: { cellWidth: 22, halign: 'center' },
+      2: { cellWidth: 22, halign: 'center' }, 3: { cellWidth: 16, halign: 'center' },
+      4: { cellWidth: 28, halign: 'right' }, 5: { cellWidth: 28, halign: 'right' }
+    },
+    alternateRowStyles: { fillColor: [254, 252, 232] },
+  })
+
+  // ── Pie: costo total ──
+  const finalY = doc.lastAutoTable?.finalY || 100
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`COSTO TOTAL: ${fmt(costoTotal.value)}`, PW - MR, finalY + 8, { align: 'right' })
+  if (receta.precio_venta > 0) {
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Precio Venta: ${fmt(receta.precio_venta)}  |  Margen: ${fmt(receta.precio_venta - costoTotal.value)}  |  % Costo: ${pctCosto.value.toFixed(1)}%`,
+      PW - MR, finalY + 15, { align: 'right' })
+  }
+
+  const blob = doc.output('blob')
+  window.open(URL.createObjectURL(blob), '_blank')
 }
 
 onMounted(() => { cargarRecetas(); cargarArticulos() })
