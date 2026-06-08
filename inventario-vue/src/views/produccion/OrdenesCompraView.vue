@@ -148,15 +148,12 @@
                        :loading="entregando === oc.codigo"
                        @click="confirmarEntrega(oc)" />
                 <!-- Generar Factura (solo ENTREGADA) -->
-                <v-tooltip v-if="oc.estado === 'ENTREGADA'" :text="parseInt(oc.soportes_count) === 0 ? 'Debe tener al menos 1 soporte de entrega' : 'Generar Factura'" location="top">
+                <v-tooltip v-if="oc.estado === 'ENTREGADA'" text="Generar Factura" location="top">
                   <template #activator="{ props }">
-                    <span v-bind="props">
-                      <v-btn icon="mdi-receipt-text-plus-outline" size="x-small" variant="text"
-                             :color="parseInt(oc.soportes_count) > 0 ? '#16a34a' : 'rgba(var(--v-theme-on-surface),.25)'"
-                             :loading="facturando === oc.codigo"
-                             :disabled="parseInt(oc.soportes_count) === 0"
-                             @click="confirmarFactura(oc)" />
-                    </span>
+                    <v-btn v-bind="props" icon="mdi-receipt-text-plus-outline" size="x-small" variant="text"
+                           color="#16a34a"
+                           :loading="facturando === oc.codigo"
+                           @click="confirmarFactura(oc)" />
                   </template>
                 </v-tooltip>
               </td>
@@ -292,17 +289,14 @@
               Marcar Entregada
             </v-btn>
             <v-tooltip v-if="ocActual?.estado === 'ENTREGADA'"
-                       :text="parseInt(ocActual?.soportes_count) === 0 ? 'Debe tener al menos 1 soporte de entrega' : 'Generar Factura'"
+                       text="Generar Factura"
                        location="top">
               <template #activator="{ props }">
-                <span v-bind="props">
-                  <v-btn color="#16a34a" variant="flat"
-                         prepend-icon="mdi-receipt-text-plus-outline"
-                         :disabled="parseInt(ocActual?.soportes_count) === 0"
-                         @click="modalVer = false; confirmarFactura(ocActual)">
-                    Generar Factura
-                  </v-btn>
-                </span>
+                <v-btn v-bind="props" color="#16a34a" variant="flat"
+                       prepend-icon="mdi-receipt-text-plus-outline"
+                       @click="modalVer = false; confirmarFactura(ocActual)">
+                  Generar Factura
+                </v-btn>
               </template>
             </v-tooltip>
           </div>
