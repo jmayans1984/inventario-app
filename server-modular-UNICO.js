@@ -3942,20 +3942,20 @@ app.get('/api/ordenes-compra/:codigo/detalle', async (req, res) => {
 // PUT /api/ordenes-compra/:codigo/procesar-recepcion - Procesar recepción
 app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
     const { codigo } = req.params;
-    const { entrega_completa } = req.body;
-    
+    const { entrega_completa, fecha_entrega_real } = req.body;
+
     const client = await pool.connect();
-    
+
     try {
         await client.query('BEGIN');
-        
+
         const ordenQuery = await client.query(
             `SELECT oc.codigo, oc.estado, oc.observaciones, oc.dias_credito, oc.empresa
              FROM ordenes_compra oc
              WHERE oc.codigo = $1`,
             [codigo]
         );
-        
+
         if (ordenQuery.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({
@@ -3963,52 +3963,75 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
                 error: 'Orden de compra no encontrada'
             });
         }
-        
+
         const orden = ordenQuery.rows[0];
-        
+
         if (entrega_completa) {
-            const fechaHoy = new Date().toISOString().split('T')[0];
-            
+            const fechaEntrega = fecha_entrega_real || new Date().toISOString().split('T')[0];
+
             let observacionesLimpias = orden.observaciones || '';
             if (observacionesLimpias.startsWith('[ORDEN INCOMPLETA] ')) {
                 observacionesLimpias = observacionesLimpias.replace('[ORDEN INCOMPLETA] ', '');
             }
-            
+
             await client.query(
-                `UPDATE ordenes_compra 
+                `UPDATE ordenes_compra
                  SET estado = 'ENTREGADA',
                      fecha_entrega = $1,
                      fecha_vencimiento = $1::date + dias_credito,
                      observaciones = $2
                  WHERE codigo = $3`,
-                [fechaHoy, observacionesLimpias, codigo]
+                [fechaEntrega, observacionesLimpias, codigo]
             );
-            
+
+            // Obtener bodega maestra de la empresa proveedora
+            const empresaRes = await client.query(
+                `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
+                [String(orden.empresa)]
+            );
+            const bodegaMaestra = empresaRes.rows[0]?.bodega_maestra || null;
+
             const productosQuery = await client.query(
-                `SELECT producto_venta, cantidad 
-                 FROM detalle_ordenes 
+                `SELECT producto_venta, cantidad
+                 FROM detalle_ordenes
                  WHERE orden = $1`,
                 [codigo]
             );
-            
+
             for (const producto of productosQuery.rows) {
+                // Descargar de detalle_inventario (bodega maestra)
+                if (bodegaMaestra) {
+                    await client.query(
+                        `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                         VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
+                        [
+                            fechaEntrega,
+                            bodegaMaestra,
+                            producto.producto_venta,
+                            producto.cantidad,
+                            String(orden.empresa),
+                            `SALIDA POR VENTA ${codigo}`
+                        ]
+                    );
+                }
+                // También registrar en detalle_inventario_venta
                 await client.query(
-                    `INSERT INTO detalle_inventario_venta 
+                    `INSERT INTO detalle_inventario_venta
                      (fecha, codigo, entrada, salida, tipo, referencia, observaciones)
                      VALUES ($1, $2, 0, $3, $4, $5, $6)`,
                     [
-                        fechaHoy,
+                        fechaEntrega,
                         producto.producto_venta,
                         producto.cantidad,
                         'SALIDA POR VENTA',
                         codigo,
-                        'Entrega de orden de compra'
+                        `SALIDA POR VENTA ${codigo}`
                     ]
                 );
             }
-            
+
             await client.query('COMMIT');
-            
+
             res.json({
                 success: true,
                 message: 'Orden marcada como ENTREGADA e inventario descargado'

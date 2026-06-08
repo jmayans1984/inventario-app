@@ -394,7 +394,7 @@
       </v-dialog>
 
       <!-- ===== MODAL CONFIRMAR ENTREGA ===== -->
-      <v-dialog v-model="modalEntrega" max-width="420" persistent>
+      <v-dialog v-model="modalEntrega" max-width="440" persistent>
         <v-card class="modal-card">
           <div class="modal-header">
             <v-icon color="#f59e0b" class="mr-2">mdi-truck-delivery-outline</v-icon>
@@ -406,7 +406,11 @@
             <div class="confirm-msg">
               <p>¿Confirmas que la orden <strong>{{ ocActual?.codigo }}</strong> fue entregada completa al cliente
               <strong>{{ ocActual?.empresa_nombre || ocActual?.empresa }}</strong>?</p>
-              <p class="sub-note">El estado cambiará a <span class="chip-entregada">ENTREGADA</span> y podrás generar la factura.</p>
+              <p class="sub-note">El estado cambiará a <span class="chip-entregada">ENTREGADA</span> y se descargarán las cantidades del inventario.</p>
+            </div>
+            <div class="mt-4">
+              <div class="footer-field-label mb-1" style="font-size:11px;font-weight:700;text-transform:uppercase;color:rgba(var(--v-theme-on-surface),.5);letter-spacing:.5px">Fecha de Entrega <span style="color:#ef4444">*</span></div>
+              <v-text-field v-model="fechaEntregaReal" type="date" variant="outlined" density="compact" hide-details :error="!fechaEntregaReal && errEntrega !== ''" />
             </div>
             <div v-if="errEntrega" class="api-error mt-3">{{ errEntrega }}</div>
           </div>
@@ -703,18 +707,25 @@ async function guardarEditar() {
 }
 
 // ── Entregar ──────────────────────────────────────────────────────
+const fechaEntregaReal = ref('')
+
 function confirmarEntrega(oc) {
   ocActual.value = oc
   errEntrega.value = ''
+  fechaEntregaReal.value = new Date().toISOString().split('T')[0]
   modalEntrega.value = true
 }
 
 async function ejecutarEntrega() {
+  if (!fechaEntregaReal.value) { errEntrega.value = 'La fecha de entrega es obligatoria'; return }
   guardandoEntrega.value = true
   errEntrega.value = ''
   entregando.value = ocActual.value.codigo
   try {
-    await api.put(`/ordenes-compra/${ocActual.value.codigo}/procesar-recepcion`, { entrega_completa: true })
+    await api.put(`/ordenes-compra/${ocActual.value.codigo}/procesar-recepcion`, {
+      entrega_completa: true,
+      fecha_entrega_real: fechaEntregaReal.value
+    })
     const idx = ordenes.value.findIndex(o => o.codigo === ocActual.value.codigo)
     if (idx >= 0) ordenes.value[idx] = { ...ordenes.value[idx], estado: 'ENTREGADA' }
     modalEntrega.value = false
