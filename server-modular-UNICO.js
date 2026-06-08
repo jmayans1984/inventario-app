@@ -660,21 +660,14 @@ app.patch('/api/almacen/productos/:codigo/toggle-visible-operacional', async (re
 
 // GET /api/inventario - Obtener productos con control = SI y stock por ccosto y empresa
 app.get('/api/inventario', async (req, res) => {
-    const { ccosto } = req.query;
+    const { ccosto, filtro } = req.query;
     const empresa = req.query.empresa || req.headers['x-empresa'];
 
     try {
-        // Determinar filtro: bodega maestra (control='SI') o punto de venta (visible_operacional='SI')
-        let filtroProductos = `UPPER(p.control) = 'SI'`; // default
-        if (ccosto && empresa) {
-            const bodegaRes = await pool.query(
-                `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`, [String(empresa)]
-            );
-            const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra;
-            if (bodegaMaestra && bodegaMaestra !== ccosto) {
-                filtroProductos = `p.visible_operacional = 'SI'`;
-            }
-        }
+        // filtro='bodega' → control='SI' | filtro='punto_venta' → visible_operacional='SI'
+        const filtroProductos = filtro === 'punto_venta'
+            ? `p.visible_operacional = 'SI'`
+            : `UPPER(p.control) = 'SI'`;
 
         let query = `
             SELECT

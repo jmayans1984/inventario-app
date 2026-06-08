@@ -599,19 +599,19 @@ async function cargarCcostos() {
 }
 
 async function cargarProductos() {
-  // No cargar si no hay CC seleccionado
-  if (!ccOrigen.value) {
-    productos.value = []
-    return
-  }
+  if (!ccOrigen.value) { productos.value = []; return }
   loadingProductos.value = true
   errorProductos.value   = ''
   try {
-    // Usar /api/inventario con ccosto + empresa para aplicar
-    // la lógica de Bodega Maestra (control=SI) vs Punto de Venta (visible_operacional=SI)
-    // empresa viene automáticamente en el header x-empresa por el interceptor de axios
+    // 1. Obtener bodega maestra de la empresa activa
+    const resBodega = await api.get('/empresas/bodega-maestra')
+    const bodegaMaestra = resBodega.data?.data?.bodega_maestra || null
+    // 2. Determinar filtro: bodega → control='SI' | otro → visible_operacional='SI'
+    const esBodegaMaestra = bodegaMaestra && (bodegaMaestra === ccOrigen.value)
+    const filtro = esBodegaMaestra ? 'bodega' : 'punto_venta'
+
     const res = await api.get('/inventario', {
-      params: { ccosto: ccOrigen.value, empresa: empresa.value || undefined }
+      params: { ccosto: ccOrigen.value, filtro }
     })
     productos.value = res.data?.data || []
   } catch (e) {
