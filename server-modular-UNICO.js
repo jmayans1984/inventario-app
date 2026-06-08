@@ -4341,10 +4341,10 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
                 d.precio_unitario,
                 d.subtotal,
                 d.empresa,
-                pv.nombre as producto_nombre,
-                pv.codigo as producto_codigo
+                p.nombre as producto_nombre,
+                p.codigo as producto_codigo
             FROM detalle_ordenes d
-            LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
+            LEFT JOIN productos p ON d.producto_venta = p.codigo
             WHERE d.orden = $1
             ORDER BY d.id
         `;
@@ -4448,14 +4448,14 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
             for (const detalle of detalles) {
                 console.log(`Insertando detalle:`, detalle);
 
-                // Validar que el producto existe en productos_venta
+                // Validar que el producto existe en productos
                 const productoCheck = await client.query(
-                    `SELECT codigo FROM productos_venta WHERE codigo = $1`,
+                    `SELECT codigo FROM productos WHERE codigo = $1`,
                     [detalle.producto_venta]
                 );
 
                 if (productoCheck.rows.length === 0) {
-                    throw new Error(`Producto ${detalle.producto_venta} no existe en productos_venta`);
+                    throw new Error(`Producto ${detalle.producto_venta} no existe`);
                 }
 
                 const insertDetalleQuery = `
@@ -4687,9 +4687,9 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
         // 3. Obtener detalles de la orden
         const detallesRes = await client.query(
             `SELECT d.producto_venta, d.cantidad, d.precio_unitario, d.subtotal,
-                    pv.nombre as producto_nombre
+                    p.nombre as producto_nombre
              FROM detalle_ordenes d
-             LEFT JOIN productos_venta pv ON d.producto_venta = pv.codigo
+             LEFT JOIN productos p ON d.producto_venta = p.codigo
              WHERE d.orden = $1
              ORDER BY d.id`,
             [codigo]
