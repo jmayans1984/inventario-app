@@ -736,14 +736,18 @@ function agregarIngrediente() {
   if (tipoIngredienteNuevo.value === 'ARTICULO') {
     item = articuloSeleccionado.value
     if (!item) { err('Selecciona un artículo de la lista'); return }
-    tipo = 'ARTICULO'
+
+    // Si el artículo existe también como subproducto en recetas, guardarlo como RECETA
+    // para que el cálculo de costos sea siempre recursivo y actualizado
+    const esSubprod = subrecetas.value.some(r => r.codigo === item.codigo)
+    tipo = esSubprod ? 'RECETA' : 'ARTICULO'
   } else {
     item = recetaSeleccionada.value
     if (!item) { err('Selecciona una subreceta de la lista'); return }
     tipo = 'RECETA'
   }
 
-  if (ingredientes.value.find(i => i.articulo === item.codigo && i.tipo === tipo)) {
+  if (ingredientes.value.find(i => i.articulo === item.codigo)) {
     err('Este ingrediente ya está en la receta'); return
   }
 
