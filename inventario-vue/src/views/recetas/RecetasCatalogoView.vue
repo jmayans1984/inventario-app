@@ -329,16 +329,17 @@
           <div class="ing-tbl-row" :class="{ 'ing-tbl-row--sub': ing.tipo === 'RECETA', 'ing-tbl-row--alt': idx % 2 === 1 }">
 
             <div class="col-nombre ing-item-nombre">
-              <!-- Botón expandir para subproductos -->
-              <v-btn v-if="ing.tipo === 'RECETA'" icon size="x-small" variant="text"
-                :color="subprodExpandido[idx] ? '#8b5cf6' : 'rgba(139,92,246,0.5)'"
-                :title="subprodExpandido[idx] ? 'Colapsar ingredientes' : 'Ver ingredientes del subproducto'"
-                @click="toggleSubprod(ing, idx)" style="margin-right:2px">
-                <v-icon size="14">{{ subprodExpandido[idx] ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-              </v-btn>
+              <!-- Icono tipo — alineado igual para todos -->
               <v-icon v-if="ing.tipo === 'RECETA'" size="13" color="#8b5cf6">mdi-link-variant</v-icon>
               <v-icon v-else size="13" color="#14b8a6">mdi-food-apple-outline</v-icon>
               <span>{{ ing.nombre_item || ing.articulo_nombre || ing.articulo }}</span>
+              <!-- Botón expandir: al final del nombre, flotante -->
+              <v-btn v-if="ing.tipo === 'RECETA'" icon size="x-small" variant="text"
+                :color="subprodExpandido[idx] ? '#8b5cf6' : 'rgba(139,92,246,0.35)'"
+                :title="subprodExpandido[idx] ? 'Colapsar ingredientes' : 'Ver ingredientes del subproducto'"
+                @click="toggleSubprod(ing, idx)" class="expand-btn">
+                <v-icon size="13">{{ subprodExpandido[idx] ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+              </v-btn>
             </div>
 
             <div class="col-tipo">
@@ -373,17 +374,31 @@
               <span>Cargando ingredientes...</span>
             </div>
             <template v-else-if="subprodIngredientes[idx]?.length">
-              <div class="subprod-title">
+              <div class="subprod-header-title">
                 <v-icon size="12" color="#8b5cf6">mdi-link-variant</v-icon>
-                Ingredientes de {{ ing.nombre_item }} (x{{ ing.cantidad }})
+                INGREDIENTES DE {{ ing.nombre_item?.toUpperCase() }} (x{{ ing.cantidad }})
               </div>
-              <div v-for="sub in subprodIngredientes[idx]" :key="sub.articulo" class="subprod-row">
-                <v-icon size="11" :color="sub.tipo === 'RECETA' ? '#8b5cf6' : '#14b8a6'">
-                  {{ sub.tipo === 'RECETA' ? 'mdi-link-variant' : 'mdi-food-apple-outline' }}
-                </v-icon>
-                <span class="subprod-nombre">{{ sub.nombre_item || sub.articulo }}</span>
-                <span class="subprod-cant">{{ parseFloat(sub.cantidad) * parseFloat(ing.cantidad) }} {{ sub.und }}</span>
-                <span class="subprod-val">{{ fmt((parseFloat(sub.precio_unit)||0) * parseFloat(sub.cantidad) * parseFloat(ing.cantidad)) }}</span>
+              <!-- Encabezados del mini-grid -->
+              <div class="subprod-grid-head">
+                <span class="sg-cod">CÓD.</span>
+                <span class="sg-nom">ARTÍCULO</span>
+                <span class="sg-cant">CANT.</span>
+                <span class="sg-und">UND.</span>
+                <span class="sg-vunit">VR. UNIT.</span>
+                <span class="sg-sub">SUBTOTAL</span>
+              </div>
+              <div v-for="sub in subprodIngredientes[idx]" :key="sub.articulo" class="subprod-grid-row">
+                <span class="sg-cod">
+                  <v-icon size="10" :color="sub.tipo === 'RECETA' ? '#8b5cf6' : '#14b8a6'">
+                    {{ sub.tipo === 'RECETA' ? 'mdi-link-variant' : 'mdi-food-apple-outline' }}
+                  </v-icon>
+                  {{ sub.articulo }}
+                </span>
+                <span class="sg-nom">{{ sub.nombre_item || sub.articulo }}</span>
+                <span class="sg-cant">{{ Number((parseFloat(sub.cantidad) * parseFloat(ing.cantidad)).toFixed(4)) }}</span>
+                <span class="sg-und">{{ sub.und || '—' }}</span>
+                <span class="sg-vunit">{{ fmt(parseFloat(sub.precio_unit) || 0) }}</span>
+                <span class="sg-sub">{{ fmt((parseFloat(sub.precio_unit)||0) * parseFloat(sub.cantidad) * parseFloat(ing.cantidad)) }}</span>
               </div>
             </template>
             <div v-else class="subprod-loading">Sin ingredientes registrados</div>
@@ -1109,37 +1124,67 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .ing-tbl-row--sub { background: rgba(139,92,246,.04); }
 .ing-tbl-row--sub:hover { background: rgba(139,92,246,.08); }
 
+/* Botón expandir dentro del nombre, flotante a la derecha */
+.ing-item-nombre { position: relative; }
+.expand-btn { margin-left: auto; flex-shrink: 0; opacity: .7; }
+.expand-btn:hover { opacity: 1; }
+
 /* Panel de ingredientes del subproducto */
 .subprod-expand {
-  background: rgba(139,92,246,.06);
+  background: rgba(139,92,246,.05);
   border-left: 3px solid #8b5cf6;
   margin: 0 0 1px 0;
-  padding: 8px 12px 8px 24px;
+  padding: 6px 12px 8px 16px;
 }
-.subprod-title {
-  font-size: 10.5px;
+.subprod-header-title {
+  font-size: 9px;
   font-weight: 700;
   color: #8b5cf6;
   text-transform: uppercase;
-  letter-spacing: .4px;
-  margin-bottom: 6px;
+  letter-spacing: .6px;
+  margin-bottom: 5px;
   display: flex;
   align-items: center;
   gap: 4px;
 }
-.subprod-row {
+
+/* Mini-grid encabezado */
+.subprod-grid-head {
   display: grid;
-  grid-template-columns: 16px 1fr 100px 90px;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 0;
-  font-size: 11.5px;
-  border-bottom: 1px solid rgba(139,92,246,.1);
+  grid-template-columns: 70px 1fr 60px 45px 80px 80px;
+  gap: 4px;
+  padding: 3px 4px;
+  background: rgba(139,92,246,.12);
+  border-radius: 4px 4px 0 0;
+  margin-bottom: 0;
 }
-.subprod-row:last-child { border-bottom: none; }
-.subprod-nombre { color: rgba(var(--v-theme-on-surface),.8); }
-.subprod-cant { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; }
-.subprod-val { font-size: 11px; font-family: monospace; color: #f59e0b; text-align: right; }
+.subprod-grid-head span {
+  font-size: 8.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #8b5cf6;
+}
+
+/* Mini-grid filas */
+.subprod-grid-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 60px 45px 80px 80px;
+  gap: 4px;
+  padding: 3.5px 4px;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(139,92,246,.08);
+  align-items: center;
+}
+.subprod-grid-row:last-child { border-bottom: none; }
+
+.sg-cod { color: rgba(var(--v-theme-on-surface),.4); font-size: 10px; display: flex; align-items: center; gap: 2px; }
+.sg-nom { color: rgba(var(--v-theme-on-surface),.8); }
+.sg-cant { text-align: center; color: rgba(var(--v-theme-on-surface),.7); }
+.sg-und  { text-align: center; color: rgba(var(--v-theme-on-surface),.5); font-size: 10px; }
+.sg-vunit { text-align: right; font-family: monospace; color: rgba(var(--v-theme-on-surface),.6); }
+.sg-sub  { text-align: right; font-family: monospace; color: #f59e0b; font-weight: 600; }
+
 .subprod-loading {
   display: flex;
   align-items: center;
