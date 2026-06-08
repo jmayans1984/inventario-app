@@ -50,14 +50,22 @@
 
       <!-- HISTORIAL -->
       <div class="oc-table-card">
+        <div class="oc-filter-bar">
+          <span class="oc-filter-label">Filtrar por estado:</span>
+          <div class="oc-estado-chips">
+            <button v-for="est in estadoOpciones" :key="est.val"
+              :class="['estado-chip', `estado-chip--${est.val.toLowerCase()}`, { active: filtroEstados.includes(est.val) }]"
+              @click="toggleEstado(est.val)">
+              {{ est.label }}
+            </button>
+          </div>
+        </div>
+
         <v-progress-linear v-if="loading" indeterminate color="#10b981" height="3" />
 
-        <div v-if="!loading && ordenes.length === 0" class="oc-empty">
+        <div v-if="!loading && ordenesFiltradas.length === 0" class="oc-empty">
           <v-icon size="48" color="rgba(var(--v-theme-on-surface),.12)" class="mb-2">mdi-clipboard-text-off-outline</v-icon>
-          <div>Aún no tienes órdenes de compra</div>
-          <div class="text-caption mt-1" style="color:rgba(var(--v-theme-on-surface),.35)">
-            Haz clic en "Nueva Orden" para hacer tu primer pedido
-          </div>
+          <div>No hay órdenes con los filtros seleccionados</div>
         </div>
 
         <table v-else class="oc-table">
@@ -74,7 +82,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="o in ordenes" :key="o.codigo" class="oc-row">
+            <tr v-for="o in ordenesFiltradas" :key="o.codigo" class="oc-row">
               <td><span class="cod-badge">{{ o.codigo }}</span></td>
               <td class="dim-text">{{ fmtFecha(o.fecha) }}</td>
               <td class="dim-text">{{ o.fecha_entrega ? fmtFecha(o.fecha_entrega) : '—' }}</td>
@@ -557,6 +565,26 @@ const empresaProveedor = ref({})
 const empresaCliente = ref({})
 
 // ── Computed ────────────────────────────────────────────────
+const estadoOpciones = [
+  { val: 'PENDIENTE',  label: 'Pendiente' },
+  { val: 'ENTREGADA',  label: 'Entregada' },
+  { val: 'FACTURADA',  label: 'Facturada' },
+  { val: 'ANULADA',    label: 'Anulada' },
+]
+const filtroEstados = ref(['PENDIENTE', 'ENTREGADA'])
+
+function toggleEstado(val) {
+  const i = filtroEstados.value.indexOf(val)
+  if (i >= 0) filtroEstados.value.splice(i, 1)
+  else filtroEstados.value.push(val)
+}
+
+const ordenesFiltradas = computed(() =>
+  filtroEstados.value.length === 0
+    ? ordenes.value
+    : ordenes.value.filter(o => filtroEstados.value.includes(o.estado))
+)
+
 const totalPendiente = computed(() =>
   ordenes.value.filter(o => o.estado === 'PENDIENTE').reduce((s, o) => s + parseFloat(o.total || 0), 0)
 )
@@ -1143,6 +1171,16 @@ onMounted(cargar)
 .oc-kpi { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 12px; border-left: 3px solid var(--kc); }
 .kpi-val { font-size: 18px; font-weight: 800; }
 .kpi-lbl { font-size: 9px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.4); margin-top: 2px; }
+
+/* Filter bar */
+.oc-filter-bar { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid rgba(var(--v-theme-on-surface),.06); flex-wrap:wrap; }
+.oc-filter-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:rgba(var(--v-theme-on-surface),.4); white-space:nowrap; }
+.oc-estado-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.estado-chip { padding:3px 12px; border-radius:20px; font-size:11px; font-weight:700; cursor:pointer; border:1.5px solid transparent; transition:all .15s; background:rgba(var(--v-theme-on-surface),.05); color:rgba(var(--v-theme-on-surface),.4); }
+.estado-chip--pendiente.active  { background:rgba(245,158,11,.12);  color:#b45309; border-color:#f59e0b; }
+.estado-chip--entregada.active  { background:rgba(59,130,246,.12);  color:#1d4ed8; border-color:#3b82f6; }
+.estado-chip--facturada.active  { background:rgba(34,197,94,.12);   color:#15803d; border-color:#22c55e; }
+.estado-chip--anulada.active    { background:rgba(239,68,68,.12);   color:#b91c1c; border-color:#ef4444; }
 
 /* Tabla historial */
 .oc-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 14px; overflow-x: auto; }

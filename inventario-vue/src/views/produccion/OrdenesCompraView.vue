@@ -67,14 +67,15 @@
         </div>
       </div>
 
-      <!-- TABS DE ESTADO -->
+      <!-- FILTRO DE ESTADO (multi-select) -->
       <div class="tabs-row">
+        <span class="filter-label">Filtrar por estado:</span>
         <button
           v-for="tab in tabs"
           :key="tab.val"
           class="tab-btn"
-          :class="{ active: filtroEstado === tab.val }"
-          @click="filtroEstado = tab.val"
+          :class="['tab-btn--' + tab.val.toLowerCase(), { active: filtroEstados.includes(tab.val) }]"
+          @click="toggleEstadoProv(tab.val)"
         >
           {{ tab.label }}
           <span class="tab-count">{{ contarEstado(tab.val) }}</span>
@@ -511,7 +512,6 @@ import api from '../../services/api'
 const ordenes        = ref([])
 const loading        = ref(false)
 const busqueda       = ref('')
-const filtroEstado   = ref('TODAS')
 
 // Detalle modal
 const modalVer        = ref(false)
@@ -547,17 +547,24 @@ const facturaGenerada = ref('')
 
 // ── Tabs ──────────────────────────────────────────────────────────
 const tabs = [
-  { val: 'TODAS',     label: 'Todas' },
   { val: 'PENDIENTE', label: 'Pendientes' },
   { val: 'ENTREGADA', label: 'Entregadas' },
   { val: 'FACTURADA', label: 'Facturadas' },
+  { val: 'ANULADA',   label: 'Anuladas' },
 ]
+const filtroEstados = ref(['PENDIENTE', 'ENTREGADA'])
+
+function toggleEstadoProv(val) {
+  const i = filtroEstados.value.indexOf(val)
+  if (i >= 0) filtroEstados.value.splice(i, 1)
+  else filtroEstados.value.push(val)
+}
 
 // ── Computeds ─────────────────────────────────────────────────────
 const filasFiltradas = computed(() => {
   const q = busqueda.value.toLowerCase()
   return ordenes.value.filter(oc => {
-    const matchEstado = filtroEstado.value === 'TODAS' || oc.estado === filtroEstado.value
+    const matchEstado = filtroEstados.value.length === 0 || filtroEstados.value.includes(oc.estado)
     const matchQ = !q ||
       oc.codigo.toLowerCase().includes(q) ||
       (oc.empresa_nombre || '').toLowerCase().includes(q) ||
@@ -789,12 +796,16 @@ onMounted(cargar)
 .kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); font-weight: 500; margin-top: 2px; }
 
 /* Tabs */
-.tabs-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-.tab-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 20px; border: 1px solid rgba(var(--v-theme-on-surface),.12); background: transparent; cursor: pointer; font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.6); transition: all .15s; }
-.tab-btn:hover { background: rgba(var(--v-theme-on-surface),.04); }
-.tab-btn.active { background: #06b6d4; border-color: #06b6d4; color: #fff; }
+.tabs-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:rgba(var(--v-theme-on-surface),.4); white-space:nowrap; margin-right:4px; }
+.tab-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; border: 1.5px solid rgba(var(--v-theme-on-surface),.12); background: rgba(var(--v-theme-on-surface),.04); cursor: pointer; font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.45); transition: all .15s; }
+.tab-btn:hover { background: rgba(var(--v-theme-on-surface),.08); }
+.tab-btn--pendiente.active  { background: rgba(245,158,11,.12);  border-color: #f59e0b; color: #b45309; }
+.tab-btn--entregada.active  { background: rgba(59,130,246,.12);  border-color: #3b82f6; color: #1d4ed8; }
+.tab-btn--facturada.active  { background: rgba(34,197,94,.12);   border-color: #22c55e; color: #15803d; }
+.tab-btn--anulada.active    { background: rgba(239,68,68,.12);   border-color: #ef4444; color: #b91c1c; }
 .tab-count { background: rgba(var(--v-theme-on-surface),.12); border-radius: 10px; padding: 1px 7px; font-size: 10px; }
-.tab-btn.active .tab-count { background: rgba(255,255,255,.25); }
+.tab-btn.active .tab-count { background: rgba(0,0,0,.1); }
 
 /* Toolbar */
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
