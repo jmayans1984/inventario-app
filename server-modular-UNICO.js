@@ -447,7 +447,7 @@ app.get('/api/almacen/control-stock', async (req, res) => {
         }
 
         query += `
-            GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.codigo, g.nombre, p.stock_minimo
+            GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.codigo, g.nombre, p.stock_minimo, p.descripcion
             ORDER BY g.codigo NULLS LAST, p.nombre
         `;
 
