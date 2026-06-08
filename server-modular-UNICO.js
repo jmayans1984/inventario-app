@@ -663,6 +663,20 @@ app.get('/api/inventario', async (req, res) => {
     const { ccosto, empresa } = req.query;
 
     try {
+        // Determinar filtro de productos según si ccosto es la bodega maestra
+        let filtroProductos = `UPPER(p.control) = 'SI'`; // default: bodega maestra
+        if (ccosto && empresa) {
+            const bodegaRes = await pool.query(
+                `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [parseInt(empresa)]
+            );
+            const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra;
+            if (bodegaMaestra && bodegaMaestra !== ccosto) {
+                // No es la bodega maestra → mostrar solo Punto de Venta
+                filtroProductos = `p.visible_operacional = 'SI'`;
+            }
+            // Si es la bodega maestra → mantener filtro control = 'SI'
+        }
+
         let query = `
             SELECT
                 p.codigo,
@@ -688,7 +702,7 @@ app.get('/api/inventario', async (req, res) => {
         }
 
         query += `
-            WHERE UPPER(p.control) = 'SI'
+            WHERE ${filtroProductos}
             GROUP BY p.codigo, p.nombre, p.und, p.grupo, g.nombre
             ORDER BY p.grupo, p.nombre
         `;
