@@ -312,6 +312,7 @@ app.get('/api/almacen/productos', async (req, res) => {
     try {
         const { search } = req.query;
         const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        console.log('DEBUG GET /almacen/productos - empresaCod:', empresaCod, 'x-empresa header:', req.headers['x-empresa']);
 
         // Obtener tipo_empresa para filtrar por para_venta si es CLIENTE (franquiciado)
         let tipoEmpresa = 'PROVEEDOR'; // default
@@ -323,6 +324,7 @@ app.get('/api/almacen/productos', async (req, res) => {
             if (empResult.rows.length > 0) {
                 tipoEmpresa = empResult.rows[0].tipo_empresa || 'PROVEEDOR';
             }
+            console.log('DEBUG tipoEmpresa para empresa', empresaCod, ':', tipoEmpresa);
         }
 
         let query = `
@@ -357,6 +359,10 @@ app.get('/api/almacen/productos', async (req, res) => {
 
         query += ` ORDER BY g.codigo NULLS LAST, p.nombre`;
         const result = await pool.query(query, params);
+        console.log('DEBUG productos encontrados:', result.rows.length, '(filtrados para tipoEmpresa:', tipoEmpresa, ')');
+        if (result.rows.length > 0 && result.rows.length <= 3) {
+            console.log('DEBUG primer producto:', result.rows[0]);
+        }
         res.json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error GET /api/almacen/productos:', error);

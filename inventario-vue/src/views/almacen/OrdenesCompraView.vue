@@ -669,11 +669,16 @@ async function cargarProductos() {
     // El backend filtra para_venta='SI' cuando detecta tipo=CLIENTE
     const r = await api.get('/almacen/productos')
     const todos = r.data?.data || []
+    console.log('Productos recibidos del backend:', todos)
     // Solo productos con para_venta='SI' (franquicia) con precio asignado
     productos.value = todos.filter(p =>
       p.para_venta === 'SI' && getPrecio(p) > 0
     )
-  } catch (e) { console.error('Error cargando productos:', e) }
+    console.log('Productos filtrados (para_venta=SI y precio>0):', productos.value)
+  } catch (e) {
+    console.error('Error cargando productos:', e)
+    err('Error cargando productos de venta')
+  }
 }
 
 // ── Acciones ─────────────────────────────────────────────────
