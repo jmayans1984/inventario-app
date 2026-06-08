@@ -4413,7 +4413,7 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
 
         // Verificar que la orden existe y está en estado PENDIENTE
         const checkQuery = `
-            SELECT estado
+            SELECT estado, cliente
             FROM ordenes_compra
             WHERE codigo = $1
         `;
@@ -4435,6 +4435,8 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
                 error: `No se puede editar una orden con estado ${checkResult.rows[0].estado}. Solo se pueden editar órdenes PENDIENTE.`
             });
         }
+
+        const ordenCliente = checkResult.rows[0].cliente;
 
         // Actualizar la orden
         const updateQuery = `
@@ -4492,6 +4494,9 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
         }
 
         await client.query('COMMIT');
+
+        // Crear notificación para el proveedor
+        await crearNotificacionOrdenCompra(codigo, ordenCliente, 'modificada');
 
         res.json({
             success: true,
@@ -4639,6 +4644,9 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
         }
 
         await client.query('COMMIT');
+
+        // Crear notificación para el proveedor
+        await crearNotificacionOrdenCompra(codigoOrdenGuardado, clienteId, 'creada');
 
         res.json({
             success: true,
@@ -7120,6 +7128,57 @@ pool.query(`
         console.log('✅ Migración preferencias_notificaciones completa');
     } catch (e) { console.error('Error migrando preferencias_notificaciones:', e.message); }
 })();
+
+// FUNCIÓN AUXILIAR: Crear notificación de orden de compra para proveedor
+async function crearNotificacionOrdenCompra(codigoOrden, cliente, accion = 'creada') {
+    try {
+        // Obtener empresa PROVEEDOR
+        const proveedorRes = await pool.query(
+            `SELECT codigo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
+        );
+        if (proveedorRes.rows.length === 0) return;
+
+        const empresaProveedor = proveedorRes.rows[0].codigo;
+
+        // Obtener usuarios receptores de notificaciones de orden de compra
+        const prefRes = await pool.query(
+            `SELECT usuarios_receptores FROM preferencias_notificaciones
+             WHERE empresa = $1 AND tipo = 'ORDEN_COMPRA' AND activa = 'SI'`,
+            [empresaProveedor]
+        );
+
+        if (prefRes.rows.length === 0) return;
+
+        const usuarios = JSON.parse(prefRes.rows[0].usuarios_receptores || '[]');
+        if (usuarios.length === 0) return;
+
+        const titulo = accion === 'creada' ? 'Nueva Orden de Compra' : 'Orden de Compra Modificada';
+        const mensaje = accion === 'creada'
+            ? `Se ha creado una nueva orden de compra: ${codigoOrden}`
+            : `Se ha modificado la orden de compra: ${codigoOrden}`;
+
+        // Crear notificación
+        const notifResult = await pool.query(
+            `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
+             VALUES ($1, $2, $3, 'ORDEN_COMPRA', NOW())
+             RETURNING id`,
+            [empresaProveedor, titulo, mensaje]
+        );
+
+        const notif_id = notifResult.rows[0].id;
+
+        // Crear registro para cada usuario
+        for (const usuario of usuarios) {
+            await pool.query(
+                `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                 VALUES ($1, $2, 'NO')`,
+                [notif_id, usuario]
+            ).catch(() => {});
+        }
+    } catch (e) {
+        console.error('Error creando notificación de orden de compra:', e.message);
+    }
+}
 
 // FUNCIÓN AUXILIAR: Verificar stock y generar notificaciones automáticas
 // SOLO genera notificaciones si el ccosto ES la bodega maestra de la empresa
