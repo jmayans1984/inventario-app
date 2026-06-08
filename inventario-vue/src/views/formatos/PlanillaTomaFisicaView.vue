@@ -9,7 +9,7 @@
         <span class="bc-current">Planilla Toma Física</span>
       </div>
 
-      <!-- HEADER CONTROLES -->
+      <!-- CONTROLES -->
       <div class="ptf-controls no-print">
         <div class="ptf-controls-left">
           <div class="ptf-icon-wrap">
@@ -22,7 +22,7 @@
         </div>
         <div class="ptf-controls-right">
           <v-btn
-            v-if="!loading && productos.length > 0"
+            v-if="!loading && productosAgrupados.length > 0"
             color="#8b5cf6"
             variant="elevated"
             prepend-icon="mdi-printer"
@@ -33,23 +33,16 @@
         </div>
       </div>
 
-      <!-- ESTADO: Sin bodega maestra -->
-      <div v-if="!loading && !bodegaMaestraCC" class="ptf-empty no-print">
-        <v-icon size="48" color="#f59e0b">mdi-alert-outline</v-icon>
-        <p>No hay Bodega Maestra asignada</p>
-        <span>Ve a CONFIGURACIÓN → Bodega Maestra para asignar una</span>
-      </div>
-
       <!-- CARGANDO -->
-      <div v-else-if="loading" class="ptf-loading no-print">
+      <div v-if="loading" class="ptf-loading no-print">
         <v-progress-circular indeterminate color="#8b5cf6" size="36" />
         <span>Cargando planilla...</span>
       </div>
 
-      <!-- DOCUMENTO IMPRIMIBLE -->
+      <!-- DOCUMENTO -->
       <div v-else-if="productosAgrupados.length > 0" class="doc-wrapper" id="doc-planilla">
 
-        <!-- ENCABEZADO DEL DOCUMENTO -->
+        <!-- ENCABEZADO -->
         <div class="doc-header">
           <div class="doc-header-top">
             <div class="doc-empresa">
@@ -59,7 +52,7 @@
             <div class="doc-meta">
               <table class="doc-meta-table">
                 <tr>
-                  <td class="meta-label">Bodega:</td>
+                  <td class="meta-label">Bodega Maestra:</td>
                   <td class="meta-val">{{ bodegaMaestraCC }}</td>
                 </tr>
                 <tr>
@@ -90,9 +83,11 @@
                 <th class="col-nom">NOMBRE</th>
                 <th class="col-desc">DESCRIPCIÓN</th>
                 <th class="col-und">UND</th>
-                <th class="col-stock">INV. ACTUAL</th>
-                <th class="col-conteo">CONTEO FÍSICO</th>
-                <th class="col-dif">DIFERENCIA</th>
+                <th class="col-entrada">ENTRADA</th>
+                <th class="col-baja">BAJA</th>
+                <th v-for="cc in centrosCosto" :key="cc.codigo" class="col-cc">
+                  {{ cc.nombre }}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -101,15 +96,15 @@
                 <td class="col-nom">{{ p.nombre }}</td>
                 <td class="col-desc">{{ p.descripcion || '' }}</td>
                 <td class="col-und">{{ p.und }}</td>
-                <td class="col-stock">{{ formatNum(p.stock_actual) }}</td>
-                <td class="col-conteo"></td>
-                <td class="col-dif"></td>
+                <td class="col-entrada"></td>
+                <td class="col-baja"></td>
+                <td v-for="cc in centrosCosto" :key="cc.codigo" class="col-cc"></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- PIE DEL DOCUMENTO -->
+        <!-- PIE -->
         <div class="doc-footer">
           <div class="doc-footer-firmas">
             <div class="firma-box">
@@ -133,7 +128,7 @@
 
       </div>
 
-      <div v-else-if="!loading" class="ptf-empty no-print">
+      <div v-else class="ptf-empty no-print">
         <v-icon size="48" color="rgba(var(--v-theme-on-surface),.2)">mdi-package-variant-closed</v-icon>
         <p>No hay productos en la Bodega Maestra</p>
         <span>Activa productos con "Bodega Maestra = SÍ" en Gestión de Productos</span>
@@ -150,10 +145,10 @@ import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 
 const authStore = useAuthStore()
-const loading = ref(false)
-const productos = ref([])
+const loading       = ref(false)
+const productos     = ref([])
+const centrosCosto  = ref([])   // CCs activos, sin la bodega maestra
 const bodegaMaestraCC = ref(null)
-const bodegaMaestraNombre = ref('')
 
 const empresaNombre = computed(() => authStore.empresaNombre || '')
 
@@ -161,11 +156,7 @@ const fechaHoy = computed(() => {
   const d = new Date()
   return d.toLocaleDateString('es', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 })
-
-const fechaHora = computed(() => {
-  return new Date().toLocaleString('es')
-})
-
+const fechaHora = computed(() => new Date().toLocaleString('es'))
 const totalProductos = computed(() => productos.value.length)
 
 const productosAgrupados = computed(() => {
@@ -179,30 +170,24 @@ const productosAgrupados = computed(() => {
   return Array.from(mapa.values())
 })
 
-function formatNum(n) {
-  const num = parseFloat(n) || 0
-  return Number(num.toFixed(2)).toString()
-}
-
 async function cargar() {
   loading.value = true
   try {
-    // Obtener bodega maestra
+    // 1. Obtener bodega maestra
     const resBodega = await api.get('/empresas/bodega-maestra')
-    const ccosto = resBodega.data?.data?.bodega_maestra
-    if (!ccosto) { loading.value = false; return }
+    bodegaMaestraCC.value = resBodega.data?.data?.bodega_maestra || null
 
-    bodegaMaestraCC.value = ccosto
-    bodegaMaestraNombre.value = resBodega.data?.data?.centro_costo_nombre || ccosto
+    // 2. Cargar todos los productos y filtrar los que tienen Bodega Maestra = SI
+    const resProds = await api.get('/almacen/productos')
+    productos.value = (resProds.data?.data || []).filter(p => p.control === 'SI')
 
-    // Cargar productos de la bodega maestra con stock actual
-    const res = await api.get(`/almacen/control-stock?ccosto=${ccosto}`)
-    productos.value = (res.data?.data || [])
-      .filter(p => p.control === 'SI' || true) // control-stock ya filtra por bodega maestra
-      .map(p => ({
-        ...p,
-        stock_actual: parseFloat(p.stock_actual) || 0,
-      }))
+    // 3. Cargar centros de costo activos, excluir la bodega maestra
+    const resCc = await api.get('/contabilidad/centrocostos', {
+      params: { empresa: authStore.empresa, limit: 100 }
+    })
+    const todos = resCc.data?.data || []
+    centrosCosto.value = todos.filter(cc => cc.codigo !== bodegaMaestraCC.value)
+
   } catch (e) {
     console.error('Error cargando planilla:', e)
   } finally {
@@ -218,8 +203,7 @@ onMounted(cargar)
 </script>
 
 <style scoped>
-/* ── CONTROLES (no imprimir) ── */
-.ptf-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+.ptf-container { padding: 24px; max-width: 100%; margin: 0 auto; }
 .ptf-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
 .bc-root { font-size: 12px; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep { color: rgba(var(--v-theme-on-surface),.3); }
@@ -236,114 +220,110 @@ onMounted(cargar)
 .ptf-empty p { font-size: 16px; font-weight: 600; margin: 12px 0 6px; }
 .ptf-empty span { font-size: 13px; }
 
-/* ── DOCUMENTO ── */
+/* ── DOCUMENTO (fondo blanco siempre) ── */
 .doc-wrapper {
   background: white;
   color: #1a1a1a;
-  padding: 32px;
+  padding: 28px;
   border-radius: 8px;
-  box-shadow: 0 2px 16px rgba(0,0,0,.1);
-  font-family: 'Arial', sans-serif;
+  box-shadow: 0 2px 16px rgba(0,0,0,.12);
+  font-family: Arial, sans-serif;
 }
 
-/* Encabezado */
-.doc-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-.doc-empresa-nombre { font-size: 20px; font-weight: 800; color: #1a1a1a; text-transform: uppercase; }
-.doc-empresa-sub { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.doc-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.doc-empresa-nombre { font-size: 18px; font-weight: 800; color: #111827; text-transform: uppercase; }
+.doc-empresa-sub { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
 
 .doc-meta-table { border-collapse: collapse; font-size: 12px; }
 .doc-meta-table td { padding: 3px 8px; }
 .meta-label { font-weight: 700; color: #374151; white-space: nowrap; }
-.meta-val { color: #1a1a1a; font-weight: 500; min-width: 180px; }
+.meta-val { color: #111827; font-weight: 500; min-width: 160px; }
 .meta-blank { border-bottom: 1px solid #9ca3af; }
 
-.doc-divider { height: 2px; background: #1a1a1a; margin: 12px 0 20px; }
+.doc-divider { height: 2px; background: #111827; margin: 10px 0 18px; }
 
-/* Grupos */
-.doc-grupo { margin-bottom: 24px; page-break-inside: avoid; }
+.doc-grupo { margin-bottom: 20px; }
 .doc-grupo-header {
   background: #1f2937;
   color: white;
-  padding: 7px 12px;
+  padding: 6px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 4px 4px 0 0;
 }
-.doc-grupo-nombre { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-.doc-grupo-count { font-size: 11px; opacity: .75; }
+.doc-grupo-nombre { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.doc-grupo-count { font-size: 10px; opacity: .7; }
 
-/* Tabla */
-.doc-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
+.doc-tabla { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+
 .doc-tabla thead th {
   background: #f3f4f6;
   color: #374151;
-  padding: 7px 8px;
-  text-align: left;
-  font-size: 10px;
+  padding: 6px 5px;
+  text-align: center;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .3px;
-  border: 1px solid #e5e7eb;
+  letter-spacing: .2px;
+  border: 1px solid #d1d5db;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.doc-tabla tbody tr { border-bottom: 1px solid #e5e7eb; }
-.doc-tabla tbody tr:nth-child(even) { background: #fafafa; }
+
+.doc-tabla tbody tr:nth-child(even) { background: #f9fafb; }
 .doc-tabla tbody td {
-  padding: 8px 8px;
+  padding: 7px 5px;
   border: 1px solid #e5e7eb;
   color: #1a1a1a;
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.col-cod  { width: 70px; }
-.col-nom  { min-width: 160px; font-weight: 500; }
-.col-desc { min-width: 140px; font-size: 11px; color: #6b7280; }
-.col-und  { width: 50px; text-align: center; }
-.col-stock  { width: 90px; text-align: center; font-weight: 600; color: #0891b2; }
-.col-conteo { width: 110px; background: #fef3c7; }
-.col-dif    { width: 90px; background: #f0fdf4; }
+.col-cod   { width: 55px; }
+.col-nom   { width: 150px; font-weight: 500; }
+.col-desc  { width: 130px; font-size: 10px; color: #6b7280; }
+.col-und   { width: 40px; text-align: center; }
+.col-entrada { width: 70px; background: #eff6ff; text-align: center; }
+.col-baja    { width: 70px; background: #fff7ed; text-align: center; }
+.col-cc      { background: #f0fdf4; text-align: center; }
 
-/* Pie */
-.doc-footer { margin-top: 40px; }
-.doc-footer-firmas { display: flex; justify-content: space-around; margin-bottom: 32px; }
-.firma-box { text-align: center; flex: 1; padding: 0 20px; }
-.firma-linea { border-top: 1px solid #374151; margin-bottom: 8px; }
-.firma-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; }
-.doc-footer-info { text-align: center; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+.doc-footer { margin-top: 36px; }
+.doc-footer-firmas { display: flex; justify-content: space-around; margin-bottom: 28px; }
+.firma-box { text-align: center; flex: 1; padding: 0 16px; }
+.firma-linea { border-top: 1px solid #374151; margin-bottom: 6px; }
+.firma-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; }
+.doc-footer-info { text-align: center; font-size: 9px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 10px; }
 </style>
 
 <style>
-/* ── IMPRESIÓN ── */
 @media print {
-  .no-print { display: none !important; }
+  .no-print,
   .v-navigation-drawer,
   .v-app-bar,
-  .v-overlay,
   header, nav, aside { display: none !important; }
 
   body, html { background: white !important; }
-
   .v-main { padding: 0 !important; }
   .ptf-container { padding: 0 !important; max-width: 100% !important; }
 
   .doc-wrapper {
     box-shadow: none !important;
     border-radius: 0 !important;
-    padding: 16px !important;
-    page-break-inside: auto;
+    padding: 12px !important;
   }
 
   .doc-grupo { page-break-inside: avoid; }
 
-  .doc-tabla thead th { background: #e5e7eb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .doc-grupo-header { background: #1f2937 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .doc-tabla thead th  { background: #e5e7eb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .doc-grupo-header    { background: #1f2937 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .doc-tabla tbody tr:nth-child(even) { background: #f9fafb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .col-conteo { background: #fef3c7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .col-dif    { background: #f0fdf4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .col-entrada { background: #eff6ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .col-baja    { background: #fff7ed !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .col-cc      { background: #f0fdf4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  @page {
-    size: letter landscape;
-    margin: 15mm;
-  }
+  @page { size: letter landscape; margin: 10mm; }
 }
 </style>
