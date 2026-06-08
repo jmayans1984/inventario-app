@@ -660,21 +660,21 @@ app.patch('/api/almacen/productos/:codigo/toggle-visible-operacional', async (re
 
 // GET /api/inventario - Obtener productos con control = SI y stock por ccosto y empresa
 app.get('/api/inventario', async (req, res) => {
-    const { ccosto, empresa } = req.query;
+    const { ccosto } = req.query;
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    const empInt = empresa ? parseInt(empresa) : null;
 
     try {
-        // Determinar filtro de productos según si ccosto es la bodega maestra
-        let filtroProductos = `UPPER(p.control) = 'SI'`; // default: bodega maestra
-        if (ccosto && empresa) {
+        // Determinar filtro: bodega maestra (control='SI') o punto de venta (visible_operacional='SI')
+        let filtroProductos = `UPPER(p.control) = 'SI'`; // default
+        if (ccosto && empInt) {
             const bodegaRes = await pool.query(
-                `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [parseInt(empresa)]
+                `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [empInt]
             );
             const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra;
             if (bodegaMaestra && bodegaMaestra !== ccosto) {
-                // No es la bodega maestra → mostrar solo Punto de Venta
                 filtroProductos = `p.visible_operacional = 'SI'`;
             }
-            // Si es la bodega maestra → mantener filtro control = 'SI'
         }
 
         let query = `
@@ -691,9 +691,9 @@ app.get('/api/inventario', async (req, res) => {
 
         const params = [];
 
-        if (ccosto && empresa) {
+        if (ccosto && empInt) {
             query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1 AND di.empresa = $2`;
-            params.push(ccosto, empresa);
+            params.push(ccosto, empInt);
         } else if (ccosto) {
             query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1`;
             params.push(ccosto);
