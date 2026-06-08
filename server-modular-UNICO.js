@@ -662,14 +662,13 @@ app.patch('/api/almacen/productos/:codigo/toggle-visible-operacional', async (re
 app.get('/api/inventario', async (req, res) => {
     const { ccosto } = req.query;
     const empresa = req.query.empresa || req.headers['x-empresa'];
-    const empInt = empresa ? parseInt(empresa) : null;
 
     try {
         // Determinar filtro: bodega maestra (control='SI') o punto de venta (visible_operacional='SI')
         let filtroProductos = `UPPER(p.control) = 'SI'`; // default
-        if (ccosto && empInt) {
+        if (ccosto && empresa) {
             const bodegaRes = await pool.query(
-                `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [empInt]
+                `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`, [String(empresa)]
             );
             const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra;
             if (bodegaMaestra && bodegaMaestra !== ccosto) {
@@ -691,9 +690,9 @@ app.get('/api/inventario', async (req, res) => {
 
         const params = [];
 
-        if (ccosto && empInt) {
-            query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1 AND di.empresa = $2`;
-            params.push(ccosto, empInt);
+        if (ccosto && empresa) {
+            query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1 AND di.empresa::text = $2`;
+            params.push(ccosto, String(empresa));
         } else if (ccosto) {
             query += ` LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.ccosto = $1`;
             params.push(ccosto);
@@ -918,7 +917,7 @@ app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
     try {
         // Determinar si el ccosto seleccionado es la bodega maestra
         const bodegaRes = await pool.query(
-            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`, [String(empresa)]
         );
         const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
         const esBodegaMaestra = bodegaMaestra && bodegaMaestra === ccosto;
@@ -1048,7 +1047,7 @@ app.get('/api/almacen/kardex', async (req, res) => {
     try {
         // Determinar si el ccosto seleccionado es la bodega maestra
         const bodegaRes = await pool.query(
-            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`, [String(empresa)]
         );
         const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
         const esBodegaMaestra = bodegaMaestra && bodegaMaestra === ccosto;
@@ -7110,8 +7109,8 @@ async function verificarYGenerarNotificacionesStock(codigo, ccosto, empresa) {
     try {
         // Verificar que el ccosto sea la bodega maestra — si no, salir sin hacer nada
         const bodegaRes = await pool.query(
-            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`,
-            [parseInt(empresa)]
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
+            [String(empresa)]
         );
         const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra;
         if (!bodegaMaestra || bodegaMaestra !== ccosto) return;
