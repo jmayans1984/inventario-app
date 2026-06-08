@@ -8427,27 +8427,26 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                 SELECT dr.codigo AS id,
                        dr.articulo,
                        dr.cantidad,
-                       COALESCE(dr.tipo, 'ARTICULO') AS tipo,
-                       COALESCE(a.nombre, r2.nombre, dr.articulo) AS nombre_item,
-                       COALESCE(a.nombre, r2.nombre, dr.articulo) AS articulo_nombre,
-                       COALESCE(a.und, r2.und, '') AS und,
-                       COALESCE(CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
-                                     THEN r2.valor
-                                     ELSE a.valor
-                                END, 0) AS precio_unit,
-                       COALESCE(dr.vr_unit, CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
-                                                   THEN r2.valor
-                                                   ELSE a.valor
-                                              END, 0) AS vr_unit,
-                       COALESCE(dr.vr_total, CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
-                                                   THEN r2.valor * dr.cantidad
-                                                   ELSE a.valor * dr.cantidad
-                                              END, 0) AS vr_total,
-                       CASE WHEN COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
-                            THEN true ELSE false END AS es_subreceta
+                       -- Si el artículo existe como subproducto en recetas → forzar tipo RECETA
+                       CASE
+                         WHEN r2.codigo IS NOT NULL THEN 'RECETA'
+                         ELSE COALESCE(dr.tipo, 'ARTICULO')
+                       END AS tipo,
+                       COALESCE(r2.nombre, a.nombre, dr.articulo) AS nombre_item,
+                       COALESCE(r2.nombre, a.nombre, dr.articulo) AS articulo_nombre,
+                       COALESCE(r2.und, a.und, '') AS und,
+                       COALESCE(r2.valor, a.valor, 0) AS precio_unit,
+                       COALESCE(dr.vr_unit, r2.valor, a.valor, 0) AS vr_unit,
+                       COALESCE(dr.vr_total,
+                         (COALESCE(r2.valor, a.valor, 0)) * dr.cantidad
+                       ) AS vr_total,
+                       CASE WHEN r2.codigo IS NOT NULL THEN true ELSE false END AS es_subreceta,
+                       r2.codigo AS subreceta_codigo
                 FROM detalle_recetas dr
-                LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo) AND COALESCE(dr.tipo, 'ARTICULO') = 'ARTICULO'
-                LEFT JOIN recetas r2 ON TRIM(r2.codigo) = TRIM(dr.articulo) AND COALESCE(dr.tipo, 'ARTICULO') = 'RECETA'
+                -- Buscar si el artículo existe como subproducto (receta con subproducto=SI)
+                LEFT JOIN recetas r2 ON TRIM(r2.codigo) = TRIM(dr.articulo) AND r2.subproducto = 'SI'
+                -- Buscar en artículos solo si NO es subproducto
+                LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo) AND r2.codigo IS NULL
                 WHERE dr.receta = $1
                 ORDER BY dr.codigo
             `, [codigo])
