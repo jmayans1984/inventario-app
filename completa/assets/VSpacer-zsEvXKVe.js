@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-ruo-suLn.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

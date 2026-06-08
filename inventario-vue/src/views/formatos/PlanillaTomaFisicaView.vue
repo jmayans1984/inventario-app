@@ -239,14 +239,26 @@ onMounted(cargar)
 <style>
 /* ── IMPRESIÓN ── */
 @media print {
-  .no-print,
+  /* Ocultar TODO excepto el documento */
+  body > *:not(.v-application) { display: none !important; }
+
   .v-navigation-drawer,
   .v-app-bar,
-  header, nav, aside { display: none !important; }
+  .v-app-bar--fixed,
+  .v-toolbar,
+  .v-system-bar,
+  header, nav, aside,
+  [class*="app-bar"],
+  [class*="v-toolbar"],
+  .no-print { display: none !important; }
 
-  body, html { background: white !important; margin: 0; }
-  .v-main { padding: 0 !important; }
-  .ptf-container { padding: 0 !important; max-width: 100% !important; }
+  /* Quitar padding del layout de Vuetify */
+  body, html { background: white !important; margin: 0; padding: 0; }
+  .v-application { background: white !important; }
+  .v-application__wrap { padding: 0 !important; }
+  .v-main,
+  .v-main__wrap { padding: 0 !important; margin: 0 !important; padding-top: 0 !important; }
+  .ptf-container { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
 
   .doc-wrapper {
     box-shadow: none !important;
