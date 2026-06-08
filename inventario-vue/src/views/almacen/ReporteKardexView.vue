@@ -401,36 +401,20 @@ function exportarPDF() {
 
   drawHeader(1, null)
 
-  // ── KPIs debajo del header (solo página 1) ────────────────
-  const kpiY = HEADER_H + 4
-  const kpiW = (PW - ML - MR) / 3
-  const kpiItems = [
-    { label: 'TOTAL ENTRADAS', val: `+${formatNum(totalEntradas.value)}`, color: [16,185,129] },
-    { label: 'TOTAL SALIDAS',  val: `-${formatNum(totalSalidas.value)}`,  color: [245,158,11] },
-    { label: 'TOTAL VENTAS',   val: `-${formatNum(totalVentas.value)}`,   color: [239,68,68] },
-  ]
-  kpiItems.forEach((k, i) => {
-    const x = ML + i * kpiW
-    doc.setFillColor(248, 250, 252)
-    doc.roundedRect(x, kpiY, kpiW - 2, 12, 1, 1, 'F')
-    doc.setFontSize(6)
-    doc.setTextColor(100, 116, 139)
-    doc.setFont('helvetica', 'bold')
-    doc.text(k.label, x + 3, kpiY + 4.5)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...k.color)
-    doc.text(k.val, x + 3, kpiY + 10)
-  })
-  doc.setTextColor(0, 0, 0)
+  const startTableY = HEADER_H + 3
 
   // ── Construir filas ───────────────────────────────────────
+  const CP = { top: 1.2, bottom: 1.2, left: 3, right: 3 }  // ~14px rows
   const body = []
   for (const grupo of productosAgrupados.value) {
     body.push([{
       content: grupo.nombre.toUpperCase(),
-      colSpan: 8,
-      styles: { fontStyle: 'bold', fontSize: 7, textColor: [8,100,140], fillColor: [240,249,255], cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } }
+      colSpan: 9,
+      styles: {
+        fontStyle: 'bold', fontSize: 7, textColor: [8,100,140],
+        fillColor: [240,249,255], halign: 'left',
+        cellPadding: { top: 1.2, bottom: 1.2, left: 4, right: 4 }
+      }
     }])
     for (const p of grupo.items) {
       body.push([
@@ -442,48 +426,49 @@ function exportarPDF() {
         p.salidas_dia  > 0 ? formatNum(p.salidas_dia)  : '—',
         p.ventas_dia   > 0 ? formatNum(p.ventas_dia)   : '—',
         formatNum(p.stock_final),
+        '__________',
       ])
     }
   }
 
   // ── autoTable ─────────────────────────────────────────────
   autoTable(doc, {
-    startY: kpiY + 16,
+    startY: startTableY,
     showHead: 'everyPage',
     head: [[
-      { content: 'CÓD',   styles: { halign: 'center' } },
+      { content: 'CÓD',      styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
-      { content: 'UND',   styles: { halign: 'center' } },
-      { content: 'ANT.',  styles: { halign: 'right' } },
-      { content: 'ENT.',  styles: { halign: 'right' } },
-      { content: 'SAL.',  styles: { halign: 'right' } },
-      { content: 'VEN.',  styles: { halign: 'right' } },
-      { content: 'FINAL', styles: { halign: 'right' } },
+      { content: 'UNIDAD',   styles: { halign: 'center' } },
+      { content: 'ANT.',     styles: { halign: 'right' } },
+      { content: 'ENT.',     styles: { halign: 'right' } },
+      { content: 'SAL.',     styles: { halign: 'right' } },
+      { content: 'VEN.',     styles: { halign: 'right' } },
+      { content: 'FINAL',    styles: { halign: 'right' } },
+      { content: 'CANT.',    styles: { halign: 'center' } },
     ]],
     body,
     theme: 'plain',
     headStyles: {
       fillColor: [26, 26, 46],
       textColor: [203, 213, 225],
-      fontSize: 7.5, fontStyle: 'bold',
-      cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+      fontSize: 7, fontStyle: 'bold',
+      cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 3 },
     },
-    bodyStyles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
+    bodyStyles: { fontSize: 7, cellPadding: CP },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
+      0: { cellWidth: 12,  halign: 'center' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 10, halign: 'center' },
-      3: { cellWidth: 18, halign: 'right' },
-      4: { cellWidth: 16, halign: 'right', textColor: [16,185,129] },
-      5: { cellWidth: 16, halign: 'right', textColor: [245,158,11] },
-      6: { cellWidth: 16, halign: 'right', textColor: [239,68,68] },
-      7: { cellWidth: 18, halign: 'right', textColor: [8,145,178] },
+      2: { cellWidth: 16,  halign: 'center' },
+      3: { cellWidth: 17,  halign: 'right' },
+      4: { cellWidth: 14,  halign: 'right', textColor: [16,185,129] },
+      5: { cellWidth: 14,  halign: 'right', textColor: [245,158,11] },
+      6: { cellWidth: 14,  halign: 'right', textColor: [239,68,68] },
+      7: { cellWidth: 17,  halign: 'right', textColor: [8,145,178] },
+      8: { cellWidth: 26,  halign: 'center', textColor: [160,160,160] },
     },
     margin: { left: ML, right: MR, bottom: 20, top: HEADER_H + 2 },
-    didDrawPage: (data) => {
-      drawHeader(data.pageNumber, null)
-    },
+    didDrawPage: (data) => { drawHeader(data.pageNumber, null) },
   })
 
   const totalPgs = doc.internal.getNumberOfPages()
