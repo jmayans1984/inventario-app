@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-DY2pD_dj.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

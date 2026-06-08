@@ -906,170 +906,220 @@ async function verDetalle(o) {
 }
 
 function imprimirDetalle() {
-  const fechaHoy = new Date().toLocaleDateString('es-CO')
   const items = detalleLineas.value
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>${ordenDetalle.value.codigo}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; }
-        body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; color: #000; background: #fff; }
-        .page { width: 8.5in; height: 11in; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; position: relative; }
-        .content { flex: 1; display: flex; flex-direction: column; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 8px; }
-        .logo { max-width: 60px; height: auto; }
-        .logo img { max-width: 100%; height: auto; }
-        .titulo-header { text-align: center; flex: 1; }
-        .titulo-main { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
-        .titulo-number { font-size: 11px; font-weight: bold; }
-        .empresa-box { display: flex; gap: 20px; margin-bottom: 8px; }
-        .empresa-section { flex: 1; }
-        .empresa-titulo { background: #000; color: #fff; padding: 3px 5px; font-weight: bold; font-size: 8px; margin-bottom: 3px; }
-        .empresa-content { font-size: 8px; padding: 0 5px; }
-        .empresa-content p { margin: 1px 0; }
-        .condiciones { margin-bottom: 8px; }
-        .cond-table { width: 100%; border-collapse: collapse; font-size: 8px; }
-        .cond-table td { border: 1px solid #999; padding: 4px; font-weight: bold; background: #f5f5f5; }
-        .cond-table .empty { height: 20px; font-weight: normal; background: #fff; }
-        .tabla-productos { width: 100%; border-collapse: collapse; font-size: 9px; flex: 1; }
-        .tabla-productos th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 3px 4px; background: #fff; color: #000; font-weight: bold; text-align: center; }
-        .tabla-productos td { border: none; padding: 1px 4px; font-size: 9px; line-height: 1.1; }
-        .tabla-productos tbody tr { height: 16px; }
-        .ta-c { text-align: center; }
-        .ta-r { text-align: right; }
-        .footer-section { margin-top: auto; padding-top: 10px; border-top: 1px solid #ccc; }
-        .resumen { width: 50%; margin-left: auto; margin-bottom: 15px; }
-        .resumen-row { display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: 9px; }
-        .resumen-row.total { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; background: #f5f5f5; }
-        .footer-firmas { display: flex; gap: 10px; margin-top: 40px; font-size: 8px; }
-        .firma-box { flex: 1; text-align: center; min-height: 80px; display: flex; flex-direction: column; }
-        .firma-label { margin-top: auto; padding-top: 8px; border-top: 1px solid #000; }
-      </style>
-    </head>
-    <body>
-      <div class="page">
-        <div class="content">
-          <!-- Header con logo y título -->
-          <div class="header">
-            <div class="logo">
-              ${empresaProveedor.value?.logo_url ? `<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" alt="Logo">` : ''}
-            </div>
-            <div class="titulo-header">
-              <div class="titulo-main">ORDEN DE COMPRA</div>
-              <div class="titulo-number">${ordenDetalle.value.codigo}</div>
-            </div>
-          </div>
+  const subtotal = parseFloat(ordenDetalle.value.total) || 0
+  const filasVacias = Math.max(0, 18 - items.length)
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${ordenDetalle.value.codigo}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Inter', Arial, sans-serif; font-size:9px; color:#1a1a2e; background:#fff; }
+    .page { width:8.5in; min-height:11in; margin:0 auto; padding:30px 35px; display:flex; flex-direction:column; }
 
-          <!-- Vendedor y Envía A -->
-          <div class="empresa-box">
-            <div class="empresa-section">
-              <div class="empresa-titulo">VENDEDOR</div>
-              <div class="empresa-content">
-                <p><strong>${empresaProveedor.value?.nombre || 'N/A'}</strong></p>
-                ${empresaProveedor.value?.direccion ? `<p>${empresaProveedor.value.direccion}</p>` : ''}
-                ${empresaProveedor.value?.telefono ? `<p>${empresaProveedor.value.telefono}</p>` : ''}
-              </div>
-            </div>
-            <div class="empresa-section">
-              <div class="empresa-titulo">ENVÍA A</div>
-              <div class="empresa-content">
-                <p><strong>${empresaCliente.value?.nombre || 'N/A'}</strong></p>
-                ${empresaCliente.value?.direccion ? `<p>${empresaCliente.value.direccion}</p>` : ''}
-                ${empresaCliente.value?.telefono ? `<p>${empresaCliente.value.telefono}</p>` : ''}
-              </div>
-            </div>
-          </div>
+    /* ── TOP BANNER ── */
+    .top-banner { display:flex; align-items:stretch; margin-bottom:18px; border-radius:4px; overflow:hidden; border:1px solid #e2e8f0; }
+    .banner-left { background:#1a1a2e; color:#fff; padding:14px 20px; min-width:220px; display:flex; flex-direction:column; justify-content:center; }
+    .banner-doc-label { font-size:7px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#94a3b8; margin-bottom:4px; }
+    .banner-doc-title { font-size:18px; font-weight:700; letter-spacing:1px; color:#fff; }
+    .banner-doc-num { font-size:10px; font-weight:500; color:#38bdf8; margin-top:3px; }
+    .banner-right { flex:1; padding:12px 20px; display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:center; background:#f8fafc; }
+    .banner-field { display:flex; flex-direction:column; gap:2px; }
+    .banner-field-label { font-size:6.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#94a3b8; }
+    .banner-field-val { font-size:9px; font-weight:600; color:#1a1a2e; }
+    .banner-field-val.accent { color:#0ea5e9; }
 
-          <!-- Condiciones -->
-          <div class="condiciones">
-            <table class="cond-table">
-              <tr>
-                <td style="width:25%">FECHA DE ORDEN<div class="empty">${fmtFecha(ordenDetalle.value.fecha)}</div></td>
-                <td style="width:25%">FECHA DE ENTREGA<div class="empty">${fmtFecha(ordenDetalle.value.fecha_entrega) || ''}</div></td>
-                <td style="width:50%" colspan="2">OBSERVACIONES<div class="empty">${ordenDetalle.value.observaciones || ''}</div></td>
-              </tr>
-            </table>
-          </div>
+    /* ── PARTIES ── */
+    .parties { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+    .party-card { border:1px solid #e2e8f0; border-radius:4px; overflow:hidden; }
+    .party-header { background:#1a1a2e; color:#fff; padding:4px 10px; font-size:6.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
+    .party-body { padding:8px 10px; background:#fafafa; }
+    .party-name { font-size:9px; font-weight:700; color:#1a1a2e; margin-bottom:2px; }
+    .party-detail { font-size:7.5px; color:#64748b; line-height:1.5; }
 
-          <!-- Tabla de Productos -->
-          <table class="tabla-productos">
-            <thead>
-              <tr>
-                <th style="width:8%">CODIGO</th>
-                <th style="width:35%">PRODUCTO</th>
-                <th style="width:12%">DETALLES</th>
-                <th style="width:8%">CANT</th>
-                <th style="width:12%">VR. UNITARIO</th>
-                <th style="width:15%">TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.map(d => `
-                <tr>
-                  <td class="ta-c">${d.producto_venta}</td>
-                  <td>${d.producto_nombre || d.nombre_producto}</td>
-                  <td style="font-size:8px">${d.producto_descripcion || d.descripcion || '—'}</td>
-                  <td class="ta-c">${d.cantidad}</td>
-                  <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
-                  <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-              ${Array(Math.max(0, 12 - items.length)).fill().map(() => `
-                <tr>
-                  <td>&nbsp;</td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+    /* ── OBSERVACIONES ── */
+    .obs-bar { border:1px solid #e2e8f0; border-radius:4px; padding:6px 10px; margin-bottom:14px; display:flex; gap:8px; align-items:flex-start; background:#fafafa; }
+    .obs-label { font-size:6.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#94a3b8; white-space:nowrap; margin-top:1px; }
+    .obs-val { font-size:8px; color:#374151; flex:1; }
 
-        <!-- Footer Section (Fixed) -->
-        <div class="footer-section">
-          <!-- Resumen -->
-          <div class="resumen">
-            <div class="resumen-row">
-              <span>SUBTOTAL</span>
-              <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
-            </div>
-            <div class="resumen-row">
-              <span>IMPUESTOS</span>
-              <span>-</span>
-            </div>
-            <div class="resumen-row total">
-              <span>TOTAL</span>
-              <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
-            </div>
-          </div>
+    /* ── TABLA ── */
+    .tabla-wrap { flex:1; }
+    .tabla { width:100%; border-collapse:collapse; }
+    .tabla thead tr { background:#1a1a2e; }
+    .tabla thead th { padding:5px 8px; font-size:7px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#cbd5e1; text-align:left; border:none; }
+    .tabla thead th.ta-c { text-align:center; }
+    .tabla thead th.ta-r { text-align:right; }
+    .tabla tbody tr { border-bottom:1px solid #f1f5f9; }
+    .tabla tbody tr:nth-child(even) { background:#f8fafc; }
+    .tabla tbody tr.empty-row { background:#fff !important; }
+    .tabla tbody tr.empty-row td { color:transparent; border-bottom:1px solid #f1f5f9; }
+    .tabla td { padding:4px 8px; font-size:8px; color:#374151; }
+    .tabla td.ta-c { text-align:center; }
+    .tabla td.ta-r { text-align:right; font-variant-numeric:tabular-nums; }
+    .tabla td.cod { font-weight:600; color:#0ea5e9; font-family:monospace; font-size:8px; }
+    .tabla td.prod-name { font-weight:500; color:#1a1a2e; }
+    .tabla td.det { color:#94a3b8; font-size:7.5px; font-style:italic; }
+    .tabla td.qty { font-weight:600; color:#374151; }
+    .tabla td.price { color:#374151; }
+    .tabla td.total-cell { font-weight:600; color:#1a1a2e; }
 
-          <!-- Pie de página con firmas -->
-          <div class="footer-firmas">
-            <div class="firma-box">
-              <div class="firma-label"><strong>ENTREGADO POR</strong></div>
-            </div>
-            <div class="firma-box">
-              <div class="firma-label"><strong>RECIBIDO POR</strong></div>
-            </div>
-            <div class="firma-box">
-              <div class="firma-label"><strong>FECHA</strong></div>
-            </div>
-            <div class="firma-box">
-              <div class="firma-label"><strong>OBSERVACIONES</strong></div>
-            </div>
-          </div>
+    /* ── FOOTER ── */
+    .footer { margin-top:16px; }
+    .footer-top { display:flex; justify-content:flex-end; margin-bottom:20px; }
+    .totals-box { width:260px; border:1px solid #e2e8f0; border-radius:4px; overflow:hidden; }
+    .totals-row { display:flex; justify-content:space-between; padding:5px 12px; font-size:8px; border-bottom:1px solid #f1f5f9; }
+    .totals-row .lbl { color:#64748b; font-weight:500; }
+    .totals-row .val { font-weight:500; color:#374151; }
+    .totals-row.grand { background:#1a1a2e; border-bottom:none; }
+    .totals-row.grand .lbl { color:#94a3b8; font-weight:700; font-size:8.5px; letter-spacing:.5px; text-transform:uppercase; }
+    .totals-row.grand .val { color:#38bdf8; font-weight:700; font-size:10px; }
+
+    /* ── FIRMAS ── */
+    .firmas { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:6px; }
+    .firma { display:flex; flex-direction:column; }
+    .firma-space { height:50px; border-bottom:1px solid #94a3b8; margin-bottom:4px; }
+    .firma-label { font-size:6.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#64748b; text-align:center; }
+
+    /* ── WATERMARK número ── */
+    .doc-number-side { position:fixed; right:10px; top:50%; transform:rotate(90deg) translateX(-50%); font-size:7px; color:#e2e8f0; letter-spacing:2px; font-weight:700; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- TOP BANNER -->
+  <div class="top-banner">
+    <div class="banner-left">
+      <div class="banner-doc-label">Documento</div>
+      <div class="banner-doc-title">ORDEN DE<br>COMPRA</div>
+      <div class="banner-doc-num">${ordenDetalle.value.codigo}</div>
+    </div>
+    <div class="banner-right">
+      <div class="banner-field">
+        <span class="banner-field-label">Fecha de Orden</span>
+        <span class="banner-field-val">${fmtFecha(ordenDetalle.value.fecha)}</span>
+      </div>
+      <div class="banner-field">
+        <span class="banner-field-label">Fecha de Entrega</span>
+        <span class="banner-field-val accent">${fmtFecha(ordenDetalle.value.fecha_entrega) || '—'}</span>
+      </div>
+      <div class="banner-field">
+        <span class="banner-field-label">Tipo de Precio</span>
+        <span class="banner-field-val">${ordenDetalle.value.tipo_precio || '—'}</span>
+      </div>
+      <div class="banner-field">
+        <span class="banner-field-label">Estado</span>
+        <span class="banner-field-val">${ordenDetalle.value.estado || '—'}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PARTIES -->
+  <div class="parties">
+    <div class="party-card">
+      <div class="party-header">Vendedor / Proveedor</div>
+      <div class="party-body">
+        <div class="party-name">${empresaProveedor.value?.nombre || 'N/A'}</div>
+        <div class="party-detail">
+          ${empresaProveedor.value?.direccion || ''}${empresaProveedor.value?.direccion ? '<br>' : ''}
+          ${empresaProveedor.value?.telefono ? 'Tel: ' + empresaProveedor.value.telefono : ''}
         </div>
       </div>
-    </body>
-    </html>
-  `
+    </div>
+    <div class="party-card">
+      <div class="party-header">Enviar A / Cliente</div>
+      <div class="party-body">
+        <div class="party-name">${empresaCliente.value?.nombre || 'N/A'}</div>
+        <div class="party-detail">
+          ${empresaCliente.value?.direccion || ''}${empresaCliente.value?.direccion ? '<br>' : ''}
+          ${empresaCliente.value?.telefono ? 'Tel: ' + empresaCliente.value.telefono : ''}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OBSERVACIONES -->
+  <div class="obs-bar">
+    <span class="obs-label">Observaciones</span>
+    <span class="obs-val">${ordenDetalle.value.observaciones || '—'}</span>
+  </div>
+
+  <!-- TABLA PRODUCTOS -->
+  <div class="tabla-wrap">
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th style="width:7%">Código</th>
+          <th style="width:38%">Producto</th>
+          <th style="width:18%">Detalles</th>
+          <th style="width:7%" class="ta-c">Cant.</th>
+          <th style="width:13%" class="ta-r">Vr. Unitario</th>
+          <th style="width:13%" class="ta-r">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(d => `
+        <tr>
+          <td class="cod ta-c">${d.producto_venta}</td>
+          <td class="prod-name">${d.producto_nombre || d.nombre_producto || ''}</td>
+          <td class="det">${d.producto_descripcion || d.descripcion || ''}</td>
+          <td class="qty ta-c">${d.cantidad}</td>
+          <td class="price ta-r">$${parseFloat(d.precio_unitario).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+          <td class="total-cell ta-r">$${parseFloat(d.subtotal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+        </tr>`).join('')}
+        ${Array(filasVacias).fill().map(() => `
+        <tr class="empty-row">
+          <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-top">
+      <div class="totals-box">
+        <div class="totals-row">
+          <span class="lbl">Subtotal</span>
+          <span class="val">$${subtotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+        </div>
+        <div class="totals-row">
+          <span class="lbl">Impuestos</span>
+          <span class="val">—</span>
+        </div>
+        <div class="totals-row grand">
+          <span class="lbl">Total</span>
+          <span class="val">$${subtotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="firmas">
+      <div class="firma">
+        <div class="firma-space"></div>
+        <div class="firma-label">Entregado Por</div>
+      </div>
+      <div class="firma">
+        <div class="firma-space"></div>
+        <div class="firma-label">Recibido Por</div>
+      </div>
+      <div class="firma">
+        <div class="firma-space"></div>
+        <div class="firma-label">Fecha</div>
+      </div>
+      <div class="firma">
+        <div class="firma-space"></div>
+        <div class="firma-label">Observaciones</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>`
   const ventana = window.open('', '_blank')
   ventana.document.write(html)
   ventana.document.close()
