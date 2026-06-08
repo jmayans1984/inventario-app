@@ -477,7 +477,7 @@ function exportarPDF() {
 .kx-kpi--salida  { color: #f59e0b; }
 .kx-kpi--venta   { color: #ef4444; }
 
-.kx-table-wrap { overflow-x: auto; max-height: 65vh; overflow-y: auto; }
+.kx-table-wrap { overflow-x: auto; }
 .kx-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 .kx-table thead th { position: sticky; top: 0; z-index: 2; background: rgb(var(--v-theme-surface)); padding: 10px 10px; text-align: left; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1); white-space: nowrap; overflow: hidden; }
 .th-nom     { width: 155px; }
