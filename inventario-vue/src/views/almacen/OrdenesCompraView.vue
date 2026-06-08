@@ -916,144 +916,154 @@ function imprimirDetalle() {
       <title>${ordenDetalle.value.codigo}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
         body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; color: #000; background: #fff; }
-        .page { width: 8.5in; height: 11in; margin: 0 auto; padding: 15px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-        .logo { max-width: 80px; }
+        .page { width: 8.5in; height: 11in; margin: 0 auto; padding: 15px; display: flex; flex-direction: column; position: relative; }
+        .content { flex: 1; display: flex; flex-direction: column; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 8px; }
+        .logo { max-width: 60px; height: auto; }
         .logo img { max-width: 100%; height: auto; }
         .titulo-header { text-align: center; flex: 1; }
-        .titulo-main { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
-        .titulo-number { font-size: 12px; font-weight: bold; }
-        .empresa-box { display: flex; gap: 30px; margin-bottom: 12px; }
+        .titulo-main { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+        .titulo-number { font-size: 11px; font-weight: bold; }
+        .empresa-box { display: flex; gap: 20px; margin-bottom: 8px; }
         .empresa-section { flex: 1; }
-        .empresa-titulo { background: #000; color: #fff; padding: 4px 6px; font-weight: bold; font-size: 9px; margin-bottom: 4px; }
-        .empresa-content { font-size: 9px; padding: 0 6px; }
-        .empresa-content p { margin: 2px 0; }
-        .condiciones { margin-bottom: 12px; }
-        .cond-table { width: 100%; border-collapse: collapse; font-size: 9px; }
-        .cond-table td { border: 1px solid #999; padding: 6px; font-weight: bold; background: #f5f5f5; }
-        .cond-table .empty { height: 25px; font-weight: normal; background: #fff; }
-        .tabla-productos { width: 100%; border-collapse: collapse; font-size: 9px; margin-bottom: 10px; }
+        .empresa-titulo { background: #000; color: #fff; padding: 3px 5px; font-weight: bold; font-size: 8px; margin-bottom: 3px; }
+        .empresa-content { font-size: 8px; padding: 0 5px; }
+        .empresa-content p { margin: 1px 0; }
+        .condiciones { margin-bottom: 8px; }
+        .cond-table { width: 100%; border-collapse: collapse; font-size: 8px; }
+        .cond-table td { border: 1px solid #999; padding: 4px; font-weight: bold; background: #f5f5f5; }
+        .cond-table .empty { height: 20px; font-weight: normal; background: #fff; }
+        .tabla-productos { width: 100%; border-collapse: collapse; font-size: 9px; flex: 1; }
         .tabla-productos th { border: 1px solid #000; padding: 4px; background: #000; color: #fff; font-weight: bold; text-align: center; }
         .tabla-productos td { border: 1px solid #ccc; padding: 3px 4px; }
+        .tabla-productos tbody tr { height: 20px; }
         .ta-c { text-align: center; }
         .ta-r { text-align: right; }
-        .resumen { width: 45%; margin-left: auto; margin-bottom: 12px; }
+        .footer-section { margin-top: auto; padding-top: 10px; border-top: 1px solid #ccc; }
+        .resumen { width: 50%; margin-left: auto; margin-bottom: 15px; }
         .resumen-row { display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: 9px; }
         .resumen-row.total { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; background: #f5f5f5; }
-        .footer-firmas { display: flex; gap: 20px; margin-top: 15px; font-size: 8px; }
-        .firma-box { flex: 1; border-top: 1px solid #000; padding-top: 2px; text-align: center; min-height: 40px; }
+        .footer-firmas { display: flex; gap: 10px; margin-top: 20px; font-size: 8px; }
+        .firma-box { flex: 1; border-top: 1px solid #000; padding-top: 2px; text-align: center; min-height: 120px; }
         .firma-label { margin-top: 2px; }
       </style>
     </head>
     <body>
       <div class="page">
-        <!-- Header con logo y título -->
-        <div class="header">
-          <div class="logo">
-            ${empresaProveedor.value?.logo_url ? `<img src="${empresaProveedor.value.logo_url}" alt="Logo">` : '[LOGO]'}
-          </div>
-          <div class="titulo-header">
-            <div class="titulo-main">ORDEN DE COMPRA</div>
-            <div class="titulo-number">${ordenDetalle.value.codigo}</div>
-          </div>
-        </div>
-
-        <!-- Vendedor y Envía A -->
-        <div class="empresa-box">
-          <div class="empresa-section">
-            <div class="empresa-titulo">VENDEDOR</div>
-            <div class="empresa-content">
-              <p><strong>${empresaProveedor.value?.nombre || 'N/A'}</strong></p>
-              ${empresaProveedor.value?.direccion ? `<p>${empresaProveedor.value.direccion}</p>` : ''}
-              ${empresaProveedor.value?.telefono ? `<p>${empresaProveedor.value.telefono}</p>` : ''}
+        <div class="content">
+          <!-- Header con logo y título -->
+          <div class="header">
+            <div class="logo">
+              ${empresaProveedor.value?.logo_url ? `<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" alt="Logo">` : ''}
+            </div>
+            <div class="titulo-header">
+              <div class="titulo-main">ORDEN DE COMPRA</div>
+              <div class="titulo-number">${ordenDetalle.value.codigo}</div>
             </div>
           </div>
-          <div class="empresa-section">
-            <div class="empresa-titulo">ENVÍA A</div>
-            <div class="empresa-content">
-              <p><strong>${empresaCliente.value?.nombre || 'N/A'}</strong></p>
-              ${empresaCliente.value?.direccion ? `<p>${empresaCliente.value.direccion}</p>` : ''}
-              ${empresaCliente.value?.telefono ? `<p>${empresaCliente.value.telefono}</p>` : ''}
+
+          <!-- Vendedor y Envía A -->
+          <div class="empresa-box">
+            <div class="empresa-section">
+              <div class="empresa-titulo">VENDEDOR</div>
+              <div class="empresa-content">
+                <p><strong>${empresaProveedor.value?.nombre || 'N/A'}</strong></p>
+                ${empresaProveedor.value?.direccion ? `<p>${empresaProveedor.value.direccion}</p>` : ''}
+                ${empresaProveedor.value?.telefono ? `<p>${empresaProveedor.value.telefono}</p>` : ''}
+              </div>
+            </div>
+            <div class="empresa-section">
+              <div class="empresa-titulo">ENVÍA A</div>
+              <div class="empresa-content">
+                <p><strong>${empresaCliente.value?.nombre || 'N/A'}</strong></p>
+                ${empresaCliente.value?.direccion ? `<p>${empresaCliente.value.direccion}</p>` : ''}
+                ${empresaCliente.value?.telefono ? `<p>${empresaCliente.value.telefono}</p>` : ''}
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Condiciones -->
-        <div class="condiciones">
-          <table class="cond-table">
-            <tr>
-              <td style="width:25%">FECHA DE ORDEN<div class="empty">${fmtFecha(ordenDetalle.value.fecha)}</div></td>
-              <td style="width:25%">FECHA DE ENTREGA<div class="empty">${fmtFecha(ordenDetalle.value.fecha_entrega) || ''}</div></td>
-              <td style="width:50%" colspan="2">OBSERVACIONES<div class="empty">${ordenDetalle.value.observaciones || ''}</div></td>
-            </tr>
+          <!-- Condiciones -->
+          <div class="condiciones">
+            <table class="cond-table">
+              <tr>
+                <td style="width:25%">FECHA DE ORDEN<div class="empty">${fmtFecha(ordenDetalle.value.fecha)}</div></td>
+                <td style="width:25%">FECHA DE ENTREGA<div class="empty">${fmtFecha(ordenDetalle.value.fecha_entrega) || ''}</div></td>
+                <td style="width:50%" colspan="2">OBSERVACIONES<div class="empty">${ordenDetalle.value.observaciones || ''}</div></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Tabla de Productos -->
+          <table class="tabla-productos">
+            <thead>
+              <tr>
+                <th style="width:8%">CODIGO</th>
+                <th style="width:35%">PRODUCTO</th>
+                <th style="width:12%">DETALLES</th>
+                <th style="width:8%">CANT</th>
+                <th style="width:12%">VR. UNITARIO</th>
+                <th style="width:15%">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(d => `
+                <tr>
+                  <td class="ta-c">${d.producto_venta}</td>
+                  <td>${d.producto_nombre || d.nombre_producto}</td>
+                  <td style="font-size:8px">${d.producto_descripcion || d.descripcion || '—'}</td>
+                  <td class="ta-c">${d.cantidad}</td>
+                  <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
+                  <td class="ta-r" style="border-right: 1px solid #ccc;">$${parseFloat(d.subtotal).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              ${Array(Math.max(0, 12 - items.length)).fill().map(() => `
+                <tr>
+                  <td>&nbsp;</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td style="border-right: 1px solid #ccc;"></td>
+                </tr>
+              `).join('')}
+            </tbody>
           </table>
         </div>
 
-        <!-- Tabla de Productos -->
-        <table class="tabla-productos">
-          <thead>
-            <tr>
-              <th style="width:8%">CODIGO</th>
-              <th style="width:35%">PRODUCTO</th>
-              <th style="width:12%">DETALLES</th>
-              <th style="width:8%">CANT</th>
-              <th style="width:12%">VR. UNITARIO</th>
-              <th style="width:15%">TOTAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(d => `
-              <tr>
-                <td class="ta-c">${d.producto_venta}</td>
-                <td>${d.producto_nombre || d.nombre_producto}</td>
-                <td style="font-size:8px">${d.producto_descripcion || d.descripcion || '—'}</td>
-                <td class="ta-c">${d.cantidad}</td>
-                <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
-                <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
-              </tr>
-            `).join('')}
-            ${Array(Math.max(0, 8 - items.length)).fill().map(() => `
-              <tr>
-                <td>&nbsp;</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+        <!-- Footer Section (Fixed) -->
+        <div class="footer-section">
+          <!-- Resumen -->
+          <div class="resumen">
+            <div class="resumen-row">
+              <span>SUBTOTAL</span>
+              <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
+            </div>
+            <div class="resumen-row">
+              <span>IMPUESTOS</span>
+              <span>-</span>
+            </div>
+            <div class="resumen-row total">
+              <span>TOTAL</span>
+              <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
+            </div>
+          </div>
 
-        <!-- Resumen -->
-        <div class="resumen">
-          <div class="resumen-row">
-            <span>SUBTOTAL</span>
-            <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
-          </div>
-          <div class="resumen-row">
-            <span>IMPUESTOS</span>
-            <span>-</span>
-          </div>
-          <div class="resumen-row total">
-            <span>TOTAL</span>
-            <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
-          </div>
-        </div>
-
-        <!-- Pie de página con firmas -->
-        <div class="footer-firmas">
-          <div class="firma-box">
-            <div class="firma-label"><strong>ENTREGADO POR</strong></div>
-          </div>
-          <div class="firma-box">
-            <div class="firma-label"><strong>RECIBIDO POR</strong></div>
-          </div>
-          <div class="firma-box">
-            <div class="firma-label"><strong>FECHA</strong></div>
-          </div>
-          <div class="firma-box">
-            <div class="firma-label"><strong>OBSERVACIONES</strong></div>
+          <!-- Pie de página con firmas -->
+          <div class="footer-firmas">
+            <div class="firma-box">
+              <div class="firma-label"><strong>ENTREGADO POR</strong></div>
+            </div>
+            <div class="firma-box">
+              <div class="firma-label"><strong>RECIBIDO POR</strong></div>
+            </div>
+            <div class="firma-box">
+              <div class="firma-label"><strong>FECHA</strong></div>
+            </div>
+            <div class="firma-box">
+              <div class="firma-label"><strong>OBSERVACIONES</strong></div>
+            </div>
           </div>
         </div>
       </div>
