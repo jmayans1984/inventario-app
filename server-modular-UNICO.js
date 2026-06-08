@@ -4485,31 +4485,16 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
             for (const detalle of detalles) {
                 console.log(`Insertando detalle:`, detalle);
 
-                // Validar que el producto existe en productos
-                const productoCheck = await client.query(
-                    `SELECT codigo FROM productos WHERE codigo = $1`,
-                    [detalle.producto_venta]
-                );
-
-                if (productoCheck.rows.length === 0) {
-                    throw new Error(`Producto ${detalle.producto_venta} no existe`);
-                }
-
-                const insertDetalleQuery = `
-                    INSERT INTO detalle_ordenes
-                    (orden, producto_venta, cantidad, precio_unitario, subtotal, empresa)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                `;
-
                 const subtotal = detalle.cantidad * detalle.precio_unitario;
-                await client.query(insertDetalleQuery, [
-                    codigo,
-                    detalle.producto_venta,
-                    detalle.cantidad,
-                    detalle.precio_unitario,
-                    subtotal,
-                    ordenCliente
-                ]);
+                try {
+                    await client.query(
+                        `INSERT INTO detalle_ordenes (orden, producto_venta, cantidad, precio_unitario, subtotal, empresa)
+                         VALUES ($1, $2, $3, $4, $5, $6)`,
+                        [codigo, detalle.producto_venta, detalle.cantidad, detalle.precio_unitario, subtotal, ordenCliente]
+                    );
+                } catch (fkErr) {
+                    throw new Error(`FK error en producto "${detalle.producto_venta}": ${fkErr.message}`);
+                }
             }
             console.log(`Detalles insertados correctamente`);
         }
