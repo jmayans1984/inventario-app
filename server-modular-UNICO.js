@@ -4310,7 +4310,7 @@ app.get('/api/ordenes-compra/:codigo', async (req, res) => {
     }
 });
 
-// GET /api/ordenes-compra/:codigo/detalles - Obtener detalles de orden
+// GET /api/ordenes-compra/:codigo/detalles - Obtener detalles de orden con info de empresas
 app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
     const { codigo } = req.params;
 
@@ -4355,9 +4355,6 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
         const ordenResult = await pool.query(ordenQuery, [codigo]);
         const detallesResult = await pool.query(detallesQuery, [codigo]);
 
-        console.log(`GET /api/ordenes-compra/${codigo}/detalles`);
-        console.log('Detalles obtenidos:', detallesResult.rows);
-
         if (ordenResult.rows.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -4365,10 +4362,25 @@ app.get('/api/ordenes-compra/:codigo/detalles', async (req, res) => {
             });
         }
 
+        const orden = ordenResult.rows[0];
+
+        // Obtener datos de la empresa PROVEEDOR (vendedor)
+        const proveedorResult = await pool.query(
+            `SELECT codigo, nombre, direccion, ciudad, estado, postal, telefono, logo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
+        );
+
+        // Obtener datos de la empresa CLIENTE (quien hace la orden - envía a)
+        const clienteResult = await pool.query(
+            `SELECT codigo, nombre, direccion, ciudad, estado, postal, telefono FROM empresas WHERE codigo = $1`,
+            [orden.cliente]
+        );
+
         res.json({
             success: true,
-            orden: ordenResult.rows[0],
-            detalles: detallesResult.rows
+            orden: orden,
+            detalles: detallesResult.rows,
+            proveedor: proveedorResult.rows[0] || {},
+            cliente: clienteResult.rows[0] || {}
         });
 
     } catch (error) {

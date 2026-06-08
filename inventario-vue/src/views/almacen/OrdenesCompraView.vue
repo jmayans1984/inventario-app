@@ -550,6 +550,8 @@ const editObservaciones = ref('')
 const guardandoEdicion  = ref(false)
 
 const snack = ref({ show: false, msg: '', color: 'success' })
+const empresaProveedor = ref({})
+const empresaCliente = ref({})
 
 // ── Computed ────────────────────────────────────────────────
 const totalPendiente = computed(() =>
@@ -894,6 +896,8 @@ async function verDetalle(o) {
   try {
     const r = await fetch(`${API_BASE}/ordenes-compra/${o.codigo}/detalles`).then(r => r.json())
     detalleLineas.value = r.detalles || r.data || []
+    empresaProveedor.value = r.proveedor || {}
+    empresaCliente.value = r.cliente || {}
   } catch (e) { console.error(e) }
   finally { loadingDetalle.value = false }
 }
@@ -909,130 +913,114 @@ function imprimirDetalle() {
       <title>${ordenDetalle.value.codigo}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; color: #000; background: #fff; }
-        .page { width: 8.5in; height: 11in; margin: 0 auto; padding: 20px; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .logo { font-weight: bold; font-size: 20px; }
-        .titulo { text-align: right; }
-        .titulo-main { font-size: 18px; font-weight: bold; }
-        .titulo-sub { font-size: 12px; }
-        .fecha-oc { display: flex; justify-content: space-between; margin-bottom: 15px; }
-        .fecha-oc-item { display: flex; gap: 30px; }
-        .fecha-oc-row { display: flex; gap: 50px; }
-        .section-header { background: #000; color: #fff; padding: 6px 8px; font-weight: bold; font-size: 10px; margin-top: 12px; margin-bottom: 6px; }
-        .section-content { padding: 0 8px 10px 8px; border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-bottom: 1px solid #ccc; }
-        .section-content p { margin: 4px 0; font-size: 10px; }
-        .section-content span { display: block; margin: 2px 0; }
-        .table-container { margin-top: 15px; }
-        table { width: 100%; border-collapse: collapse; font-size: 10px; }
-        .table-head { background: #000; color: #fff; }
-        .table-head th { padding: 6px 4px; text-align: left; font-weight: bold; border: 1px solid #999; }
-        table td { padding: 4px; border: 1px solid #ccc; }
-        table tr:nth-child(even) { background: #f9f9f9; }
+        body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; color: #000; background: #fff; }
+        .page { width: 8.5in; height: 11in; margin: 0 auto; padding: 15px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .logo { max-width: 80px; }
+        .logo img { max-width: 100%; height: auto; }
+        .titulo-header { text-align: center; flex: 1; }
+        .titulo-main { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
+        .titulo-number { font-size: 12px; font-weight: bold; }
+        .empresa-box { display: flex; gap: 30px; margin-bottom: 12px; }
+        .empresa-section { flex: 1; }
+        .empresa-titulo { background: #000; color: #fff; padding: 4px 6px; font-weight: bold; font-size: 9px; margin-bottom: 4px; }
+        .empresa-content { font-size: 9px; padding: 0 6px; }
+        .empresa-content p { margin: 2px 0; }
+        .condiciones { margin-bottom: 12px; }
+        .cond-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+        .cond-table td { border: 1px solid #999; padding: 6px; font-weight: bold; background: #f5f5f5; }
+        .cond-table .empty { height: 25px; font-weight: normal; background: #fff; }
+        .tabla-productos { width: 100%; border-collapse: collapse; font-size: 9px; margin-bottom: 10px; }
+        .tabla-productos th { border: 1px solid #000; padding: 4px; background: #000; color: #fff; font-weight: bold; text-align: center; }
+        .tabla-productos td { border: 1px solid #ccc; padding: 3px 4px; }
         .ta-c { text-align: center; }
         .ta-r { text-align: right; }
-        .grupo-row { background: #f5f5f5; font-weight: bold; padding: 4px; }
-        .resumen { margin-top: 15px; width: 40%; margin-left: auto; }
-        .resumen-row { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #ddd; }
-        .resumen-row.total { border-bottom: 2px solid #000; font-weight: bold; background: #f5f5f5; }
-        .observaciones { margin-top: 15px; padding: 8px; border: 1px solid #ccc; font-size: 10px; }
-        .footer { margin-top: 20px; text-align: center; font-size: 9px; color: #666; }
+        .resumen { width: 45%; margin-left: auto; margin-bottom: 12px; }
+        .resumen-row { display: flex; justify-content: space-between; padding: 3px 4px; border-bottom: 1px solid #ddd; font-size: 9px; }
+        .resumen-row.total { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; background: #f5f5f5; }
+        .footer-firmas { display: flex; gap: 20px; margin-top: 15px; font-size: 8px; }
+        .firma-box { flex: 1; border-top: 1px solid #000; padding-top: 2px; text-align: center; min-height: 40px; }
+        .firma-label { margin-top: 2px; }
       </style>
     </head>
     <body>
       <div class="page">
-        <!-- Header -->
+        <!-- Header con logo y título -->
         <div class="header">
-          <div class="logo">[LOGO]</div>
-          <div class="titulo">
+          <div class="logo">
+            ${empresaProveedor.value?.logo ? `<img src="${empresaProveedor.value.logo}" alt="Logo">` : '[LOGO]'}
+          </div>
+          <div class="titulo-header">
             <div class="titulo-main">ORDEN DE COMPRA</div>
-            <div class="titulo-sub">
-              <table style="font-size:10px;border-collapse:collapse;width:100%;margin-top:4px">
-                <tr>
-                  <td style="border:1px solid #ccc;padding:2px;font-weight:bold;">FECHA</td>
-                  <td style="border:1px solid #ccc;padding:2px;width:40%">${fmtFecha(ordenDetalle.value.fecha)}</td>
-                  <td style="border:1px solid #ccc;padding:2px;font-weight:bold;">OC #</td>
-                  <td style="border:1px solid #ccc;padding:2px;width:40%">${ordenDetalle.value.codigo}</td>
-                </tr>
-              </table>
-            </div>
+            <div class="titulo-number">${ordenDetalle.value.codigo}</div>
           </div>
         </div>
 
         <!-- Vendedor y Envía A -->
-        <div style="display:flex;gap:30px;margin-bottom:15px">
-          <div style="flex:1">
-            <div class="section-header">VENDEDOR</div>
-            <div class="section-content">
-              <p>${proveedor.value?.nombre || 'N/A'}</p>
-              <span>[Dirección]</span>
-              <span>[Ciudad, Estado, postal]</span>
-              <span>[Teléfono]</span>
+        <div class="empresa-box">
+          <div class="empresa-section">
+            <div class="empresa-titulo">VENDEDOR</div>
+            <div class="empresa-content">
+              <p><strong>${empresaProveedor.value?.nombre || 'N/A'}</strong></p>
+              ${empresaProveedor.value?.direccion ? `<p>${empresaProveedor.value.direccion}</p>` : ''}
+              ${empresaProveedor.value?.ciudad || empresaProveedor.value?.estado || empresaProveedor.value?.postal ? `<p>${[empresaProveedor.value?.ciudad, empresaProveedor.value?.estado, empresaProveedor.value?.postal].filter(Boolean).join(', ')}</p>` : ''}
+              ${empresaProveedor.value?.telefono ? `<p>${empresaProveedor.value.telefono}</p>` : ''}
             </div>
           </div>
-          <div style="flex:1">
-            <div class="section-header">ENVÍA A</div>
-            <div class="section-content">
-              <p>[Nombre]</p>
-              <span>[Dirección]</span>
-              <span>[Ciudad, Estado, postal]</span>
-              <span>[Teléfono]</span>
+          <div class="empresa-section">
+            <div class="empresa-titulo">ENVÍA A</div>
+            <div class="empresa-content">
+              <p><strong>${empresaCliente.value?.nombre || 'N/A'}</strong></p>
+              ${empresaCliente.value?.direccion ? `<p>${empresaCliente.value.direccion}</p>` : ''}
+              ${empresaCliente.value?.ciudad || empresaCliente.value?.estado || empresaCliente.value?.postal ? `<p>${[empresaCliente.value?.ciudad, empresaCliente.value?.estado, empresaCliente.value?.postal].filter(Boolean).join(', ')}</p>` : ''}
+              ${empresaCliente.value?.telefono ? `<p>${empresaCliente.value.telefono}</p>` : ''}
             </div>
           </div>
         </div>
 
         <!-- Condiciones -->
-        <div style="display:flex;gap:30px;margin-bottom:15px;font-size:10px">
-          <table style="flex:1">
+        <div class="condiciones">
+          <table class="cond-table">
             <tr>
-              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">REQUISAR</td>
-              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">EMBARCAR VIA</td>
-              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">F.O.B.</td>
-              <td style="border:1px solid #ccc;padding:4px;font-weight:bold;background:#f5f5f5">CONDICIONES DE ENVÍO</td>
-            </tr>
-            <tr>
-              <td style="border:1px solid #ccc;padding:4px;height:30px"></td>
-              <td style="border:1px solid #ccc;padding:4px"></td>
-              <td style="border:1px solid #ccc;padding:4px"></td>
-              <td style="border:1px solid #ccc;padding:4px"></td>
+              <td style="width:25%">FECHA DE ORDEN<div class="empty">${fmtFecha(ordenDetalle.value.fecha)}</div></td>
+              <td style="width:25%">FECHA DE ENTREGA<div class="empty">${fmtFecha(ordenDetalle.value.fecha_entrega) || ''}</div></td>
+              <td style="width:50%" colspan="2">DESCRIPCIÓN O DETALLES<div class="empty"></div></td>
             </tr>
           </table>
         </div>
 
-        <!-- Tabla Artículos -->
-        <div class="table-container">
-          <table>
-            <thead class="table-head">
+        <!-- Tabla de Productos -->
+        <table class="tabla-productos">
+          <thead>
+            <tr>
+              <th style="width:8%">CODIGO</th>
+              <th style="width:45%">DESCRIPCIÓN</th>
+              <th style="width:10%">CANT</th>
+              <th style="width:12%">VR. UNITARIO</th>
+              <th style="width:15%">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(d => `
               <tr>
-                <th style="width:5%">ARTICULO #</th>
-                <th style="width:40%">DESCRIPCIÓN</th>
-                <th style="width:12%">CANT</th>
-                <th style="width:12%">p/u</th>
-                <th style="width:15%">TOTAL</th>
+                <td class="ta-c">${d.producto_venta}</td>
+                <td>${d.producto_nombre || d.nombre_producto}</td>
+                <td class="ta-c">${d.cantidad}</td>
+                <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
+                <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
               </tr>
-            </thead>
-            <tbody>
-              ${items.map(d => `
-                <tr>
-                  <td class="ta-c">${d.producto_venta}</td>
-                  <td>${d.producto_nombre || d.nombre_producto}</td>
-                  <td class="ta-c">${d.cantidad}</td>
-                  <td class="ta-r">$${parseFloat(d.precio_unitario).toFixed(2)}</td>
-                  <td class="ta-r">$${parseFloat(d.subtotal).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-              ${Array(10 - items.length).fill().map(() => `
-                <tr>
-                  <td>&nbsp;</td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+            `).join('')}
+            ${Array(Math.max(0, 8 - items.length)).fill().map(() => `
+              <tr>
+                <td>&nbsp;</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
 
         <!-- Resumen -->
         <div class="resumen">
@@ -1041,15 +1029,7 @@ function imprimirDetalle() {
             <span>$${parseFloat(ordenDetalle.value.total).toFixed(2)}</span>
           </div>
           <div class="resumen-row">
-            <span>IMPUESTO</span>
-            <span>-</span>
-          </div>
-          <div class="resumen-row">
-            <span>ENVÍO</span>
-            <span>-</span>
-          </div>
-          <div class="resumen-row">
-            <span>OTRO</span>
+            <span>IMPUESTOS</span>
             <span>-</span>
           </div>
           <div class="resumen-row total">
@@ -1058,16 +1038,20 @@ function imprimirDetalle() {
           </div>
         </div>
 
-        <!-- Observaciones -->
-        ${ordenDetalle.value.observaciones ? `
-          <div class="section-header" style="margin-top:12px">Comentarios o instrucciones especiales</div>
-          <div class="observaciones">
-            ${ordenDetalle.value.observaciones}
+        <!-- Pie de página con firmas -->
+        <div class="footer-firmas">
+          <div class="firma-box">
+            <div class="firma-label"><strong>ENTREGADO POR</strong></div>
           </div>
-        ` : ''}
-
-        <div class="footer">
-          Fecha de impresión: ${fechaHoy}
+          <div class="firma-box">
+            <div class="firma-label"><strong>RECIBIDO POR</strong></div>
+          </div>
+          <div class="firma-box">
+            <div class="firma-label"><strong>FECHA</strong></div>
+          </div>
+          <div class="firma-box">
+            <div class="firma-label"><strong>OBSERVACIONES</strong></div>
+          </div>
         </div>
       </div>
     </body>
