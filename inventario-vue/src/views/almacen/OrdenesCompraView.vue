@@ -945,7 +945,7 @@ function imprimirDetalle() {
     .obs-val { font-size:8px; color:#374151; flex:1; }
 
     /* ── TABLA ── */
-    .tabla-wrap { flex:1; }
+    .tabla-wrap { }
     .tabla { width:100%; border-collapse:collapse; }
     .tabla thead tr { background:#fff; }
     .tabla thead th { padding:5px 8px; font-size:7px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#1a1a2e; text-align:left; border-top:2px solid #1a1a2e; border-bottom:2px solid #1a1a2e; }
@@ -966,7 +966,7 @@ function imprimirDetalle() {
     .tabla td.total-cell { font-weight:600; color:#1a1a2e; }
 
     /* ── FOOTER ── */
-    .footer { margin-top:16px; }
+    .footer { margin-top:8px; }
     .footer-top { display:flex; justify-content:flex-end; margin-bottom:20px; }
     .totals-box { width:260px; border:1px solid #e2e8f0; border-radius:4px; overflow:hidden; }
     .totals-row { display:flex; justify-content:space-between; padding:5px 12px; font-size:8px; border-bottom:1px solid #f1f5f9; }
