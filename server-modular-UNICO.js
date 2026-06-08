@@ -7316,17 +7316,20 @@ app.post('/api/verificar-stock/:codigo', async (req, res) => {
 app.get('/api/notificaciones', async (req, res) => {
     try {
         const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
         if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
 
         const result = await pool.query(
             `SELECT n.id, n.titulo, n.mensaje, n.tipo, n.url, n.id_producto, n.fecha_creacion,
                     COALESCE(nu.leida, 'NO') AS leida
              FROM notificaciones n
              LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
-             WHERE n.fecha_creacion > NOW() - INTERVAL '30 days'
+             WHERE n.empresa = $2
+               AND n.fecha_creacion > NOW() - INTERVAL '30 days'
                AND (nu.leida IS NULL OR nu.leida != 'ELIMINADA')
              ORDER BY n.fecha_creacion DESC LIMIT 50`,
-            [usuarioCod]
+            [usuarioCod, empresaCod]
         );
         res.json({ success: true, data: result.rows });
     } catch (e) {
@@ -7339,14 +7342,17 @@ app.get('/api/notificaciones', async (req, res) => {
 app.get('/api/notificaciones/sin-leer/count', async (req, res) => {
     try {
         const usuarioCod = req.query.usuario || req.headers['x-usuario'];
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
         if (!usuarioCod) return res.status(400).json({ success: false, error: 'Usuario requerido' });
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
 
         const result = await pool.query(
             `SELECT COUNT(*) as total
              FROM notificaciones n
              LEFT JOIN notificaciones_usuarios nu ON n.id = nu.notificacion_id AND nu.usuario_codigo = $1
-             WHERE (nu.leida = 'NO' OR nu.leida IS NULL)`,
-            [usuarioCod]
+             WHERE n.empresa = $2
+               AND (nu.leida = 'NO' OR nu.leida IS NULL)`,
+            [usuarioCod, empresaCod]
         );
         res.json({ success: true, data: { total: result.rows[0].total } });
     } catch (e) {

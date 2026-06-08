@@ -6,7 +6,10 @@ export const notificacionesService = {
   async obtenerNotificaciones() {
     const authStore = useAuthStore()
     const res = await api.get('/notificaciones', {
-      params: { usuario: authStore.userName }
+      params: {
+        usuario: authStore.userName,
+        empresa: authStore.empresa
+      }
     })
     return res.data
   },
@@ -14,7 +17,10 @@ export const notificacionesService = {
   async obtenerCountSinLeer() {
     const authStore = useAuthStore()
     const res = await api.get('/notificaciones/sin-leer/count', {
-      params: { usuario: authStore.userName }
+      params: {
+        usuario: authStore.userName,
+        empresa: authStore.empresa
+      }
     })
     return res.data
   },
