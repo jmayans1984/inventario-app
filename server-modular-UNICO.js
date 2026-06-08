@@ -4523,6 +4523,74 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
     }
 });
 
+// PUT /api/ordenes-compra/:codigo/ajustar-entrega — ajustar cantidades reales entregadas (solo PROVEEDOR, orden ENTREGADA)
+app.put('/api/ordenes-compra/:codigo/ajustar-entrega', async (req, res) => {
+    const { codigo } = req.params;
+    const { fecha_entrega, detalles } = req.body;
+    const empresaActiva = req.headers['x-empresa'];
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const ordenRes = await client.query(
+            `SELECT oc.estado, oc.empresa FROM ordenes_compra oc WHERE oc.codigo = $1`,
+            [codigo]
+        );
+        if (ordenRes.rows.length === 0) throw new Error('Orden no encontrada');
+        if (ordenRes.rows[0].estado !== 'ENTREGADA') throw new Error('Solo se pueden ajustar órdenes ENTREGADA');
+
+        const nuevoTotal = detalles.reduce((s, d) => s + (parseFloat(d.cantidad_entregada) * parseFloat(d.precio_unitario)), 0);
+
+        // 1. Actualizar cantidades en detalle_ordenes
+        for (const d of detalles) {
+            await client.query(
+                `UPDATE detalle_ordenes SET cantidad = $1, subtotal = $2 WHERE orden = $3 AND producto_venta = $4`,
+                [d.cantidad_entregada, d.cantidad_entregada * d.precio_unitario, codigo, d.producto_venta]
+            );
+        }
+
+        // 2. Actualizar total de la orden y fecha_entrega
+        await client.query(
+            `UPDATE ordenes_compra SET total = $1, fecha_entrega = $2 WHERE codigo = $3`,
+            [nuevoTotal, fecha_entrega, codigo]
+        );
+
+        // 3. Obtener bodega maestra de la empresa activa
+        const empRes = await client.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
+            [String(empresaActiva)]
+        );
+        const bodegaMaestra = empRes.rows[0]?.bodega_maestra;
+
+        // 4. Revertir descarga anterior de inventario para esta orden
+        if (bodegaMaestra) {
+            await client.query(
+                `DELETE FROM detalle_inventario WHERE observaciones = $1 AND ccosto = $2 AND tipo = 'SALIDA' AND empresa::text = $3`,
+                [`SALIDA POR VENTA ${codigo}`, bodegaMaestra, String(empresaActiva)]
+            );
+
+            // 5. Aplicar nueva descarga con cantidades reales entregadas
+            for (const d of detalles) {
+                const cantReal = parseFloat(d.cantidad_entregada) || 0;
+                if (cantReal > 0) {
+                    await client.query(
+                        `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                         VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
+                        [fecha_entrega, bodegaMaestra, d.producto_venta, cantReal, String(empresaActiva), `SALIDA POR VENTA ${codigo}`]
+                    );
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Entrega ajustada y inventario actualizado' });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error ajustar-entrega:', e);
+        res.status(500).json({ success: false, error: 'Error al ajustar entrega', details: e.message });
+    } finally { client.release(); }
+});
+
 // POST /api/ordenes-compra/crear - Crear orden de compra con detalles
 // GET /api/empresas/proveedor — empresa tipo PROVEEDOR (para que el cliente la identifique)
 app.get('/api/empresas/proveedor', async (req, res) => {

@@ -147,6 +147,14 @@
                        icon="mdi-truck-delivery-outline" size="x-small" variant="text" color="#f59e0b"
                        :loading="entregando === oc.codigo"
                        @click="confirmarEntrega(oc)" />
+                <!-- Ajustar entrega (solo ENTREGADA, solo PROVEEDOR) -->
+                <v-tooltip v-if="oc.estado === 'ENTREGADA'" text="Ajustar cantidades entregadas" location="top">
+                  <template #activator="{ props }">
+                    <v-btn v-bind="props" icon="mdi-pencil-box-outline" size="x-small" variant="text"
+                           color="#f59e0b"
+                           @click="abrirAjusteEntrega(oc)" />
+                  </template>
+                </v-tooltip>
                 <!-- Generar Factura (solo ENTREGADA) -->
                 <v-tooltip v-if="oc.estado === 'ENTREGADA'" text="Generar Factura" location="top">
                   <template #activator="{ props }">
@@ -462,6 +470,54 @@
         </v-card>
       </v-dialog>
 
+      <!-- ===== MODAL AJUSTE ENTREGA ===== -->
+      <v-dialog v-model="modalAjuste" max-width="700" persistent scrollable>
+        <v-card class="modal-card" style="max-height:88vh">
+          <div class="modal-header">
+            <v-icon color="#f59e0b" class="mr-2">mdi-pencil-box-outline</v-icon>
+            <span>Ajustar Cantidades Entregadas — {{ ocAjuste?.codigo }}</span>
+            <v-spacer />
+            <v-btn icon="mdi-close" size="small" variant="text" @click="modalAjuste = false" />
+          </div>
+          <div class="modal-body" style="overflow-y:auto">
+            <p style="font-size:12px;color:rgba(var(--v-theme-on-surface),.55);margin-bottom:12px">
+              Ajusta las cantidades realmente entregadas. Al guardar se revertirá la descarga anterior del inventario y se aplicará la nueva.
+            </p>
+            <v-progress-linear v-if="loadingAjuste" indeterminate color="#f59e0b" height="3" class="mb-3" />
+            <table v-else class="det-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:rgba(var(--v-theme-on-surface),.4)">Producto</th>
+                  <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:rgba(var(--v-theme-on-surface),.4)">Cant. Ordenada</th>
+                  <th style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;text-transform:uppercase;color:rgba(var(--v-theme-on-surface),.4)">Cant. Entregada</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="d in ajusteDetalles" :key="d.producto_venta" style="border-bottom:1px solid rgba(var(--v-theme-on-surface),.05)">
+                  <td style="padding:8px">{{ d.producto_nombre || d.nombre_producto || d.producto_venta }}</td>
+                  <td style="text-align:center;padding:8px;color:rgba(var(--v-theme-on-surface),.5)">{{ d.cantidad_original }}</td>
+                  <td style="text-align:center;padding:4px 8px">
+                    <input v-model="d.cantidad_entregada" type="number" min="0" :max="d.cantidad_original"
+                           style="width:80px;text-align:center;border:1px solid rgba(var(--v-theme-on-surface),.2);border-radius:6px;padding:4px 6px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface));font-size:13px" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="mt-3">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:rgba(var(--v-theme-on-surface),.4);margin-bottom:4px">Fecha de entrega real <span style="color:#ef4444">*</span></div>
+              <v-text-field v-model="ajusteFecha" type="date" variant="outlined" density="compact" hide-details style="max-width:200px" />
+            </div>
+            <div v-if="errAjuste" class="api-error mt-3">{{ errAjuste }}</div>
+          </div>
+          <div class="modal-footer">
+            <v-btn variant="text" @click="modalAjuste = false">Cancelar</v-btn>
+            <v-btn color="#f59e0b" variant="flat" :loading="guardandoAjuste" @click="guardarAjuste">
+              Guardar Ajuste y Descargar Inventario
+            </v-btn>
+          </div>
+        </v-card>
+      </v-dialog>
+
       <!-- ===== MODAL PREVISUALIZAR SOPORTE ===== -->
       <v-dialog v-model="modalSoporte" max-width="720">
         <v-card class="modal-card">
@@ -531,6 +587,15 @@ const modalEntrega   = ref(false)
 const guardandoEntrega = ref(false)
 const errEntrega     = ref('')
 const entregando     = ref(null)
+
+// Ajuste entrega modal
+const modalAjuste    = ref(false)
+const ocAjuste       = ref(null)
+const ajusteDetalles = ref([])
+const ajusteFecha    = ref('')
+const loadingAjuste  = ref(false)
+const guardandoAjuste = ref(false)
+const errAjuste      = ref('')
 
 // Factura modal
 const modalFactura   = ref(false)
@@ -705,6 +770,45 @@ async function guardarEditar() {
   } catch (e) {
     errEditar.value = e?.response?.data?.error || e.message
   } finally { guardandoEdit.value = false }
+}
+
+// ── Ajuste de entrega ─────────────────────────────────────────────
+async function abrirAjusteEntrega(oc) {
+  ocAjuste.value = oc
+  errAjuste.value = ''
+  ajusteFecha.value = oc.fecha_entrega ? oc.fecha_entrega.substring(0, 10) : new Date().toISOString().split('T')[0]
+  ajusteDetalles.value = []
+  loadingAjuste.value = true
+  modalAjuste.value = true
+  try {
+    const r = await api.get(`/ordenes-compra/${oc.codigo}/detalles`)
+    ajusteDetalles.value = (r.data?.detalles || []).map(d => ({
+      ...d,
+      cantidad_original: parseFloat(d.cantidad),
+      cantidad_entregada: parseFloat(d.cantidad),
+    }))
+  } catch (e) { errAjuste.value = e?.response?.data?.error || e.message }
+  finally { loadingAjuste.value = false }
+}
+
+async function guardarAjuste() {
+  if (!ajusteFecha.value) { errAjuste.value = 'La fecha es obligatoria'; return }
+  guardandoAjuste.value = true
+  errAjuste.value = ''
+  try {
+    await api.put(`/ordenes-compra/${ocAjuste.value.codigo}/ajustar-entrega`, {
+      fecha_entrega: ajusteFecha.value,
+      detalles: ajusteDetalles.value.map(d => ({
+        producto_venta: d.producto_venta,
+        cantidad_entregada: parseFloat(d.cantidad_entregada) || 0,
+        precio_unitario: parseFloat(d.precio_unitario),
+      }))
+    })
+    modalAjuste.value = false
+    await cargar()
+  } catch (e) {
+    errAjuste.value = e?.response?.data?.error || e?.response?.data?.details || e.message
+  } finally { guardandoAjuste.value = false }
 }
 
 // ── Entregar ──────────────────────────────────────────────────────
