@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="lp-container">
 
@@ -75,7 +75,7 @@
     </div>
 
     <!-- ══ DIALOG CREAR / EDITAR ══ -->
-    <v-dialog v-model="dlg" max-width="500" persistent>
+    <v-dialog v-model="dlg" max-width="500">
       <v-card rounded="xl" style="overflow:hidden">
 
         <div class="dlg-header">

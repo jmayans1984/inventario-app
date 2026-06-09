@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="view-container">
       <!-- BREADCRUMB -->
@@ -236,7 +236,7 @@
     </div>
 
     <!-- MODAL NUEVO MOVIMIENTO -->
-    <v-dialog v-model="dialogOpen" max-width="580" persistent>
+    <v-dialog v-model="dialogOpen" max-width="580">
       <v-card class="form-card">
         <div class="form-header">
           <div class="form-header-left">

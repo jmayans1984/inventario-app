@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="tf-container">
 
@@ -279,7 +279,7 @@
       </div>
 
       <!-- DIALOG CONFLICTO -->
-      <v-dialog v-model="dlgConflicto" max-width="460" persistent>
+      <v-dialog v-model="dlgConflicto" max-width="460">
         <v-card>
           <v-card-title class="d-flex align-center gap-2 pa-4">
             <v-icon color="warning">mdi-alert-circle-outline</v-icon>

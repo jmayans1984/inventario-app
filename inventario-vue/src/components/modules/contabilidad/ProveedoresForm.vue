@@ -1,5 +1,5 @@
-<template>
-  <v-dialog :model-value="open" max-width="650" persistent @update:model-value="$emit('update:open', $event)">
+﻿<template>
+  <v-dialog :model-value="open" max-width="650" @update:model-value="$emit('update:open', $event)">
     <v-card class="form-card">
       <!-- HEADER -->
       <div class="form-header">

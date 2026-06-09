@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="ra-container">
 
@@ -295,7 +295,7 @@
     </v-dialog>
 
     <!-- ══════════ DIALOG NUEVO / EDITAR ══════════ -->
-    <v-dialog v-model="dlg" max-width="480" persistent>
+    <v-dialog v-model="dlg" max-width="480">
       <v-card rounded="xl">
         <v-card-title class="d-flex align-center gap-3 pa-5 pb-3">
           <div class="dlg-icon-wrap"><v-icon size="18" color="white">mdi-food-apple-outline</v-icon></div>
@@ -348,7 +348,7 @@
     </v-dialog>
 
     <!-- ══════════ DIALOG PRECIO RÁPIDO ══════════ -->
-    <v-dialog v-model="dlgPrecio" max-width="360" persistent>
+    <v-dialog v-model="dlgPrecio" max-width="360">
       <v-card rounded="xl">
         <v-card-title class="d-flex align-center gap-3 pa-5 pb-3">
           <div class="dlg-icon-wrap"><v-icon size="18" color="white">mdi-cash-edit</v-icon></div>

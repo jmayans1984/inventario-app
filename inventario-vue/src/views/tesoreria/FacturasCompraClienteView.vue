@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="view-container">
       <!-- BREADCRUMB -->
@@ -248,7 +248,7 @@
     </div>
 
     <!-- MODAL DETALLE FACTURA -->
-    <v-dialog v-model="dialogOpen" max-width="700" persistent>
+    <v-dialog v-model="dialogOpen" max-width="700">
       <v-card class="form-card">
         <div class="form-header">
           <div class="form-header-left">

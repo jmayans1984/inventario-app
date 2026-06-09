@@ -1,5 +1,5 @@
-<template>
-  <v-dialog v-model="isOpen" fullscreen persistent>
+﻿<template>
+  <v-dialog v-model="isOpen" fullscreen>
     <v-card class="preview-card">
       <!-- HEADER -->
       <div class="preview-header">

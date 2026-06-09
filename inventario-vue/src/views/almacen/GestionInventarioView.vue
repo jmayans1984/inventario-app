@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="gi-container">
 
@@ -125,7 +125,7 @@
         </div>
 
       <!-- ═══════════ DIALOG OCR ═══════════ -->
-      <v-dialog v-model="dlgOcr" max-width="860" persistent scrollable>
+      <v-dialog v-model="dlgOcr" max-width="860" scrollable>
         <v-card rounded="xl">
           <!-- Header -->
           <div class="ocr-dlg-header">
@@ -425,7 +425,7 @@
       </v-dialog>
 
       <!-- ══════════════ DIALOG DE CONFLICTO ══════════════ -->
-      <v-dialog v-model="dlgConflicto" max-width="480" persistent>
+      <v-dialog v-model="dlgConflicto" max-width="480">
         <v-card rounded="lg">
           <v-card-title class="dlg-title">
             <v-icon size="22" class="mr-2" color="#f59e0b">mdi-alert-circle</v-icon>

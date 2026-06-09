@@ -82,7 +82,7 @@
       </div>
 
       <!-- MODAL CREAR / EDITAR -->
-      <v-dialog v-model="modal" max-width="420" persistent>
+      <v-dialog v-model="modal" max-width="420">
         <v-card class="modal-card">
           <div class="modal-header">
             <v-icon color="#06b6d4" class="mr-2">mdi-folder-outline</v-icon>

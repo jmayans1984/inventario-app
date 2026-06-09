@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="prd-container">
 
@@ -258,7 +258,7 @@
       </div>
 
       <!-- ═══════════════════ DIALOG CREAR / EDITAR ═══════════════════ -->
-      <v-dialog v-model="dlgForm" max-width="700" persistent>
+      <v-dialog v-model="dlgForm" max-width="700">
         <v-card rounded="lg" class="dlg-card">
           <!-- HEADER -->
           <div class="dlg-header">

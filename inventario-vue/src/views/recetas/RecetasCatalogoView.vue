@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="rc-container">
 
@@ -204,7 +204,7 @@
     </div>
 
     <!-- DIALOG: NUEVA / EDITAR RECETA -->
-    <v-dialog v-model="dlgReceta" max-width="500" persistent>
+    <v-dialog v-model="dlgReceta" max-width="500">
       <v-card rounded="xl" style="overflow:hidden">
 
         <!-- Header -->
@@ -305,7 +305,7 @@
     </v-dialog>
 
     <!-- DIALOG: INGREDIENTES (redesign) -->
-    <v-dialog v-model="dlgIng" max-width="960" persistent scrollable>
+    <v-dialog v-model="dlgIng" max-width="960" scrollable>
       <v-card rounded="xl" style="overflow:hidden; display:flex; flex-direction:column; max-height:90vh">
 
         <!-- ── HEADER ── -->

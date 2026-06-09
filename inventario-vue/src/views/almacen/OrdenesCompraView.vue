@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="oc-container">
 
@@ -125,7 +125,7 @@
     </div>
 
     <!-- ══ DIALOG NUEVA ORDEN ══ -->
-    <v-dialog v-model="dlgNueva" max-width="1100" persistent scrollable>
+    <v-dialog v-model="dlgNueva" max-width="1100" scrollable>
       <v-card rounded="xl" style="overflow:hidden;display:flex;flex-direction:column;max-height:88vh">
 
         <!-- Header -->
@@ -381,7 +381,7 @@
     </v-dialog>
 
     <!-- ══ DIALOG EDITAR ORDEN ══ -->
-    <v-dialog v-model="dlgEditar" max-width="1100" persistent scrollable>
+    <v-dialog v-model="dlgEditar" max-width="1100" scrollable>
       <v-card rounded="xl" style="overflow:hidden;display:flex;flex-direction:column;max-height:88vh">
 
         <!-- Header -->

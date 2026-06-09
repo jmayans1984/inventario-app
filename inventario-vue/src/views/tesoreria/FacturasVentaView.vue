@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="view-container">
       <!-- BREADCRUMB -->
@@ -234,7 +234,7 @@
     </div>
 
     <!-- ══════════════════════ MODAL DETALLE FACTURA ══════════════════════ -->
-    <v-dialog v-model="dialogOpen" max-width="720" persistent>
+    <v-dialog v-model="dialogOpen" max-width="720">
       <v-card class="form-card">
         <div class="form-header">
           <div class="form-header-left">
@@ -344,7 +344,7 @@
     </v-dialog>
 
     <!-- ══════════════════════ MODAL APROBAR PAGO ══════════════════════ -->
-    <v-dialog v-model="aprobacionOpen" max-width="520" persistent>
+    <v-dialog v-model="aprobacionOpen" max-width="520">
       <v-card class="form-card">
         <div class="form-header form-header-green">
           <div class="form-header-left">

@@ -1,8 +1,7 @@
-<template>
+﻿<template>
   <v-dialog
     :model-value="open"
     max-width="860"
-    persistent
     @update:model-value="$emit('update:open', $event)"
   >
     <v-card rounded="xl" elevation="0" class="form-card">

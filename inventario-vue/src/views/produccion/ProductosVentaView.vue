@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <MainLayout>
     <div class="pv-container">
 
@@ -144,7 +144,7 @@
     </div>
 
     <!-- ══ DIALOG CREAR / EDITAR ══ -->
-    <v-dialog v-model="dlg" max-width="680" persistent scrollable>
+    <v-dialog v-model="dlg" max-width="680" scrollable>
       <v-card rounded="xl" style="overflow:hidden">
 
         <!-- Header -->
@@ -299,7 +299,7 @@
     </v-dialog>
 
     <!-- ══ DIALOG RECALCULAR PRECIOS ══ -->
-    <v-dialog v-model="dlgRecalc" max-width="520" persistent>
+    <v-dialog v-model="dlgRecalc" max-width="520">
       <v-card rounded="xl" style="overflow:hidden">
 
         <!-- Header -->

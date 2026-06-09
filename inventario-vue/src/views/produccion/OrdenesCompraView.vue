@@ -312,7 +312,7 @@
       </v-dialog>
 
       <!-- ===== MODAL EDITAR ===== -->
-      <v-dialog v-model="modalEditar" max-width="680" scrollable persistent>
+      <v-dialog v-model="modalEditar" max-width="680" scrollable>
         <v-card class="modal-card">
           <div class="modal-header">
             <v-icon color="primary" class="mr-2">mdi-pencil-outline</v-icon>
@@ -397,7 +397,7 @@
       </v-dialog>
 
       <!-- ===== MODAL CONFIRMAR ENTREGA ===== -->
-      <v-dialog v-model="modalEntrega" max-width="440" persistent>
+      <v-dialog v-model="modalEntrega" max-width="440">
         <v-card class="modal-card">
           <div class="modal-header">
             <v-icon color="#f59e0b" class="mr-2">mdi-truck-delivery-outline</v-icon>
@@ -427,7 +427,7 @@
       </v-dialog>
 
       <!-- ===== MODAL GENERAR FACTURA ===== -->
-      <v-dialog v-model="modalFactura" max-width="460" persistent>
+      <v-dialog v-model="modalFactura" max-width="460">
         <v-card class="modal-card">
           <div class="modal-header">
             <v-icon color="#16a34a" class="mr-2">mdi-receipt-text-plus-outline</v-icon>
@@ -471,7 +471,7 @@
       </v-dialog>
 
       <!-- ===== MODAL AJUSTE ENTREGA ===== -->
-      <v-dialog v-model="modalAjuste" max-width="700" persistent scrollable>
+      <v-dialog v-model="modalAjuste" max-width="700" scrollable>
         <v-card class="modal-card" style="max-height:88vh">
           <div class="modal-header">
             <v-icon color="#f59e0b" class="mr-2">mdi-pencil-box-outline</v-icon>
