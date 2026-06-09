@@ -49,7 +49,7 @@
         <v-progress-linear v-if="loading" indeterminate color="#f59e0b" height="3" />
         <v-data-table :headers="headers" :items="recetasFiltradas" :search="busqueda"
           density="compact" hover :items-per-page="20" class="rc-table"
-          v-model:expanded="expandedRows" item-value="codigo">
+          v-model:expanded="expandedRows" item-value="codigo" show-expand>
 
           <template #item.subproducto="{ item }">
             <v-chip v-if="item.subproducto === 'SI'" color="purple" size="x-small" variant="tonal" label>
@@ -81,23 +81,23 @@
             <v-chip color="blue-grey" size="x-small" variant="tonal">{{ item.num_ingredientes }}</v-chip>
           </template>
 
-          <template #item.acciones="{ item, internalItem, isExpanded, toggleExpand }">
+          <!-- Oculta la columna expand nativa; usamos nuestro ícono en acciones -->
+          <template #item.data-table-expand="{ item, internalItem, isExpanded, toggleExpand }">
+            <v-btn icon size="x-small"
+              :variant="isExpanded(internalItem) ? 'flat' : 'tonal'"
+              :color="isExpanded(internalItem) ? '#0d9488' : 'teal'"
+              @click="onClickExpand(item, internalItem, isExpanded, toggleExpand)">
+              <v-icon size="16">{{ isExpanded(internalItem) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
+            </v-btn>
+          </template>
+
+          <template #item.acciones="{ item }">
             <div class="d-flex gap-1">
               <v-tooltip text="Ver / Editar ingredientes">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="x-small" variant="tonal" color="#f59e0b"
                     @click="abrirIngredientes(item)">
                     <v-icon size="16">mdi-format-list-bulleted</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
-              <v-tooltip :text="isExpanded(internalItem) ? 'Cerrar productos' : 'Ver / Editar productos vinculados'">
-                <template #activator="{ props }">
-                  <v-btn v-bind="props" icon size="x-small"
-                    :variant="isExpanded(internalItem) ? 'flat' : 'tonal'"
-                    :color="isExpanded(internalItem) ? '#0d9488' : 'teal'"
-                    @click="onClickExpand(item, internalItem, isExpanded, toggleExpand)">
-                    <v-icon size="16">{{ isExpanded(internalItem) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
