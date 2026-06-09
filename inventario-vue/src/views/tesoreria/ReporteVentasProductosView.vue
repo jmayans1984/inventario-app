@@ -166,7 +166,6 @@
           <tr>
             <th>CÓD.</th>
             <th>PRODUCTO</th>
-            <th>CENTRO DE COSTOS</th>
             <th class="col-num">CANT.</th>
             <th class="col-num">VR. UNIT.</th>
             <th class="col-num">SUBTOTAL</th>
@@ -177,10 +176,6 @@
           <tr v-for="(r, i) in rows" :key="i" class="tr-data">
             <td><span class="badge-cod">{{ r.codigo }}</span></td>
             <td class="td-nombre">{{ r.nombre }}</td>
-            <td>
-              <span class="badge-ccosto">{{ r.ccosto }}</span>
-              {{ r.ccosto_nombre || '' }}
-            </td>
             <td class="col-num">{{ fmtNum(r.total_cant) }}</td>
             <td class="col-num td-dim">{{ fmt(r.vr_unit_prom) }}</td>
             <td class="col-num td-bold">{{ fmt(r.total_subtotal) }}</td>
@@ -195,7 +190,7 @@
         <!-- Totales -->
         <tfoot>
           <tr class="tr-total">
-            <td colspan="3">TOTALES</td>
+            <td colspan="2">TOTALES</td>
             <td class="col-num">{{ fmtNum(totals.total_cant) }}</td>
             <td class="col-num"></td>
             <td class="col-num td-bold">{{ fmt(totals.total_valor) }}</td>
@@ -389,18 +384,17 @@ function exportarPDF() {
     const totalValor = parseFloat(totals.value.total_valor) || 1
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 3,
-      head: [['Código', 'Producto', 'Centro de Costos', 'Cant.', 'Vr. Unit.', 'Subtotal', '% Total']],
+      head: [['Código', 'Producto', 'Cant.', 'Vr. Unit.', 'Subtotal', '% Total']],
       body: rows.value.map(r => [
         r.codigo,
         r.nombre,
-        `${r.ccosto} — ${r.ccosto_nombre || ''}`,
         fmtNum(r.total_cant),
         fmt(r.vr_unit_prom),
         fmt(r.total_subtotal),
         `${Math.min(100, (parseFloat(r.total_subtotal) / totalValor * 100)).toFixed(1)}%`
       ]),
       foot: [[
-        'TOTALES', '', '',
+        'TOTALES', '',
         fmtNum(totals.value.total_cant),
         '',
         fmt(totals.value.total_valor),
@@ -410,19 +404,18 @@ function exportarPDF() {
       headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold', fontSize: 6.5, cellPadding: 1.5 },
       footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold', cellPadding: 1.5 },
       columnStyles: {
-        0: { cellWidth: 18, halign: 'center' },
+        0: { cellWidth: 22, halign: 'center' },
         1: { cellWidth: 'auto' },
-        2: { cellWidth: 42 },
-        3: { cellWidth: 18, halign: 'right' },
-        4: { cellWidth: 22, halign: 'right' },
-        5: { cellWidth: 25, halign: 'right' },
-        6: { cellWidth: 16, halign: 'right' },
+        2: { cellWidth: 22, halign: 'right' },
+        3: { cellWidth: 25, halign: 'right' },
+        4: { cellWidth: 28, halign: 'right' },
+        5: { cellWidth: 18, halign: 'right' },
       },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       theme: 'striped',
       margin: { left: ML, right: ML },
       didDrawCell: (data) => {
-        if (data.section === 'foot' && data.column.index >= 3) {
+        if (data.section === 'foot' && data.column.index >= 2) {
           data.cell.styles.halign = 'right'
         }
       },

@@ -8221,19 +8221,16 @@ app.get('/api/tesoreria/ventas-productos-periodo', async (req, res) => {
             SELECT
                 COALESCE(dv.codigo, '—') AS codigo,
                 dv.nombre,
-                dv.ccosto,
-                cc.nombre AS ccosto_nombre,
                 SUM(dv.cant)                              AS total_cant,
                 CASE WHEN SUM(dv.cant) > 0
                      THEN SUM(dv.subtotal) / SUM(dv.cant)
                      ELSE 0 END                           AS vr_unit_prom,
                 SUM(dv.subtotal)                          AS total_subtotal
             FROM detalle_ventas dv
-            LEFT JOIN ccostos cc ON cc.codigo = dv.ccosto AND cc.empresa = dv.empresa
             WHERE dv.empresa = $1
               AND dv.fecha BETWEEN $2 AND $3
               ${ccostoClause}
-            GROUP BY COALESCE(dv.codigo, '—'), dv.nombre, dv.ccosto, cc.nombre
+            GROUP BY COALESCE(dv.codigo, '—'), dv.nombre
             ORDER BY total_subtotal DESC
         `;
 
