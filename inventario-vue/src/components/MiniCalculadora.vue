@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="calc-fade">
-      <div v-if="show" class="mini-calc-wrap" @keydown.stop @keydown.esc="closeCalc()">
+      <div v-if="show" ref="calcWrap" class="mini-calc-wrap" tabindex="-1" @keydown.stop>
 
         <!-- Header -->
         <div class="calc-header">
@@ -128,12 +128,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useCalculadora } from '../composables/useCalculadora'
 
 // ── Estado global compartido con App.vue ───────────────────────────
 const { show, focusedEl, closeCalc } = useCalculadora()
-const tab = ref('calc')
+const tab      = ref('calc')
+const calcWrap = ref(null)
 
 // ── CALCULADORA ───────────────────────────────────────────────────
 const display    = ref('0')
@@ -361,13 +362,18 @@ function onKeyDown(e) {
   else if (k === 'Enter' || k === '=') { e.preventDefault(); equals() }
   else if (k === 'Backspace')      { e.preventDefault(); backspace() }
   else if (k === 'Delete' || k === 'c' || k === 'C') { e.preventDefault(); clear() }
-  else if (k === 'Escape')         { e.preventDefault(); closeCalc() }
+  else if (k === 'Escape')         { e.preventDefault(); aceptar() }
   else if (k === 'Enter' && e.ctrlKey) { e.preventDefault(); aceptar() }
 }
 
-watch(show, (val) => {
-  if (val) document.addEventListener('keydown', onKeyDown, true)
-  else     document.removeEventListener('keydown', onKeyDown, true)
+watch(show, async (val) => {
+  if (val) {
+    document.addEventListener('keydown', onKeyDown, true)
+    await nextTick()
+    calcWrap.value?.focus()
+  } else {
+    document.removeEventListener('keydown', onKeyDown, true)
+  }
 })
 
 </script>
@@ -377,6 +383,7 @@ watch(show, (val) => {
   position: fixed;
   right: 20px;
   top: 68px;
+  outline: none;
   width: 300px;
   background: #16162a;
   border: 1px solid rgba(255,255,255,.12);
