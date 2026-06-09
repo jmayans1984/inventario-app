@@ -81,7 +81,7 @@
             <v-chip color="blue-grey" size="x-small" variant="tonal">{{ item.num_ingredientes }}</v-chip>
           </template>
 
-          <template #item.acciones="{ item }">
+          <template #item.acciones="{ item, internalItem, isExpanded, toggleExpand }">
             <div class="d-flex gap-1">
               <v-tooltip text="Ver / Editar ingredientes">
                 <template #activator="{ props }">
@@ -91,13 +91,13 @@
                   </v-btn>
                 </template>
               </v-tooltip>
-              <v-tooltip :text="expandedRows.includes(String(item.codigo)) ? 'Cerrar productos' : 'Ver / Editar productos vinculados'">
+              <v-tooltip :text="isExpanded(internalItem) ? 'Cerrar productos' : 'Ver / Editar productos vinculados'">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="x-small"
-                    :variant="expandedRows.includes(String(item.codigo)) ? 'flat' : 'tonal'"
-                    :color="expandedRows.includes(String(item.codigo)) ? '#0d9488' : 'teal'"
-                    @click="toggleExpansion(item)">
-                    <v-icon size="16">{{ expandedRows.includes(String(item.codigo)) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
+                    :variant="isExpanded(internalItem) ? 'flat' : 'tonal'"
+                    :color="isExpanded(internalItem) ? '#0d9488' : 'teal'"
+                    @click="onClickExpand(item, internalItem, isExpanded, toggleExpand)">
+                    <v-icon size="16">{{ isExpanded(internalItem) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
@@ -861,21 +861,17 @@ async function guardarIngredientes() {
 }
 
 // ── Inline expandible: funciones ──
-async function toggleExpansion(item) {
-  const cod = String(item.codigo)
-  if (expandedRows.value.includes(cod)) {
-    // Colapsar — nueva referencia de array
-    expandedRows.value = expandedRows.value.filter(c => c !== cod)
-  } else {
-    // Expandir — nueva referencia de array
-    expandedRows.value = [...expandedRows.value, cod]
-    // Inicializar estado si es la primera vez
+async function onClickExpand(item, internalItem, isExpanded, toggleExpand) {
+  const cod = item.codigo
+  const expanded = isExpanded(internalItem)
+  // Delega el toggle a Vuetify (actualiza v-model:expanded internamente)
+  toggleExpand(internalItem)
+  if (!expanded) {
+    // Acaba de expandirse — cargar datos si es la primera vez
     if (rowProductos.value[cod] === undefined) {
       rowProdSel.value  = { ...rowProdSel.value,  [cod]: null }
       rowProdCant.value = { ...rowProdCant.value, [cod]: 1    }
-      rowProductos.value = { ...rowProductos.value, [cod]: [] }
     }
-    // Cargar productos y catálogo en paralelo
     await Promise.all([
       cargarProductosFila(cod),
       buscarProdCatalogo(''),
