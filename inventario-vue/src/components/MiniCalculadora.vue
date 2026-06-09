@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="calc-fade">
-      <div v-if="show" class="mini-calc-wrap" @keydown.stop @keydown.esc="show=false">
+      <div v-if="show" class="mini-calc-wrap" @keydown.stop @keydown.esc="closeCalc()">
 
         <!-- Header -->
         <div class="calc-header">
@@ -11,7 +11,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="calc-f9-hint">F9</span>
-            <button class="calc-close-btn" @click="show=false">✕</button>
+            <button class="calc-close-btn" @click="closeCalc()">✕</button>
           </div>
         </div>
 
@@ -128,19 +128,12 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
+import { useCalculadora } from '../composables/useCalculadora'
 
-// ── Visibilidad ────────────────────────────────────────────────────
-const show = ref(false)
-const tab  = ref('calc')
-
-// ── Campo enfocado ─────────────────────────────────────────────────
-const focusedEl = ref(null)
-
-function open(el) {
-  focusedEl.value = el
-  show.value = true
-}
+// ── Estado global compartido con App.vue ───────────────────────────
+const { show, focusedEl, closeCalc } = useCalculadora()
+const tab = ref('calc')
 
 // ── CALCULADORA ───────────────────────────────────────────────────
 const display    = ref('0')
@@ -330,7 +323,7 @@ function fmtConv(v) {
 
 // ── Insertar en campo ──────────────────────────────────────────────
 function insertarEnCampo(valor) {
-  show.value = false
+  closeCalc()
   if (focusedEl.value) {
     const el = focusedEl.value
     try {
@@ -349,7 +342,6 @@ function aceptarConv() {
   insertarEnCampo(v ?? '')
 }
 
-defineExpose({ open })
 </script>
 
 <style scoped>

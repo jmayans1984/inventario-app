@@ -3,12 +3,13 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useAuthStore } from './stores/auth'
 import { useAppStore } from './stores/app'
 import MiniCalculadora from './components/MiniCalculadora.vue'
+import { useCalculadora } from './composables/useCalculadora'
 
 const authStore = useAuthStore()
 const appStore  = useAppStore()
 
-const miniCalc    = ref(null)
-const lastFocused = ref(null)
+const { openCalc } = useCalculadora()
+const lastFocused  = ref(null)
 
 function onFocusIn(e) {
   const el = e.target
@@ -20,7 +21,8 @@ function onFocusIn(e) {
 function onKeyDown(e) {
   if (e.key === 'F9') {
     e.preventDefault()
-    miniCalc.value?.open(lastFocused.value)
+    e.stopPropagation()
+    openCalc(lastFocused.value)
   }
 }
 
@@ -40,6 +42,6 @@ onUnmounted(() => {
 <template>
   <v-app :theme="appStore.tema">
     <router-view />
-    <MiniCalculadora ref="miniCalc" />
+    <MiniCalculadora />
   </v-app>
 </template>
