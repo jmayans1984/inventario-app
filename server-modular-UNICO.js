@@ -394,6 +394,55 @@ app.get('/api/almacen/productos-precios', async (req, res) => {
     }
 });
 
+// GET /api/almacen/reporte-alertas-stock — productos bajo stock mínimo en la bodega maestra
+app.get('/api/almacen/reporte-alertas-stock', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        // Obtener bodega_maestra de la empresa
+        const empResult = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [empresaCod]
+        );
+        if (!empResult.rows.length || !empResult.rows[0].bodega_maestra) {
+            return res.json({ success: true, data: [], advertencia: 'La empresa no tiene bodega maestra configurada' });
+        }
+        const bodega = empResult.rows[0].bodega_maestra;
+        const empInt  = parseInt(empresaCod);
+        const empParam = isNaN(empInt) ? empresaCod : empInt;
+
+        const result = await pool.query(`
+            SELECT
+                p.codigo,
+                p.nombre,
+                p.descripcion,
+                p.und,
+                COALESCE(p.stock_minimo, 0)                                          AS stock_minimo,
+                COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0)          AS stock_actual,
+                COALESCE(p.stock_minimo, 0) -
+                    (COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))    AS faltante,
+                COALESCE(g.nombre, 'Sin Grupo')                                      AS grupo_nombre,
+                COALESCE(g.codigo, '0')                                              AS grupo_codigo
+            FROM productos p
+            LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+            LEFT JOIN detalle_inventario di
+                   ON p.codigo = di.codigo
+                  AND di.ccosto  = $1
+                  AND di.empresa = $2
+            WHERE p.control = 'SI'
+            GROUP BY p.codigo, p.nombre, p.descripcion, p.und, p.stock_minimo, g.codigo, g.nombre
+            HAVING COALESCE(p.stock_minimo, 0) > 0
+               AND (COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0)) < COALESCE(p.stock_minimo, 0)
+            ORDER BY g.codigo NULLS LAST, p.nombre
+        `, [bodega, empParam]);
+
+        res.json({ success: true, data: result.rows, bodega });
+    } catch (error) {
+        console.error('Error GET /api/almacen/reporte-alertas-stock:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/almacen/control-stock — obtener productos con stock actual por centro de costo (bodega maestra)
 app.get('/api/almacen/control-stock', async (req, res) => {
     try {
