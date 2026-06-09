@@ -216,18 +216,6 @@
           </div>
 
           <v-btn
-            variant="tonal"
-            color="warning"
-            size="small"
-            class="ml-2"
-            prepend-icon="mdi-calculator-variant-outline"
-            title="Calculadora (F9)"
-            @click="openCalc(null)"
-          >
-            Calc
-          </v-btn>
-
-          <v-btn
           variant="tonal"
           color="error"
           size="small"

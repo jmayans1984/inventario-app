@@ -168,8 +168,7 @@
           <!-- Encabezado sticky -->
           <div class="prod-grid-head">
             <span class="col-prod-nombre">PRODUCTO</span>
-            <span class="col-prod-grupo">GRUPO</span>
-            <span class="col-prod-detalles">DETALLES</span>
+            <span class="col-prod-desc">DESCRIPCIÓN</span>
             <span class="col-prod-und ta-c">UND</span>
             <span class="col-prod-precio ta-r">PRECIO</span>
             <span class="col-prod-cant ta-c">CANTIDAD</span>
@@ -194,34 +193,24 @@
               <div class="col-prod-nombre">
                 <div class="prod-nombre">{{ p.nombre }}</div>
               </div>
-              <div class="col-prod-grupo dim-text text-caption">{{ p.grupo_nombre || p.grupo || '—' }}</div>
-              <div class="col-prod-detalles dim-text text-caption">{{ p.descripcion || '—' }}</div>
-              <div class="col-prod-und ta-c dim-text">{{ p.unidad || '—' }}</div>
+              <div class="col-prod-desc dim-text text-caption">{{ p.descripcion || '—' }}</div>
+              <div class="col-prod-und ta-c dim-text">{{ p.und || '—' }}</div>
               <div class="col-prod-precio ta-r font-mono text-success">{{ fmt(getPrecio(p)) }}</div>
               <div class="col-prod-cant ta-c">
-                <div class="cant-control">
-                  <button class="cant-btn" @click="ajustarCant(p.codigo, -1)">−</button>
-                  <input
-                    :value="cantidades[p.codigo] || ''"
-                    type="number" min="0" step="1"
-                    class="cant-input"
-                    :class="{
-                      'cant-input--active': (cantidades[p.codigo] || 0) > 0,
-                      'cant-input--warn': excedidoNueva(p.codigo)
-                    }"
-                    :data-codigo="p.codigo"
-                    @input="setCant(p.codigo, $event.target.value)"
-                    @focus="$event.target.select()"
-                    @keydown.enter="navegarEnter($event, p.codigo)"
-                    placeholder="0"
-                  />
-                  <button class="cant-btn" @click="ajustarCant(p.codigo, 1)">+</button>
-                </div>
-                <div v-if="stockMap[p.codigo] !== undefined" class="prod-stock-hint"
-                  :class="excedidoNueva(p.codigo) ? 'prod-stock-warn' : 'prod-stock-ok'">
-                  <v-icon v-if="excedidoNueva(p.codigo)" size="9" style="margin-right:2px">mdi-alert</v-icon>
-                  {{ fmtStock(stockMap[p.codigo]) }}
-                </div>
+                <input
+                  :value="cantidades[p.codigo] || ''"
+                  type="number" min="0" step="1"
+                  class="cant-input"
+                  :class="{
+                    'cant-input--active': (cantidades[p.codigo] || 0) > 0,
+                    'cant-input--warn': excedidoNueva(p.codigo)
+                  }"
+                  :data-codigo="p.codigo"
+                  @input="setCant(p.codigo, $event.target.value)"
+                  @focus="$event.target.select()"
+                  @keydown.enter="navegarEnter($event, p.codigo)"
+                  placeholder="0"
+                />
               </div>
               <div class="col-prod-sub ta-r font-mono"
                 :class="(cantidades[p.codigo]||0) > 0 ? 'text-success' : 'dim-text'">
@@ -436,8 +425,7 @@
         <div style="flex:1;overflow-y:auto;min-height:0">
           <div class="prod-grid-head">
             <span class="col-prod-nombre">PRODUCTO</span>
-            <span class="col-prod-grupo">GRUPO</span>
-            <span class="col-prod-detalles">DETALLES</span>
+            <span class="col-prod-desc">DESCRIPCIÓN</span>
             <span class="col-prod-und ta-c">UND</span>
             <span class="col-prod-precio ta-r">PRECIO</span>
             <span class="col-prod-cant ta-c">CANTIDAD</span>
@@ -455,34 +443,24 @@
               <div class="col-prod-nombre">
                 <div class="prod-nombre">{{ p.nombre }}</div>
               </div>
-              <div class="col-prod-grupo dim-text text-caption">{{ p.grupo_nombre || p.grupo || '—' }}</div>
-              <div class="col-prod-detalles dim-text text-caption">{{ p.descripcion || '—' }}</div>
-              <div class="col-prod-und ta-c dim-text">{{ p.unidad || '—' }}</div>
+              <div class="col-prod-desc dim-text text-caption">{{ p.descripcion || '—' }}</div>
+              <div class="col-prod-und ta-c dim-text">{{ p.und || '—' }}</div>
               <div class="col-prod-precio ta-r font-mono text-success">{{ fmt(getPrecio(p)) }}</div>
               <div class="col-prod-cant ta-c">
-                <div class="cant-control">
-                  <button class="cant-btn" @click="ajustarCantEdit(p.codigo, -1)">−</button>
-                  <input
-                    :value="cantEdicion[p.codigo] || ''"
-                    type="number" min="0"
-                    class="cant-input"
-                    :class="{
-                      'cant-input--active': (cantEdicion[p.codigo] || 0) > 0,
-                      'cant-input--warn': excedidoEdit(p.codigo)
-                    }"
-                    :data-codigo="`edit-${p.codigo}`"
-                    @input="setCantEdit(p.codigo, $event.target.value)"
-                    @focus="$event.target.select()"
-                    @keydown.enter="navegarEnterEdit($event, p.codigo)"
-                    placeholder="0"
-                  />
-                  <button class="cant-btn" @click="ajustarCantEdit(p.codigo, 1)">+</button>
-                </div>
-                <div v-if="stockMap[p.codigo] !== undefined" class="prod-stock-hint"
-                  :class="excedidoEdit(p.codigo) ? 'prod-stock-warn' : 'prod-stock-ok'">
-                  <v-icon v-if="excedidoEdit(p.codigo)" size="9" style="margin-right:2px">mdi-alert</v-icon>
-                  {{ fmtStock(stockMap[p.codigo]) }}
-                </div>
+                <input
+                  :value="cantEdicion[p.codigo] || ''"
+                  type="number" min="0"
+                  class="cant-input"
+                  :class="{
+                    'cant-input--active': (cantEdicion[p.codigo] || 0) > 0,
+                    'cant-input--warn': excedidoEdit(p.codigo)
+                  }"
+                  :data-codigo="`edit-${p.codigo}`"
+                  @input="setCantEdit(p.codigo, $event.target.value)"
+                  @focus="$event.target.select()"
+                  @keydown.enter="navegarEnterEdit($event, p.codigo)"
+                  placeholder="0"
+                />
               </div>
               <div class="col-prod-sub ta-r font-mono"
                 :class="(cantEdicion[p.codigo]||0) > 0 ? 'text-success' : 'dim-text'">
@@ -1313,7 +1291,7 @@ onMounted(cargar)
 /* Grid productos */
 .prod-grid-head {
   display: grid;
-  grid-template-columns: 1fr 90px 100px 50px 100px 120px 100px;
+  grid-template-columns: 200px 1fr 52px 100px 130px 100px;
   padding: 8px 20px;
   font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
   color: rgba(var(--v-theme-on-surface),.4);
@@ -1325,7 +1303,7 @@ onMounted(cargar)
 .prod-grupo-count { margin-left: 8px; font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: 0; color: rgba(var(--v-theme-on-surface),.4); }
 .prod-row {
   display: grid;
-  grid-template-columns: 1fr 90px 100px 50px 100px 120px 100px;
+  grid-template-columns: 200px 1fr 52px 100px 130px 100px;
   padding: 9px 20px;
   align-items: center;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
@@ -1338,19 +1316,15 @@ onMounted(cargar)
 .prod-grid-empty { padding: 48px; text-align: center; color: rgba(var(--v-theme-on-surface),.35); font-size: 13px; display: flex; flex-direction: column; align-items: center; }
 
 /* Aligns de columnas en grid */
-.col-prod-nombre { }
-.col-prod-grupo { font-size: 11px; }
-.col-prod-detalles { font-size: 11px; }
-.col-prod-und { }
+.col-prod-nombre { overflow: hidden; }
+.col-prod-desc   { font-size: 11px; }
+.col-prod-und    { }
 .col-prod-precio { }
-.col-prod-cant { }
-.col-prod-sub { }
+.col-prod-cant   { }
+.col-prod-sub    { }
 
 /* Control de cantidad */
-.cant-control { display: flex; align-items: center; justify-content: center; gap: 4px; }
-.cant-btn { width: 26px; height: 26px; border-radius: 6px; border: 1px solid rgba(var(--v-theme-on-surface),.15); background: rgba(var(--v-theme-on-surface),.05); font-size: 16px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .1s; color: rgb(var(--v-theme-on-surface)); }
-.cant-btn:hover { background: rgba(16,185,129,.15); border-color: #10b981; color: #10b981; }
-.cant-input { width: 64px; height: 26px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 6px; text-align: center; font-size: 13px; font-weight: 600; padding: 0 6px; background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); outline: none; }
+.cant-input { width: 100px; height: 30px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 6px; text-align: center; font-size: 14px; font-weight: 600; padding: 0 8px; background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); outline: none; display: block; margin: 0 auto; }
 .cant-input--active { border-color: #10b981; background: rgba(16,185,129,.06); color: #059669; }
 .cant-input:focus { border-color: #10b981; }
 
