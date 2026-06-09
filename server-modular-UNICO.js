@@ -1207,6 +1207,70 @@ app.get('/api/almacen/kardex', async (req, res) => {
 
 // ── FIN KARDEX ────────────────────────────────────────────────────
 
+// ── REPORTE MOVIMIENTO POR PRODUCTO (RANGO DE FECHAS, DÍA A DÍA) ─
+
+// GET /api/almacen/reporte-movimiento-producto
+// Parámetros: empresa, ccosto, fecha_inicio, fecha_fin
+// Devuelve movimientos diarios por producto con stock inicial acumulado
+app.get('/api/almacen/reporte-movimiento-producto', async (req, res) => {
+    const { empresa, ccosto, fecha_inicio, fecha_fin } = req.query;
+    if (!empresa || !ccosto || !fecha_inicio || !fecha_fin) {
+        return res.status(400).json({ success: false, error: 'empresa, ccosto, fecha_inicio y fecha_fin son requeridos' });
+    }
+    const emp = parseInt(empresa);
+    try {
+        // 1. Stock inicial por producto (todo antes de fecha_inicio)
+        const stockInicialRes = await pool.query(`
+            SELECT
+                di.codigo,
+                ROUND((COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))::numeric, 4) AS stock_inicial
+            FROM detalle_inventario di
+            WHERE di.empresa = $1
+              AND di.ccosto  = $2
+              AND di.fecha   < $3
+            GROUP BY di.codigo
+        `, [emp, ccosto, fecha_inicio]);
+
+        const stockMap = {};
+        for (const row of stockInicialRes.rows) {
+            stockMap[row.codigo] = parseFloat(row.stock_inicial);
+        }
+
+        // 2. Movimientos día a día en el rango
+        const movResult = await pool.query(`
+            SELECT
+                di.fecha::text                                                               AS fecha,
+                di.codigo,
+                p.nombre,
+                p.und,
+                COALESCE(gp.nombre, 'Sin Grupo')                                             AS grupo_nombre,
+                COALESCE(gp.codigo, '999')                                                   AS grupo_codigo,
+                ROUND(COALESCE(SUM(di.entrada), 0)::numeric, 4)                             AS entradas,
+                ROUND(COALESCE(SUM(CASE WHEN di.tipo <> 'SALIDA POR VENTA' THEN di.salida ELSE 0 END), 0)::numeric, 4) AS salidas,
+                ROUND(COALESCE(SUM(CASE WHEN di.tipo  = 'SALIDA POR VENTA' THEN di.salida ELSE 0 END), 0)::numeric, 4) AS ventas
+            FROM detalle_inventario di
+            JOIN productos p ON p.codigo = di.codigo
+            LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+            WHERE di.empresa = $1
+              AND di.ccosto  = $2
+              AND di.fecha BETWEEN $3 AND $4
+            GROUP BY di.fecha, di.codigo, p.nombre, p.und, grupo_nombre, grupo_codigo
+            ORDER BY COALESCE(gp.codigo, '999'), p.nombre, di.fecha
+        `, [emp, ccosto, fecha_inicio, fecha_fin]);
+
+        res.json({
+            success: true,
+            data: movResult.rows,
+            stock_inicial_map: stockMap
+        });
+    } catch (error) {
+        console.error('Error GET /api/almacen/reporte-movimiento-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── FIN REPORTE MOVIMIENTO POR PRODUCTO ───────────────────────────
+
 // ── REPORTE CONSUMOS (SALIDA POR VENTA) ──────────────────────────
 app.get('/api/almacen/reporte-consumos', async (req, res) => {
     try {
