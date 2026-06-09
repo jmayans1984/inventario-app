@@ -60,18 +60,46 @@
             <span>Centro de Costos</span>
           </div>
           <v-select
-            v-model="ccostoFiltro"
-            :items="ccostoItems"
-            item-title="label"
-            item-value="value"
+            v-model="ccostosSeleccionados"
+            :items="ccostos"
+            item-title="nombre"
+            item-value="codigo"
             density="compact"
             variant="outlined"
             hide-details
             :loading="ccostosLoading"
             class="filter-select-v"
             bg-color="rgb(var(--v-theme-surface))"
-            style="min-width:220px"
-          />
+            style="min-width:240px"
+            multiple
+            chips
+            closable-chips
+            placeholder="Todos los centros"
+            :menu-props="{ maxHeight: 320 }"
+          >
+            <template #prepend-item>
+              <v-list-item title="Seleccionar todos" @click="toggleTodosCcostos">
+                <template #prepend>
+                  <v-checkbox-btn
+                    :model-value="todosSeleccionados"
+                    :indeterminate="algunoSeleccionado && !todosSeleccionados"
+                    color="#f59e0b"
+                  />
+                </template>
+              </v-list-item>
+              <v-divider class="mb-1" />
+            </template>
+            <template #item="{ item, props }">
+              <v-list-item v-bind="props" :title="item.title">
+                <template #prepend>
+                  <v-checkbox-btn
+                    :model-value="ccostosSeleccionados.includes(item.value)"
+                    color="#f59e0b"
+                  />
+                </template>
+              </v-list-item>
+            </template>
+          </v-select>
         </div>
 
       </div>
@@ -213,11 +241,11 @@ function ultimoDiaMes() {
   return new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().slice(0, 10)
 }
 
-const fechaInicio    = ref(primerDiaMes())
-const fechaFin       = ref(ultimoDiaMes())
-const ccostoFiltro   = ref('TODOS')
-const ccostos        = ref([])
-const ccostosLoading = ref(false)
+const fechaInicio          = ref(primerDiaMes())
+const fechaFin             = ref(ultimoDiaMes())
+const ccostosSeleccionados = ref([])
+const ccostos              = ref([])
+const ccostosLoading       = ref(false)
 const rows           = ref([])
 const totals         = ref({ total_productos: 0, total_cant: 0, total_valor: 0, ticket_promedio: 0 })
 const loading        = ref(false)
@@ -225,10 +253,25 @@ const error          = ref('')
 const consultado     = ref(false)
 const generandoPdf   = ref(false)
 
-const ccostoItems = computed(() => [
-  { label: 'TODOS LOS CENTROS', value: 'TODOS' },
-  ...ccostos.value.map(c => ({ label: c.nombre, value: c.codigo }))
-])
+// ── Multi-select helpers ────────────────────────────────────────
+const todosSeleccionados = computed(() => ccostosSeleccionados.value.length === ccostos.value.length && ccostos.value.length > 0)
+const algunoSeleccionado = computed(() => ccostosSeleccionados.value.length > 0)
+
+function toggleTodosCcostos() {
+  if (todosSeleccionados.value) {
+    ccostosSeleccionados.value = []
+  } else {
+    ccostosSeleccionados.value = ccostos.value.map(c => c.codigo)
+  }
+}
+
+const ccostoLabel = computed(() => {
+  if (!ccostosSeleccionados.value.length) return 'Todos los centros'
+  if (todosSeleccionados.value) return 'Todos los centros'
+  return ccostosSeleccionados.value
+    .map(cod => ccostos.value.find(c => c.codigo === cod)?.nombre || cod)
+    .join(', ')
+})
 
 // ── Cargar ccostos ──────────────────────────────────────────────
 async function fetchCcostos() {
@@ -260,7 +303,10 @@ async function consultar() {
       fechaInicio: fechaInicio.value,
       fechaFin:    fechaFin.value,
     }
-    if (ccostoFiltro.value !== 'TODOS') params.ccosto = ccostoFiltro.value
+    // Si hay selección parcial enviar lista; vacío = todos
+    if (ccostosSeleccionados.value.length > 0 && !todosSeleccionados.value) {
+      params.ccostos = ccostosSeleccionados.value.join(',')
+    }
     const r = await api.get('/tesoreria/ventas-productos-periodo', { params })
     if (!r.data?.success) throw new Error(r.data?.error || 'Error al consultar')
     rows.value   = r.data.data   || []
@@ -305,10 +351,7 @@ function exportarPDF() {
     const ML  = 10
     const hoy = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' })
 
-    const ccostoObj   = ccostos.value.find(c => c.codigo === ccostoFiltro.value)
-    const ccostoLabel = ccostoFiltro.value === 'TODOS'
-      ? 'Todos los centros'
-      : `${ccostoFiltro.value} — ${ccostoObj?.nombre || ''}`
+    const ccostoLabelPDF = ccostoLabel.value
 
     // ── Header ─────────────────────────────────────────────────
     doc.setFillColor(6, 182, 212)
@@ -320,7 +363,7 @@ function exportarPDF() {
     doc.setFontSize(7.5)
     doc.setFont('helvetica', 'normal')
     doc.text(
-      `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabel}`,
+      `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabelPDF}`,
       ML, 14
     )
     doc.text(`Impreso: ${hoy}`, PW - ML, 14, { align: 'right' })

@@ -8201,16 +8201,20 @@ app.delete('/api/produccion/terminos-credito/:id', async (req, res) => {
 // GET /api/tesoreria/ventas-productos-periodo
 // Retorna filas de detalle_ventas agrupadas por producto, filtradas por empresa, fechas y opcionalmente ccosto
 app.get('/api/tesoreria/ventas-productos-periodo', async (req, res) => {
-    const { empresa, fechaInicio, fechaFin, ccosto } = req.query;
+    const { empresa, fechaInicio, fechaFin, ccostos } = req.query;
     if (!empresa || !fechaInicio || !fechaFin) {
         return res.status(400).json({ success: false, error: 'empresa, fechaInicio y fechaFin son requeridos' });
     }
     try {
         const params = [parseInt(empresa), fechaInicio, fechaFin];
         let ccostoClause = '';
-        if (ccosto && ccosto !== 'TODOS') {
-            params.push(ccosto);
-            ccostoClause = `AND dv.ccosto = $${params.length}`;
+        if (ccostos) {
+            const lista = ccostos.split(',').map(s => s.trim()).filter(Boolean);
+            if (lista.length > 0) {
+                const placeholders = lista.map((_, i) => `$${params.length + i + 1}`).join(', ');
+                params.push(...lista);
+                ccostoClause = `AND dv.ccosto IN (${placeholders})`;
+            }
         }
 
         const sql = `
