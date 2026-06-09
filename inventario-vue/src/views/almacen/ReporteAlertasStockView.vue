@@ -174,7 +174,7 @@ async function generar() {
   errorMsg.value = ''; advertencia.value = ''
   loading.value = true; generado.value = false; filas.value = []; bodega.value = ''
   try {
-    const res = await api.get('/api/almacen/reporte-alertas-stock', {
+    const res = await api.get('/almacen/reporte-alertas-stock', {
       params: { empresa: authStore.empresaCodigo }
     })
     if (!res.data.success) throw new Error(res.data.error || 'Error al generar')
