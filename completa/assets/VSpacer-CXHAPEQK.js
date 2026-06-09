@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-DB1MCT3r.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

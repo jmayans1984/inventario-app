@@ -491,13 +491,19 @@
               :loading="loadingProdCatalogo"
               style="flex:1; min-width:220px"
               @update:search="buscarProdCatalogo"
-            >
-              <template #item="{ props, item }">
-                <v-list-item v-bind="props" :subtitle="`${item.raw.codigo} · ${item.raw.und || ''} · ${item.raw.grupo_nombre || item.raw.grupo || ''}`" />
-              </template>
-            </v-autocomplete>
+            />
+            <v-text-field
+              v-model="prodCantidad"
+              label="Cantidad"
+              type="number"
+              min="0.001"
+              variant="outlined"
+              density="compact"
+              hide-details
+              style="width:110px; flex-shrink:0"
+            />
             <v-btn color="teal" variant="flat" rounded="lg" height="40"
-              :disabled="!prodSeleccionado" :loading="guardandoProd"
+              :disabled="!prodSeleccionado || !prodCantidad" :loading="guardandoProd"
               @click="agregarProducto">
               <v-icon size="18" class="mr-1">mdi-plus</v-icon>Agregar
             </v-btn>
@@ -514,6 +520,7 @@
             <span>CÓDIGO</span>
             <span>NOMBRE</span>
             <span>GRUPO</span>
+            <span class="text-center">CANT</span>
             <span>UND</span>
             <span></span>
           </div>
@@ -530,6 +537,7 @@
             <div class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.5)">{{ p.codigo }}</div>
             <div class="font-weight-500">{{ p.nombre }}</div>
             <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.45)">{{ p.grupo_nombre || p.grupo || '—' }}</div>
+            <div class="text-center font-mono text-caption">{{ p.cant }}</div>
             <div class="text-caption">{{ p.und || '—' }}</div>
             <div style="display:flex;justify-content:flex-end">
               <v-btn icon size="x-small" variant="text" color="error"
@@ -542,7 +550,7 @@
         </div>
 
         <div class="ing-dlg-footer">
-          <v-btn variant="text" @click="dlgProductos=false">
+          <v-btn variant="flat" color="#ef4444" @click="dlgProductos=false">
             <v-icon start size="16">mdi-close</v-icon>Cerrar
           </v-btn>
         </div>
@@ -639,6 +647,7 @@ const prodCatalogo        = ref([])
 const prodSeleccionado    = ref(null)
 const loadingProdCatalogo = ref(false)
 const guardandoProd       = ref(false)
+const prodCantidad        = ref(1)
 const eliminandoProd      = ref({})   // codigo → bool
 
 // Dialog eliminar
@@ -877,6 +886,7 @@ async function abrirProductos(receta) {
   recetaProductos.value   = receta
   productosReceta.value   = []
   prodSeleccionado.value  = null
+  prodCantidad.value      = 1
   prodCatalogo.value      = []
   eliminandoProd.value    = {}
   loadingProductos.value  = true
@@ -923,11 +933,12 @@ async function agregarProducto() {
     const r = await fetch(`${API_BASE}/recetas/${recetaProductos.value.codigo}/productos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ articulo: prodSeleccionado.value.codigo, cant: 1 })
+      body: JSON.stringify({ articulo: prodSeleccionado.value.codigo, cant: parseFloat(prodCantidad.value) || 1 })
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
     prodSeleccionado.value = null
+    prodCantidad.value = 1
     ok('Producto vinculado')
     await recargarProductosReceta()
   } catch (e) { err(e.message) }
@@ -1411,7 +1422,7 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .prod-tbl-head2,
 .prod-tbl-row2 {
   display: grid;
-  grid-template-columns: 80px 1fr 130px 60px 36px;
+  grid-template-columns: 80px 1fr 120px 60px 55px 36px;
   align-items: center;
   padding: 8px 20px;
   font-size: 12px;
