@@ -496,11 +496,13 @@
               v-model="prodCantidad"
               label="Cantidad"
               type="number"
-              min="0.001"
+              min="0.01"
+              step="0.01"
               variant="outlined"
               density="compact"
               hide-details
               style="width:110px; flex-shrink:0"
+              @blur="prodCantidad = parseFloat(parseFloat(prodCantidad||0).toFixed(2))"
             />
             <v-btn color="teal" variant="flat" rounded="lg" height="40"
               :disabled="!prodSeleccionado || !prodCantidad" :loading="guardandoProd"
@@ -537,7 +539,7 @@
             <div class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.5)">{{ p.codigo }}</div>
             <div class="font-weight-500">{{ p.nombre }}</div>
             <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.45)">{{ p.grupo_nombre || p.grupo || '—' }}</div>
-            <div class="text-center font-mono text-caption">{{ p.cant }}</div>
+            <div class="text-center font-mono text-caption">{{ parseFloat(p.cant || 0).toFixed(2) }}</div>
             <div class="text-caption">{{ p.und || '—' }}</div>
             <div style="display:flex;justify-content:flex-end">
               <v-btn icon size="x-small" variant="text" color="error"
