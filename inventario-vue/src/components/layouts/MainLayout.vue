@@ -216,6 +216,18 @@
           </div>
 
           <v-btn
+            variant="tonal"
+            color="warning"
+            size="small"
+            class="ml-2"
+            prepend-icon="mdi-calculator-variant-outline"
+            title="Calculadora (F9)"
+            @click="openCalc(null)"
+          >
+            Calc
+          </v-btn>
+
+          <v-btn
           variant="tonal"
           color="error"
           size="small"
@@ -247,6 +259,7 @@ import { useAppStore } from '../../stores/app'
 import { MODULES } from '../../utils/constants'
 import { formatFechaLarga } from '../../utils/formatters'
 import { notificacionesService } from '../../services/notificaciones.service'
+import { useCalculadora } from '../../composables/useCalculadora'
 
 const router = useRouter()
 const route = useRoute()
@@ -389,6 +402,8 @@ function formatFecha(fecha) {
 }
 
 const toggleTema = () => appStore.toggleTema()
+
+const { openCalc } = useCalculadora()
 
 const handleLogout = () => {
   if (confirm('¿Estás seguro de cerrar sesión?')) {
