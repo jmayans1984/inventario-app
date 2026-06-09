@@ -60,18 +60,46 @@
             <span>Centro de Costos</span>
           </div>
           <v-select
-            v-model="ccostoFiltro"
-            :items="ccostoItems"
-            item-title="label"
-            item-value="value"
+            v-model="ccostosSeleccionados"
+            :items="ccostos"
+            item-title="nombre"
+            item-value="codigo"
             density="compact"
             variant="outlined"
             hide-details
             :loading="ccostosLoading"
             class="filter-select-v"
             bg-color="rgb(var(--v-theme-surface))"
-            style="min-width:220px"
-          />
+            style="min-width:240px"
+            multiple
+            chips
+            closable-chips
+            placeholder="Todos los centros"
+            :menu-props="{ maxHeight: 320 }"
+          >
+            <template #prepend-item>
+              <v-list-item title="Seleccionar todos" @click="toggleTodosCcostos">
+                <template #prepend>
+                  <v-checkbox-btn
+                    :model-value="todosSeleccionados"
+                    :indeterminate="algunoSeleccionado && !todosSeleccionados"
+                    color="#f59e0b"
+                  />
+                </template>
+              </v-list-item>
+              <v-divider class="mb-1" />
+            </template>
+            <template #item="{ item, props }">
+              <v-list-item v-bind="props" :title="item.title">
+                <template #prepend>
+                  <v-checkbox-btn
+                    :model-value="ccostosSeleccionados.includes(item.value)"
+                    color="#f59e0b"
+                  />
+                </template>
+              </v-list-item>
+            </template>
+          </v-select>
         </div>
 
       </div>
@@ -155,7 +183,6 @@
         <thead>
           <tr>
             <th>FECHA</th>
-            <th>CENTRO DE COSTOS</th>
             <th class="col-num">BRUTAS</th>
             <th class="col-num">DEVOL.</th>
             <th class="col-num">DESC.</th>
@@ -171,10 +198,6 @@
         <tbody>
           <tr v-for="(r, i) in rows" :key="i" class="tr-data">
             <td class="td-fecha">{{ fmtFecha(r.fecha) }}</td>
-            <td>
-              <span class="badge-ccosto">{{ r.ccosto }}</span>
-              {{ r.ccosto_nombre }}
-            </td>
             <td class="col-num">{{ fmt(r.ventas_brutas) }}</td>
             <td class="col-num td-red">{{ fmt(r.devoluciones) }}</td>
             <td class="col-num td-dim">{{ fmt(r.descuentos) }}</td>
@@ -190,7 +213,7 @@
         <!-- Fila de totales -->
         <tfoot>
           <tr class="tr-total">
-            <td colspan="2">TOTALES</td>
+            <td colspan="1">TOTALES</td>
             <td class="col-num">{{ fmt(totals.ventas_brutas) }}</td>
             <td class="col-num td-red">{{ fmt(totals.devoluciones) }}</td>
             <td class="col-num">{{ fmt(totals.descuentos) }}</td>
@@ -244,23 +267,37 @@ function ultimoDiaMes() {
   return new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().slice(0, 10)
 }
 
-const fechaInicio    = ref(primerDiaMes())
-const fechaFin       = ref(ultimoDiaMes())
-const ccostoFiltro   = ref('TODOS')
-const ccostos        = ref([])
-const ccostosLoading = ref(false)
-const rows           = ref([])
-const totals         = ref({ ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
-                             impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 })
-const loading        = ref(false)
-const error          = ref('')
-const consultado     = ref(false)
+const fechaInicio          = ref(primerDiaMes())
+const fechaFin             = ref(ultimoDiaMes())
+const ccostosSeleccionados = ref([])
+const ccostos              = ref([])
+const ccostosLoading       = ref(false)
+const rows                 = ref([])
+const totals               = ref({ ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
+                                   impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 })
+const loading              = ref(false)
+const error                = ref('')
+const consultado           = ref(false)
 
-// Items para el v-select de ccostos (incluye opción TODOS)
-const ccostoItems = computed(() => [
-  { label: 'TODOS LOS CENTROS', value: 'TODOS' },
-  ...ccostos.value.map(c => ({ label: c.nombre, value: c.codigo }))
-])
+// ── Multi-select helpers ────────────────────────────────────────
+const todosSeleccionados = computed(() => ccostosSeleccionados.value.length === ccostos.value.length && ccostos.value.length > 0)
+const algunoSeleccionado = computed(() => ccostosSeleccionados.value.length > 0)
+
+function toggleTodosCcostos() {
+  if (todosSeleccionados.value) {
+    ccostosSeleccionados.value = []
+  } else {
+    ccostosSeleccionados.value = ccostos.value.map(c => c.codigo)
+  }
+}
+
+const ccostoLabel = computed(() => {
+  if (!ccostosSeleccionados.value.length) return 'Todos los centros'
+  if (todosSeleccionados.value) return 'Todos los centros'
+  return ccostosSeleccionados.value
+    .map(cod => ccostos.value.find(c => c.codigo === cod)?.nombre || cod)
+    .join(', ')
+})
 
 // ── Cargar ccostos ──────────────────────────────────────────────
 async function fetchCcostos() {
@@ -296,7 +333,9 @@ async function consultar() {
       fechaInicio: fechaInicio.value,
       fechaFin:    fechaFin.value,
     }
-    if (ccostoFiltro.value !== 'TODOS') params.ccosto = ccostoFiltro.value
+    if (ccostosSeleccionados.value.length > 0 && !todosSeleccionados.value) {
+      params.ccostos = ccostosSeleccionados.value.join(',')
+    }
     const r = await api.get('/tesoreria/ventas-periodo', { params })
     if (!r.data?.success) throw new Error(r.data?.error || 'Error al consultar')
     rows.value   = r.data.data   || []
@@ -343,11 +382,7 @@ function exportarPDF() {
     const ML   = 10
     const hoy  = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' })
 
-    // Nombre del ccosto seleccionado
-    const ccostoObj    = ccostos.value.find(c => c.codigo === ccostoFiltro.value)
-    const ccostoLabel  = ccostoFiltro.value === 'TODOS'
-      ? 'Todos los centros'
-      : `${ccostoFiltro.value} — ${ccostoObj?.nombre || ''}`
+    const ccostoLabelPDF = ccostoLabel.value
 
     // ── Header ──────────────────────────────────────────────────
     doc.setFillColor(6, 182, 212)
@@ -359,7 +394,7 @@ function exportarPDF() {
     doc.setFontSize(7.5)
     doc.setFont('helvetica', 'normal')
     doc.text(
-      `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabel}`,
+      `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabelPDF}`,
       ML, 14
     )
     doc.text(`Impreso: ${hoy}`, PW - ML, 14, { align: 'right' })
@@ -387,10 +422,9 @@ function exportarPDF() {
     // ── Tabla principal ──────────────────────────────────────────
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 3,
-      head: [['Fecha', 'Centro de Costos', 'Brutas', 'Devol.', 'Desc.', 'Netas', 'Impuestos', 'Propinas', 'Comisiones', 'Tarjetas', 'Efectivo', 'Otros']],
+      head: [['Fecha', 'Brutas', 'Devol.', 'Desc.', 'Netas', 'Impuestos', 'Propinas', 'Comisiones', 'Tarjetas', 'Efectivo', 'Otros']],
       body: rows.value.map(r => [
         fmtFechaCorta(r.fecha),
-        `${r.ccosto} — ${r.ccosto_nombre}`,
         fmt(r.ventas_brutas),
         fmt(r.devoluciones),
         fmt(r.descuentos),
@@ -403,7 +437,7 @@ function exportarPDF() {
         fmt(r.otros)
       ]),
       foot: [[
-        'TOTALES', '',
+        'TOTALES',
         fmt(totals.value.ventas_brutas),
         fmt(totals.value.devoluciones),
         fmt(totals.value.descuentos),
@@ -419,25 +453,23 @@ function exportarPDF() {
       headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold', fontSize: 6.5, cellPadding: 1.5 },
       footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold', cellPadding: 1.5 },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 40 },
+        0: { cellWidth: 24 },
+        1:  { halign: 'right' },
         2:  { halign: 'right' },
         3:  { halign: 'right' },
-        4:  { halign: 'right' },
-        5:  { halign: 'right', fontStyle: 'bold' },
+        4:  { halign: 'right', fontStyle: 'bold' },
+        5:  { halign: 'right' },
         6:  { halign: 'right' },
         7:  { halign: 'right' },
         8:  { halign: 'right' },
         9:  { halign: 'right' },
-        10: { halign: 'right' },
-        11: { halign: 'right' }
+        10: { halign: 'right' }
       },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       theme: 'striped',
       margin: { left: ML, right: ML },
       didDrawCell: (data) => {
-        // Asegurar que el footer tenga alineación a la derecha en columnas numéricas
-        if (data.section === 'foot' && data.column.index >= 2) {
+        if (data.section === 'foot' && data.column.index >= 1) {
           data.cell.styles.halign = 'right'
         }
       },
