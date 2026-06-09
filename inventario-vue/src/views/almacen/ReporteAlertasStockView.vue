@@ -191,7 +191,7 @@ async function generar() {
 
 function fmtNum(v) {
   const n = parseFloat(v) || 0
-  return n % 1 === 0 ? n.toLocaleString('es-CO') : n.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }
 
 function nivelPct(p) {
