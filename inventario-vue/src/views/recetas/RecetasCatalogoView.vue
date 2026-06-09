@@ -91,13 +91,13 @@
                   </v-btn>
                 </template>
               </v-tooltip>
-              <v-tooltip :text="expandedRows.includes(item.codigo) ? 'Cerrar productos' : 'Ver / Editar productos vinculados'">
+              <v-tooltip :text="expandedRows.includes(String(item.codigo)) ? 'Cerrar productos' : 'Ver / Editar productos vinculados'">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="x-small"
-                    :variant="expandedRows.includes(item.codigo) ? 'flat' : 'tonal'"
-                    :color="expandedRows.includes(item.codigo) ? '#0d9488' : 'teal'"
+                    :variant="expandedRows.includes(String(item.codigo)) ? 'flat' : 'tonal'"
+                    :color="expandedRows.includes(String(item.codigo)) ? '#0d9488' : 'teal'"
                     @click="toggleExpansion(item)">
-                    <v-icon size="16">{{ expandedRows.includes(item.codigo) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
+                    <v-icon size="16">{{ expandedRows.includes(String(item.codigo)) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
@@ -862,36 +862,40 @@ async function guardarIngredientes() {
 
 // ── Inline expandible: funciones ──
 async function toggleExpansion(item) {
-  const cod = item.codigo
-  const idx  = expandedRows.value.indexOf(cod)
-  if (idx >= 0) {
-    expandedRows.value.splice(idx, 1)
+  const cod = String(item.codigo)
+  if (expandedRows.value.includes(cod)) {
+    // Colapsar — nueva referencia de array
+    expandedRows.value = expandedRows.value.filter(c => c !== cod)
   } else {
-    expandedRows.value.push(cod)
+    // Expandir — nueva referencia de array
+    expandedRows.value = [...expandedRows.value, cod]
     // Inicializar estado si es la primera vez
-    if (!rowProductos.value[cod]) {
-      rowProdSel.value[cod]  = null
-      rowProdCant.value[cod] = 1
-      await cargarProductosFila(cod)
+    if (rowProductos.value[cod] === undefined) {
+      rowProdSel.value  = { ...rowProdSel.value,  [cod]: null }
+      rowProdCant.value = { ...rowProdCant.value, [cod]: 1    }
+      rowProductos.value = { ...rowProductos.value, [cod]: [] }
     }
-    // Cargar catálogo (siempre, para tenerlo disponible)
-    await buscarProdCatalogo('')
+    // Cargar productos y catálogo en paralelo
+    await Promise.all([
+      cargarProductosFila(cod),
+      buscarProdCatalogo(''),
+    ])
   }
 }
 
 async function cargarProductosFila(cod) {
-  rowLoading.value[cod] = true
+  rowLoading.value = { ...rowLoading.value, [cod]: true }
   try {
     const r = await fetch(`${API_BASE}/recetas/${cod}/productos`)
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
-    rowProductos.value[cod] = j.data || []
+    rowProductos.value = { ...rowProductos.value, [cod]: j.data || [] }
   } catch (e) {
     err(`Error cargando productos: ${e.message}`)
-    rowProductos.value[cod] = []
+    rowProductos.value = { ...rowProductos.value, [cod]: [] }
   } finally {
-    rowLoading.value[cod] = false
+    rowLoading.value = { ...rowLoading.value, [cod]: false }
   }
 }
 
@@ -913,7 +917,7 @@ function buscarProdCatalogo(q) {
 async function agregarProductoFila(cod) {
   const prod = rowProdSel.value[cod]
   if (!prod) return
-  rowGuardando.value[cod] = true
+  rowGuardando.value = { ...rowGuardando.value, [cod]: true }
   try {
     const r = await fetch(`${API_BASE}/recetas/${cod}/productos`, {
       method: 'POST',
@@ -922,17 +926,17 @@ async function agregarProductoFila(cod) {
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
-    rowProdSel.value[cod]  = null
-    rowProdCant.value[cod] = 1
+    rowProdSel.value  = { ...rowProdSel.value,  [cod]: null }
+    rowProdCant.value = { ...rowProdCant.value, [cod]: 1    }
     ok('Producto vinculado')
     await cargarProductosFila(cod)
   } catch (e) { err(e.message) }
-  finally { rowGuardando.value[cod] = false }
+  finally { rowGuardando.value = { ...rowGuardando.value, [cod]: false } }
 }
 
 async function eliminarProductoFila(cod, articuloCod) {
   const key = cod + articuloCod
-  rowEliminando.value[key] = true
+  rowEliminando.value = { ...rowEliminando.value, [key]: true }
   try {
     const r = await fetch(`${API_BASE}/recetas/${cod}/productos/${encodeURIComponent(articuloCod)}`, {
       method: 'DELETE'
@@ -942,7 +946,7 @@ async function eliminarProductoFila(cod, articuloCod) {
     ok('Producto desvinculado')
     await cargarProductosFila(cod)
   } catch (e) { err(e.message) }
-  finally { rowEliminando.value[key] = false }
+  finally { rowEliminando.value = { ...rowEliminando.value, [key]: false } }
 }
 
 function confirmarEliminar(receta) {
