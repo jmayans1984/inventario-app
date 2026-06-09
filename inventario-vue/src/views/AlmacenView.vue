@@ -111,6 +111,17 @@
           </div>
           <v-icon size="16" color="#10b981" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
+
+        <div class="mod-card" @click="go('/almacen/reportes/consumo-insumos')">
+          <div class="mod-card-icon" style="background:rgba(234,179,8,.12)">
+            <v-icon size="22" color="#ca8a04">mdi-package-down</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Consumo de Insumos</div>
+            <div class="mod-card-desc">Traslados desde bodega maestra por período</div>
+          </div>
+          <v-icon size="16" color="#ca8a04" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
       </div>
 
     </div>

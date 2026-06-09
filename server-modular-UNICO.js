@@ -1169,6 +1169,51 @@ app.get('/api/almacen/reporte-consumos', async (req, res) => {
 });
 // ── FIN REPORTE CONSUMOS ──────────────────────────────────────────
 
+// ── REPORTE CONSUMO INSUMOS (SALIDA POR TRASLADO, BODEGA MAESTRA) ─
+app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
+    try {
+        const { empresa, fecha_ini, fecha_fin } = req.query;
+        if (!empresa || !fecha_ini || !fecha_fin)
+            return res.status(400).json({ success: false, error: 'Faltan parámetros' });
+
+        // Obtener bodega maestra de la empresa
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`, [String(empresa)]
+        );
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra;
+        if (!bodegaMaestra)
+            return res.status(400).json({ success: false, error: 'La empresa no tiene Bodega Maestra configurada' });
+
+        const result = await pool.query(
+            `SELECT
+                di.codigo,
+                p.nombre,
+                p.und,
+                SUM(di.salida)  AS total_consumido,
+                COUNT(*)        AS num_movimientos,
+                COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
+                COALESCE(gp.codigo, '999')        AS grupo_codigo
+             FROM detalle_inventario di
+             JOIN productos p ON p.codigo = di.codigo
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             WHERE di.empresa::text = $1
+               AND di.ccosto  = $2
+               AND di.fecha  >= $3
+               AND di.fecha  <= $4
+               AND di.tipo   LIKE 'SALIDA POR TRASLADO%'
+             GROUP BY di.codigo, p.nombre, p.und, gp.nombre, gp.codigo
+             ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
+            [String(empresa), bodegaMaestra, fecha_ini, fecha_fin]
+        );
+
+        res.json({ success: true, data: result.rows, bodega_maestra: bodegaMaestra });
+    } catch (error) {
+        console.error('Error GET /api/almacen/reporte-consumo-insumos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// ── FIN REPORTE CONSUMO INSUMOS ───────────────────────────────────
+
 // POST /api/inventario/movimientos - Registrar movimientos (formato nuevo)
 app.post('/api/inventario/movimientos', async (req, res) => {
     const { movimientos } = req.body;
