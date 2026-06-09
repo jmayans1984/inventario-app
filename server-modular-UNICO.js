@@ -1126,6 +1126,43 @@ app.get('/api/almacen/kardex', async (req, res) => {
 
 // ── FIN KARDEX ────────────────────────────────────────────────────
 
+// ── REPORTE CONSUMOS (SALIDA POR VENTA) ──────────────────────────
+app.get('/api/almacen/reporte-consumos', async (req, res) => {
+    try {
+        const { empresa, ccosto, fecha_ini, fecha_fin } = req.query;
+        if (!empresa || !ccosto || !fecha_ini || !fecha_fin)
+            return res.status(400).json({ success: false, error: 'Faltan parámetros' });
+
+        const result = await pool.query(
+            `SELECT
+                di.codigo,
+                p.nombre,
+                p.und,
+                SUM(di.salida)  AS total_consumido,
+                COUNT(*)        AS num_movimientos,
+                COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
+                COALESCE(gp.codigo, '999')        AS grupo_codigo
+             FROM detalle_inventario di
+             JOIN productos p ON p.codigo = di.codigo
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             WHERE di.empresa::text = $1
+               AND di.ccosto  = $2
+               AND di.fecha  >= $3
+               AND di.fecha  <= $4
+               AND di.tipo   LIKE 'SALIDA POR VENTA%'
+             GROUP BY di.codigo, p.nombre, p.und, gp.nombre, gp.codigo
+             ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
+            [String(empresa), ccosto, fecha_ini, fecha_fin]
+        );
+
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/reporte-consumos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// ── FIN REPORTE CONSUMOS ──────────────────────────────────────────
+
 // POST /api/inventario/movimientos - Registrar movimientos (formato nuevo)
 app.post('/api/inventario/movimientos', async (req, res) => {
     const { movimientos } = req.body;
