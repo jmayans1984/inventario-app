@@ -322,6 +322,7 @@
             <tr>
               <th class="th-cod">CÓDIGO</th>
               <th class="th-nom">NOMBRE DEL PRODUCTO</th>
+              <th class="th-desc">DESCRIPCIÓN</th>
               <th class="th-und">UND</th>
               <th class="th-cant">CANTIDAD</th>
             </tr>
@@ -329,7 +330,7 @@
           <tbody>
             <template v-if="productosAgrupados.length === 0">
               <tr>
-                <td colspan="4" class="gi-empty">
+                <td colspan="5" class="gi-empty">
                   <v-icon size="32" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
                   <p style="color:rgba(var(--v-theme-on-surface),.4);margin:6px 0 0;font-size:13px">
                     No hay productos con control de inventario registrados
@@ -341,7 +342,7 @@
             <template v-for="grupo in productosAgrupados" :key="grupo.key">
               <!-- CABECERA DE GRUPO -->
               <tr class="gi-grupo-row">
-                <td colspan="4" class="gi-grupo-cell">
+                <td colspan="5" class="gi-grupo-cell">
                   <v-icon size="14" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
                   <span class="gi-grupo-name">{{ grupo.nombre }}</span>
                   <span class="gi-grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
@@ -357,6 +358,7 @@
               >
                 <td><span class="badge-cod">{{ p.codigo }}</span></td>
                 <td class="td-nom">{{ p.nombre }}</td>
+                <td class="td-desc">{{ p.descripcion || '—' }}</td>
                 <td><span class="badge-und">{{ p.und }}</span></td>
                 <td class="td-cant">
                   <input
@@ -931,9 +933,11 @@ function aplicarOcr() {
 .gi-table tbody td { padding: 7px 14px; }
 
 .th-cod  { width: 90px; }
-.th-nom  { }
+.th-nom  { width: 220px; }
+.th-desc { }
 .th-und  { width: 80px; }
 .th-cant { width: 140px; text-align: right; }
+.td-desc { font-size: 12px; color: rgba(var(--v-theme-on-surface), .55); }
 .td-nom  { font-weight: 500; }
 .td-cant { text-align: right; }
 
