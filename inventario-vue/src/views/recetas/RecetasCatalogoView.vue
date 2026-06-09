@@ -81,23 +81,29 @@
             <v-chip color="blue-grey" size="x-small" variant="tonal">{{ item.num_ingredientes }}</v-chip>
           </template>
 
-          <!-- Oculta la columna expand nativa; usamos nuestro ícono en acciones -->
+          <!-- Columna expand nativa → ícono teal (productos) -->
           <template #item.data-table-expand="{ item, internalItem, isExpanded, toggleExpand }">
-            <v-btn icon size="x-small"
-              :variant="isExpanded(internalItem) ? 'flat' : 'tonal'"
-              :color="isExpanded(internalItem) ? '#0d9488' : 'teal'"
-              @click="onClickExpand(item, internalItem, isExpanded, toggleExpand)">
-              <v-icon size="16">{{ isExpanded(internalItem) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
-            </v-btn>
+            <v-tooltip :text="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'Cerrar productos' : 'Productos vinculados'">
+              <template #activator="{ props }">
+                <v-btn v-bind="props" icon size="x-small"
+                  :variant="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'flat' : 'tonal'"
+                  :color="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? '#0d9488' : 'teal'"
+                  @click="onClickExpand(item, internalItem, isExpanded, toggleExpand)">
+                  <v-icon size="16">{{ isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
           </template>
 
-          <template #item.acciones="{ item }">
+          <template #item.acciones="{ item, internalItem, isExpanded, toggleExpand }">
             <div class="d-flex gap-1">
-              <v-tooltip text="Ver / Editar ingredientes">
+              <v-tooltip :text="isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? 'Cerrar ingredientes' : 'Ver / Editar ingredientes'">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon size="x-small" variant="tonal" color="#f59e0b"
-                    @click="abrirIngredientes(item)">
-                    <v-icon size="16">mdi-format-list-bulleted</v-icon>
+                  <v-btn v-bind="props" icon size="x-small"
+                    :variant="isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? 'flat' : 'tonal'"
+                    :color="isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? '#d97706' : '#f59e0b'"
+                    @click="onClickIngredientes(item, internalItem, isExpanded, toggleExpand)">
+                    <v-icon size="16">{{ isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? 'mdi-chevron-up' : 'mdi-format-list-bulleted' }}</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
@@ -119,82 +125,207 @@
               </v-tooltip>
             </div>
           </template>
-          <!-- FILA EXPANDIDA: PRODUCTOS VINCULADOS -->
+          <!-- FILA EXPANDIDA -->
           <template #expanded-row="{ columns, item }">
             <tr>
-              <td :colspan="columns.length" style="padding:0; background:rgba(13,148,136,.04); border-bottom:2px solid rgba(13,148,136,.18)">
-                <div class="exp-panel">
+              <td :colspan="columns.length" style="padding:0">
 
-                  <v-progress-linear v-if="rowLoading[item.codigo]" indeterminate color="teal" height="2" />
+                <!-- ══ MODO: INGREDIENTES ══ -->
+                <template v-if="rowMode[item.codigo] === 'ingredientes'">
+                  <div style="border-bottom:2px solid rgba(245,158,11,.25); background:rgba(245,158,11,.03)">
 
-                  <!-- Barra agregar -->
-                  <div class="exp-add-bar">
-                    <v-autocomplete
-                      v-model="rowProdSel[item.codigo]"
-                      :items="prodCatalogo"
-                      item-title="nombre"
-                      return-object
-                      label="Buscar producto con control..."
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      clearable
-                      :loading="loadingProdCatalogo"
-                      style="flex:1; min-width:200px"
-                      @update:search="buscarProdCatalogo"
-                    />
-                    <v-text-field
-                      v-model="rowProdCant[item.codigo]"
-                      label="Cant."
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      style="width:90px; flex-shrink:0"
-                      @blur="rowProdCant[item.codigo] = parseFloat(parseFloat(rowProdCant[item.codigo]||0).toFixed(2))"
-                    />
-                    <v-btn color="teal" variant="flat" size="small" height="36"
-                      :disabled="!rowProdSel[item.codigo] || !rowProdCant[item.codigo]"
-                      :loading="rowGuardando[item.codigo]"
-                      @click="agregarProductoFila(item.codigo)">
-                      <v-icon size="15" class="mr-1">mdi-plus</v-icon>Agregar
-                    </v-btn>
-                  </div>
-
-                  <!-- Lista productos -->
-                  <div v-if="rowProductos[item.codigo]?.length > 0" class="exp-prod-list">
-                    <div class="exp-prod-head">
-                      <span>CÓDIGO</span>
-                      <span>NOMBRE</span>
-                      <span>GRUPO</span>
-                      <span class="text-center">CANT</span>
-                      <span>UND</span>
-                      <span></span>
+                    <!-- Barra superior -->
+                    <div class="exp-ing-topbar">
+                      <div class="exp-ing-info">
+                        <v-icon size="15" color="#f59e0b">mdi-format-list-bulleted</v-icon>
+                        <span class="exp-ing-nombre">{{ recetaActual?.nombre }}</span>
+                        <v-chip :color="recetaActual?.subproducto==='SI' ? 'purple' : 'cyan'" size="x-small" variant="tonal" label>
+                          {{ recetaActual?.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
+                        </v-chip>
+                        <v-chip color="amber" size="x-small" variant="tonal" label>
+                          {{ ingredientes.length }} ingrediente{{ ingredientes.length !== 1 ? 's' : '' }}
+                        </v-chip>
+                      </div>
+                      <v-btn icon size="x-small" variant="text" color="#f59e0b" title="Imprimir receta" @click="imprimirReceta">
+                        <v-icon size="16">mdi-printer-outline</v-icon>
+                      </v-btn>
                     </div>
-                    <div v-for="(p, idx) in rowProductos[item.codigo]" :key="p.codigo"
-                      class="exp-prod-row" :class="{ 'exp-prod-row--alt': idx % 2 === 1 }">
-                      <span class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.45)">{{ p.codigo }}</span>
-                      <span style="font-weight:500">{{ p.nombre }}</span>
-                      <span class="text-caption" style="color:rgba(var(--v-theme-on-surface),.4)">{{ p.grupo_nombre || p.grupo || '—' }}</span>
-                      <span class="text-center font-mono text-caption">{{ parseFloat(p.cant||0).toFixed(2) }}</span>
-                      <span class="text-caption">{{ p.und || '—' }}</span>
-                      <span style="display:flex;justify-content:flex-end">
-                        <v-btn icon size="x-small" variant="text" color="error"
-                          :loading="rowEliminando[item.codigo + p.codigo]"
-                          @click="eliminarProductoFila(item.codigo, p.codigo)">
-                          <v-icon size="14">mdi-delete-outline</v-icon>
+
+                    <!-- Agregar ingrediente -->
+                    <div class="exp-panel" style="padding-bottom:8px">
+                      <div class="exp-add-bar">
+                        <v-btn-toggle v-model="tipoIngredienteNuevo" rounded="lg" density="compact" color="#f59e0b" style="flex-shrink:0">
+                          <v-btn value="ARTICULO" size="small"><v-icon size="14" class="mr-1">mdi-food-apple-outline</v-icon>Artículo</v-btn>
+                          <v-btn value="RECETA"   size="small"><v-icon size="14" class="mr-1">mdi-link-variant</v-icon>Subreceta</v-btn>
+                        </v-btn-toggle>
+                        <v-autocomplete v-if="tipoIngredienteNuevo==='ARTICULO'"
+                          v-model="articuloSeleccionado" :items="articulos"
+                          item-title="nombre" return-object
+                          :label="'Artículo... (' + articulos.length + ')'"
+                          variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:200px">
+                          <template #item="{ props, item: ai }">
+                            <v-list-item v-bind="props" :subtitle="ai.raw.und + ' · ' + fmt(ai.raw.valor)" />
+                          </template>
+                        </v-autocomplete>
+                        <v-autocomplete v-else
+                          v-model="recetaSeleccionada" :items="subrecetas"
+                          item-title="nombre" return-object
+                          :label="'Subreceta... (' + subrecetas.length + ')'"
+                          variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:200px">
+                          <template #item="{ props, item: ri }">
+                            <v-list-item v-bind="props" :subtitle="ri.raw.und + ' · ' + fmt(ri.raw.valor)" />
+                          </template>
+                        </v-autocomplete>
+                        <v-text-field v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
+                          variant="outlined" density="compact" hide-details style="width:90px;flex-shrink:0" />
+                        <v-btn color="#f59e0b" variant="flat" size="small" height="36"
+                          :disabled="(tipoIngredienteNuevo==='ARTICULO' && !articuloSeleccionado)||(tipoIngredienteNuevo==='RECETA' && !recetaSeleccionada)||!ingNuevo.cantidad"
+                          @click="agregarIngrediente">
+                          <v-icon size="15" class="mr-1">mdi-plus</v-icon>Agregar
                         </v-btn>
-                      </span>
+                      </div>
+                    </div>
+
+                    <v-divider />
+
+                    <!-- Tabla ingredientes -->
+                    <div style="max-height:340px; overflow-y:auto">
+                      <div class="ing-tbl-head">
+                        <span class="col-nombre">INGREDIENTE / ARTÍCULO</span>
+                        <span class="col-tipo">TIPO</span>
+                        <span class="col-cant">CANTIDAD</span>
+                        <span class="col-und">UND</span>
+                        <span class="col-vunit">VALOR UNIT.</span>
+                        <span class="col-sub">SUBTOTAL</span>
+                        <span class="col-del"></span>
+                      </div>
+                      <div v-if="ingredientes.length === 0" class="ing-tbl-empty" style="padding:24px">
+                        <v-icon size="32" color="rgba(var(--v-theme-on-surface),.15)" class="mb-1">mdi-text-box-plus-outline</v-icon>
+                        <div>Sin ingredientes — agrega con el buscador</div>
+                      </div>
+                      <template v-for="(ing, idx) in ingredientes" :key="idx">
+                        <div class="ing-tbl-row" :class="{ 'ing-tbl-row--sub': ing.tipo==='RECETA', 'ing-tbl-row--alt': idx%2===1 }">
+                          <div class="col-nombre ing-item-nombre">
+                            <v-icon v-if="ing.tipo==='RECETA'" size="13" color="#8b5cf6">mdi-link-variant</v-icon>
+                            <v-icon v-else size="13" color="#14b8a6">mdi-food-apple-outline</v-icon>
+                            <span>{{ ing.nombre_item || ing.articulo_nombre || ing.articulo }}</span>
+                            <v-btn v-if="ing.tipo==='RECETA'" icon size="x-small" variant="text"
+                              :color="subprodExpandido[idx] ? '#8b5cf6' : 'rgba(139,92,246,0.35)'"
+                              @click="toggleSubprod(ing, idx)" class="expand-btn">
+                              <v-icon size="13">{{ subprodExpandido[idx] ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                            </v-btn>
+                          </div>
+                          <div class="col-tipo">
+                            <span v-if="ing.tipo==='RECETA'" class="badge-sub">SUBPRODUCTO</span>
+                            <span v-else class="badge-art">ARTÍCULO</span>
+                          </div>
+                          <div class="col-cant">
+                            <v-text-field v-model="ing.cantidad" type="number" min="0" variant="outlined"
+                              density="compact" hide-details class="cant-field" @change="recalcSubtotal(ing)" />
+                          </div>
+                          <div class="col-und">{{ ing.und || '—' }}</div>
+                          <div class="col-vunit font-mono">{{ fmt(ing.precio_unit) }}</div>
+                          <div class="col-sub font-mono subtotal-val">{{ fmt((parseFloat(ing.precio_unit)||0)*(parseFloat(ing.cantidad)||0)) }}</div>
+                          <div class="col-del">
+                            <v-btn icon size="x-small" variant="text" color="error" @click="quitarIngrediente(idx)">
+                              <v-icon size="16">mdi-delete-outline</v-icon>
+                            </v-btn>
+                          </div>
+                        </div>
+                        <div v-if="ing.tipo==='RECETA' && subprodExpandido[idx]" class="subprod-expand">
+                          <div v-if="subprodLoading[idx]" class="subprod-loading">
+                            <v-progress-circular size="14" width="2" indeterminate color="#8b5cf6" />
+                            <span>Cargando...</span>
+                          </div>
+                          <template v-else-if="subprodIngredientes[idx]?.length">
+                            <div class="subprod-header-title"><v-icon size="12" color="#8b5cf6">mdi-link-variant</v-icon> INGREDIENTES DE {{ ing.nombre_item?.toUpperCase() }} (x{{ ing.cantidad }})</div>
+                            <div class="subprod-grid-head"><span class="sg-cod">CÓD.</span><span class="sg-nom">ARTÍCULO</span><span class="sg-cant">CANT.</span><span class="sg-und">UND.</span><span class="sg-vunit">VR. UNIT.</span><span class="sg-sub">SUBTOTAL</span></div>
+                            <div v-for="sub in subprodIngredientes[idx]" :key="sub.articulo" class="subprod-grid-row">
+                              <span class="sg-cod"><v-icon size="10" :color="sub.tipo==='RECETA'?'#8b5cf6':'#14b8a6'">{{ sub.tipo==='RECETA'?'mdi-link-variant':'mdi-food-apple-outline' }}</v-icon>{{ sub.articulo }}</span>
+                              <span class="sg-nom">{{ sub.nombre_item || sub.articulo }}</span>
+                              <span class="sg-cant">{{ Number((parseFloat(sub.cantidad)*parseFloat(ing.cantidad)).toFixed(4)) }}</span>
+                              <span class="sg-und">{{ sub.und || '—' }}</span>
+                              <span class="sg-vunit">{{ fmt(parseFloat(sub.precio_unit)||0) }}</span>
+                              <span class="sg-sub">{{ fmt((parseFloat(sub.precio_unit)||0)*parseFloat(sub.cantidad)*parseFloat(ing.cantidad)) }}</span>
+                            </div>
+                          </template>
+                          <div v-else class="subprod-loading">Sin ingredientes registrados</div>
+                        </div>
+                      </template>
+                      <div v-if="ingredientes.length > 0" class="ing-tbl-total">
+                        <span class="col-nombre" style="grid-column:1/6;font-weight:700;font-size:13px;">COSTO TOTAL ({{ ingredientes.length }} ingredientes)</span>
+                        <span class="col-sub font-mono" style="font-weight:800;font-size:16px;color:#f59e0b;">{{ fmt(costoTotal) }}</span>
+                        <span class="col-del"></span>
+                      </div>
+                    </div>
+
+                    <!-- Resumen + footer -->
+                    <div v-if="recetaActual?.precio_venta > 0" class="ing-resumen-bar">
+                      <div class="resumen-item"><span class="resumen-lbl">COSTO</span><span class="resumen-val" style="color:#ef4444">{{ fmt(costoTotal) }}</span></div>
+                      <div class="resumen-sep">→</div>
+                      <div class="resumen-item"><span class="resumen-lbl">PRECIO VENTA</span><span class="resumen-val">{{ fmt(recetaActual.precio_venta) }}</span></div>
+                      <div class="resumen-sep">=</div>
+                      <div class="resumen-item"><span class="resumen-lbl">MARGEN</span><span class="resumen-val" style="color:#22c55e">{{ fmt(recetaActual.precio_venta - costoTotal) }}</span></div>
+                      <div class="resumen-sep">|</div>
+                      <div class="resumen-item"><span class="resumen-lbl">% COSTO</span><span class="resumen-val" :style="{ color: colorPctStr(pctCosto) }">{{ pctCosto.toFixed(1) }}%</span></div>
+                    </div>
+                    <div class="ing-dlg-footer">
+                      <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoIng" @click="guardarIngredientes">
+                        <v-icon start size="16">mdi-content-save-outline</v-icon>Guardar Ingredientes
+                      </v-btn>
+                    </div>
+
+                  </div>
+                </template>
+
+                <!-- ══ MODO: PRODUCTOS ══ -->
+                <template v-else>
+                  <div style="border-bottom:2px solid rgba(13,148,136,.18); background:rgba(13,148,136,.04)">
+                    <div class="exp-panel">
+                      <v-progress-linear v-if="rowLoading[item.codigo]" indeterminate color="teal" height="2" />
+                      <div class="exp-add-bar">
+                        <v-autocomplete v-model="rowProdSel[item.codigo]" :items="prodCatalogo"
+                          item-title="nombre" return-object label="Buscar producto con control..."
+                          density="compact" variant="outlined" hide-details clearable
+                          :loading="loadingProdCatalogo" style="flex:1;min-width:200px"
+                          @update:search="buscarProdCatalogo" />
+                        <v-text-field v-model="rowProdCant[item.codigo]" label="Cant." type="number"
+                          min="0.01" step="0.01" density="compact" variant="outlined" hide-details
+                          style="width:90px;flex-shrink:0"
+                          @blur="rowProdCant[item.codigo]=parseFloat(parseFloat(rowProdCant[item.codigo]||0).toFixed(2))" />
+                        <v-btn color="teal" variant="flat" size="small" height="36"
+                          :disabled="!rowProdSel[item.codigo]||!rowProdCant[item.codigo]"
+                          :loading="rowGuardando[item.codigo]"
+                          @click="agregarProductoFila(item.codigo)">
+                          <v-icon size="15" class="mr-1">mdi-plus</v-icon>Agregar
+                        </v-btn>
+                      </div>
+                      <div v-if="rowProductos[item.codigo]?.length > 0" class="exp-prod-list">
+                        <div class="exp-prod-head"><span>CÓDIGO</span><span>NOMBRE</span><span>GRUPO</span><span class="text-center">CANT</span><span>UND</span><span></span></div>
+                        <div v-for="(p, idx) in rowProductos[item.codigo]" :key="p.codigo"
+                          class="exp-prod-row" :class="{ 'exp-prod-row--alt': idx%2===1 }">
+                          <span class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.45)">{{ p.codigo }}</span>
+                          <span style="font-weight:500">{{ p.nombre }}</span>
+                          <span class="text-caption" style="color:rgba(var(--v-theme-on-surface),.4)">{{ p.grupo_nombre || p.grupo || '—' }}</span>
+                          <span class="text-center font-mono text-caption">{{ parseFloat(p.cant||0).toFixed(2) }}</span>
+                          <span class="text-caption">{{ p.und || '—' }}</span>
+                          <span style="display:flex;justify-content:flex-end">
+                            <v-btn icon size="x-small" variant="text" color="error"
+                              :loading="rowEliminando[item.codigo+p.codigo]"
+                              @click="eliminarProductoFila(item.codigo, p.codigo)">
+                              <v-icon size="14">mdi-delete-outline</v-icon>
+                            </v-btn>
+                          </span>
+                        </div>
+                      </div>
+                      <div v-else-if="!rowLoading[item.codigo]" class="exp-empty">
+                        <v-icon size="16" color="rgba(var(--v-theme-on-surface),.2)">mdi-package-variant</v-icon>
+                        <span>Sin productos vinculados — usa el buscador para agregar</span>
+                      </div>
                     </div>
                   </div>
-                  <div v-else-if="!rowLoading[item.codigo]" class="exp-empty">
-                    <v-icon size="16" color="rgba(var(--v-theme-on-surface),.2)">mdi-package-variant</v-icon>
-                    <span>Sin productos vinculados — usa el buscador para agregar</span>
-                  </div>
+                </template>
 
-                </div>
               </td>
             </tr>
           </template>
@@ -304,239 +435,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- DIALOG: INGREDIENTES (redesign) -->
-    <v-dialog v-model="dlgIng" max-width="960" scrollable>
-      <v-card rounded="xl" style="overflow:hidden; display:flex; flex-direction:column; max-height:90vh">
-
-        <!-- ── HEADER ── -->
-        <div class="ing-dlg-header">
-          <div class="ing-dlg-icon">
-            <v-icon size="20" color="white">mdi-format-list-bulleted</v-icon>
-          </div>
-          <div class="ing-dlg-titles">
-            <div class="ing-dlg-receta-nombre">{{ recetaActual?.nombre }}</div>
-            <div class="ing-dlg-receta-meta">
-              Código: <strong>{{ recetaActual?.codigo }}</strong>
-              <span v-if="recetaActual?.grupo_nombre || recetaActual?.grupo_receta">
-                · {{ recetaActual.grupo_nombre || recetaActual.grupo_receta }}
-              </span>
-            </div>
-          </div>
-          <div class="ing-dlg-header-right">
-            <v-chip :color="recetaActual?.subproducto==='SI' ? 'purple' : 'cyan'"
-              size="small" variant="tonal" label class="mr-2">
-              {{ recetaActual?.subproducto === 'SI' ? 'SUBPRODUCTO' : 'RECETA' }}
-            </v-chip>
-            <v-chip color="amber" size="small" variant="tonal" label class="mr-2">
-              {{ ingredientes.length }} ingrediente{{ ingredientes.length !== 1 ? 's' : '' }}
-            </v-chip>
-            <v-btn icon size="small" variant="text" color="white" title="Imprimir receta" @click="imprimirReceta">
-              <v-icon size="20">mdi-printer-outline</v-icon>
-            </v-btn>
-          </div>
-        </div>
-
-        <!-- ── AGREGAR INGREDIENTE ── -->
-        <div class="ing-add-panel">
-          <div class="ing-add-label">AGREGAR</div>
-          <div class="ing-add-controls">
-            <!-- Toggle tipo -->
-            <v-btn-toggle v-model="tipoIngredienteNuevo" rounded="lg" density="compact" color="#f59e0b" style="flex-shrink:0">
-              <v-btn value="ARTICULO" size="small">
-                <v-icon size="15" class="mr-1">mdi-food-apple-outline</v-icon>Artículo
-              </v-btn>
-              <v-btn value="RECETA" size="small">
-                <v-icon size="15" class="mr-1">mdi-link-variant</v-icon>Subreceta
-              </v-btn>
-            </v-btn-toggle>
-
-            <!-- Buscador dinámico -->
-            <v-autocomplete
-              v-if="tipoIngredienteNuevo === 'ARTICULO'"
-              v-model="articuloSeleccionado" :items="articulos"
-              item-title="nombre" return-object
-              :label="'Buscar artículo... (' + articulos.length + ' disponibles)'"
-              variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:240px">
-              <template #item="{ props, item }">
-                <v-list-item v-bind="props" :subtitle="item.raw.und + ' · ' + fmt(item.raw.valor)" />
-              </template>
-            </v-autocomplete>
-            <v-autocomplete
-              v-else
-              v-model="recetaSeleccionada" :items="subrecetas"
-              item-title="nombre" return-object
-              :label="'Buscar subreceta... (' + subrecetas.length + ' disponibles)'"
-              variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:240px">
-              <template #item="{ props, item }">
-                <v-list-item v-bind="props" :subtitle="item.raw.und + ' · ' + fmt(item.raw.valor)" />
-              </template>
-            </v-autocomplete>
-
-            <!-- Cantidad -->
-            <v-text-field v-model="ingNuevo.cantidad" label="Cantidad" type="number" min="0.001"
-              variant="outlined" density="compact" hide-details style="width:110px;flex-shrink:0" />
-
-            <!-- Botón agregar -->
-            <v-btn color="#f59e0b" variant="flat" rounded="lg" height="40"
-              :disabled="(tipoIngredienteNuevo === 'ARTICULO' && !articuloSeleccionado) || (tipoIngredienteNuevo === 'RECETA' && !recetaSeleccionada) || !ingNuevo.cantidad"
-              @click="agregarIngrediente">
-              <v-icon size="18" class="mr-1">mdi-plus</v-icon> Agregar
-            </v-btn>
-          </div>
-        </div>
-
-        <v-divider />
-
-        <!-- ── TABLA INGREDIENTES ── -->
-        <div style="flex:1; overflow-y:auto; min-height:0">
-
-          <!-- Encabezado fijo -->
-          <div class="ing-tbl-head">
-            <span class="col-nombre">INGREDIENTE / ARTÍCULO</span>
-            <span class="col-tipo">TIPO</span>
-            <span class="col-cant">CANTIDAD</span>
-            <span class="col-und">UND</span>
-            <span class="col-vunit">VALOR UNIT.</span>
-            <span class="col-sub">SUBTOTAL</span>
-            <span class="col-del"></span>
-          </div>
-
-          <!-- Vacío -->
-          <div v-if="ingredientes.length === 0" class="ing-tbl-empty">
-            <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)" class="mb-2">mdi-text-box-plus-outline</v-icon>
-            <div>Sin ingredientes — usa el buscador de arriba para agregar</div>
-          </div>
-
-          <!-- Filas -->
-          <template v-for="(ing, idx) in ingredientes" :key="idx">
-          <div class="ing-tbl-row" :class="{ 'ing-tbl-row--sub': ing.tipo === 'RECETA', 'ing-tbl-row--alt': idx % 2 === 1 }">
-
-            <div class="col-nombre ing-item-nombre">
-              <!-- Icono tipo — alineado igual para todos -->
-              <v-icon v-if="ing.tipo === 'RECETA'" size="13" color="#8b5cf6">mdi-link-variant</v-icon>
-              <v-icon v-else size="13" color="#14b8a6">mdi-food-apple-outline</v-icon>
-              <span>{{ ing.nombre_item || ing.articulo_nombre || ing.articulo }}</span>
-              <!-- Botón expandir: al final del nombre, flotante -->
-              <v-btn v-if="ing.tipo === 'RECETA'" icon size="x-small" variant="text"
-                :color="subprodExpandido[idx] ? '#8b5cf6' : 'rgba(139,92,246,0.35)'"
-                :title="subprodExpandido[idx] ? 'Colapsar ingredientes' : 'Ver ingredientes del subproducto'"
-                @click="toggleSubprod(ing, idx)" class="expand-btn">
-                <v-icon size="13">{{ subprodExpandido[idx] ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-              </v-btn>
-            </div>
-
-            <div class="col-tipo">
-              <span v-if="ing.tipo === 'RECETA'" class="badge-sub">SUBPRODUCTO</span>
-              <span v-else class="badge-art">ARTÍCULO</span>
-            </div>
-
-            <div class="col-cant">
-              <v-text-field v-model="ing.cantidad" type="number" min="0" variant="outlined"
-                density="compact" hide-details class="cant-field" @change="recalcSubtotal(ing)" />
-            </div>
-
-            <div class="col-und">{{ ing.und || '—' }}</div>
-
-            <div class="col-vunit font-mono">{{ fmt(ing.precio_unit) }}</div>
-
-            <div class="col-sub font-mono subtotal-val">
-              {{ fmt((parseFloat(ing.precio_unit)||0) * (parseFloat(ing.cantidad)||0)) }}
-            </div>
-
-            <div class="col-del">
-              <v-btn icon size="x-small" variant="text" color="error" @click="quitarIngrediente(idx)">
-                <v-icon size="16">mdi-delete-outline</v-icon>
-              </v-btn>
-            </div>
-          </div>
-
-          <!-- Panel expandido: ingredientes del subproducto -->
-          <div v-if="ing.tipo === 'RECETA' && subprodExpandido[idx]" class="subprod-expand">
-            <div v-if="subprodLoading[idx]" class="subprod-loading">
-              <v-progress-circular size="14" width="2" indeterminate color="#8b5cf6" />
-              <span>Cargando ingredientes...</span>
-            </div>
-            <template v-else-if="subprodIngredientes[idx]?.length">
-              <div class="subprod-header-title">
-                <v-icon size="12" color="#8b5cf6">mdi-link-variant</v-icon>
-                INGREDIENTES DE {{ ing.nombre_item?.toUpperCase() }} (x{{ ing.cantidad }})
-              </div>
-              <!-- Encabezados del mini-grid -->
-              <div class="subprod-grid-head">
-                <span class="sg-cod">CÓD.</span>
-                <span class="sg-nom">ARTÍCULO</span>
-                <span class="sg-cant">CANT.</span>
-                <span class="sg-und">UND.</span>
-                <span class="sg-vunit">VR. UNIT.</span>
-                <span class="sg-sub">SUBTOTAL</span>
-              </div>
-              <div v-for="sub in subprodIngredientes[idx]" :key="sub.articulo" class="subprod-grid-row">
-                <span class="sg-cod">
-                  <v-icon size="10" :color="sub.tipo === 'RECETA' ? '#8b5cf6' : '#14b8a6'">
-                    {{ sub.tipo === 'RECETA' ? 'mdi-link-variant' : 'mdi-food-apple-outline' }}
-                  </v-icon>
-                  {{ sub.articulo }}
-                </span>
-                <span class="sg-nom">{{ sub.nombre_item || sub.articulo }}</span>
-                <span class="sg-cant">{{ Number((parseFloat(sub.cantidad) * parseFloat(ing.cantidad)).toFixed(4)) }}</span>
-                <span class="sg-und">{{ sub.und || '—' }}</span>
-                <span class="sg-vunit">{{ fmt(parseFloat(sub.precio_unit) || 0) }}</span>
-                <span class="sg-sub">{{ fmt((parseFloat(sub.precio_unit)||0) * parseFloat(sub.cantidad) * parseFloat(ing.cantidad)) }}</span>
-              </div>
-            </template>
-            <div v-else class="subprod-loading">Sin ingredientes registrados</div>
-          </div>
-
-          </template>
-
-          <!-- Fila total -->
-          <div v-if="ingredientes.length > 0" class="ing-tbl-total">
-            <span class="col-nombre" style="grid-column:1/6; font-weight:700; font-size:13px;">
-              COSTO TOTAL ({{ ingredientes.length }} ingredientes)
-            </span>
-            <span class="col-sub font-mono" style="font-weight:800; font-size:16px; color:#f59e0b;">
-              {{ fmt(costoTotal) }}
-            </span>
-            <span class="col-del"></span>
-          </div>
-        </div>
-
-        <!-- ── RESUMEN COSTOS (solo si tiene precio venta) ── -->
-        <div v-if="recetaActual?.precio_venta > 0" class="ing-resumen-bar">
-          <div class="resumen-item">
-            <span class="resumen-lbl">COSTO</span>
-            <span class="resumen-val" style="color:#ef4444">{{ fmt(costoTotal) }}</span>
-          </div>
-          <div class="resumen-sep">→</div>
-          <div class="resumen-item">
-            <span class="resumen-lbl">PRECIO VENTA</span>
-            <span class="resumen-val">{{ fmt(recetaActual.precio_venta) }}</span>
-          </div>
-          <div class="resumen-sep">=</div>
-          <div class="resumen-item">
-            <span class="resumen-lbl">MARGEN</span>
-            <span class="resumen-val" style="color:#22c55e">{{ fmt(recetaActual.precio_venta - costoTotal) }}</span>
-          </div>
-          <div class="resumen-sep">|</div>
-          <div class="resumen-item">
-            <span class="resumen-lbl">% COSTO</span>
-            <span class="resumen-val" :style="{ color: colorPctStr(pctCosto) }">{{ pctCosto.toFixed(1) }}%</span>
-          </div>
-        </div>
-
-        <!-- ── ACTIONS ── -->
-        <div class="ing-dlg-footer">
-          <v-btn variant="flat" color="#ef4444" @click="dlgIng=false">
-            <v-icon start>mdi-close</v-icon>Cancelar
-          </v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoIng" @click="guardarIngredientes" size="large">
-            <v-icon start>mdi-content-save-outline</v-icon>Guardar Ingredientes
-          </v-btn>
-        </div>
-
-      </v-card>
-    </v-dialog>
-
     <!-- DIALOG ELIMINAR -->
     <v-dialog v-model="dlgEliminar" max-width="400">
       <v-card rounded="xl">
@@ -619,6 +517,7 @@ const subrecetas          = ref([])      // lista de subrecetas disponibles
 
 // ── Estado inline expandible (por fila) ──
 const expandedRows        = ref([])          // array de item-values (codigos)
+const rowMode             = ref({})          // codigo → 'ingredientes' | 'productos'
 const rowProductos        = ref({})          // codigo → array de productos
 const rowLoading          = ref({})          // codigo → bool
 const rowProdSel          = ref({})          // codigo → objeto producto seleccionado
@@ -740,35 +639,8 @@ async function guardarReceta() {
 }
 
 async function abrirIngredientes(receta) {
-  recetaActual.value     = receta
-  ingredientes.value     = []
-  ingNuevo.value         = { cantidad: 1 }
-  tipoIngredienteNuevo.value = 'ARTICULO'
-  articuloSeleccionado.value = null
-  recetaSeleccionada.value = null
-  subprodExpandido.value    = {}
-  subprodLoading.value      = {}
-  subprodIngredientes.value = {}
-  dlgIng.value = true
-  try {
-    const r = await fetch(`${API_BASE}/recetas/${receta.codigo}`)
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const j = await r.json()
-    if (!j.success) throw new Error(j.error || 'Respuesta inválida')
-    ingredientes.value = (j.data.ingredientes || [])
-      .map(i => ({
-        ...i,
-        cantidad:    parseFloat(i.cantidad) || 0,
-        precio_unit: parseFloat(i.precio_unit) || 0,
-        vr_unit:     parseFloat(i.vr_unit) || 0,
-        vr_total:    parseFloat(i.vr_total) || 0,
-        tipo:        i.tipo || 'ARTICULO',
-      }))
-      .sort((a, b) => (a.nombre_item || a.articulo_nombre || '').localeCompare(b.nombre_item || b.articulo_nombre || '', 'es'))
-  } catch (e) {
-    console.error('Error cargando ingredientes:', e)
-    err(`Error: ${e.message}`)
-  }
+  // Mantenida por compatibilidad (imprimirReceta la usa indirectamente)
+  await cargarIngredientesFila(receta)
 }
 
 function agregarIngrediente() {
@@ -854,7 +726,7 @@ async function guardarIngredientes() {
     // Recalcular costo automáticamente (ahora con lógica recursiva)
     await fetch(`${API_BASE}/recetas/${recetaActual.value.codigo}/calcular-costo`, { method: 'POST' })
     ok('Ingredientes guardados y costo actualizado')
-    dlgIng.value = false
+    expandedRows.value = []   // colapsa la fila
     await cargarRecetas()
   } catch (e) { err(e.message) }
   finally { guardandoIng.value = false }
@@ -864,19 +736,64 @@ async function guardarIngredientes() {
 async function onClickExpand(item, internalItem, isExpanded, toggleExpand) {
   const cod = item.codigo
   const expanded = isExpanded(internalItem)
-  // Delega el toggle a Vuetify (actualiza v-model:expanded internamente)
-  toggleExpand(internalItem)
+  const currentMode = rowMode.value[cod]
   if (!expanded) {
-    // Acaba de expandirse — cargar datos si es la primera vez
+    rowMode.value = { ...rowMode.value, [cod]: 'productos' }
+    toggleExpand(internalItem)
     if (rowProductos.value[cod] === undefined) {
       rowProdSel.value  = { ...rowProdSel.value,  [cod]: null }
       rowProdCant.value = { ...rowProdCant.value, [cod]: 1    }
     }
-    await Promise.all([
-      cargarProductosFila(cod),
-      buscarProdCatalogo(''),
-    ])
+    await Promise.all([cargarProductosFila(cod), buscarProdCatalogo('')])
+  } else if (currentMode === 'productos') {
+    toggleExpand(internalItem)   // colapsar
+  } else {
+    // Estaba en ingredientes → cambiar a productos sin colapsar
+    rowMode.value = { ...rowMode.value, [cod]: 'productos' }
+    if (rowProductos.value[cod] === undefined) {
+      rowProdSel.value  = { ...rowProdSel.value,  [cod]: null }
+      rowProdCant.value = { ...rowProdCant.value, [cod]: 1    }
+    }
+    await Promise.all([cargarProductosFila(cod), buscarProdCatalogo('')])
   }
+}
+
+async function onClickIngredientes(item, internalItem, isExpanded, toggleExpand) {
+  const cod = item.codigo
+  const expanded = isExpanded(internalItem)
+  const currentMode = rowMode.value[cod]
+  if (!expanded) {
+    rowMode.value = { ...rowMode.value, [cod]: 'ingredientes' }
+    toggleExpand(internalItem)
+    await cargarIngredientesFila(item)
+  } else if (currentMode === 'ingredientes') {
+    toggleExpand(internalItem)   // colapsar
+  } else {
+    // Estaba en productos → cambiar a ingredientes sin colapsar
+    rowMode.value = { ...rowMode.value, [cod]: 'ingredientes' }
+    await cargarIngredientesFila(item)
+  }
+}
+
+async function cargarIngredientesFila(item) {
+  recetaActual.value        = item
+  ingredientes.value        = []
+  ingNuevo.value            = { cantidad: 1 }
+  tipoIngredienteNuevo.value = 'ARTICULO'
+  articuloSeleccionado.value = null
+  recetaSeleccionada.value   = null
+  subprodExpandido.value     = {}
+  subprodLoading.value       = {}
+  subprodIngredientes.value  = {}
+  try {
+    const r = await fetch(`${API_BASE}/recetas/${item.codigo}`)
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error || 'Respuesta inválida')
+    ingredientes.value = (j.data.ingredientes || [])
+      .map(i => ({ ...i, cantidad: parseFloat(i.cantidad)||0, precio_unit: parseFloat(i.precio_unit)||0, tipo: i.tipo||'ARTICULO' }))
+      .sort((a, b) => (a.nombre_item||a.articulo_nombre||'').localeCompare(b.nombre_item||b.articulo_nombre||'', 'es'))
+  } catch (e) { err(`Error: ${e.message}`) }
 }
 
 async function cargarProductosFila(cod) {
@@ -1428,6 +1345,16 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 
 .info-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; color: rgba(var(--v-theme-on-surface),.7); }
 .dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
+
+/* ── BARRA SUPERIOR INGREDIENTES INLINE ── */
+.exp-ing-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px 8px;
+  border-bottom: 1px solid rgba(245,158,11,.15);
+  background: rgba(245,158,11,.06);
+}
+.exp-ing-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.exp-ing-nombre { font-size: 13px; font-weight: 700; }
 
 /* ── FILA EXPANDIDA INLINE ── */
 .exp-panel {
