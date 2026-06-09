@@ -81,29 +81,30 @@
             <v-chip color="blue-grey" size="x-small" variant="tonal">{{ item.num_ingredientes }}</v-chip>
           </template>
 
-          <!-- Columna expand nativa → ícono teal (productos) -->
-          <template #item.data-table-expand="{ item, internalItem, isExpanded, toggleExpand }">
-            <v-tooltip :text="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'Cerrar productos' : 'Productos vinculados'">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon size="x-small"
-                  :variant="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'flat' : 'tonal'"
-                  :color="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? '#0d9488' : 'teal'"
-                  @click="onClickExpand(item, internalItem, isExpanded, toggleExpand)">
-                  <v-icon size="16">{{ isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
-                </v-btn>
-              </template>
-            </v-tooltip>
-          </template>
+          <!-- Columna expand nativa: oculta visualmente, la manejamos en acciones -->
+          <template #item.data-table-expand></template>
 
           <template #item.acciones="{ item, internalItem, isExpanded, toggleExpand }">
-            <div class="d-flex gap-1">
-              <v-tooltip :text="isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? 'Cerrar ingredientes' : 'Ver / Editar ingredientes'">
+            <div class="d-flex" style="gap:2px">
+              <!-- AMARILLO: ingredientes -->
+              <v-tooltip :text="isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? 'Cerrar ingredientes' : 'Ingredientes'">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="x-small"
                     :variant="isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? 'flat' : 'tonal'"
                     :color="isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? '#d97706' : '#f59e0b'"
                     @click="onClickIngredientes(item, internalItem, isExpanded, toggleExpand)">
-                    <v-icon size="16">{{ isExpanded(internalItem) && rowMode[item.codigo]==='ingredientes' ? 'mdi-chevron-up' : 'mdi-format-list-bulleted' }}</v-icon>
+                    <v-icon size="16">mdi-format-list-bulleted</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
+              <!-- VERDE: productos vinculados -->
+              <v-tooltip :text="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'Cerrar productos' : 'Productos vinculados'">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon size="x-small"
+                    :variant="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? 'flat' : 'tonal'"
+                    :color="isExpanded(internalItem) && rowMode[item.codigo]==='productos' ? '#0d9488' : 'teal'"
+                    @click="onClickExpand(item, internalItem, isExpanded, toggleExpand)">
+                    <v-icon size="16">mdi-package-variant-closed</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
@@ -1071,6 +1072,9 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .kpi-val { font-size: 22px; font-weight: 800; color: #f59e0b; }
 .kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; }
 .rc-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
+/* Oculta la columna expand nativa de Vuetify */
+:deep(.v-data-table__th--expand),
+:deep(.v-data-table__td--expand) { width: 0 !important; min-width: 0 !important; padding: 0 !important; overflow: hidden; }
 .font-mono { font-family: 'Courier New', monospace; }
 
 /* ── DIALOG INGREDIENTES ── */
