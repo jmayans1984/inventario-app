@@ -48,7 +48,8 @@
       <div class="rc-table-card">
         <v-progress-linear v-if="loading" indeterminate color="#f59e0b" height="3" />
         <v-data-table :headers="headers" :items="recetasFiltradas" :search="busqueda"
-          density="compact" hover :items-per-page="20" class="rc-table">
+          density="compact" hover :items-per-page="20" class="rc-table"
+          v-model:expanded="expandedRows" item-value="codigo">
 
           <template #item.subproducto="{ item }">
             <v-chip v-if="item.subproducto === 'SI'" color="purple" size="x-small" variant="tonal" label>
@@ -90,11 +91,13 @@
                   </v-btn>
                 </template>
               </v-tooltip>
-              <v-tooltip text="Ver productos de inventario vinculados">
+              <v-tooltip :text="expandedRows.includes(item.codigo) ? 'Cerrar productos' : 'Ver / Editar productos vinculados'">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon size="x-small" variant="tonal" color="teal"
-                    @click="abrirProductos(item)">
-                    <v-icon size="16">mdi-package-variant-closed</v-icon>
+                  <v-btn v-bind="props" icon size="x-small"
+                    :variant="expandedRows.includes(item.codigo) ? 'flat' : 'tonal'"
+                    :color="expandedRows.includes(item.codigo) ? '#0d9488' : 'teal'"
+                    @click="toggleExpansion(item)">
+                    <v-icon size="16">{{ expandedRows.includes(item.codigo) ? 'mdi-chevron-up' : 'mdi-package-variant-closed' }}</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
@@ -116,6 +119,86 @@
               </v-tooltip>
             </div>
           </template>
+          <!-- FILA EXPANDIDA: PRODUCTOS VINCULADOS -->
+          <template #expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length" style="padding:0; background:rgba(13,148,136,.04); border-bottom:2px solid rgba(13,148,136,.18)">
+                <div class="exp-panel">
+
+                  <v-progress-linear v-if="rowLoading[item.codigo]" indeterminate color="teal" height="2" />
+
+                  <!-- Barra agregar -->
+                  <div class="exp-add-bar">
+                    <v-autocomplete
+                      v-model="rowProdSel[item.codigo]"
+                      :items="prodCatalogo"
+                      item-title="nombre"
+                      return-object
+                      label="Buscar producto con control..."
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      clearable
+                      :loading="loadingProdCatalogo"
+                      style="flex:1; min-width:200px"
+                      @update:search="buscarProdCatalogo"
+                    />
+                    <v-text-field
+                      v-model="rowProdCant[item.codigo]"
+                      label="Cant."
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      style="width:90px; flex-shrink:0"
+                      @blur="rowProdCant[item.codigo] = parseFloat(parseFloat(rowProdCant[item.codigo]||0).toFixed(2))"
+                    />
+                    <v-btn color="teal" variant="flat" size="small" height="36"
+                      :disabled="!rowProdSel[item.codigo] || !rowProdCant[item.codigo]"
+                      :loading="rowGuardando[item.codigo]"
+                      @click="agregarProductoFila(item.codigo)">
+                      <v-icon size="15" class="mr-1">mdi-plus</v-icon>Agregar
+                    </v-btn>
+                  </div>
+
+                  <!-- Lista productos -->
+                  <div v-if="rowProductos[item.codigo]?.length > 0" class="exp-prod-list">
+                    <div class="exp-prod-head">
+                      <span>CÓDIGO</span>
+                      <span>NOMBRE</span>
+                      <span>GRUPO</span>
+                      <span class="text-center">CANT</span>
+                      <span>UND</span>
+                      <span></span>
+                    </div>
+                    <div v-for="(p, idx) in rowProductos[item.codigo]" :key="p.codigo"
+                      class="exp-prod-row" :class="{ 'exp-prod-row--alt': idx % 2 === 1 }">
+                      <span class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.45)">{{ p.codigo }}</span>
+                      <span style="font-weight:500">{{ p.nombre }}</span>
+                      <span class="text-caption" style="color:rgba(var(--v-theme-on-surface),.4)">{{ p.grupo_nombre || p.grupo || '—' }}</span>
+                      <span class="text-center font-mono text-caption">{{ parseFloat(p.cant||0).toFixed(2) }}</span>
+                      <span class="text-caption">{{ p.und || '—' }}</span>
+                      <span style="display:flex;justify-content:flex-end">
+                        <v-btn icon size="x-small" variant="text" color="error"
+                          :loading="rowEliminando[item.codigo + p.codigo]"
+                          @click="eliminarProductoFila(item.codigo, p.codigo)">
+                          <v-icon size="14">mdi-delete-outline</v-icon>
+                        </v-btn>
+                      </span>
+                    </div>
+                  </div>
+                  <div v-else-if="!rowLoading[item.codigo]" class="exp-empty">
+                    <v-icon size="16" color="rgba(var(--v-theme-on-surface),.2)">mdi-package-variant</v-icon>
+                    <span>Sin productos vinculados — usa el buscador para agregar</span>
+                  </div>
+
+                </div>
+              </td>
+            </tr>
+          </template>
+
         </v-data-table>
       </div>
     </div>
@@ -454,112 +537,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- DIALOG: PRODUCTOS DE INVENTARIO -->
-    <v-dialog v-model="dlgProductos" max-width="680" persistent scrollable>
-      <v-card rounded="xl" style="overflow:hidden; display:flex; flex-direction:column; max-height:88vh">
-
-        <!-- Header -->
-        <div class="ing-dlg-header">
-          <div class="ing-dlg-icon" style="background:linear-gradient(135deg,#0d9488,#0f766e)">
-            <v-icon size="20" color="white">mdi-package-variant-closed</v-icon>
-          </div>
-          <div class="ing-dlg-titles">
-            <div class="ing-dlg-receta-nombre">{{ recetaProductos?.nombre }}</div>
-            <div class="ing-dlg-receta-meta">Productos de inventario vinculados · Cód: <strong>{{ recetaProductos?.codigo }}</strong></div>
-          </div>
-          <v-chip color="teal" size="small" variant="tonal" label>
-            {{ productosReceta.length }} producto{{ productosReceta.length !== 1 ? 's' : '' }}
-          </v-chip>
-        </div>
-
-        <v-progress-linear v-if="loadingProductos" indeterminate color="teal" height="3" />
-
-        <!-- Panel agregar -->
-        <div class="ing-add-panel">
-          <div class="ing-add-label">AGREGAR PRODUCTO</div>
-          <div class="ing-add-controls">
-            <v-autocomplete
-              v-model="prodSeleccionado"
-              :items="prodCatalogo"
-              item-title="nombre"
-              return-object
-              label="Buscar producto con control..."
-              variant="outlined"
-              density="compact"
-              hide-details
-              clearable
-              :loading="loadingProdCatalogo"
-              style="flex:1; min-width:220px"
-              @update:search="buscarProdCatalogo"
-            />
-            <v-text-field
-              v-model="prodCantidad"
-              label="Cantidad"
-              type="number"
-              min="0.01"
-              step="0.01"
-              variant="outlined"
-              density="compact"
-              hide-details
-              style="width:110px; flex-shrink:0"
-              @blur="prodCantidad = parseFloat(parseFloat(prodCantidad||0).toFixed(2))"
-            />
-            <v-btn color="teal" variant="flat" rounded="lg" height="40"
-              :disabled="!prodSeleccionado || !prodCantidad" :loading="guardandoProd"
-              @click="agregarProducto">
-              <v-icon size="18" class="mr-1">mdi-plus</v-icon>Agregar
-            </v-btn>
-          </div>
-        </div>
-
-        <v-divider />
-
-        <!-- Lista productos vinculados -->
-        <div style="flex:1; overflow-y:auto; min-height:0">
-
-          <!-- Encabezado fijo -->
-          <div class="prod-tbl-head2">
-            <span>CÓDIGO</span>
-            <span>NOMBRE</span>
-            <span>GRUPO</span>
-            <span class="text-center">CANT</span>
-            <span>UND</span>
-            <span></span>
-          </div>
-
-          <!-- Vacío -->
-          <div v-if="!loadingProductos && productosReceta.length === 0" class="ing-tbl-empty" style="min-height:140px">
-            <v-icon size="36" color="rgba(var(--v-theme-on-surface),.15)" class="mb-2">mdi-package-variant</v-icon>
-            <div>Sin productos vinculados — usa el buscador para agregar</div>
-          </div>
-
-          <!-- Filas -->
-          <div v-for="(p, idx) in productosReceta" :key="p.codigo"
-            class="prod-tbl-row2" :class="{ 'prod-tbl-row--alt': idx % 2 === 1 }">
-            <div class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.5)">{{ p.codigo }}</div>
-            <div class="font-weight-500">{{ p.nombre }}</div>
-            <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.45)">{{ p.grupo_nombre || p.grupo || '—' }}</div>
-            <div class="text-center font-mono text-caption">{{ parseFloat(p.cant || 0).toFixed(2) }}</div>
-            <div class="text-caption">{{ p.und || '—' }}</div>
-            <div style="display:flex;justify-content:flex-end">
-              <v-btn icon size="x-small" variant="text" color="error"
-                :loading="eliminandoProd[p.codigo]"
-                @click="eliminarProducto(p)">
-                <v-icon size="16">mdi-delete-outline</v-icon>
-              </v-btn>
-            </div>
-          </div>
-        </div>
-
-        <div class="ing-dlg-footer">
-          <v-btn variant="flat" color="#ef4444" @click="dlgProductos=false">
-            <v-icon start size="16">mdi-close</v-icon>Cerrar
-          </v-btn>
-        </div>
-
-      </v-card>
-    </v-dialog>
-
     <!-- DIALOG ELIMINAR -->
     <v-dialog v-model="dlgEliminar" max-width="400">
       <v-card rounded="xl">
@@ -640,17 +617,16 @@ const articuloSeleccionado = ref(null)   // objeto completo del articulo elegido
 const recetaSeleccionada  = ref(null)    // objeto completo de la subreceta elegida
 const subrecetas          = ref([])      // lista de subrecetas disponibles
 
-// Dialog productos de inventario
-const dlgProductos        = ref(false)
-const recetaProductos     = ref(null)
-const productosReceta     = ref([])
-const loadingProductos    = ref(false)
+// ── Estado inline expandible (por fila) ──
+const expandedRows        = ref([])          // array de item-values (codigos)
+const rowProductos        = ref({})          // codigo → array de productos
+const rowLoading          = ref({})          // codigo → bool
+const rowProdSel          = ref({})          // codigo → objeto producto seleccionado
+const rowProdCant         = ref({})          // codigo → número
+const rowGuardando        = ref({})          // codigo → bool
+const rowEliminando       = ref({})          // (codigo+articulo) → bool
 const prodCatalogo        = ref([])
-const prodSeleccionado    = ref(null)
 const loadingProdCatalogo = ref(false)
-const guardandoProd       = ref(false)
-const prodCantidad        = ref(1)
-const eliminandoProd      = ref({})   // codigo → bool
 
 // Dialog eliminar
 const dlgEliminar     = ref(false)
@@ -884,32 +860,38 @@ async function guardarIngredientes() {
   finally { guardandoIng.value = false }
 }
 
-async function abrirProductos(receta) {
-  recetaProductos.value   = receta
-  productosReceta.value   = []
-  prodSeleccionado.value  = null
-  prodCantidad.value      = 1
-  prodCatalogo.value      = []
-  eliminandoProd.value    = {}
-  loadingProductos.value  = true
-  dlgProductos.value      = true
-  await recargarProductosReceta()
-  // Cargar catálogo inicial
-  await buscarProdCatalogo('')
+// ── Inline expandible: funciones ──
+async function toggleExpansion(item) {
+  const cod = item.codigo
+  const idx  = expandedRows.value.indexOf(cod)
+  if (idx >= 0) {
+    expandedRows.value.splice(idx, 1)
+  } else {
+    expandedRows.value.push(cod)
+    // Inicializar estado si es la primera vez
+    if (!rowProductos.value[cod]) {
+      rowProdSel.value[cod]  = null
+      rowProdCant.value[cod] = 1
+      await cargarProductosFila(cod)
+    }
+    // Cargar catálogo (siempre, para tenerlo disponible)
+    await buscarProdCatalogo('')
+  }
 }
 
-async function recargarProductosReceta() {
-  loadingProductos.value = true
+async function cargarProductosFila(cod) {
+  rowLoading.value[cod] = true
   try {
-    const r = await fetch(`${API_BASE}/recetas/${recetaProductos.value.codigo}/productos`)
+    const r = await fetch(`${API_BASE}/recetas/${cod}/productos`)
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
-    productosReceta.value = j.data || []
+    rowProductos.value[cod] = j.data || []
   } catch (e) {
     err(`Error cargando productos: ${e.message}`)
+    rowProductos.value[cod] = []
   } finally {
-    loadingProductos.value = false
+    rowLoading.value[cod] = false
   }
 }
 
@@ -928,39 +910,39 @@ function buscarProdCatalogo(q) {
   }, 260)
 }
 
-async function agregarProducto() {
-  if (!prodSeleccionado.value) return
-  guardandoProd.value = true
+async function agregarProductoFila(cod) {
+  const prod = rowProdSel.value[cod]
+  if (!prod) return
+  rowGuardando.value[cod] = true
   try {
-    const r = await fetch(`${API_BASE}/recetas/${recetaProductos.value.codigo}/productos`, {
+    const r = await fetch(`${API_BASE}/recetas/${cod}/productos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ articulo: prodSeleccionado.value.codigo, cant: parseFloat(prodCantidad.value) || 1 })
+      body: JSON.stringify({ articulo: prod.codigo, cant: parseFloat(rowProdCant.value[cod]) || 1 })
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
-    prodSeleccionado.value = null
-    prodCantidad.value = 1
+    rowProdSel.value[cod]  = null
+    rowProdCant.value[cod] = 1
     ok('Producto vinculado')
-    await recargarProductosReceta()
+    await cargarProductosFila(cod)
   } catch (e) { err(e.message) }
-  finally { guardandoProd.value = false }
+  finally { rowGuardando.value[cod] = false }
 }
 
-async function eliminarProducto(p) {
-  eliminandoProd.value = { ...eliminandoProd.value, [p.codigo]: true }
+async function eliminarProductoFila(cod, articuloCod) {
+  const key = cod + articuloCod
+  rowEliminando.value[key] = true
   try {
-    const r = await fetch(`${API_BASE}/recetas/${recetaProductos.value.codigo}/productos/${encodeURIComponent(p.codigo)}`, {
+    const r = await fetch(`${API_BASE}/recetas/${cod}/productos/${encodeURIComponent(articuloCod)}`, {
       method: 'DELETE'
     })
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
     ok('Producto desvinculado')
-    await recargarProductosReceta()
+    await cargarProductosFila(cod)
   } catch (e) { err(e.message) }
-  finally {
-    eliminandoProd.value = { ...eliminandoProd.value, [p.codigo]: false }
-  }
+  finally { rowEliminando.value[key] = false }
 }
 
 function confirmarEliminar(receta) {
@@ -1446,4 +1428,46 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 
 .info-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; color: rgba(var(--v-theme-on-surface),.7); }
 .dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
+
+/* ── FILA EXPANDIDA INLINE ── */
+.exp-panel {
+  padding: 14px 20px 16px;
+}
+.exp-add-bar {
+  display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.exp-prod-list {
+  border: 1px solid rgba(var(--v-theme-on-surface),.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.exp-prod-head,
+.exp-prod-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 120px 70px 60px 36px;
+  align-items: center;
+  padding: 6px 14px;
+  gap: 8px;
+  font-size: 12px;
+}
+.exp-prod-head {
+  font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface),.4);
+  background: rgba(13,148,136,.07);
+  border-bottom: 1px solid rgba(13,148,136,.12);
+}
+.exp-prod-row {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
+  transition: background .1s;
+}
+.exp-prod-row:last-child { border-bottom: none; }
+.exp-prod-row:hover { background: rgba(13,148,136,.06); }
+.exp-prod-row--alt { background: rgba(var(--v-theme-on-surface),.02); }
+.exp-empty {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 0;
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface),.35);
+}
 </style>
