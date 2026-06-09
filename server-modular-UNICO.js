@@ -417,10 +417,10 @@ app.get('/api/almacen/reporte-alertas-stock', async (req, res) => {
                 p.nombre,
                 p.descripcion,
                 p.und,
-                COALESCE(p.stock_minimo, 0)                                          AS stock_minimo,
-                COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0)          AS stock_actual,
-                COALESCE(p.stock_minimo, 0) -
-                    (COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))    AS faltante,
+                COALESCE(p.stock_minimo, 0)                                                                    AS stock_minimo,
+                ROUND((COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))::numeric, 4)              AS stock_actual,
+                ROUND((COALESCE(p.stock_minimo, 0) -
+                    (COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0)))::numeric, 4)               AS faltante,
                 COALESCE(g.nombre, 'Sin Grupo')                                      AS grupo_nombre,
                 COALESCE(g.codigo, '0')                                              AS grupo_codigo
             FROM productos p
@@ -432,7 +432,7 @@ app.get('/api/almacen/reporte-alertas-stock', async (req, res) => {
             WHERE p.control = 'SI'
             GROUP BY p.codigo, p.nombre, p.descripcion, p.und, p.stock_minimo, g.codigo, g.nombre
             HAVING COALESCE(p.stock_minimo, 0) > 0
-               AND (COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0)) < COALESCE(p.stock_minimo, 0)
+               AND ROUND((COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))::numeric, 4) < COALESCE(p.stock_minimo, 0)
             ORDER BY g.codigo NULLS LAST, p.nombre
         `, [bodega, empParam]);
 
