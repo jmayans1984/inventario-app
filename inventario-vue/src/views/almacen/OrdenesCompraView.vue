@@ -205,7 +205,10 @@
                     :value="cantidades[p.codigo] || ''"
                     type="number" min="0" step="1"
                     class="cant-input"
-                    :class="{ 'cant-input--active': (cantidades[p.codigo] || 0) > 0 }"
+                    :class="{
+                      'cant-input--active': (cantidades[p.codigo] || 0) > 0,
+                      'cant-input--warn': excedidoNueva(p.codigo)
+                    }"
                     :data-codigo="p.codigo"
                     @input="setCant(p.codigo, $event.target.value)"
                     @focus="$event.target.select()"
@@ -213,6 +216,11 @@
                     placeholder="0"
                   />
                   <button class="cant-btn" @click="ajustarCant(p.codigo, 1)">+</button>
+                </div>
+                <div v-if="stockMap[p.codigo] !== undefined" class="prod-stock-hint"
+                  :class="excedidoNueva(p.codigo) ? 'prod-stock-warn' : 'prod-stock-ok'">
+                  <v-icon v-if="excedidoNueva(p.codigo)" size="9" style="margin-right:2px">mdi-alert</v-icon>
+                  {{ fmtStock(stockMap[p.codigo]) }}
                 </div>
               </div>
               <div class="col-prod-sub ta-r font-mono"
@@ -226,6 +234,15 @@
 
         <!-- Footer -->
         <div class="nueva-footer">
+
+          <!-- Alerta de stock excedido -->
+          <div v-if="productosExcedidosNueva.length > 0" class="stock-alerta-bar">
+            <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
+            <span>
+              <strong>{{ productosExcedidosNueva.length }} producto{{ productosExcedidosNueva.length !== 1 ? 's' : '' }}</strong>
+              superan el stock disponible. Se agregará una observación automática al enviar.
+            </span>
+          </div>
 
           <!-- Fila 1: campos -->
           <div class="nueva-footer-campos">
@@ -449,7 +466,10 @@
                     :value="cantEdicion[p.codigo] || ''"
                     type="number" min="0"
                     class="cant-input"
-                    :class="{ 'cant-input--active': (cantEdicion[p.codigo] || 0) > 0 }"
+                    :class="{
+                      'cant-input--active': (cantEdicion[p.codigo] || 0) > 0,
+                      'cant-input--warn': excedidoEdit(p.codigo)
+                    }"
                     :data-codigo="`edit-${p.codigo}`"
                     @input="setCantEdit(p.codigo, $event.target.value)"
                     @focus="$event.target.select()"
@@ -457,6 +477,11 @@
                     placeholder="0"
                   />
                   <button class="cant-btn" @click="ajustarCantEdit(p.codigo, 1)">+</button>
+                </div>
+                <div v-if="stockMap[p.codigo] !== undefined" class="prod-stock-hint"
+                  :class="excedidoEdit(p.codigo) ? 'prod-stock-warn' : 'prod-stock-ok'">
+                  <v-icon v-if="excedidoEdit(p.codigo)" size="9" style="margin-right:2px">mdi-alert</v-icon>
+                  {{ fmtStock(stockMap[p.codigo]) }}
                 </div>
               </div>
               <div class="col-prod-sub ta-r font-mono"
@@ -469,6 +494,15 @@
 
         <!-- Footer -->
         <div class="nueva-footer">
+          <!-- Alerta de stock excedido -->
+          <div v-if="productosExcedidosEdit.length > 0" class="stock-alerta-bar">
+            <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
+            <span>
+              <strong>{{ productosExcedidosEdit.length }} producto{{ productosExcedidosEdit.length !== 1 ? 's' : '' }}</strong>
+              superan el stock disponible. Se agregará una observación automática al guardar.
+            </span>
+          </div>
+
           <div class="nueva-footer-campos">
             <div class="footer-field">
               <div class="footer-field-label">Fecha de entrega <span style="color:#ef4444">*</span></div>
@@ -563,6 +597,42 @@ const guardandoEdicion  = ref(false)
 const snack = ref({ show: false, msg: '', color: 'success' })
 const empresaProveedor = ref({})
 const empresaCliente = ref({})
+
+// Stock de la bodega maestra del proveedor
+const stockMap = ref({})   // { [codigo]: stock_actual }
+
+async function cargarStock() {
+  if (!proveedor.value?.codigo) return
+  try {
+    const r = await api.get('/almacen/stock-bodega-maestra', {
+      params: { empresa: proveedor.value.codigo }
+    })
+    if (r.data?.success) stockMap.value = r.data.data || {}
+  } catch (e) { console.error('Error cargando stock:', e) }
+}
+
+function excedidoNueva(codigo) {
+  const cant = parseFloat(cantidades[codigo]) || 0
+  if (cant <= 0 || stockMap.value[codigo] === undefined) return false
+  return cant > stockMap.value[codigo]
+}
+function excedidoEdit(codigo) {
+  const cant = parseFloat(cantEdicion[codigo]) || 0
+  if (cant <= 0 || stockMap.value[codigo] === undefined) return false
+  return cant > stockMap.value[codigo]
+}
+
+const productosExcedidosNueva = computed(() =>
+  Object.keys(cantidades).filter(cod => excedidoNueva(cod) && parseFloat(cantidades[cod]) > 0)
+)
+const productosExcedidosEdit = computed(() =>
+  Object.keys(cantEdicion).filter(cod => excedidoEdit(cod) && parseFloat(cantEdicion[cod]) > 0)
+)
+
+function fmtStock(v) {
+  const n = parseFloat(v) || 0
+  return n.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
 
 // ── Computed ────────────────────────────────────────────────
 const estadoOpciones = [
@@ -742,6 +812,7 @@ async function abrirNuevoPedido() {
   nuevaFechaEntrega.value = ''
   nuevaObservaciones.value = ''
   if (!productos.value.length) await cargarProductos()
+  cargarStock()
   dlgNueva.value = true
 }
 
@@ -808,6 +879,7 @@ async function abrirEditar(o) {
   editObservaciones.value = o.observaciones || ''
   Object.keys(cantEdicion).forEach(k => delete cantEdicion[k])
   if (!productos.value.length) await cargarProductos()
+  cargarStock()
   // Pre-cargar cantidades del pedido actual
   loadingDetalle.value = true
   try {
@@ -838,6 +910,15 @@ function navegarEnterEdit(e, codigo) {
 async function guardarEdicion() {
   if (itemsEdicion.value === 0) return
   if (!editFechaEntrega.value) { err('La fecha de entrega es obligatoria'); return }
+  // Auto-agregar observación si hay productos que exceden el stock
+  if (productosExcedidosEdit.value.length > 0) {
+    const aviso = 'Es posible que no se puedan suministrar la cantidad solicitada'
+    if (!editObservaciones.value.includes(aviso)) {
+      editObservaciones.value = editObservaciones.value
+        ? `${editObservaciones.value} | ${aviso}`
+        : aviso
+    }
+  }
   guardandoEdicion.value = true
   try {
     const detalles = productos.value
@@ -878,6 +959,15 @@ async function enviarOrden() {
   if (!nuevaFechaEntrega.value) {
     err('La fecha de entrega es obligatoria')
     return
+  }
+  // Auto-agregar observación si hay productos que exceden el stock
+  if (productosExcedidosNueva.value.length > 0) {
+    const aviso = 'Es posible que no se puedan suministrar la cantidad solicitada'
+    if (!nuevaObservaciones.value.includes(aviso)) {
+      nuevaObservaciones.value = nuevaObservaciones.value
+        ? `${nuevaObservaciones.value} | ${aviso}`
+        : aviso
+    }
   }
   enviando.value = true
   try {
@@ -1305,4 +1395,13 @@ onMounted(cargar)
 .det-total-value { font-weight: 700; color: #10b981; font-family: monospace; font-size: 15px; }
 .det-obs { font-size: 12px; color: rgba(var(--v-theme-on-surface),.6); display: flex; align-items: flex-start; gap: 4px; padding: 10px 14px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 8px; }
 .font-weight-medium { font-weight: 500; }
+
+/* Stock hints bajo cada cantidad */
+.prod-stock-hint { font-size: 9px; font-weight: 700; margin-top: 3px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.prod-stock-ok   { color: rgba(var(--v-theme-on-surface),.35); }
+.prod-stock-warn { color: #f59e0b; }
+.cant-input--warn { border-color: #f59e0b !important; background: rgba(245,158,11,.08) !important; color: #b45309 !important; }
+
+/* Banner alerta stock */
+.stock-alerta-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); border-radius: 8px; font-size: 12px; color: #92400e; }
 </style>
