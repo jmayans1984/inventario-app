@@ -8665,12 +8665,21 @@ app.post('/api/recetas/:codigo/productos', async (req, res) => {
     const { articulo, cant } = req.body;
     if (!articulo) return res.status(400).json({ success: false, error: 'articulo requerido' });
     try {
-        // Upsert: si ya existe actualiza cant, si no inserta
-        await pool.query(`
-            INSERT INTO detalle_productos (receta, articulo, cant)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (receta, articulo) DO UPDATE SET cant = EXCLUDED.cant
-        `, [codigo, articulo, parseFloat(cant) || 1]);
+        const existe = await pool.query(
+            `SELECT 1 FROM detalle_productos WHERE TRIM(receta::text) = $1 AND TRIM(articulo::text) = $2`,
+            [codigo, articulo]
+        );
+        if (existe.rows.length > 0) {
+            await pool.query(
+                `UPDATE detalle_productos SET cant = $3 WHERE TRIM(receta::text) = $1 AND TRIM(articulo::text) = $2`,
+                [codigo, articulo, parseFloat(cant) || 1]
+            );
+        } else {
+            await pool.query(
+                `INSERT INTO detalle_productos (receta, articulo, cant) VALUES ($1, $2, $3)`,
+                [codigo, articulo, parseFloat(cant) || 1]
+            );
+        }
         res.json({ success: true });
     } catch (error) {
         console.error('Error POST /api/recetas/:codigo/productos:', error);
