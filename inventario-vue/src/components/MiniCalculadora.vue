@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useCalculadora } from '../composables/useCalculadora'
 
 // ── Estado global compartido con App.vue ───────────────────────────
@@ -341,6 +341,34 @@ function aceptarConv() {
   const v = categoria.value === 'precio' ? precioTotal.value : convResult.value
   insertarEnCampo(v ?? '')
 }
+
+// ── Teclado ────────────────────────────────────────────────────────
+function onKeyDown(e) {
+  if (!show.value || tab.value !== 'calc') return
+
+  // No capturar si el foco está en un input/select del conversor
+  const tag = document.activeElement?.tagName
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+
+  const k = e.key
+  if (k >= '0' && k <= '9')       { e.preventDefault(); inputDigit(parseInt(k)) }
+  else if (k === '.')              { e.preventDefault(); inputDecimal() }
+  else if (k === '+')              { e.preventDefault(); inputOperator('+') }
+  else if (k === '-')              { e.preventDefault(); inputOperator('-') }
+  else if (k === '*')              { e.preventDefault(); inputOperator('×') }
+  else if (k === '/')              { e.preventDefault(); inputOperator('÷') }
+  else if (k === '%')              { e.preventDefault(); inputPercent() }
+  else if (k === 'Enter' || k === '=') { e.preventDefault(); equals() }
+  else if (k === 'Backspace')      { e.preventDefault(); backspace() }
+  else if (k === 'Delete' || k === 'c' || k === 'C') { e.preventDefault(); clear() }
+  else if (k === 'Escape')         { e.preventDefault(); closeCalc() }
+  else if (k === 'Enter' && e.ctrlKey) { e.preventDefault(); aceptar() }
+}
+
+watch(show, (val) => {
+  if (val) document.addEventListener('keydown', onKeyDown, true)
+  else     document.removeEventListener('keydown', onKeyDown, true)
+})
 
 </script>
 
