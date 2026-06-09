@@ -193,7 +193,7 @@
               <div class="col-prod-nombre">
                 <div class="prod-nombre">{{ p.nombre }}</div>
               </div>
-              <div class="col-prod-desc dim-text text-caption">{{ p.descripcion || '—' }}</div>
+              <div class="col-prod-desc dim-text">{{ p.descripcion || '—' }}</div>
               <div class="col-prod-und ta-c dim-text">{{ p.und || '—' }}</div>
               <div class="col-prod-precio ta-r font-mono text-success">{{ fmt(getPrecio(p)) }}</div>
               <div class="col-prod-cant ta-c">
@@ -443,7 +443,7 @@
               <div class="col-prod-nombre">
                 <div class="prod-nombre">{{ p.nombre }}</div>
               </div>
-              <div class="col-prod-desc dim-text text-caption">{{ p.descripcion || '—' }}</div>
+              <div class="col-prod-desc dim-text">{{ p.descripcion || '—' }}</div>
               <div class="col-prod-und ta-c dim-text">{{ p.und || '—' }}</div>
               <div class="col-prod-precio ta-r font-mono text-success">{{ fmt(getPrecio(p)) }}</div>
               <div class="col-prod-cant ta-c">
@@ -1304,27 +1304,27 @@ onMounted(cargar)
 .prod-row {
   display: grid;
   grid-template-columns: 200px 1fr 52px 100px 130px 100px;
-  padding: 9px 20px;
+  padding: 8px 20px;
   align-items: center;
+  font-size: 12px;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
   transition: background .1s;
 }
 .prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
 .prod-row--selected { background: rgba(16,185,129,.04); }
-.prod-nombre { font-weight: 600; font-size: 13px; }
-.prod-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-top: 1px; }
+.prod-nombre { font-weight: 600; font-size: 12px; }
 .prod-grid-empty { padding: 48px; text-align: center; color: rgba(var(--v-theme-on-surface),.35); font-size: 13px; display: flex; flex-direction: column; align-items: center; }
 
 /* Aligns de columnas en grid */
-.col-prod-nombre { overflow: hidden; }
-.col-prod-desc   { font-size: 11px; }
-.col-prod-und    { }
-.col-prod-precio { }
-.col-prod-cant   { }
-.col-prod-sub    { }
+.col-prod-nombre { overflow: hidden; font-size: 12px; }
+.col-prod-desc   { font-size: 12px; }
+.col-prod-und    { font-size: 12px; }
+.col-prod-precio { font-size: 12px; }
+.col-prod-cant   { font-size: 12px; }
+.col-prod-sub    { font-size: 12px; }
 
 /* Control de cantidad */
-.cant-input { width: 100px; height: 30px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 6px; text-align: center; font-size: 14px; font-weight: 600; padding: 0 8px; background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); outline: none; display: block; margin: 0 auto; }
+.cant-input { width: 100px; height: 28px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 6px; text-align: center; font-size: 12px; font-weight: 600; padding: 0 8px; background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); outline: none; display: block; margin: 0 auto; }
 .cant-input--active { border-color: #10b981; background: rgba(16,185,129,.06); color: #059669; }
 .cant-input:focus { border-color: #10b981; }
 
