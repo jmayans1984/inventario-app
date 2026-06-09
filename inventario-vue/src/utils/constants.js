@@ -93,6 +93,7 @@ export const MODULES = [
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Kardex por Período', icon: 'mdi-file-chart-outline', path: '/almacen/reportes/kardex' },
         { name: 'Consumos de Productos', icon: 'mdi-trending-down', path: '/almacen/reportes/consumos' },
+        { name: 'Consumo de Insumos', icon: 'mdi-package-down', path: '/almacen/reportes/consumo-insumos' },
       ]},
     ],
   },
