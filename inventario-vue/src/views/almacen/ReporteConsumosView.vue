@@ -50,9 +50,9 @@
             />
           </div>
 
-          <div class="rc-field">
+          <div class="rc-field" style="min-width:260px">
             <v-select
-              v-model="ccosto"
+              v-model="ccostosSeleccionados"
               :items="ccostos"
               item-title="nombre"
               item-value="codigo"
@@ -61,7 +61,34 @@
               density="compact"
               hide-details="auto"
               :error-messages="errCcosto"
-            />
+              multiple
+              chips
+              closable-chips
+              :menu-props="{ maxHeight: 320 }"
+            >
+              <template #prepend-item>
+                <v-list-item title="Seleccionar todos" @click="toggleTodosCcostos">
+                  <template #prepend>
+                    <v-checkbox-btn
+                      :model-value="todosSeleccionados"
+                      :indeterminate="algunoSeleccionado && !todosSeleccionados"
+                      color="#0891b2"
+                    />
+                  </template>
+                </v-list-item>
+                <v-divider class="mb-1" />
+              </template>
+              <template #item="{ item, props }">
+                <v-list-item v-bind="props" :title="item.title">
+                  <template #prepend>
+                    <v-checkbox-btn
+                      :model-value="ccostosSeleccionados.includes(item.value)"
+                      color="#0891b2"
+                    />
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
           </div>
 
           <div class="rc-field rc-field--btn">
@@ -122,7 +149,7 @@
             <v-icon size="18" color="#64748b" class="mr-2">mdi-calendar-range</v-icon>
             <div>
               <div class="rc-kpi-val" style="font-size:13px">{{ fmtFecha(fechaIni) }} → {{ fmtFecha(fechaFin) }}</div>
-              <div class="rc-kpi-lbl">{{ nombreCcosto }}</div>
+              <div class="rc-kpi-lbl">{{ nombresCcostos }}</div>
             </div>
           </div>
         </div>
@@ -195,9 +222,9 @@ const empresa = computed(() => auth.empresa)
 const hoy = new Date().toISOString().slice(0, 10)
 const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
 
-const fechaIni   = ref(primerDiaMes)
-const fechaFin   = ref(hoy)
-const ccosto     = ref(null)
+const fechaIni              = ref(primerDiaMes)
+const fechaFin              = ref(hoy)
+const ccostosSeleccionados  = ref([])
 const errFechaIni = ref('')
 const errFechaFin = ref('')
 const errCcosto   = ref('')
@@ -218,10 +245,24 @@ async function cargarCcostos() {
 }
 cargarCcostos()
 
-// ── Helpers ───────────────────────────────────────────────────────
-const nombreCcosto = computed(() => {
-  const cc = ccostos.value.find(c => c.codigo === ccosto.value)
-  return cc ? cc.nombre : ccosto.value || ''
+// ── Helpers selección múltiple ────────────────────────────────────
+const todosSeleccionados = computed(() => ccostosSeleccionados.value.length === ccostos.value.length)
+const algunoSeleccionado = computed(() => ccostosSeleccionados.value.length > 0)
+
+function toggleTodosCcostos() {
+  if (todosSeleccionados.value) {
+    ccostosSeleccionados.value = []
+  } else {
+    ccostosSeleccionados.value = ccostos.value.map(c => c.codigo)
+  }
+}
+
+const nombresCcostos = computed(() => {
+  if (!ccostosSeleccionados.value.length) return ''
+  if (ccostosSeleccionados.value.length === ccostos.value.length) return 'Todos los centros'
+  return ccostosSeleccionados.value
+    .map(cod => ccostos.value.find(c => c.codigo === cod)?.nombre || cod)
+    .join(', ')
 })
 
 function fmtFecha(str) {
@@ -254,9 +295,9 @@ const totalMovimientos = computed(() => filas.value.reduce((s, p) => s + parseIn
 
 // ── Generar ───────────────────────────────────────────────────────
 async function generar() {
-  errFechaIni.value = fechaIni.value  ? '' : 'Requerido'
-  errFechaFin.value = fechaFin.value  ? '' : 'Requerido'
-  errCcosto.value   = ccosto.value    ? '' : 'Requerido'
+  errFechaIni.value = fechaIni.value                    ? '' : 'Requerido'
+  errFechaFin.value = fechaFin.value                    ? '' : 'Requerido'
+  errCcosto.value   = ccostosSeleccionados.value.length ? '' : 'Seleccione al menos uno'
   if (errFechaIni.value || errFechaFin.value || errCcosto.value) return
 
   loading.value  = true
@@ -268,7 +309,7 @@ async function generar() {
     const res = await api.get('/almacen/reporte-consumos', {
       params: {
         empresa:   empresa.value,
-        ccosto:    ccosto.value,
+        ccostos:   ccostosSeleccionados.value.join(','),
         fecha_ini: fechaIni.value,
         fecha_fin: fechaFin.value,
       }
@@ -326,8 +367,8 @@ function exportarPDF() {
     doc.text('CENTRO DE COSTO:', 59, 8)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(26, 26, 46)
-    doc.setFontSize(8)
-    doc.text(nombreCcosto.value, 59, 14)
+    doc.setFontSize(7.5)
+    doc.text(nombresCcostos.value, 59, 14)
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(6.5)

@@ -1129,9 +1129,15 @@ app.get('/api/almacen/kardex', async (req, res) => {
 // ── REPORTE CONSUMOS (SALIDA POR VENTA) ──────────────────────────
 app.get('/api/almacen/reporte-consumos', async (req, res) => {
     try {
-        const { empresa, ccosto, fecha_ini, fecha_fin } = req.query;
-        if (!empresa || !ccosto || !fecha_ini || !fecha_fin)
+        const { empresa, ccostos, fecha_ini, fecha_fin } = req.query;
+        if (!empresa || !ccostos || !fecha_ini || !fecha_fin)
             return res.status(400).json({ success: false, error: 'Faltan parámetros' });
+
+        // ccostos llega como "CC1,CC2,CC3" → convertir a array
+        const listaCcostos = ccostos.split(',').map(s => s.trim()).filter(Boolean);
+        // $1 = empresa, $2..$N+1 = ccostos, $N+2 = fecha_ini, $N+3 = fecha_fin
+        const n = listaCcostos.length;
+        const placeholders = listaCcostos.map((_, i) => `$${i + 2}`).join(', ');
 
         const result = await pool.query(
             `SELECT
@@ -1146,13 +1152,13 @@ app.get('/api/almacen/reporte-consumos', async (req, res) => {
              JOIN productos p ON p.codigo = di.codigo
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
              WHERE di.empresa::text = $1
-               AND di.ccosto  = $2
-               AND di.fecha  >= $3
-               AND di.fecha  <= $4
+               AND di.ccosto  IN (${placeholders})
+               AND di.fecha  >= $${n + 2}
+               AND di.fecha  <= $${n + 3}
                AND di.tipo   LIKE 'SALIDA POR VENTA%'
              GROUP BY di.codigo, p.nombre, p.und, gp.nombre, gp.codigo
              ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
-            [String(empresa), ccosto, fecha_ini, fecha_fin]
+            [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
         );
 
         res.json({ success: true, data: result.rows });
