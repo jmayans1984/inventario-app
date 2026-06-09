@@ -8659,6 +8659,40 @@ app.get('/api/recetas/:codigo/productos', async (req, res) => {
     }
 });
 
+// POST /api/recetas/:codigo/productos — vincular producto a receta
+app.post('/api/recetas/:codigo/productos', async (req, res) => {
+    const { codigo } = req.params;
+    const { articulo, cant } = req.body;
+    if (!articulo) return res.status(400).json({ success: false, error: 'articulo requerido' });
+    try {
+        // Upsert: si ya existe actualiza cant, si no inserta
+        await pool.query(`
+            INSERT INTO detalle_productos (receta, articulo, cant)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (receta, articulo) DO UPDATE SET cant = EXCLUDED.cant
+        `, [codigo, articulo, parseFloat(cant) || 1]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error POST /api/recetas/:codigo/productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/recetas/:codigo/productos/:articulo — desvincular producto de receta
+app.delete('/api/recetas/:codigo/productos/:articulo', async (req, res) => {
+    const { codigo, articulo } = req.params;
+    try {
+        await pool.query(
+            `DELETE FROM detalle_productos WHERE TRIM(receta::text) = $1 AND TRIM(articulo::text) = $2`,
+            [codigo, articulo]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/recetas/:codigo/productos/:articulo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/recetas/para-selector - Recetas disponibles como subrecetas (con costo)
 app.get('/api/recetas/para-selector', async (req, res) => {
     try {

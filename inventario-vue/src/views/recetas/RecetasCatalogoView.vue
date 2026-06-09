@@ -455,9 +455,10 @@
     </v-dialog>
 
     <!-- DIALOG: PRODUCTOS DE INVENTARIO -->
-    <v-dialog v-model="dlgProductos" max-width="640">
-      <v-card rounded="xl" style="overflow:hidden">
+    <v-dialog v-model="dlgProductos" max-width="680" persistent scrollable>
+      <v-card rounded="xl" style="overflow:hidden; display:flex; flex-direction:column; max-height:88vh">
 
+        <!-- Header -->
         <div class="ing-dlg-header">
           <div class="ing-dlg-icon" style="background:linear-gradient(135deg,#0d9488,#0f766e)">
             <v-icon size="20" color="white">mdi-package-variant-closed</v-icon>
@@ -473,36 +474,69 @@
 
         <v-progress-linear v-if="loadingProductos" indeterminate color="teal" height="3" />
 
-        <!-- Vacío -->
-        <div v-if="!loadingProductos && productosReceta.length === 0" class="ing-tbl-empty" style="min-height:160px">
-          <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)" class="mb-2">mdi-package-variant</v-icon>
-          <div>Esta receta no tiene productos de inventario vinculados</div>
-          <div class="text-caption mt-1" style="color:rgba(var(--v-theme-on-surface),.35)">
-            Los productos se vinculan desde el módulo de Almacén
+        <!-- Panel agregar -->
+        <div class="ing-add-panel">
+          <div class="ing-add-label">AGREGAR PRODUCTO</div>
+          <div class="ing-add-controls">
+            <v-autocomplete
+              v-model="prodSeleccionado"
+              :items="prodCatalogo"
+              item-title="nombre"
+              return-object
+              label="Buscar producto con control..."
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              :loading="loadingProdCatalogo"
+              style="flex:1; min-width:220px"
+              @update:search="buscarProdCatalogo"
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props" :subtitle="`${item.raw.codigo} · ${item.raw.und || ''} · ${item.raw.grupo_nombre || item.raw.grupo || ''}`" />
+              </template>
+            </v-autocomplete>
+            <v-btn color="teal" variant="flat" rounded="lg" height="40"
+              :disabled="!prodSeleccionado" :loading="guardandoProd"
+              @click="agregarProducto">
+              <v-icon size="18" class="mr-1">mdi-plus</v-icon>Agregar
+            </v-btn>
           </div>
         </div>
 
-        <!-- Tabla productos -->
-        <div v-else-if="productosReceta.length > 0" style="max-height:420px;overflow-y:auto">
-          <!-- Encabezado -->
-          <div class="prod-tbl-head">
+        <v-divider />
+
+        <!-- Lista productos vinculados -->
+        <div style="flex:1; overflow-y:auto; min-height:0">
+
+          <!-- Encabezado fijo -->
+          <div class="prod-tbl-head2">
             <span>CÓDIGO</span>
             <span>NOMBRE</span>
             <span>GRUPO</span>
-            <span class="text-center">CANT</span>
             <span>UND</span>
-            <span class="text-center">CONTROL</span>
+            <span></span>
           </div>
+
+          <!-- Vacío -->
+          <div v-if="!loadingProductos && productosReceta.length === 0" class="ing-tbl-empty" style="min-height:140px">
+            <v-icon size="36" color="rgba(var(--v-theme-on-surface),.15)" class="mb-2">mdi-package-variant</v-icon>
+            <div>Sin productos vinculados — usa el buscador para agregar</div>
+          </div>
+
+          <!-- Filas -->
           <div v-for="(p, idx) in productosReceta" :key="p.codigo"
-            class="prod-tbl-row" :class="{ 'prod-tbl-row--alt': idx % 2 === 1 }">
+            class="prod-tbl-row2" :class="{ 'prod-tbl-row--alt': idx % 2 === 1 }">
             <div class="text-caption font-mono" style="color:rgba(var(--v-theme-on-surface),.5)">{{ p.codigo }}</div>
             <div class="font-weight-500">{{ p.nombre }}</div>
-            <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.5)">{{ p.grupo_nombre || p.grupo || '—' }}</div>
-            <div class="text-center font-mono">{{ p.cant }}</div>
+            <div class="text-caption" style="color:rgba(var(--v-theme-on-surface),.45)">{{ p.grupo_nombre || p.grupo || '—' }}</div>
             <div class="text-caption">{{ p.und || '—' }}</div>
-            <div class="text-center">
-              <span v-if="p.control === 'SI'" class="badge-control-si">ACTIVO</span>
-              <span v-else class="badge-control-no">NO</span>
+            <div style="display:flex;justify-content:flex-end">
+              <v-btn icon size="x-small" variant="text" color="error"
+                :loading="eliminandoProd[p.codigo]"
+                @click="eliminarProducto(p)">
+                <v-icon size="16">mdi-delete-outline</v-icon>
+              </v-btn>
             </div>
           </div>
         </div>
@@ -597,10 +631,15 @@ const recetaSeleccionada  = ref(null)    // objeto completo de la subreceta eleg
 const subrecetas          = ref([])      // lista de subrecetas disponibles
 
 // Dialog productos de inventario
-const dlgProductos    = ref(false)
-const recetaProductos = ref(null)
-const productosReceta = ref([])
-const loadingProductos = ref(false)
+const dlgProductos        = ref(false)
+const recetaProductos     = ref(null)
+const productosReceta     = ref([])
+const loadingProductos    = ref(false)
+const prodCatalogo        = ref([])
+const prodSeleccionado    = ref(null)
+const loadingProdCatalogo = ref(false)
+const guardandoProd       = ref(false)
+const eliminandoProd      = ref({})   // codigo → bool
 
 // Dialog eliminar
 const dlgEliminar     = ref(false)
@@ -835,12 +874,22 @@ async function guardarIngredientes() {
 }
 
 async function abrirProductos(receta) {
-  recetaProductos.value = receta
-  productosReceta.value = []
+  recetaProductos.value   = receta
+  productosReceta.value   = []
+  prodSeleccionado.value  = null
+  prodCatalogo.value      = []
+  eliminandoProd.value    = {}
+  loadingProductos.value  = true
+  dlgProductos.value      = true
+  await recargarProductosReceta()
+  // Cargar catálogo inicial
+  await buscarProdCatalogo('')
+}
+
+async function recargarProductosReceta() {
   loadingProductos.value = true
-  dlgProductos.value = true
   try {
-    const r = await fetch(`${API_BASE}/recetas/${receta.codigo}/productos`)
+    const r = await fetch(`${API_BASE}/recetas/${recetaProductos.value.codigo}/productos`)
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
@@ -849,6 +898,55 @@ async function abrirProductos(receta) {
     err(`Error cargando productos: ${e.message}`)
   } finally {
     loadingProductos.value = false
+  }
+}
+
+let _buscarTimer = null
+function buscarProdCatalogo(q) {
+  clearTimeout(_buscarTimer)
+  _buscarTimer = setTimeout(async () => {
+    loadingProdCatalogo.value = true
+    try {
+      const url = `${API_BASE}/productos/controlados${q ? '?q=' + encodeURIComponent(q) : ''}`
+      const r = await fetch(url)
+      const j = await r.json()
+      prodCatalogo.value = j.data || []
+    } catch { /* silencioso */ }
+    finally { loadingProdCatalogo.value = false }
+  }, 260)
+}
+
+async function agregarProducto() {
+  if (!prodSeleccionado.value) return
+  guardandoProd.value = true
+  try {
+    const r = await fetch(`${API_BASE}/recetas/${recetaProductos.value.codigo}/productos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articulo: prodSeleccionado.value.codigo, cant: 1 })
+    })
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    prodSeleccionado.value = null
+    ok('Producto vinculado')
+    await recargarProductosReceta()
+  } catch (e) { err(e.message) }
+  finally { guardandoProd.value = false }
+}
+
+async function eliminarProducto(p) {
+  eliminandoProd.value = { ...eliminandoProd.value, [p.codigo]: true }
+  try {
+    const r = await fetch(`${API_BASE}/recetas/${recetaProductos.value.codigo}/productos/${encodeURIComponent(p.codigo)}`, {
+      method: 'DELETE'
+    })
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    ok('Producto desvinculado')
+    await recargarProductosReceta()
+  } catch (e) { err(e.message) }
+  finally {
+    eliminandoProd.value = { ...eliminandoProd.value, [p.codigo]: false }
   }
 }
 
@@ -1310,31 +1408,28 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 }
 
 /* ── TABLA PRODUCTOS INVENTARIO ── */
-.prod-tbl-head,
-.prod-tbl-row {
+.prod-tbl-head2,
+.prod-tbl-row2 {
   display: grid;
-  grid-template-columns: 80px 1fr 120px 70px 60px 80px;
+  grid-template-columns: 80px 1fr 130px 60px 36px;
   align-items: center;
   padding: 8px 20px;
   font-size: 12px;
   gap: 8px;
 }
-.prod-tbl-head {
+.prod-tbl-head2 {
   font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase;
   color: rgba(var(--v-theme-on-surface), .4);
   background: rgba(var(--v-theme-on-surface), .03);
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
+  position: sticky; top: 0; z-index: 1;
 }
-.prod-tbl-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface), .05); }
+.prod-tbl-row2 {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .05);
+  transition: background .1s;
+}
+.prod-tbl-row2:hover { background: rgba(var(--v-theme-on-surface), .04); }
 .prod-tbl-row--alt { background: rgba(var(--v-theme-on-surface), .02); }
-.badge-control-si {
-  font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
-  background: rgba(20,184,166,.12); color: #0d9488;
-}
-.badge-control-no {
-  font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
-  background: rgba(var(--v-theme-on-surface),.07); color: rgba(var(--v-theme-on-surface),.4);
-}
 
 .info-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; color: rgba(var(--v-theme-on-surface),.7); }
 .dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
