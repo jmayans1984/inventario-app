@@ -44,14 +44,6 @@
     >
       <thead>
         <tr class="table-header">
-          <th class="th-checkbox">
-            <v-checkbox
-              :model-value="todosSeleccionados"
-              :indeterminate="algunoSeleccionados"
-              @update:model-value="toggleTodos"
-              hide-details
-            />
-          </th>
           <th
             v-for="col in columnas"
             :key="col.key"
@@ -76,15 +68,6 @@
 
       <tbody>
         <tr v-for="cc in store.centrosCostos" :key="cc.codigo" class="data-row">
-          <!-- Checkbox -->
-          <td class="td-checkbox">
-            <v-checkbox
-              :model-value="selectedIds.includes(cc.codigo)"
-              @update:model-value="(val) => toggleSeleccion(cc.codigo, val)"
-              hide-details
-            />
-          </td>
-
           <!-- CÓDIGO -->
           <td class="td">
             <span class="codigo-badge">{{ cc.codigo }}</span>
