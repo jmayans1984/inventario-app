@@ -782,3 +782,4 @@ function exportarPDF() {
 /* Empty */
 .mp-empty { text-align:center; padding:60px 24px; color:rgba(var(--v-theme-on-surface),.4); display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14px; }
 </style>
+
