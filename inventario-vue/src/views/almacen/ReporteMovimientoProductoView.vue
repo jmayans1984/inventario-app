@@ -70,11 +70,14 @@
               :items="productosDisponibles"
               item-title="label"
               item-value="codigo"
-              label="Producto (opcional)"
+              label="Productos (opcional)"
               variant="outlined"
               density="compact"
               hide-details
               clearable
+              multiple
+              chips
+              closable-chips
               placeholder="Todos los productos"
               no-data-text="Genere el reporte primero"
             />
@@ -137,6 +140,7 @@
             <thead>
               <tr>
                 <th class="th-fecha">FECHA</th>
+                <th class="th-tipo">TIPO</th>
                 <th class="th-prod">PRODUCTO</th>
                 <th class="th-und">UND</th>
                 <th class="th-num th-ant">STOCK INICIAL</th>
@@ -150,7 +154,7 @@
               <template v-for="grupo in productosAgrupados" :key="grupo.key">
                 <!-- Fila de grupo -->
                 <tr class="mp-grupo-row">
-                  <td colspan="8">
+                  <td colspan="9">
                     <v-icon size="13" class="mr-1" style="opacity:.6">mdi-folder-outline</v-icon>
                     {{ grupo.nombre }}
                   </td>
@@ -160,7 +164,7 @@
                 <template v-for="prod in grupo.productos" :key="prod.codigo">
                   <!-- Cabecera de producto -->
                   <tr class="mp-prod-header">
-                    <td colspan="2" class="prod-header-nombre">
+                    <td colspan="3" class="prod-header-nombre">
                       <span class="badge-cod">{{ prod.codigo }}</span>
                       <strong class="ml-2">{{ prod.nombre }}</strong>
                     </td>
@@ -169,13 +173,14 @@
                       <span class="num-ini">{{ fmtNum(prod.stockInicial) }}</span>
                     </td>
                     <td colspan="4" class="td-prod-span">
-                      <span class="text-muted">{{ prod.dias.length }} día(s) con movimiento</span>
+                      <span class="text-muted">{{ prod.dias.length }} movimiento(s)</span>
                     </td>
                   </tr>
 
                   <!-- Filas de días -->
-                  <tr v-for="dia in prod.dias" :key="dia.fecha" class="mp-dia-row">
+                  <tr v-for="dia in prod.dias" :key="`${dia.fecha}-${dia.tipo}`" class="mp-dia-row">
                     <td class="td-fecha">{{ fmtFecha(dia.fecha) }}</td>
+                    <td class="td-tipo"><span :class="['badge-tipo', tipoBadgeClass(dia.tipo)]">{{ dia.tipo }}</span></td>
                     <td></td>
                     <td></td>
                     <td class="td-num"><span class="num-ant">{{ fmtNum(dia.saldoAnterior) }}</span></td>
@@ -198,7 +203,7 @@
 
                   <!-- Total del producto -->
                   <tr class="mp-prod-total">
-                    <td colspan="3" class="ta-r prod-total-lbl">TOTAL {{ prod.nombre }}</td>
+                    <td colspan="4" class="ta-r prod-total-lbl">TOTAL {{ prod.nombre }}</td>
                     <td class="td-num"><span class="num-ini">{{ fmtNum(prod.stockInicial) }}</span></td>
                     <td class="td-num"><strong class="num-entrada">{{ fmtNum(prod.totalEntradas) }}</strong></td>
                     <td class="td-num"><strong class="num-salida">{{ fmtNum(prod.totalSalidas) }}</strong></td>
@@ -250,7 +255,7 @@ const errCcosto      = ref('')
 const ccostos  = ref([])
 const rawRows  = ref([])
 const stockInicialMap = ref({})
-const filtroProducto  = ref(null)
+const filtroProducto  = ref([])
 const loading  = ref(false)
 const generado = ref(false)
 const errorMsg = ref('')
@@ -287,7 +292,7 @@ const productosDisponibles = computed(() => {
   const seen = new Map()
   for (const r of rawRows.value) {
     if (!seen.has(r.codigo)) {
-      seen.set(r.codigo, { codigo: r.codigo, label: `[${r.codigo}] ${r.nombre}` })
+      seen.set(r.codigo, { codigo: r.codigo, label: r.nombre })
     }
   }
   return Array.from(seen.values()).sort((a, b) => a.label.localeCompare(b.label))
@@ -297,9 +302,9 @@ const productosDisponibles = computed(() => {
 const productosAgrupados = computed(() => {
   if (!rawRows.value.length) return []
 
-  // Aplicar filtro de producto si hay uno seleccionado
-  const rows = filtroProducto.value
-    ? rawRows.value.filter(r => r.codigo === filtroProducto.value)
+  // Aplicar filtro de productos si hay selección
+  const rows = filtroProducto.value.length > 0
+    ? rawRows.value.filter(r => filtroProducto.value.includes(r.codigo))
     : rawRows.value
 
   // Construir mapa: grupo → producto → días
@@ -322,6 +327,7 @@ const productosAgrupados = computed(() => {
     }
     grupo.productos.get(row.codigo).dias.push({
       fecha:    row.fecha,
+      tipo:     row.tipo || '',
       entradas: parseFloat(row.entradas) || 0,
       salidas:  parseFloat(row.salidas)  || 0,
       ventas:   parseFloat(row.ventas)   || 0,
@@ -396,6 +402,18 @@ async function generar() {
   }
 }
 
+// ── Badge de tipo ─────────────────────────────────────────────────
+function tipoBadgeClass(tipo) {
+  const t = (tipo || '').toUpperCase()
+  if (t.includes('COMPRA') || t.includes('ENTRADA')) return 'tipo-entrada'
+  if (t.includes('VENTA'))   return 'tipo-venta'
+  if (t.includes('SALIDA'))  return 'tipo-salida'
+  if (t.includes('AJUSTE'))  return 'tipo-ajuste'
+  if (t.includes('DEVOL'))   return 'tipo-devol'
+  if (t.includes('TRASLADO')) return 'tipo-traslado'
+  return 'tipo-otro'
+}
+
 // ── Exportar PDF ──────────────────────────────────────────────────
 function exportarPDF() {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
@@ -411,9 +429,9 @@ function exportarPDF() {
   // Rango formateado
   const rangoStr = `${fmtFecha(fechaInicio.value)} — ${fmtFecha(fechaFin.value)}`
 
-  // Nombre del producto filtrado (si aplica)
-  const prodFiltradoNombre = filtroProducto.value
-    ? (productosDisponibles.value.find(p => p.codigo === filtroProducto.value)?.label || filtroProducto.value)
+  // Nombres de productos filtrados (si aplica)
+  const prodFiltradoNombre = filtroProducto.value.length > 0
+    ? filtroProducto.value.map(c => productosDisponibles.value.find(p => p.codigo === c)?.label || c).join(', ')
     : null
 
   function drawHeader(pageNum, totalPages) {
@@ -521,7 +539,7 @@ function exportarPDF() {
     // Fila de grupo
     body.push([{
       content: grupo.nombre.toUpperCase(),
-      colSpan: 8,
+      colSpan: 9,
       styles: {
         fontStyle: 'bold', fontSize: 6.5, textColor: [8, 100, 140],
         fillColor: [240, 249, 255], halign: 'left',
@@ -533,6 +551,7 @@ function exportarPDF() {
       // Cabecera del producto
       body.push([
         { content: prod.codigo, styles: { fontStyle: 'bold', fontSize: 6.5, textColor: [15,30,53], halign: 'center', fillColor: [241,245,249] } },
+        { content: '', styles: { fillColor: [241,245,249] } },
         { content: prod.nombre, colSpan: 2, styles: { fontStyle: 'bold', fontSize: 7.5, textColor: [15,30,53], fillColor: [241,245,249] } },
         { content: fmtNum(prod.stockInicial), styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'right', textColor: [71,85,105], fillColor: [241,245,249] } },
         { content: '', colSpan: 4, styles: { fillColor: [241,245,249] } },
@@ -542,6 +561,7 @@ function exportarPDF() {
       for (const dia of prod.dias) {
         body.push([
           { content: fmtFecha(dia.fecha), styles: { fontSize: 6.5, textColor: [100,116,139], halign: 'center' } },
+          { content: dia.tipo || '', styles: { fontSize: 6, textColor: [71,85,105], halign: 'left' } },
           '',
           '',
           { content: fmtNum(dia.saldoAnterior), styles: { fontSize: 6.5, textColor: [148,163,184], halign: 'right' } },
@@ -558,7 +578,7 @@ function exportarPDF() {
 
       // Total del producto
       body.push([
-        { content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', fontSize: 6.5, textColor: [71,85,105],
+        { content: 'TOTAL', colSpan: 4, styles: { fontStyle: 'bold', fontSize: 6.5, textColor: [71,85,105],
             halign: 'right', fillColor: [241,245,249] } },
         { content: fmtNum(prod.stockInicial), styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'right',
             textColor: [71,85,105], fillColor: [241,245,249] } },
@@ -582,6 +602,7 @@ function exportarPDF() {
     showHead: 'everyPage',
     head: [[
       { content: 'FECHA',      styles: { halign: 'center' } },
+      { content: 'TIPO',       styles: { halign: 'left'   } },
       { content: 'PRODUCTO',   styles: { halign: 'left'   } },
       { content: 'UND',        styles: { halign: 'center' } },
       { content: 'ANT.',       styles: { halign: 'right'  } },
@@ -603,14 +624,15 @@ function exportarPDF() {
       cellPadding: { top: 1, bottom: 1, left: 3, right: 3 },
     },
     columnStyles: {
-      0: { cellWidth: 20, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 13, halign: 'center' },
-      3: { cellWidth: 20, halign: 'right' },
-      4: { cellWidth: 20, halign: 'right' },
-      5: { cellWidth: 20, halign: 'right' },
-      6: { cellWidth: 20, halign: 'right' },
-      7: { cellWidth: 22, halign: 'right' },
+      0: { cellWidth: 18, halign: 'center' },
+      1: { cellWidth: 30, halign: 'left'   },
+      2: { cellWidth: 'auto' },
+      3: { cellWidth: 12, halign: 'center' },
+      4: { cellWidth: 17, halign: 'right'  },
+      5: { cellWidth: 17, halign: 'right'  },
+      6: { cellWidth: 17, halign: 'right'  },
+      7: { cellWidth: 17, halign: 'right'  },
+      8: { cellWidth: 20, halign: 'right'  },
     },
     margin: { left: ML, right: MR, bottom: 16, top: HEADER_H + 2 },
     didDrawPage: (data) => { drawHeader(data.pageNumber, null) },
@@ -680,7 +702,8 @@ function exportarPDF() {
   white-space: nowrap;
 }
 .th-fecha { width: 80px; text-align: center !important; }
-.th-prod  { min-width: 160px; }
+.th-tipo  { width: 110px; }
+.th-prod  { min-width: 140px; }
 .th-und   { width: 52px; text-align: center !important; }
 .th-num   { text-align: right !important; width: 80px; }
 .th-ant   { color: #94a3b8 !important; }
@@ -715,6 +738,7 @@ function exportarPDF() {
 }
 .mp-dia-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
 .td-fecha { text-align: center; font-size: 11px; font-family: monospace; color: rgba(var(--v-theme-on-surface),.6); }
+.td-tipo  { }
 
 /* Total del producto */
 .mp-prod-total td {
@@ -746,6 +770,14 @@ function exportarPDF() {
 /* Badges */
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
 .badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:#0891b2; font-weight:600; }
+.badge-tipo { display:inline-block; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+.tipo-entrada  { background:rgba(16,185,129,.12);  color:#10b981; }
+.tipo-venta    { background:rgba(239,68,68,.12);   color:#ef4444; }
+.tipo-salida   { background:rgba(245,158,11,.12);  color:#f59e0b; }
+.tipo-ajuste   { background:rgba(59,130,246,.12);  color:#3b82f6; }
+.tipo-devol    { background:rgba(168,85,247,.12);  color:#a855f7; }
+.tipo-traslado { background:rgba(20,184,166,.12);  color:#14b8a6; }
+.tipo-otro     { background:rgba(var(--v-theme-on-surface),.06); color:rgba(var(--v-theme-on-surface),.5); }
 
 /* Empty */
 .mp-empty { text-align:center; padding:60px 24px; color:rgba(var(--v-theme-on-surface),.4); display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14px; }

@@ -1240,6 +1240,7 @@ app.get('/api/almacen/reporte-movimiento-producto', async (req, res) => {
         const movResult = await pool.query(`
             SELECT
                 di.fecha::text                                                               AS fecha,
+                COALESCE(di.tipo, '')                                                        AS tipo,
                 di.codigo,
                 p.nombre,
                 p.und,
@@ -1254,8 +1255,8 @@ app.get('/api/almacen/reporte-movimiento-producto', async (req, res) => {
             WHERE di.empresa = $1
               AND di.ccosto  = $2
               AND di.fecha BETWEEN $3 AND $4
-            GROUP BY di.fecha, di.codigo, p.nombre, p.und, grupo_nombre, grupo_codigo
-            ORDER BY COALESCE(gp.codigo, '999'), p.nombre, di.fecha
+            GROUP BY di.fecha, di.tipo, di.codigo, p.nombre, p.und, grupo_nombre, grupo_codigo
+            ORDER BY COALESCE(gp.codigo, '999'), p.nombre, di.fecha, di.tipo
         `, [emp, ccosto, fecha_inicio, fecha_fin]);
 
         res.json({
