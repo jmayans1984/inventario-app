@@ -181,7 +181,8 @@ export const MODULES = [
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Dashboard Ejecutivo', icon: 'mdi-view-dashboard-outline', path: '/gerencia/reportes/ejecutivo' },
-        { name: 'KPIs', icon: 'mdi-gauge', path: '/gerencia/reportes/kpis' },
+        { name: 'KPIs',                icon: 'mdi-gauge',                  path: '/gerencia/reportes/kpis' },
+        { name: 'Análisis de Ventas',  icon: 'mdi-chart-areaspline',       path: '/gerencia/reportes/analisis-ventas' },
       ]},
     ],
   },

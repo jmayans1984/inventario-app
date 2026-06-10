@@ -354,6 +354,16 @@ const grupos = [
       { label: 'Recibos de Pago',       icon: 'mdi-file-document-outline', ruta: '/nomina/reportes/recibos' },
     ]
   },
+  {
+    nombre: 'GERENCIA',
+    icon:   'mdi-chart-line',
+    color:  '#10b981',
+    items: [
+      { label: 'Dashboard Ejecutivo',  icon: 'mdi-view-dashboard-outline', ruta: '/gerencia/reportes/ejecutivo' },
+      { label: 'Análisis de Ventas',   icon: 'mdi-chart-areaspline',       ruta: '/gerencia/reportes/analisis-ventas' },
+      { label: 'KPIs',                 icon: 'mdi-gauge',                  ruta: '/gerencia/reportes/kpis' },
+    ]
+  },
 ]
 
 function ir(ruta) {

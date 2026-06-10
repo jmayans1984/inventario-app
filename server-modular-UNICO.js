@@ -8587,6 +8587,122 @@ app.get('/api/gerencia/kpis', async (req, res) => {
     }
 });
 
+// GET /api/gerencia/analisis-ventas — histórico 12m, día semana 45d, top productos, distribución ccosto
+app.get('/api/gerencia/analisis-ventas', async (req, res) => {
+    const { empresa, ccostos } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const ccostoList = ccostos ? ccostos.split(',').map(c => c.trim()).filter(Boolean) : [];
+    const ccostoFilter = ccostoList.length
+        ? `AND v.ccosto IN (${ccostoList.map((_, i) => `$${i + 2}`).join(',')})`
+        : '';
+    const ccostoFilterDet = ccostoList.length
+        ? `AND d.ccosto IN (${ccostoList.map((_, i) => `$${i + 2}`).join(',')})`
+        : '';
+    const params       = ccostoList.length ? [empresa, ...ccostoList] : [empresa];
+
+    try {
+        const [mesesRes, diaRes, topProdRes, distCcostoRes, ccostosDisponiblesRes] = await Promise.all([
+
+            // 1. Histórico mensual últimos 12 meses
+            pool.query(`
+                SELECT
+                    TO_CHAR(DATE_TRUNC('month', fecha::date), 'YYYY-MM') AS mes,
+                    TO_CHAR(DATE_TRUNC('month', fecha::date), 'Mon YYYY') AS mes_label,
+                    COALESCE(SUM(ventas_brutas), 0)  AS ventas_brutas,
+                    COALESCE(SUM(ventas_netas), 0)   AS ventas_netas,
+                    COALESCE(SUM(devoluciones), 0)   AS devoluciones,
+                    COUNT(DISTINCT fecha)             AS dias_con_venta
+                FROM ventas v
+                WHERE v.empresa = $1
+                  AND fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')
+                  ${ccostoFilter}
+                GROUP BY DATE_TRUNC('month', fecha::date)
+                ORDER BY DATE_TRUNC('month', fecha::date)`, params),
+
+            // 2. Promedio por día de semana — últimos 45 días
+            pool.query(`
+                SELECT
+                    EXTRACT(DOW FROM fecha::date) AS dow,
+                    TO_CHAR(fecha::date, 'Day')   AS dia_nombre,
+                    COALESCE(AVG(ventas_brutas), 0) AS avg_ventas,
+                    COALESCE(SUM(ventas_brutas), 0) AS total_ventas,
+                    COUNT(DISTINCT fecha)            AS dias_count
+                FROM ventas v
+                WHERE v.empresa = $1
+                  AND fecha::date >= NOW()::date - 44
+                  ${ccostoFilter}
+                GROUP BY EXTRACT(DOW FROM fecha::date), TO_CHAR(fecha::date, 'Day')
+                ORDER BY EXTRACT(DOW FROM fecha::date)`, params),
+
+            // 3. Top 10 productos por ventas (últimos 12 meses, desde detalle_ventas)
+            pool.query(`
+                SELECT
+                    d.codigo,
+                    d.nombre,
+                    COALESCE(SUM(d.cant), 0)     AS total_cant,
+                    COALESCE(SUM(d.subtotal), 0) AS total_ventas,
+                    COALESCE(AVG(d.vr_unit), 0)  AS precio_prom
+                FROM detalle_ventas d
+                WHERE d.empresa = $1
+                  AND d.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')
+                  ${ccostoFilterDet}
+                GROUP BY d.codigo, d.nombre
+                ORDER BY total_ventas DESC
+                LIMIT 10`, params),
+
+            // 4. Distribución por centro de costo (últimos 12 meses)
+            pool.query(`
+                SELECT
+                    v.ccosto,
+                    COALESCE(SUM(v.ventas_brutas), 0)  AS total_ventas,
+                    COUNT(DISTINCT v.fecha)              AS dias
+                FROM ventas v
+                WHERE v.empresa = $1
+                  AND fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')
+                GROUP BY v.ccosto
+                ORDER BY total_ventas DESC`, [empresa]),
+
+            // 5. Lista de ccostos disponibles
+            pool.query(`
+                SELECT DISTINCT ccosto
+                FROM ventas
+                WHERE empresa = $1
+                ORDER BY ccosto`, [empresa]),
+        ]);
+
+        // Calcular promedio mensual para la línea
+        const meses = mesesRes.rows;
+        const promedioMensual = meses.length
+            ? meses.reduce((s, r) => s + parseFloat(r.ventas_brutas), 0) / meses.length
+            : 0;
+
+        // KPIs
+        const total12m   = meses.reduce((s, r) => s + parseFloat(r.ventas_brutas), 0);
+        const mejorMes   = meses.length ? meses.reduce((a, b) => parseFloat(a.ventas_brutas) > parseFloat(b.ventas_brutas) ? a : b) : null;
+        const totalItems = topProdRes.rows.reduce((s, r) => s + parseFloat(r.total_cant), 0);
+
+        res.json({
+            success: true,
+            kpis: {
+                total12m,
+                promedioMensual,
+                mejorMes: mejorMes ? { label: mejorMes.mes_label, valor: parseFloat(mejorMes.ventas_brutas) } : null,
+                totalItems,
+            },
+            ventasPorMes:      meses,
+            promedioMensual,
+            ventasPorDiaSemana: diaRes.rows,
+            topProductos:       topProdRes.rows,
+            distribucionCcosto: distCcostoRes.rows,
+            ccostosDisponibles: ccostosDisponiblesRes.rows.map(r => r.ccosto),
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/analisis-ventas:', error);
+        res.status(500).json({ success: false, error: 'Error al obtener análisis de ventas', details: error.message });
+    }
+});
+
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
