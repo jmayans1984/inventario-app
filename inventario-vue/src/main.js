@@ -39,6 +39,25 @@ const vuetify = createVuetify({
   icons: { defaultSet: 'mdi' },
 })
 
+// Forzar MAYÚSCULAS en todos los inputs de texto antes de que Vue lea el valor
+document.addEventListener('input', (e) => {
+  const el = e.target
+  if (
+    (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') &&
+    !['number', 'date', 'email', 'password', 'checkbox', 'radio',
+      'range', 'color', 'file', 'time', 'datetime-local', 'month', 'week'].includes(el.type) &&
+    !el.readOnly && !el.disabled
+  ) {
+    const start = el.selectionStart
+    const end   = el.selectionEnd
+    const upper = el.value.toUpperCase()
+    if (el.value !== upper) {
+      el.value = upper
+      try { el.setSelectionRange(start, end) } catch {}
+    }
+  }
+}, true)
+
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)

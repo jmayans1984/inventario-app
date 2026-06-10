@@ -309,9 +309,9 @@ const grupos = [
     icon:   'mdi-calculator',
     color:  '#10b981',
     items: [
-      { label: 'Gestión de Gastos',     icon: 'mdi-receipt-text-outline', ruta: '/contabilidad/procesos/gastos' },
-      { label: 'Reporte de Gastos',     icon: 'mdi-chart-bar',            ruta: '/contabilidad/reportes/gastos' },
-      { label: 'Estado de Resultados',  icon: 'mdi-file-chart-outline',   pronto: true },
+      { label: 'Gestión de Gastos',     icon: 'mdi-receipt-text-outline',  ruta: '/contabilidad/procesos/gastos' },
+      { label: 'Reporte de Gastos',     icon: 'mdi-chart-bar',             ruta: '/contabilidad/reportes/gastos' },
+      { label: 'Estado de Resultados',  icon: 'mdi-file-chart-outline',    ruta: '/contabilidad/reportes/estado-resultados' },
     ]
   },
   {
@@ -319,8 +319,8 @@ const grupos = [
     icon:   'mdi-bank-outline',
     color:  '#8b5cf6',
     items: [
-      { label: 'Importar Ventas',       icon: 'mdi-storefront-outline',   ruta: '/tesoreria/procesos/importar-ventas' },
-      { label: 'Movimiento Bancario',   icon: 'mdi-bank-transfer',        ruta: '/tesoreria/procesos/movimientos-bancarios' },
+      { label: 'Importar Ventas',       icon: 'mdi-storefront-outline',    ruta: '/tesoreria/procesos/importar-ventas' },
+      { label: 'Movimiento Bancario',   icon: 'mdi-bank-transfer',         ruta: '/tesoreria/procesos/movimientos-bancarios' },
       { label: 'Saldo Bancario',        icon: 'mdi-chart-timeline-variant', ruta: '/tesoreria/reportes/movimiento-cuentas' },
     ]
   },
@@ -329,9 +329,19 @@ const grupos = [
     icon:   'mdi-warehouse',
     color:  '#06b6d4',
     items: [
-      { label: 'Gestión de Inventario', icon: 'mdi-package-variant',      ruta: '/almacen/procesos/gestion-inventario' },
+      { label: 'Gestión de Inventario', icon: 'mdi-package-variant',       ruta: '/almacen/procesos/gestion-inventario' },
       { label: 'Reporte Kardex',        icon: 'mdi-clipboard-list-outline', ruta: '/almacen/reportes/kardex' },
-      { label: 'Órdenes de Compra',     icon: 'mdi-cart-outline',         ruta: '/almacen/procesos/ordenes-compra' },
+      { label: 'Mov. por Producto',     icon: 'mdi-swap-vertical-bold',    ruta: '/almacen/reportes/movimiento-producto' },
+    ]
+  },
+  {
+    nombre: 'RECETAS',
+    icon:   'mdi-chef-hat',
+    color:  '#f97316',
+    items: [
+      { label: 'Artículos e Insumos',   icon: 'mdi-food-apple-outline',              ruta: '/recetas/configuracion/articulos' },
+      { label: 'Gestión de Costos',     icon: 'mdi-calculator-variant-outline',      ruta: '/recetas/procesos/costos' },
+      { label: 'Valoración por Ventas', icon: 'mdi-chart-bar',                       ruta: '/recetas/reportes/valoracion-ventas' },
     ]
   },
   {
@@ -339,9 +349,9 @@ const grupos = [
     icon:   'mdi-account-group-outline',
     color:  '#f59e0b',
     items: [
-      { label: 'Empleados',             icon: 'mdi-badge-account-outline', pronto: true },
-      { label: 'Liquidación de Nómina', icon: 'mdi-cash-multiple',         pronto: true },
-      { label: 'Recibos de Pago',       icon: 'mdi-file-sign',             pronto: true },
+      { label: 'Empleados',             icon: 'mdi-badge-account-outline', ruta: '/nomina/configuracion/empleados' },
+      { label: 'Liquidación de Nómina', icon: 'mdi-cash-multiple',         ruta: '/nomina/procesos/liquidacion' },
+      { label: 'Recibos de Pago',       icon: 'mdi-file-document-outline', ruta: '/nomina/reportes/recibos' },
     ]
   },
 ]
