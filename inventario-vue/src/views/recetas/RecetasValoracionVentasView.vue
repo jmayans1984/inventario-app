@@ -73,39 +73,39 @@
       <!-- KPIs (solo cuando hay datos) -->
       <div v-if="consultado && rows.length > 0" class="vv-kpi-row">
         <div class="vv-kpi" style="border-color:#3b82f6">
-          <span class="kpi-val" style="color:#3b82f6">{{ totals.num_recetas }}</span>
-          <span class="kpi-lbl">Recetas vendidas</span>
+          <span class="kpi-val" style="color:#3b82f6">{{ kpi.num_recetas }}</span>
+          <span class="kpi-lbl">Recetas{{ filtroGrupo !== 'TODOS' || busqueda ? ' (filtradas)' : ' vendidas' }}</span>
         </div>
         <div class="vv-kpi" style="border-color:#22c55e">
-          <span class="kpi-val" style="color:#22c55e">{{ fmtM(totals.total_ventas) }}</span>
+          <span class="kpi-val" style="color:#22c55e">{{ fmtM(kpi.total_ventas) }}</span>
           <span class="kpi-lbl">Total ventas</span>
         </div>
         <div class="vv-kpi" style="border-color:#ef4444">
-          <span class="kpi-val" style="color:#ef4444">{{ fmtM(totals.total_costo_mp) }}</span>
+          <span class="kpi-val" style="color:#ef4444">{{ fmtM(kpi.total_costo_mp) }}</span>
           <span class="kpi-lbl">Costo MP total</span>
         </div>
-        <div class="vv-kpi" :style="{ borderColor: colorPct(totals.pct_costo_real) }">
-          <span class="kpi-val" :style="{ color: colorPct(totals.pct_costo_real) }">
-            {{ totals.pct_costo_real.toFixed(1) }}%
+        <div class="vv-kpi" :style="{ borderColor: colorPct(kpi.pct_costo_real) }">
+          <span class="kpi-val" :style="{ color: colorPct(kpi.pct_costo_real) }">
+            {{ kpi.pct_costo_real.toFixed(1) }}%
           </span>
           <span class="kpi-lbl">% costo MP real ponderado</span>
         </div>
         <div class="vv-kpi" style="border-color:#8b5cf6">
-          <span class="kpi-val" style="color:#8b5cf6">{{ pctSimple.toFixed(1) }}%</span>
+          <span class="kpi-val" style="color:#8b5cf6">{{ kpi.pct_simple.toFixed(1) }}%</span>
           <span class="kpi-lbl">% costo MP promedio simple</span>
         </div>
       </div>
 
       <!-- ALERT diferencial -->
-      <v-alert v-if="consultado && rows.length > 0 && Math.abs(totals.pct_costo_real - pctSimple) > 1"
-        :type="totals.pct_costo_real > pctSimple ? 'warning' : 'success'"
+      <v-alert v-if="consultado && rows.length > 0 && Math.abs(kpi.pct_costo_real - kpi.pct_simple) > 1"
+        :type="kpi.pct_costo_real > kpi.pct_simple ? 'warning' : 'success'"
         variant="tonal" density="compact" class="mb-4" icon="mdi-information-outline">
         <strong>
-          El costo real ponderado ({{ totals.pct_costo_real.toFixed(1) }}%) es
-          {{ totals.pct_costo_real > pctSimple ? 'MAYOR' : 'MENOR' }}
-          al promedio simple ({{ pctSimple.toFixed(1) }}%) en
-          {{ Math.abs(totals.pct_costo_real - pctSimple).toFixed(1) }} pp —
-          {{ totals.pct_costo_real > pctSimple
+          El costo real ponderado ({{ kpi.pct_costo_real.toFixed(1) }}%) es
+          {{ kpi.pct_costo_real > kpi.pct_simple ? 'MAYOR' : 'MENOR' }}
+          al promedio simple ({{ kpi.pct_simple.toFixed(1) }}%) en
+          {{ Math.abs(kpi.pct_costo_real - kpi.pct_simple).toFixed(1) }} pp —
+          {{ kpi.pct_costo_real > kpi.pct_simple
             ? 'las recetas más vendidas tienen mayor costo de insumos que el promedio.'
             : 'las recetas más vendidas tienen menor costo de insumos que el promedio.' }}
         </strong>
@@ -138,7 +138,6 @@
           <table class="vv-table">
             <thead>
               <tr>
-                <th class="col-rank">#</th>
                 <th class="col-nom">RECETA</th>
                 <th class="col-grp">GRUPO</th>
                 <th class="col-num text-right">CANT<br>VENDIDA</th>
@@ -151,11 +150,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(r, i) in rowsFiltradas" :key="r.codigo + r.nombre"
+              <tr v-for="r in rowsFiltradas" :key="r.codigo + r.nombre"
                 :class="['vv-row', pctClass(r)]">
-                <td class="col-rank">
-                  <span class="rank-badge" :class="rankClass(i)">{{ i + 1 }}</span>
-                </td>
                 <td class="col-nom">
                   <div class="rec-nombre">{{ r.nombre }}</div>
                   <div class="rec-cod text-caption text-disabled">{{ r.codigo }}</div>
@@ -191,19 +187,19 @@
             </tbody>
             <tfoot>
               <tr class="vv-total">
-                <td colspan="3" class="text-right font-weight-bold" style="padding:10px 16px">TOTAL PERÍODO</td>
-                <td class="col-num text-right font-mono font-weight-bold">{{ fmtN(totals.total_cant) }}</td>
+                <td colspan="2" class="text-right font-weight-bold" style="padding:10px 16px">TOTAL</td>
+                <td class="col-num text-right font-mono font-weight-bold">{{ fmtN(kpi.total_cant) }}</td>
                 <td class="col-num text-right">—</td>
                 <td class="col-num text-right font-mono font-weight-bold" style="color:#22c55e">
-                  {{ fmtD(totals.total_ventas) }}
+                  {{ fmtD(kpi.total_ventas) }}
                 </td>
                 <td class="col-num text-right">—</td>
                 <td class="col-num text-right font-mono font-weight-bold" style="color:#ef4444">
-                  {{ fmtD(totals.total_costo_mp) }}
+                  {{ fmtD(kpi.total_costo_mp) }}
                 </td>
                 <td class="col-pct">
-                  <span class="pct-num font-weight-bold" :style="{ color: colorPct(totals.pct_costo_real) }">
-                    {{ totals.pct_costo_real.toFixed(1) }}%
+                  <span class="pct-num font-weight-bold" :style="{ color: colorPct(kpi.pct_costo_real) }">
+                    {{ kpi.pct_costo_real.toFixed(1) }}%
                   </span>
                 </td>
                 <td class="col-bar"></td>
@@ -318,11 +314,16 @@ const rowsFiltradas = computed(() => {
   return r
 })
 
-// Promedio simple (no ponderado) del % costo de las recetas con precio de venta
-const pctSimple = computed(() => {
-  const conPct = rows.value.filter(r => parseFloat(r.pct_costo_mp) > 0)
-  if (!conPct.length) return 0
-  return conPct.reduce((s, r) => s + parseFloat(r.pct_costo_mp), 0) / conPct.length
+// KPIs dinámicos — se recalculan cuando cambia filtroGrupo o busqueda
+const kpi = computed(() => {
+  const rf = rowsFiltradas.value
+  const tv = rf.reduce((s, r) => s + parseFloat(r.total_ventas   || 0), 0)
+  const tc = rf.reduce((s, r) => s + parseFloat(r.total_costo_mp || 0), 0)
+  const tq = rf.reduce((s, r) => s + parseFloat(r.total_cant     || 0), 0)
+  const pctReal   = tv > 0 ? (tc / tv) * 100 : 0
+  const conPct    = rf.filter(r => parseFloat(r.pct_costo_mp) > 0)
+  const pctSimple = conPct.length ? conPct.reduce((s, r) => s + parseFloat(r.pct_costo_mp), 0) / conPct.length : 0
+  return { num_recetas: rf.length, total_ventas: tv, total_costo_mp: tc, total_cant: tq, pct_costo_real: pctReal, pct_simple: pctSimple }
 })
 
 // ── Helpers visuales ──────────────────────────────────────────────────────────
@@ -342,12 +343,6 @@ function pctClass(r) {
   return ''
 }
 
-function rankClass(i) {
-  if (i === 0) return 'rank-1'
-  if (i === 1) return 'rank-2'
-  if (i === 2) return 'rank-3'
-  return ''
-}
 
 function fmtD(v) {
   return '$' + (parseFloat(v) || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -445,7 +440,6 @@ onMounted(fetchCcostos)
 .vv-table tfoot td { border-top: 2px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.04); }
 
 /* columnas */
-.col-rank { width: 45px; text-align: center; }
 .col-nom  { min-width: 160px; }
 .col-grp  { width: 120px; }
 .col-num  { width: 110px; white-space: nowrap; }
@@ -463,12 +457,6 @@ onMounted(fetchCcostos)
 
 .rec-nombre { font-weight: 500; font-size: 13px; }
 .rec-cod    { font-size: 11px; margin-top: 1px; }
-
-/* rank badges */
-.rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; font-weight: 700; background: rgba(var(--v-theme-on-surface),.08); color: rgba(var(--v-theme-on-surface),.5); }
-.rank-1 { background: linear-gradient(135deg,#f59e0b,#d97706); color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,.4); }
-.rank-2 { background: linear-gradient(135deg,#94a3b8,#64748b); color: #fff; }
-.rank-3 { background: linear-gradient(135deg,#cd7c3a,#b06020); color: #fff; }
 
 /* % visual */
 .pct-cell { display: flex; align-items: center; }

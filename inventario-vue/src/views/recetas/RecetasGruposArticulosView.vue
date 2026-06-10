@@ -197,12 +197,20 @@ const errCodigo = ref('')
 const errNombre = ref('')
 const form      = ref({ codigo: '', nombre: '' })
 
+function siguienteCodigo() {
+  const nums = grupos.value
+    .map(g => parseInt(g.codigo, 10))
+    .filter(n => !isNaN(n))
+  const max = nums.length ? Math.max(...nums) : 0
+  return String(max + 1).padStart(3, '0')
+}
+
 function abrirNuevo() {
-  editando.value = false
-  form.value     = { codigo: '', nombre: '' }
+  editando.value  = false
+  form.value      = { codigo: siguienteCodigo(), nombre: '' }
   errCodigo.value = ''
   errNombre.value = ''
-  dlg.value      = true
+  dlg.value       = true
 }
 
 function abrirEditar(g) {
