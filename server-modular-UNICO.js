@@ -8608,6 +8608,58 @@ app.get('/api/articulos/grupos', async (req, res) => {
     }
 });
 
+// POST /api/articulos/grupos - Crear grupo
+app.post('/api/articulos/grupos', async (req, res) => {
+    const { codigo, nombre } = req.body;
+    if (!codigo?.trim() || !nombre?.trim())
+        return res.status(400).json({ success: false, error: 'codigo y nombre son requeridos' });
+    try {
+        const result = await pool.query(
+            `INSERT INTO grupo_articulos (codigo, nombre) VALUES ($1, $2) RETURNING *`,
+            [codigo.trim().toUpperCase(), nombre.trim()]
+        );
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        if (error.code === '23505') return res.status(409).json({ success: false, error: 'El código ya existe' });
+        console.error('Error POST /api/articulos/grupos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/articulos/grupos/:codigo - Actualizar grupo
+app.put('/api/articulos/grupos/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { nombre } = req.body;
+    if (!nombre?.trim()) return res.status(400).json({ success: false, error: 'nombre es requerido' });
+    try {
+        const result = await pool.query(
+            `UPDATE grupo_articulos SET nombre = $1 WHERE codigo = $2 RETURNING *`,
+            [nombre.trim(), codigo]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'Grupo no encontrado' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/articulos/grupos/:codigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/articulos/grupos/:codigo - Eliminar grupo
+app.delete('/api/articulos/grupos/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const check = await pool.query(`SELECT COUNT(*) AS cnt FROM articulos WHERE grupo = $1`, [codigo]);
+        if (parseInt(check.rows[0].cnt) > 0)
+            return res.status(409).json({ success: false, error: `No se puede eliminar: tiene ${check.rows[0].cnt} artículo(s) asociados` });
+        const result = await pool.query(`DELETE FROM grupo_articulos WHERE codigo = $1 RETURNING *`, [codigo]);
+        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'Grupo no encontrado' });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/articulos/grupos/:codigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/articulos - Listar todos los artículos con nombre del grupo y conteo de recetas
 app.get('/api/articulos', async (req, res) => {
     try {
@@ -8844,6 +8896,61 @@ app.delete('/api/recetas/:codigo/productos/:articulo', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Error DELETE /api/recetas/:codigo/productos/:articulo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/recetas/valoracion-ventas - Costo real de materia prima ponderado por ventas del período
+app.get('/api/recetas/valoracion-ventas', async (req, res) => {
+    const { empresa, fechaInicio, fechaFin, ccostos } = req.query;
+    if (!empresa || !fechaInicio || !fechaFin)
+        return res.status(400).json({ success: false, error: 'empresa, fechaInicio y fechaFin son requeridos' });
+    try {
+        const params = [parseInt(empresa), fechaInicio, fechaFin];
+        let ccostoClause = '';
+        if (ccostos) {
+            const lista = ccostos.split(',').map(s => s.trim()).filter(Boolean);
+            if (lista.length > 0) {
+                const placeholders = lista.map((_, i) => `$${params.length + i + 1}`).join(', ');
+                params.push(...lista);
+                ccostoClause = `AND dv.ccosto IN (${placeholders})`;
+            }
+        }
+        const sql = `
+            SELECT
+                COALESCE(dv.codigo, '') AS codigo,
+                dv.nombre,
+                COALESCE(r.grupo_receta, '') AS grupo_receta,
+                COALESCE(gr.nombre, r.grupo_receta, 'Sin grupo') AS grupo_nombre,
+                COALESCE(r.subproducto, 'NO') AS subproducto,
+                ROUND(SUM(dv.cant)::numeric, 4) AS total_cant,
+                ROUND((CASE WHEN SUM(dv.cant) > 0 THEN SUM(dv.subtotal) / SUM(dv.cant) ELSE 0 END)::numeric, 2) AS vr_unit_prom,
+                ROUND(SUM(dv.subtotal)::numeric, 2) AS total_ventas,
+                ROUND(COALESCE(r.valor, 0)::numeric, 4) AS costo_mp_unit,
+                ROUND((SUM(dv.cant) * COALESCE(r.valor, 0))::numeric, 2) AS total_costo_mp,
+                ROUND((CASE WHEN SUM(dv.subtotal) > 0
+                     THEN (SUM(dv.cant) * COALESCE(r.valor, 0)) / SUM(dv.subtotal) * 100
+                     ELSE 0 END)::numeric, 2) AS pct_costo_mp
+            FROM detalle_ventas dv
+            LEFT JOIN recetas r ON TRIM(r.codigo) = TRIM(dv.codigo)
+            LEFT JOIN grupo_recetas gr ON gr.codigo = r.grupo_receta
+            WHERE dv.empresa = $1
+              AND dv.fecha BETWEEN $2 AND $3
+              ${ccostoClause}
+              AND COALESCE(dv.codigo, '') <> ''
+            GROUP BY dv.codigo, dv.nombre, r.grupo_receta, gr.nombre, r.subproducto, r.valor
+            ORDER BY total_ventas DESC
+        `;
+        const result = await pool.query(sql, params);
+        const rows = result.rows;
+        const total_ventas   = rows.reduce((s, r) => s + parseFloat(r.total_ventas   || 0), 0);
+        const total_costo_mp = rows.reduce((s, r) => s + parseFloat(r.total_costo_mp || 0), 0);
+        const total_cant     = rows.reduce((s, r) => s + parseFloat(r.total_cant     || 0), 0);
+        const pct_costo_real = total_ventas > 0 ? (total_costo_mp / total_ventas) * 100 : 0;
+        res.json({ success: true, data: rows,
+            totals: { total_ventas, total_costo_mp, total_cant, pct_costo_real, num_recetas: result.rowCount } });
+    } catch (error) {
+        console.error('Error GET /api/recetas/valoracion-ventas:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

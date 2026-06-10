@@ -132,13 +132,15 @@ export const MODULES = [
         { name: 'Artículos e Insumos',  icon: 'mdi-food-apple-outline',        path: '/recetas/configuracion/articulos' },
         { name: 'Precios de Venta',     icon: 'mdi-tag-edit-outline',          path: '/recetas/configuracion/precios' },
           { name: 'Precios Compra/Venta', icon: 'mdi-tag-multiple-outline',      path: '/recetas/configuracion/precios-cv' },
+          { name: 'Grupos de Artículos',  icon: 'mdi-tag-multiple-outline',      path: '/recetas/configuracion/grupos-articulos' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Costos', icon: 'mdi-calculator-variant-outline', path: '/recetas/procesos/costos' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
-        { name: 'Resumen de Costos',  icon: 'mdi-file-chart-outline',    path: '/recetas/reportes/costos' },
-        { name: 'Fichas Técnicas',    icon: 'mdi-file-document-outline', path: '/recetas/reportes/fichas' },
+        { name: 'Resumen de Costos',        icon: 'mdi-file-chart-outline',    path: '/recetas/reportes/costos' },
+        { name: 'Fichas Técnicas',          icon: 'mdi-file-document-outline', path: '/recetas/reportes/fichas' },
+        { name: 'Valoración por Ventas',    icon: 'mdi-chart-bar',             path: '/recetas/reportes/valoracion-ventas' },
       ]},
     ],
   },

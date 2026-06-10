@@ -17,7 +17,7 @@
           <div class="ra-icon-wrap"><v-icon size="22" color="white">mdi-food-apple-outline</v-icon></div>
           <div>
             <h1 class="ra-title">ARTÍCULOS E INSUMOS</h1>
-            <p class="ra-sub">Gestiona los ingredientes y sus precios de compra</p>
+            <p class="ra-sub">Gestiona los ingredientes · Edita el precio y navega con <kbd>Enter</kbd> o <kbd>↓↑</kbd></p>
           </div>
         </div>
         <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevo">
@@ -102,12 +102,28 @@
                   <span v-else class="text-caption text-medium-emphasis">—</span>
                 </td>
                 <td style="text-align:right">
-                  <div class="d-flex align-center justify-end gap-1">
-                    <span class="font-mono">{{ fmt(item.valor) }}</span>
-                    <v-btn icon size="x-small" variant="text" color="#f59e0b"
-                      @click.stop="editarPrecio(item)">
-                      <v-icon size="13">mdi-pencil-outline</v-icon>
-                    </v-btn>
+                  <div class="precio-inline-wrap">
+                    <span class="precio-prefix">$</span>
+                    <input
+                      :ref="el => { if (el) { const i = idxOf(item.codigo); if (i >= 0) inputRefs[i] = el } }"
+                      type="text" inputmode="decimal"
+                      class="precio-inline"
+                      :class="{
+                        'precio-inline--modified': pendientes.has(item.codigo),
+                        'precio-inline--saved':    guardadosOk.has(item.codigo),
+                      }"
+                      :value="editValores[item.codigo]"
+                      @input="onInputPrecio(item, $event)"
+                      @keydown.enter.prevent="onEnterPrecio(item, idxOf(item.codigo))"
+                      @keydown.down.prevent="onEnterPrecio(item, idxOf(item.codigo))"
+                      @keydown.up.prevent="onUpPrecio(item, idxOf(item.codigo))"
+                      @keydown.escape.prevent="onEscapePrecio(item)"
+                      @focus="filaActiva = idxOf(item.codigo)"
+                      @blur="filaActiva = -1"
+                    />
+                    <v-icon v-if="guardadosOk.has(item.codigo)" size="13" color="success" class="ml-1">
+                      mdi-check-circle
+                    </v-icon>
                   </div>
                 </td>
                 <td>
@@ -146,12 +162,28 @@
           class="ra-table"
         >
           <template #item.valor="{ item }">
-            <div class="d-flex align-center justify-end gap-1">
-              <span class="font-mono">{{ fmt(item.valor) }}</span>
-              <v-btn icon size="x-small" variant="text" color="#f59e0b"
-                @click="editarPrecio(item)">
-                <v-icon size="14">mdi-pencil-outline</v-icon>
-              </v-btn>
+            <div class="precio-inline-wrap justify-end">
+              <span class="precio-prefix">$</span>
+              <input
+                :ref="el => { if (el) { const i = idxOf(item.codigo); if (i >= 0) inputRefs[i] = el } }"
+                type="text" inputmode="decimal"
+                class="precio-inline"
+                :class="{
+                  'precio-inline--modified': pendientes.has(item.codigo),
+                  'precio-inline--saved':    guardadosOk.has(item.codigo),
+                }"
+                :value="editValores[item.codigo]"
+                @input="onInputPrecio(item, $event)"
+                @keydown.enter.prevent="onEnterPrecio(item, idxOf(item.codigo))"
+                @keydown.down.prevent="onEnterPrecio(item, idxOf(item.codigo))"
+                @keydown.up.prevent="onUpPrecio(item, idxOf(item.codigo))"
+                @keydown.escape.prevent="onEscapePrecio(item)"
+                @focus="filaActiva = idxOf(item.codigo)"
+                @blur="filaActiva = -1"
+              />
+              <v-icon v-if="guardadosOk.has(item.codigo)" size="13" color="success" class="ml-1">
+                mdi-check-circle
+              </v-icon>
             </div>
           </template>
 
@@ -402,7 +434,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, reactive, nextTick, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 
@@ -521,6 +553,61 @@ const snack = ref({ show: false, msg: '', color: 'success' })
 function ok(msg)  { snack.value = { show: true, msg, color: 'success' } }
 function err(msg) { snack.value = { show: true, msg, color: 'error' } }
 
+// ── Inline edit precio compra ──────────────────────────────────────────────────
+const editValores  = reactive({})
+const pendientes   = ref(new Set())
+const guardadosOk  = ref(new Set())
+const inputRefs    = ref([])
+const filaActiva   = ref(-1)
+
+function idxOf(codigo) {
+  return articulosFiltrados.value.findIndex(x => x.codigo === codigo)
+}
+function toNum(raw) {
+  return parseFloat(String(raw).replace(',', '.')) || 0
+}
+function onInputPrecio(item, e) {
+  const raw = e.target.value
+  editValores[item.codigo] = raw
+  const val = toNum(raw); const orig = toNum(item.valor)
+  if (val !== orig) pendientes.value = new Set([...pendientes.value, item.codigo])
+  else { const s = new Set(pendientes.value); s.delete(item.codigo); pendientes.value = s }
+}
+function onEscapePrecio(item) {
+  editValores[item.codigo] = String(parseFloat(item.valor) || 0)
+  const s = new Set(pendientes.value); s.delete(item.codigo); pendientes.value = s
+}
+async function onEnterPrecio(item, idx) {
+  if (pendientes.value.has(item.codigo)) await guardarPrecioInline(item)
+  const next = idx + 1
+  if (next < articulosFiltrados.value.length) enfocarPrecio(next)
+}
+async function onUpPrecio(item, idx) {
+  if (pendientes.value.has(item.codigo)) await guardarPrecioInline(item)
+  const prev = idx - 1
+  if (prev >= 0) enfocarPrecio(prev)
+}
+function enfocarPrecio(idx) {
+  filaActiva.value = idx
+  nextTick(() => { const el = inputRefs.value[idx]; if (el) { el.focus(); el.select() } })
+}
+async function guardarPrecioInline(item) {
+  const nuevoValor = toNum(editValores[item.codigo])
+  try {
+    const r = await fetch(`${API_BASE}/articulos/${item.codigo}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valor: nuevoValor }),
+    })
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    item.valor = nuevoValor
+    editValores[item.codigo] = String(nuevoValor)
+    const s = new Set(pendientes.value); s.delete(item.codigo); pendientes.value = s
+    guardadosOk.value = new Set([...guardadosOk.value, item.codigo])
+    setTimeout(() => { const g = new Set(guardadosOk.value); g.delete(item.codigo); guardadosOk.value = g }, 2000)
+  } catch (e) { err(`Error: ${e.message}`) }
+}
+
 // ── Carga ─────────────────────────────────────────────────────
 async function cargar() {
   loading.value = true
@@ -531,6 +618,9 @@ async function cargar() {
     ])
     articulos.value = ra.data || []
     grupos.value    = rg.data || []
+    articulos.value.forEach(a => { editValores[a.codigo] = String(parseFloat(a.valor) || 0) })
+    pendientes.value  = new Set()
+    guardadosOk.value = new Set()
   } catch { err('Error al cargar datos') }
   finally { loading.value = false }
 }
@@ -640,6 +730,26 @@ onMounted(cargar)
 .ra-filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .ra-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
 .font-mono { font-family: monospace; font-size: 13px; }
+kbd { background: rgba(var(--v-theme-on-surface),.1); border-radius: 4px; padding: 1px 5px; font-size: 11px; font-family: monospace; }
+
+/* inline precio compra */
+.precio-inline-wrap { display: flex; align-items: center; gap: 3px; }
+.precio-prefix      { font-size: 12px; color: rgba(var(--v-theme-on-surface),.45); font-weight: 600; }
+.precio-inline {
+  width: 110px; height: 28px; padding: 0 7px;
+  background: rgba(var(--v-theme-on-surface),.05);
+  border: 1px solid rgba(var(--v-theme-on-surface),.13);
+  border-radius: 7px; font-size: 13px; font-family: monospace; font-weight: 600;
+  color: rgb(var(--v-theme-on-surface)); outline: none;
+  transition: border .15s, background .15s; text-align: right;
+}
+.precio-inline:focus {
+  border-color: #3b82f6;
+  background: rgba(59,130,246,.07);
+  box-shadow: 0 0 0 2px rgba(59,130,246,.18);
+}
+.precio-inline--modified { border-color: #f59e0b !important; background: rgba(245,158,11,.06) !important; }
+.precio-inline--saved    { border-color: #22c55e !important; background: rgba(34,197,94,.06) !important; }
 .dlg-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; }
 
 /* ── Tabla agrupada ── */

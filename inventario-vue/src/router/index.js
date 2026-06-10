@@ -67,8 +67,10 @@ const routes = [
   // RECETAS ESPECÍFICAS
   { path: '/recetas/configuracion/catalogo',  component: () => import('../views/recetas/RecetasCatalogoView.vue'),  meta: { requiresAuth: true } },
   { path: '/recetas/configuracion/articulos', component: () => import('../views/recetas/RecetasArticulosView.vue'), meta: { requiresAuth: true } },
-  { path: '/recetas/configuracion/precios',    component: () => import('../views/recetas/RecetasPreciosView.vue'),              meta: { requiresAuth: true } },
-  { path: '/recetas/configuracion/precios-cv', component: () => import('../views/recetas/RecetasPreciosCompraVentaView.vue'), meta: { requiresAuth: true } },
+  { path: '/recetas/configuracion/precios',           component: () => import('../views/recetas/RecetasPreciosView.vue'),              meta: { requiresAuth: true } },
+  { path: '/recetas/configuracion/precios-cv',        component: () => import('../views/recetas/RecetasPreciosCompraVentaView.vue'),   meta: { requiresAuth: true } },
+  { path: '/recetas/configuracion/grupos-articulos',  component: () => import('../views/recetas/RecetasGruposArticulosView.vue'),      meta: { requiresAuth: true } },
+  { path: '/recetas/reportes/valoracion-ventas',      component: () => import('../views/recetas/RecetasValoracionVentasView.vue'),     meta: { requiresAuth: true } },
   { path: '/recetas/procesos/costos',         component: () => import('../views/recetas/RecetasGestionView.vue'),   meta: { requiresAuth: true } },
   { path: '/recetas/reportes/costos',         component: () => import('../views/recetas/RecetasCostosView.vue'),    meta: { requiresAuth: true } },
   { path: '/recetas/reportes/fichas',         component: () => import('../views/recetas/RecetasFichasView.vue'),    meta: { requiresAuth: true } },
