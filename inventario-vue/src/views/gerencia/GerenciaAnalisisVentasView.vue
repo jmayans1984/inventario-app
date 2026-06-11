@@ -286,11 +286,11 @@ async function cargar() {
       ccostosDisponibles.value = j.ccostosDisponibles || []
 
     data.value = j
-    await nextTick()
+    loading.value = false   // primero mostrar el template con los divs
+    await nextTick()        // esperar a que Vue monte los chart-area refs
     renderCharts()
   } catch (e) {
     console.error('analisis-ventas:', e)
-  } finally {
     loading.value = false
   }
 }
