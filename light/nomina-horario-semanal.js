@@ -548,10 +548,11 @@ async function guardarTurno() {
 
     try {
         if (!turnoEdit.id) {
-            const r = await fetch(`${API_BASE}/nomina/semanas/${turnoEdit.semana_id}/detalle`, {
+            const r = await fetch(`${API_BASE}/nomina/semanas/detalle`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    semana_id:     turnoEdit.semana_id,
                     empleado_id:   turnoEdit.empleado_id,
                     fecha:         turnoEdit.fecha,
                     real_inicio:   turnoEdit.real_inicio || null,
@@ -563,22 +564,28 @@ async function guardarTurno() {
                     notas:         turnoEdit.notas || ''
                 }),
             });
-            const j = await r.json();
             if (!r.ok) {
-                const errMsg = j.error || j.message || 'Error al guardar el turno';
+                let errMsg = 'Error al guardar el turno';
+                try {
+                    const j = await r.json();
+                    errMsg = j.error || j.message || errMsg;
+                } catch (e) { /* no JSON response */ }
                 const ccNombre = ccostos.find(c => c.codigo === turnoEdit.ccosto)?.nombre || turnoEdit.ccosto;
                 const msgConCC = errMsg.replace(/centro\s+"[^"]*"/i, `centro "${ccNombre}"`);
                 throw new Error(msgConCC);
             }
         } else {
-            const r = await fetch(`${API_BASE}/nomina/semanas/${turnoEdit.semana_id}/detalle/${turnoEdit.id}`, {
+            const r = await fetch(`${API_BASE}/nomina/semanas/detalle/${turnoEdit.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(turnoEdit),
             });
-            const j = await r.json();
             if (!r.ok) {
-                const errMsg = j.error || j.message || 'Error al actualizar el turno';
+                let errMsg = 'Error al actualizar el turno';
+                try {
+                    const j = await r.json();
+                    errMsg = j.error || j.message || errMsg;
+                } catch (e) { /* no JSON response */ }
                 const ccNombre = ccostos.find(c => c.codigo === turnoEdit.ccosto)?.nombre || turnoEdit.ccosto;
                 const msgConCC = errMsg.replace(/centro\s+"[^"]*"/i, `centro "${ccNombre}"`);
                 throw new Error(msgConCC);
