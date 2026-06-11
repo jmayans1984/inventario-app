@@ -249,13 +249,14 @@ async function guardarMovimiento() {
     }
 
     const payload = {
+        empresa: localStorage.getItem('empresaActual'),
         fecha,
-        tipo_op: tipoOp,
-        cc_origen: ccOrigen,
-        cc_destino: null,
+        tipo: tipoOp,
+        ccOrigen: ccOrigen,
+        ccDestino: null,
         observaciones,
-        lineas: Object.entries(cantidades).map(([codigo, cantidad]) => ({
-            producto_codigo: codigo,
+        productos: Object.entries(cantidades).map(([codigo, cantidad]) => ({
+            producto_venta: codigo,
             cantidad,
         })),
     };
