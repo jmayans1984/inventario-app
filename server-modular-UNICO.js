@@ -8603,7 +8603,7 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
     const params = ccostoList.length ? [emp, ...ccostoList] : [emp];
 
     try {
-        const [mesesRes, diaRes, topProdRes, distCcostoRes, ccostosDisponiblesRes] = await Promise.all([
+        const [mesesRes, diaRes, topProdRes, distCcostoRes, ccostosDisponiblesRes, catRes] = await Promise.all([
 
             // 1. Histórico mensual últimos 12 meses
             pool.query(`
@@ -8613,6 +8613,13 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
                     COALESCE(SUM(ventas_brutas), 0)  AS ventas_brutas,
                     COALESCE(SUM(ventas_netas), 0)   AS ventas_netas,
                     COALESCE(SUM(devoluciones), 0)   AS devoluciones,
+                    COALESCE(SUM(descuentos), 0)     AS descuentos,
+                    COALESCE(SUM(impuestos), 0)      AS impuestos,
+                    COALESCE(SUM(propinas), 0)       AS propinas,
+                    COALESCE(SUM(comisiones), 0)     AS comisiones,
+                    COALESCE(SUM(tarjetas), 0)       AS tarjetas,
+                    COALESCE(SUM(efectivo), 0)       AS efectivo,
+                    COALESCE(SUM(otros), 0)          AS otros,
                     COUNT(DISTINCT fecha)             AS dias_con_venta
                 FROM ventas v
                 WHERE v.empresa = $1
@@ -8656,20 +8663,38 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
             pool.query(`
                 SELECT
                     v.ccosto,
+                    COALESCE(cc.nombre, v.ccosto) AS ccosto_nombre,
                     COALESCE(SUM(v.ventas_brutas), 0)  AS total_ventas,
-                    COUNT(DISTINCT v.fecha)              AS dias
+                    COUNT(DISTINCT v.fecha)             AS dias
                 FROM ventas v
+                LEFT JOIN ccostos cc ON cc.codigo = v.ccosto AND cc.empresa = $1
                 WHERE v.empresa = $1
                   AND fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')
-                GROUP BY v.ccosto
+                GROUP BY v.ccosto, COALESCE(cc.nombre, v.ccosto)
                 ORDER BY total_ventas DESC`, [emp]),
 
-            // 5. Lista de ccostos disponibles (con nombre)
+            // 5. Lista de ccostos disponibles (solo los registrados en ccostos)
             pool.query(`
-                SELECT v.ccosto AS codigo, COALESCE(cc.nombre, v.ccosto) AS nombre
-                FROM (SELECT DISTINCT ccosto FROM ventas WHERE empresa = $1) v
-                LEFT JOIN ccostos cc ON cc.codigo = v.ccosto AND cc.empresa = $1
-                ORDER BY v.ccosto`, [emp]),
+                SELECT cc.codigo, cc.nombre
+                FROM ccostos cc
+                WHERE cc.empresa = $1
+                  AND cc.codigo IN (SELECT DISTINCT ccosto FROM ventas WHERE empresa = $1)
+                ORDER BY cc.nombre`, [emp]),
+
+            // 6. Distribución por categoría de receta (últimos 12 meses)
+            pool.query(`
+                SELECT
+                    COALESCE(gr.nombre, 'Sin categoría') AS categoria,
+                    COALESCE(SUM(d.subtotal), 0) AS total_ventas,
+                    COALESCE(SUM(d.cant), 0)     AS total_cant
+                FROM detalle_ventas d
+                LEFT JOIN recetas r ON r.codigo = d.codigo
+                LEFT JOIN grupo_recetas gr ON gr.codigo = r.grupo_receta
+                WHERE d.empresa = $1
+                  AND d.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')
+                  ${ccostoFilterDet}
+                GROUP BY COALESCE(gr.nombre, 'Sin categoría')
+                ORDER BY total_ventas DESC`, params),
         ]);
 
         // Calcular promedio mensual para la línea
@@ -8694,9 +8719,10 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
             ventasPorMes:      meses,
             promedioMensual,
             ventasPorDiaSemana: diaRes.rows,
-            topProductos:       topProdRes.rows,
-            distribucionCcosto: distCcostoRes.rows,
-            ccostosDisponibles: ccostosDisponiblesRes.rows,
+            topProductos:        topProdRes.rows,
+            distribucionCcosto:  distCcostoRes.rows,
+            ccostosDisponibles:  ccostosDisponiblesRes.rows,
+            ventasPorCategoria:  catRes.rows,
         });
     } catch (error) {
         console.error('Error en /api/gerencia/analisis-ventas:', error);

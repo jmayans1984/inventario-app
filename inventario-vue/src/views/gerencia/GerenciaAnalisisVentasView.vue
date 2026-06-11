@@ -117,18 +117,21 @@
         <div class="av-card av-card-full">
           <div class="av-card-header">
             <v-icon size="18" color="#06b6d4">mdi-chart-bar</v-icon>
-            <span class="av-card-title">Histórico de Ventas — Últimos 12 Meses</span>
-            <span class="av-card-badge">Línea punteada = Promedio {{ fmt(data.promedioMensual) }}</span>
+            <span class="av-card-title">Histórico — Últimos 12 Meses</span>
+            <select v-model="selMetrica" class="metrica-sel" @change="onMetricaChange">
+              <option v-for="mt in METRICAS" :key="mt.value" :value="mt.value">{{ mt.label }}</option>
+            </select>
+            <span class="av-card-badge">Promedio: {{ fmt(promedioMetrica) }}</span>
           </div>
           <div ref="chartMesesRef" class="chart-area"></div>
         </div>
 
-        <!-- FILA 2: Día de semana + Donut -->
-        <div class="av-row2">
+        <!-- FILA 2: Día de semana + Donut local + Donut categorías -->
+        <div class="av-row3">
           <div class="av-card">
             <div class="av-card-header">
               <v-icon size="18" color="#f59e0b">mdi-calendar-week</v-icon>
-              <span class="av-card-title">Promedio de Ventas por Día de Semana</span>
+              <span class="av-card-title">Promedio por Día de Semana</span>
               <span class="av-card-badge" style="background:rgba(245,158,11,.12);color:#f59e0b">Últimos 45 días</span>
             </div>
             <div ref="chartDiaRef" class="chart-area chart-area--sm"></div>
@@ -136,10 +139,18 @@
           <div class="av-card">
             <div class="av-card-header">
               <v-icon size="18" color="#8b5cf6">mdi-store-outline</v-icon>
-              <span class="av-card-title">Distribución por Local / CCosto</span>
+              <span class="av-card-title">Distribución por Local</span>
               <span class="av-card-badge" style="background:rgba(139,92,246,.12);color:#8b5cf6">12 meses</span>
             </div>
             <div ref="chartDonutRef" class="chart-area chart-area--sm"></div>
+          </div>
+          <div class="av-card">
+            <div class="av-card-header">
+              <v-icon size="18" color="#22c55e">mdi-tag-multiple-outline</v-icon>
+              <span class="av-card-title">Distribución por Categoría</span>
+              <span class="av-card-badge" style="background:rgba(34,197,94,.12);color:#22c55e">12 meses</span>
+            </div>
+            <div ref="chartCatRef" class="chart-area chart-area--sm"></div>
           </div>
         </div>
 
@@ -168,11 +179,11 @@
                   <th class="tr">VENTAS NETAS</th>
                   <th class="tr">DÍAS</th>
                   <th class="tr">PROM DIARIO</th>
-                  <th class="tr">VS PROMEDIO</th>
+                  <th class="tr">VS MES ANT.</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="m in data.ventasPorMes" :key="m.mes" class="av-tr">
+                <tr v-for="(m, vIndex) in data.ventasPorMes" :key="m.mes" class="av-tr">
                   <td class="font-weight-medium">{{ m.mes_label }}</td>
                   <td class="tr">{{ fmt(m.ventas_brutas) }}</td>
                   <td class="tr text-dim">{{ fmt(m.devoluciones) }}</td>
@@ -182,9 +193,12 @@
                     {{ m.dias_con_venta > 0 ? fmt(parseFloat(m.ventas_brutas) / m.dias_con_venta) : '—' }}
                   </td>
                   <td class="tr">
-                    <span :class="parseFloat(m.ventas_brutas) >= data.promedioMensual ? 'badge-pos' : 'badge-neg'">
-                      {{ parseFloat(m.ventas_brutas) >= data.promedioMensual ? '+' : '' }}{{ diffPct(m.ventas_brutas, data.promedioMensual) }}%
-                    </span>
+                    <template v-if="data.ventasPorMes[vIndex - 1]">
+                      <span :class="parseFloat(m.ventas_netas) >= parseFloat(data.ventasPorMes[vIndex-1].ventas_netas) ? 'badge-pos' : 'badge-neg'">
+                        {{ parseFloat(m.ventas_netas) >= parseFloat(data.ventasPorMes[vIndex-1].ventas_netas) ? '+' : '' }}{{ diffPct(m.ventas_netas, parseFloat(data.ventasPorMes[vIndex-1].ventas_netas)) }}%
+                      </span>
+                    </template>
+                    <template v-else><span class="text-dim">—</span></template>
                   </td>
                 </tr>
               </tbody>
@@ -222,17 +236,33 @@ const ccostosDisponibles = ref([])
 const selCcostos         = ref([])
 const menuCcosto         = ref(false)
 const filterRef          = ref(null)
+const selMetrica         = ref('ventas_netas')
+
+const METRICAS = [
+  { value: 'ventas_netas',  label: 'Ventas Netas' },
+  { value: 'ventas_brutas', label: 'Ventas Brutas' },
+  { value: 'devoluciones',  label: 'Devoluciones' },
+  { value: 'descuentos',    label: 'Descuentos' },
+  { value: 'impuestos',     label: 'Impuestos' },
+  { value: 'propinas',      label: 'Propinas' },
+  { value: 'comisiones',    label: 'Comisiones' },
+  { value: 'tarjetas',      label: 'Tarjetas' },
+  { value: 'efectivo',      label: 'Efectivo' },
+  { value: 'otros',         label: 'Otros' },
+]
 
 // ── Refs contenedores de gráficas ───────────────────────────────────────────
 const chartMesesRef = ref(null)
 const chartDiaRef   = ref(null)
 const chartDonutRef = ref(null)
 const chartTopRef   = ref(null)
+const chartCatRef   = ref(null)
 
 let chartMeses = null
 let chartDia   = null
 let chartDonut = null
 let chartTop   = null
+let chartCat   = null
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 function fmt(v) {
@@ -245,6 +275,13 @@ function diffPct(val, base) {
   if (!base) return '0.0'
   return (((parseFloat(val) - base) / base) * 100).toFixed(1)
 }
+
+// ── Promedio dinámico según métrica seleccionada ─────────────────────────────
+const promedioMetrica = computed(() => {
+  if (!data.value?.ventasPorMes?.length) return 0
+  const vals = data.value.ventasPorMes.map(m => parseFloat(m[selMetrica.value]) || 0)
+  return vals.reduce((s, v) => s + v, 0) / vals.length
+})
 
 // ── CCostos ─────────────────────────────────────────────────────────────────
 const labelCcostos = computed(() => {
@@ -306,11 +343,18 @@ function themeColors() {
     : { fg: '#64748b', grid: 'rgba(0,0,0,0.06)' }
 }
 
+function onMetricaChange() {
+  if (!data.value) return
+  chartMeses?.destroy(); chartMeses = null
+  nextTick(() => renderMeses())
+}
+
 function destroyAll() {
   chartMeses?.destroy(); chartMeses = null
   chartDia?.destroy();   chartDia   = null
   chartDonut?.destroy(); chartDonut = null
   chartTop?.destroy();   chartTop   = null
+  chartCat?.destroy();   chartCat   = null
 }
 
 function renderCharts() {
@@ -319,24 +363,26 @@ function renderCharts() {
   renderDia()
   renderDonut()
   renderTop()
+  renderCategorias()
 }
 
-// 1 — Histórico mensual (barras brutas + netas + línea promedio)
+// 1 — Histórico mensual (métrica seleccionable + línea promedio)
 function renderMeses() {
   if (!chartMesesRef.value || !data.value) return
   const { fg, grid } = themeColors()
   const meses  = data.value.ventasPorMes
   const labels = meses.map(m => m.mes_label)
-  const brutas = meses.map(m => parseFloat(m.ventas_brutas))
-  const netas  = meses.map(m => parseFloat(m.ventas_netas))
-  const prom   = parseFloat(data.value.promedioMensual)
+  const campo  = selMetrica.value
+  const vals   = meses.map(m => parseFloat(m[campo]) || 0)
+  const prom   = promedioMetrica.value
+  const label  = METRICAS.find(m => m.value === campo)?.label || campo
 
   chartMeses = new ApexCharts(chartMesesRef.value, {
     chart: { type: 'bar', height: 330, toolbar: { show: false }, fontFamily: 'Inter,sans-serif', background: 'transparent', animations: { enabled: true, speed: 500 } },
     theme: { mode: isDark() ? 'dark' : 'light' },
     series: [
-      { name: 'Ventas Netas',  type: 'bar',  data: netas  },
-      { name: 'Promedio',      type: 'line', data: Array(labels.length).fill(prom) },
+      { name: label,     type: 'bar',  data: vals },
+      { name: 'Promedio', type: 'line', data: Array(labels.length).fill(prom) },
     ],
     colors: ['#06b6d4', '#f59e0b'],
     stroke: { width: [0, 3], curve: 'straight', dashArray: [0, 8] },
@@ -397,7 +443,7 @@ function renderDonut() {
   const dist   = data.value.distribucionCcosto
   if (!dist.length) return
 
-  const labels = dist.map(r => String(r.ccosto))
+  const labels = dist.map(r => String(r.ccosto_nombre || r.ccosto))
   const vals   = dist.map(r => Math.round(parseFloat(r.total_ventas)))
 
   chartDonut = new ApexCharts(chartDonutRef.value, {
@@ -427,11 +473,11 @@ function renderDonut() {
   chartDonut.render()
 }
 
-// 4 — Top 10 productos (barras horizontales)
+// 4 — Top 10 productos (barras horizontales, mayor a menor de arriba abajo)
 function renderTop() {
   if (!chartTopRef.value || !data.value) return
   const { fg, grid } = themeColors()
-  const top    = [...data.value.topProductos].reverse()
+  const top    = data.value.topProductos   // ya viene DESC del servidor
   const labels = top.map(r => (String(r.nombre || r.codigo || '')).substring(0, 30))
   const vals   = top.map(r => Math.round(parseFloat(r.total_ventas)))
 
@@ -442,7 +488,7 @@ function renderTop() {
     colors: ['#22c55e'],
     plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '55%' } },
     xaxis: { categories: labels, labels: { style: { colors: fg, fontSize: '11px' }, formatter: v => fmt(v) } },
-    yaxis: { labels: { style: { colors: fg, fontSize: '11px', fontWeight: 500 } } },
+    yaxis: { reversed: true, labels: { style: { colors: fg, fontSize: '11px', fontWeight: 500 } } },
     grid:  { borderColor: grid, strokeDashArray: 4 },
     legend: { show: false },
     tooltip: {
@@ -465,6 +511,43 @@ function renderTop() {
     },
   })
   chartTop.render()
+}
+
+// 5 — Donut distribución por categoría de receta
+function renderCategorias() {
+  if (!chartCatRef.value || !data.value) return
+  const { fg } = themeColors()
+  const cats = data.value.ventasPorCategoria || []
+  if (!cats.length) return
+
+  const labels = cats.map(r => String(r.categoria))
+  const vals   = cats.map(r => Math.round(parseFloat(r.total_ventas)))
+
+  chartCat = new ApexCharts(chartCatRef.value, {
+    chart: { type: 'donut', height: 310, fontFamily: 'Inter,sans-serif', background: 'transparent', animations: { enabled: true, speed: 500 } },
+    theme: { mode: isDark() ? 'dark' : 'light' },
+    series: vals,
+    labels,
+    colors: ['#06b6d4','#f59e0b','#8b5cf6','#22c55e','#ef4444','#f97316','#0ea5e9','#a855f7','#10b981','#ec4899'],
+    legend: { position: 'bottom', labels: { colors: fg }, fontSize: '12px', offsetY: 4 },
+    tooltip: { y: { formatter: v => fmt(v) } },
+    dataLabels: { enabled: true, style: { fontSize: '11px', fontFamily: 'Inter,sans-serif' }, dropShadow: { enabled: false } },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: '60%',
+          labels: {
+            show: true,
+            total: {
+              show: true, label: 'TOTAL', color: fg,
+              formatter: w => fmt(w.globals.seriesTotals.reduce((a, b) => a + b, 0)),
+            },
+          },
+        },
+      },
+    },
+  })
+  chartCat.render()
 }
 
 // ── Ciclo de vida ────────────────────────────────────────────────────────────
@@ -562,9 +645,25 @@ onBeforeUnmount(() => {
   padding: 2px 9px; border-radius: 20px; white-space: nowrap;
 }
 
-/* Row 2 */
-.av-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 900px) { .av-row2 { grid-template-columns: 1fr; } }
+/* Row 3 charts */
+.av-row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 1100px) { .av-row3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px)  { .av-row3 { grid-template-columns: 1fr; } }
+
+/* Selector de métrica en el header del gráfico histórico */
+.metrica-sel {
+  border: 1px solid rgba(6,182,212,.35);
+  background: rgba(6,182,212,.08);
+  color: #06b6d4;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  margin-left: 4px;
+}
+.metrica-sel option { background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
 
 /* Áreas de gráficas */
 .chart-area      { width: 100%; min-height: 330px; }
