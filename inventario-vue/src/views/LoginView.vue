@@ -1,5 +1,5 @@
 <template>
-  <div class="login-page">
+  <div :class="['login-page', { 'dark-mode': isDarkMode }]">
 
     <!-- Panel izquierdo - Branding -->
     <div class="login-brand">
@@ -516,16 +516,45 @@ const toggleTema = () => {
 .theme-text { font-size: 12px; color: #94a3b8; }
 .theme-text:hover { color: #667eea; }
 
-/* ─── RESPONSIVE ─── */
+/* ─── DARK MODE (desktop toggle) ─── */
+.login-page.dark-mode .login-form-panel { background: #1e293b; }
+.login-page.dark-mode .form-title       { color: #f1f5f9; }
+.login-page.dark-mode .form-subtitle    { color: #94a3b8; }
+.login-page.dark-mode .field-label      { color: #94a3b8; }
+.login-page.dark-mode .field-input-wrap { background: #0f172a; border-color: rgba(255,255,255,0.1); }
+.login-page.dark-mode .field-input      { color: #f1f5f9; }
+.login-page.dark-mode .field-input::placeholder { color: #475569; }
+.login-page.dark-mode .remember-label   { color: #94a3b8; }
+.login-page.dark-mode .error-box        { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); }
+.login-page.dark-mode .empresa-selector { border-top-color: rgba(255,255,255,0.1); }
+.login-page.dark-mode .empresa-title    { color: rgba(255,255,255,0.4); }
+.login-page.dark-mode .empresa-option   { border-color: rgba(255,255,255,0.1); }
+.login-page.dark-mode .empresa-option:hover { background: rgba(102,126,234,0.12); border-color: #667eea; }
+.login-page.dark-mode .empresa-icon     { background: rgba(102,126,234,0.2); }
+.login-page.dark-mode .empresa-name     { color: #f1f5f9; }
+.login-page.dark-mode .empresa-nit      { color: #94a3b8; }
+.login-page.dark-mode .theme-text       { color: #64748b; }
+
+/* ─── RESPONSIVE (móvil: siempre fondo oscuro) ─── */
 @media (max-width: 768px) {
   .login-brand { display: none; }
   .login-form-panel { background: #0f172a; }
-  .form-title { color: white; }
-  .form-subtitle { color: rgba(255,255,255,0.5); }
-  .field-label { color: rgba(255,255,255,0.6); }
+  .form-title       { color: white; }
+  .form-subtitle    { color: rgba(255,255,255,0.5); }
+  .field-label      { color: rgba(255,255,255,0.6); }
   .field-input-wrap { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); }
-  .field-input { color: white; }
+  .field-input      { color: white; }
   .field-input::placeholder { color: rgba(255,255,255,0.3); }
-  .remember-label { color: rgba(255,255,255,0.5); }
+  .remember-label   { color: rgba(255,255,255,0.5); }
+  /* selector de empresas en fondo oscuro */
+  .empresa-selector { border-top-color: rgba(255,255,255,0.1); }
+  .empresa-title    { color: rgba(255,255,255,0.4); }
+  .empresa-option   { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); }
+  .empresa-option:hover { border-color: #667eea; background: rgba(102,126,234,0.15); }
+  .empresa-icon     { background: rgba(102,126,234,0.2); }
+  .empresa-name     { color: white; }
+  .empresa-nit      { color: rgba(255,255,255,0.5); }
+  .theme-text       { color: rgba(255,255,255,0.4); }
+  .error-box        { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
 }
 </style>
