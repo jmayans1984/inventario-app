@@ -2,79 +2,137 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menú Principal - Sistema de Inventario</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Inicio - RestManager Pro</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
+        .home-content {
+            padding: 20px 16px;
+            padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
         }
 
-        .welcome-section {
-            text-align: center;
-            margin-bottom: 3rem;
+        .home-greeting {
+            margin-bottom: 24px;
         }
 
-        .welcome-section h1 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
+        .home-greeting-sub {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            margin-bottom: 2px;
+        }
+
+        .home-greeting-title {
+            font-size: 22px;
+            font-weight: 700;
             color: var(--text-primary);
         }
 
-        .welcome-section p {
-            color: var(--text-secondary);
+        /* App-icon style grid */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px 16px;
+        }
+
+        .module-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        .module-card:active .module-icon {
+            transform: scale(0.88);
+            opacity: 0.85;
+        }
+
+        .module-icon {
+            width: 76px;
+            height: 76px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+            transition: transform 0.15s, opacity 0.15s;
+        }
+
+        .module-icon-contabilidad { background: linear-gradient(135deg, #34C759, #30B855); }
+        .module-icon-tesoreria    { background: linear-gradient(135deg, #FF9500, #FF6B00); }
+        .module-icon-almacen      { background: linear-gradient(135deg, #007AFF, #0056CC); }
+        .module-icon-nomina       { background: linear-gradient(135deg, #5856D6, #4B49C8); }
+        .module-icon-inventario   { background: linear-gradient(135deg, #FF2D55, #E0284F); }
+        .module-icon-facturacion  { background: linear-gradient(135deg, #5AC8FA, #32A5E6); }
+
+        .module-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* Empresa info pill */
+        .empresa-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-light);
+            color: var(--accent);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-    <!-- HEADER UNIVERSAL -->
-    <header class="header">
-        <div class="header-info">
-            <div class="user-info">
-                <span class="user-name" id="userName">👤 Usuario</span>
-                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
-            </div>
-            <div class="theme-switch-container">
-                <span class="theme-label">🌙</span>
-                <label class="theme-switch">
-                    <input type="checkbox" onchange="cambiarTema()">
-                    <span class="theme-slider"></span>
-                </label>
-                <span class="theme-label">☀️</span>
-            </div>
-        </div>
-        <div class="header-actions">
-            <button class="btn-header" onclick="cerrarSesion()">
-                🚪 Cerrar Sesión
-            </button>
-        </div>
-    </header>
+    <header class="header"></header>
 
-    <div class="container">
-        <div class="welcome-section">
-            <h1>Bienvenido al Sistema</h1>
-            <p>Selecciona un módulo para comenzar</p>
+    <div class="home-content">
+        <div class="empresa-pill">
+            🏢 <span id="empresaNombre">—</span>
         </div>
 
-        <div class="menu-grid">
-            <div class="menu-item" onclick="window.location.href='contabilidad.html'">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                <h3>Contabilidad</h3>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Gastos y reportes contables</p>
+        <div class="home-greeting">
+            <div class="home-greeting-sub">Bienvenido</div>
+            <div class="home-greeting-title" id="greetingName">Usuario</div>
+        </div>
+
+        <div class="modules-grid" id="modulesGrid">
+            <div class="module-card" onclick="window.location.href='contabilidad.html'">
+                <div class="module-icon module-icon-contabilidad">📊</div>
+                <span class="module-label">Contabilidad</span>
             </div>
 
-            <div class="menu-item" onclick="window.location.href='tesoreria.html'">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
-                <h3>Tesorería</h3>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Bancos, movimientos y facturas</p>
+            <div class="module-card" onclick="window.location.href='tesoreria.html'">
+                <div class="module-icon module-icon-tesoreria">💰</div>
+                <span class="module-label">Tesorería</span>
             </div>
 
-            <div class="menu-item" onclick="window.location.href='almacen.html'">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
-                <h3>Almacén</h3>
-                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">Gestión de inventario y movimientos</p>
+            <div class="module-card" onclick="window.location.href='almacen.html'">
+                <div class="module-icon module-icon-almacen">📦</div>
+                <span class="module-label">Almacén</span>
+            </div>
+
+            <div class="module-card" onclick="window.location.href='nomina.html'">
+                <div class="module-icon module-icon-nomina">👥</div>
+                <span class="module-label">Nómina</span>
+            </div>
+
+            <div class="module-card" onclick="window.location.href='inventario.html'">
+                <div class="module-icon module-icon-inventario">📋</div>
+                <span class="module-label">Inventario</span>
+            </div>
+
+            <div class="module-card" onclick="window.location.href='facturacion.html'">
+                <div class="module-icon module-icon-facturacion">🧾</div>
+                <span class="module-label">Facturación</span>
             </div>
         </div>
     </div>
@@ -82,13 +140,23 @@
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script>
-        // Redirigir a delivery personnel si NIVEL = 999
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
-                if (window.sesion && window.sesion.nivel === 999) {
+                if (!window.sesion) return;
+
+                // Delivery personnel → redirect
+                if (window.sesion.nivel === 999) {
                     window.location.href = 'entrega-ordenes.html';
+                    return;
                 }
-            }, 500);
+
+                // Fill greeting and empresa pill
+                const name = window.sesion.nombre || window.sesion.usuario || '';
+                document.getElementById('greetingName').textContent =
+                    name.split(' ')[0] || name;
+                document.getElementById('empresaNombre').textContent =
+                    window.sesion.empresaNombre || '';
+            }, 150);
         });
     </script>
 </body>
