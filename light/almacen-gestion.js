@@ -248,16 +248,20 @@ async function guardarMovimiento() {
         return;
     }
 
+    const ccOrigenNombre = centrosCosto.find(c => c.codigo === ccOrigen)?.nombre || ccOrigen;
+
     const payload = {
         empresa: localStorage.getItem('empresaActual'),
         fecha,
         tipo: tipoOp,
         ccOrigen: ccOrigen,
+        ccOrigenNombre: ccOrigenNombre,
         ccDestino: null,
+        ccDestinoNombre: null,
         observaciones,
         productos: Object.entries(cantidades).map(([codigo, cantidad]) => ({
-            producto_venta: codigo,
-            cantidad,
+            codigo,
+            cantidad: parseFloat(cantidad),
         })),
     };
 
