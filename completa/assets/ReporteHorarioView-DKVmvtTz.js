@@ -1,0 +1,49 @@
+import{t as e}from"./api-Ckz6uiv4.js";import{t}from"./VBtn-COlDDrzc.js";import{t as n}from"./MainLayout-C9SpCkGX.js";import{$t as r,An as i,Kn as a,Ln as o,Wt as s,Yn as c,Yt as l,an as u,en as d,gn as ee,i as f,kn as p,nn as m,on as h,rn as g,s as _,tn as v,xn as y,yn as b}from"./index-Cn51A6jX.js";import{t as x}from"./VIcon-y1mz-QMM.js";var S={class:`nom-wrap`},C={class:`nom-header no-print`},w={class:`nom-header-icon`},T={style:{display:`flex`,gap:`8px`,"align-items":`center`}},te=[`value`],ne={key:0,id:`horario-print`},re={class:`rh-encabezado`},ie={class:`rh-ccosto-nombre`},ae={class:`rh-periodo`},E={key:0,class:`rh-table`},D={class:`rh-fecha`},O={class:`rh-emp`},k={class:`rh-emp-nombre`},A={class:`rh-emp-sub`},j={key:0},M={class:`rh-horas`},N={class:`rh-h`},P={key:1,class:`rh-libre`},F={key:2,class:`rh-vacio`},I={key:1,class:`rh-sin-emp`},L={class:`rh-footer`},R={key:1,class:`nom-card no-print`,style:{padding:`32px`,"text-align":`center`,color:`rgba(var(--v-theme-on-surface),0.35)`}},z=f({__name:`ReporteHorarioView`,setup(f){let z=_(),B=r(()=>z.empresa||z.user?.empresa||localStorage.getItem(`empresaActual`)||``),V=[{label:`Lunes`,offset:0},{label:`Martes`,offset:1},{label:`Miércoles`,offset:2},{label:`Jueves`,offset:3},{label:`Viernes`,offset:4},{label:`Sábado`,offset:5},{label:`Domingo`,offset:6}],H=o([]),U=o(``),W=o(null),G=o([]),K=o([]),q=r(()=>{let e=new Set(G.value.map(e=>e.ccosto));return K.value.filter(t=>e.has(t.codigo))});function J(e){let t={};return G.value.filter(t=>t.ccosto===e).forEach(e=>{t[e.empleado_id]||(t[e.empleado_id]={id:e.empleado_id,nombre:e.nombre,apellido:e.apellido,tipo_empleado:e.tipo_empleado,empresa_contratista:e.empresa_contratista})}),Object.values(t).sort((e,t)=>e.apellido.localeCompare(t.apellido))}function Y(e,t,n){if(!W.value)return null;let r=X(W.value.semana_inicio,t);return r&&G.value.find(t=>t.empleado_id===e&&t.fecha?.split(`T`)[0]===r&&t.ccosto===n)||null}function oe(e){return parseFloat(e??0).toFixed(1)}function X(e,t){if(!e)return null;try{let n=String(e).split(`T`)[0],r=new Date(n+`T00:00:00`);return isNaN(r.getTime())?null:(r.setDate(r.getDate()+t),r.toISOString().split(`T`)[0])}catch{return null}}function Z(e){if(!e)return`—`;let[t,n,r]=String(e).split(`T`)[0].split(`-`);return`${parseInt(r)} ${[``,`Ene`,`Feb`,`Mar`,`Abr`,`May`,`Jun`,`Jul`,`Ago`,`Sep`,`Oct`,`Nov`,`Dic`][parseInt(n)]} ${t}`}function Q(e,t){if(!e)return`—`;try{let[,n,r]=X(e,t).split(`-`);return`${parseInt(r)}/${parseInt(n)}`}catch{return`—`}}async function se(){let[t,n]=await Promise.all([e.get(`/nomina/semanas`,{params:{empresa:B.value}}),e.get(`/ccostos`,{params:{empresa:B.value}})]);H.value=t.data?.data||[],K.value=n.data?.data||n.data||[],H.value.length&&(U.value=H.value[0].id,$())}async function $(){if(!U.value)return;let t=await e.get(`/nomina/semanas/${U.value}/detalle`);W.value=t.data.semana,G.value=t.data.detalle||[]}function ce(){let e=window.open(``,`_blank`);if(!e){alert(`Activa los pop-ups para abrir el reporte en nueva pestaña`);return}let t=e=>e?e.es_dia_libre?`<span class="libre">${e.ausencia_tipo||`LIBRE`}</span>`:`<div class="turno-horas">${(e.real_inicio||e.prog_inicio||``).slice(0,5)}<br/>${(e.real_fin||e.prog_fin||``).slice(0,5)}</div><div class="turno-h">${parseFloat(e.real_horas??e.prog_horas??0).toFixed(1)}h</div>`:`<span class="vacio">—</span>`,n=``;q.value.forEach(e=>{let r=J(e.codigo);n+=`<div class="pagina">
+      <div class="encabezado">
+        <div class="titulo">HORARIO DE TRABAJO</div>
+        <div class="ccosto-nombre">${e.nombre}</div>
+        <div class="periodo">${Z(W.value.semana_inicio)} &mdash; ${Z(W.value.semana_fin)}</div>
+      </div>`,r.length?(n+=`<table><thead><tr>
+        <th class="th-emp">EMPLEADO</th>
+        ${V.map(e=>`<th>${e.label}<span class="rh-fecha">${Q(W.value.semana_inicio,e.offset)}</span></th>`).join(``)}
+        </tr></thead><tbody>`,r.forEach(r=>{n+=`<tr>
+          <td class="td-emp">
+            <div class="emp-nombre">${r.apellido}, ${r.nombre}</div>
+            <div class="emp-sub">${r.empresa_contratista?r.empresa_contratista+` · `:``}${r.tipo_empleado}</div>
+          </td>
+          ${V.map(n=>`<td>${t(Y(r.id,n.offset,e.codigo))}</td>`).join(``)}
+        </tr>`}),n+=`</tbody></table>`):n+=`<p style="text-align:center;color:#aaa;padding:20px;font-size:11px">Sin empleados asignados a este centro esta semana.</p>`,n+=`<div class="pie">${e.nombre} &nbsp;·&nbsp; ${Z(W.value.semana_inicio)} al ${Z(W.value.semana_fin)} &nbsp;·&nbsp; ${r.length} empleado(s) &nbsp;·&nbsp; Generado ${new Date().toLocaleDateString(`es-US`)}</div>
+    </div>`}),e.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Horario de Trabajo — ${Z(W.value.semana_inicio)}</title>
+    <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; background: white; color: #111; }
+    .pagina { padding: 24px 20px; page-break-after: always; }
+    .pagina:last-child { page-break-after: auto; }
+    .encabezado { text-align: center; margin-bottom: 14px; }
+    .titulo { font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-bottom: 4px; }
+    .ccosto-nombre { font-size: 14px; font-weight: 800; color: #0088aa; margin-bottom: 3px; text-transform: uppercase; }
+    .periodo { font-size: 11px; color: #666; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
+    th { background: #1e3a5f; color: white; padding: 6px 5px; text-align: center; font-size: 9px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); }
+    th.th-emp { text-align: left; min-width: 130px; padding-left: 8px; }
+    .rh-fecha { font-size: 7px; font-weight: 400; display: block; }
+    td { border: 1px solid #ddd; padding: 5px 4px; vertical-align: middle; text-align: center; }
+    td.td-emp { text-align: left; padding: 6px 8px; min-width: 130px; }
+    .emp-nombre { font-weight: 700; font-size: 10px; }
+    .emp-sub { font-size: 8px; color: #888; margin-top: 1px; }
+    .turno-horas { font-size: 9px; font-weight: 700; color: #006688; line-height: 1.3; }
+    .turno-h { font-size: 8px; color: #888; }
+    .libre { font-size: 8px; color: #aaa; font-style: italic; text-transform: uppercase; }
+    .vacio { font-size: 11px; color: #ccc; }
+    .td-total { font-weight: 800; font-size: 11px; text-align: center; white-space: nowrap; }
+    .ot { display: block; font-size: 7px; background: #fee; color: #c00; padding: 1px 3px; border-radius: 2px; margin-top: 1px; font-weight: 800; }
+    tr.footer-row td { background: #f5f5f5; font-size: 8px; font-weight: 700; color: #555; }
+    tr.footer-row td.td-emp { text-align: left; font-size: 8px; }
+    .pie { font-size: 8px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 6px; margin-top: 6px; }
+    @media print {
+      .pagina { page-break-after: always; }
+      table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      tr.footer-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style></head><body>${n}</body></html>`),e.document.close(),e.focus(),setTimeout(()=>e.print(),500)}return ee(se),(e,r)=>(b(),v(n,null,{default:p(()=>[d(`div`,S,[d(`div`,C,[d(`div`,w,[h(x,{size:`20`,color:`white`},{default:p(()=>[...r[1]||=[u(`mdi-calendar-clock`,-1)]]),_:1})]),r[5]||=d(`div`,{class:`flex-1`},[d(`h1`,{class:`nom-title`},`HORARIO SEMANAL — PARA PUBLICAR`),d(`p`,{class:`nom-sub`},`Una hoja por centro de costo al imprimir PDF`)],-1),d(`div`,T,[i(d(`select`,{"onUpdate:modelValue":r[0]||=e=>U.value=e,class:`drw-select`,style:{width:`220px`},onChange:$},[r[2]||=d(`option`,{value:``},`— Seleccionar semana —`,-1),(b(!0),g(l,null,y(H.value,e=>(b(),g(`option`,{key:e.id,value:e.id},c(Z(e.semana_inicio))+` — `+c(e.estado),9,te))),128))],544),[[s,U.value]]),h(t,{color:`#8b5cf6`,variant:`flat`,size:`small`,disabled:!W.value,onClick:ce},{default:p(()=>[h(x,{size:`14`,class:`mr-1`},{default:p(()=>[...r[3]||=[u(`mdi-printer`,-1)]]),_:1}),r[4]||=u(` Imprimir `,-1)]),_:1},8,[`disabled`])])]),W.value&&W.value.semana_inicio?(b(),g(`div`,ne,[(b(!0),g(l,null,y(q.value,(e,t)=>(b(),g(`div`,{key:e.codigo,class:a([`rh-pagina`,{"page-break":t<q.value.length-1}])},[d(`div`,re,[r[6]||=d(`div`,{class:`rh-titulo`},`HORARIO DE TRABAJO`,-1),d(`div`,ie,c(e.nombre),1),d(`div`,ae,c(Z(W.value.semana_inicio))+` — `+c(Z(W.value.semana_fin)),1)]),J(e.codigo).length?(b(),g(`table`,E,[d(`thead`,null,[d(`tr`,null,[r[8]||=d(`th`,{class:`th-emp`},`EMPLEADO`,-1),(b(),g(l,null,y(V,e=>d(`th`,{key:e.offset},[u(c(e.label),1),r[7]||=d(`br`,null,null,-1),d(`span`,D,c(Q(W.value.semana_inicio,e.offset)),1)])),64))])]),d(`tbody`,null,[(b(!0),g(l,null,y(J(e.codigo),t=>(b(),g(`tr`,{key:t.id},[d(`td`,O,[d(`div`,k,c(t.apellido)+`, `+c(t.nombre),1),d(`div`,A,[t.empresa_contratista?(b(),g(`span`,j,c(t.empresa_contratista)+` · `,1)):m(``,!0),u(` `+c(t.tipo_empleado),1)])]),(b(),g(l,null,y(V,n=>d(`td`,{key:n.offset,class:`rh-turno`},[(b(!0),g(l,null,y([Y(t.id,n.offset,e.codigo)],e=>(b(),g(l,{key:0},[e&&!e.es_dia_libre?(b(),g(l,{key:0},[d(`div`,M,[u(c((e.real_inicio||e.prog_inicio||``).slice(0,5))+` `,1),r[9]||=d(`br`,null,null,-1),u(c((e.real_fin||e.prog_fin||``).slice(0,5)),1)]),d(`div`,N,c(oe(e.real_horas??e.prog_horas))+`h`,1)],64)):e&&e.es_dia_libre?(b(),g(`span`,P,c(e.ausencia_tipo||`LIBRE`),1)):(b(),g(`span`,F,`—`))],64))),128))])),64))]))),128))])])):(b(),g(`div`,I,`Sin empleados asignados a este centro esta semana.`)),d(`div`,L,c(e.nombre)+` \xA0·\xA0 `+c(Z(W.value.semana_inicio))+` al `+c(Z(W.value.semana_fin))+` \xA0·\xA0 `+c(J(e.codigo).length)+` empleado(s) \xA0·\xA0 Generado `+c(new Date().toLocaleDateString(`es-US`)),1)],2))),128))])):U.value?m(``,!0):(b(),g(`div`,R,` Selecciona una semana para ver el horario `))])]),_:1}))}},[[`__scopeId`,`data-v-94941db8`]]);export{z as default};

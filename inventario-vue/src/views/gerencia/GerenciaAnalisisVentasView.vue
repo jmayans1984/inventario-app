@@ -43,9 +43,9 @@
               <span class="cc-label">Todos los locales</span>
             </label>
             <div class="cc-divider"></div>
-            <label v-for="cc in ccostosDisponibles" :key="cc" class="cc-item" @click.stop>
-              <input type="checkbox" :value="cc" v-model="selCcostos" @change="cargar" />
-              <span class="cc-label">{{ cc }}</span>
+            <label v-for="cc in ccostosDisponibles" :key="cc.codigo" class="cc-item" @click.stop>
+              <input type="checkbox" :value="cc.codigo" v-model="selCcostos" @change="cargar" />
+              <span class="cc-label">{{ cc.nombre }}</span>
             </label>
           </div>
         </div>
@@ -250,7 +250,10 @@ function diffPct(val, base) {
 const labelCcostos = computed(() => {
   if (selCcostos.value.length === 0 || selCcostos.value.length === ccostosDisponibles.value.length)
     return 'Todos los locales'
-  if (selCcostos.value.length === 1) return String(selCcostos.value[0])
+  if (selCcostos.value.length === 1) {
+    const found = ccostosDisponibles.value.find(c => c.codigo === selCcostos.value[0])
+    return found ? found.nombre : String(selCcostos.value[0])
+  }
   return `${selCcostos.value.length} locales seleccionados`
 })
 

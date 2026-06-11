@@ -8663,12 +8663,12 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
                 GROUP BY v.ccosto
                 ORDER BY total_ventas DESC`, [empresa]),
 
-            // 5. Lista de ccostos disponibles
+            // 5. Lista de ccostos disponibles (con nombre)
             pool.query(`
-                SELECT DISTINCT ccosto
-                FROM ventas
-                WHERE empresa = $1
-                ORDER BY ccosto`, [empresa]),
+                SELECT v.ccosto AS codigo, COALESCE(cc.nombre, v.ccosto) AS nombre
+                FROM (SELECT DISTINCT ccosto FROM ventas WHERE empresa = $1) v
+                LEFT JOIN centros_costo cc ON cc.codigo = v.ccosto AND cc.empresa = $1
+                ORDER BY v.ccosto`, [empresa]),
         ]);
 
         // Calcular promedio mensual para la línea
@@ -8695,7 +8695,7 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
             ventasPorDiaSemana: diaRes.rows,
             topProductos:       topProdRes.rows,
             distribucionCcosto: distCcostoRes.rows,
-            ccostosDisponibles: ccostosDisponiblesRes.rows.map(r => r.ccosto),
+            ccostosDisponibles: ccostosDisponiblesRes.rows,
         });
     } catch (error) {
         console.error('Error en /api/gerencia/analisis-ventas:', error);
