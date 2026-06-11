@@ -20,14 +20,55 @@
         </div>
 
         <!-- TARJETAS PRINCIPALES -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; max-width: 600px; margin: 0 auto;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
 
-            <div class="menu-item" onclick="window.location.href='inventario-stock.html'">
-                <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📦</div>
-                <h4>Stock por Centro</h4>
-                <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Visualizar inventario actual</p>
+            <!-- TARJETA: PROCESOS -->
+            <div class="menu-item" onclick="mostrarProcesos()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">PROCESOS</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Gestión y operaciones</p>
             </div>
 
+            <!-- TARJETA: INFORMES -->
+            <div class="menu-item" onclick="mostrarInformes()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">INFORMES</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Reportes y análisis</p>
+            </div>
+
+        </div>
+
+        <!-- SUBMÓDULOS (ocultos por defecto) -->
+        <div id="submodulos" style="display: none; margin-top: 3rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <button class="btn btn-secondary" onclick="ocultarSubmodulos()">
+                    ← Volver
+                </button>
+            </div>
+
+            <!-- PROCESOS -->
+            <div id="procesos" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">⚙️ PROCESOS</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="window.location.href='inventario-stock.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📦</div>
+                        <h4>Stock por Centro</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Ver inventario actual por centro de costo</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INFORMES -->
+            <div id="informes" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 INFORMES</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="window.location.href='inventario-stock.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📋</div>
+                        <h4>Reportes de Inventario</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Análisis y estado del stock</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -41,6 +82,27 @@
                 return;
             }
         });
+
+        function mostrarProcesos() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('procesos').style.display = 'block';
+            document.getElementById('informes').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
+        }
+
+        function mostrarInformes() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('informes').style.display = 'block';
+            document.getElementById('procesos').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
+        }
+
+        function ocultarSubmodulos() {
+            document.getElementById('submodulos').style.display = 'none';
+            document.getElementById('procesos').style.display = 'none';
+            document.getElementById('informes').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     </script>
 </body>
 </html>
