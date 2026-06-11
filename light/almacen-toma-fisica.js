@@ -317,6 +317,7 @@ async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tip
             body: JSON.stringify({
                 empresa: getEmpresa(),
                 fecha,
+                tipo: 'TOMA FISICA',
                 ccosto:  ccOrigen,
                 observaciones,
                 ajustes,
