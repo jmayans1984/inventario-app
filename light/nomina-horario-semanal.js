@@ -542,11 +542,10 @@ async function guardarTurno() {
 
     try {
         if (!turnoEdit.id) {
-            await fetch(`${API_BASE}/nomina/semanas/detalle`, {
+            const r = await fetch(`${API_BASE}/nomina/semanas/${turnoEdit.semana_id}/detalle`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    semana_id:     turnoEdit.semana_id,
                     empleado_id:   turnoEdit.empleado_id,
                     fecha:         turnoEdit.fecha,
                     real_inicio:   turnoEdit.real_inicio || null,
@@ -558,16 +557,20 @@ async function guardarTurno() {
                     notas:         turnoEdit.notas || ''
                 }),
             });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || j.message || 'Error al guardar');
         } else {
-            await fetch(`${API_BASE}/nomina/semanas/detalle/${turnoEdit.id}`, {
+            const r = await fetch(`${API_BASE}/nomina/semanas/${turnoEdit.semana_id}/detalle/${turnoEdit.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(turnoEdit),
             });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || j.message || 'Error al actualizar');
         }
         cerrarModalTurno();
         await cargarDetalle();
-    } catch (e) { alert('❌ Error: ' + e.message); }
+    } catch (e) { alert('❌ ' + e.message); }
 }
 
 async function eliminarTurno() {
