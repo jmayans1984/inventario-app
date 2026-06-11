@@ -1,13 +1,9 @@
 // ================================================================
 // ALMACÉN - TOMA FÍSICA DE INVENTARIO
-// Registra conteos físicos de productos
-// Filtra productos según bodega maestra o punto venta
-// Permite toma física parcial o completa
 // ================================================================
 
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
-// Auto-init cuando carga la página
 window.addEventListener('load', () => {
     if (!localStorage.getItem('empresaActual') || !localStorage.getItem('usuario')) {
         window.location.href = 'index.html';
@@ -17,49 +13,29 @@ window.addEventListener('load', () => {
 });
 
 let productos = [];
-let bodegaMaestraCC = null;
 let centrosCosto = [];
 let fisico = {};
 
 function getEmpresa() {
-    return localStorage.getItem('empresaActual') || (window.sesion && getEmpresa()) || '';
+    return localStorage.getItem('empresaActual') || (window.sesion && window.sesion.empresa) || '';
 }
 
+// ── Init ──────────────────────────────────────────────────────────
 function cargarTomaFisica() {
-    console.log('🔄 Cargando Toma Física...');
-
-    Promise.all([
-        cargarCentrosCosto(),
-        cargarBodegaMaestra(),
-    ]).then(() => {
-        renderFormulario();
-    });
+    cargarCentrosCosto().then(() => renderFormulario());
 }
 
 async function cargarCentrosCosto() {
     try {
-        const res = await fetch(`${API_BASE}/ccostos?empresa=${getEmpresa()}`);
+        const res  = await fetch(`${API_BASE}/ccostos?empresa=${getEmpresa()}`);
         const data = await res.json();
         centrosCosto = data.data || [];
-        console.log('✓ Centros de costo cargados:', centrosCosto.length);
     } catch (e) {
         console.error('Error cargando CC:', e);
     }
 }
 
-async function cargarBodegaMaestra() {
-    try {
-        const res = await fetch(`${API_BASE}/empresas/bodega-maestra?empresa=${getEmpresa()}`);
-        const data = await res.json();
-        if (data.success) {
-            bodegaMaestraCC = data.data.bodega_maestra;
-            console.log('✓ Bodega maestra:', bodegaMaestraCC);
-        }
-    } catch (e) {
-        console.error('Error cargando bodega maestra:', e);
-    }
-}
-
+// ── Cargar productos con stock real por CC ────────────────────────
 async function cargarProductos() {
     const ccSel = document.getElementById('ccOrigen').value;
 
@@ -73,22 +49,11 @@ async function cargarProductos() {
         '<div style="padding:20px;text-align:center;color:var(--text-secondary)">⏳ Cargando productos...</div>';
 
     try {
-        const res = await fetch(`${API_BASE}/almacen/productos`, {
-            headers: { 'x-empresa': getEmpresa() }
-        });
+        const res  = await fetch(
+            `${API_BASE}/almacen/ajuste-inventario/stock?empresa=${getEmpresa()}&ccosto=${ccSel}`
+        );
         const data = await res.json();
-        let todos = data.data || [];
-
-        // Filtrar según bodega maestra o punto venta
-        const esBodegaMaestra = bodegaMaestraCC && (bodegaMaestraCC === ccSel);
-        if (esBodegaMaestra) {
-            productos = todos.filter(p => p.control === 'SI');
-            console.log('📦 Bodega Maestra: filtrando por control=SI', productos.length, 'items');
-        } else {
-            productos = todos.filter(p => p.visible_operacional === 'SI');
-            console.log('🏪 Punto de Venta: filtrando por para_venta=SI', productos.length, 'items');
-        }
-
+        productos = data.data || [];
         fisico = {};
         renderProductos();
     } catch (e) {
@@ -98,6 +63,7 @@ async function cargarProductos() {
     }
 }
 
+// ── Render tabla ──────────────────────────────────────────────────
 function renderProductos() {
     if (productos.length === 0) {
         document.getElementById('gridProductos').innerHTML =
@@ -105,19 +71,25 @@ function renderProductos() {
         return;
     }
 
-    // Agrupar por grupo de productos
     const grupos = {};
     productos.forEach(p => {
-        const key = p.grupo || '__sin_grupo__';
+        const key    = p.grupo_codigo || '__sin_grupo__';
         const nombre = p.grupo_nombre || 'Sin Categoría';
         if (!grupos[key]) grupos[key] = { nombre, items: [] };
         grupos[key].items.push(p);
     });
 
     let html = '<table class="grid-table">';
-    html += '<thead><tr><th style="width:70px">CÓDIGO</th><th>NOMBRE</th><th style="width:50px">UND</th><th style="width:90px">STOCK SISTEMA</th><th style="width:90px">FÍSICO</th><th style="width:80px">DIFERENCIA</th></tr></thead><tbody>';
+    html += '<thead><tr>'
+          + '<th style="width:70px">CÓDIGO</th>'
+          + '<th>NOMBRE</th>'
+          + '<th style="width:50px">UND</th>'
+          + '<th style="width:90px">STOCK SISTEMA</th>'
+          + '<th style="width:90px">FÍSICO</th>'
+          + '<th style="width:80px">DIFERENCIA</th>'
+          + '</tr></thead><tbody>';
 
-    Object.entries(grupos).forEach(([key, grupo]) => {
+    Object.entries(grupos).forEach(([, grupo]) => {
         html += `<tr>
             <td colspan="6" style="background:var(--bg-secondary);padding:10px;font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">
                 📁 ${grupo.nombre}
@@ -125,11 +97,15 @@ function renderProductos() {
         </tr>`;
 
         grupo.items.forEach(p => {
-            const fis = fisico[p.codigo] || '';
-            const stock = parseFloat(p.stock_minimo || 0);
-            const diff = fis ? (parseFloat(fis) - stock) : null;
-            const diffColor = diff === null ? 'var(--text-secondary)' : diff > 0 ? 'var(--success)' : diff < 0 ? 'var(--danger)' : 'var(--text-secondary)';
-            const diffText = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(2);
+            const stock = parseFloat(p.stock_actual ?? 0);
+            const fis   = fisico[p.codigo] ?? '';
+            const diff  = fis !== '' ? (parseFloat(fis) - stock) : null;
+            const diffColor = diff === null ? 'var(--text-secondary)'
+                            : diff > 0 ? 'var(--success)'
+                            : diff < 0 ? 'var(--danger)'
+                            : 'var(--text-secondary)';
+            const diffText  = diff === null ? '—'
+                            : (diff > 0 ? '+' : '') + diff.toFixed(2);
 
             html += `<tr>
                 <td><span style="background:var(--bg-tertiary);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">${p.codigo}</span></td>
@@ -145,10 +121,10 @@ function renderProductos() {
                         placeholder="0"
                         step="0.01"
                         min="0"
-                        onchange="actualizarDiferencia(this)"
+                        oninput="actualizarDiferencia(this)"
                         style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:14px">
                 </td>
-                <td style="text-align:right;padding:8px;font-family:monospace;font-weight:600;color:${diffColor}">
+                <td id="diff-${p.codigo}" style="text-align:right;padding:8px;font-family:monospace;font-weight:600;color:${diffColor}">
                     ${diffText}
                 </td>
             </tr>`;
@@ -157,42 +133,55 @@ function renderProductos() {
 
     html += '</tbody></table>';
     document.getElementById('gridProductos').innerHTML = html;
+    actualizarFooter();
 }
 
+// ── Input handlers ────────────────────────────────────────────────
 function actualizarDiferencia(el) {
     const codigo = el.dataset.codigo;
-    const stock = parseFloat(el.dataset.stock);
-    const val = el.value;
+    const stock  = parseFloat(el.dataset.stock);
+    const val    = el.value.trim();
 
-    if (val) {
+    if (val !== '') {
         fisico[codigo] = parseFloat(val);
     } else {
         delete fisico[codigo];
     }
 
-    // Actualizar visual
-    const tr = el.closest('tr');
-    const fis = fisico[codigo];
-    const diff = fis !== undefined ? (fis - stock) : null;
-    const diffColor = diff === null ? 'var(--text-secondary)' : diff > 0 ? 'var(--success)' : diff < 0 ? 'var(--danger)' : 'var(--text-secondary)';
-    const diffText = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(2);
+    const fis      = fisico[codigo];
+    const diff     = fis !== undefined ? (fis - stock) : null;
+    const diffColor = diff === null ? 'var(--text-secondary)'
+                    : diff > 0 ? 'var(--success)'
+                    : diff < 0 ? 'var(--danger)'
+                    : 'var(--text-secondary)';
+    const diffText  = diff === null ? '—'
+                    : (diff > 0 ? '+' : '') + diff.toFixed(2);
 
-    const diffCell = tr.querySelector('td:last-child');
-    diffCell.textContent = diffText;
-    diffCell.style.color = diffColor;
+    const cell = document.getElementById(`diff-${codigo}`);
+    if (cell) { cell.textContent = diffText; cell.style.color = diffColor; }
 
     actualizarFooter();
 }
 
 function actualizarFooter() {
-    const count = Object.keys(fisico).length;
-    const btnGuardar = document.getElementById('btnGuardar');
-    btnGuardar.disabled = count === 0;
-    document.getElementById('productosContados').textContent = count;
+    const count    = Object.keys(fisico).length;
+    const btn      = document.getElementById('btnGuardar');
+    if (btn) btn.disabled = count === 0;
+    const el = document.getElementById('productosContados');
+    if (el) el.textContent = count;
 }
 
+function limpiarProductos() {
+    fisico = {};
+    document.querySelectorAll('.fisico-input').forEach(inp => {
+        inp.value = '';
+        actualizarDiferencia(inp);
+    });
+}
+
+// ── Render formulario ─────────────────────────────────────────────
 function renderFormulario() {
-    const html = `
+    document.getElementById('gestionContent').innerHTML = `
         <div class="filters-container">
             <div class="filter-group">
                 <label class="filter-label">Fecha *</label>
@@ -224,7 +213,9 @@ function renderFormulario() {
                 <span>📦 Productos</span>
                 <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="limpiarProductos()">Limpiar</button>
             </div>
-            <div id="gridProductos" style="overflow-x:auto"></div>
+            <div id="gridProductos" style="overflow-x:auto">
+                <div style="padding:20px;text-align:center;color:var(--text-tertiary)">Selecciona un Centro de Costo</div>
+            </div>
         </div>
 
         <div style="margin-top:20px;padding:16px;background:var(--bg-secondary);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center">
@@ -237,100 +228,113 @@ function renderFormulario() {
             </button>
         </div>
     `;
-
-    document.getElementById('gestionContent').innerHTML = html;
-    actualizarFooter();
 }
 
-function limpiarProductos() {
-    fisico = {};
-    document.querySelectorAll('.fisico-input').forEach(inp => {
-        inp.value = '';
-        actualizarDiferencia(inp);
-    });
-}
-
+// ── Guardar ───────────────────────────────────────────────────────
 async function guardarTomaFisica() {
-    const fecha = document.getElementById('fecha').value;
-    const ccOrigen = document.getElementById('ccOrigen').value;
+    const fecha        = document.getElementById('fecha').value;
+    const ccOrigen     = document.getElementById('ccOrigen').value;
     const observaciones = document.getElementById('observaciones').value;
-    const esParcial = document.getElementById('esParcial').checked;
+    const esParcial    = document.getElementById('esParcial').checked;
 
     if (!fecha || !ccOrigen) {
         alert('❌ Completa los campos obligatorios');
         return;
     }
 
-    if (Object.keys(fisico).length === 0) {
-        alert('❌ Ingresa conteos para al menos un producto');
-        return;
+    // Construir ajustes según parcial / completa
+    const ajustes = [];
+
+    if (esParcial) {
+        // Solo productos donde el usuario ingresó un valor
+        Object.entries(fisico).forEach(([codigo, cantFisica]) => {
+            const prod  = productos.find(p => p.codigo === codigo);
+            const stock = parseFloat(prod?.stock_actual ?? 0);
+            const diff  = cantFisica - stock;
+            if (diff !== 0) ajustes.push({ codigo, diferencia: diff });
+        });
+    } else {
+        // Todos los productos: blank = 0
+        productos.forEach(p => {
+            const stock      = parseFloat(p.stock_actual ?? 0);
+            const cantFisica = fisico[p.codigo] !== undefined ? fisico[p.codigo] : 0;
+            const diff       = cantFisica - stock;
+            if (diff !== 0) ajustes.push({ codigo: p.codigo, diferencia: diff });
+        });
     }
 
-    // Procesar movimientos según parcial/completa
-    const movimientos = [];
-
-    Object.entries(fisico).forEach(([codigo, cantFisica]) => {
-        const prod = productos.find(p => p.codigo === codigo);
-        const stockSistema = parseFloat(prod?.stock_minimo || 0);
-        const diferencia = cantFisica - stockSistema;
-
-        if (diferencia !== 0) {
-            movimientos.push({
-                fecha,
-                ccosto: ccOrigen,
-                codigo,
-                entrada: diferencia > 0 ? diferencia : 0,
-                salida: diferencia < 0 ? Math.abs(diferencia) : 0,
-                tipo: 'TOMA_FISICA',
-                observaciones,
-            });
-        }
-    });
-
-    if (movimientos.length === 0) {
+    if (ajustes.length === 0) {
         alert('❌ Ningún producto tiene diferencia de conteo');
         return;
     }
 
     const tipoTxt = esParcial ? 'Parcial' : 'Completa';
-    if (!confirm(`¿Confirmas toma física ${tipoTxt} con ${movimientos.length} movimiento(s)?`)) {
-        return;
-    }
+    if (!confirm(`¿Confirmas toma física ${tipoTxt} con ${ajustes.length} ajuste(s)?`)) return;
 
     try {
-        const res = await fetch(`${API_BASE}/almacen/movimientos`, {
+        const res  = await fetch(`${API_BASE}/almacen/ajuste-inventario`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-empresa': getEmpresa(),
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                empresa:      getEmpresa(),
                 fecha,
-                tipo_op: 'TOMA_FISICA',
-                cc_origen: ccOrigen,
-                cc_destino: null,
+                ccosto:       ccOrigen,
                 observaciones,
-                lineas: movimientos.map(m => ({
-                    producto_codigo: m.codigo,
-                    cantidad: m.entrada || Math.abs(m.salida),
-                })),
+                ajustes,
             }),
         });
-
         const data = await res.json();
 
+        if (data.conflict) {
+            if (confirm(`⚠️ Ya existe una toma física para esta fecha y CC (${data.count} registro(s)).\n¿Reemplazar los datos existentes?`)) {
+                return guardarConMode('replace', fecha, ccOrigen, observaciones, ajustes, tipoTxt);
+            }
+            return;
+        }
+
         if (data.success) {
-            alert(`✓ Toma Física ${tipoTxt} registrada\n${movimientos.length} movimiento(s)`);
+            alert(`✓ Toma Física ${tipoTxt} registrada — ${data.registros} ajuste(s)`);
             fisico = {};
             document.getElementById('ccOrigen').value = '';
             document.getElementById('observaciones').value = '';
-            document.getElementById('gridProductos').innerHTML = '';
+            document.getElementById('gridProductos').innerHTML =
+                '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Selecciona un Centro de Costo</div>';
             actualizarFooter();
         } else {
             alert('❌ ' + (data.error || 'Error guardando'));
         }
     } catch (e) {
         console.error('Error:', e);
+        alert('❌ Error de conexión');
+    }
+}
+
+async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tipoTxt) {
+    try {
+        const res  = await fetch(`${API_BASE}/almacen/ajuste-inventario`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                empresa: getEmpresa(),
+                fecha,
+                ccosto:  ccOrigen,
+                observaciones,
+                ajustes,
+                mode,
+            }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`✓ Toma Física ${tipoTxt} reemplazada — ${data.registros} ajuste(s)`);
+            fisico = {};
+            document.getElementById('ccOrigen').value = '';
+            document.getElementById('gridProductos').innerHTML =
+                '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Selecciona un Centro de Costo</div>';
+            actualizarFooter();
+        } else {
+            alert('❌ ' + (data.error || 'Error guardando'));
+        }
+    } catch (e) {
         alert('❌ Error de conexión');
     }
 }
