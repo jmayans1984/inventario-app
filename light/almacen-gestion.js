@@ -6,6 +6,12 @@
 
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
+// Auto-init cuando carga la página
+window.addEventListener('load', () => {
+    if (!window.sesion) { window.location.href = 'index.html'; return; }
+    cargarGestionInventario();
+});
+
 let productos = [];
 let bodegaMaestraCC = null;
 let centrosCosto = [];
@@ -31,9 +37,7 @@ async function cargarGestionInventario() {
 
 async function cargarCentrosCosto() {
     try {
-        const res = await fetch(`${API_BASE}/ccostos`, {
-            headers: { 'x-empresa': window.sesion.empresa }
-        });
+        const res = await fetch(`${API_BASE}/ccostos?empresa=${window.sesion.empresa}`);
         const data = await res.json();
         centrosCosto = data.data || [];
         console.log('✓ Centros de costo cargados:', centrosCosto.length);
