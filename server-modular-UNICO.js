@@ -634,15 +634,19 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
 
         const result = await pool.query(
             `UPDATE productos
-             SET nombre=$1, und=$2, grupo=$3, control=$4, para_venta=$5, visible_operacional=$6, precio_costo=$7, precio_venta1=$8, precio_venta2=$9, precio_venta3=$10, stock_minimo=$11, descripcion=$12
+             SET nombre=$1, und=$2, grupo=$3,
+                 control             = COALESCE($4, control),
+                 para_venta          = COALESCE($5, para_venta),
+                 visible_operacional = COALESCE($6, visible_operacional),
+                 precio_costo=$7, precio_venta1=$8, precio_venta2=$9, precio_venta3=$10, stock_minimo=$11, descripcion=$12
              WHERE codigo=$13`,
             [
                 nombre.trim(),
                 und.trim(),
                 grupo || null,
-                control || 'NO',
-                para_venta || 'NO',
-                visible_operacional || 'SI',
+                control || null,
+                para_venta || null,
+                visible_operacional || null,
                 pc,
                 pv1,
                 pv2,
