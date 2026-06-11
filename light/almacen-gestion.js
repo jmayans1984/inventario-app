@@ -8,7 +8,10 @@ const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // Auto-init cuando carga la página
 window.addEventListener('load', () => {
-    if (!window.sesion) { window.location.href = 'index.html'; return; }
+    if (!localStorage.getItem('empresaActual') || !localStorage.getItem('usuario')) {
+        window.location.href = 'index.html';
+        return;
+    }
     cargarGestionInventario();
 });
 
@@ -16,6 +19,10 @@ let productos = [];
 let bodegaMaestraCC = null;
 let centrosCosto = [];
 let cantidades = {};
+
+function getEmpresa() {
+    return localStorage.getItem('empresaActual') || (window.sesion && getEmpresa()) || '';
+}
 
 const TIPOS_OP = [
     { label: 'ENTRADA DE ALMACÉN',       value: 'ENTRADA' },
@@ -37,7 +44,7 @@ async function cargarGestionInventario() {
 
 async function cargarCentrosCosto() {
     try {
-        const res = await fetch(`${API_BASE}/ccostos?empresa=${window.sesion.empresa}`);
+        const res = await fetch(`${API_BASE}/ccostos?empresa=${getEmpresa()}`);
         const data = await res.json();
         centrosCosto = data.data || [];
         console.log('✓ Centros de costo cargados:', centrosCosto.length);
@@ -48,7 +55,7 @@ async function cargarCentrosCosto() {
 
 async function cargarBodegaMaestra() {
     try {
-        const res = await fetch(`${API_BASE}/empresas/bodega-maestra?empresa=${window.sesion.empresa}`);
+        const res = await fetch(`${API_BASE}/empresas/bodega-maestra?empresa=${getEmpresa()}`);
         const data = await res.json();
         if (data.success) {
             bodegaMaestraCC = data.data.bodega_maestra;
@@ -73,7 +80,7 @@ async function cargarProductos() {
 
     try {
         const res = await fetch(`${API_BASE}/almacen/productos`, {
-            headers: { 'x-empresa': window.sesion.empresa }
+            headers: { 'x-empresa': getEmpresa() }
         });
         const data = await res.json();
         let todos = data.data || [];
@@ -260,7 +267,7 @@ async function guardarMovimiento() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-empresa': window.sesion.empresa,
+                'x-empresa': getEmpresa(),
             },
             body: JSON.stringify(payload),
         });
