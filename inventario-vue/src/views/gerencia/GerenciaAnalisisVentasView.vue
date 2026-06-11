@@ -335,13 +335,13 @@ function renderMeses() {
     chart: { type: 'bar', height: 330, toolbar: { show: false }, fontFamily: 'Inter,sans-serif', background: 'transparent', animations: { enabled: true, speed: 500 } },
     theme: { mode: isDark() ? 'dark' : 'light' },
     series: [
-      { name: 'Ventas Brutas', type: 'bar',  data: brutas },
       { name: 'Ventas Netas',  type: 'bar',  data: netas  },
       { name: 'Promedio',      type: 'line', data: Array(labels.length).fill(prom) },
     ],
-    colors: ['#06b6d4', 'rgba(6,182,212,0.3)', '#f59e0b'],
-    stroke: { width: [0, 0, 3], curve: 'straight', dashArray: [0, 0, 8] },
-    plotOptions: { bar: { columnWidth: '60%', borderRadius: 4, borderRadiusApplication: 'end', grouped: true } },
+    colors: ['#06b6d4', '#f59e0b'],
+    stroke: { width: [0, 3], curve: 'straight', dashArray: [0, 8] },
+    dataLabels: { enabled: false },
+    plotOptions: { bar: { columnWidth: '50%', borderRadius: 4, borderRadiusApplication: 'end' } },
     xaxis: {
       categories: labels,
       labels: { style: { colors: fg, fontSize: '11px' } },
@@ -351,7 +351,7 @@ function renderMeses() {
     grid:  { borderColor: grid, strokeDashArray: 4, padding: { left: 4, right: 4 } },
     legend: { position: 'top', horizontalAlign: 'left', labels: { colors: fg }, markers: { size: 7 } },
     tooltip: { shared: true, intersect: false, y: { formatter: v => fmt(v) } },
-    markers: { size: [0, 0, 5], colors: ['#f59e0b'], strokeColors: '#fff', strokeWidth: 2 },
+    markers: { size: [0, 5], colors: ['#f59e0b'], strokeColors: '#fff', strokeWidth: 2 },
   })
   chartMeses.render()
 }
