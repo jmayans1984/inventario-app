@@ -8592,6 +8592,7 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
     const { empresa, ccostos } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
+    const emp = parseInt(empresa);
     const ccostoList = ccostos ? ccostos.split(',').map(c => c.trim()).filter(Boolean) : [];
     const ccostoFilter = ccostoList.length
         ? `AND v.ccosto IN (${ccostoList.map((_, i) => `$${i + 2}`).join(',')})`
@@ -8599,7 +8600,7 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
     const ccostoFilterDet = ccostoList.length
         ? `AND d.ccosto IN (${ccostoList.map((_, i) => `$${i + 2}`).join(',')})`
         : '';
-    const params       = ccostoList.length ? [empresa, ...ccostoList] : [empresa];
+    const params = ccostoList.length ? [emp, ...ccostoList] : [emp];
 
     try {
         const [mesesRes, diaRes, topProdRes, distCcostoRes, ccostosDisponiblesRes] = await Promise.all([
@@ -8661,14 +8662,14 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
                 WHERE v.empresa = $1
                   AND fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')
                 GROUP BY v.ccosto
-                ORDER BY total_ventas DESC`, [empresa]),
+                ORDER BY total_ventas DESC`, [emp]),
 
             // 5. Lista de ccostos disponibles (con nombre)
             pool.query(`
                 SELECT v.ccosto AS codigo, COALESCE(cc.nombre, v.ccosto) AS nombre
                 FROM (SELECT DISTINCT ccosto FROM ventas WHERE empresa = $1) v
-                LEFT JOIN centros_costo cc ON cc.codigo = v.ccosto AND cc.empresa = $1
-                ORDER BY v.ccosto`, [empresa]),
+                LEFT JOIN ccostos cc ON cc.codigo = v.ccosto AND cc.empresa = $1
+                ORDER BY v.ccosto`, [emp]),
         ]);
 
         // Calcular promedio mensual para la línea
