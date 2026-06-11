@@ -290,29 +290,54 @@ function renderGridProductos() {
     });
     const grupos = Object.entries(map).sort(([a], [b]) => a.localeCompare(b, 'es'));
 
-    let html = '';
+    let html = `
+        <div class="oc-prod-grid-head">
+            <div>Código</div>
+            <div>Producto</div>
+            <div>Und</div>
+            <div style="text-align:right">Precio</div>
+        </div>
+        <div class="oc-prod-grid-body">
+    `;
+
     grupos.forEach(([grupo, items]) => {
-        html += `<div style="padding:8px 14px;background:var(--bg-tertiary);font-size:11px;font-weight:700;text-transform:uppercase;color:#10b981">📁 ${grupo} <span style="color:var(--text-tertiary);font-weight:400">· ${items.length}</span></div>`;
+        html += `<div style="grid-column:1/-1;padding:8px 14px;background:var(--bg-tertiary);font-size:11px;font-weight:700;text-transform:uppercase;color:#10b981;border-top:1px solid rgba(16,185,129,.2)">📁 ${grupo} <span style="color:var(--text-tertiary);font-weight:400">· ${items.length}</span></div>`;
         items.forEach(p => {
             const cant = cantidades[p.codigo] || 0;
             const precio = getPrecio(p);
-            const sub = cant > 0 ? precio * cant : 0;
             const warn = excedido(p.codigo);
             html += `
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:${cant > 0 ? 'rgba(16,185,129,.04)' : 'var(--bg-primary)'}">
-                <div style="flex:1;min-width:0">
-                    <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre}</div>
-                    <div style="font-size:11px;color:var(--text-tertiary)">${p.und || '—'} · <span style="color:#10b981;font-family:monospace">${fmt(precio)}</span>${cant > 0 ? ` · <b style="color:#10b981">${fmt(sub)}</b>` : ''}</div>
+            <div class="oc-prod-row ${cant > 0 ? 'active' : ''}">
+                <div class="oc-prod-col oc-prod-col-codigo">${p.codigo}</div>
+                <div class="oc-prod-col oc-prod-col-nombre">
+                    ${p.nombre}
+                    <div class="oc-prod-col-desc">${p.descripcion || ''}</div>
                 </div>
+                <div class="oc-prod-col oc-prod-col-und">${p.und || '—'}</div>
+                <div class="oc-prod-col oc-prod-col-precio">${fmt(precio)}</div>
                 <input type="number" min="0" step="1" placeholder="0" inputmode="decimal"
                     class="oc-cant-input ${cant > 0 ? 'active' : ''} ${warn ? 'warn' : ''}"
                     value="${cant || ''}"
-                    oninput="setCant('${p.codigo}', this.value, this)">
+                    data-codigo="${p.codigo}"
+                    oninput="setCant('${p.codigo}', this.value, this)"
+                    onkeydown="navegarProductos(event, '${p.codigo}')">
             </div>`;
         });
     });
 
+    html += `</div>`;
     document.getElementById('ocGridProductos').innerHTML = html;
+}
+
+function navegarProductos(e, codigo) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const inputs = Array.from(document.querySelectorAll('.oc-cant-input'));
+    const idx = inputs.findIndex(i => i.dataset.codigo === codigo);
+    if (idx >= 0 && idx < inputs.length - 1) {
+        inputs[idx + 1].focus();
+        inputs[idx + 1].select();
+    }
 }
 
 function setCant(codigo, val, el) {
