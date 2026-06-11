@@ -12,6 +12,7 @@
         'almacen.html':                 { title: 'Almacén',            back: 'principal.html',        module: 'almacen' },
         'nomina.html':                  { title: 'Nómina',             back: 'principal.html',        module: 'nomina' },
         'inventario.html':              { title: 'Inventario',         back: 'principal.html',        module: 'inventario' },
+        'inventario-stock.html':        { title: 'Stock por Centro',   back: 'inventario.html',       module: 'inventario' },
         'facturacion.html':             { title: 'Facturación',        back: 'principal.html',        module: 'facturacion' },
         'contabilidad-gastos.html':     { title: 'Gestión de Gastos',  back: 'contabilidad.html',     module: 'contabilidad' },
         'contabilidad-reportes.html':   { title: 'Reportes Contables', back: 'contabilidad.html',     module: 'contabilidad' },
