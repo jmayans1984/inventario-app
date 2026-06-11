@@ -263,11 +263,10 @@ async function guardarMovimiento() {
     console.log('📤 Guardando:', payload);
 
     try {
-        const res = await fetch(`${API_BASE}/almacen/movimientos`, {
+        const res = await fetch(`${API_BASE}/almacen/gestion-inventario`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-empresa': getEmpresa(),
             },
             body: JSON.stringify(payload),
         });
