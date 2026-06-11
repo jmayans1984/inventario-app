@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Light Static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "5174", "light"],
+      "port": 5174
+    },
+    {
       "name": "Backend Server",
       "runtimeExecutable": "node",
       "runtimeArgs": ["server-modular-UNICO.js"],
