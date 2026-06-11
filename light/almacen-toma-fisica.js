@@ -1,438 +1,324 @@
 // ================================================================
 // ALMACÉN - TOMA FÍSICA DE INVENTARIO
-// Registrar conteos físicos de productos
+// Registra conteos físicos de productos
+// Filtra productos según bodega maestra o punto venta
+// Permite toma física parcial o completa
 // ================================================================
 
-const API_BASE_TOMA = 'https://inventario-app-production-e8c8.up.railway.app/api';
-let productosTomaFisica = [];
-
-// ================================================================
-// CARGAR MÓDULO DE TOMA FÍSICA
-// ================================================================
+const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
+let productos = [];
+let bodegaMaestraCC = null;
+let centrosCosto = [];
+let fisico = {};
 
 function cargarTomaFisica() {
-    const contentDiv = document.getElementById('gestionContent');
+    console.log('🔄 Cargando Toma Física...');
 
-    contentDiv.innerHTML = `
-        <div class="table-container">
-            <div class="filters-container">
-                <div class="filter-group">
-                    <label class="filter-label">Fecha *</label>
-                    <input type="date" id="fechaTomaFisica" class="filter-input">
-                </div>
+    Promise.all([
+        cargarCentrosCosto(),
+        cargarBodegaMaestra(),
+    ]).then(() => {
+        renderFormulario();
+    });
+}
 
-                <div class="filter-group">
-                    <label class="filter-label">Centro de Costo *</label>
-                    <select id="ccCostoTomaFisica" onchange="cargarGridTomaFisica()" class="filter-select">
-                        <option value="">Seleccione...</option>
-                    </select>
-                </div>
+async function cargarCentrosCosto() {
+    try {
+        const res = await fetch(`${API_BASE}/ccostos`, {
+            headers: { 'x-empresa': window.sesion.empresa }
+        });
+        const data = await res.json();
+        centrosCosto = data.data || [];
+        console.log('✓ Centros de costo cargados:', centrosCosto.length);
+    } catch (e) {
+        console.error('Error cargando CC:', e);
+    }
+}
 
-                <div class="filter-group full-width">
-                    <label class="filter-label">Observaciones</label>
-                    <input type="text" id="observacionesTomaFisica" class="filter-input" placeholder="Comentarios del conteo...">
-                </div>
+async function cargarBodegaMaestra() {
+    try {
+        const res = await fetch(`${API_BASE}/empresas/bodega-maestra?empresa=${window.sesion.empresa}`);
+        const data = await res.json();
+        if (data.success) {
+            bodegaMaestraCC = data.data.bodega_maestra;
+            console.log('✓ Bodega maestra:', bodegaMaestraCC);
+        }
+    } catch (e) {
+        console.error('Error cargando bodega maestra:', e);
+    }
+}
 
-                <div class="filter-group full-width" style="padding-top: 0;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="checkbox" id="tomaFisicaParcial" checked>
-                        <span style="font-size: 0.95rem; color: var(--text-primary);">Toma Física de Inventario Parcial</span>
-                    </label>
-                </div>
+async function cargarProductos() {
+    const ccSel = document.getElementById('ccOrigen').value;
+
+    if (!ccSel) {
+        document.getElementById('gridProductos').innerHTML =
+            '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Selecciona un Centro de Costo</div>';
+        return;
+    }
+
+    document.getElementById('gridProductos').innerHTML =
+        '<div style="padding:20px;text-align:center;color:var(--text-secondary)">⏳ Cargando productos...</div>';
+
+    try {
+        const res = await fetch(`${API_BASE}/almacen/productos`, {
+            headers: { 'x-empresa': window.sesion.empresa }
+        });
+        const data = await res.json();
+        let todos = data.data || [];
+
+        // Filtrar según bodega maestra o punto venta
+        const esBodegaMaestra = bodegaMaestraCC && (bodegaMaestraCC === ccSel);
+        if (esBodegaMaestra) {
+            productos = todos.filter(p => p.control === 'SI');
+            console.log('📦 Bodega Maestra: filtrando por control=SI', productos.length, 'items');
+        } else {
+            productos = todos.filter(p => p.para_venta === 'SI');
+            console.log('🏪 Punto de Venta: filtrando por para_venta=SI', productos.length, 'items');
+        }
+
+        fisico = {};
+        renderProductos();
+    } catch (e) {
+        console.error('Error cargando productos:', e);
+        document.getElementById('gridProductos').innerHTML =
+            '<div style="padding:20px;text-align:center;color:#ef4444">❌ Error cargando productos</div>';
+    }
+}
+
+function renderProductos() {
+    if (productos.length === 0) {
+        document.getElementById('gridProductos').innerHTML =
+            '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">No hay productos disponibles</div>';
+        return;
+    }
+
+    // Agrupar por grupo de productos
+    const grupos = {};
+    productos.forEach(p => {
+        const key = p.grupo || '__sin_grupo__';
+        const nombre = p.grupo_nombre || 'Sin Categoría';
+        if (!grupos[key]) grupos[key] = { nombre, items: [] };
+        grupos[key].items.push(p);
+    });
+
+    let html = '<table class="grid-table">';
+    html += '<thead><tr><th style="width:70px">CÓDIGO</th><th>NOMBRE</th><th style="width:50px">UND</th><th style="width:90px">STOCK SISTEMA</th><th style="width:90px">FÍSICO</th><th style="width:80px">DIFERENCIA</th></tr></thead><tbody>';
+
+    Object.entries(grupos).forEach(([key, grupo]) => {
+        html += `<tr>
+            <td colspan="6" style="background:var(--bg-secondary);padding:10px;font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">
+                📁 ${grupo.nombre}
+            </td>
+        </tr>`;
+
+        grupo.items.forEach(p => {
+            const fis = fisico[p.codigo] || '';
+            const stock = parseFloat(p.stock_minimo || 0);
+            const diff = fis ? (parseFloat(fis) - stock) : null;
+            const diffColor = diff === null ? 'var(--text-secondary)' : diff > 0 ? 'var(--success)' : diff < 0 ? 'var(--danger)' : 'var(--text-secondary)';
+            const diffText = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(2);
+
+            html += `<tr>
+                <td><span style="background:var(--bg-tertiary);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">${p.codigo}</span></td>
+                <td style="padding:8px">${p.nombre}</td>
+                <td style="text-align:center;font-size:12px;font-weight:600;padding:8px">${p.und}</td>
+                <td style="text-align:right;padding:8px;font-family:monospace;font-weight:600;color:var(--text-secondary)">${stock.toFixed(2)}</td>
+                <td style="padding:8px">
+                    <input type="number"
+                        class="fisico-input"
+                        data-codigo="${p.codigo}"
+                        data-stock="${stock}"
+                        value="${fis}"
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        onchange="actualizarDiferencia(this)"
+                        style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+                </td>
+                <td style="text-align:right;padding:8px;font-family:monospace;font-weight:600;color:${diffColor}">
+                    ${diffText}
+                </td>
+            </tr>`;
+        });
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('gridProductos').innerHTML = html;
+}
+
+function actualizarDiferencia(el) {
+    const codigo = el.dataset.codigo;
+    const stock = parseFloat(el.dataset.stock);
+    const val = el.value;
+
+    if (val) {
+        fisico[codigo] = parseFloat(val);
+    } else {
+        delete fisico[codigo];
+    }
+
+    // Actualizar visual
+    const tr = el.closest('tr');
+    const fis = fisico[codigo];
+    const diff = fis !== undefined ? (fis - stock) : null;
+    const diffColor = diff === null ? 'var(--text-secondary)' : diff > 0 ? 'var(--success)' : diff < 0 ? 'var(--danger)' : 'var(--text-secondary)';
+    const diffText = diff === null ? '—' : (diff > 0 ? '+' : '') + diff.toFixed(2);
+
+    const diffCell = tr.querySelector('td:last-child');
+    diffCell.textContent = diffText;
+    diffCell.style.color = diffColor;
+
+    actualizarFooter();
+}
+
+function actualizarFooter() {
+    const count = Object.keys(fisico).length;
+    const btnGuardar = document.getElementById('btnGuardar');
+    btnGuardar.disabled = count === 0;
+    document.getElementById('productosContados').textContent = count;
+}
+
+function renderFormulario() {
+    const html = `
+        <div class="filters-container">
+            <div class="filter-group">
+                <label class="filter-label">Fecha *</label>
+                <input type="date" id="fecha" class="filter-input"
+                    value="${new Date().toISOString().slice(0, 10)}">
             </div>
-
-            <div style="overflow-x: auto;">
-                <table class="grid-table">
-                    <thead>
-                        <tr>
-                            <th>Código</th>
-                            <th>Producto</th>
-                            <th>Unidad</th>
-                            <th style="text-align: right;">Stock Sistema</th>
-                            <th style="text-align: right;">Cantidad Física</th>
-                            <th style="text-align: right;">Diferencia</th>
-                        </tr>
-                    </thead>
-                    <tbody id="gridBodyTomaFisica">
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                                Seleccione fecha y centro de costo para comenzar
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="filter-group">
+                <label class="filter-label">Centro de Costo *</label>
+                <select id="ccOrigen" class="filter-select" onchange="cargarProductos()">
+                    <option value="">— Selecciona —</option>
+                    ${centrosCosto.map(cc => `<option value="${cc.codigo}">${cc.nombre}</option>`).join('')}
+                </select>
             </div>
-
-            <div style="padding: 1.5rem; border-top: 2px solid var(--border); display: flex; justify-content: flex-end; gap: 1rem;">
-                <button class="btn btn-secondary" onclick="limpiarGridTomaFisica()">❌ Cancelar</button>
-                <button class="btn btn-primary" onclick="guardarTomaFisica()">💾 Registrar Toma Física</button>
+            <div class="filter-group">
+                <label class="filter-label">Observaciones</label>
+                <input type="text" id="observaciones" class="filter-input"
+                    placeholder="Comentarios del conteo..." maxlength="120">
             </div>
+            <div class="filter-group" style="padding-top:0;margin-top:-8px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-primary)">
+                    <input type="checkbox" id="esParcial" checked style="width:18px;height:18px;cursor:pointer">
+                    <span>Toma Física Parcial (solo productos contados)</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="table-container" style="margin-top:20px">
+            <div style="padding:16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center">
+                <span>📦 Productos</span>
+                <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="limpiarProductos()">Limpiar</button>
+            </div>
+            <div id="gridProductos" style="overflow-x:auto"></div>
+        </div>
+
+        <div style="margin-top:20px;padding:16px;background:var(--bg-secondary);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;color:var(--text-secondary)">
+                <span id="productosContados">0</span> producto(s) contados
+            </span>
+            <button id="btnGuardar" class="btn btn-primary" disabled onclick="guardarTomaFisica()"
+                style="padding:8px 16px;font-size:13px">
+                💾 Guardar Toma Física
+            </button>
         </div>
     `;
 
-    // Establecer fecha de hoy
-    const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fechaTomaFisica').value = hoy;
-
-    cargarCCostosTomaFisica();
+    document.getElementById('gestionContent').innerHTML = html;
+    actualizarFooter();
 }
 
-// ================================================================
-// CARGAR CENTROS DE COSTO
-// ================================================================
-
-async function cargarCCostosTomaFisica() {
-    try {
-        const response = await fetch(`${API_BASE_TOMA}/ccostos?empresa=${sesion.empresa}`);
-        const data = await response.json();
-
-        const selectCCosto = document.getElementById('ccCostoTomaFisica');
-        selectCCosto.innerHTML = '<option value="">Seleccione...</option>';
-
-        if (data.success && data.data) {
-            data.data.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.codigo;
-                option.textContent = cc.nombre;
-                selectCCosto.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error cargando centros de costo:', error);
-        alert('❌ Error al cargar centros de costo');
-    }
-}
-
-// ================================================================
-// CARGAR GRID CON TODOS LOS PRODUCTOS
-// ================================================================
-
-async function cargarGridTomaFisica() {
-    const ccCosto = document.getElementById('ccCostoTomaFisica').value;
-    const gridBody = document.getElementById('gridBodyTomaFisica');
-
-    if (!ccCosto) {
-        gridBody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                    Seleccione el centro de costo para cargar productos
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    gridBody.innerHTML = `
-        <tr>
-            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                Cargando productos...
-            </td>
-        </tr>
-    `;
-
-    try {
-        const url = `${API_BASE_TOMA}/inventario?ccosto=${ccCosto}&empresa=${sesion.empresa}`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.success && data.data && data.data.length > 0) {
-            // Crear array de productos
-            productosTomaFisica = data.data.map(item => ({
-                codigo: item.codigo,
-                nombre: item.nombre,
-                unidad: item.und || 'UN',
-                stock_actual: parseFloat(item.stock_actual) || 0,
-                grupo: item.grupo,
-                grupo_nombre: item.grupo_nombre
-            }));
-
-            // Crear mapa de stock
-            const stockMap = {};
-            data.data.forEach(item => {
-                stockMap[item.codigo] = parseFloat(item.stock_actual) || 0;
-            });
-
-            // Renderizar grid
-            renderizarGridTomaFisica(productosTomaFisica, stockMap);
-        } else {
-            gridBody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                        No se encontraron productos
-                    </td>
-                </tr>
-            `;
-        }
-    } catch (error) {
-        console.error('Error cargando grid:', error);
-        gridBody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 3rem; color: var(--danger);">
-                    Error al cargar productos
-                </td>
-            </tr>
-        `;
-    }
-}
-
-// ================================================================
-// RENDERIZAR GRID
-// ================================================================
-
-function renderizarGridTomaFisica(productos, stockMap) {
-    const gridBody = document.getElementById('gridBodyTomaFisica');
-
-    if (productos.length === 0) {
-        gridBody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                    No hay productos para mostrar
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    // Agrupar productos por código de grupo
-    const grupos = {};
-    productos.forEach(producto => {
-        const codigoGrupo = producto.grupo || 'SIN_GRUPO';
-        const nombreGrupo = producto.grupo_nombre || 'Sin Grupo';
-
-        if (!grupos[codigoGrupo]) {
-            grupos[codigoGrupo] = {
-                nombre: nombreGrupo,
-                productos: []
-            };
-        }
-        grupos[codigoGrupo].productos.push(producto);
-    });
-
-    let html = '';
-
-    // Renderizar por grupo, ordenando por código de grupo numéricamente
-    Object.keys(grupos)
-        .sort((a, b) => {
-            if (a === 'SIN_GRUPO') return 1;
-            if (b === 'SIN_GRUPO') return -1;
-            return parseInt(a) - parseInt(b);
-        })
-        .forEach(codigoGrupo => {
-            const grupo = grupos[codigoGrupo];
-
-            html += `
-                <tr style="background: var(--bg-secondary); font-weight: 700; color: var(--text-primary);">
-                    <td colspan="6" style="padding: 0.75rem 1rem; border-bottom: 2px solid var(--border);">
-                        📦 ${grupo.nombre}
-                    </td>
-                </tr>
-            `;
-
-            grupo.productos.forEach(producto => {
-                const stockActual = producto.stock_actual || stockMap[producto.codigo] || 0;
-
-                html += `
-                    <tr data-codigo="${producto.codigo}" style="border-bottom: 1px solid var(--border);">
-                        <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600; padding: 0.5rem 1rem;">${producto.codigo}</td>
-                        <td style="padding: 0.5rem 1rem;">${producto.nombre}</td>
-                        <td style="padding: 0.5rem 1rem;">${producto.unidad || '-'}</td>
-                        <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-secondary); padding: 0.5rem 1rem;">
-                            ${formatearNumeroTomaFisica(stockActual)}
-                        </td>
-                        <td style="text-align: right; padding: 0.5rem 1rem;">
-                            <input
-                                type="text"
-                                class="input-cantidad-fisica"
-                                data-codigo="${producto.codigo}"
-                                data-stock-sistema="${stockActual}"
-                                placeholder=""
-                                onblur="formatearInputTomaFisica(this)"
-                                oninput="calcularDiferenciaTomaFisica(this)"
-                                onfocus="limpiarFormatoTomaFisica(this)"
-                                style="width: 80px; padding: 0.4rem; text-align: right;"
-                            >
-                        </td>
-                        <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; padding: 0.5rem 1rem; color: var(--text-secondary);">
-                            <span class="diferencia" data-codigo="${producto.codigo}">-</span>
-                        </td>
-                    </tr>
-                `;
-            });
-        });
-
-    gridBody.innerHTML = html;
-}
-
-// ================================================================
-// CALCULAR DIFERENCIA AL INGRESAR CANTIDAD
-// ================================================================
-
-function calcularDiferenciaTomaFisica(input) {
-    const codigo = input.dataset.codigo;
-    const stockSistema = parseFloat(input.dataset.stockSistema) || 0;
-    const cantidadFisica = parseFloat(input.value) || 0;
-    const diferencia = cantidadFisica - stockSistema;
-
-    const spanDiferencia = document.querySelector(`.diferencia[data-codigo="${codigo}"]`);
-    if (spanDiferencia) {
-        if (input.value === '') {
-            spanDiferencia.textContent = '-';
-            spanDiferencia.style.color = 'var(--text-secondary)';
-        } else {
-            spanDiferencia.textContent = (diferencia > 0 ? '+' : '') + diferencia.toFixed(2);
-            spanDiferencia.style.color = diferencia > 0 ? 'var(--success)' : diferencia < 0 ? 'var(--danger)' : 'var(--text-secondary)';
-        }
-    }
-}
-
-// ================================================================
-// FORMATEAR INPUT AL SALIR (onblur)
-// ================================================================
-
-function formatearInputTomaFisica(input) {
-    const value = input.value.trim();
-
-    if (value === '') {
-        input.value = '';
-        calcularDiferenciaTomaFisica(input);
-        return;
-    }
-
-    const numero = parseFloat(value);
-
-    if (isNaN(numero)) {
-        input.value = '';
-        calcularDiferenciaTomaFisica(input);
-        return;
-    }
-
-    // Formato con 2 decimales (permite 0 como valor válido)
-    input.value = numero.toFixed(2);
-    calcularDiferenciaTomaFisica(input);
-}
-
-// ================================================================
-// LIMPIAR FORMATO AL ENTRAR (onfocus)
-// ================================================================
-
-function limpiarFormatoTomaFisica(input) {
-    // No hace nada, deja el valor tal cual para que el usuario lo edite
-}
-
-// ================================================================
-// FORMATEAR NÚMERO PARA DISPLAY
-// ================================================================
-
-function formatearNumeroTomaFisica(value) {
-    const num = parseFloat(value);
-    if (isNaN(num)) return '0.00';
-    return num.toFixed(2);
-}
-
-// ================================================================
-// LIMPIAR GRID
-// ================================================================
-
-function limpiarGridTomaFisica() {
-    const inputs = document.querySelectorAll('.input-cantidad-fisica');
-    inputs.forEach(input => {
-        input.value = '';
-        calcularDiferenciaTomaFisica(input);
+function limpiarProductos() {
+    fisico = {};
+    document.querySelectorAll('.fisico-input').forEach(inp => {
+        inp.value = '';
+        actualizarDiferencia(inp);
     });
 }
-
-// ================================================================
-// GUARDAR TOMA FÍSICA
-// ================================================================
 
 async function guardarTomaFisica() {
-    const fecha = document.getElementById('fechaTomaFisica').value;
-    const ccCosto = document.getElementById('ccCostoTomaFisica').value;
-    const observaciones = document.getElementById('observacionesTomaFisica').value.trim();
-    const esTomaFisicaParcial = document.getElementById('tomaFisicaParcial').checked;
+    const fecha = document.getElementById('fecha').value;
+    const ccOrigen = document.getElementById('ccOrigen').value;
+    const observaciones = document.getElementById('observaciones').value;
+    const esParcial = document.getElementById('esParcial').checked;
 
-    // Validar campos
-    if (!fecha) {
-        alert('❌ La fecha es obligatoria');
+    if (!fecha || !ccOrigen) {
+        alert('❌ Completa los campos obligatorios');
         return;
     }
 
-    if (!ccCosto) {
-        alert('❌ El centro de costo es obligatorio');
+    if (Object.keys(fisico).length === 0) {
+        alert('❌ Ingresa conteos para al menos un producto');
         return;
     }
 
-    // Recolectar productos con diferencia y crear movimientos
-    const inputs = document.querySelectorAll('.input-cantidad-fisica');
+    // Procesar movimientos según parcial/completa
     const movimientos = [];
 
-    inputs.forEach(input => {
-        const value = input.value.trim();
-        const stockSistema = parseFloat(input.dataset.stockSistema) || 0;
+    Object.entries(fisico).forEach(([codigo, cantFisica]) => {
+        const prod = productos.find(p => p.codigo === codigo);
+        const stockSistema = parseFloat(prod?.stock_minimo || 0);
+        const diferencia = cantFisica - stockSistema;
 
-        // Determinar cantidad física según tipo de toma
-        let cantidadFisica = null;
-
-        if (esTomaFisicaParcial) {
-            // Toma parcial: solo procesa si tiene valor ingresado
-            if (value === '') {
-                return; // Salta este producto
-            }
-            cantidadFisica = parseFloat(value);
-        } else {
-            // Toma total: campos en blanco se asumen como 0
-            cantidadFisica = value === '' ? 0 : parseFloat(value);
-        }
-
-        if (!isNaN(cantidadFisica) && cantidadFisica >= 0) {
-            const diferencia = cantidadFisica - stockSistema;
-
-            // Si hay diferencia, crear movimiento
-            if (diferencia !== 0) {
-                movimientos.push({
-                    fecha: fecha,
-                    ccosto: ccCosto,
-                    codigo: input.dataset.codigo,
-                    entrada: diferencia > 0 ? diferencia : 0,
-                    salida: diferencia < 0 ? Math.abs(diferencia) : 0,
-                    tipo: 'TOMA FISICA',
-                    empresa: sesion.empresa,
-                    observaciones: observaciones
-                });
-            }
+        if (diferencia !== 0) {
+            movimientos.push({
+                fecha,
+                ccosto: ccOrigen,
+                codigo,
+                entrada: diferencia > 0 ? diferencia : 0,
+                salida: diferencia < 0 ? Math.abs(diferencia) : 0,
+                tipo: 'TOMA_FISICA',
+                observaciones,
+            });
         }
     });
 
     if (movimientos.length === 0) {
-        alert('❌ Debe ingresar cantidades que generen diferencias');
+        alert('❌ Ningún producto tiene diferencia de conteo');
         return;
     }
 
-    const tipoToma = esTomaFisicaParcial ? 'Parcial' : 'Total';
-    if (!confirm(`¿Confirmas registrar toma física ${tipoToma} con ${movimientos.length} movimiento(s)?`)) {
+    const tipoTxt = esParcial ? 'Parcial' : 'Completa';
+    if (!confirm(`¿Confirmas toma física ${tipoTxt} con ${movimientos.length} movimiento(s)?`)) {
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE_TOMA}/inventario/movimientos`, {
+        const res = await fetch(`${API_BASE}/almacen/movimientos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-empresa': window.sesion.empresa,
+            },
             body: JSON.stringify({
-                movimientos: movimientos
-            })
+                fecha,
+                tipo_op: 'TOMA_FISICA',
+                cc_origen: ccOrigen,
+                cc_destino: null,
+                observaciones,
+                lineas: movimientos.map(m => ({
+                    producto_codigo: m.codigo,
+                    cantidad: m.entrada || Math.abs(m.salida),
+                })),
+            }),
         });
 
-        const data = await response.json();
+        const data = await res.json();
 
         if (data.success) {
-            alert(`✅ Toma física ${tipoToma} registrada exitosamente\n\nMovimientos: ${data.registros_creados}`);
-            limpiarGridTomaFisica();
-            cargarGridTomaFisica(); // Recargar grid
+            alert(`✓ Toma Física ${tipoTxt} registrada\n${movimientos.length} movimiento(s)`);
+            fisico = {};
+            document.getElementById('ccOrigen').value = '';
+            document.getElementById('observaciones').value = '';
+            document.getElementById('gridProductos').innerHTML = '';
+            actualizarFooter();
         } else {
-            alert(`❌ Error: ${data.error}`);
+            alert('❌ ' + (data.error || 'Error guardando'));
         }
-    } catch (error) {
-        console.error('Error guardando toma física:', error);
-        alert('❌ Error al registrar toma física');
+    } catch (e) {
+        console.error('Error:', e);
+        alert('❌ Error de conexión');
     }
 }
