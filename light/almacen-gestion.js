@@ -80,9 +80,8 @@ async function cargarProductos() {
             productos = todos.filter(p => p.control === 'SI');
             console.log('📦 Bodega Maestra: filtrando por control=SI', productos.length, 'items');
         } else {
-            // Punto de venta: mostrar SOLO para_venta=SI pero NO los que tienen control=SI
-            productos = todos.filter(p => p.para_venta === 'SI' && p.control !== 'SI');
-            console.log('🏪 Punto de Venta: filtrando por para_venta=SI y control!=SI', productos.length, 'items');
+            productos = todos.filter(p => p.para_venta === 'SI');
+            console.log('🏪 Punto de Venta: filtrando por para_venta=SI', productos.length, 'items');
         }
 
         cantidades = {};
