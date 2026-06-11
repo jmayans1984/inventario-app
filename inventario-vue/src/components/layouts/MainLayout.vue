@@ -1,10 +1,31 @@
 <template>
   <v-layout>
     <!-- ═══════════════════════════════════════════ SIDEBAR -->
-    <v-navigation-drawer permanent :width="270" class="sidebar">
+    <v-navigation-drawer
+      v-model="drawer"
+      :permanent="!isMobile"
+      :temporary="isMobile"
+      :width="isMobile ? 300 : 270"
+      class="sidebar"
+    >
+      <!-- Mobile: cabecera del drawer con usuario -->
+      <div v-if="isMobile" class="drawer-mobile-header">
+        <div class="drawer-mobile-user">
+          <v-avatar color="#667eea" size="40">
+            <span class="text-white" style="font-size:14px;font-weight:700">{{ avatarInitials }}</span>
+          </v-avatar>
+          <div class="drawer-mobile-user-info">
+            <div class="drawer-mobile-username">{{ authStore.userName }}</div>
+            <div class="drawer-mobile-empresa">{{ authStore.empresaNombre }}</div>
+          </div>
+        </div>
+        <button class="drawer-close-btn" @click="drawer = false">
+          <v-icon size="20" color="rgba(255,255,255,0.5)">mdi-close</v-icon>
+        </button>
+      </div>
 
-      <!-- Logo -->
-      <div class="sidebar-logo">
+      <!-- Desktop: logo -->
+      <div v-else class="sidebar-logo">
         <div class="sidebar-logo-icon">
           <v-icon size="22" color="white">mdi-chart-donut-variant</v-icon>
         </div>
@@ -30,7 +51,7 @@
             <div
               class="menu-item"
               :class="{ 'menu-item-active': isActive }"
-              @click="navigate"
+              @click="() => { navigate(); if (isMobile) drawer = false }"
             >
               <v-icon size="17" class="menu-icon">{{ mod.icon }}</v-icon>
               <span class="menu-label">{{ mod.name }}</span>
@@ -39,7 +60,6 @@
 
           <!-- Con submenús -->
           <div v-else>
-            <!-- Módulo principal -->
             <router-link
               :to="mod.path"
               custom
@@ -90,7 +110,7 @@
                     <div
                       class="menu-leaf"
                       :class="{ 'menu-leaf-active': isActive }"
-                      @click="navigate"
+                      @click="() => { navigate(); if (isMobile) drawer = false }"
                     >
                       <span class="leaf-dot"></span>
                       <span class="leaf-label">{{ item.name }}</span>
@@ -107,7 +127,8 @@
       <!-- Footer -->
       <template #append>
         <v-divider color="white" opacity="0.1"></v-divider>
-        <div class="sidebar-footer">
+        <!-- Desktop footer con usuario -->
+        <div v-if="!isMobile" class="sidebar-footer">
           <v-avatar color="#667eea" size="32">
             <span class="text-white" style="font-size:12px;font-weight:700">{{ avatarInitials }}</span>
           </v-avatar>
@@ -116,21 +137,83 @@
             <div class="sidebar-footer-empresa">{{ authStore.empresaNombre }}</div>
           </div>
         </div>
+        <!-- Mobile footer con logout -->
+        <div v-else class="mobile-drawer-footer">
+          <button class="mobile-logout-btn" @click="handleLogout">
+            <v-icon size="18">mdi-logout-variant</v-icon>
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
       </template>
     </v-navigation-drawer>
 
     <!-- ═══════════════════════════════════════════ MAIN -->
     <v-main class="main-content">
 
-      <!-- HEADER -->
-      <div class="app-header">
+      <!-- MOBILE HEADER -->
+      <div v-if="isMobile" class="mobile-header">
+        <button class="mobile-menu-btn" @click="drawer = !drawer">
+          <v-icon size="22">mdi-menu</v-icon>
+          <span v-if="notificacionesSinLeer > 0" class="menu-btn-badge"></span>
+        </button>
+
+        <span class="mobile-page-title">{{ currentModuleTitle }}</span>
+
+        <div class="mobile-header-actions">
+          <!-- Notificaciones móvil -->
+          <v-menu location="bottom end" :close-on-content-click="false">
+            <template #activator="{ props }">
+              <button v-bind="props" class="mobile-action-btn">
+                <v-icon size="21">mdi-bell-outline</v-icon>
+                <span v-if="notificacionesSinLeer > 0" class="mobile-badge">{{ notificacionesSinLeer > 9 ? '9+' : notificacionesSinLeer }}</span>
+              </button>
+            </template>
+            <div class="notif-panel">
+              <div class="notif-panel-header">
+                <span class="notif-panel-title">Notificaciones</span>
+                <div v-if="notificaciones.length > 0" class="notif-header-btns">
+                  <button class="notif-hbtn notif-hbtn-red" @mousedown.stop.prevent="eliminarTodas">Limpiar</button>
+                </div>
+              </div>
+              <div v-if="notificaciones.length === 0" class="notif-empty">
+                <v-icon size="32" color="#ccc">mdi-bell-off-outline</v-icon>
+                <p>Sin notificaciones</p>
+              </div>
+              <div v-else class="notif-list">
+                <div
+                  v-for="n in notificaciones"
+                  :key="n.id"
+                  class="notif-item"
+                  :class="{ 'notif-sin-leer': n.leida === 'NO' }"
+                >
+                  <v-icon :color="obtenerColorTipo(n.tipo)" size="18" class="notif-icon">{{ obtenerIconoTipo(n.tipo) }}</v-icon>
+                  <div class="notif-body">
+                    <div class="notif-titulo">{{ n.titulo }}</div>
+                    <div class="notif-mensaje">{{ n.mensaje }}</div>
+                    <div class="notif-fecha">{{ formatFecha(n.fecha_creacion) }}</div>
+                  </div>
+                  <button class="notif-action-btn notif-action-del" @mousedown.stop.prevent="descartarNotificacion(n)">✕</button>
+                </div>
+              </div>
+            </div>
+          </v-menu>
+
+          <!-- Tema -->
+          <button class="mobile-action-btn" @click="toggleTema">
+            <v-icon size="20">{{ appStore.isDarkMode ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- DESKTOP HEADER -->
+      <div v-else class="app-header">
         <div class="header-left">
           <h1 class="header-page-title">{{ currentModuleTitle }}</h1>
           <p class="header-date">{{ currentDate }}</p>
         </div>
 
         <div class="header-right">
-          <!-- Notificaciones -->
+          <!-- Notificaciones desktop -->
           <v-menu location="bottom end" :close-on-content-click="false">
             <template #activator="{ props }">
               <v-btn
@@ -152,23 +235,16 @@
             </template>
 
             <div class="notif-panel">
-              <!-- Header del panel -->
               <div class="notif-panel-header">
                 <span class="notif-panel-title">Notificaciones</span>
                 <div v-if="notificaciones.length > 0" class="notif-header-btns">
-                  <button class="notif-hbtn notif-hbtn-red" @mousedown.stop.prevent="eliminarTodas">
-                    Limpiar todo
-                  </button>
+                  <button class="notif-hbtn notif-hbtn-red" @mousedown.stop.prevent="eliminarTodas">Limpiar todo</button>
                 </div>
               </div>
-
-              <!-- Lista vacía -->
               <div v-if="notificaciones.length === 0" class="notif-empty">
                 <v-icon size="32" color="#ccc">mdi-bell-off-outline</v-icon>
                 <p>Sin notificaciones</p>
               </div>
-
-              <!-- Lista de notificaciones -->
               <div v-else class="notif-list">
                 <div
                   v-for="n in notificaciones"
@@ -182,12 +258,7 @@
                     <div class="notif-mensaje">{{ n.mensaje }}</div>
                     <div class="notif-fecha">{{ formatFecha(n.fecha_creacion) }}</div>
                   </div>
-                  <!-- X: marcar leída y eliminar del panel -->
-                  <button
-                    class="notif-action-btn notif-action-del"
-                    title="Descartar"
-                    @mousedown.stop.prevent="descartarNotificacion(n)"
-                  >✕</button>
+                  <button class="notif-action-btn notif-action-del" @mousedown.stop.prevent="descartarNotificacion(n)">✕</button>
                 </div>
               </div>
             </div>
@@ -216,18 +287,19 @@
           </div>
 
           <v-btn
-          variant="tonal"
-          color="error"
-          size="small"
-          class="ml-2 logout-btn"
-          prepend-icon="mdi-logout-variant"
-          @click="handleLogout"
-        >
-          Salir
-        </v-btn>
+            variant="tonal"
+            color="error"
+            size="small"
+            class="ml-2 logout-btn"
+            prepend-icon="mdi-logout-variant"
+            @click="handleLogout"
+          >
+            Salir
+          </v-btn>
         </div>
       </div>
-      <!-- Línea azul separadora -->
+
+      <!-- Línea separadora -->
       <div class="header-divider"></div>
 
       <!-- CONTENIDO -->
@@ -240,8 +312,9 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useDisplay } from 'vuetify'
 import { useAuthStore } from '../../stores/auth'
 import { useAppStore } from '../../stores/app'
 import { MODULES } from '../../utils/constants'
@@ -253,9 +326,18 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const appStore = useAppStore()
+const display = useDisplay()
+
+const isMobile = computed(() => display.mobile.value)
+const drawer = ref(true)
+
+// En mobile el drawer empieza cerrado
+watch(isMobile, (val) => {
+  drawer.value = !val
+}, { immediate: true })
 
 const currentDate = ref('')
-// Verifica si una ruta está permitida según los permisos de módulos
+
 function rutaPermitida(path) {
   if (!path) return true
   const dis = authStore.modulosDeshabilitados
@@ -263,7 +345,6 @@ function rutaPermitida(path) {
   return !dis.some(d => path === d || path.startsWith(d + '/'))
 }
 
-// Filtra items con requiredTipo según el tipo de empresa activa y con permisos de módulos.
 const modules = computed(() => {
   const tipo = authStore.empresaTipo
   return MODULES
@@ -273,16 +354,13 @@ const modules = computed(() => {
       children: (mod.children || []).map(cat => ({
         ...cat,
         items: (cat.items || []).filter(item =>
-          // Sin requiredTipo → visible por tipo; con requiredTipo → debe coincidir
           (!item.requiredTipo || item.requiredTipo === tipo) &&
-          // Verificar permisos de módulos
           rutaPermitida(item.path)
         ),
       })).filter(cat => cat.keepEmpty || !cat.items || cat.items.length > 0),
     }))
 })
 
-// Estado de apertura de menús
 const openModules = reactive({})
 const openCats = reactive({})
 
@@ -301,26 +379,20 @@ const avatarInitials = computed(() => {
 
 onMounted(() => {
   currentDate.value = formatFechaLarga()
-  // Abrir automáticamente el módulo y la categoría activa
   MODULES.forEach(mod => {
     const modActive = mod.path !== '/' && (route.path === mod.path || route.path.startsWith(mod.path + '/'))
     if (modActive) {
       openModules[mod.id] = true
-      // Abrir la categoría que contiene la ruta actual
       mod.children?.forEach(cat => {
         const catActive = cat.items?.some(item => route.path === item.path || route.path.startsWith(item.path))
         if (catActive) openCats[mod.id + cat.name] = true
       })
     }
   })
-
-  // Cargar notificaciones
   cargarNotificaciones()
-  // Refrescar cada 60 segundos
   setInterval(cargarNotificaciones, 60000)
 })
 
-// Notificaciones
 const notificaciones = ref([])
 const notificacionesSinLeer = ref(0)
 
@@ -357,24 +429,19 @@ async function cargarNotificaciones() {
   }
 }
 
-// Descartar: marca como leída + elimina del panel inmediatamente (sin esperar API)
 async function descartarNotificacion(n) {
-  // Eliminar del array inmediatamente para feedback visual instantáneo
   const idx = notificaciones.value.findIndex(x => x.id === n.id)
   if (idx !== -1) {
     if (n.leida === 'NO') notificacionesSinLeer.value = Math.max(0, notificacionesSinLeer.value - 1)
     notificaciones.value.splice(idx, 1)
   }
-  // Llamadas API en background (no bloqueantes)
   notificacionesService.marcarComoLeida(n.id).catch(() => {})
   notificacionesService.eliminarNotificacion(n.id).catch(() => {})
 }
 
 async function eliminarTodas() {
-  // Limpiar panel inmediatamente
   notificaciones.value = []
   notificacionesSinLeer.value = 0
-  // API en background
   notificacionesService.eliminarTodasNotificaciones().catch(() => {})
 }
 
@@ -408,13 +475,50 @@ const handleLogout = () => {
   border-right: 1px solid rgba(255,255,255,0.06) !important;
 }
 
+/* Mobile: header del drawer */
+.drawer-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 16px;
+  padding-top: calc(20px + env(safe-area-inset-top));
+}
+.drawer-mobile-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.drawer-mobile-user-info { flex: 1; }
+.drawer-mobile-username {
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.drawer-mobile-empresa {
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  margin-top: 1px;
+}
+.drawer-close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Desktop: logo */
 .sidebar-logo {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 18px 14px 14px;
 }
-
 .sidebar-logo-icon {
   width: 38px;
   height: 38px;
@@ -426,7 +530,6 @@ const handleLogout = () => {
   flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(99,102,241,0.4);
 }
-
 .sidebar-logo-title {
   color: white;
   font-size: 15px;
@@ -434,7 +537,6 @@ const handleLogout = () => {
   letter-spacing: 0.3px;
   line-height: 1.2;
 }
-
 .sidebar-logo-sub {
   color: rgba(255,255,255,0.4);
   font-size: 10px;
@@ -442,26 +544,26 @@ const handleLogout = () => {
   text-transform: uppercase;
 }
 
-/* ─── MENÚ CUSTOM ─── */
+/* ─── MENÚ ─── */
 .sidebar-menu {
   padding: 6px 8px;
   overflow-y: auto;
   flex: 1;
 }
 
-/* Nivel 1 - Módulo */
+/* Nivel 1 */
 .menu-item {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px 10px;
+  padding: 9px 10px;
   border-radius: 8px;
   cursor: pointer;
   color: rgba(255,255,255,0.5);
   margin-bottom: 2px;
   transition: all 0.18s;
   user-select: none;
-  position: relative;
+  min-height: 42px;
 }
 .menu-item:hover {
   background: rgba(255,255,255,0.06);
@@ -474,7 +576,6 @@ const handleLogout = () => {
   padding-left: 8px;
 }
 .menu-item-open { color: rgba(255,255,255,0.85); }
-
 .menu-icon { flex-shrink: 0; }
 .menu-label {
   flex: 1;
@@ -489,19 +590,18 @@ const handleLogout = () => {
 .menu-chevron { flex-shrink: 0; transition: transform 0.25s ease; opacity: .6; }
 .menu-chevron.rotated { transform: rotate(180deg); }
 
-/* Separador visual antes de cada módulo abierto */
 .menu-item-open + div {
   border-left: 1px solid rgba(255,255,255,0.06);
   margin-left: 18px;
   padding-left: 2px;
 }
 
-/* Nivel 2 - Categoría */
+/* Nivel 2 */
 .menu-cat {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 8px 5px 14px;
+  padding: 6px 8px 6px 14px;
   border-radius: 5px;
   cursor: pointer;
   color: rgba(255,255,255,0.35);
@@ -509,10 +609,10 @@ const handleLogout = () => {
   margin-top: 4px;
   transition: all 0.15s;
   user-select: none;
+  min-height: 36px;
 }
 .menu-cat:hover { color: rgba(255,255,255,0.65); }
 .menu-cat-open { color: rgba(255,255,255,0.6); }
-
 .cat-icon { flex-shrink: 0; opacity: .7; }
 .cat-label {
   flex: 1;
@@ -525,19 +625,19 @@ const handleLogout = () => {
   text-overflow: ellipsis;
 }
 
-/* Nivel 3 - Ítem */
+/* Nivel 3 */
 .menu-leaf {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5.5px 8px 5.5px 20px;
+  padding: 7px 8px 7px 20px;
   border-radius: 6px;
   cursor: pointer;
   color: rgba(255,255,255,0.4);
   margin-bottom: 1px;
   transition: all 0.15s;
   user-select: none;
-  font-size: 11px;
+  min-height: 38px;
 }
 .menu-leaf:hover {
   background: rgba(255,255,255,0.05);
@@ -553,7 +653,6 @@ const handleLogout = () => {
   background: #67e8f9 !important;
   box-shadow: 0 0 6px rgba(103,232,249,0.6);
 }
-
 .leaf-dot {
   width: 4px;
   height: 4px;
@@ -570,6 +669,7 @@ const handleLogout = () => {
   text-overflow: ellipsis;
 }
 
+/* Footer desktop */
 .sidebar-footer {
   display: flex;
   align-items: center;
@@ -595,7 +695,125 @@ const handleLogout = () => {
   text-overflow: ellipsis;
 }
 
-/* ─── HEADER ─── */
+/* Footer mobile: logout */
+.mobile-drawer-footer {
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+.mobile-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(239,68,68,0.12);
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mobile-logout-btn:hover { background: rgba(239,68,68,0.2); }
+
+/* ─── MOBILE HEADER ─── */
+.mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top);
+  height: calc(56px + env(safe-area-inset-top));
+  background: rgb(var(--v-theme-surface));
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mobile-menu-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgb(var(--v-theme-on-surface));
+  flex-shrink: 0;
+}
+.mobile-menu-btn:active { background: rgba(var(--v-theme-on-surface), 0.08); }
+
+.menu-btn-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  border: 2px solid rgb(var(--v-theme-surface));
+}
+
+.mobile-page-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+.mobile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.mobile-action-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgb(var(--v-theme-on-surface));
+}
+.mobile-action-btn:active { background: rgba(var(--v-theme-on-surface), 0.08); }
+
+.mobile-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  background: #ef4444;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid rgb(var(--v-theme-surface));
+}
+
+/* ─── DESKTOP HEADER ─── */
 .app-header {
   display: flex;
   align-items: center;
@@ -605,7 +823,6 @@ const handleLogout = () => {
   background: rgb(var(--v-theme-surface));
   transition: background 0.3s;
 }
-
 .header-page-title {
   font-size: 18px;
   font-weight: 800;
@@ -614,7 +831,6 @@ const handleLogout = () => {
   text-transform: uppercase;
   line-height: 1.2;
 }
-
 .header-date {
   font-size: 11px;
   color: rgba(var(--v-theme-on-surface), 0.45);
@@ -622,15 +838,10 @@ const handleLogout = () => {
   text-transform: capitalize;
   margin-top: 1px;
 }
-
 .header-right { display: flex; align-items: center; }
-
 .header-btn { color: rgba(var(--v-theme-on-surface), 0.5) !important; }
-
 .header-user { display: flex; align-items: center; gap: 10px; }
-
 .header-user-texts { display: flex; flex-direction: column; text-align: right; }
-
 .header-username {
   font-size: 13px;
   font-weight: 700;
@@ -639,14 +850,12 @@ const handleLogout = () => {
   letter-spacing: 0.5px;
   line-height: 1.3;
 }
-
 .header-empresa {
   font-size: 11px;
   color: #667eea;
   font-weight: 600;
   line-height: 1.3;
 }
-
 .logout-btn { font-size: 12px !important; font-weight: 700 !important; letter-spacing: 0.8px !important; }
 
 /* Línea separadora */
@@ -657,15 +866,30 @@ const handleLogout = () => {
 
 /* ─── CONTENT ─── */
 .main-content { background: rgb(var(--v-theme-background)) !important; transition: background 0.3s; }
-.page-body { padding: 24px; }
+
+.page-body {
+  padding: 24px;
+}
+
+@media (max-width: 600px) {
+  .page-body {
+    padding: 14px 14px calc(24px + env(safe-area-inset-bottom));
+  }
+}
 
 /* ─── NOTIFICACIONES ─── */
 .notif-panel {
-  width: 380px;
-  max-height: 520px;
+  width: 340px;
+  max-height: 480px;
   display: flex;
   flex-direction: column;
   background: rgb(var(--v-theme-surface));
+}
+
+@media (max-width: 600px) {
+  .notif-panel {
+    width: 300px;
+  }
 }
 
 .notif-panel-header {
@@ -676,18 +900,12 @@ const handleLogout = () => {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   flex-shrink: 0;
 }
-
 .notif-panel-title {
   font-size: 13px;
   font-weight: 700;
   color: rgb(var(--v-theme-on-surface));
 }
-
-.notif-header-btns {
-  display: flex;
-  gap: 4px;
-}
-
+.notif-header-btns { display: flex; gap: 4px; }
 .notif-hbtn {
   font-size: 11px;
   font-weight: 600;
@@ -698,11 +916,8 @@ const handleLogout = () => {
   background: transparent;
   transition: background .15s;
 }
-.notif-hbtn-blue { color: #0891b2; }
-.notif-hbtn-blue:hover { background: rgba(8,145,178,.1); }
 .notif-hbtn-red { color: #ef4444; }
 .notif-hbtn-red:hover { background: rgba(239,68,68,.1); }
-
 .notif-action-btn {
   width: 22px;
   height: 22px;
@@ -718,25 +933,16 @@ const handleLogout = () => {
   transition: background .15s;
   flex-shrink: 0;
 }
-.notif-action-check { color: #10b981; }
-.notif-action-check:hover { background: rgba(16,185,129,.15); }
 .notif-action-del { color: #ef4444; }
 .notif-action-del:hover { background: rgba(239,68,68,.15); }
-
 .notif-empty {
   text-align: center;
   padding: 40px 20px;
   color: rgba(var(--v-theme-on-surface), 0.4);
   font-size: 12px;
 }
-
 .notif-empty p { margin: 8px 0 0; }
-
-.notif-list {
-  overflow-y: auto;
-  flex: 1;
-}
-
+.notif-list { overflow-y: auto; flex: 1; }
 .notif-item {
   display: flex;
   align-items: flex-start;
@@ -745,18 +951,13 @@ const handleLogout = () => {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
   transition: background .15s;
 }
-
 .notif-item:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
-
 .notif-sin-leer {
-  background: rgba(8, 145, 178, 0.05) !important;
+  background: rgba(8,145,178,0.05) !important;
   border-left: 3px solid #0891b2;
 }
-
 .notif-icon { flex-shrink: 0; margin-top: 2px; }
-
 .notif-body { flex: 1; min-width: 0; }
-
 .notif-titulo {
   font-size: 12px;
   font-weight: 600;
@@ -766,7 +967,6 @@ const handleLogout = () => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .notif-mensaje {
   font-size: 11px;
   color: rgba(var(--v-theme-on-surface), 0.6);
@@ -777,17 +977,9 @@ const handleLogout = () => {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .notif-fecha {
   font-size: 10px;
   color: rgba(var(--v-theme-on-surface), 0.4);
   margin-top: 4px;
-}
-
-.notif-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
 }
 </style>

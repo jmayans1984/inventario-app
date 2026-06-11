@@ -18,7 +18,7 @@ const vuetify = createVuetify({
           warning:    '#f59e0b',
           error:      '#ef4444',
           info:       '#3b82f6',
-          background: '#f1f5f9',
+          background: '#F2F2F7',
           surface:    '#ffffff',
         },
       },
