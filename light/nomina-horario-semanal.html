@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Horario Semanal - Nómina</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .hs-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0,0,0,.45);
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .hs-modal.open { display: flex; }
+        .hs-modal-card {
+            background: var(--bg-primary);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+        }
+        .hs-grid-table { border-collapse: collapse; font-size: 11px; min-width: 640px; }
+        .hs-grid-table th {
+            padding: 6px 4px; text-align: center; font-size: 9px; font-weight: 800;
+            text-transform: uppercase; color: var(--text-tertiary);
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            position: sticky; top: 0;
+        }
+        .hs-grid-table td { border: 1px solid var(--border); text-align: center; padding: 4px 2px; min-width: 72px; }
+        .hs-turno-cell { cursor: pointer; min-height: 48px; -webkit-tap-highlight-color: transparent; }
+        .hs-turno-cell:active { background: rgba(139,92,246,.08); }
+    </style>
+</head>
+<body>
+    <header class="header"></header>
+
+    <div style="max-width: 1400px; margin: 0 auto; padding: 1rem;">
+        <div id="hsContent"></div>
+    </div>
+
+    <!-- Modal editar turno -->
+    <div class="hs-modal" id="hsModalTurno">
+        <div class="hs-modal-card">
+            <div id="hsTurnoTitulo" style="font-weight:800;font-size:15px;margin-bottom:2px"></div>
+            <div id="hsTurnoSub" style="font-size:12px;color:var(--text-tertiary);margin-bottom:14px"></div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:12px;cursor:pointer">
+                <input type="checkbox" id="hsEsLibre" onchange="toggleLibre()" style="width:20px;height:20px">
+                <span>Día libre / Ausencia</span>
+            </label>
+            <div id="hsCamposHoras">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                    <div>
+                        <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Entrada</label>
+                        <input type="time" id="hsInicio" onchange="calcHorasAuto()" style="width:100%;height:44px;padding:0 10px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--bg-secondary);color:var(--text-primary)">
+                    </div>
+                    <div>
+                        <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Salida</label>
+                        <input type="time" id="hsFin" onchange="calcHorasAuto()" style="width:100%;height:44px;padding:0 10px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--bg-secondary);color:var(--text-primary)">
+                    </div>
+                </div>
+                <div id="hsHorasCalc" style="display:none;font-size:13px;color:#10b981;font-weight:700;background:rgba(16,185,129,.08);padding:8px 12px;border-radius:10px;margin-bottom:10px"></div>
+            </div>
+            <div id="hsCampoAusencia" style="display:none;margin-bottom:10px">
+                <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Tipo de ausencia</label>
+                <select id="hsAusenciaTipo" style="width:100%;height:44px;padding:0 10px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--bg-secondary);color:var(--text-primary)">
+                    <option value="">Libre / Descanso</option>
+                    <option value="ENFERMEDAD">Enfermedad</option>
+                    <option value="VACACIONES">Vacaciones</option>
+                    <option value="SIN_PAGO">Sin pago</option>
+                    <option value="FERIADO">Feriado</option>
+                </select>
+            </div>
+            <div style="margin-bottom:16px">
+                <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Notas</label>
+                <input type="text" id="hsNotas" placeholder="Opcional..." style="width:100%;height:44px;padding:0 10px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--bg-secondary);color:var(--text-primary)">
+            </div>
+            <div style="display:flex;gap:8px">
+                <button id="hsBtnEliminar" class="btn" style="display:none;background:rgba(239,68,68,.1);color:#ef4444;border:none" onclick="eliminarTurno()">🗑</button>
+                <button class="btn btn-secondary" style="flex:1" onclick="cerrarModalTurno()">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1;background:#8b5cf6" onclick="guardarTurno()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal agregar empleado -->
+    <div class="hs-modal" id="hsModalAgregarEmp">
+        <div class="hs-modal-card">
+            <div id="hsAgregarTitulo" style="font-weight:800;font-size:15px;margin-bottom:12px"></div>
+            <input type="text" id="hsBuscarEmp" placeholder="🔍 Buscar empleado..." oninput="renderListaEmpAgregar()"
+                style="width:100%;height:44px;padding:0 12px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--bg-secondary);color:var(--text-primary);margin-bottom:10px">
+            <div id="hsListaEmpAgregar" style="max-height:50vh;overflow-y:auto"></div>
+            <button class="btn btn-secondary" style="width:100%;margin-top:12px" onclick="document.getElementById('hsModalAgregarEmp').classList.remove('open')">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal nueva semana -->
+    <div class="hs-modal" id="hsModalNuevaSemana">
+        <div class="hs-modal-card">
+            <div style="font-weight:800;font-size:15px;margin-bottom:12px">Nueva Semana</div>
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Semana que inicia (Lunes)</label>
+            <input type="date" id="hsNuevaSemanaInicio" style="width:100%;height:44px;padding:0 10px;border:1px solid var(--border);border-radius:10px;font-size:16px;background:var(--bg-secondary);color:var(--text-primary);margin-bottom:16px">
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('hsModalNuevaSemana').classList.remove('open')">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1;background:#06b6d4" onclick="crearSemana()">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
+    <script src="nomina-horario-semanal.js"></script>
+</body>
+</html>

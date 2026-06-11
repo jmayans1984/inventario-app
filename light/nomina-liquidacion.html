@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Liquidación de Nómina</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .lq-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0,0,0,.45);
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .lq-modal.open { display: flex; }
+        .lq-modal-card {
+            background: var(--bg-primary);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-width: 480px;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+        }
+        .lq-input {
+            width: 100%; height: 44px; padding: 0 10px;
+            border: 1px solid var(--border); border-radius: 10px;
+            font-size: 16px; background: var(--bg-secondary); color: var(--text-primary);
+        }
+        .lq-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary); display:block; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <header class="header"></header>
+
+    <div style="max-width: 1400px; margin: 0 auto; padding: 1rem;">
+        <div id="lqContent"></div>
+    </div>
+
+    <!-- Modal nueva nómina -->
+    <div class="lq-modal" id="lqModalNueva">
+        <div class="lq-modal-card">
+            <div style="font-weight:800;font-size:15px;margin-bottom:14px">Nueva Nómina Semanal</div>
+            <div style="margin-bottom:12px">
+                <label class="lq-label">Semana del horario (opcional)</label>
+                <select id="lqNuevaSemana" class="lq-input" onchange="onSemanaChange()"></select>
+                <span id="lqSemanaHint" style="display:none;font-size:10px;color:#10b981;margin-top:4px">✅ Las horas se tomarán del horario seleccionado</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+                <div>
+                    <label class="lq-label">Inicio de período</label>
+                    <input type="date" id="lqNuevaInicio" class="lq-input" onchange="calcNuevaFin()">
+                </div>
+                <div>
+                    <label class="lq-label">Fin de período</label>
+                    <input type="date" id="lqNuevaFin" class="lq-input">
+                </div>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('lqModalNueva').classList.remove('open')">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1;background:#8b5cf6" onclick="crearLiq()">Crear Nómina</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal aprobar -->
+    <div class="lq-modal" id="lqModalAprobar">
+        <div class="lq-modal-card">
+            <div style="font-weight:800;font-size:15px;margin-bottom:14px">✅ Aprobar Nómina</div>
+            <div id="lqAprobarResumen" style="background:var(--bg-secondary);border-radius:12px;padding:12px 14px;margin-bottom:12px"></div>
+            <div id="lqProrateInfo" style="display:none;font-size:11px;color:#f59e0b;background:rgba(245,158,11,.08);padding:8px 12px;border-radius:10px;margin-bottom:12px">
+                ℹ️ Esta semana cruza dos meses. El gasto se prorrateará en dos asientos contables.
+            </div>
+            <div style="margin-bottom:12px">
+                <label class="lq-label">Fecha de pago (cuando ADP pagó los empleados)</label>
+                <input type="date" id="lqFechaPago" class="lq-input">
+                <span style="font-size:10px;color:var(--text-tertiary)">Si no la indicas, se usa la fecha fin del período.</span>
+            </div>
+            <div style="margin-bottom:12px">
+                <label class="lq-label">Cuenta bancaria de pago</label>
+                <select id="lqBanco" class="lq-input"></select>
+                <span style="font-size:10px;color:var(--text-tertiary)">Si seleccionas una cuenta, se registrará el egreso en MOVIBAN</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.1);padding:8px 12px;border-radius:10px;margin-bottom:14px">
+                ⚠️ Al aprobar: se creará el gasto en contabilidad, se cerrará la semana del horario y no se podrá modificar la nómina.
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('lqModalAprobar').classList.remove('open')">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1;background:#10b981" onclick="confirmarAprobar()">✓ Aprobar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
+    <script src="nomina-liquidacion.js"></script>
+</body>
+</html>

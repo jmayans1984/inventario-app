@@ -3,57 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Nómina</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0a0a0f;
-            color: #f1f5f9;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-        }
-        .placeholder {
-            max-width: 600px;
-        }
-        .placeholder h1 {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-        .placeholder h2 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-        .placeholder p {
-            color: #94a3b8;
-            margin-bottom: 2rem;
-            line-height: 1.6;
-        }
-        .btn-back {
-            padding: 1rem 2rem;
-            background: #3b82f6;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 700;
-            display: inline-block;
-        }
-        .btn-back:hover {
-            background: #2563eb;
-        }
-    </style>
+    <title>Nómina - RestManager Pro</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="placeholder">
-        <h1>👥</h1>
-        <h2>Módulo de Nómina</h2>
-        <p>Este módulo estará disponible próximamente.<br>Aquí podrás gestionar empleados, salarios, liquidaciones y reportes de nómina.</p>
-        <a href="principal.html" class="btn-back">← Volver al Menú Principal</a>
+    <header class="header"></header>
+
+    <!-- CONTENIDO -->
+    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+        <!-- TÍTULO -->
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 700; letter-spacing: 0.05em;">
+                MÓDULO DE NÓMINA
+            </h1>
+            <p style="color: var(--text-secondary);">Selecciona una opción</p>
+        </div>
+
+        <!-- TARJETAS PRINCIPALES -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
+
+            <!-- TARJETA: PROCESOS -->
+            <div class="menu-item" onclick="mostrarProcesos()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">PROCESOS</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Horarios y liquidación de nómina</p>
+            </div>
+
+            <!-- TARJETA: INFORMES -->
+            <div class="menu-item" onclick="mostrarInformes()">
+                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
+                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">INFORMES</h3>
+                <p style="font-size: 0.95rem; opacity: 0.8;">Reportes y recibos de pago</p>
+            </div>
+
+        </div>
+
+        <!-- SUBMÓDULOS (ocultos por defecto) -->
+        <div id="submodulos" style="display: none; margin-top: 3rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <button class="btn btn-secondary" onclick="ocultarSubmodulos()">
+                    ← Volver
+                </button>
+            </div>
+
+            <!-- PROCESOS -->
+            <div id="procesos" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">⚙️ PROCESOS</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="window.location.href='nomina-horario-semanal.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📅</div>
+                        <h4>Horario Semanal</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Turnos por centro de costo y empleado</p>
+                    </div>
+
+                    <div class="menu-item" onclick="window.location.href='nomina-liquidacion.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🧮</div>
+                        <h4>Liquidación de Nómina</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Calcular y aprobar pagos semanales</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INFORMES -->
+            <div id="informes" style="display: none;">
+                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 INFORMES</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                    <div class="menu-item" onclick="window.location.href='nomina-reporte-horario.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🕐</div>
+                        <h4>Horario para Publicar</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Una hoja por centro de costo</p>
+                    </div>
+
+                    <div class="menu-item" onclick="window.location.href='nomina-recibos.html'">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📄</div>
+                        <h4>Recibos de Pago</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Pay stubs por empleado</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            if (!localStorage.getItem('empresaActual') || !localStorage.getItem('usuario')) {
+                window.location.href = 'index.html';
+                return;
+            }
+        });
+
+        function mostrarProcesos() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('procesos').style.display = 'block';
+            document.getElementById('informes').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
+        }
+
+        function mostrarInformes() {
+            document.getElementById('submodulos').style.display = 'block';
+            document.getElementById('informes').style.display = 'block';
+            document.getElementById('procesos').style.display = 'none';
+            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
+        }
+
+        function ocultarSubmodulos() {
+            document.getElementById('submodulos').style.display = 'none';
+            document.getElementById('procesos').style.display = 'none';
+            document.getElementById('informes').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
 </body>
 </html>
