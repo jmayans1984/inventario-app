@@ -112,6 +112,20 @@
         </div>
     </div>
 
+    <!-- Modal error -->
+    <div class="hs-modal" id="hsModalError">
+        <div class="hs-modal-card">
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px">
+                <div style="font-size:32px;flex-shrink:0">⚠️</div>
+                <div style="min-width:0">
+                    <div id="hsErrorTitulo" style="font-weight:800;font-size:15px"></div>
+                    <div id="hsErrorMsg" style="font-size:13px;color:var(--text-secondary);margin-top:6px;line-height:1.5"></div>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;background:#ef4444" onclick="document.getElementById('hsModalError').classList.remove('open')">Entendido</button>
+        </div>
+    </div>
+
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script src="nomina-horario-semanal.js"></script>

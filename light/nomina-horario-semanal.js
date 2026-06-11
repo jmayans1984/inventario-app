@@ -532,6 +532,12 @@ function cerrarModalTurno() {
     document.getElementById('hsModalTurno').classList.remove('open');
 }
 
+function mostrarError(titulo, mensaje) {
+    document.getElementById('hsErrorTitulo').textContent = titulo;
+    document.getElementById('hsErrorMsg').textContent = mensaje;
+    document.getElementById('hsModalError').classList.add('open');
+}
+
 async function guardarTurno() {
     if (!turnoEdit) return;
     turnoEdit.es_dia_libre  = document.getElementById('hsEsLibre').checked;
@@ -558,7 +564,12 @@ async function guardarTurno() {
                 }),
             });
             const j = await r.json();
-            if (!r.ok) throw new Error(j.error || j.message || 'Error al guardar');
+            if (!r.ok) {
+                const errMsg = j.error || j.message || 'Error al guardar el turno';
+                const ccNombre = ccostos.find(c => c.codigo === turnoEdit.ccosto)?.nombre || turnoEdit.ccosto;
+                const msgConCC = errMsg.replace(/centro\s+"[^"]*"/i, `centro "${ccNombre}"`);
+                throw new Error(msgConCC);
+            }
         } else {
             const r = await fetch(`${API_BASE}/nomina/semanas/${turnoEdit.semana_id}/detalle/${turnoEdit.id}`, {
                 method: 'PUT',
@@ -566,11 +577,18 @@ async function guardarTurno() {
                 body: JSON.stringify(turnoEdit),
             });
             const j = await r.json();
-            if (!r.ok) throw new Error(j.error || j.message || 'Error al actualizar');
+            if (!r.ok) {
+                const errMsg = j.error || j.message || 'Error al actualizar el turno';
+                const ccNombre = ccostos.find(c => c.codigo === turnoEdit.ccosto)?.nombre || turnoEdit.ccosto;
+                const msgConCC = errMsg.replace(/centro\s+"[^"]*"/i, `centro "${ccNombre}"`);
+                throw new Error(msgConCC);
+            }
         }
         cerrarModalTurno();
         await cargarDetalle();
-    } catch (e) { alert('❌ ' + e.message); }
+    } catch (e) {
+        mostrarError('No se pudo guardar el turno', e.message);
+    }
 }
 
 async function eliminarTurno() {
