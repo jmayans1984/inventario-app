@@ -18,6 +18,9 @@
             <p class="rc-sub">Crea, edita y gestiona las recetas con sus ingredientes</p>
           </div>
         </div>
+        <v-btn color="teal" variant="tonal" rounded="lg" :loading="recalculando" @click="recalcularTodos">
+          <v-icon start>mdi-refresh</v-icon> Recalcular Costos
+        </v-btn>
         <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevaReceta">
           <v-icon start>mdi-plus</v-icon> Nueva Receta
         </v-btn>
@@ -528,6 +531,9 @@ const rowEliminando       = ref({})          // (codigo+articulo) → bool
 const prodCatalogo        = ref([])
 const loadingProdCatalogo = ref(false)
 
+// Recalcular costos
+const recalculando = ref(false)
+
 // Dialog eliminar
 const dlgEliminar     = ref(false)
 const recetaAEliminar = ref(null)
@@ -588,6 +594,18 @@ async function cargarArticulos() {
     articulos.value = ra.data || []
     subrecetas.value = rs.data || []
   } catch { /* silencioso */ }
+}
+
+async function recalcularTodos() {
+  recalculando.value = true
+  try {
+    const r = await fetch(`${API_BASE}/recetas/recalcular-todos`, { method: 'POST' })
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    ok(`Costos actualizados (${j.data?.actualizadas ?? ''} recetas)`)
+    await cargarRecetas()
+  } catch (e) { err('Error al recalcular: ' + e.message) }
+  finally { recalculando.value = false }
 }
 
 function abrirNuevaReceta() {
