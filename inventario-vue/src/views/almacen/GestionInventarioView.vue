@@ -499,7 +499,13 @@ const bodegaMaestraCC  = ref(null)   // código del CC configurado como bodega m
 const filtroActivo     = ref('')     // 'bodega' | 'punto_venta' | ''
 
 // ── Campos del formulario (ref individuales, más confiables) ──
-const fecha         = ref(new Date().toISOString().slice(0, 10))
+const fecha         = ref((() => {
+  const hoy = new Date()
+  const año = hoy.getFullYear()
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0')
+  const dia = String(hoy.getDate()).padStart(2, '0')
+  return `${año}-${mes}-${dia}`
+})()
 const tipoOp        = ref(null)
 const ccOrigen      = ref(null)
 const ccDestino     = ref(null)
