@@ -219,11 +219,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { fechaInputLocal } from '../../utils/formatters'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import { fechaInputLocal } from '../../utils/formatters'
 import { API_BASE } from '../../utils/constants.js'
+import { fechaInputLocal } from '../../utils/formatters'
 import { useAuthStore } from '../../stores/auth'
+import { fechaInputLocal } from '../../utils/formatters'
 import jsPDF from 'jspdf'
+import { fechaInputLocal } from '../../utils/formatters'
 import autoTable from 'jspdf-autotable'
+import { fechaInputLocal } from '../../utils/formatters'
 
 const authStore = useAuthStore()
 function getEmpresa() {
@@ -232,10 +238,10 @@ function getEmpresa() {
 
 // ── Fechas por defecto: mes actual ────────────────────────────────────────────
 function primerDia() {
-  const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1).toISOString().slice(0, 10)
+  const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), 1))
 }
 function ultimoDia() {
-  const h = new Date(); return new Date(h.getFullYear(), h.getMonth() + 1, 0).toISOString().slice(0, 10)
+  const h = new Date(); return new Date(h.getFullYear(), h.getMonth() + 1, 0))
 }
 
 const fechaInicio          = ref(primerDia())

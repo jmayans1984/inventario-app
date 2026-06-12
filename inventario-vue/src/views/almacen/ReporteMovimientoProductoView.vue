@@ -235,6 +235,7 @@ import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { fechaInputLocal } from '../../utils/formatters'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)

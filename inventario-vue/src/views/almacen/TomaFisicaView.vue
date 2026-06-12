@@ -316,7 +316,7 @@ const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
 
 // ── Formulario cabecera ───────────────────────────────────────
-const fecha        = ref(new Date().toISOString().slice(0, 10))
+const fecha        = ref(fechaInputLocal())
 const ccosto       = ref(null)
 const observaciones = ref('')
 const errFecha     = ref('')

@@ -258,16 +258,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { fechaInputLocal } from '../../utils/formatters'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import { fechaInputLocal } from '../../utils/formatters'
 import api from '../../services/api'
+import { fechaInputLocal } from '../../utils/formatters'
 import { useAuthStore } from '../../stores/auth'
+import { fechaInputLocal } from '../../utils/formatters'
 
 const authStore = useAuthStore()
 const empresa   = computed(() => authStore.empresaCodigo || authStore.empresa || localStorage.getItem('empresaActual'))
 
 // ── Período ───────────────────────────────────────────────────────
 const anio = new Date().getFullYear()
-const hoy  = new Date().toISOString().split('T')[0]
+const hoy  = fechaInputLocal()
 const fechaInicio = ref(`${anio}-01-01`)
 const fechaFin    = ref(hoy)
 const quickActivo = ref('Este Año')

@@ -214,13 +214,14 @@ import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { fechaInputLocal } from '../../utils/formatters'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
 
 // ── Filtros ───────────────────────────────────────────────────────
-const hoy = new Date().toISOString().slice(0, 10)
-const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+const hoy = fechaInputLocal()
+const primerDiaMes = fechaInputLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
 const fechaIni              = ref(primerDiaMes)
 const fechaFin              = ref(hoy)

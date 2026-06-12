@@ -156,13 +156,14 @@ import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { fechaInputLocal } from '../../utils/formatters'
 import JsBarcode from 'jsbarcode'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
 
 // ── Filtros ───────────────────────────────────────────────────
-const fecha    = ref(new Date().toISOString().slice(0, 10))
+const fecha    = ref(fechaInputLocal())
 const ccosto   = ref(null)
 const errFecha  = ref('')
 const errCcosto = ref('')
