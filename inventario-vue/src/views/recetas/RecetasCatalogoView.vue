@@ -618,7 +618,7 @@ const kpis = computed(() => {
   return [
     { label: 'Total',              val: r.length,                                     icon: 'mdi-chef-hat',                  color: '#f59e0b' },
     { label: 'Recetas',            val: r.filter(x => x.subproducto !== 'SI').length, icon: 'mdi-book-open-variant-outline', color: '#06b6d4' },
-    { label: 'Valor Prom. Venta',  val: fmt(promVenta),                               icon: 'mdi-tag-outline',               color: '#22c55e', small: true },
+    { label: 'Valor Prom. Venta',  val: fmt(promVenta),                               icon: 'mdi-tag-outline',               color: '#22c55e' },
     { label: '% Prom. Mat. Prima', val: promPct.toFixed(1) + '%',                     icon: 'mdi-percent',                   color: '#ef4444' },
   ]
 })
