@@ -95,6 +95,37 @@
             </div>
           </template>
 
+          <template v-else-if="categoria==='precio_u'">
+            <div class="conv-precio">
+              <div class="conv-row" style="gap:6px">
+                <input v-model.number="precioUPrice" type="number" min="0" step="any"
+                  class="conv-input" placeholder="0.00" @input="calcPrecioU" />
+                <span style="color:rgba(255,255,255,.35);font-size:12px;flex-shrink:0">por</span>
+                <select v-model="precioUUnit" class="conv-select" style="max-width:140px"
+                  @change="() => { calcPrecioU(); precioUSelected = precioUUnit === 'kg' ? 'lb' : 'kg' }">
+                  <optgroup label="── Peso ──">
+                    <option v-for="u in units.peso" :key="u.key" :value="u.key">{{ u.label }}</option>
+                  </optgroup>
+                  <optgroup label="── Volumen ──">
+                    <option v-for="u in units.volumen" :key="u.key" :value="u.key">{{ u.label }}</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="conv-divider"></div>
+              <div class="precioU-list">
+                <div v-for="row in precioURows" :key="row.key"
+                  class="precioU-row"
+                  :class="{ 'precioU-source': row.key === precioUUnit, 'precioU-sel': precioUSelected === row.key }"
+                  @click="precioUSelected = row.key">
+                  <span class="precioU-label">{{ row.label }}</span>
+                  <span class="precioU-val">
+                    {{ row.key === precioUUnit ? fmtResult(precioUPrice) : fmtResult(row.price) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <template v-else>
             <div class="conv-generic">
               <div class="conv-row">
@@ -237,8 +268,27 @@ const precioUnit  = ref(0)
 const precioTotal = ref(0)
 function calcPrecio() { precioTotal.value = (precioCant.value || 0) * (precioUnit.value || 0) }
 
+// Precio por unidad de medida
+const precioUPrice    = ref(0)
+const precioUUnit     = ref('lb')
+const precioUSelected = ref('kg')
+const precioURows     = ref([])
+
+function calcPrecioU() {
+  const isPeso = units.peso.find(u => u.key === precioUUnit.value)
+  const list   = isPeso ? units.peso : units.volumen
+  const src    = list.find(u => u.key === precioUUnit.value)
+  if (!src) return
+  precioURows.value = list.map(u => ({
+    key:   u.key,
+    label: u.label,
+    price: (precioUPrice.value || 0) * u.toBase / src.toBase
+  }))
+}
+
 const categorias = [
   { key: 'precio',   label: 'Precio',   icon: '💲' },
+  { key: 'precio_u', label: 'Prec/U',   icon: '💱' },
   { key: 'peso',     label: 'Peso',     icon: '⚖️' },
   { key: 'volumen',  label: 'Volumen',  icon: '🥛' },
   { key: 'longitud', label: 'Longitud', icon: '📏' },
@@ -309,6 +359,13 @@ function swapUnits() {
 
 function selectCategoria(key) {
   categoria.value = key
+  if (key === 'precio_u') {
+    precioUUnit.value     = 'lb'
+    precioUSelected.value = 'kg'
+    precioUPrice.value    = 0
+    calcPrecioU()
+    return
+  }
   const list = unitsOf(key)
   convUnitFrom.value = list[0]?.key || ''
   convUnitTo.value   = list[1]?.key || ''
@@ -339,7 +396,15 @@ function insertarEnCampo(valor) {
 
 function aceptar()     { insertarEnCampo(calcResult.value) }
 function aceptarConv() {
-  const v = categoria.value === 'precio' ? precioTotal.value : convResult.value
+  let v
+  if (categoria.value === 'precio') {
+    v = precioTotal.value
+  } else if (categoria.value === 'precio_u') {
+    const row = precioURows.value.find(r => r.key === precioUSelected.value)
+    v = row ? row.price : null
+  } else {
+    v = convResult.value
+  }
   insertarEnCampo(v ?? '')
 }
 
@@ -455,4 +520,13 @@ watch(show, async (val) => {
 .conv-precio, .conv-generic { background:rgba(255,255,255,.02); border-radius:9px; padding:10px; margin-bottom:8px; }
 .conv-divider { height:1px; background:rgba(255,255,255,.07); margin:7px 0; }
 .conv-result-val { font-size:20px; font-weight:700; color:#f59e0b; font-family:monospace; flex:1; text-align:right; }
+
+.precioU-list { display:flex; flex-direction:column; gap:3px; max-height:180px; overflow-y:auto; }
+.precioU-row { display:flex; justify-content:space-between; align-items:center; padding:5px 8px; border-radius:6px; cursor:pointer; border:1px solid transparent; transition:.12s; }
+.precioU-row:hover { background:rgba(255,255,255,.06); }
+.precioU-source { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.2) !important; cursor:default; }
+.precioU-sel { background:rgba(20,184,166,.12); border-color:rgba(20,184,166,.35) !important; }
+.precioU-label { font-size:10px; color:rgba(255,255,255,.5); flex:1; }
+.precioU-val { font-size:13px; font-weight:700; color:#f59e0b; font-family:monospace; }
+.precioU-sel .precioU-val { color:#2dd4bf; }
 </style>
