@@ -937,19 +937,19 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
                 const nombreOrigen  = (resOrigen.rows[0]?.nombre  || ccOrigen).toUpperCase();
                 const nombreDestino = (resDestino.rows[0]?.nombre || ccDestino).toUpperCase();
 
-                // Registro en CC Origen: SALIDA POR TRASLADO  (entrada=0, salida=cant)
+                // Registro en CC Origen: SALIDA POR TRASLADO PARA [DESTINO] (entrada=0, salida=cant)
                 await client.query(
-                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
-                     VALUES ($1,$2,$3,0,$4,$5,$6,$7)`,
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
+                     VALUES ($1,$2,$3,0,$4,$5,$6,$7,$8)`,
                     [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp,
-                     obs || `Traslado a ${nombreDestino}`]
+                     obs || `Traslado a ${nombreDestino}`, ccDestino]
                 );
-                // Registro en CC Destino: ENTRADA POR TRASLADO (entrada=cant, salida=0)
+                // Registro en CC Destino: ENTRADA POR TRASLADO DESDE [ORIGEN] (entrada=cant, salida=0)
                 await client.query(
-                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
-                     VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
+                     VALUES ($1,$2,$3,$4,0,$5,$6,$7,$8)`,
                     [fecha, ccDestino, prod.codigo, cant, mapa.destino, emp,
-                     obs || `Traslado desde ${nombreOrigen}`]
+                     obs || `Traslado desde ${nombreOrigen}`, ccOrigen]
                 );
                 registrosCreados += 2;
             }
@@ -1244,7 +1244,13 @@ app.get('/api/almacen/reporte-movimiento-producto', async (req, res) => {
         const movResult = await pool.query(`
             SELECT
                 di.fecha::text                                                               AS fecha,
-                COALESCE(di.tipo, '')                                                        AS tipo,
+                CASE
+                    WHEN di.tipo = 'SALIDA POR TRASLADO' THEN
+                        'SALIDA POR TRASLADO PARA ' || COALESCE(cc_rel.nombre, di.cc_relacion)
+                    WHEN di.tipo = 'ENTRADA POR TRASLADO' THEN
+                        'ENTRADA POR TRASLADO DESDE ' || COALESCE(cc_rel.nombre, di.cc_relacion)
+                    ELSE di.tipo
+                END                                                                          AS tipo,
                 di.codigo,
                 p.nombre,
                 p.und,
@@ -1256,10 +1262,11 @@ app.get('/api/almacen/reporte-movimiento-producto', async (req, res) => {
             FROM detalle_inventario di
             JOIN productos p ON p.codigo = di.codigo
             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+            LEFT JOIN ccostos cc_rel ON cc_rel.codigo = di.cc_relacion
             WHERE di.empresa = $1
               AND di.ccosto  = $2
               AND di.fecha BETWEEN $3 AND $4
-            GROUP BY di.fecha, di.tipo, di.codigo, p.nombre, p.und, grupo_nombre, grupo_codigo
+            GROUP BY di.fecha, di.tipo, di.cc_relacion, cc_rel.nombre, di.codigo, p.nombre, p.und, grupo_nombre, grupo_codigo
             ORDER BY COALESCE(gp.codigo, '999'), p.nombre, di.fecha, di.tipo
         `, [emp, ccosto, fecha_inicio, fecha_fin]);
 
