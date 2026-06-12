@@ -311,7 +311,7 @@ import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
-import { formatFecha } from '../../../utils/formatters'
+import { formatFecha } from '../../utils/formatters'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)

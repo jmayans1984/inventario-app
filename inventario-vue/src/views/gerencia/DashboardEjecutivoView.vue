@@ -260,11 +260,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { fechaInputLocal } from '../../utils/formatters'
 import MainLayout from '../../components/layouts/MainLayout.vue'
-import { fechaInputLocal } from '../../utils/formatters'
 import api from '../../services/api'
-import { fechaInputLocal } from '../../utils/formatters'
 import { useAuthStore } from '../../stores/auth'
-import { fechaInputLocal } from '../../utils/formatters'
 
 const authStore = useAuthStore()
 const empresa   = computed(() => authStore.empresaCodigo || authStore.empresa || localStorage.getItem('empresaActual'))

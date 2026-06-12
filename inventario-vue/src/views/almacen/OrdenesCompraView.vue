@@ -528,7 +528,7 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth.js'
 import api from '../../services/api.js'
-import { formatFecha } from '../../../utils/formatters'
+import { formatFecha } from '../../utils/formatters'
 
 const authStore = useAuthStore()
 const getEmpresa = () => authStore.empresaCodigo || authStore.empresa || localStorage.getItem('empresaActual')

@@ -216,7 +216,7 @@ import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatFecha } from '../../../utils/formatters'
+import { formatFecha } from '../../utils/formatters'
 
 const authStore = useAuthStore()
 
