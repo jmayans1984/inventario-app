@@ -67,7 +67,10 @@
                   <th class="col-nom" rowspan="2">NOMBRE</th>
                   <th class="col-desc" rowspan="2">DESCRIPCIÓN</th>
                   <th class="col-und" rowspan="2">UND</th>
-                  <th v-for="cc in ccostos" :key="cc.codigo" colspan="2" class="col-cc-header">{{ cc.nombre }}</th>
+                  <th v-for="cc in ccostos" :key="cc.codigo" colspan="2" class="col-cc-header">
+                    {{ cc.nombre }}
+                    <span v-if="cc.venta_ayer > 0" class="cc-venta-ayer">{{ Math.round(cc.venta_ayer * 100) }}</span>
+                  </th>
                 </tr>
                 <tr>
                   <template v-for="cc in ccostos" :key="cc.codigo">
@@ -212,7 +215,11 @@ function imprimir() {
       { content: 'NOMBRE',      rowSpan: 2, styles: { valign: 'middle' } },
       { content: 'DESCRIPCIÓN', rowSpan: 2, styles: { valign: 'middle' } },
       { content: 'UND',         rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-      ...ccostos.value.map(cc => ({ content: cc.nombre, colSpan: 2, styles: { halign: 'center', fillColor: [220, 220, 220], textColor: [0, 0, 0] } }))
+      ...ccostos.value.map(cc => ({
+        content: cc.venta_ayer > 0 ? `${cc.nombre}\n${Math.round(cc.venta_ayer * 100)}` : cc.nombre,
+        colSpan: 2,
+        styles: { halign: 'center', fillColor: [220, 220, 220], textColor: [0, 0, 0] }
+      }))
     ],
     [
       ...ccostos.value.flatMap(cc => {
@@ -243,7 +250,7 @@ function imprimir() {
         const bajoPct = isBM && visible && parseFloat(p.stock_minimo) > 0 && (s || 0) < parseFloat(p.stock_minimo)
         return [
           { content: val, styles: { halign: 'center', fontStyle: val ? 'bold' : 'normal', textColor: [0, 0, 0] } },
-          { content: bajoPct ? '↓' : '', styles: { halign: 'center', fillColor: isBM ? [255, 255, 255] : [255, 255, 255], textColor: [220, 38, 38], fontStyle: 'bold', fontSize: 9 } }
+          { content: bajoPct ? `< ${new Intl.NumberFormat('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2}).format(parseFloat(p.stock_minimo))}` : '', styles: { halign: 'center', textColor: [220, 38, 38], fontStyle: 'bold', fontSize: 6 } }
         ]
       })
       body.push([p.codigo, p.nombre, p.descripcion || '', p.und, ...ccCells])
@@ -262,6 +269,7 @@ function imprimir() {
     colStyles[4 + i * 2 + 1] = { cellWidth: colW, halign: 'center' }
   })
 
+  let pdfFirstPageDone = false
   autoTable(doc, {
     head,
     body,
@@ -269,7 +277,7 @@ function imprimir() {
     margin: { left: ML, right: MR, top: 23 },
     styles: {
       fontSize: 7,
-      cellPadding: { top: 1.6, bottom: 1.6, left: 1.5, right: 1.5 },
+      cellPadding: { top: 0.8, bottom: 0.8, left: 1.2, right: 1.2 },
       lineColor: [180, 180, 180],
       lineWidth: 0.2,
       overflow: 'ellipsize',
@@ -280,13 +288,19 @@ function imprimir() {
       fontStyle: 'bold',
       fontSize: 7,
       halign: 'center',
-      cellPadding: { top: 1.6, bottom: 1.6, left: 1.5, right: 1.5 },
+      cellPadding: { top: 0.8, bottom: 0.8, left: 1.2, right: 1.2 },
     },
     alternateRowStyles: { fillColor: [252, 252, 252] },
     columnStyles: colStyles,
     rowPageBreak: 'avoid',
+    didParseCell(data) {
+      if (pdfFirstPageDone && data.section === 'head' && data.row.index === 0 && data.cell.text.length > 1) {
+        data.cell.text = [data.cell.text[0]]
+      }
+    },
     didDrawPage(data) {
       if (data.pageNumber > 1) drawHeader()
+      pdfFirstPageDone = true
     },
   })
 
@@ -334,6 +348,7 @@ onMounted(cargar)
 .col-desc { width: 110px; font-size: 8px; color: #444; }
 .col-und  { width: 30px; text-align: center; }
 .col-cc-header { text-align: center; border: 1px solid #aaa; background: #e8f5e9; font-size: 7px; font-weight: 700; padding: 2px 4px; }
+.cc-venta-ayer { display: block; font-size: 9px; font-weight: 800; color: #1d4ed8; letter-spacing: 0.5px; margin-top: 1px; }
 .col-stock { width: 50px; text-align: center; font-weight: 600; background: #fafafa; }
 .col-blank  { width: 50px; text-align: center; background: #fff; }
 .col-nivel  { width: 28px; text-align: center; background: #fff8f8; white-space: nowrap; }
