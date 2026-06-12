@@ -611,7 +611,20 @@ function verImagenCompleta(idx) {
     if (!s?.url) return;
     const w = window.open('', '_blank');
     if (w) {
-        w.document.write(`<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${s.url}" style="max-width:100%;max-height:100vh"></body>`);
+        w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soporte - ${s.nombre_archivo || 'Imagen'}</title>
+</head>
+<body style="margin:0;background:#000;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
+    <div style="position:fixed;top:10px;left:10px;z-index:1000">
+        <button onclick="window.close()" style="padding:10px 16px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px">✕ Cerrar</button>
+    </div>
+    <img src="${s.url}" style="max-width:90%;max-height:90vh;object-fit:contain">
+</body>
+</html>`);
         w.document.close();
     }
 }
