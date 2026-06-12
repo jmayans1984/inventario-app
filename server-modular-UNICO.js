@@ -481,7 +481,24 @@ app.get('/api/almacen/kardex-consolidado', async (req, res) => {
             stocks: stockMap[p.codigo] || {}
         }));
 
-        res.json({ success: true, ccostos: ccRes.rows, productos, bodegaMaestra });
+        // Ventas del día anterior por CC
+        const ventasRes = await pool.query(
+            `SELECT ccosto, COALESCE(SUM(efectivo), 0) AS total
+             FROM ventas
+             WHERE fecha = CURRENT_DATE - INTERVAL '1 day' AND empresa = $1
+             GROUP BY ccosto`,
+            [emp]
+        );
+        const ventasMap = {};
+        for (const row of ventasRes.rows) {
+            ventasMap[String(row.ccosto)] = parseFloat(row.total);
+        }
+        const ccostos = ccRes.rows.map(cc => ({
+            ...cc,
+            venta_ayer: ventasMap[String(cc.codigo)] || 0
+        }));
+
+        res.json({ success: true, ccostos, productos, bodegaMaestra });
     } catch (error) {
         console.error('Error GET /api/almacen/kardex-consolidado:', error);
         res.status(500).json({ success: false, error: error.message });
