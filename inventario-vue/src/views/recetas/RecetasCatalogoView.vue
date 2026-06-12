@@ -43,7 +43,7 @@
       <div class="rc-kpi-row">
         <div class="rc-kpi" v-for="k in kpis" :key="k.label" :style="{ borderColor: k.color }">
           <v-icon size="22" :color="k.color" class="mb-1">{{ k.icon }}</v-icon>
-          <span class="kpi-val" :style="{ color: k.color }">{{ k.val }}</span>
+          <span class="kpi-val" :class="{ 'kpi-val--sm': k.small }" :style="{ color: k.color }">{{ k.val }}</span>
           <span class="kpi-lbl">{{ k.label }}</span>
         </div>
       </div>
@@ -524,12 +524,12 @@ const headers = [
   { title: 'CÓDIGO',    key: 'codigo',          width: 90 },
   { title: 'NOMBRE',    key: 'nombre',          minWidth: 160 },
   { title: 'TIPO',      key: 'subproducto',     width: 120 },
-  { title: 'GRUPO',     key: 'grupo_receta',    width: 90 },
-  { title: 'UND',       key: 'und',             width: 70 },
-  { title: 'ING.',      key: 'num_ingredientes',width: 65, align: 'center' },
+  { title: 'GRUPO',     key: 'grupo_receta',    width: 90,  align: 'center' },
+  { title: 'UND',       key: 'und',             width: 70,  align: 'center' },
+  { title: 'ING.',      key: 'num_ingredientes',width: 65,  align: 'center' },
   { title: 'COSTO',     key: 'valor',           width: 110, align: 'end' },
   { title: 'P.VENTA',   key: 'precio_venta',    width: 110, align: 'end' },
-  { title: '% COSTO',   key: 'porcentaje_costo',width: 90, align: 'center' },
+  { title: '% COSTO',   key: 'porcentaje_costo',width: 115, align: 'center' },
   { title: '',          key: 'acciones',        width: 110, sortable: false },
 ]
 
@@ -610,9 +610,16 @@ const recetasFiltradas = computed(() => {
 
 const kpis = computed(() => {
   const r = recetasFiltradas.value
+  const conPV = r.filter(x => parseFloat(x.precio_venta) > 0)
+  const promVenta = conPV.length > 0
+    ? conPV.reduce((s, x) => s + parseFloat(x.precio_venta), 0) / conPV.length : 0
+  const promPct = conPV.length > 0
+    ? conPV.reduce((s, x) => s + parseFloat(x.porcentaje_costo), 0) / conPV.length : 0
   return [
-    { label: 'Total',   val: r.length,                                     icon: 'mdi-chef-hat',                  color: '#f59e0b' },
-    { label: 'Recetas', val: r.filter(x => x.subproducto !== 'SI').length, icon: 'mdi-book-open-variant-outline', color: '#06b6d4' },
+    { label: 'Total',              val: r.length,                                     icon: 'mdi-chef-hat',                  color: '#f59e0b' },
+    { label: 'Recetas',            val: r.filter(x => x.subproducto !== 'SI').length, icon: 'mdi-book-open-variant-outline', color: '#06b6d4' },
+    { label: 'Valor Prom. Venta',  val: fmt(promVenta),                               icon: 'mdi-tag-outline',               color: '#22c55e', small: true },
+    { label: '% Prom. Mat. Prima', val: promPct.toFixed(1) + '%',                     icon: 'mdi-percent',                   color: '#ef4444' },
   ]
 })
 
@@ -1175,6 +1182,7 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .rc-kpi-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
 .rc-kpi { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 16px; padding: 18px 32px; display: flex; flex-direction: column; align-items: center; min-width: 140px; gap: 3px; }
 .kpi-val { font-size: 28px; font-weight: 800; line-height: 1; }
+.kpi-val--sm { font-size: 18px; }
 .kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; margin-top: 2px; }
 .rc-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
 /* Oculta la columna expand nativa de Vuetify */
