@@ -163,26 +163,31 @@
                           <v-btn value="RECETA"   size="small"><v-icon size="14" class="mr-1">mdi-link-variant</v-icon>Subreceta</v-btn>
                         </v-btn-toggle>
                         <v-autocomplete v-if="tipoIngredienteNuevo==='ARTICULO'"
+                          ref="refArticuloAC"
                           v-model="articuloSeleccionado" :items="articulos"
                           item-title="nombre" return-object
                           :label="'Artículo... (' + articulos.length + ')'"
-                          variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:200px">
+                          variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:200px"
+                          @update:modelValue="val => val && $nextTick(() => refCantidadAdd?.focus())">
                           <template #item="{ props, item: ai }">
                             <v-list-item v-bind="props" :subtitle="ai.raw.und + ' · ' + fmt(ai.raw.valor)" />
                           </template>
                         </v-autocomplete>
                         <v-autocomplete v-else
+                          ref="refSubrecetaAC"
                           v-model="recetaSeleccionada" :items="subrecetas"
                           item-title="nombre" return-object
                           :label="'Subreceta... (' + subrecetas.length + ')'"
-                          variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:200px">
+                          variant="outlined" density="compact" hide-details clearable style="flex:1;min-width:200px"
+                          @update:modelValue="val => val && $nextTick(() => refCantidadAdd?.focus())">
                           <template #item="{ props, item: ri }">
                             <v-list-item v-bind="props" :subtitle="ri.raw.und + ' · ' + fmt(ri.raw.valor)" />
                           </template>
                         </v-autocomplete>
-                        <v-text-field v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
-                          variant="outlined" density="compact" hide-details style="width:90px;flex-shrink:0" />
-                        <v-btn color="#f59e0b" variant="flat" size="small" height="36"
+                        <v-text-field ref="refCantidadAdd" v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
+                          variant="outlined" density="compact" hide-details style="width:90px;flex-shrink:0"
+                          @keydown.enter.prevent="onCantidadEnterAdd" />
+                        <v-btn ref="refAgregarBtn" color="#f59e0b" variant="flat" size="small" height="36"
                           :disabled="(tipoIngredienteNuevo==='ARTICULO' && !articuloSeleccionado)||(tipoIngredienteNuevo==='RECETA' && !recetaSeleccionada)||!ingNuevo.cantidad"
                           @click="agregarIngrediente">
                           <v-icon size="15" class="mr-1">mdi-plus</v-icon>Agregar
@@ -500,7 +505,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import jsPDF from 'jspdf'
@@ -553,6 +558,11 @@ const tipoIngredienteNuevo = ref('ARTICULO')  // ARTICULO o RECETA
 const articuloSeleccionado = ref(null)   // objeto completo del articulo elegido
 const recetaSeleccionada  = ref(null)    // objeto completo de la subreceta elegida
 const subrecetas          = ref([])      // lista de subrecetas disponibles
+
+// Refs para navegación con Enter en la barra de agregar
+const refArticuloAC  = ref(null)
+const refSubrecetaAC = ref(null)
+const refCantidadAdd = ref(null)
 
 // ── Estado inline expandible (por fila) ──
 const expandedRows        = ref([])          // array de item-values (codigos)
@@ -725,6 +735,16 @@ async function guardarReceta() {
 async function abrirIngredientes(receta) {
   // Mantenida por compatibilidad (imprimirReceta la usa indirectamente)
   await cargarIngredientesFila(receta)
+}
+
+function onCantidadEnterAdd() {
+  const tieneArt = tipoIngredienteNuevo.value === 'ARTICULO' ? !!articuloSeleccionado.value : !!recetaSeleccionada.value
+  if (!tieneArt || !ingNuevo.value.cantidad) return
+  agregarIngrediente()
+  nextTick(() => {
+    const ac = tipoIngredienteNuevo.value === 'ARTICULO' ? refArticuloAC.value : refSubrecetaAC.value
+    ac?.focus()
+  })
 }
 
 function agregarIngrediente() {
@@ -1304,8 +1324,13 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 
 /* Alineaciones de columnas */
 .col-nombre { display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; }
-.col-tipo { }
-.col-cant { padding-right: 8px; }
+.col-tipo { text-align: center; }
+.col-cant { padding-right: 8px; text-align: center; }
+.ing-tbl-head .col-tipo,
+.ing-tbl-head .col-cant,
+.ing-tbl-head .col-und,
+.ing-tbl-head .col-vunit,
+.ing-tbl-head .col-sub { text-align: center; }
 .col-und { font-size: 12px; color: rgba(var(--v-theme-on-surface), .5); }
 .col-vunit { text-align: right; font-size: 12px; color: rgba(var(--v-theme-on-surface), .7); }
 .col-sub { text-align: right; }
@@ -1323,7 +1348,7 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 }
 
 .cant-field { max-width: 90px; }
-.cant-field :deep(.v-field__input) { padding: 4px 8px !important; font-size: 13px; }
+.cant-field :deep(.v-field__input) { padding: 4px 8px !important; font-size: 13px; text-align: center; }
 .cant-field :deep(.v-field) { border-radius: 6px; }
 
 .subtotal-val { color: rgba(var(--v-theme-on-surface), .85); font-size: 13px; }

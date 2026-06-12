@@ -129,14 +129,14 @@ export const MODULES = [
     path: '/recetas',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Catálogo de Recetas', icon: 'mdi-book-open-variant-outline', path: '/recetas/configuracion/catalogo' },
         { name: 'Artículos e Insumos',  icon: 'mdi-food-apple-outline',        path: '/recetas/configuracion/articulos' },
         { name: 'Precios de Venta',     icon: 'mdi-tag-edit-outline',          path: '/recetas/configuracion/precios' },
           { name: 'Precios Compra/Venta', icon: 'mdi-tag-multiple-outline',      path: '/recetas/configuracion/precios-cv' },
           { name: 'Grupos de Artículos',  icon: 'mdi-tag-multiple-outline',      path: '/recetas/configuracion/grupos-articulos' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
-        { name: 'Gestión de Costos', icon: 'mdi-calculator-variant-outline', path: '/recetas/procesos/costos' },
+        { name: 'Catálogo de Recetas', icon: 'mdi-book-open-variant-outline', path: '/recetas/configuracion/catalogo' },
+        { name: 'Gestión de Costos',   icon: 'mdi-calculator-variant-outline', path: '/recetas/procesos/costos' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Resumen de Costos',        icon: 'mdi-file-chart-outline',    path: '/recetas/reportes/costos' },
