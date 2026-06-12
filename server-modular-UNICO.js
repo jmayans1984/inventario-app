@@ -11217,12 +11217,23 @@ app.put('/api/nomina/config-fiscal', async (req, res) => {
 // INICIAR SERVIDOR
 // ================================================================
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`\n🚀 Servidor MODULAR corriendo en puerto ${PORT}`);
     console.log(`📊 API disponible en http://localhost:${PORT}`);
     console.log(`❤️  Health check: http://localhost:${PORT}/health`);
     console.log(`📦 Arquitectura: Modular v2.0 - Archivo único`);
     console.log(`📂 Módulos: Auth, CCostos, Inventario, Movimientos, Tesorería, Gastos, Órdenes\n`);
+
+    // Crear columna cc_relacion si no existe
+    try {
+        await pool.query(`
+            ALTER TABLE detalle_inventario
+            ADD COLUMN IF NOT EXISTS cc_relacion varchar(10)
+        `);
+        console.log('✅ Columna cc_relacion verificada/creada');
+    } catch (err) {
+        console.error('⚠️  Error al crear columna cc_relacion:', err.message);
+    }
 });
 
 process.on('unhandledRejection', (err) => {
