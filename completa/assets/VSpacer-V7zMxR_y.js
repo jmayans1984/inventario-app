@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-0-icUAd7.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

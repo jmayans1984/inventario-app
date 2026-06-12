@@ -84,8 +84,8 @@
                   <td class="col-und">{{ p.und }}</td>
                   <template v-for="cc in ccostos" :key="cc.codigo">
                     <td class="col-stock"
-                        :class="{ 'stock-pos': (p.stocks[cc.codigo] || 0) > 0, 'stock-neg': (p.stocks[cc.codigo] || 0) < 0 }">
-                      {{ formatStock(p.stocks[cc.codigo]) }}
+                        :class="{ 'stock-pos': stockVisible(p, cc.codigo) && (p.stocks[cc.codigo] || 0) > 0, 'stock-neg': stockVisible(p, cc.codigo) && (p.stocks[cc.codigo] || 0) < 0 }">
+                      {{ stockVisible(p, cc.codigo) ? formatStock(p.stocks[cc.codigo]) : '' }}
                     </td>
                     <td class="col-blank"></td>
                   </template>
@@ -116,9 +116,10 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 const authStore = useAuthStore()
-const loading   = ref(false)
-const productos = ref([])
-const ccostos   = ref([])
+const loading        = ref(false)
+const productos      = ref([])
+const ccostos        = ref([])
+const bodegaMaestra  = ref(null)
 
 const empresaNombre = computed(() => authStore.empresaNombre || '')
 
@@ -147,14 +148,20 @@ function formatStock(val) {
   return new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)
 }
 
+function stockVisible(producto, ccCodigo) {
+  if (String(ccCodigo) === String(bodegaMaestra.value)) return true
+  return producto.visible_operacional === 'SI'
+}
+
 async function cargar() {
   loading.value = true
   try {
     const res = await api.get('/almacen/kardex-consolidado', {
       params: { empresa: authStore.empresa }
     })
-    ccostos.value  = res.data?.ccostos  || []
-    productos.value = res.data?.productos || []
+    ccostos.value       = res.data?.ccostos     || []
+    productos.value     = res.data?.productos   || []
+    bodegaMaestra.value = res.data?.bodegaMaestra || null
   } catch (e) {
     console.error('Error cargando kardex consolidado:', e)
   } finally {
@@ -218,8 +225,11 @@ function imprimir() {
     }])
     for (const p of grupo.items) {
       const ccCells = ccostos.value.flatMap(cc => {
+        const visible = String(cc.codigo) === String(bodegaMaestra.value) || p.visible_operacional === 'SI'
         const s = p.stocks[cc.codigo]
-        const val = (!s || s === 0) ? '' : new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(s)
+        const val = visible && s && s !== 0
+          ? new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(s)
+          : ''
         return [
           { content: val, styles: { halign: 'center', fontStyle: val ? 'bold' : 'normal', textColor: [0, 0, 0] } },
           { content: '', styles: { fillColor: [255, 255, 255] } }

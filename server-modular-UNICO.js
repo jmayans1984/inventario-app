@@ -437,12 +437,20 @@ app.get('/api/almacen/kardex-consolidado', async (req, res) => {
             [emp]
         );
 
+        // Bodega maestra de la empresa
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`,
+            [emp]
+        );
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+
         // Productos que tienen movimientos en esta empresa
         const prodRes = await pool.query(
             `SELECT DISTINCT p.codigo, p.nombre, COALESCE(p.descripcion,'') AS descripcion, p.und,
                     COALESCE(p.grupo,'') AS grupo,
                     COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre,
-                    COALESCE(gp.codigo,'999') AS grupo_codigo
+                    COALESCE(gp.codigo,'999') AS grupo_codigo,
+                    COALESCE(p.visible_operacional,'NO') AS visible_operacional
              FROM productos p
              INNER JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
@@ -471,7 +479,7 @@ app.get('/api/almacen/kardex-consolidado', async (req, res) => {
             stocks: stockMap[p.codigo] || {}
         }));
 
-        res.json({ success: true, ccostos: ccRes.rows, productos });
+        res.json({ success: true, ccostos: ccRes.rows, productos, bodegaMaestra });
     } catch (error) {
         console.error('Error GET /api/almacen/kardex-consolidado:', error);
         res.status(500).json({ success: false, error: error.message });
