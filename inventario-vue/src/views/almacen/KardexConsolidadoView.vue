@@ -149,7 +149,7 @@ function formatStock(val) {
 }
 
 function stockVisible(producto, ccCodigo) {
-  if (String(ccCodigo) === String(bodegaMaestra.value)) return true
+  if (String(ccCodigo) === String(bodegaMaestra.value)) return producto.control === 'SI'
   return producto.visible_operacional === 'SI'
 }
 
@@ -225,7 +225,7 @@ function imprimir() {
     }])
     for (const p of grupo.items) {
       const ccCells = ccostos.value.flatMap(cc => {
-        const visible = String(cc.codigo) === String(bodegaMaestra.value) || p.visible_operacional === 'SI'
+        const visible = String(cc.codigo) === String(bodegaMaestra.value) ? p.control === 'SI' : p.visible_operacional === 'SI'
         const s = p.stocks[cc.codigo]
         const val = visible && s && s !== 0
           ? new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(s)

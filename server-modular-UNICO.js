@@ -450,11 +450,12 @@ app.get('/api/almacen/kardex-consolidado', async (req, res) => {
                     COALESCE(p.grupo,'') AS grupo,
                     COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre,
                     COALESCE(gp.codigo,'999') AS grupo_codigo,
-                    COALESCE(p.visible_operacional,'NO') AS visible_operacional
+                    COALESCE(p.visible_operacional,'NO') AS visible_operacional,
+                    COALESCE(p.control,'NO') AS control
              FROM productos p
              INNER JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-             WHERE p.control = 'SI'
+             WHERE p.control = 'SI' OR p.visible_operacional = 'SI'
              ORDER BY COALESCE(gp.codigo,'999'), p.nombre`,
             [emp]
         );
