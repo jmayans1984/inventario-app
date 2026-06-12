@@ -63,11 +63,17 @@
             <table class="doc-tabla">
               <thead>
                 <tr>
-                  <th class="col-cod">CÓD.</th>
-                  <th class="col-nom">NOMBRE</th>
-                  <th class="col-desc">DESCRIPCIÓN</th>
-                  <th class="col-und">UND</th>
-                  <th v-for="cc in ccostos" :key="cc.codigo" class="col-cc">{{ cc.nombre }}</th>
+                  <th class="col-cod" rowspan="2">CÓD.</th>
+                  <th class="col-nom" rowspan="2">NOMBRE</th>
+                  <th class="col-desc" rowspan="2">DESCRIPCIÓN</th>
+                  <th class="col-und" rowspan="2">UND</th>
+                  <th v-for="cc in ccostos" :key="cc.codigo" colspan="2" class="col-cc-header">{{ cc.nombre }}</th>
+                </tr>
+                <tr>
+                  <template v-for="cc in ccostos" :key="cc.codigo">
+                    <th class="col-stock">STOCK</th>
+                    <th class="col-blank">HOY</th>
+                  </template>
                 </tr>
               </thead>
               <tbody>
@@ -76,10 +82,13 @@
                   <td class="col-nom">{{ p.nombre }}</td>
                   <td class="col-desc">{{ p.descripcion }}</td>
                   <td class="col-und">{{ p.und }}</td>
-                  <td v-for="cc in ccostos" :key="cc.codigo" class="col-cc"
-                      :class="{ 'stock-pos': (p.stocks[cc.codigo] || 0) > 0, 'stock-neg': (p.stocks[cc.codigo] || 0) < 0 }">
-                    {{ formatStock(p.stocks[cc.codigo]) }}
-                  </td>
+                  <template v-for="cc in ccostos" :key="cc.codigo">
+                    <td class="col-stock"
+                        :class="{ 'stock-pos': (p.stocks[cc.codigo] || 0) > 0, 'stock-neg': (p.stocks[cc.codigo] || 0) < 0 }">
+                      {{ formatStock(p.stocks[cc.codigo]) }}
+                    </td>
+                    <td class="col-blank"></td>
+                  </template>
                 </tr>
               </tbody>
             </table>
@@ -181,46 +190,55 @@ function imprimir() {
 
   drawHeader()
 
-  const ccHeaders = ccostos.value.map(cc => cc.nombre)
-  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', ...ccHeaders]]
+  // Cabecera doble fila: fija + sub-headers por CC (STOCK | HOY)
+  const ccSubHeaders = []
+  ccostos.value.forEach(cc => ccSubHeaders.push(cc.nombre, ''))
+  const head = [
+    [
+      { content: 'CÓD.',        rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+      { content: 'NOMBRE',      rowSpan: 2, styles: { valign: 'middle' } },
+      { content: 'DESCRIPCIÓN', rowSpan: 2, styles: { valign: 'middle' } },
+      { content: 'UND',         rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+      ...ccostos.value.map(cc => ({ content: cc.nombre, colSpan: 2, styles: { halign: 'center', fillColor: [220, 240, 220] } }))
+    ],
+    [
+      ...ccostos.value.flatMap(() => [
+        { content: 'STOCK', styles: { halign: 'center', fontSize: 6 } },
+        { content: 'HOY',   styles: { halign: 'center', fontSize: 6, fillColor: [255, 255, 255], textColor: [180, 180, 180] } },
+      ])
+    ]
+  ]
 
   const body = []
   for (const grupo of productosAgrupados.value) {
     body.push([{
       content: `${grupo.nombre.toUpperCase()}   (${grupo.items.length} productos)`,
-      colSpan: 4 + ccostos.value.length,
-      styles: {
-        fontStyle: 'bold',
-        fontSize: 7,
-        fillColor: [30, 30, 30],
-        textColor: [255, 255, 255],
-        cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
-      }
+      colSpan: 4 + ccostos.value.length * 2,
+      styles: { fontStyle: 'bold', fontSize: 7, fillColor: [30, 30, 30], textColor: [255, 255, 255], cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } }
     }])
     for (const p of grupo.items) {
-      body.push([
-        p.codigo,
-        p.nombre,
-        p.descripcion || '',
-        p.und,
-        ...ccostos.value.map(cc => {
-          const s = p.stocks[cc.codigo]
-          if (!s || s === 0) return ''
-          return new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(s)
-        })
-      ])
+      const ccCells = ccostos.value.flatMap(cc => {
+        const s = p.stocks[cc.codigo]
+        const val = (!s || s === 0) ? '' : new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(s)
+        return [
+          { content: val, styles: { halign: 'center', fontStyle: val ? 'bold' : 'normal', textColor: s > 0 ? [4, 120, 87] : s < 0 ? [220, 38, 38] : [0,0,0] } },
+          { content: '', styles: { fillColor: [255, 255, 255] } }
+        ]
+      })
+      body.push([p.codigo, p.nombre, p.descripcion || '', p.und, ...ccCells])
     }
   }
 
+  const colW = Math.max(10, Math.min(18, Math.floor((PW - ML - MR - 97) / Math.max(ccostos.value.length * 2, 1))))
   const colStyles = {
     0: { cellWidth: 12, halign: 'center' },
     1: { cellWidth: 40 },
-    2: { cellWidth: 35, textColor: [80, 80, 80] },
+    2: { cellWidth: 30, textColor: [80, 80, 80] },
     3: { cellWidth: 10, halign: 'center' },
   }
-  const ccWidth = Math.max(14, Math.min(22, Math.floor((PW - ML - MR - 97) / Math.max(ccostos.value.length, 1))))
   ccostos.value.forEach((_, i) => {
-    colStyles[4 + i] = { cellWidth: ccWidth, halign: 'center' }
+    colStyles[4 + i * 2]     = { cellWidth: colW, halign: 'center' }
+    colStyles[4 + i * 2 + 1] = { cellWidth: colW, halign: 'center' }
   })
 
   autoTable(doc, {
@@ -294,7 +312,9 @@ onMounted(cargar)
 .col-nom  { width: 130px; font-weight: 500; }
 .col-desc { width: 110px; font-size: 8px; color: #444; }
 .col-und  { width: 30px; text-align: center; }
-.col-cc   { width: 70px; text-align: center; font-weight: 600; }
+.col-cc-header { text-align: center; border: 1px solid #aaa; background: #e8f5e9; font-size: 7px; font-weight: 700; padding: 2px 4px; }
+.col-stock { width: 50px; text-align: center; font-weight: 600; background: #fafafa; }
+.col-blank  { width: 50px; text-align: center; background: #fff; }
 .stock-pos { color: #047857; }
 .stock-neg { color: #dc2626; }
 </style>

@@ -443,7 +443,7 @@ app.get('/api/almacen/kardex-consolidado', async (req, res) => {
                     COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre,
                     COALESCE(gp.codigo,'999') AS grupo_codigo
              FROM productos p
-             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo AND gp.empresa = $1
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
              WHERE p.empresa = $1 AND p.control = 'SI'
              ORDER BY COALESCE(gp.codigo,'999'), p.nombre`,
             [emp]
