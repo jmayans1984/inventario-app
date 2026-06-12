@@ -1182,7 +1182,7 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .rc-kpi-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
 .rc-kpi { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 16px; padding: 18px 32px; display: flex; flex-direction: column; align-items: center; min-width: 140px; gap: 3px; }
 .kpi-val { font-size: 28px; font-weight: 800; line-height: 1; }
-.kpi-val--sm { font-size: 18px; }
+.kpi-val--sm { font-size: 22px; }
 .kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; margin-top: 2px; }
 .rc-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
 /* Oculta la columna expand nativa de Vuetify */
