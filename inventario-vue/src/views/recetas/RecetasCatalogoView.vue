@@ -439,6 +439,41 @@
       </v-card>
     </v-dialog>
 
+    <!-- DIALOG RECALCULAR COSTOS -->
+    <v-dialog v-model="dlgRecalcular" max-width="420" persistent>
+      <v-card rounded="xl">
+        <v-card-text class="pa-6">
+          <div class="d-flex align-center mb-4" style="gap:12px">
+            <v-icon size="32" color="teal">mdi-calculator-variant-outline</v-icon>
+            <div>
+              <div class="text-subtitle-1 font-weight-bold">Recalculando Costos</div>
+              <div class="text-caption text-medium-emphasis">{{ recalcFase }}</div>
+            </div>
+          </div>
+          <v-progress-linear
+            :model-value="recalcTotal > 0 ? (recalcHecho / recalcTotal * 100) : 0"
+            color="teal" height="8" rounded bg-color="rgba(13,148,136,.12)" class="mb-3" />
+          <div class="d-flex justify-space-between align-center mb-2">
+            <span class="text-caption text-medium-emphasis" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              {{ recalcActualNombre || '...' }}
+            </span>
+            <span class="text-caption font-weight-bold" style="flex-shrink:0">
+              {{ recalcHecho }} / {{ recalcTotal }}
+            </span>
+          </div>
+          <div v-if="recalcDone" class="d-flex align-center justify-center mt-4" style="gap:8px">
+            <v-icon color="teal">mdi-check-circle-outline</v-icon>
+            <span class="text-body-2 font-weight-medium" style="color:#0d9488">¡Costos actualizados!</span>
+          </div>
+        </v-card-text>
+        <v-card-actions v-if="recalcDone" class="pa-4 justify-end">
+          <v-btn color="teal" variant="flat" rounded="lg" @click="dlgRecalcular=false">
+            <v-icon start>mdi-check</v-icon>Cerrar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- DIALOG ELIMINAR -->
     <v-dialog v-model="dlgEliminar" max-width="400">
       <v-card rounded="xl">
@@ -532,7 +567,13 @@ const prodCatalogo        = ref([])
 const loadingProdCatalogo = ref(false)
 
 // Recalcular costos
-const recalculando = ref(false)
+const recalculando     = ref(false)
+const dlgRecalcular    = ref(false)
+const recalcTotal      = ref(0)
+const recalcHecho      = ref(0)
+const recalcActualNombre = ref('')
+const recalcFase       = ref('')
+const recalcDone       = ref(false)
 
 // Dialog eliminar
 const dlgEliminar     = ref(false)
@@ -597,15 +638,39 @@ async function cargarArticulos() {
 }
 
 async function recalcularTodos() {
-  recalculando.value = true
-  try {
-    const r = await fetch(`${API_BASE}/recetas/recalcular-todos`, { method: 'POST' })
-    const j = await r.json()
-    if (!j.success) throw new Error(j.error)
-    ok(`Costos actualizados (${j.data?.actualizadas ?? ''} recetas)`)
-    await cargarRecetas()
-  } catch (e) { err('Error al recalcular: ' + e.message) }
-  finally { recalculando.value = false }
+  // Ordenar: subproductos primero (son ingredientes de otras recetas)
+  const lista = [
+    ...recetas.value.filter(r => r.subproducto === 'SI'),
+    ...recetas.value.filter(r => r.subproducto !== 'SI'),
+  ]
+  recalcTotal.value        = lista.length * 2  // 2 pasadas
+  recalcHecho.value        = 0
+  recalcActualNombre.value = ''
+  recalcDone.value         = false
+  dlgRecalcular.value      = true
+  recalculando.value       = true
+
+  const calcular = async (receta) => {
+    recalcActualNombre.value = receta.nombre
+    try {
+      await fetch(`${API_BASE}/recetas/${encodeURIComponent(receta.codigo)}/calcular-costo`, { method: 'POST' })
+    } catch { /* continuar con la siguiente */ }
+    recalcHecho.value++
+  }
+
+  // Pasada 1: subproductos → recetas finales
+  recalcFase.value = 'Pasada 1 de 2 — calculando costos base'
+  for (const r of lista) await calcular(r)
+
+  // Pasada 2: recalcular todo con subrecetas ya actualizadas
+  recalcFase.value = 'Pasada 2 de 2 — actualizando recetas con subrecetas'
+  for (const r of lista) await calcular(r)
+
+  recalcDone.value   = true
+  recalcFase.value   = ''
+  recalculando.value = false
+  recalcActualNombre.value = ''
+  await cargarRecetas()
 }
 
 function abrirNuevaReceta() {
