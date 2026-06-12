@@ -163,7 +163,7 @@ async function cargar() {
 }
 
 function imprimir() {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const PW = doc.internal.pageSize.getWidth()
   const ML = 8, MR = 8
 
@@ -199,12 +199,12 @@ function imprimir() {
       { content: 'NOMBRE',      rowSpan: 2, styles: { valign: 'middle' } },
       { content: 'DESCRIPCIÓN', rowSpan: 2, styles: { valign: 'middle' } },
       { content: 'UND',         rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-      ...ccostos.value.map(cc => ({ content: cc.nombre, colSpan: 2, styles: { halign: 'center', fillColor: [220, 240, 220] } }))
+      ...ccostos.value.map(cc => ({ content: cc.nombre, colSpan: 2, styles: { halign: 'center', fillColor: [220, 220, 220], textColor: [0, 0, 0] } }))
     ],
     [
       ...ccostos.value.flatMap(() => [
         { content: 'STOCK', styles: { halign: 'center', fontSize: 6 } },
-        { content: 'HOY',   styles: { halign: 'center', fontSize: 6, fillColor: [255, 255, 255], textColor: [180, 180, 180] } },
+        { content: 'HOY',   styles: { halign: 'center', fontSize: 6, fillColor: [255, 255, 255], textColor: [0, 0, 0] } },
       ])
     ]
   ]
@@ -214,14 +214,14 @@ function imprimir() {
     body.push([{
       content: `${grupo.nombre.toUpperCase()}   (${grupo.items.length} productos)`,
       colSpan: 4 + ccostos.value.length * 2,
-      styles: { fontStyle: 'bold', fontSize: 7, fillColor: [30, 30, 30], textColor: [255, 255, 255], cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } }
+      styles: { fontStyle: 'bold', fontSize: 7, fillColor: [80, 80, 80], textColor: [255, 255, 255], cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } }
     }])
     for (const p of grupo.items) {
       const ccCells = ccostos.value.flatMap(cc => {
         const s = p.stocks[cc.codigo]
         const val = (!s || s === 0) ? '' : new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(s)
         return [
-          { content: val, styles: { halign: 'center', fontStyle: val ? 'bold' : 'normal', textColor: s > 0 ? [4, 120, 87] : s < 0 ? [220, 38, 38] : [0,0,0] } },
+          { content: val, styles: { halign: 'center', fontStyle: val ? 'bold' : 'normal', textColor: [0, 0, 0] } },
           { content: '', styles: { fillColor: [255, 255, 255] } }
         ]
       })
@@ -233,7 +233,7 @@ function imprimir() {
   const colStyles = {
     0: { cellWidth: 12, halign: 'center' },
     1: { cellWidth: 40 },
-    2: { cellWidth: 30, textColor: [80, 80, 80] },
+    2: { cellWidth: 30, textColor: [0, 0, 0] },
     3: { cellWidth: 10, halign: 'center' },
   }
   ccostos.value.forEach((_, i) => {
