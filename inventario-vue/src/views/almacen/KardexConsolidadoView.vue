@@ -72,7 +72,9 @@
                 <tr>
                   <template v-for="cc in ccostos" :key="cc.codigo">
                     <th class="col-stock">STOCK</th>
-                    <th class="col-blank">HOY</th>
+                    <th :class="String(cc.codigo) === String(bodegaMaestra) ? 'col-nivel' : 'col-blank'">
+                      {{ String(cc.codigo) === String(bodegaMaestra) ? 'NIVEL STOCK' : 'HOY' }}
+                    </th>
                   </template>
                 </tr>
               </thead>
@@ -87,7 +89,11 @@
                         :class="{ 'stock-pos': stockVisible(p, cc.codigo) && (p.stocks[cc.codigo] || 0) > 0, 'stock-neg': stockVisible(p, cc.codigo) && (p.stocks[cc.codigo] || 0) < 0 }">
                       {{ stockVisible(p, cc.codigo) ? formatStock(p.stocks[cc.codigo]) : '' }}
                     </td>
-                    <td class="col-blank"></td>
+                    <td v-if="String(cc.codigo) === String(bodegaMaestra)" class="col-nivel">
+                      <span v-if="p.control === 'SI' && parseFloat(p.stock_minimo) > 0 && (p.stocks[cc.codigo] || 0) < parseFloat(p.stock_minimo)"
+                            class="nivel-bajo">↓</span>
+                    </td>
+                    <td v-else class="col-blank"></td>
                   </template>
                 </tr>
               </tbody>
@@ -209,10 +215,13 @@ function imprimir() {
       ...ccostos.value.map(cc => ({ content: cc.nombre, colSpan: 2, styles: { halign: 'center', fillColor: [220, 220, 220], textColor: [0, 0, 0] } }))
     ],
     [
-      ...ccostos.value.flatMap(() => [
-        { content: 'STOCK', styles: { halign: 'center', fontSize: 6 } },
-        { content: 'HOY',   styles: { halign: 'center', fontSize: 6, fillColor: [255, 255, 255], textColor: [0, 0, 0] } },
-      ])
+      ...ccostos.value.flatMap(cc => {
+        const isBM = String(cc.codigo) === String(bodegaMaestra.value)
+        return [
+          { content: 'STOCK',       styles: { halign: 'center', fontSize: 6 } },
+          { content: isBM ? 'NIVEL STOCK' : 'HOY', styles: { halign: 'center', fontSize: 6, fillColor: isBM ? [240, 240, 240] : [255, 255, 255], textColor: [0, 0, 0] } },
+        ]
+      })
     ]
   ]
 
@@ -225,14 +234,16 @@ function imprimir() {
     }])
     for (const p of grupo.items) {
       const ccCells = ccostos.value.flatMap(cc => {
-        const visible = String(cc.codigo) === String(bodegaMaestra.value) ? p.control === 'SI' : p.visible_operacional === 'SI'
+        const isBM = String(cc.codigo) === String(bodegaMaestra.value)
+        const visible = isBM ? p.control === 'SI' : p.visible_operacional === 'SI'
         const s = p.stocks[cc.codigo]
         const val = visible && s && s !== 0
           ? new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(s)
           : ''
+        const bajoPct = isBM && visible && parseFloat(p.stock_minimo) > 0 && (s || 0) < parseFloat(p.stock_minimo)
         return [
           { content: val, styles: { halign: 'center', fontStyle: val ? 'bold' : 'normal', textColor: [0, 0, 0] } },
-          { content: '', styles: { fillColor: [255, 255, 255] } }
+          { content: bajoPct ? '↓' : '', styles: { halign: 'center', fillColor: isBM ? [255, 255, 255] : [255, 255, 255], textColor: [220, 38, 38], fontStyle: 'bold', fontSize: 9 } }
         ]
       })
       body.push([p.codigo, p.nombre, p.descripcion || '', p.und, ...ccCells])
@@ -325,6 +336,8 @@ onMounted(cargar)
 .col-cc-header { text-align: center; border: 1px solid #aaa; background: #e8f5e9; font-size: 7px; font-weight: 700; padding: 2px 4px; }
 .col-stock { width: 50px; text-align: center; font-weight: 600; background: #fafafa; }
 .col-blank  { width: 50px; text-align: center; background: #fff; }
+.col-nivel  { width: 50px; text-align: center; background: #fff8f8; }
+.nivel-bajo { color: #dc2626; font-size: 15px; font-weight: 900; line-height: 1; }
 .stock-pos { color: #047857; }
 .stock-neg { color: #dc2626; }
 </style>
