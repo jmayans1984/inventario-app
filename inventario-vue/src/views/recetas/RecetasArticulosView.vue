@@ -20,9 +20,17 @@
             <p class="ra-sub">Gestiona los ingredientes · Edita el precio y navega con <kbd>Enter</kbd> o <kbd>↓↑</kbd></p>
           </div>
         </div>
-        <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevo">
-          <v-icon start>mdi-plus</v-icon> Nuevo Artículo
-        </v-btn>
+        <div class="d-flex gap-2 align-center">
+          <v-btn v-if="pendientes.size > 0"
+            color="success" variant="flat" rounded="lg"
+            :loading="guardandoTodos" @click="guardarTodosPendientes">
+            <v-icon start>mdi-content-save-outline</v-icon>
+            Guardar {{ pendientes.size }} precio{{ pendientes.size > 1 ? 's' : '' }}
+          </v-btn>
+          <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevo">
+            <v-icon start>mdi-plus</v-icon> Nuevo Artículo
+          </v-btn>
+        </div>
       </div>
 
       <!-- ALERTA INFO -->
@@ -554,11 +562,12 @@ function ok(msg)  { snack.value = { show: true, msg, color: 'success' } }
 function err(msg) { snack.value = { show: true, msg, color: 'error' } }
 
 // ── Inline edit precio compra ──────────────────────────────────────────────────
-const editValores  = reactive({})
-const pendientes   = ref(new Set())
-const guardadosOk  = ref(new Set())
-const inputRefs    = ref([])
-const filaActiva   = ref(-1)
+const editValores    = reactive({})
+const pendientes     = ref(new Set())
+const guardadosOk    = ref(new Set())
+const inputRefs      = ref([])
+const filaActiva     = ref(-1)
+const guardandoTodos = ref(false)
 
 function idxOf(codigo) {
   return articulosFiltrados.value.findIndex(x => x.codigo === codigo)
@@ -606,6 +615,32 @@ async function guardarPrecioInline(item) {
     guardadosOk.value = new Set([...guardadosOk.value, item.codigo])
     setTimeout(() => { const g = new Set(guardadosOk.value); g.delete(item.codigo); guardadosOk.value = g }, 2000)
   } catch (e) { err(`Error: ${e.message}`) }
+}
+
+async function guardarTodosPendientes() {
+  guardandoTodos.value = true
+  const codigos = [...pendientes.value]
+  const items   = articulos.value.filter(a => codigos.includes(a.codigo))
+  let errores = 0
+  for (const item of items) {
+    try {
+      const nuevoValor = toNum(editValores[item.codigo])
+      const r = await fetch(`${API_BASE}/articulos/${item.codigo}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valor: nuevoValor }),
+      })
+      const j = await r.json()
+      if (!j.success) throw new Error(j.error)
+      item.valor = nuevoValor
+      editValores[item.codigo] = String(nuevoValor)
+      const s = new Set(pendientes.value); s.delete(item.codigo); pendientes.value = s
+      guardadosOk.value = new Set([...guardadosOk.value, item.codigo])
+      setTimeout(() => { const g = new Set(guardadosOk.value); g.delete(item.codigo); guardadosOk.value = g }, 2000)
+    } catch { errores++ }
+  }
+  guardandoTodos.value = false
+  if (errores === 0) ok(`${codigos.length} precio${codigos.length > 1 ? 's' : ''} guardado${codigos.length > 1 ? 's' : ''}`)
+  else err(`${errores} precio${errores > 1 ? 's' : ''} no se pudo guardar`)
 }
 
 // ── Carga ─────────────────────────────────────────────────────
