@@ -426,6 +426,56 @@ app.get('/api/almacen/stock-bodega-maestra', async (req, res) => {
     }
 });
 
+// GET /api/almacen/kardex-consolidado — stock actual por producto por CC
+app.get('/api/almacen/kardex-consolidado', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerido' });
+    const emp = parseInt(empresa);
+    try {
+        const ccRes = await pool.query(
+            `SELECT codigo, nombre FROM ccostos WHERE empresa = $1 ORDER BY nombre`,
+            [emp]
+        );
+
+        const prodRes = await pool.query(
+            `SELECT p.codigo, p.nombre, COALESCE(p.descripcion,'') AS descripcion, p.und,
+                    COALESCE(p.grupo,'') AS grupo,
+                    COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre,
+                    COALESCE(gp.codigo,'999') AS grupo_codigo
+             FROM productos p
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo AND gp.empresa = $1
+             WHERE p.empresa = $1 AND p.control = 'SI'
+             ORDER BY COALESCE(gp.codigo,'999'), p.nombre`,
+            [emp]
+        );
+
+        const stockRes = await pool.query(
+            `SELECT di.codigo, di.ccosto,
+                    ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock
+             FROM detalle_inventario di
+             WHERE di.empresa = $1
+             GROUP BY di.codigo, di.ccosto`,
+            [emp]
+        );
+
+        const stockMap = {};
+        for (const row of stockRes.rows) {
+            if (!stockMap[row.codigo]) stockMap[row.codigo] = {};
+            stockMap[row.codigo][row.ccosto] = parseFloat(row.stock);
+        }
+
+        const productos = prodRes.rows.map(p => ({
+            ...p,
+            stocks: stockMap[p.codigo] || {}
+        }));
+
+        res.json({ success: true, ccostos: ccRes.rows, productos });
+    } catch (error) {
+        console.error('Error GET /api/almacen/kardex-consolidado:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/almacen/reporte-alertas-stock — productos bajo stock mínimo en la bodega maestra
 app.get('/api/almacen/reporte-alertas-stock', async (req, res) => {
     try {

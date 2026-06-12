@@ -45,6 +45,7 @@ const routes = [
   { path: '/almacen/reportes/consumo-insumos',         component: () => import('../views/almacen/ReporteConsumoInsumosView.vue'), meta: { requiresAuth: true } },
   { path: '/almacen/reportes/alertas-stock',            component: () => import('../views/almacen/ReporteAlertasStockView.vue'),        meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/almacen/reportes/movimiento-producto',      component: () => import('../views/almacen/ReporteMovimientoProductoView.vue'),   meta: { requiresAuth: true } },
+  { path: '/almacen/reportes/kardex-consolidado',       component: () => import('../views/almacen/KardexConsolidadoView.vue'),            meta: { requiresAuth: true } },
 
   // ALMACÉN — patrón general
   { path: '/almacen/:section?/:item?', component: () => import('../views/AlmacenView.vue'), meta: { requiresAuth: true } },

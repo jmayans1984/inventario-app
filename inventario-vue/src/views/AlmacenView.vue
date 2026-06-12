@@ -133,6 +133,17 @@
           </div>
           <v-icon size="16" color="#10b981" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
+
+        <div class="mod-card" @click="go('/almacen/reportes/kardex-consolidado')">
+          <div class="mod-card-icon" style="background:rgba(16,185,129,.12)">
+            <v-icon size="22" color="#10b981">mdi-table-multiple</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Kardex Consolidado</div>
+            <div class="mod-card-desc">Stock actual detallado por centro de costos</div>
+          </div>
+          <v-icon size="16" color="#10b981" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
       </div>
 
     </div>
