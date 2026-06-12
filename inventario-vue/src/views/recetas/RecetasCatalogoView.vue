@@ -18,7 +18,7 @@
             <p class="rc-sub">Crea, edita y gestiona las recetas con sus ingredientes</p>
           </div>
         </div>
-        <v-btn color="teal" variant="tonal" rounded="lg" :loading="recalculando" @click="recalcularTodos">
+        <v-btn color="teal" variant="flat" rounded="lg" :loading="recalculando" @click="recalcularTodos">
           <v-icon start>mdi-refresh</v-icon> Recalcular Costos
         </v-btn>
         <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevaReceta">
@@ -41,8 +41,9 @@
 
       <!-- KPI MINI -->
       <div class="rc-kpi-row">
-        <div class="rc-kpi" v-for="k in kpis" :key="k.label">
-          <span class="kpi-val">{{ k.val }}</span>
+        <div class="rc-kpi" v-for="k in kpis" :key="k.label" :style="{ borderColor: k.color }">
+          <v-icon size="22" :color="k.color" class="mb-1">{{ k.icon }}</v-icon>
+          <span class="kpi-val" :style="{ color: k.color }">{{ k.val }}</span>
           <span class="kpi-lbl">{{ k.label }}</span>
         </div>
       </div>
@@ -607,12 +608,13 @@ const recetasFiltradas = computed(() => {
   return r
 })
 
-const kpis = computed(() => [
-  { label: 'Total',        val: recetas.value.length },
-  { label: 'Recetas',      val: recetas.value.filter(r => r.subproducto !== 'SI').length },
-  { label: 'Subproductos', val: recetas.value.filter(r => r.subproducto === 'SI').length },
-  { label: 'Sin ingred.',  val: recetas.value.filter(r => +r.num_ingredientes === 0).length },
-])
+const kpis = computed(() => {
+  const r = recetasFiltradas.value
+  return [
+    { label: 'Total',   val: r.length,                                     icon: 'mdi-chef-hat',                  color: '#f59e0b' },
+    { label: 'Recetas', val: r.filter(x => x.subproducto !== 'SI').length, icon: 'mdi-book-open-variant-outline', color: '#06b6d4' },
+  ]
+})
 
 const costoTotal = computed(() =>
   ingredientes.value.reduce((s, i) => s + (parseFloat(i.precio_unit)||0) * (parseFloat(i.cantidad)||0), 0)
@@ -1170,10 +1172,10 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .rc-title { font-size: 20px; font-weight: 800; margin: 0; }
 .rc-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
 .rc-filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-.rc-kpi-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.rc-kpi { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 12px; padding: 12px 20px; display: flex; flex-direction: column; align-items: center; min-width: 110px; }
-.kpi-val { font-size: 22px; font-weight: 800; color: #f59e0b; }
-.kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; }
+.rc-kpi-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.rc-kpi { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 16px; padding: 18px 32px; display: flex; flex-direction: column; align-items: center; min-width: 140px; gap: 3px; }
+.kpi-val { font-size: 28px; font-weight: 800; line-height: 1; }
+.kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; margin-top: 2px; }
 .rc-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
 /* Oculta la columna expand nativa de Vuetify */
 :deep(.v-data-table__th--expand),
@@ -1496,6 +1498,8 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
   background: rgba(13,148,136,.07);
   border-bottom: 1px solid rgba(13,148,136,.12);
 }
+.exp-prod-head span:nth-child(3),
+.exp-prod-row span:nth-child(3) { text-align: center; }
 .exp-prod-row {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
   transition: background .1s;
