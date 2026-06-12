@@ -37,8 +37,10 @@
       <div class="rf-filters">
         <v-text-field v-model="busqueda" placeholder="Buscar receta..." prepend-inner-icon="mdi-magnify"
           variant="outlined" density="compact" hide-details clearable style="max-width:280px" />
+        <v-select v-model="filtroGrupo" :items="gruposFiltro" item-title="label" item-value="val"
+          variant="outlined" density="compact" hide-details style="max-width:220px" />
         <v-select v-model="filtroTipo" :items="tiposFiltro" item-title="label" item-value="val"
-          variant="outlined" density="compact" hide-details style="max-width:200px" />
+          variant="outlined" density="compact" hide-details style="max-width:180px" />
         <span v-if="seleccionadas.length > 0" class="sel-badge">
           {{ seleccionadas.length }} seleccionada{{ seleccionadas.length !== 1 ? 's' : '' }}
         </span>
@@ -184,12 +186,14 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 const recetas       = ref([])
+const grupos        = ref([])
 const detalles      = ref({})
 const loadingDetalle = ref({})
 const loading       = ref(false)
 const generando     = ref(false)
 const busqueda      = ref('')
 const filtroTipo    = ref('TODOS')
+const filtroGrupo   = ref('TODOS')
 const seleccionadas = ref([])
 const expandido     = ref({})
 
@@ -199,9 +203,15 @@ const tiposFiltro = computed(() => [
   { label: 'Solo Subproductos', val: 'SI' },
 ])
 
+const gruposFiltro = computed(() => [
+  { label: 'Todos los grupos', val: 'TODOS' },
+  ...grupos.value.map(g => ({ label: g.nombre, val: g.codigo }))
+])
+
 const recetasFiltradas = computed(() => {
   let r = recetas.value
   if (filtroTipo.value !== 'TODOS') r = r.filter(x => x.subproducto === filtroTipo.value)
+  if (filtroGrupo.value !== 'TODOS') r = r.filter(x => x.grupo_receta === filtroGrupo.value)
   if (busqueda.value) {
     const q = busqueda.value.toLowerCase()
     r = r.filter(x => x.nombre.toLowerCase().includes(q) || x.codigo.toLowerCase().includes(q))
@@ -242,10 +252,12 @@ async function cargarDetalles(codigo) {
 async function cargar() {
   loading.value = true
   try {
-    const r = await fetch(`${API_BASE}/recetas`)
-    const j = await r.json()
-    recetas.value = j.data || []
-    // Pre-cargar detalles de las primeras recetas
+    const [rr, rg] = await Promise.all([
+      fetch(`${API_BASE}/recetas`).then(r => r.json()),
+      fetch(`${API_BASE}/recetas/grupos`).then(r => r.json()),
+    ])
+    recetas.value = rr.data || []
+    grupos.value  = rg.data || []
     recetas.value.slice(0, 15).forEach(r => cargarDetalles(r.codigo))
   } catch (e) { err(e.message) }
   finally { loading.value = false }
