@@ -96,6 +96,7 @@ export const MODULES = [
         { name: 'Consumo de Insumos', icon: 'mdi-package-down', path: '/almacen/reportes/consumo-insumos' },
         { name: 'Alertas de Stock',        icon: 'mdi-alert-circle-outline',  path: '/almacen/reportes/alertas-stock',        requiredTipo: 'PROVEEDOR' },
         { name: 'Movimiento por Producto', icon: 'mdi-swap-vertical-bold',    path: '/almacen/reportes/movimiento-producto' },
+        { name: 'Kardex Consolidado',      icon: 'mdi-table-multiple',         path: '/almacen/reportes/kardex-consolidado' },
       ]},
     ],
   },
