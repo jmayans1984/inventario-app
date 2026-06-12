@@ -1262,7 +1262,7 @@ app.get('/api/almacen/reporte-movimiento-producto', async (req, res) => {
             FROM detalle_inventario di
             JOIN productos p ON p.codigo = di.codigo
             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-            LEFT JOIN ccostos cc_rel ON cc_rel.codigo = di.cc_relacion
+            LEFT JOIN ccostos cc_rel ON cc_rel.codigo = di.cc_relacion AND cc_rel.empresa = di.empresa
             WHERE di.empresa = $1
               AND di.ccosto  = $2
               AND di.fecha BETWEEN $3 AND $4
