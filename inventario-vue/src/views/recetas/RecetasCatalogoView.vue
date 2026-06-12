@@ -1218,7 +1218,7 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .ing-tbl-row,
 .ing-tbl-total {
   display: grid;
-  grid-template-columns: 1fr 90px 110px 60px 110px 110px 40px;
+  grid-template-columns: 1fr 108px 110px 60px 92px 110px 40px;
   align-items: center;
   padding: 0 20px;
 }
@@ -1328,10 +1328,10 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 .col-cant { padding-right: 8px; text-align: center; }
 .ing-tbl-head .col-tipo,
 .ing-tbl-head .col-cant,
-.ing-tbl-head .col-und,
+.ing-tbl-head .col-und { text-align: center; }
 .ing-tbl-head .col-vunit,
-.ing-tbl-head .col-sub { text-align: center; }
-.col-und { font-size: 12px; color: rgba(var(--v-theme-on-surface), .5); }
+.ing-tbl-head .col-sub { text-align: right; }
+.col-und { font-size: 12px; color: rgba(var(--v-theme-on-surface), .5); text-align: center; }
 .col-vunit { text-align: right; font-size: 12px; color: rgba(var(--v-theme-on-surface), .7); }
 .col-sub { text-align: right; }
 .col-del { display: flex; justify-content: center; }
