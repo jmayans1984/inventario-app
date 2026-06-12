@@ -611,13 +611,17 @@ async function cargarProductos() {
     const res = await api.get('/almacen/productos')
     const todos = res.data?.data || []
 
-    const esBodegaMaestra = bodegaMaestraCC.value && (bodegaMaestraCC.value === ccOrigen.value)
+    const esBodegaMaestra = bodegaMaestraCC.value && (String(bodegaMaestraCC.value) === String(ccOrigen.value))
     filtroActivo.value = esBodegaMaestra ? 'bodega' : 'punto_venta'
+
+    console.log('Bodega Maestra:', bodegaMaestraCC.value, 'CC Origen:', ccOrigen.value, 'Es Bodega:', esBodegaMaestra)
 
     if (esBodegaMaestra) {
       productos.value = todos.filter(p => p.control === 'SI')
+      console.log('Filtrando BODEGA MAESTRA - control=SI:', productos.value.length)
     } else {
       productos.value = todos.filter(p => p.visible_operacional === 'SI')
+      console.log('Filtrando PUNTO DE VENTA - visible_operacional=SI:', productos.value.length)
     }
   } catch (e) {
     console.error('Error cargando productos:', e)
