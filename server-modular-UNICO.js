@@ -437,14 +437,16 @@ app.get('/api/almacen/kardex-consolidado', async (req, res) => {
             [emp]
         );
 
+        // Productos que tienen movimientos en esta empresa
         const prodRes = await pool.query(
-            `SELECT p.codigo, p.nombre, COALESCE(p.descripcion,'') AS descripcion, p.und,
+            `SELECT DISTINCT p.codigo, p.nombre, COALESCE(p.descripcion,'') AS descripcion, p.und,
                     COALESCE(p.grupo,'') AS grupo,
                     COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre,
                     COALESCE(gp.codigo,'999') AS grupo_codigo
              FROM productos p
+             INNER JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-             WHERE p.empresa = $1 AND p.control = 'SI'
+             WHERE p.control = 'SI'
              ORDER BY COALESCE(gp.codigo,'999'), p.nombre`,
             [emp]
         );
