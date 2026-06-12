@@ -91,7 +91,7 @@
                     </td>
                     <td v-if="String(cc.codigo) === String(bodegaMaestra)" class="col-nivel">
                       <span v-if="p.control === 'SI' && parseFloat(p.stock_minimo) > 0 && (p.stocks[cc.codigo] || 0) < parseFloat(p.stock_minimo)"
-                            class="nivel-bajo">↓</span>
+                            class="nivel-bajo">↓ {{ formatStock(p.stock_minimo) }}</span>
                     </td>
                     <td v-else class="col-blank"></td>
                   </template>
@@ -336,8 +336,8 @@ onMounted(cargar)
 .col-cc-header { text-align: center; border: 1px solid #aaa; background: #e8f5e9; font-size: 7px; font-weight: 700; padding: 2px 4px; }
 .col-stock { width: 50px; text-align: center; font-weight: 600; background: #fafafa; }
 .col-blank  { width: 50px; text-align: center; background: #fff; }
-.col-nivel  { width: 50px; text-align: center; background: #fff8f8; }
-.nivel-bajo { color: #dc2626; font-size: 15px; font-weight: 900; line-height: 1; }
+.col-nivel  { width: 28px; text-align: center; background: #fff8f8; white-space: nowrap; }
+.nivel-bajo { color: #dc2626; font-size: 8px; font-weight: 700; line-height: 1; }
 .stock-pos { color: #047857; }
 .stock-neg { color: #dc2626; }
 </style>
