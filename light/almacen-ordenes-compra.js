@@ -296,6 +296,7 @@ function renderGridProductos() {
             <div>Producto</div>
             <div>Und</div>
             <div style="text-align:right">Precio</div>
+            <div style="text-align:center">Cantidad</div>
         </div>
         <div class="oc-prod-grid-body">
     `;
