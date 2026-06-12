@@ -161,6 +161,14 @@
         <div class="oc-modal-body" id="ocDetBody" style="padding:14px"></div>
     </div>
 
+    <!-- Modal imagen ampliada -->
+    <div class="oc-modal" id="ocModalImagen" style="background:rgba(0,0,0,.95);align-items:center;justify-content:center;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)">
+        <div style="position:absolute;top:14px;right:14px;z-index:10">
+            <button onclick="document.getElementById('ocModalImagen').classList.remove('open')" style="background:#ef4444;border:none;color:white;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;font-weight:700">✕</button>
+        </div>
+        <img id="ocImagenSrc" style="max-width:95%;max-height:90vh;object-fit:contain;display:block">
+    </div>
+
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script src="almacen-ordenes-compra.js"></script>
