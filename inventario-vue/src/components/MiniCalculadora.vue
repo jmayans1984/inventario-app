@@ -252,8 +252,10 @@ function equals() {
 }
 
 function fmtResult(v) {
-  if (v === null || v === undefined || isNaN(v)) return '—'
-  return parseFloat(v.toFixed(6)).toLocaleString('es-CO', { maximumFractionDigits: 6 })
+  if (v === null || v === undefined) return '—'
+  const n = typeof v === 'number' ? v : parseFloat(v)
+  if (isNaN(n)) return '—'
+  return parseFloat(n.toFixed(6)).toLocaleString('es-CO', { maximumFractionDigits: 6 })
 }
 
 // ── CONVERSOR ─────────────────────────────────────────────────────
@@ -279,10 +281,11 @@ function calcPrecioU() {
   const list   = isPeso ? units.peso : units.volumen
   const src    = list.find(u => u.key === precioUUnit.value)
   if (!src) return
+  const price  = parseFloat(precioUPrice.value) || 0
   precioURows.value = list.map(u => ({
     key:   u.key,
     label: u.label,
-    price: (precioUPrice.value || 0) * u.toBase / src.toBase
+    price: price * u.toBase / src.toBase
   }))
 }
 
