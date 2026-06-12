@@ -521,6 +521,9 @@ function imprimirDetalle(codigo) {
         <style>
             * { margin:0; padding:0; box-sizing:border-box; }
             body { font-family: Arial, sans-serif; font-size:13px; color:#1a1a2e; padding:30px; }
+            .toolbar { background:#f1f5f9; padding:12px 20px; border-radius:6px; margin-bottom:20px; display:flex; gap:10px; }
+            .toolbar button { padding:8px 16px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+            .toolbar button:hover { background:#dc2626; }
             .header { background:#1a1a2e; color:white; padding:16px 20px; border-radius:6px; margin-bottom:20px; }
             .header h1 { font-size:18px; }
             .header p { font-size:11px; color:#94a3b8; margin-top:4px; }
@@ -530,8 +533,11 @@ function imprimirDetalle(codigo) {
             td { padding:7px 8px; border-bottom:1px solid #e2e8f0; }
             .total-row td { font-weight:800; font-size:15px; }
             .obs { margin-top:16px; padding:10px; background:#f8fafc; border-radius:6px; font-size:12px; }
-            @media print { .header { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+            @media print { .toolbar { display:none; } .header { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
         </style></head><body>
+        <div class="toolbar">
+            <button onclick="window.close()">✕ Cerrar</button>
+        </div>
         <div class="header">
             <h1>ORDEN DE COMPRA — ${o.codigo}</h1>
             <p>Fecha: ${fmtFecha(o.fecha)} · Entrega: ${o.fecha_entrega ? fmtFecha(o.fecha_entrega) : '—'} · Estado: ${o.estado}</p>
