@@ -1220,6 +1220,7 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
+import { formatFecha } from '../../../utils/formatters'
 
 // ─── Auth ─────────────────────────────────────────────────────
 const authStore   = useAuthStore()

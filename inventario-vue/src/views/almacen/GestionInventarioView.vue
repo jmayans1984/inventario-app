@@ -478,6 +478,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
+import { formatFecha } from '../../../utils/formatters'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)

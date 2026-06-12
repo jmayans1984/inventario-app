@@ -101,6 +101,7 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
+import { formatFecha } from '../../../utils/formatters'
 
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
