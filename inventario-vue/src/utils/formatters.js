@@ -60,6 +60,20 @@ export function fechaHoy() {
 }
 
 /**
+ * Fecha en formato YYYY-MM-DD (para inputs type="date")
+ * Usa zona horaria local, evita desfase con toISOString()
+ * @param {Date|null} date - default: hoy
+ * @returns {string} formato "YYYY-MM-DD"
+ */
+export function fechaInputLocal(date = null) {
+  const d = date instanceof Date ? date : new Date()
+  const año = d.getFullYear()
+  const mes = String(d.getMonth() + 1).padStart(2, '0')
+  const dia = String(d.getDate()).padStart(2, '0')
+  return `${año}-${mes}-${dia}`
+}
+
+/**
  * Parsea un string MM/DD/AAAA a objeto Date
  * Útil para validar lo que el usuario ingresó
  */
