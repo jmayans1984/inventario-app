@@ -482,7 +482,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
-import { formatFecha } from '../../../utils/formatters'
+import { formatFecha, fechaInputLocal } from '../../../utils/formatters'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -504,13 +504,7 @@ const bodegaMaestraCC  = ref(null)   // código del CC configurado como bodega m
 const filtroActivo     = ref('')     // 'bodega' | 'punto_venta' | ''
 
 // ── Campos del formulario (ref individuales, más confiables) ──
-const fecha         = ref((() => {
-  const hoy = new Date()
-  const año = hoy.getFullYear()
-  const mes = String(hoy.getMonth() + 1).padStart(2, '0')
-  const dia = String(hoy.getDate()).padStart(2, '0')
-  return `${año}-${mes}-${dia}`
-})()
+const fecha         = ref(fechaInputLocal())
 const tipoOp        = ref(null)
 const ccOrigen      = ref(null)
 const ccDestino     = ref(null)
