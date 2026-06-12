@@ -90,7 +90,7 @@
           <!-- OBSERVACIONES -->
           <v-col cols="12" :sm="tipoOp === 'TRASLADO' ? 12 : 4">
             <v-text-field
-              :model-value="observaciones"
+              :model-value="observaciones.toUpperCase()"
               @update:model-value="observaciones = $event.toUpperCase()"
               label="Observaciones"
               variant="outlined"
@@ -444,8 +444,12 @@
                 <span class="conflict-val">{{ fecha }}</span>
               </div>
               <div class="conflict-row">
-                <span class="conflict-label">Centro de Costo</span>
+                <span class="conflict-label">{{ tipoOp === 'TRASLADO' ? 'CC Origen' : 'Centro de Costo' }}</span>
                 <span class="conflict-val">{{ nombreCcOrigen }}</span>
+              </div>
+              <div v-if="tipoOp === 'TRASLADO'" class="conflict-row">
+                <span class="conflict-label">CC Destino</span>
+                <span class="conflict-val">{{ nombreCcDestino }}</span>
               </div>
               <div class="conflict-row">
                 <span class="conflict-label">Tipo</span>
