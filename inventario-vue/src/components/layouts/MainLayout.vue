@@ -41,7 +41,7 @@
       <div class="sidebar-menu">
         <template v-for="mod in modules" :key="mod.id">
 
-          <!-- Sin submenús (INICIO, CONFIGURACIÓN) -->
+          <!-- Sin submenús (INICIO) -->
           <router-link
             v-if="!mod.children.length"
             :to="mod.path"
@@ -51,6 +51,7 @@
             <div
               class="menu-item"
               :class="{ 'menu-item-active': isActive }"
+              :style="{ '--mod-color': mod.color }"
               @click="() => { navigate(); if (isMobile) drawer = false }"
             >
               <v-icon size="17" class="menu-icon">{{ mod.icon }}</v-icon>
@@ -59,7 +60,7 @@
           </router-link>
 
           <!-- Con submenús -->
-          <div v-else>
+          <div v-else :style="{ '--mod-color': mod.color }">
             <router-link
               :to="mod.path"
               custom
@@ -564,18 +565,19 @@ const handleLogout = () => {
   transition: all 0.18s;
   user-select: none;
   min-height: 42px;
+  border-left: 3px solid transparent;
 }
 .menu-item:hover {
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.9);
 }
 .menu-item-active {
-  background: linear-gradient(90deg, rgba(102,126,234,0.25) 0%, rgba(102,126,234,0.08) 100%);
-  color: #a5b4fc;
-  border-left: 2px solid #818cf8;
-  padding-left: 8px;
+  background: linear-gradient(90deg, rgba(102,126,234,0.18) 0%, rgba(102,126,234,0.05) 100%);
+  color: rgba(255,255,255,0.95);
+  border-left-color: var(--mod-color, #818cf8);
+  padding-left: 7px;
 }
-.menu-item-open { color: rgba(255,255,255,0.85); }
+.menu-item-open { color: rgba(255,255,255,0.85); border-left-color: var(--mod-color, rgba(255,255,255,0.25)); }
 .menu-icon { flex-shrink: 0; }
 .menu-label {
   flex: 1;
@@ -604,17 +606,18 @@ const handleLogout = () => {
   padding: 5px 8px 5px 10px;
   border-radius: 5px;
   cursor: pointer;
-  color: rgba(255,255,255,0.75);
+  color: rgba(255,255,255,0.6);
   margin-bottom: 1px;
   margin-top: 6px;
   transition: all 0.15s;
   user-select: none;
   min-height: 30px;
-  border-left: 2px solid rgba(167,139,250,0.45);
+  border-left: 3px solid var(--mod-color, rgba(255,255,255,0.2));
   background: rgba(255,255,255,0.03);
+  opacity: 0.65;
 }
-.menu-cat:hover { color: rgba(255,255,255,0.95); background: rgba(255,255,255,0.06); }
-.menu-cat-open { color: #c4b5fd; border-left-color: #a78bfa; }
+.menu-cat:hover { color: rgba(255,255,255,0.95); background: rgba(255,255,255,0.06); opacity: 1; }
+.menu-cat-open { color: rgba(255,255,255,0.92); opacity: 1; }
 .cat-icon { flex-shrink: 0; opacity: .8; }
 .cat-label {
   flex: 1;
@@ -632,7 +635,7 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px 6px 22px;
+  padding: 6px 8px 6px 20px;
   border-radius: 6px;
   cursor: pointer;
   color: rgba(255,255,255,0.42);
@@ -640,19 +643,23 @@ const handleLogout = () => {
   transition: all 0.15s;
   user-select: none;
   min-height: 34px;
+  border-left: 2px solid var(--mod-color, rgba(255,255,255,0.1));
+  opacity: 0.7;
 }
 .menu-leaf:hover {
   background: rgba(255,255,255,0.05);
   color: rgba(255,255,255,0.8);
+  opacity: 1;
 }
 .menu-leaf-active {
-  color: #67e8f9 !important;
-  background: rgba(103,232,249,0.08) !important;
+  color: white !important;
+  background: rgba(255,255,255,0.07) !important;
   font-weight: 600 !important;
+  opacity: 1 !important;
 }
 .menu-leaf-active .leaf-dot {
-  background: #67e8f9 !important;
-  box-shadow: 0 0 6px rgba(103,232,249,0.6);
+  background: var(--mod-color, #67e8f9) !important;
+  box-shadow: 0 0 6px var(--mod-color, rgba(103,232,249,0.6));
 }
 .leaf-dot {
   width: 3px;

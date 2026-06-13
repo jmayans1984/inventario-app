@@ -5,6 +5,7 @@ export const MODULES = [
     id: 'inicio',
     name: 'INICIO',
     icon: 'mdi-view-dashboard-outline',
+    color: '#94a3b8',
     path: '/',
     children: [],
   },
@@ -12,6 +13,7 @@ export const MODULES = [
     id: 'contabilidad',
     name: 'CONTABILIDAD',
     icon: 'mdi-calculator-variant-outline',
+    color: '#10b981',
     path: '/contabilidad',
     children: [
       {
@@ -45,6 +47,7 @@ export const MODULES = [
     id: 'tesoreria',
     name: 'TESORERÍA',
     icon: 'mdi-bank-outline',
+    color: '#0ea5e9',
     path: '/tesoreria',
     children: [
       {
@@ -81,6 +84,7 @@ export const MODULES = [
     id: 'almacen',
     name: 'ALMACÉN',
     icon: 'mdi-warehouse',
+    color: '#f59e0b',
     path: '/almacen',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [], keepEmpty: true },
@@ -104,6 +108,7 @@ export const MODULES = [
     id: 'produccion',
     name: 'PROVEEDURÍA',
     icon: 'mdi-store',
+    color: '#a855f7',
     path: '/produccion',
     requiredTipo: 'PROVEEDOR',
     children: [
@@ -126,6 +131,7 @@ export const MODULES = [
     id: 'recetas',
     name: 'RECETAS',
     icon: 'mdi-chef-hat',
+    color: '#ec4899',
     path: '/recetas',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
@@ -149,6 +155,7 @@ export const MODULES = [
     id: 'nomina',
     name: 'NÓMINA',
     icon: 'mdi-account-group-outline',
+    color: '#818cf8',
     path: '/nomina',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
@@ -172,6 +179,7 @@ export const MODULES = [
     id: 'gerencia',
     name: 'GERENCIA',
     icon: 'mdi-chart-line',
+    color: '#06b6d4',
     path: '/gerencia',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
@@ -191,6 +199,7 @@ export const MODULES = [
     id: 'formatos',
     name: 'FORMATOS / DOCS',
     icon: 'mdi-file-document-multiple-outline',
+    color: '#64748b',
     path: '/formatos',
     children: [
       { name: 'Inventario', icon: 'mdi-warehouse', items: [
@@ -202,6 +211,7 @@ export const MODULES = [
     id: 'configuracion',
     name: 'CONFIGURACIÓN',
     icon: 'mdi-tune',
+    color: '#94a3b8',
     path: '/configuracion',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
