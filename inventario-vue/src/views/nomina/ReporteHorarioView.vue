@@ -90,13 +90,6 @@
           </table>
 
           <div v-else class="rh-sin-emp">Sin empleados asignados a este centro esta semana.</div>
-
-          <!-- Pie de página -->
-          <div class="rh-footer">
-            {{ cc.nombre }} &nbsp;·&nbsp; {{ fmtFecha(semanaActual.semana_inicio) }} al {{ fmtFecha(semanaActual.semana_fin) }}
-            &nbsp;·&nbsp; {{ empleadosDelCcosto(cc.codigo).length }} empleado(s)
-            &nbsp;·&nbsp; Generado {{ new Date().toLocaleDateString('es-US') }}
-          </div>
         </div>
       </div>
 
@@ -366,8 +359,7 @@ function imprimirPDF() {
       body += `<p style="text-align:center;color:#aaa;padding:20px;font-size:11px">Sin empleados asignados a este centro esta semana.</p>`
     }
 
-    body += `<div class="pie">${cc.nombre} &nbsp;·&nbsp; ${fmtFecha(semanaActual.value.semana_inicio)} al ${fmtFecha(semanaActual.value.semana_fin)} &nbsp;·&nbsp; ${emps.length} empleado(s) &nbsp;·&nbsp; Generado ${new Date().toLocaleDateString('es-US')}</div>
-    </div>`
+    body += `</div>`
   })
 
   ventana.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
