@@ -62,7 +62,7 @@
                     <template v-if="modoImpresion==='verde'">
                       <span v-if="t && !t.es_dia_libre" class="rh-verde-check">✓</span>
                       <span v-else-if="t && t.es_dia_libre" class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
-                      <span v-else-if="tieneOtroCcosto(emp.id, d.offset, cc.codigo)" class="rh-otro-cc">•</span>
+                      <span v-else-if="tieneOtroCcosto(emp.id, d.offset, cc.codigo)" class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
                       <span v-else class="rh-vacio"></span>
                     </template>
                     <template v-else>
@@ -77,7 +77,7 @@
                         <span class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
                       </template>
                       <template v-else-if="tieneOtroCcosto(emp.id, d.offset, cc.codigo)">
-                        <span class="rh-otro-cc">•</span>
+                        <span class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
                       </template>
                       <template v-else>
                         <span class="rh-vacio">—</span>
@@ -163,17 +163,23 @@ function empleadosDelCcosto(ccostoId) {
   return Object.values(map).sort((a,b) => a.apellido.localeCompare(b.apellido))
 }
 
-// Verifica si el empleado tiene turno en OTRO ccosto ese día
-function tieneOtroCcosto(empId, offset, ccostoId) {
-  if (!semanaActual.value) return false
+// Retorna el nombre del otro CC donde trabaja el empleado ese día (o null)
+function getOtroCcostoNombre(empId, offset, ccostoId) {
+  if (!semanaActual.value) return null
   const fecha = addDays(semanaActual.value.semana_inicio, offset)
-  if (!fecha) return false
-  return detalle.value.some(d =>
+  if (!fecha) return null
+  const otro = detalle.value.find(d =>
     d.empleado_id === empId &&
     d.fecha?.split('T')[0] === fecha &&
     String(d.ccosto) !== String(ccostoId) &&
     !d.es_dia_libre
   )
+  if (!otro) return null
+  return ccostos.value.find(c => String(c.codigo) === String(otro.ccosto))?.nombre || String(otro.ccosto)
+}
+
+function tieneOtroCcosto(empId, offset, ccostoId) {
+  return !!getOtroCcostoNombre(empId, offset, ccostoId)
 }
 
 // Turno de un empleado en un día específico y ccosto específico
@@ -306,7 +312,7 @@ function imprimirPDF() {
     .turno-h { font-size: 8px; color: #888; }
     .libre { font-size: 8px; color: #aaa; font-style: italic; text-transform: uppercase; }
     .vacio { font-size: 11px; color: #ccc; }
-    .otro-cc { font-size: 16px; color: #bbb; font-weight: 900; }
+    .otro-cc { font-size: 7px; color: #999; font-weight: 600; line-height: 1.2; display: block; }
     .td-verde { background: #d1fae5 !important; }
     .check-verde { font-size: 14px; color: #059669; font-weight: 900; }
     .td-total { font-weight: 800; font-size: 11px; text-align: center; white-space: nowrap; }
@@ -323,13 +329,13 @@ function imprimirPDF() {
   `
 
   const modo = modoImpresion.value
-  const genTurno = (t, enOtroCc = false) => {
+  const genTurno = (t, otroCcNombre = null) => {
     if (modo === 'verde') {
-      if (!t) return enOtroCc ? `<span class="otro-cc">•</span>` : ''
+      if (!t) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : ''
       if (t.es_dia_libre) return `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
       return `<span class="check-verde">✓</span>`
     }
-    if (!t) return enOtroCc ? `<span class="otro-cc">•</span>` : `<span class="vacio">—</span>`
+    if (!t) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="vacio">—</span>`
     if (t.es_dia_libre) return `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
     const ini = (t.real_inicio || t.prog_inicio || '').slice(0,5)
     const fin = (t.real_fin   || t.prog_fin   || '').slice(0,5)
@@ -361,9 +367,9 @@ function imprimirPDF() {
           </td>
           ${DIAS.map(d => {
             const t = getTurnoCcosto(emp.id, d.offset, cc.codigo)
-            const enOtroCc = !t && tieneOtroCcosto(emp.id, d.offset, cc.codigo)
+            const otroCcNombre = !t ? getOtroCcostoNombre(emp.id, d.offset, cc.codigo) : null
             const esVerde = modo === 'verde' && t && !t.es_dia_libre
-            return `<td${esVerde ? ' class="td-verde"' : ''}>${genTurno(t, enOtroCc)}</td>`
+            return `<td${esVerde ? ' class="td-verde"' : ''}>${genTurno(t, otroCcNombre)}</td>`
           }).join('')}
         </tr>`
       })
@@ -436,7 +442,7 @@ onMounted(cargarSemanas)
 .rh-h     { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.45); margin-top: 1px; }
 .rh-libre { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.3); text-transform: uppercase; font-style: italic; }
 .rh-vacio { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.15); }
-.rh-otro-cc { font-size: 18px; color: rgba(var(--v-theme-on-surface),0.25); font-weight: 900; }
+.rh-otro-cc { font-size: 8px; color: rgba(var(--v-theme-on-surface),0.4); font-weight: 600; line-height: 1.2; display: block; }
 
 .rh-total { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; font-weight: 800; font-size: 12px; padding: 6px 4px; white-space: nowrap; }
 .rh-ot    { display: block; font-size: 8px; background: rgba(239,68,68,0.15); color: #ef4444; padding: 1px 4px; border-radius: 3px; margin-top: 2px; font-weight: 800; }
