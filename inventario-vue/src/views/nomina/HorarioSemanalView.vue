@@ -153,7 +153,7 @@
               <template v-for="cc in resumenCCOrdenados" :key="cc">
                 <tr class="resumen-cc-header">
                   <td colspan="8" style="padding:8px 12px;background:rgba(139,92,246,0.1);font-weight:700;color:#8b5cf6">
-                    📍 {{ cc }}
+                    📍 {{ getNombreCC(cc) }}
                   </td>
                 </tr>
                 <tr v-for="r in resumenPorCC[cc]" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
@@ -165,7 +165,7 @@
                 <span class="sg-emp-badge" :class="r.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ r.tipo_empleado }}</span>
               </td>
               <td class="ta-c">
-                <span v-for="cc in r.centros" :key="cc" class="ccosto-chip">{{ cc }}</span>
+                <span v-for="ccost in r.centros" :key="ccost" class="ccosto-chip">{{ ccost }}</span>
               </td>
               <td class="ta-c resumen-reg">{{ r.regular.toFixed(2) }}h</td>
               <td class="ta-c">
@@ -180,6 +180,16 @@
               </td>
               <td class="ta-c resumen-pagar">{{ fmtMoney(r.totalPagar) }}</td>
             </tr>
+                <tr class="resumen-cc-footer">
+                  <td colspan="3" style="text-align:left;padding:6px 12px;background:rgba(139,92,246,0.05);font-weight:600;color:rgba(var(--v-theme-on-surface),0.6);font-size:12px">
+                    Subtotal {{ getNombreCC(cc) }}
+                  </td>
+                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px">{{ resumenTotalesPorCC[cc].regular.toFixed(2) }}h</td>
+                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px;color:#ef4444">{{ resumenTotalesPorCC[cc].overtime.toFixed(2) }}h</td>
+                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px">{{ resumenTotalesPorCC[cc].total.toFixed(2) }}h</td>
+                  <td style="background:rgba(139,92,246,0.05)"></td>
+                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px;color:#10b981">{{ fmtMoney(resumenTotalesPorCC[cc].totalPagar) }}</td>
+                </tr>
               </template>
             </template>
             <template v-else>
@@ -452,6 +462,39 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog PLANTILLAS POR CC -->
+    <v-dialog v-model="dlgPlantillasPorCC" max-width="520">
+      <v-card rounded="lg">
+        <v-card-title class="pa-4 d-flex align-center justify-space-between" style="font-size:14px;font-weight:700">
+          <span><v-icon size="16" class="mr-1">mdi-file-multiple</v-icon> Asignar Plantillas por Centro de Costo</span>
+          <v-btn icon="mdi-close" size="x-small" variant="text" @click="dlgPlantillasPorCC=false"/>
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div v-for="cc in ccostos" :key="cc.codigo" style="display:flex;align-items:center;gap:12px;padding:8px;border:1px solid rgba(var(--v-theme-on-surface),0.1);border-radius:6px">
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:13px">{{ cc.nombre }}</div>
+                <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">{{ cc.codigo }}</div>
+              </div>
+              <select v-model="plantillasPorCC[cc.codigo]" style="padding:6px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:4px;font-size:12px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
+                <option value="">Ninguna</option>
+                <option v-for="cfg in horarioConfigs" :key="cfg.id" :value="cfg.id">
+                  {{ cfg.nombre || 'Plantilla ' + cfg.id }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer/>
+          <v-btn variant="text" @click="dlgPlantillasPorCC=false">Cancelar</v-btn>
+          <v-btn color="#8b5cf6" variant="flat" @click="confirmarGenerarHorarioPorCC">
+            <v-icon size="14" class="mr-1">mdi-check</v-icon> Generar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </MainLayout>
 </template>
 
@@ -498,6 +541,10 @@ const resumenAgrupadoPorCC = ref(false)
 // Dialog seleccionar plantilla
 const dlgSeleccionarPlantilla = ref(false)
 const plantillaSeleccionadaId = ref(null)
+
+// Dialog plantillas por CC
+const dlgPlantillasPorCC = ref(false)
+const plantillasPorCC = ref({})
 
 function abrirDialogImprimir() {
   imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
@@ -635,6 +682,24 @@ const resumenPorCC = computed(() => {
 const resumenCCOrdenados = computed(() => {
   return Object.keys(resumenPorCC.value).sort()
 })
+
+const resumenTotalesPorCC = computed(() => {
+  const totales = {}
+  resumenCCOrdenados.value.forEach(cc => {
+    const empleados = resumenPorCC.value[cc] || []
+    totales[cc] = {
+      regular: empleados.reduce((s,e) => s + e.regular, 0),
+      overtime: empleados.reduce((s,e) => s + e.overtime, 0),
+      total: empleados.reduce((s,e) => s + e.total, 0),
+      totalPagar: empleados.reduce((s,e) => s + e.totalPagar, 0)
+    }
+  })
+  return totales
+})
+
+function getNombreCC(codigo) {
+  return ccostos.value.find(c => c.codigo === codigo)?.nombre || codigo
+}
 
 function fmtMoney(v) { return '$' + parseFloat(v ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
@@ -832,8 +897,12 @@ async function generarHorario() {
   if (horarioConfigs.value.length === 1) {
     await confirmarGenerarHorario(horarioConfigs.value[0].id)
   } else {
-    plantillaSeleccionadaId.value = null
-    dlgSeleccionarPlantilla.value = true
+    // Inicializar plantillas por CC
+    plantillasPorCC.value = {}
+    ccostos.value.forEach(cc => {
+      plantillasPorCC.value[cc.codigo] = horarioConfigs.value[0]?.id || null
+    })
+    dlgPlantillasPorCC.value = true
   }
 }
 
@@ -842,6 +911,18 @@ async function confirmarGenerarHorario(cfgId) {
   try {
     await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, { empresa: empresa.value, config_id: cfgId })
     dlgSeleccionarPlantilla.value = false
+    await cargarDetalle()
+  } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
+}
+
+async function confirmarGenerarHorarioPorCC() {
+  if (!semanaSelId.value) return
+  try {
+    await api.post(`/nomina/semanas/${semanaSelId.value}/generar-por-cc`, {
+      empresa: empresa.value,
+      plantillas_por_cc: plantillasPorCC.value
+    })
+    dlgPlantillasPorCC.value = false
     await cargarDetalle()
   } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
 }
