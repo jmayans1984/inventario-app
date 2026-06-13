@@ -19,10 +19,6 @@
                  @click="irAEditarNomina">
             <v-icon size="14" class="mr-1">mdi-pencil</v-icon> Editar Nómina
           </v-btn>
-          <label class="rh-toggle-label">
-            <input type="checkbox" v-model="mostrarGridResumen" class="rh-toggle-cb"/>
-            Grid resumen
-          </label>
           <v-btn color="#8b5cf6" variant="flat" size="small" :disabled="!semanaActual"
                  @click="imprimirPDF">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
@@ -162,7 +158,7 @@ const semanaSelId       = ref('')
 const semanaActual      = ref(null)
 const detalle           = ref([])
 const ccostos           = ref([])
-const mostrarGridResumen = ref(false)
+const mostrarGridResumen = computed(() => route.query.gridResumen === '1')
 
 // Parámetros desde el dialog de impresión (query params)
 const filtroCC   = computed(() => {
@@ -221,11 +217,12 @@ function tieneOtroCcosto(empId, offset, ccostoId) {
   return !!getOtroCcostoNombre(empId, offset, ccostoId)
 }
 
-// Grid resumen: todos los empleados con al menos un turno activo
+// Grid resumen: empleados con turno activo en los CCs seleccionados
 const empleadosTodos = computed(() => {
+  const ccIds = filtroCC.value ? new Set(filtroCC.value.map(String)) : null
   const map = {}
   detalle.value
-    .filter(d => !d.es_dia_libre)
+    .filter(d => !d.es_dia_libre && (!ccIds || ccIds.has(String(d.ccosto))))
     .forEach(d => {
       if (!map[d.empleado_id]) {
         map[d.empleado_id] = { id: d.empleado_id, nombre: d.nombre, apellido: d.apellido }
@@ -541,8 +538,6 @@ onMounted(cargarSemanas)
 .rh-otro-cc { font-size: 8px; color: rgba(var(--v-theme-on-surface),0.4); font-weight: 600; line-height: 1.2; display: block; }
 .rh-otro-cc-bg { background: #fef9c3 !important; }
 .rh-grid-cc { font-size: 8px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); line-height: 1.2; display: block; }
-.rh-toggle-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(255,255,255,0.75); cursor: pointer; user-select: none; white-space: nowrap; }
-.rh-toggle-cb { cursor: pointer; accent-color: #8b5cf6; width: 14px; height: 14px; }
 
 .rh-total { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; font-weight: 800; font-size: 12px; padding: 6px 4px; white-space: nowrap; }
 .rh-ot    { display: block; font-size: 8px; background: rgba(239,68,68,0.15); color: #ef4444; padding: 1px 4px; border-radius: 3px; margin-top: 2px; font-weight: 800; }

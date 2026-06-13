@@ -384,7 +384,7 @@
           <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
             SEPARACIÓN DE PÁGINAS
           </div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;margin-bottom:18px">
             <div @click="imprimirSeparacion='cc'"
                  :style="imprimirSeparacion==='cc' ? 'border-color:#06b6d4;background:rgba(6,182,212,0.08)' : ''"
                  style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
@@ -404,6 +404,19 @@
               <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Sin separación entre centros</div>
             </div>
           </div>
+
+          <!-- Grid resumen -->
+          <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
+            OPCIONES ADICIONALES
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+            <input type="checkbox" v-model="imprimirGridResumen"
+                   style="width:15px;height:15px;accent-color:#8b5cf6;cursor:pointer" />
+            <div>
+              <div style="font-weight:600">Incluir grid de resumen</div>
+              <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Tabla al final: empleado × día → centro de costo</div>
+            </div>
+          </label>
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-spacer/>
@@ -496,10 +509,11 @@ const borrando         = ref(false)
 const empleadosAgregados = ref({})
 
 // Dialog imprimir
-const dlgImprimir            = ref(false)
+const dlgImprimir             = ref(false)
 const imprimirCCSeleccionados = ref([])
-const imprimirModo           = ref('detalle')
-const imprimirSeparacion     = ref('cc')
+const imprimirModo            = ref('detalle')
+const imprimirSeparacion      = ref('cc')
+const imprimirGridResumen     = ref(false)
 
 // Dialog seleccionar plantilla
 const dlgSeleccionarPlantilla = ref(false)
@@ -515,6 +529,7 @@ function abrirDialogImprimir() {
   imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
   imprimirModo.value = 'detalle'
   imprimirSeparacion.value = 'cc'
+  imprimirGridResumen.value = false
   dlgImprimir.value = true
 }
 
@@ -526,7 +541,8 @@ function confirmarImprimir() {
       semana: semanaSelId.value,
       ccostos: imprimirCCSeleccionados.value.join(','),
       modo: imprimirModo.value,
-      separacion: imprimirSeparacion.value
+      separacion: imprimirSeparacion.value,
+      gridResumen: imprimirGridResumen.value ? '1' : '0'
     }
   })
 }
