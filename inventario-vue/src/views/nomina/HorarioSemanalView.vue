@@ -748,13 +748,47 @@ const resumenPorCC = computed(() => {
     }
   })
 
-  // Agrupar por CC
+  // Calcular horas totales por empleado (para determinar OT correctamente)
+  const empTotalMap = {}
+  Object.values(empCCMap).forEach(empCC => {
+    if (!empTotalMap[empCC.empleado_id]) empTotalMap[empCC.empleado_id] = 0
+    empTotalMap[empCC.empleado_id] += empCC.total
+  })
+
+  // Agrupar por CC con cálculo correcto de OT (secuencial)
   Object.values(empCCMap).forEach(empCC => {
     const cc = empCC.ccosto
     if (!map[cc]) map[cc] = []
 
-    const regular = Math.min(empCC.total, 40)
-    const overtime = Math.max(empCC.total - 40, 0)
+    // Obtener todas las horas del empleado en todos los CCs, ordenadas
+    const empCCs = Object.values(empCCMap).filter(e => e.empleado_id === empCC.empleado_id).sort((a, b) => a.ccosto.localeCompare(b.ccosto))
+
+    // Calcular cuántas horas regulares vs OT corresponden a este CC
+    let acumulado = 0
+    let regular = 0
+    let overtime = 0
+
+    for (const e of empCCs) {
+      const horasEnEsteCC = e.ccosto === empCC.ccosto ? empCC.total : 0
+      if (horasEnEsteCC === 0) continue
+
+      if (acumulado + horasEnEsteCC <= 40) {
+        // Todas estas horas son regulares
+        regular = horasEnEsteCC
+        acumulado += horasEnEsteCC
+      } else if (acumulado >= 40) {
+        // Todas estas horas son OT
+        overtime = horasEnEsteCC
+      } else {
+        // Parte regulares, parte OT
+        regular = 40 - acumulado
+        overtime = horasEnEsteCC - regular
+        acumulado = 40
+      }
+
+      if (e.ccosto === empCC.ccosto) break
+    }
+
     const diasTrabajados = empCC.dias.size
     let totalPagar
     if (empCC.tipo_pago === 'DIA_LABORADO') {
