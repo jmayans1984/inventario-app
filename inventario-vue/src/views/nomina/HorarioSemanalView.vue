@@ -1036,7 +1036,6 @@ async function limpiarHorariosPorCC(ccCodigo) {
       }
     }
 
-    alert('✅ Horarios eliminados')
     await cargarDetalle()
   } catch(e) {
     alert('❌ Error: ' + (e?.response?.data?.error || e.message))
