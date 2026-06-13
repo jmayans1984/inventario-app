@@ -1243,7 +1243,7 @@ onMounted(cargarSemanas)
 .estado-cerrado   { background: rgba(239,68,68,0.15); color: #ef4444; }
 
 /* Bloque por ccosto */
-.ccosto-bloque { display: flex; flex-direction: column; gap: 20px; }
+.ccosto-bloque { display: flex; flex-direction: column; margin-bottom: 20px; }
 .ccosto-titulo-bar {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 16px;
