@@ -499,7 +499,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
@@ -544,7 +544,7 @@ const plantillaSeleccionadaId = ref(null)
 
 // Dialog plantillas por CC
 const dlgPlantillasPorCC = ref(false)
-const plantillasPorCC = ref({})
+const plantillasPorCC = reactive({})
 
 function abrirDialogImprimir() {
   imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
@@ -898,9 +898,9 @@ async function generarHorario() {
     await confirmarGenerarHorario(horarioConfigs.value[0].id)
   } else {
     // Inicializar plantillas por CC
-    plantillasPorCC.value = {}
+    Object.keys(plantillasPorCC).forEach(k => delete plantillasPorCC[k])
     ccostos.value.forEach(cc => {
-      plantillasPorCC.value[cc.codigo] = horarioConfigs.value[0]?.id || null
+      plantillasPorCC[cc.codigo] = horarioConfigs.value[0]?.id || null
     })
     dlgPlantillasPorCC.value = true
   }
@@ -918,9 +918,9 @@ async function confirmarGenerarHorario(cfgId) {
 async function confirmarGenerarHorarioPorCC() {
   if (!semanaSelId.value) return
   try {
-    const ccsWithPlantillas = ccostos.value.filter(cc => plantillasPorCC.value[cc.codigo])
+    const ccsWithPlantillas = ccostos.value.filter(cc => plantillasPorCC[cc.codigo])
     for (const cc of ccsWithPlantillas) {
-      const cfgId = plantillasPorCC.value[cc.codigo]
+      const cfgId = plantillasPorCC[cc.codigo]
       await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
         empresa: empresa.value,
         config_id: cfgId,
