@@ -30,7 +30,7 @@
           <div v-for="dia in DIAS" :key="dia.num" class="cfg-dia">
             <div class="cfg-dia-nombre">{{ dia.label }}</div>
             <div v-if="getDia(config, dia.num)" class="cfg-dia-horas">
-              {{ getDia(config, dia.num).hora_inicio }} – {{ getDia(config, dia.num).hora_fin }}
+              {{ getDia(config, dia.num).hora_inicio?.slice(0,5) }} – {{ getDia(config, dia.num).hora_fin?.slice(0,5) }}
               <span v-if="getDia(config, dia.num).cruza_medianoche" class="cfg-midnight">+1</span>
               <div class="cfg-dia-hrs">{{ getDia(config, dia.num).horas_default }}h</div>
             </div>
