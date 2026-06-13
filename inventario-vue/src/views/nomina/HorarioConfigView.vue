@@ -80,13 +80,15 @@
           </div>
 
           <!-- RESUMEN TOTAL DE HORAS -->
-          <div style="margin-top:20px;padding:12px;background:rgba(6,182,212,0.08);border-radius:8px;border:1px solid rgba(6,182,212,0.2)">
-            <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
-              TOTAL SEMANAL
+          <div style="margin-top:20px;padding:16px;background:rgba(6,182,212,0.08);border-radius:8px;border:1px solid rgba(6,182,212,0.2);text-align:center">
+            <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px;text-transform:uppercase">
+              TOTAL TRABAJADO
             </div>
-            <div style="font-size:24px;font-weight:900;color:#06b6d4;line-height:1">
-              {{ totalHorasSemana.toFixed(2) }}h
-              <span style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5);font-weight:400;margin-left:6px">por semana</span>
+            <div style="font-size:32px;font-weight:900;color:#06b6d4;line-height:1.2">
+              {{ totalHorasSemana.toFixed(2) }}
+            </div>
+            <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5);font-weight:600;margin-top:6px;text-transform:uppercase">
+              Horas por Semana
             </div>
           </div>
         </v-card-text>
