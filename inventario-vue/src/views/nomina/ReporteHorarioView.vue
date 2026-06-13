@@ -327,7 +327,8 @@ function imprimirPDF() {
   let body = ''
   ccostosConEmpleados.value.forEach(cc => {
     const emps = empleadosDelCcosto(cc.codigo)
-    body += `<div class="pagina">
+    const claseNoPageBreak = separacion !== 'cc' ? ' no-page-break-print' : ''
+    body += `<div class="pagina${claseNoPageBreak}">
       <div class="encabezado">
         <div class="titulo">HORARIO DE TRABAJO</div>
         <div class="ccosto-nombre">${cc.nombre}</div>
