@@ -29,7 +29,7 @@
       <!-- REPORTE: UN BLOQUE POR CENTRO DE COSTOS -->
       <div v-if="semanaActual && semanaActual.semana_inicio" id="horario-print">
         <div v-for="(cc, idx) in ccostosConEmpleados" :key="cc.codigo"
-             class="rh-pagina" :class="{ 'page-break': separacionPaginas==='cc' && idx < ccostosConEmpleados.length - 1 }">
+             class="rh-pagina" :class="{ 'page-break': separacionPaginas==='cc' && idx < ccostosConEmpleados.length - 1, 'no-page-break-print': separacionPaginas!=='cc' }">
 
           <!-- Encabezado de página -->
           <div class="rh-encabezado">
@@ -457,6 +457,7 @@ onMounted(cargarSemanas)
 
   /* Salto de página entre centros de costo */
   .page-break { page-break-after: always; }
+  .no-page-break-print { page-break-after: auto !important; }
 
   /* Forzar colores al imprimir */
   .rh-table th { background: #1e3a5f !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
