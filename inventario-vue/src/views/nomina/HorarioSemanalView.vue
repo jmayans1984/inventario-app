@@ -922,7 +922,7 @@ async function aplicarPlantillaYCerrar(event) {
 async function copiarSemanaAnteriorPorCC(ccCodigo) {
   if (!semanaSelId.value) return
   const semanaIdx = semanas.value.findIndex(s => s.id === semanaSelId.value)
-  if (semanaIdx <= 0) {
+  if (semanaIdx < 0 || semanaIdx >= semanas.value.length - 1) {
     alert('⚠️ No hay semana anterior para copiar')
     return
   }
@@ -930,12 +930,13 @@ async function copiarSemanaAnteriorPorCC(ccCodigo) {
 
   copiando.value = true
   try {
-    const semanaAnterior = semanas.value[semanaIdx - 1]
+    const semanaAnterior = semanas.value[semanaIdx + 1]
+    const rAnt = await api.get(`/nomina/semanas/${semanaAnterior.id}/detalle`)
+    const detalleAnterior = rAnt.data.detalle || []
     const empleados = empleadosParaCcosto(ccCodigo)
 
     for (const emp of empleados) {
       for (const dia of DIAS) {
-        const diaSemana = dia.offset + 1
         const fecha = addDays(semanaActual.value.semana_inicio, dia.offset)
         const fechaAnterior = addDays(semanaAnterior.semana_inicio, dia.offset)
 
@@ -946,7 +947,7 @@ async function copiarSemanaAnteriorPorCC(ccCodigo) {
         )
 
         if (!turnoExistente) {
-          const turnoAnterior = detalle.value.find(d =>
+          const turnoAnterior = detalleAnterior.find(d =>
             d.empleado_id === emp.id &&
             String(d.fecha).split('T')[0] === fechaAnterior &&
             d.ccosto === ccCodigo
