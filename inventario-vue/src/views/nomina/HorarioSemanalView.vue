@@ -467,35 +467,19 @@
     </v-dialog>
 
     <!-- Dialog PLANTILLAS POR CC -->
-    <v-dialog v-model="dlgPlantillaParaCC" max-width="380">
+    <v-dialog v-model="dlgPlantillaParaCC" max-width="340">
       <v-card rounded="lg">
-        <v-card-title class="pa-4 d-flex align-center justify-space-between" style="font-size:14px;font-weight:700">
-          <span><v-icon size="16" class="mr-1">mdi-file-document</v-icon> Asignar Plantilla</span>
-          <v-btn icon="mdi-close" size="x-small" variant="text" @click="dlgPlantillaParaCC=false"/>
+        <v-card-title class="pa-4" style="font-size:14px;font-weight:700">
+          <v-icon size="16" class="mr-1">mdi-file-document</v-icon> {{ ccActualSeleccionado?.nombre || 'Selecciona Plantilla' }}
         </v-card-title>
         <v-card-text class="pa-4">
-          <div v-if="ccActualSeleccionado" style="margin-bottom:20px">
-            <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:4px;text-transform:uppercase;font-weight:700">Centro de Costo</div>
-            <div style="font-size:15px;font-weight:700">{{ ccActualSeleccionado.nombre }}</div>
-            <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.6);margin-top:2px">{{ ccActualSeleccionado.codigo }}</div>
-          </div>
-          <div style="margin-top:16px">
-            <label style="display:block;font-size:11px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px;text-transform:uppercase;font-weight:700">Selecciona Plantilla de Horario</label>
-            <select v-model="plantillaParaCCActual" style="width:100%;padding:10px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:6px;font-size:13px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
-              <option value="">— Selecciona una plantilla —</option>
-              <option v-for="cfg in horarioConfigs" :key="cfg.id" :value="cfg.id">
-                {{ cfg.nombre || 'Plantilla ' + cfg.id }}
-              </option>
-            </select>
-          </div>
+          <select v-if="ccActualSeleccionado" @change="aplicarPlantillaYCerrar" style="width:100%;padding:10px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:6px;font-size:13px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
+            <option value="">— Selecciona plantilla —</option>
+            <option v-for="cfg in horarioConfigs" :key="cfg.id" :value="cfg.id">
+              {{ cfg.nombre || 'Plantilla ' + cfg.id }}
+            </option>
+          </select>
         </v-card-text>
-        <v-card-actions class="pa-4">
-          <v-spacer/>
-          <v-btn variant="text" @click="dlgPlantillaParaCC=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" @click="guardarPlantillaParaCC">
-            <v-icon size="14" class="mr-1">mdi-check</v-icon> Guardar
-          </v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
   </MainLayout>
@@ -918,15 +902,25 @@ function abrirDialogPlantillaParaCC(cc) {
   dlgPlantillaParaCC.value = true
 }
 
-function guardarPlantillaParaCC() {
-  if (!plantillaParaCCActual.value) {
-    alert('⚠️ Selecciona una plantilla')
-    return
-  }
-  plantillasPorCC[ccActualSeleccionado.value.codigo] = plantillaParaCCActual.value
+async function aplicarPlantillaYCerrar(event) {
+  const cfgId = event.target.value
+  if (!cfgId) return
+
+  const ccCodigo = ccActualSeleccionado.value.codigo
+  plantillasPorCC[ccCodigo] = cfgId
   dlgPlantillaParaCC.value = false
-  ccActualSeleccionado.value = null
-  plantillaParaCCActual.value = null
+
+  // Generar turnos para este CC
+  try {
+    await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
+      empresa: empresa.value,
+      config_id: cfgId,
+      ccosto: ccCodigo
+    })
+    await cargarDetalle()
+  } catch(e) {
+    alert('❌ Error: ' + (e?.response?.data?.error || e.message))
+  }
 }
 
 async function confirmarGenerarHorario(cfgId) {
