@@ -923,20 +923,10 @@ async function aplicarPlantillaYCerrar(event) {
       return
     }
 
-    // Para cada empleado, generar turnos basándose en la plantilla
-    const DIAS = [
-      { num: 1, label: 'Lun', offset: 0 },
-      { num: 2, label: 'Mar', offset: 1 },
-      { num: 3, label: 'Mié', offset: 2 },
-      { num: 4, label: 'Jue', offset: 3 },
-      { num: 5, label: 'Vie', offset: 4 },
-      { num: 6, label: 'Sáb', offset: 5 },
-      { num: 7, label: 'Dom', offset: 6 }
-    ]
-
     for (const emp of empleados) {
       for (const dia of DIAS) {
-        const diaConfig = plantilla.dias?.find(d => d.dia_semana === dia.num)
+        const diaSemana = dia.offset + 1
+        const diaConfig = plantilla.dias?.find(d => d.dia_semana === diaSemana)
         const fecha = addDays(semanaActual.value.semana_inicio, dia.offset)
 
         // Verificar si ya existe un turno para este empleado, fecha y ccosto
