@@ -161,7 +161,8 @@
               </td>
               <td class="ta-c resumen-total">{{ r.total.toFixed(1) }}h</td>
               <td class="ta-c resumen-rate">
-                <span v-if="r.es_por_horas">{{ fmtMoney(r.valor_hora) }}/h</span>
+                <span v-if="r.tipo_pago==='DIA_LABORADO'">{{ fmtMoney(r.valor_dia) }}/día · {{ r.diasTrabajados }}d</span>
+                <span v-else-if="r.es_por_horas">{{ fmtMoney(r.valor_hora) }}/h</span>
                 <span v-else class="resumen-fijo">FIJO</span>
               </td>
               <td class="ta-c resumen-pagar">{{ fmtMoney(r.totalPagar) }}</td>
@@ -367,7 +368,7 @@ watch(semanaSelId, () => { empleadosAgregados.value = {} })
 const resumenEmpleados = computed(() => {
   const map = {}
 
-  // DEDUPLICAR: igual que el grid, solo un registro por empleado+fecha+ccosto
+  // DEDUPLICAR: solo un registro por empleado+fecha+ccosto
   const seen = new Set()
   const deduped = []
   detalle.value.filter(d => !d.es_dia_libre).forEach(d => {
@@ -375,18 +376,32 @@ const resumenEmpleados = computed(() => {
     if (!seen.has(key)) { seen.add(key); deduped.push(d) }
   })
 
+  // Contar días distintos por empleado (para DIA_LABORADO)
+  const diasMap = {}
+  deduped.forEach(d => {
+    const horas = parseFloat(d.real_horas ?? d.prog_horas ?? 0)
+    if (horas > 0) {
+      const fecha = String(d.fecha).split('T')[0]
+      if (!diasMap[d.empleado_id]) diasMap[d.empleado_id] = new Set()
+      diasMap[d.empleado_id].add(fecha)
+    }
+  })
+
   deduped.forEach(d => {
     if (!map[d.empleado_id]) {
       const empInfo = empleadosActivos.value.find(e => e.id === d.empleado_id)
+      const tipoPago = empInfo?.tipo_pago || (empInfo?.es_por_horas !== false ? 'HORAS' : 'FIJO_SEMANAL')
       map[d.empleado_id] = {
         id: d.empleado_id,
         nombre: d.nombre,
         apellido: d.apellido,
         empresa_contratista: d.empresa_contratista,
         tipo_empleado: d.tipo_empleado,
+        tipo_pago: tipoPago,
         valor_hora:  parseFloat(empInfo?.valor_hora  ?? 0),
+        valor_dia:   parseFloat(empInfo?.valor_dia   ?? 0),
         monto_fijo:  parseFloat(empInfo?.monto_fijo_semanal ?? 0),
-        es_por_horas: empInfo?.es_por_horas !== false,
+        es_por_horas: tipoPago === 'HORAS',
         total: 0,
         centros: new Set()
       }
@@ -398,10 +413,16 @@ const resumenEmpleados = computed(() => {
   return Object.values(map).map(e => {
     const regular  = Math.min(e.total, 40)
     const overtime = Math.max(e.total - 40, 0)
-    const totalPagar = e.es_por_horas
-      ? (regular * e.valor_hora) + (overtime * e.valor_hora * 1.5)
-      : e.monto_fijo
-    return { ...e, centros: [...e.centros], regular, overtime, totalPagar }
+    const diasTrabajados = diasMap[e.id]?.size ?? 0
+    let totalPagar
+    if (e.tipo_pago === 'DIA_LABORADO') {
+      totalPagar = diasTrabajados * e.valor_dia
+    } else if (e.tipo_pago === 'HORAS') {
+      totalPagar = (regular * e.valor_hora) + (overtime * e.valor_hora * 1.5)
+    } else {
+      totalPagar = e.monto_fijo
+    }
+    return { ...e, centros: [...e.centros], regular, overtime, diasTrabajados, totalPagar }
   }).sort((a,b) => a.apellido.localeCompare(b.apellido))
 })
 
