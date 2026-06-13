@@ -277,12 +277,12 @@ function imprimirPDF() {
     .titulo { font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-bottom: 4px; }
     .ccosto-nombre { font-size: 14px; font-weight: 800; color: #0088aa; margin-bottom: 3px; text-transform: uppercase; }
     .periodo { font-size: 11px; color: #666; }
-    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; table-layout: fixed; }
     th { background: #1e3a5f; color: white; padding: 6px 5px; text-align: center; font-size: 9px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); }
-    th.th-emp { text-align: left; min-width: 130px; padding-left: 8px; }
+    th.th-emp { text-align: left; width: 110px; padding-left: 8px; }
     .rh-fecha { font-size: 7px; font-weight: 400; display: block; }
     td { border: 1px solid #ddd; padding: 5px 4px; vertical-align: middle; text-align: center; }
-    td.td-emp { text-align: left; padding: 6px 8px; min-width: 130px; }
+    td.td-emp { text-align: left; padding: 6px 8px; }
     .emp-nombre { font-weight: 700; font-size: 10px; }
     .emp-sub { font-size: 8px; color: #888; margin-top: 1px; }
     .turno-horas { font-size: 9px; font-weight: 700; color: #006688; line-height: 1.3; }
@@ -400,9 +400,9 @@ onMounted(cargarSemanas)
 .rh-sin-emp    { padding: 20px; text-align: center; color: rgba(var(--v-theme-on-surface),0.4); font-size: 12px; }
 
 /* Tabla */
-.rh-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; }
+.rh-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; table-layout: fixed; }
 .rh-table th { background: #1e3a5f; color: #fff; padding: 7px 6px; text-align: center; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); }
-.th-emp { text-align: left !important; min-width: 140px; padding-left: 10px !important; }
+.th-emp { text-align: left !important; width: 110px; padding-left: 10px !important; }
 .th-total { min-width: 60px; }
 .rh-fecha { font-size: 8px; font-weight: 400; opacity: 0.75; }
 
@@ -410,7 +410,7 @@ onMounted(cargarSemanas)
 .rh-emp-nombre { font-weight: 700; font-size: 11px; }
 .rh-emp-sub { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
 
-.rh-turno { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; padding: 6px 4px; vertical-align: middle; min-width: 70px; }
+.rh-turno { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; padding: 6px 4px; vertical-align: middle; }
 .rh-verde { background: #d1fae5 !important; }
 .rh-verde-check { font-size: 16px; color: #059669; font-weight: 900; }
 .rh-horas { font-size: 10px; font-weight: 700; color: #06b6d4; line-height: 1.3; }
