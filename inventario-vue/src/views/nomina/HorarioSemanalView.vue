@@ -36,7 +36,7 @@
             <v-icon size="14" class="mr-1">mdi-send</v-icon> Publicar
           </v-btn>
           <v-btn v-if="semanaActual" size="small" color="#8b5cf6" variant="flat"
-                 @click="$router.push('/nomina/reportes/horario')">
+                 @click="abrirDialogImprimir">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
           </v-btn>
           <v-btn v-if="semanaActual" size="small" color="#ef4444" variant="outlined"
@@ -154,12 +154,12 @@
               <td class="ta-c">
                 <span v-for="cc in r.centros" :key="cc" class="ccosto-chip">{{ cc }}</span>
               </td>
-              <td class="ta-c resumen-reg">{{ r.regular.toFixed(1) }}h</td>
+              <td class="ta-c resumen-reg">{{ r.regular.toFixed(2) }}h</td>
               <td class="ta-c">
-                <span v-if="r.overtime > 0" class="ot-badge">+{{ r.overtime.toFixed(1) }}h</span>
+                <span v-if="r.overtime > 0" class="ot-badge">+{{ r.overtime.toFixed(2) }}h</span>
                 <span v-else style="color:rgba(var(--v-theme-on-surface),0.25)">—</span>
               </td>
-              <td class="ta-c resumen-total">{{ r.total.toFixed(1) }}h</td>
+              <td class="ta-c resumen-total">{{ r.total.toFixed(2) }}h</td>
               <td class="ta-c resumen-rate">
                 <span v-if="r.tipo_pago==='DIA_LABORADO'">{{ fmtMoney(r.valor_dia) }}/día · {{ r.diasTrabajados }}d</span>
                 <span v-else-if="r.es_por_horas">{{ fmtMoney(r.valor_hora) }}/h</span>
@@ -171,9 +171,9 @@
           <tfoot>
             <tr class="resumen-footer">
               <td colspan="3"><strong>TOTAL EMPRESA</strong></td>
-              <td class="ta-c"><strong>{{ resumenTotales.regular.toFixed(1) }}h</strong></td>
-              <td class="ta-c"><strong style="color:#ef4444">{{ resumenTotales.overtime.toFixed(1) }}h OT</strong></td>
-              <td class="ta-c"><strong>{{ resumenTotales.total.toFixed(1) }}h</strong></td>
+              <td class="ta-c"><strong>{{ resumenTotales.regular.toFixed(2) }}h</strong></td>
+              <td class="ta-c"><strong style="color:#ef4444">{{ resumenTotales.overtime.toFixed(2) }}h OT</strong></td>
+              <td class="ta-c"><strong>{{ resumenTotales.total.toFixed(2) }}h</strong></td>
               <td></td>
               <td class="ta-c"><strong style="color:#10b981;font-size:14px">{{ fmtMoney(resumenTotales.totalPagar) }}</strong></td>
             </tr>
@@ -299,16 +299,75 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog IMPRIMIR -->
+    <v-dialog v-model="dlgImprimir" max-width="460">
+      <v-card rounded="lg">
+        <v-card-title class="pa-4 d-flex align-center justify-space-between" style="font-size:14px;font-weight:700">
+          <span><v-icon size="16" class="mr-1">mdi-printer-settings</v-icon> Opciones de Impresión</span>
+          <v-btn icon="mdi-close" size="x-small" variant="text" @click="dlgImprimir=false"/>
+        </v-card-title>
+        <v-card-text class="pa-4 pt-0">
+          <!-- Centros de costo -->
+          <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
+            CENTROS DE COSTO A IMPRIMIR
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px">
+            <label v-for="cc in ccostos" :key="cc.codigo"
+                   style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+              <input type="checkbox" :value="cc.codigo" v-model="imprimirCCSeleccionados"
+                     style="width:15px;height:15px;accent-color:#8b5cf6;cursor:pointer" />
+              <span>{{ cc.nombre }}</span>
+              <span style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4)">{{ cc.codigo }}</span>
+            </label>
+          </div>
+
+          <!-- Modo de impresión -->
+          <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
+            MODO DE IMPRESIÓN
+          </div>
+          <div style="display:flex;gap:10px">
+            <div @click="imprimirModo='detalle'"
+                 :style="imprimirModo==='detalle' ? 'border-color:#8b5cf6;background:rgba(139,92,246,0.08)' : ''"
+                 style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px">
+                <v-icon size="14" :color="imprimirModo==='detalle'?'#8b5cf6':''" class="mr-1">mdi-clock-outline</v-icon>
+                Detalle
+              </div>
+              <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Muestra horario de entrada/salida y horas trabajadas</div>
+            </div>
+            <div @click="imprimirModo='verde'"
+                 :style="imprimirModo==='verde' ? 'border-color:#10b981;background:rgba(16,185,129,0.08)' : ''"
+                 style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px">
+                <v-icon size="14" :color="imprimirModo==='verde'?'#10b981':''" class="mr-1">mdi-format-color-fill</v-icon>
+                Solo color
+              </div>
+              <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Pinta de verde el día que trabaja, sin mostrar horas</div>
+            </div>
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer/>
+          <v-btn variant="text" @click="dlgImprimir=false">Cancelar</v-btn>
+          <v-btn color="#8b5cf6" variant="flat" :disabled="!imprimirCCSeleccionados.length" @click="confirmarImprimir">
+            <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </MainLayout>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
 
@@ -330,6 +389,29 @@ const borrando         = ref(false)
 
 // empleadosAgregados: { [ccostoId]: [emp, ...] }
 const empleadosAgregados = ref({})
+
+// Dialog imprimir
+const dlgImprimir            = ref(false)
+const imprimirCCSeleccionados = ref([])
+const imprimirModo           = ref('detalle')
+
+function abrirDialogImprimir() {
+  imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
+  imprimirModo.value = 'detalle'
+  dlgImprimir.value = true
+}
+
+function confirmarImprimir() {
+  dlgImprimir.value = false
+  router.push({
+    path: '/nomina/reportes/horario',
+    query: {
+      semana: semanaSelId.value,
+      ccostos: imprimirCCSeleccionados.value.join(','),
+      modo: imprimirModo.value
+    }
+  })
+}
 
 const dlgNuevaSemana   = ref(false)
 const nuevaSemanaInicio = ref('')
@@ -502,7 +584,7 @@ function addDays(dateStr, days) {
   } catch { return null }
 }
 
-function fmtHoras(v) { return parseFloat(v ?? 0).toFixed(1) }
+function fmtHoras(v) { return parseFloat(v ?? 0).toFixed(2) }
 
 function calcularHorasAuto() {
   if (!turnoEdit.value?.real_inicio || !turnoEdit.value?.real_fin) return
@@ -517,14 +599,14 @@ function totalHorasEmpCcosto(empId, ccostoId) {
   return detalle.value
     .filter(d => d.empleado_id === empId && d.ccosto === ccostoId && !d.es_dia_libre)
     .reduce((s, d) => s + parseFloat(d.real_horas ?? d.prog_horas ?? 0), 0)
-    .toFixed(1)
+    .toFixed(2)
 }
 
 function totalHorasCcosto(ccostoId) {
   return detalle.value
     .filter(d => d.ccosto === ccostoId && !d.es_dia_libre)
     .reduce((s, d) => s + parseFloat(d.real_horas ?? d.prog_horas ?? 0), 0)
-    .toFixed(0)
+    .toFixed(2)
 }
 
 function fmtFecha(f) {

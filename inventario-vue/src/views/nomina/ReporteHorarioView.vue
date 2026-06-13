@@ -56,20 +56,28 @@
                     {{ emp.tipo_empleado }}
                   </div>
                 </td>
-                <td v-for="d in DIAS" :key="d.offset" class="rh-turno">
+                <td v-for="d in DIAS" :key="d.offset" class="rh-turno"
+                    :class="{ 'rh-verde': modoImpresion==='verde' && getTurnoCcosto(emp.id, d.offset, cc.codigo) && !getTurnoCcosto(emp.id, d.offset, cc.codigo)?.es_dia_libre }">
                   <template v-for="t in [getTurnoCcosto(emp.id, d.offset, cc.codigo)]" :key="0">
-                    <template v-if="t && !t.es_dia_libre">
-                      <div class="rh-horas">
-                        {{ (t.real_inicio || t.prog_inicio || '').slice(0,5) }}
-                        <br/>{{ (t.real_fin || t.prog_fin || '').slice(0,5) }}
-                      </div>
-                      <div class="rh-h">{{ fmtHoras(t.real_horas ?? t.prog_horas) }}h</div>
-                    </template>
-                    <template v-else-if="t && t.es_dia_libre">
-                      <span class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
+                    <template v-if="modoImpresion==='verde'">
+                      <span v-if="t && !t.es_dia_libre" class="rh-verde-check">✓</span>
+                      <span v-else-if="t && t.es_dia_libre" class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
+                      <span v-else class="rh-vacio"></span>
                     </template>
                     <template v-else>
-                      <span class="rh-vacio">—</span>
+                      <template v-if="t && !t.es_dia_libre">
+                        <div class="rh-horas">
+                          {{ (t.real_inicio || t.prog_inicio || '').slice(0,5) }}
+                          <br/>{{ (t.real_fin || t.prog_fin || '').slice(0,5) }}
+                        </div>
+                        <div class="rh-h">{{ fmtHoras(t.real_horas ?? t.prog_horas) }}h</div>
+                      </template>
+                      <template v-else-if="t && t.es_dia_libre">
+                        <span class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
+                      </template>
+                      <template v-else>
+                        <span class="rh-vacio">—</span>
+                      </template>
                     </template>
                   </template>
                 </td>
@@ -98,11 +106,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
 
@@ -111,16 +121,23 @@ const DIAS = [
   { label:'Jueves', offset:3 }, { label:'Viernes', offset:4 }, { label:'Sábado', offset:5 }, { label:'Domingo', offset:6 }
 ]
 
-const semanas     = ref([])
-const semanaSelId = ref('')
+const semanas      = ref([])
+const semanaSelId  = ref('')
 const semanaActual = ref(null)
-const detalle     = ref([])
-const ccostos     = ref([])
+const detalle      = ref([])
+const ccostos      = ref([])
 
-// Solo ccostos que tienen al menos un empleado con turnos esta semana
+// Parámetros desde el dialog de impresión (query params)
+const filtroCC   = computed(() => route.query.ccostos ? String(route.query.ccostos).split(',') : null)
+const modoImpresion = computed(() => route.query.modo || 'detalle')
+
+// Solo ccostos que tienen al menos un empleado con turnos esta semana, filtrados por selección
 const ccostosConEmpleados = computed(() => {
   const ccostosEnDetalle = new Set(detalle.value.map(d => d.ccosto))
-  return ccostos.value.filter(c => ccostosEnDetalle.has(c.codigo))
+  return ccostos.value.filter(c =>
+    ccostosEnDetalle.has(c.codigo) &&
+    (!filtroCC.value || filtroCC.value.includes(String(c.codigo)))
+  )
 })
 
 // Empleados únicos de un ccosto (deduplicados)
@@ -194,7 +211,7 @@ function totalHorasCcosto(ccostoId) {
     .toFixed(1)
 }
 
-function fmtHoras(v) { return parseFloat(v ?? 0).toFixed(1) }
+function fmtHoras(v) { return parseFloat(v ?? 0).toFixed(2) }
 
 function addDays(dateStr, days) {
   if (!dateStr) return null
@@ -230,10 +247,14 @@ async function cargarSemanas() {
   ])
   semanas.value = semsR.data?.data || []
   ccostos.value = ccR.data?.data || ccR.data || []
-  if (semanas.value.length) {
+  // Si viene semana por query param, usarla; sino la primera
+  const semanaParam = route.query.semana
+  if (semanaParam && semanas.value.find(s => String(s.id) === String(semanaParam))) {
+    semanaSelId.value = parseInt(semanaParam)
+  } else if (semanas.value.length) {
     semanaSelId.value = semanas.value[0].id
-    cargarDetalle()
   }
+  if (semanaSelId.value) cargarDetalle()
 }
 
 async function cargarDetalle() {
@@ -268,6 +289,8 @@ function imprimirPDF() {
     .turno-h { font-size: 8px; color: #888; }
     .libre { font-size: 8px; color: #aaa; font-style: italic; text-transform: uppercase; }
     .vacio { font-size: 11px; color: #ccc; }
+    .td-verde { background: #d1fae5 !important; }
+    .check-verde { font-size: 14px; color: #059669; font-weight: 900; }
     .td-total { font-weight: 800; font-size: 11px; text-align: center; white-space: nowrap; }
     .ot { display: block; font-size: 7px; background: #fee; color: #c00; padding: 1px 3px; border-radius: 2px; margin-top: 1px; font-weight: 800; }
     tr.footer-row td { background: #f5f5f5; font-size: 8px; font-weight: 700; color: #555; }
@@ -277,15 +300,22 @@ function imprimirPDF() {
       .pagina { page-break-after: always; }
       table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       tr.footer-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .td-verde { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   `
 
+  const modo = modoImpresion.value
   const genTurno = (t) => {
+    if (modo === 'verde') {
+      if (!t) return ''
+      if (t.es_dia_libre) return `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
+      return `<span class="check-verde">✓</span>`
+    }
     if (!t) return `<span class="vacio">—</span>`
     if (t.es_dia_libre) return `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
     const ini = (t.real_inicio || t.prog_inicio || '').slice(0,5)
     const fin = (t.real_fin   || t.prog_fin   || '').slice(0,5)
-    const hrs = parseFloat(t.real_horas ?? t.prog_horas ?? 0).toFixed(1)
+    const hrs = parseFloat(t.real_horas ?? t.prog_horas ?? 0).toFixed(2)
     return `<div class="turno-horas">${ini}<br/>${fin}</div><div class="turno-h">${hrs}h</div>`
   }
 
@@ -311,7 +341,11 @@ function imprimirPDF() {
             <div class="emp-nombre">${emp.apellido}, ${emp.nombre}</div>
             <div class="emp-sub">${emp.empresa_contratista ? emp.empresa_contratista + ' · ' : ''}${emp.tipo_empleado}</div>
           </td>
-          ${DIAS.map(d => `<td>${genTurno(getTurnoCcosto(emp.id, d.offset, cc.codigo))}</td>`).join('')}
+          ${DIAS.map(d => {
+            const t = getTurnoCcosto(emp.id, d.offset, cc.codigo)
+            const esVerde = modo === 'verde' && t && !t.es_dia_libre
+            return `<td${esVerde ? ' class="td-verde"' : ''}>${genTurno(t)}</td>`
+          }).join('')}
         </tr>`
       })
 
@@ -373,6 +407,8 @@ onMounted(cargarSemanas)
 .rh-emp-sub { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
 
 .rh-turno { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; padding: 6px 4px; vertical-align: middle; min-width: 70px; }
+.rh-verde { background: #d1fae5 !important; }
+.rh-verde-check { font-size: 16px; color: #059669; font-weight: 900; }
 .rh-horas { font-size: 10px; font-weight: 700; color: #06b6d4; line-height: 1.3; }
 .rh-h     { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.45); margin-top: 1px; }
 .rh-libre { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.3); text-transform: uppercase; font-style: italic; }
@@ -408,6 +444,7 @@ onMounted(cargarSemanas)
   /* Forzar colores al imprimir */
   .rh-table th { background: #1e3a5f !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rh-footer-row td { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rh-verde { background: #d1fae5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rh-horas { color: #0088aa !important; }
   .rh-ccosto-nombre { color: #0088aa !important; }
 
