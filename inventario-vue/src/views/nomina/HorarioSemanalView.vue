@@ -24,7 +24,7 @@
             <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva Semana
           </v-btn>
           <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'"
-                 size="small" color="#f59e0b" variant="flat" @click="publicar">
+                 size="small" color="#ffffff" variant="flat" @click="publicar">
             <v-icon size="14" class="mr-1">mdi-send</v-icon> Publicar
           </v-btn>
           <v-btn v-if="semanaActual" size="small" color="#8b5cf6" variant="flat"
