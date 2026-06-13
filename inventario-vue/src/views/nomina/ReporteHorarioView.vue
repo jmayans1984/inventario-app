@@ -279,7 +279,7 @@ function imprimirPDF() {
     .periodo { font-size: 11px; color: #666; }
     table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; table-layout: fixed; }
     th { background: #1e3a5f; color: white; padding: 6px 5px; text-align: center; font-size: 9px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); }
-    th.th-emp { text-align: left; width: 150px; padding-left: 8px; }
+    th.th-emp { text-align: left; width: 225px; padding-left: 8px; }
     .rh-fecha { font-size: 7px; font-weight: 400; display: block; }
     td { border: 1px solid #ddd; padding: 5px 4px; vertical-align: middle; text-align: center; }
     td.td-emp { text-align: left; padding: 6px 8px; }
@@ -402,7 +402,7 @@ onMounted(cargarSemanas)
 /* Tabla */
 .rh-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; table-layout: fixed; }
 .rh-table th { background: #1e3a5f; color: #fff; padding: 7px 6px; text-align: center; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); }
-.th-emp { text-align: left !important; width: 180px; padding-left: 10px !important; }
+.th-emp { text-align: left !important; width: 270px; padding-left: 10px !important; }
 .th-total { min-width: 60px; }
 .rh-fecha { font-size: 8px; font-weight: 400; opacity: 0.75; }
 
