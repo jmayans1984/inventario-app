@@ -75,8 +75,13 @@
               <!-- Header días -->
               <div class="sg-header-emp">EMPLEADO</div>
               <div v-for="d in DIAS" :key="d.offset" class="sg-header-dia">
-                <div class="sg-dia-nombre">{{ d.label }}</div>
-                <div class="sg-dia-fecha">{{ fmtDiaMes(semanaActual.semana_inicio, d.offset) }}</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+                  <div>
+                    <div class="sg-dia-nombre">{{ d.label }}</div>
+                    <div class="sg-dia-fecha">{{ fmtDiaMes(semanaActual.semana_inicio, d.offset) }}</div>
+                  </div>
+                  <v-icon size="16" style="cursor:pointer;color:#8b5cf6" @click="abrirEditarDiaMasivo(cc.codigo, d.offset, d.label)">mdi-pencil</v-icon>
+                </div>
               </div>
 
               <!-- Filas por empleado -->
@@ -349,6 +354,39 @@
       </v-card>
     </v-dialog>
 
+    <!-- Dialog editar día masivamente -->
+    <v-dialog v-model="dlgEditarDiaMasivo" max-width="380">
+      <v-card rounded="lg">
+        <v-card-title class="pa-4 pb-2" style="font-size:14px;font-weight:700">
+          Editar horario masivamente
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <div style="font-size:12px;color:#666;margin-bottom:16px">
+            <strong>{{ ccostoEditDia.nombre }}</strong><br/>
+            {{ diaEditDia }} - {{ fechaEditDia }}
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:12px">
+            <div style="flex:1">
+              <label style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;display:block;margin-bottom:4px">Entrada</label>
+              <input v-model="horaEntradaEditDia" type="time" class="drw-input" style="width:100%"/>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;display:block;margin-bottom:4px">Salida</label>
+              <input v-model="horaSalidaEditDia" type="time" class="drw-input" style="width:100%"/>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#999">
+            Se actualizará a {{ empleadosConTurnoEnDia }} empleado(s) que trabajaron este día en este centro
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer/>
+          <v-btn variant="text" @click="dlgEditarDiaMasivo=false">Cancelar</v-btn>
+          <v-btn color="#8b5cf6" variant="flat" :loading="guardandoDiaMasivo" @click="guardarEditarDiaMasivo">Guardar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Dialog IMPRIMIR -->
     <v-dialog v-model="dlgImprimir" max-width="460">
       <v-card rounded="lg">
@@ -579,6 +617,26 @@ const eliminandoTurno = ref(false)
 const editCcostoNombre = computed(() =>
   ccostos.value.find(c => c.codigo === editCcosto.value)?.nombre || editCcosto.value
 )
+
+// Dialog editar día masivamente
+const dlgEditarDiaMasivo  = ref(false)
+const ccostoEditDia       = ref({ nombre: '', codigo: '' })
+const offsetEditDia       = ref(null)
+const diaEditDia          = ref('')
+const fechaEditDia        = ref('')
+const horaEntradaEditDia  = ref('')
+const horaSalidaEditDia   = ref('')
+const guardandoDiaMasivo  = ref(false)
+const empleadosConTurnoEnDia = computed(() => {
+  if (!offsetEditDia.value || !ccostoEditDia.value.codigo) return 0
+  const emps = empleadosParaCcosto(ccostoEditDia.value.codigo)
+  let count = 0
+  emps.forEach(emp => {
+    const t = getTurnoCcosto(emp.id, semanaActual.value.semana_inicio, offsetEditDia.value, ccostoEditDia.value.codigo)
+    if (t && !t.es_dia_libre) count++
+  })
+  return count
+})
 
 // Resetear empleados agregados al cambiar semana
 watch(semanaSelId, () => { empleadosAgregados.value = {} })
@@ -1115,6 +1173,59 @@ async function eliminarTurno() {
   } catch(e) {
     alert('❌ Error: ' + (e?.response?.data?.error || e.message))
   } finally { eliminandoTurno.value = false }
+}
+
+function abrirEditarDiaMasivo(ccCodigo, offset, diaLabel) {
+  if (semanaActual.value?.estado === 'CERRADO') return
+  const cc = ccostos.value.find(c => c.codigo === ccCodigo)
+  const fecha = addDays(semanaActual.value.semana_inicio, offset)
+  const fechaFormato = fmtDiaMes(semanaActual.value.semana_inicio, offset)
+
+  ccostoEditDia.value = cc || { nombre: ccCodigo, codigo: ccCodigo }
+  offsetEditDia.value = offset
+  diaEditDia.value = diaLabel
+  fechaEditDia.value = fechaFormato
+  horaEntradaEditDia.value = ''
+  horaSalidaEditDia.value = ''
+
+  dlgEditarDiaMasivo.value = true
+}
+
+async function guardarEditarDiaMasivo() {
+  if (!horaEntradaEditDia.value || !horaSalidaEditDia.value) {
+    alert('⚠️ Ingresa hora de entrada y salida')
+    return
+  }
+
+  guardandoDiaMasivo.value = true
+  try {
+    const emps = empleadosParaCcosto(ccostoEditDia.value.codigo)
+    const fecha = addDays(semanaActual.value.semana_inicio, offsetEditDia.value)
+
+    for (const emp of emps) {
+      const t = getTurnoCcosto(emp.id, semanaActual.value.semana_inicio, offsetEditDia.value, ccostoEditDia.value.codigo)
+      if (t && !t.es_dia_libre) {
+        // Calcular horas
+        const [h1, m1] = horaEntradaEditDia.value.split(':').map(Number)
+        const [h2, m2] = horaSalidaEditDia.value.split(':').map(Number)
+        let minutos = (h2 * 60 + m2) - (h1 * 60 + m1)
+        if (minutos < 0) minutos += 24 * 60
+        const horas = parseFloat((minutos / 60).toFixed(2))
+
+        await api.put(`/nomina/semanas/detalle/${t.id}`, {
+          ...t,
+          real_inicio: horaEntradaEditDia.value,
+          real_fin: horaSalidaEditDia.value,
+          real_horas: horas
+        })
+      }
+    }
+
+    dlgEditarDiaMasivo.value = false
+    await cargarDetalle()
+  } catch(e) {
+    alert('❌ Error: ' + (e?.response?.data?.error || e.message))
+  } finally { guardandoDiaMasivo.value = false }
 }
 
 onMounted(cargarSemanas)
