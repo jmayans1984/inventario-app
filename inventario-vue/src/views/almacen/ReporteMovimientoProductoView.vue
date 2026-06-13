@@ -279,7 +279,7 @@ function fmtNum(v) {
 function fmtFecha(f) {
   if (!f) return ''
   const [y, m, d] = f.split('-')
-  return `${d}/${m}/${y}`
+  return `${m}/${d}/${y}`
 }
 
 // ── Computed: nombre del ccosto ───────────────────────────────────

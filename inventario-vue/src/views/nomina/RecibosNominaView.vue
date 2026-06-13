@@ -198,8 +198,7 @@ function fmtFecha(f) {
       dateStr = String(f).split('T')[0]
     }
     const [y, m, d] = dateStr.split('-')
-    const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-    return `${parseInt(d)} ${meses[parseInt(m)]} ${y}`
+    return `${m}/${d}/${y}`
   } catch { return String(f) }
 }
 

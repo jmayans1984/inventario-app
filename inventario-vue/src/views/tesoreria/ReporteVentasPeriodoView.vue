@@ -359,7 +359,7 @@ function fmtFecha(f) {
   if (!f) return ''
   const s = String(f).slice(0, 10)   // toma solo "YYYY-MM-DD" sin timezone
   const [y, m, d] = s.split('-')
-  return `${d}/${m}/${y}`
+  return `${m}/${d}/${y}`
 }
 
 // ── PDF ─────────────────────────────────────────────────────────

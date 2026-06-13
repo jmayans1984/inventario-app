@@ -171,7 +171,7 @@ async function exportarPDF() {
   doc.setTextColor(255, 255, 255)
   doc.text('RESUMEN DE COSTOS DE RECETAS', 14, 12)
   doc.setFontSize(9)
-  doc.text(`Tipo: ${filtroTipo.value} · Generado: ${new Date().toLocaleDateString('es-CO')}`, 14, 17)
+  const now=new Date(); const mm=String(now.getMonth()+1).padStart(2,'0'),dd=String(now.getDate()).padStart(2,'0'); doc.text(`Tipo: ${filtroTipo.value} · Generado: ${mm}/${dd}/${now.getFullYear()}`, 14, 17)
 
   // KPIs
   doc.setTextColor(40, 40, 40)

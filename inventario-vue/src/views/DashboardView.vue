@@ -265,7 +265,7 @@ const horaActual = computed(() => {
 })
 
 const fechaLarga = computed(() => {
-  return ahora.value.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }; return ahora.value.toLocaleDateString('en-US', opts)
 })
 
 const greeting = computed(() => {
@@ -382,7 +382,7 @@ function fmtFecha(f) {
   if (!f) return '—'
   const s = String(f).split('T')[0]
   const [y, m, d] = s.split('-')
-  return `${d}/${m}/${y}`
+  return `${m}/${d}/${y}`
 }
 </script>
 

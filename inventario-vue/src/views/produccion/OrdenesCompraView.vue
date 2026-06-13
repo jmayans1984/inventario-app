@@ -646,7 +646,7 @@ function fmtFecha(f) {
   if (!f) return '—'
   const d = new Date(f)
   if (isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+  return `${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')}/${d.getUTCFullYear()}`
 }
 
 function fmtMonto(v) {
@@ -708,7 +708,7 @@ function fmtFechaHora(f) {
   if (!f) return '—'
   const d = new Date(f)
   if (isNaN(d.getTime())) return '—'
-  return d.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'),hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0'); return `${mm}/${dd}/${d.getFullYear()} ${hh}:${mi}`
 }
 
 // ── Ver detalle ───────────────────────────────────────────────────

@@ -1156,7 +1156,7 @@ async function imprimirReceta() {
   // Fecha de generación
   doc.setFontSize(7)
   doc.setTextColor(160, 160, 160)
-  doc.text(`Generado: ${new Date().toLocaleString('es')}`, ML, PH - 6)
+  doc.text(`Generado: ${new Date().toLocaleString('en-US')}`, ML, PH - 6)
 
   doc.setTextColor(0, 0, 0)
   const blob = doc.output('blob')

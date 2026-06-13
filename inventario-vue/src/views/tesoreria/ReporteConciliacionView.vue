@@ -352,8 +352,8 @@ function fmt(val) {
 function fmtFecha(f) {
   if (!f) return '—'
   try {
-    const d = new Date(f)
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const [y,m,d] = String(f).split('T')[0].split('-')
+    return `${m}/${d}/${y}`
   } catch { return String(f) }
 }
 

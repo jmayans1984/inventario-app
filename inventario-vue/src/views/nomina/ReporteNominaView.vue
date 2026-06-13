@@ -372,8 +372,8 @@ function fmtNum(v) {
 }
 function fmtFecha(s) {
   if (!s) return '—'
-  const d = new Date(s + 'T00:00:00')
-  return d.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
+  const [y,m,d] = String(s).split('T')[0].split('-')
+  return `${m}/${d}/${y}`
 }
 
 async function exportarPDF() {
