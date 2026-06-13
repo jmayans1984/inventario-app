@@ -1020,14 +1020,14 @@ async function copiarSemanaAnteriorPorCC(ccCodigo) {
 }
 
 async function limpiarHorariosPorCC(ccCodigo) {
-  if (!semanaSelId.value) return
+  if (!semanaSelId.value || !semanaActual.value?.id) return
   const ccNombre = ccostos.value.find(c => c.codigo === ccCodigo)?.nombre
   if (!confirm(`⚠️ ¿ELIMINAR TODOS los horarios de ${ccNombre}?\n\nEsta acción no se puede deshacer.`)) return
 
   try {
     const turnosPorEliminar = detalle.value.filter(d =>
       d.ccosto === ccCodigo &&
-      String(d.fecha).split('T')[0] >= semanaActual.value.semana_inicio
+      d.semana_id === semanaActual.value.id
     )
 
     for (const turno of turnosPorEliminar) {
