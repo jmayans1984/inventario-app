@@ -4,7 +4,7 @@
     {
       "name": "Light Static",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-l", "5174", "light"],
+      "runtimeArgs": ["serve", "-l", "5174", "completa"],
       "port": 5174
     },
     {
