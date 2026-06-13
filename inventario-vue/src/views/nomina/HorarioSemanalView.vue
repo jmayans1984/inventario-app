@@ -24,10 +24,6 @@
             <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva Semana
           </v-btn>
           <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'"
-                 size="small" color="#10b981" variant="flat" @click="generarHorario">
-            <v-icon size="14" class="mr-1">mdi-auto-fix</v-icon> Generar desde Plantilla
-          </v-btn>
-          <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'"
                  size="small" color="#8b5cf6" variant="flat" :loading="copiando" @click="copiarSemanaAnterior">
             <v-icon size="14" class="mr-1">mdi-content-copy</v-icon> Copiar Semana Anterior
           </v-btn>
@@ -59,9 +55,20 @@
               <span>·</span>
               <span>{{ totalHorasCcosto(cc.codigo) }}h esta semana</span>
             </div>
-            <v-btn v-if="horarioConfigs.length > 1" size="x-small" variant="outlined" color="#8b5cf6" @click="abrirDialogPlantillaParaCC(cc)" style="margin-left:auto">
-              <v-icon size="12" class="mr-1">mdi-file-document</v-icon> Plantilla
-            </v-btn>
+            <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+              <v-btn v-if="horarioConfigs.length > 1" size="x-small" variant="outlined" color="#8b5cf6" @click="abrirDialogPlantillaParaCC(cc)">
+                <v-icon size="12" class="mr-1">mdi-file-document</v-icon> Plantilla
+              </v-btn>
+              <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="#06b6d4" :loading="copiando" @click="copiarSemanaAnteriorPorCC(cc.codigo)">
+                <v-icon size="12" class="mr-1">mdi-content-copy</v-icon> Copiar
+              </v-btn>
+              <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="#ef4444" @click="limpiarHorariosPorCC(cc.codigo)">
+                <v-icon size="12" class="mr-1">mdi-trash-can</v-icon> Limpiar
+              </v-btn>
+              <v-btn size="x-small" variant="outlined" color="#10b981" @click="abrirAgregarEmp(cc.codigo)">
+                <v-icon size="12" class="mr-1">mdi-plus</v-icon> Agregar
+              </v-btn>
+            </div>
           </div>
 
           <!-- Grid del centro -->
@@ -877,25 +884,6 @@ async function copiarSemanaAnterior() {
   } finally { copiando.value = false }
 }
 
-async function generarHorario() {
-  if (!semanaSelId.value) return
-  if (!horarioConfigs.value.length) {
-    alert('⚠️ No hay plantillas de horario. Crea una primero.')
-    return
-  }
-  if (horarioConfigs.value.length === 1) {
-    await confirmarGenerarHorario(horarioConfigs.value[0].id)
-  } else {
-    // Con múltiples plantillas, generar directamente con lo que ya está asignado
-    const ccsConPlantilla = ccostos.value.filter(cc => plantillasPorCC[cc.codigo])
-    if (ccsConPlantilla.length === 0) {
-      alert('⚠️ Selecciona una plantilla para al menos un Centro de Costo haciendo clic en el botón "Plantilla"')
-      return
-    }
-    await confirmarGenerarHorarioPorCC()
-  }
-}
-
 function abrirDialogPlantillaParaCC(cc) {
   ccActualSeleccionado.value = cc
   plantillaParaCCActual.value = plantillasPorCC[cc.codigo] || ''
@@ -974,30 +962,85 @@ async function aplicarPlantillaYCerrar(event) {
   }
 }
 
-async function confirmarGenerarHorario(cfgId) {
-  if (!semanaSelId.value || !cfgId) return
+async function copiarSemanaAnteriorPorCC(ccCodigo) {
+  if (!semanaSelId.value) return
+  const semanaIdx = semanas.value.findIndex(s => s.id === semanaSelId.value)
+  if (semanaIdx <= 0) {
+    alert('⚠️ No hay semana anterior para copiar')
+    return
+  }
+  if (!confirm(`¿Copiar horarios de la semana anterior para ${ccostos.value.find(c => c.codigo === ccCodigo)?.nombre}?\n\nSolo se copiarán los días sin turno.`)) return
+
+  copiando.value = true
   try {
-    await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, { empresa: empresa.value, config_id: cfgId })
-    dlgSeleccionarPlantilla.value = false
+    const semanaAnterior = semanas.value[semanaIdx - 1]
+    const empleados = empleadosParaCcosto(ccCodigo)
+
+    for (const emp of empleados) {
+      for (const dia of DIAS) {
+        const diaSemana = dia.offset + 1
+        const fecha = addDays(semanaActual.value.semana_inicio, dia.offset)
+        const fechaAnterior = addDays(semanaAnterior.semana_inicio, dia.offset)
+
+        const turnoExistente = detalle.value.find(d =>
+          d.empleado_id === emp.id &&
+          String(d.fecha).split('T')[0] === fecha &&
+          d.ccosto === ccCodigo
+        )
+
+        if (!turnoExistente) {
+          const turnoAnterior = detalle.value.find(d =>
+            d.empleado_id === emp.id &&
+            String(d.fecha).split('T')[0] === fechaAnterior &&
+            d.ccosto === ccCodigo
+          )
+
+          if (turnoAnterior) {
+            await api.post('/nomina/semanas/detalle', {
+              semana_id: semanaActual.value.id,
+              empleado_id: emp.id,
+              fecha: fecha,
+              real_inicio: turnoAnterior.real_inicio || turnoAnterior.prog_inicio,
+              real_fin: turnoAnterior.real_fin || turnoAnterior.prog_fin,
+              real_horas: turnoAnterior.real_horas ?? turnoAnterior.prog_horas,
+              ccosto: ccCodigo,
+              es_dia_libre: turnoAnterior.es_dia_libre,
+              ausencia_tipo: turnoAnterior.ausencia_tipo || '',
+              notas: turnoAnterior.notas || ''
+            })
+          }
+        }
+      }
+    }
+    alert('✅ Semana anterior copiada para este centro de costo')
     await cargarDetalle()
-  } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
+  } catch(e) {
+    alert('❌ Error: ' + (e?.response?.data?.error || e.message))
+  } finally { copiando.value = false }
 }
 
-async function confirmarGenerarHorarioPorCC() {
+async function limpiarHorariosPorCC(ccCodigo) {
   if (!semanaSelId.value) return
+  const ccNombre = ccostos.value.find(c => c.codigo === ccCodigo)?.nombre
+  if (!confirm(`⚠️ ¿ELIMINAR TODOS los horarios de ${ccNombre}?\n\nEsta acción no se puede deshacer.`)) return
+
   try {
-    const ccsWithPlantillas = ccostos.value.filter(cc => plantillasPorCC[cc.codigo])
-    for (const cc of ccsWithPlantillas) {
-      const cfgId = plantillasPorCC[cc.codigo]
-      await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
-        empresa: empresa.value,
-        config_id: cfgId,
-        ccosto: cc.codigo
-      })
+    const turnosPorEliminar = detalle.value.filter(d =>
+      d.ccosto === ccCodigo &&
+      String(d.fecha).split('T')[0] >= semanaActual.value.semana_inicio
+    )
+
+    for (const turno of turnosPorEliminar) {
+      if (turno.id) {
+        await api.delete(`/nomina/semanas/detalle/${turno.id}`)
+      }
     }
-    dlgPlantillaParaCC.value = false
+
+    alert('✅ Horarios eliminados')
     await cargarDetalle()
-  } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
+  } catch(e) {
+    alert('❌ Error: ' + (e?.response?.data?.error || e.message))
+  }
 }
 
 async function publicar() {
