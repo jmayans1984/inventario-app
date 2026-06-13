@@ -231,15 +231,17 @@ const empleadosTodos = computed(() => {
   return Object.values(map).sort((a, b) => a.apellido.localeCompare(b.apellido))
 })
 
-// CC donde trabaja el empleado ese día (sin contar días libres)
+// CC donde trabaja el empleado ese día — solo entre los CCs seleccionados
 function getCcostoDelDia(empId, offset) {
   if (!semanaActual.value) return null
   const fecha = addDays(semanaActual.value.semana_inicio, offset)
   if (!fecha) return null
+  const ccIds = filtroCC.value ? new Set(filtroCC.value.map(String)) : null
   const d = detalle.value.find(dd =>
     dd.empleado_id === empId &&
     dd.fecha?.split('T')[0] === fecha &&
-    !dd.es_dia_libre
+    !dd.es_dia_libre &&
+    (!ccIds || ccIds.has(String(dd.ccosto)))
   )
   if (!d) return null
   return ccostos.value.find(c => String(c.codigo) === String(d.ccosto))?.nombre || String(d.ccosto)
