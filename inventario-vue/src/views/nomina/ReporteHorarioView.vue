@@ -19,6 +19,10 @@
                  @click="irAEditarNomina">
             <v-icon size="14" class="mr-1">mdi-pencil</v-icon> Editar Nómina
           </v-btn>
+          <label class="rh-toggle-label">
+            <input type="checkbox" v-model="mostrarGridResumen" class="rh-toggle-cb"/>
+            Grid resumen
+          </label>
           <v-btn color="#8b5cf6" variant="flat" size="small" :disabled="!semanaActual"
                  @click="imprimirPDF">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
@@ -96,6 +100,37 @@
         </div>
       </div>
 
+        <!-- Grid resumen multi-CC -->
+        <div v-if="mostrarGridResumen && empleadosTodos.length" class="rh-pagina rh-grid-resumen">
+          <div class="rh-encabezado">
+            <div class="rh-titulo" style="font-size:16px;margin-bottom:2px">RESUMEN — CENTRO DE COSTOS POR DÍA</div>
+            <div class="rh-periodo">{{ fmtFecha(semanaActual.semana_inicio) }} &mdash; {{ fmtFecha(semanaActual.semana_fin) }}</div>
+          </div>
+          <table class="rh-table">
+            <thead>
+              <tr>
+                <th class="th-emp">EMPLEADO</th>
+                <th v-for="d in DIAS" :key="d.offset">
+                  {{ d.label }}<br/>
+                  <span class="rh-fecha">{{ fmtDiaMes(semanaActual.semana_inicio, d.offset) }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="emp in empleadosTodos" :key="emp.id">
+                <td class="rh-emp">
+                  <div class="rh-emp-nombre">{{ emp.apellido }}, {{ emp.nombre }}</div>
+                </td>
+                <td v-for="d in DIAS" :key="d.offset" class="rh-turno"
+                    :class="{ 'rh-otro-cc-bg': getCcostoDelDia(emp.id, d.offset) }">
+                  <span v-if="getCcostoDelDia(emp.id, d.offset)" class="rh-grid-cc">{{ getCcostoDelDia(emp.id, d.offset) }}</span>
+                  <span v-else class="rh-vacio">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       <div v-else-if="!semanaSelId" class="nom-card no-print"
            style="padding:32px;text-align:center;color:rgba(var(--v-theme-on-surface),0.35)">
         Selecciona una semana para ver el horario
@@ -122,11 +157,12 @@ const DIAS = [
   { label:'Jueves', offset:3 }, { label:'Viernes', offset:4 }, { label:'Sábado', offset:5 }, { label:'Domingo', offset:6 }
 ]
 
-const semanas      = ref([])
-const semanaSelId  = ref('')
-const semanaActual = ref(null)
-const detalle      = ref([])
-const ccostos      = ref([])
+const semanas           = ref([])
+const semanaSelId       = ref('')
+const semanaActual      = ref(null)
+const detalle           = ref([])
+const ccostos           = ref([])
+const mostrarGridResumen = ref(false)
 
 // Parámetros desde el dialog de impresión (query params)
 const filtroCC   = computed(() => {
@@ -183,6 +219,33 @@ function getOtroCcostoNombre(empId, offset, ccostoId) {
 
 function tieneOtroCcosto(empId, offset, ccostoId) {
   return !!getOtroCcostoNombre(empId, offset, ccostoId)
+}
+
+// Grid resumen: todos los empleados con al menos un turno activo
+const empleadosTodos = computed(() => {
+  const map = {}
+  detalle.value
+    .filter(d => !d.es_dia_libre)
+    .forEach(d => {
+      if (!map[d.empleado_id]) {
+        map[d.empleado_id] = { id: d.empleado_id, nombre: d.nombre, apellido: d.apellido }
+      }
+    })
+  return Object.values(map).sort((a, b) => a.apellido.localeCompare(b.apellido))
+})
+
+// CC donde trabaja el empleado ese día (sin contar días libres)
+function getCcostoDelDia(empId, offset) {
+  if (!semanaActual.value) return null
+  const fecha = addDays(semanaActual.value.semana_inicio, offset)
+  if (!fecha) return null
+  const d = detalle.value.find(dd =>
+    dd.empleado_id === empId &&
+    dd.fecha?.split('T')[0] === fecha &&
+    !dd.es_dia_libre
+  )
+  if (!d) return null
+  return ccostos.value.find(c => String(c.codigo) === String(d.ccosto))?.nombre || String(d.ccosto)
 }
 
 // Turno de un empleado en un día específico y ccosto específico
@@ -388,6 +451,33 @@ function imprimirPDF() {
     body += `</div>`
   })
 
+  // Grid resumen multi-CC
+  if (mostrarGridResumen.value && empleadosTodos.value.length) {
+    body += `<div class="pagina">
+      <div class="encabezado">
+        <div class="titulo" style="font-size:16px;margin-bottom:2px">RESUMEN — CENTRO DE COSTOS POR DÍA</div>
+        <div class="periodo">${fmtFecha(semanaActual.value.semana_inicio)} &mdash; ${fmtFecha(semanaActual.value.semana_fin)}</div>
+      </div>
+      <table>
+        <thead><tr>
+          <th class="th-emp">EMPLEADO</th>
+          ${DIAS.map(d => `<th>${d.label}<span class="rh-fecha">${fmtDiaMes(semanaActual.value.semana_inicio, d.offset)}</span></th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${empleadosTodos.value.map(emp => `<tr>
+            <td class="td-emp"><div class="emp-nombre">${emp.apellido}, ${emp.nombre}</div></td>
+            ${DIAS.map(d => {
+              const ccNombre = getCcostoDelDia(emp.id, d.offset)
+              return `<td${ccNombre ? ' class="td-otro-cc"' : ''}>${ccNombre
+                ? `<span style="font-size:8px;font-weight:700;color:#555;display:block;line-height:1.2">${ccNombre}</span>`
+                : `<span class="vacio">—</span>`}</td>`
+            }).join('')}
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`
+  }
+
   ventana.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>Horario de Trabajo — ${fmtFecha(semanaActual.value.semana_inicio)}</title>
     <style>${estilos}</style></head><body>${body}</body></html>`)
@@ -450,6 +540,9 @@ onMounted(cargarSemanas)
 .rh-vacio { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.15); }
 .rh-otro-cc { font-size: 8px; color: rgba(var(--v-theme-on-surface),0.4); font-weight: 600; line-height: 1.2; display: block; }
 .rh-otro-cc-bg { background: #fef9c3 !important; }
+.rh-grid-cc { font-size: 8px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); line-height: 1.2; display: block; }
+.rh-toggle-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(255,255,255,0.75); cursor: pointer; user-select: none; white-space: nowrap; }
+.rh-toggle-cb { cursor: pointer; accent-color: #8b5cf6; width: 14px; height: 14px; }
 
 .rh-total { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; font-weight: 800; font-size: 12px; padding: 6px 4px; white-space: nowrap; }
 .rh-ot    { display: block; font-size: 8px; background: rgba(239,68,68,0.15); color: #ef4444; padding: 1px 4px; border-radius: 3px; margin-top: 2px; font-weight: 800; }
