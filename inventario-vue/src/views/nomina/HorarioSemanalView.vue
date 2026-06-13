@@ -709,12 +709,65 @@ const resumenTotales = computed(() => ({
 
 const resumenPorCC = computed(() => {
   const map = {}
-  resumenEmpleados.value.forEach(emp => {
-    emp.centros.forEach(cc => {
-      if (!map[cc]) map[cc] = []
-      map[cc].push(emp)
-    })
+
+  // Recalcular por empleado+ccosto usando detalle
+  const seen = new Set()
+  const deduped = []
+  detalle.value.filter(d => !d.es_dia_libre).forEach(d => {
+    const key = `${d.empleado_id}-${String(d.fecha).split('T')[0]}-${d.ccosto}`
+    if (!seen.has(key)) { seen.add(key); deduped.push(d) }
   })
+
+  // Agrupar por empleado+ccosto
+  const empCCMap = {}
+  deduped.forEach(d => {
+    const ccKey = `${d.empleado_id}-${d.ccosto}`
+    if (!empCCMap[ccKey]) {
+      const empInfo = empleadosActivos.value.find(e => e.id === d.empleado_id)
+      const tipoPago = empInfo?.tipo_pago || (empInfo?.es_por_horas !== false ? 'HORAS' : 'FIJO_SEMANAL')
+      empCCMap[ccKey] = {
+        id: `${d.empleado_id}-${d.ccosto}`,
+        empleado_id: d.empleado_id,
+        nombre: d.nombre,
+        apellido: d.apellido,
+        empresa_contratista: d.empresa_contratista,
+        tipo_empleado: d.tipo_empleado,
+        ccosto: d.ccosto,
+        tipo_pago: tipoPago,
+        valor_hora: parseFloat(empInfo?.valor_hora ?? 0),
+        valor_dia: parseFloat(empInfo?.valor_dia ?? 0),
+        monto_fijo: parseFloat(empInfo?.monto_fijo_semanal ?? 0),
+        es_por_horas: tipoPago === 'HORAS',
+        total: 0,
+        dias: new Set()
+      }
+    }
+    empCCMap[ccKey].total += parseFloat(d.real_horas ?? d.prog_horas ?? 0)
+    if (parseFloat(d.real_horas ?? d.prog_horas ?? 0) > 0) {
+      empCCMap[ccKey].dias.add(String(d.fecha).split('T')[0])
+    }
+  })
+
+  // Agrupar por CC
+  Object.values(empCCMap).forEach(empCC => {
+    const cc = empCC.ccosto
+    if (!map[cc]) map[cc] = []
+
+    const regular = Math.min(empCC.total, 40)
+    const overtime = Math.max(empCC.total - 40, 0)
+    const diasTrabajados = empCC.dias.size
+    let totalPagar
+    if (empCC.tipo_pago === 'DIA_LABORADO') {
+      totalPagar = diasTrabajados * empCC.valor_dia
+    } else if (empCC.tipo_pago === 'HORAS') {
+      totalPagar = (regular * empCC.valor_hora) + (overtime * empCC.valor_hora * 1.5)
+    } else {
+      totalPagar = empCC.monto_fijo
+    }
+
+    map[cc].push({ ...empCC, dias: [...empCC.dias], regular, overtime, total: empCC.total, diasTrabajados, totalPagar, centros: [cc] })
+  })
+
   return map
 })
 
