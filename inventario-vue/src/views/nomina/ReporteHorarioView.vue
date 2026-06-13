@@ -128,16 +128,21 @@ const detalle      = ref([])
 const ccostos      = ref([])
 
 // Parámetros desde el dialog de impresión (query params)
-const filtroCC   = computed(() => route.query.ccostos ? String(route.query.ccostos).split(',') : null)
+const filtroCC   = computed(() => {
+  if (!route.query.ccostos) return null
+  const arr = String(route.query.ccostos).split(',').map(s => s.trim()).filter(s => s)
+  return arr.length > 0 ? arr : null
+})
 const modoImpresion = computed(() => route.query.modo || 'detalle')
 
 // Solo ccostos que tienen al menos un empleado con turnos esta semana, filtrados por selección
 const ccostosConEmpleados = computed(() => {
-  const ccostosEnDetalle = new Set(detalle.value.map(d => d.ccosto))
-  return ccostos.value.filter(c =>
-    ccostosEnDetalle.has(c.codigo) &&
-    (!filtroCC.value || filtroCC.value.includes(String(c.codigo)))
-  )
+  const ccostosEnDetalle = new Set(detalle.value.map(d => String(d.ccosto)))
+  return ccostos.value.filter(c => {
+    const ccStr = String(c.codigo)
+    return ccostosEnDetalle.has(ccStr) &&
+           (!filtroCC.value || filtroCC.value.some(f => String(f) === ccStr))
+  })
 })
 
 // Empleados únicos de un ccosto (deduplicados)
