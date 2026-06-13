@@ -309,7 +309,7 @@ function imprimirPDF() {
     tr.footer-row td.td-emp { text-align: left; font-size: 8px; }
     .pie { font-size: 8px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 6px; margin-top: 6px; }
     @media print {
-      .pagina { page-break-after: always; }
+      .pagina:not(.no-page-break-print) { page-break-after: always; }
       table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       tr.footer-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .td-verde { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
