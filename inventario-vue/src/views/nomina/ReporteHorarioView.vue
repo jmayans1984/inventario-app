@@ -33,7 +33,7 @@
 
           <!-- Encabezado de página -->
           <div class="rh-encabezado">
-            <div class="rh-titulo">HORARIO DE TRABAJO</div>
+            <div class="rh-titulo">SCHEDULE</div>
             <div class="rh-ccosto-nombre">{{ cc.nombre }}</div>
             <div class="rh-periodo">
               {{ fmtFecha(semanaActual.semana_inicio) }} &mdash; {{ fmtFecha(semanaActual.semana_fin) }}
@@ -55,10 +55,6 @@
               <tr v-for="emp in empleadosDelCcosto(cc.codigo)" :key="emp.id">
                 <td class="rh-emp">
                   <div class="rh-emp-nombre">{{ emp.apellido }}, {{ emp.nombre }}</div>
-                  <div class="rh-emp-sub">
-                    <span v-if="emp.empresa_contratista">{{ emp.empresa_contratista }} · </span>
-                    {{ emp.tipo_empleado }}
-                  </div>
                 </td>
                 <td v-for="d in DIAS" :key="d.offset" class="rh-turno"
                     :class="{ 'rh-verde': modoImpresion==='verde' && getTurnoCcosto(emp.id, d.offset, cc.codigo) && !getTurnoCcosto(emp.id, d.offset, cc.codigo)?.es_dia_libre }">
@@ -231,8 +227,7 @@ function addDays(dateStr, days) {
 function fmtFecha(f) {
   if (!f) return '—'
   const s = String(f).split('T')[0]; const [y,m,d] = s.split('-')
-  const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-  return `${parseInt(d)} ${meses[parseInt(m)]} ${y}`
+  return `${m}/${d}/${y}`
 }
 
 function fmtDiaMes(inicio, offset) {
@@ -330,7 +325,7 @@ function imprimirPDF() {
     const claseNoPageBreak = separacion !== 'cc' ? ' no-page-break-print' : ''
     body += `<div class="pagina${claseNoPageBreak}">
       <div class="encabezado">
-        <div class="titulo">HORARIO DE TRABAJO</div>
+        <div class="titulo">SCHEDULE</div>
         <div class="ccosto-nombre">${cc.nombre}</div>
         <div class="periodo">${fmtFecha(semanaActual.value.semana_inicio)} &mdash; ${fmtFecha(semanaActual.value.semana_fin)}</div>
       </div>`
@@ -345,7 +340,6 @@ function imprimirPDF() {
         body += `<tr>
           <td class="td-emp">
             <div class="emp-nombre">${emp.apellido}, ${emp.nombre}</div>
-            <div class="emp-sub">${emp.empresa_contratista ? emp.empresa_contratista + ' · ' : ''}${emp.tipo_empleado}</div>
           </td>
           ${DIAS.map(d => {
             const t = getTurnoCcosto(emp.id, d.offset, cc.codigo)
