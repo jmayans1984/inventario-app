@@ -477,7 +477,7 @@
                 <div style="font-weight:600;font-size:13px">{{ cc.nombre }}</div>
                 <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">{{ cc.codigo }}</div>
               </div>
-              <select v-model="plantillasPorCC[cc.codigo]" style="padding:6px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:4px;font-size:12px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
+              <select :value="plantillasPorCC[cc.codigo]" @change="(e) => plantillasPorCC[cc.codigo] = e.target.value" style="padding:6px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:4px;font-size:12px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
                 <option value="">Ninguna</option>
                 <option v-for="cfg in horarioConfigs" :key="cfg.id" :value="cfg.id">
                   {{ cfg.nombre || 'Plantilla ' + cfg.id }}
