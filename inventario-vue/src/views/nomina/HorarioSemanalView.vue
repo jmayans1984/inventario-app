@@ -910,13 +910,74 @@ async function aplicarPlantillaYCerrar(event) {
   plantillasPorCC[ccCodigo] = cfgId
   dlgPlantillaParaCC.value = false
 
-  // Generar turnos para este CC
+  // Generar turnos SOLO para este CC y sus empleados
   try {
-    await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
-      empresa: empresa.value,
-      config_id: cfgId,
-      ccosto: ccCodigo
-    })
+    // Obtener la plantilla seleccionada
+    const plantilla = horarioConfigs.value.find(h => h.id === cfgId)
+    if (!plantilla) throw new Error('Plantilla no encontrada')
+
+    // Obtener empleados de este CC
+    const empleados = empleadosParaCcosto(ccCodigo)
+    if (!empleados.length) {
+      alert('ℹ️ No hay empleados en este centro de costo')
+      return
+    }
+
+    // Para cada empleado, generar turnos basándose en la plantilla
+    const DIAS = [
+      { num: 1, label: 'Lun', offset: 0 },
+      { num: 2, label: 'Mar', offset: 1 },
+      { num: 3, label: 'Mié', offset: 2 },
+      { num: 4, label: 'Jue', offset: 3 },
+      { num: 5, label: 'Vie', offset: 4 },
+      { num: 6, label: 'Sáb', offset: 5 },
+      { num: 7, label: 'Dom', offset: 6 }
+    ]
+
+    for (const emp of empleados) {
+      for (const dia of DIAS) {
+        const diaConfig = plantilla.dias?.find(d => d.dia_semana === dia.num)
+        const fecha = addDays(semanaActual.value.semana_inicio, dia.offset)
+
+        // Verificar si ya existe un turno para este empleado, fecha y ccosto
+        const turnoExistente = detalle.value.find(d =>
+          d.empleado_id === emp.id &&
+          String(d.fecha).split('T')[0] === fecha &&
+          d.ccosto === ccCodigo
+        )
+
+        if (!turnoExistente && diaConfig && diaConfig.activo) {
+          // Crear turno
+          await api.post('/nomina/semanas/detalle', {
+            semana_id: semanaActual.value.id,
+            empleado_id: emp.id,
+            fecha: fecha,
+            real_inicio: diaConfig.hora_inicio || null,
+            real_fin: diaConfig.hora_fin || null,
+            real_horas: diaConfig.horas_default || 0,
+            ccosto: ccCodigo,
+            es_dia_libre: false,
+            ausencia_tipo: '',
+            notas: ''
+          })
+        } else if (!turnoExistente && (!diaConfig || !diaConfig.activo)) {
+          // Crear día libre
+          await api.post('/nomina/semanas/detalle', {
+            semana_id: semanaActual.value.id,
+            empleado_id: emp.id,
+            fecha: fecha,
+            real_inicio: null,
+            real_fin: null,
+            real_horas: 0,
+            ccosto: ccCodigo,
+            es_dia_libre: true,
+            ausencia_tipo: '',
+            notas: ''
+          })
+        }
+      }
+    }
+
     await cargarDetalle()
   } catch(e) {
     alert('❌ Error: ' + (e?.response?.data?.error || e.message))
