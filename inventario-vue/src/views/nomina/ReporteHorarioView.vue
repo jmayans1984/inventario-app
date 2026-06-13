@@ -61,8 +61,8 @@
                   <template v-for="t in [getTurnoCcosto(emp.id, d.offset, cc.codigo)]" :key="0">
                     <template v-if="modoImpresion==='verde'">
                       <span v-if="t && !t.es_dia_libre" class="rh-verde-check">✓</span>
+                      <span v-else-if="t && t.es_dia_libre && getOtroCcostoNombre(emp.id, d.offset, cc.codigo)" class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
                       <span v-else-if="t && t.es_dia_libre" class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
-                      <span v-else-if="tieneOtroCcosto(emp.id, d.offset, cc.codigo)" class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
                       <span v-else class="rh-vacio"></span>
                     </template>
                     <template v-else>
@@ -73,11 +73,11 @@
                         </div>
                         <div class="rh-h">{{ fmtHoras(t.real_horas ?? t.prog_horas) }}h</div>
                       </template>
+                      <template v-else-if="t && t.es_dia_libre && getOtroCcostoNombre(emp.id, d.offset, cc.codigo)">
+                        <span class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
+                      </template>
                       <template v-else-if="t && t.es_dia_libre">
                         <span class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
-                      </template>
-                      <template v-else-if="tieneOtroCcosto(emp.id, d.offset, cc.codigo)">
-                        <span class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
                       </template>
                       <template v-else>
                         <span class="rh-vacio">—</span>
@@ -331,12 +331,12 @@ function imprimirPDF() {
   const modo = modoImpresion.value
   const genTurno = (t, otroCcNombre = null) => {
     if (modo === 'verde') {
-      if (!t) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : ''
-      if (t.es_dia_libre) return `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
+      if (!t) return ''
+      if (t.es_dia_libre) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
       return `<span class="check-verde">✓</span>`
     }
-    if (!t) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="vacio">—</span>`
-    if (t.es_dia_libre) return `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
+    if (!t) return `<span class="vacio">—</span>`
+    if (t.es_dia_libre) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
     const ini = (t.real_inicio || t.prog_inicio || '').slice(0,5)
     const fin = (t.real_fin   || t.prog_fin   || '').slice(0,5)
     const hrs = parseFloat(t.real_horas ?? t.prog_horas ?? 0).toFixed(2)
@@ -367,7 +367,7 @@ function imprimirPDF() {
           </td>
           ${DIAS.map(d => {
             const t = getTurnoCcosto(emp.id, d.offset, cc.codigo)
-            const otroCcNombre = !t ? getOtroCcostoNombre(emp.id, d.offset, cc.codigo) : null
+            const otroCcNombre = (t && t.es_dia_libre) ? getOtroCcostoNombre(emp.id, d.offset, cc.codigo) : null
             const esVerde = modo === 'verde' && t && !t.es_dia_libre
             return `<td${esVerde ? ' class="td-verde"' : ''}>${genTurno(t, otroCcNombre)}</td>`
           }).join('')}
