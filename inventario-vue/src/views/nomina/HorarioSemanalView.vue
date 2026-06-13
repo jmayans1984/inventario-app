@@ -464,33 +464,36 @@
     </v-dialog>
 
     <!-- Dialog PLANTILLAS POR CC -->
-    <v-dialog v-model="dlgPlantillasPorCC" max-width="520">
+    <v-dialog v-model="dlgPlantillasPorCC" max-width="400">
       <v-card rounded="lg">
         <v-card-title class="pa-4 d-flex align-center justify-space-between" style="font-size:14px;font-weight:700">
-          <span><v-icon size="16" class="mr-1">mdi-file-multiple</v-icon> Asignar Plantillas por Centro de Costo</span>
-          <v-btn icon="mdi-close" size="x-small" variant="text" @click="dlgPlantillasPorCC=false"/>
+          <span><v-icon size="16" class="mr-1">mdi-file-document</v-icon> Selecciona Plantilla</span>
+          <v-btn icon="mdi-close" size="x-small" variant="text" @click="cancelarGenerarPorCC"/>
         </v-card-title>
         <v-card-text class="pa-4">
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div v-for="cc in ccostos" :key="cc.codigo" style="display:flex;align-items:center;gap:12px;padding:8px;border:1px solid rgba(var(--v-theme-on-surface),0.1);border-radius:6px">
-              <div style="flex:1">
-                <div style="font-weight:600;font-size:13px">{{ cc.nombre }}</div>
-                <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">{{ cc.codigo }}</div>
-              </div>
-              <select :value="plantillasPorCC[cc.codigo]" @change="(e) => plantillasPorCC[cc.codigo] = e.target.value" style="padding:6px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:4px;font-size:12px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
-                <option value="">Ninguna</option>
-                <option v-for="cfg in horarioConfigs" :key="cfg.id" :value="cfg.id">
-                  {{ cfg.nombre || 'Plantilla ' + cfg.id }}
-                </option>
-              </select>
-            </div>
+          <div v-if="ccostoActual" style="margin-bottom:20px">
+            <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:4px;text-transform:uppercase;font-weight:700">Centro de Costo</div>
+            <div style="font-size:15px;font-weight:700">{{ ccostoActual.nombre }}</div>
+            <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.6);margin-top:2px">{{ ccostoActual.codigo }}</div>
+          </div>
+          <div v-if="ccostoActualIndex + 1" style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4);margin-bottom:12px">
+            {{ ccostoActualIndex + 1 }} de {{ ccostos.length }}
+          </div>
+          <div style="margin-top:16px">
+            <label style="display:block;font-size:11px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px;text-transform:uppercase;font-weight:700">Plantilla de Horario</label>
+            <select v-model="plantillaSeleccionadaParaCCActual" style="width:100%;padding:10px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:6px;font-size:13px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
+              <option value="">— Selecciona una plantilla —</option>
+              <option v-for="cfg in horarioConfigs" :key="cfg.id" :value="cfg.id">
+                {{ cfg.nombre || 'Plantilla ' + cfg.id }}
+              </option>
+            </select>
           </div>
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-spacer/>
-          <v-btn variant="text" @click="dlgPlantillasPorCC=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" @click="confirmarGenerarHorarioPorCC">
-            <v-icon size="14" class="mr-1">mdi-check</v-icon> Generar
+          <v-btn variant="text" @click="cancelarGenerarPorCC">Cancelar</v-btn>
+          <v-btn color="#8b5cf6" variant="flat" @click="siguienteCCPlantilla">
+            <v-icon size="14" class="mr-1">mdi-arrow-right</v-icon> {{ ccostoActualIndex === ccostos.length - 1 ? 'Generar' : 'Siguiente' }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -542,9 +545,12 @@ const resumenAgrupadoPorCC = ref(false)
 const dlgSeleccionarPlantilla = ref(false)
 const plantillaSeleccionadaId = ref(null)
 
-// Dialog plantillas por CC
+// Dialog plantillas por CC - ciclo uno a uno
 const dlgPlantillasPorCC = ref(false)
 const plantillasPorCC = reactive({})
+const ccostoActual = ref(null)
+const ccostoActualIndex = ref(0)
+const plantillaSeleccionadaParaCCActual = ref(null)
 
 function abrirDialogImprimir() {
   imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
@@ -897,13 +903,38 @@ async function generarHorario() {
   if (horarioConfigs.value.length === 1) {
     await confirmarGenerarHorario(horarioConfigs.value[0].id)
   } else {
-    // Inicializar plantillas por CC
+    // Inicializar ciclo de selección por CC
     Object.keys(plantillasPorCC).forEach(k => delete plantillasPorCC[k])
-    ccostos.value.forEach(cc => {
-      plantillasPorCC[cc.codigo] = horarioConfigs.value[0]?.id || null
-    })
-    dlgPlantillasPorCC.value = true
+    ccostoActualIndex.value = 0
+    mostrarCCActual()
   }
+}
+
+function mostrarCCActual() {
+  if (ccostoActualIndex.value >= ccostos.value.length) {
+    confirmarGenerarHorarioPorCC()
+    return
+  }
+  ccostoActual.value = ccostos.value[ccostoActualIndex.value]
+  plantillaSeleccionadaParaCCActual.value = plantillasPorCC[ccostoActual.value.codigo] || ''
+  dlgPlantillasPorCC.value = true
+}
+
+function siguienteCCPlantilla() {
+  if (!plantillaSeleccionadaParaCCActual.value) {
+    alert('⚠️ Selecciona una plantilla')
+    return
+  }
+  plantillasPorCC[ccostoActual.value.codigo] = plantillaSeleccionadaParaCCActual.value
+  ccostoActualIndex.value++
+  mostrarCCActual()
+}
+
+function cancelarGenerarPorCC() {
+  dlgPlantillasPorCC.value = false
+  ccostoActual.value = null
+  ccostoActualIndex.value = 0
+  Object.keys(plantillasPorCC).forEach(k => delete plantillasPorCC[k])
 }
 
 async function confirmarGenerarHorario(cfgId) {
