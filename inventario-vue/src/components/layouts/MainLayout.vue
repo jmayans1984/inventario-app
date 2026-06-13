@@ -596,53 +596,54 @@ const handleLogout = () => {
   padding-left: 2px;
 }
 
-/* Nivel 2 */
+/* Nivel 2 — categoría */
 .menu-cat {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 8px 6px 14px;
+  padding: 5px 8px 5px 10px;
   border-radius: 5px;
   cursor: pointer;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.75);
   margin-bottom: 1px;
-  margin-top: 4px;
+  margin-top: 6px;
   transition: all 0.15s;
   user-select: none;
-  min-height: 36px;
+  min-height: 30px;
+  border-left: 2px solid rgba(167,139,250,0.45);
+  background: rgba(255,255,255,0.03);
 }
-.menu-cat:hover { color: rgba(255,255,255,0.65); }
-.menu-cat-open { color: rgba(255,255,255,0.6); }
-.cat-icon { flex-shrink: 0; opacity: .7; }
+.menu-cat:hover { color: rgba(255,255,255,0.95); background: rgba(255,255,255,0.06); }
+.menu-cat-open { color: #c4b5fd; border-left-color: #a78bfa; }
+.cat-icon { flex-shrink: 0; opacity: .8; }
 .cat-label {
   flex: 1;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Nivel 3 */
+/* Nivel 3 — hoja */
 .menu-leaf {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 8px 7px 20px;
+  padding: 6px 8px 6px 22px;
   border-radius: 6px;
   cursor: pointer;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.42);
   margin-bottom: 1px;
   transition: all 0.15s;
   user-select: none;
-  min-height: 38px;
+  min-height: 34px;
 }
 .menu-leaf:hover {
   background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.75);
-  padding-left: 22px;
+  color: rgba(255,255,255,0.8);
 }
 .menu-leaf-active {
   color: #67e8f9 !important;
@@ -654,10 +655,10 @@ const handleLogout = () => {
   box-shadow: 0 0 6px rgba(103,232,249,0.6);
 }
 .leaf-dot {
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.25);
   flex-shrink: 0;
   transition: all 0.15s;
 }

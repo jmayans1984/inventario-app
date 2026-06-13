@@ -37,33 +37,42 @@
             <tr v-if="!filtrados.length">
               <td colspan="8" class="nom-empty">SIN EMPLEADOS</td>
             </tr>
-            <tr v-for="e in filtrados" :key="e.id" class="nom-row" @click="editar(e)">
-              <td class="nom-id">{{ e.id }}</td>
-              <td>
-                <div class="nom-nombre">{{ getNombreDisplay(e) }}</div>
-                <div class="nom-email">{{ e.email }}</div>
-              </td>
-              <td>
-                <span class="nom-badge" :class="e.tipo_empleado === 'W2' ? 'badge-w2' : 'badge-1099'">
-                  {{ e.tipo_empleado }}
-                </span>
-              </td>
-              <td class="nom-cargo">{{ e.cargo_nombre || '—' }}</td>
-              <td class="nom-cc">{{ e.ccosto_nombre || e.ccosto || '—' }}</td>
-              <td class="nom-rate">
-                <span v-if="e.tipo_pago==='DIA_LABORADO'">${{ fmtNum(e.valor_dia) }}/día</span>
-                <span v-else-if="e.tipo_pago==='FIJO_SEMANAL' || !e.es_por_horas">${{ fmtNum(e.monto_fijo_semanal) }}/sem</span>
-                <span v-else>${{ fmtNum(e.valor_hora) }}/hr</span>
-              </td>
-              <td>
-                <span class="nom-estado" :class="e.estado === 'ACTIVO' ? 'estado-activo' : 'estado-inactivo'">
-                  {{ e.estado }}
-                </span>
-              </td>
-              <td @click.stop>
-                <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="#8b5cf6" @click="editar(e)" />
-              </td>
-            </tr>
+            <template v-for="([cc, grupo]) in empleadosPorCC" :key="cc">
+              <tr class="nom-group-header">
+                <td colspan="8">
+                  <v-icon size="13" style="margin-right:5px;opacity:.6">mdi-map-marker-outline</v-icon>
+                  {{ cc }}
+                  <span class="nom-group-count">{{ grupo.length }}</span>
+                </td>
+              </tr>
+              <tr v-for="e in grupo" :key="e.id" class="nom-row" @click="editar(e)">
+                <td class="nom-id">{{ e.id }}</td>
+                <td>
+                  <div class="nom-nombre">{{ getNombreDisplay(e) }}</div>
+                  <div class="nom-email">{{ e.email }}</div>
+                </td>
+                <td>
+                  <span class="nom-badge" :class="e.tipo_empleado === 'W2' ? 'badge-w2' : 'badge-1099'">
+                    {{ e.tipo_empleado }}
+                  </span>
+                </td>
+                <td class="nom-cargo">{{ e.cargo_nombre || '—' }}</td>
+                <td class="nom-cc">{{ e.ccosto_nombre || e.ccosto || '—' }}</td>
+                <td class="nom-rate">
+                  <span v-if="e.tipo_pago==='DIA_LABORADO'">${{ fmtNum(e.valor_dia) }}/día</span>
+                  <span v-else-if="e.tipo_pago==='FIJO_SEMANAL' || !e.es_por_horas">${{ fmtNum(e.monto_fijo_semanal) }}/sem</span>
+                  <span v-else>${{ fmtNum(e.valor_hora) }}/hr</span>
+                </td>
+                <td>
+                  <span class="nom-estado" :class="e.estado === 'ACTIVO' ? 'estado-activo' : 'estado-inactivo'">
+                    {{ e.estado }}
+                  </span>
+                </td>
+                <td @click.stop>
+                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="#8b5cf6" @click="editar(e)" />
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -90,7 +99,6 @@
                 </v-btn>
                 <input ref="fotoInput" type="file" accept="image/*" hidden @change="onFoto" />
               </div>
-              <div v-if="editando?.id" class="drw-nav-id">#{{ editando.id }}</div>
             </div>
             <button v-for="t in navTabs" :key="t.value"
                     class="drw-nav-btn" :class="{active: tabActual===t.value}"
@@ -342,6 +350,16 @@ const filtrados = computed(() => {
   return empleados.value.filter(e => e.estado === filtroEstado.value)
 })
 
+const empleadosPorCC = computed(() => {
+  const grupos = {}
+  for (const e of filtrados.value) {
+    const key = e.ccosto_nombre || e.ccosto || 'Sin CC'
+    if (!grupos[key]) grupos[key] = []
+    grupos[key].push(e)
+  }
+  return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b))
+})
+
 // Nombre display: muestra empresa para 1099, solo nombre para W2
 function getNombreDisplay(emp) {
   if (emp.tipo_empleado === '1099' && emp.empresa_contratista) {
@@ -535,6 +553,8 @@ onMounted(cargar)
 .nom-cc     { font-size: 12px; color: rgba(var(--v-theme-on-surface),0.6); }
 .nom-rate   { font-weight: 700; color: #10b981; font-size: 13px; }
 .nom-empty  { padding: 32px; text-align: center; color: rgba(var(--v-theme-on-surface),0.3); }
+.nom-group-header td { padding: 7px 14px; background: rgba(139,92,246,0.07); color: rgba(var(--v-theme-on-surface),0.55); font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); border-top: 1px solid rgba(var(--v-theme-on-surface),0.06); }
+.nom-group-count { display: inline-flex; align-items: center; justify-content: center; background: rgba(139,92,246,0.18); color: #a78bfa; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; margin-left: 7px; vertical-align: middle; }
 
 .nom-badge { font-size: 9px; font-weight: 800; padding: 3px 7px; border-radius: 5px; letter-spacing: 0.5px; }
 .badge-w2   { background: rgba(139,92,246,0.15); color: #8b5cf6; }
@@ -573,7 +593,6 @@ onMounted(cargar)
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.07);
   margin-bottom: 8px;
 }
-.drw-nav-id { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.4); }
 .drw-nav-btn {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 8px 6px; border: none; background: none; cursor: pointer;

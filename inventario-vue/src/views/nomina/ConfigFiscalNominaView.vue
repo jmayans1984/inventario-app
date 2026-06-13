@@ -4,7 +4,7 @@
       <div class="nom-header">
         <div class="nom-header-icon"><v-icon size="20" color="white">mdi-bank-outline</v-icon></div>
         <div class="flex-1">
-          <h1 class="nom-title">CONFIGURACIÓN FISCAL — {{ anio }}</h1>
+          <h1 class="nom-title">CONFIGURACIÓN FISCAL</h1>
           <p class="nom-sub">Tasas federales y de Florida · IRS Publication 15-T</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
