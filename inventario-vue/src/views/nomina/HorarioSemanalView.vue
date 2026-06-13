@@ -1201,19 +1201,35 @@ async function guardarEditarDiaMasivo() {
 
     for (const emp of emps) {
       const t = getTurnoCcosto(emp.id, semanaActual.value.semana_inicio, offsetEditDia.value, ccostoEditDia.value.codigo)
-      if (t && !t.es_dia_libre) {
-        // Calcular horas
-        const [h1, m1] = horaEntradaEditDia.value.split(':').map(Number)
-        const [h2, m2] = horaSalidaEditDia.value.split(':').map(Number)
-        let minutos = (h2 * 60 + m2) - (h1 * 60 + m1)
-        if (minutos < 0) minutos += 24 * 60
-        const horas = parseFloat((minutos / 60).toFixed(2))
 
+      // Calcular horas
+      const [h1, m1] = horaEntradaEditDia.value.split(':').map(Number)
+      const [h2, m2] = horaSalidaEditDia.value.split(':').map(Number)
+      let minutos = (h2 * 60 + m2) - (h1 * 60 + m1)
+      if (minutos < 0) minutos += 24 * 60
+      const horas = parseFloat((minutos / 60).toFixed(2))
+
+      if (t && !t.es_dia_libre) {
+        // Editar turno existente
         await api.put(`/nomina/semanas/detalle/${t.id}`, {
           ...t,
           real_inicio: horaEntradaEditDia.value,
           real_fin: horaSalidaEditDia.value,
           real_horas: horas
+        })
+      } else if (!t) {
+        // Crear nuevo turno si no existe
+        await api.post('/nomina/semanas/detalle', {
+          semana_id: semanaActual.value.id,
+          empleado_id: emp.id,
+          fecha,
+          real_inicio: horaEntradaEditDia.value,
+          real_fin: horaSalidaEditDia.value,
+          real_horas: horas,
+          ccosto: ccostoEditDia.value.codigo,
+          es_dia_libre: false,
+          ausencia_tipo: '',
+          notas: ''
         })
       }
     }
