@@ -59,6 +59,9 @@
               <span>·</span>
               <span>{{ totalHorasCcosto(cc.codigo) }}h esta semana</span>
             </div>
+            <v-btn v-if="horarioConfigs.length > 1" size="x-small" variant="outlined" color="#8b5cf6" @click="abrirDialogPlantillaParaCC(cc)" style="margin-left:auto">
+              <v-icon size="12" class="mr-1">mdi-file-document</v-icon> Plantilla
+            </v-btn>
           </div>
 
           <!-- Grid del centro -->
@@ -464,24 +467,21 @@
     </v-dialog>
 
     <!-- Dialog PLANTILLAS POR CC -->
-    <v-dialog v-model="dlgPlantillasPorCC" max-width="400">
+    <v-dialog v-model="dlgPlantillaParaCC" max-width="380">
       <v-card rounded="lg">
         <v-card-title class="pa-4 d-flex align-center justify-space-between" style="font-size:14px;font-weight:700">
-          <span><v-icon size="16" class="mr-1">mdi-file-document</v-icon> Selecciona Plantilla</span>
-          <v-btn icon="mdi-close" size="x-small" variant="text" @click="cancelarGenerarPorCC"/>
+          <span><v-icon size="16" class="mr-1">mdi-file-document</v-icon> Asignar Plantilla</span>
+          <v-btn icon="mdi-close" size="x-small" variant="text" @click="dlgPlantillaParaCC=false"/>
         </v-card-title>
         <v-card-text class="pa-4">
-          <div v-if="ccostoActual" style="margin-bottom:20px">
+          <div v-if="ccActualSeleccionado" style="margin-bottom:20px">
             <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:4px;text-transform:uppercase;font-weight:700">Centro de Costo</div>
-            <div style="font-size:15px;font-weight:700">{{ ccostoActual.nombre }}</div>
-            <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.6);margin-top:2px">{{ ccostoActual.codigo }}</div>
-          </div>
-          <div v-if="ccostoActualIndex + 1" style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4);margin-bottom:12px">
-            {{ ccostoActualIndex + 1 }} de {{ ccostos.length }}
+            <div style="font-size:15px;font-weight:700">{{ ccActualSeleccionado.nombre }}</div>
+            <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.6);margin-top:2px">{{ ccActualSeleccionado.codigo }}</div>
           </div>
           <div style="margin-top:16px">
-            <label style="display:block;font-size:11px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px;text-transform:uppercase;font-weight:700">Plantilla de Horario</label>
-            <select v-model="plantillaSeleccionadaParaCCActual" style="width:100%;padding:10px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:6px;font-size:13px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
+            <label style="display:block;font-size:11px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px;text-transform:uppercase;font-weight:700">Selecciona Plantilla de Horario</label>
+            <select v-model="plantillaParaCCActual" style="width:100%;padding:10px 8px;border:1px solid rgba(var(--v-theme-on-surface),0.2);border-radius:6px;font-size:13px;background:rgb(var(--v-theme-surface));color:rgb(var(--v-theme-on-surface))">
               <option value="">— Selecciona una plantilla —</option>
               <option v-for="cfg in horarioConfigs" :key="cfg.id" :value="cfg.id">
                 {{ cfg.nombre || 'Plantilla ' + cfg.id }}
@@ -491,9 +491,9 @@
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-spacer/>
-          <v-btn variant="text" @click="cancelarGenerarPorCC">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" @click="siguienteCCPlantilla">
-            <v-icon size="14" class="mr-1">mdi-arrow-right</v-icon> {{ ccostoActualIndex === ccostos.length - 1 ? 'Generar' : 'Siguiente' }}
+          <v-btn variant="text" @click="dlgPlantillaParaCC=false">Cancelar</v-btn>
+          <v-btn color="#8b5cf6" variant="flat" @click="guardarPlantillaParaCC">
+            <v-icon size="14" class="mr-1">mdi-check</v-icon> Guardar
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -545,12 +545,11 @@ const resumenAgrupadoPorCC = ref(false)
 const dlgSeleccionarPlantilla = ref(false)
 const plantillaSeleccionadaId = ref(null)
 
-// Dialog plantillas por CC - ciclo uno a uno
-const dlgPlantillasPorCC = ref(false)
+// Dialog plantilla para CC individual
+const dlgPlantillaParaCC = ref(false)
 const plantillasPorCC = reactive({})
-const ccostoActual = ref(null)
-const ccostoActualIndex = ref(0)
-const plantillaSeleccionadaParaCCActual = ref(null)
+const ccActualSeleccionado = ref(null)
+const plantillaParaCCActual = ref(null)
 
 function abrirDialogImprimir() {
   imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
@@ -903,38 +902,28 @@ async function generarHorario() {
   if (horarioConfigs.value.length === 1) {
     await confirmarGenerarHorario(horarioConfigs.value[0].id)
   } else {
-    // Inicializar ciclo de selección por CC
+    // Limpiar plantillas anteriores
     Object.keys(plantillasPorCC).forEach(k => delete plantillasPorCC[k])
-    ccostoActualIndex.value = 0
-    mostrarCCActual()
+    // El usuario debe hacer clic en "Plantilla" para cada CC
+    alert('ℹ️ Haz clic en el botón "Plantilla" de cada Centro de Costo para asignarle un horario')
   }
 }
 
-function mostrarCCActual() {
-  if (ccostoActualIndex.value >= ccostos.value.length) {
-    confirmarGenerarHorarioPorCC()
-    return
-  }
-  ccostoActual.value = ccostos.value[ccostoActualIndex.value]
-  plantillaSeleccionadaParaCCActual.value = plantillasPorCC[ccostoActual.value.codigo] || ''
-  dlgPlantillasPorCC.value = true
+function abrirDialogPlantillaParaCC(cc) {
+  ccActualSeleccionado.value = cc
+  plantillaParaCCActual.value = plantillasPorCC[cc.codigo] || ''
+  dlgPlantillaParaCC.value = true
 }
 
-function siguienteCCPlantilla() {
-  if (!plantillaSeleccionadaParaCCActual.value) {
+function guardarPlantillaParaCC() {
+  if (!plantillaParaCCActual.value) {
     alert('⚠️ Selecciona una plantilla')
     return
   }
-  plantillasPorCC[ccostoActual.value.codigo] = plantillaSeleccionadaParaCCActual.value
-  ccostoActualIndex.value++
-  mostrarCCActual()
-}
-
-function cancelarGenerarPorCC() {
-  dlgPlantillasPorCC.value = false
-  ccostoActual.value = null
-  ccostoActualIndex.value = 0
-  Object.keys(plantillasPorCC).forEach(k => delete plantillasPorCC[k])
+  plantillasPorCC[ccActualSeleccionado.value.codigo] = plantillaParaCCActual.value
+  dlgPlantillaParaCC.value = false
+  ccActualSeleccionado.value = null
+  plantillaParaCCActual.value = null
 }
 
 async function confirmarGenerarHorario(cfgId) {
