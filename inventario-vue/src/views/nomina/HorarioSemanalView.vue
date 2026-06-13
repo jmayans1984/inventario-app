@@ -61,6 +61,9 @@
               <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="#ef4444" @click="limpiarHorariosPorCC(cc.codigo)">
                 <v-icon size="12" class="mr-1">mdi-trash-can</v-icon> Limpiar
               </v-btn>
+              <v-btn size="x-small" variant="outlined" color="#10b981" @click="abrirAgregarEmp(cc.codigo)">
+                <v-icon size="12" class="mr-1">mdi-plus</v-icon> Agregar
+              </v-btn>
             </div>
           </div>
 
@@ -114,14 +117,6 @@
               <div>Sin empleados asignados a este centro</div>
             </div>
 
-            <!-- Footer: solo botón agregar -->
-            <div class="sg-footer-simple">
-              <v-btn v-if="semanaActual.estado !== 'CERRADO'"
-                     color="#06b6d4" variant="flat" size="small"
-                     @click="abrirAgregarEmp(cc.codigo)">
-                <v-icon size="14" class="mr-1">mdi-account-plus</v-icon> Agregar Empleado
-              </v-btn>
-            </div>
           </div>
         </div>
       </template>
