@@ -125,15 +125,9 @@
 
       <!-- RESUMEN TOTAL DE HORAS -->
       <div v-if="semanaActual && resumenEmpleados.length" class="nom-card resumen-card">
-        <div class="resumen-titulo" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <span>
-            <v-icon size="16" color="#8b5cf6" class="mr-1">mdi-chart-bar</v-icon>
-            RESUMEN SEMANAL — HORAS TOTALES POR EMPLEADO
-          </span>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:rgba(var(--v-theme-on-surface),0.6);cursor:pointer">
-            <input type="checkbox" v-model="resumenAgrupadoPorCC" style="width:14px;height:14px;accent-color:#8b5cf6;cursor:pointer" />
-            Agrupar por Centro de Costo
-          </label>
+        <div class="resumen-titulo">
+          <v-icon size="16" color="#8b5cf6" class="mr-1">mdi-chart-bar</v-icon>
+          RESUMEN SEMANAL — HORAS TOTALES POR EMPLEADO
         </div>
         <table class="resumen-tabla">
           <thead>
@@ -149,51 +143,7 @@
             </tr>
           </thead>
           <tbody>
-            <template v-if="resumenAgrupadoPorCC">
-              <template v-for="cc in resumenCCOrdenados" :key="cc">
-                <tr class="resumen-cc-header">
-                  <td colspan="8" style="padding:8px 12px;background:rgba(139,92,246,0.1);font-weight:700;color:#8b5cf6">
-                    📍 {{ getNombreCC(cc) }}
-                  </td>
-                </tr>
-                <tr v-for="r in resumenPorCC[cc]" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
-              <td class="resumen-nombre">
-                {{ r.apellido }}, {{ r.nombre }}
-                <span v-if="r.empresa_contratista" class="resumen-empresa">{{ r.empresa_contratista }}</span>
-              </td>
-              <td class="ta-c">
-                <span class="sg-emp-badge" :class="r.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ r.tipo_empleado }}</span>
-              </td>
-              <td class="ta-c">
-                <span v-for="ccost in r.centros" :key="ccost" class="ccosto-chip">{{ ccost }}</span>
-              </td>
-              <td class="ta-c resumen-reg">{{ r.regular.toFixed(2) }}h</td>
-              <td class="ta-c">
-                <span v-if="r.overtime > 0" class="ot-badge">+{{ r.overtime.toFixed(2) }}h</span>
-                <span v-else style="color:rgba(var(--v-theme-on-surface),0.25)">—</span>
-              </td>
-              <td class="ta-c resumen-total">{{ r.total.toFixed(2) }}h</td>
-              <td class="ta-c resumen-rate">
-                <span v-if="r.tipo_pago==='DIA_LABORADO'">{{ fmtMoney(r.valor_dia) }}/día · {{ r.diasTrabajados }}d</span>
-                <span v-else-if="r.es_por_horas">{{ fmtMoney(r.valor_hora) }}/h</span>
-                <span v-else class="resumen-fijo">FIJO</span>
-              </td>
-              <td class="ta-c resumen-pagar">{{ fmtMoney(r.totalPagar) }}</td>
-            </tr>
-                <tr class="resumen-cc-footer">
-                  <td colspan="3" style="text-align:left;padding:6px 12px;background:rgba(139,92,246,0.05);font-weight:600;color:rgba(var(--v-theme-on-surface),0.6);font-size:12px">
-                    Subtotal {{ getNombreCC(cc) }}
-                  </td>
-                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px">{{ resumenTotalesPorCC[cc].regular.toFixed(2) }}h</td>
-                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px;color:#ef4444">{{ resumenTotalesPorCC[cc].overtime.toFixed(2) }}h</td>
-                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px">{{ resumenTotalesPorCC[cc].total.toFixed(2) }}h</td>
-                  <td style="background:rgba(139,92,246,0.05)"></td>
-                  <td class="ta-c" style="background:rgba(139,92,246,0.05);font-weight:600;font-size:12px;color:#10b981">{{ fmtMoney(resumenTotalesPorCC[cc].totalPagar) }}</td>
-                </tr>
-              </template>
-            </template>
-            <template v-else>
-              <tr v-for="r in resumenEmpleados" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
+            <tr v-for="r in resumenEmpleados" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
                 <td class="resumen-nombre">
                   {{ r.apellido }}, {{ r.nombre }}
                   <span v-if="r.empresa_contratista" class="resumen-empresa">{{ r.empresa_contratista }}</span>
@@ -217,7 +167,6 @@
                 </td>
                 <td class="ta-c resumen-pagar">{{ fmtMoney(r.totalPagar) }}</td>
               </tr>
-            </template>
           </tbody>
           <tfoot>
             <tr class="resumen-footer">
@@ -552,9 +501,6 @@ const imprimirCCSeleccionados = ref([])
 const imprimirModo           = ref('detalle')
 const imprimirSeparacion     = ref('cc')
 
-// Agrupación del resumen
-const resumenAgrupadoPorCC = ref(false)
-
 // Dialog seleccionar plantilla
 const dlgSeleccionarPlantilla = ref(false)
 const plantillaSeleccionadaId = ref(null)
@@ -707,125 +653,6 @@ const resumenTotales = computed(() => ({
   totalPagar:  resumenEmpleados.value.reduce((s,e) => s + e.totalPagar,  0)
 }))
 
-const resumenPorCC = computed(() => {
-  const map = {}
-
-  // Recalcular por empleado+ccosto usando detalle
-  const seen = new Set()
-  const deduped = []
-  detalle.value.filter(d => !d.es_dia_libre).forEach(d => {
-    const key = `${d.empleado_id}-${String(d.fecha).split('T')[0]}-${d.ccosto}`
-    if (!seen.has(key)) { seen.add(key); deduped.push(d) }
-  })
-
-  // Agrupar por empleado+ccosto
-  const empCCMap = {}
-  deduped.forEach(d => {
-    const ccKey = `${d.empleado_id}-${d.ccosto}`
-    if (!empCCMap[ccKey]) {
-      const empInfo = empleadosActivos.value.find(e => e.id === d.empleado_id)
-      const tipoPago = empInfo?.tipo_pago || (empInfo?.es_por_horas !== false ? 'HORAS' : 'FIJO_SEMANAL')
-      empCCMap[ccKey] = {
-        id: `${d.empleado_id}-${d.ccosto}`,
-        empleado_id: d.empleado_id,
-        nombre: d.nombre,
-        apellido: d.apellido,
-        empresa_contratista: d.empresa_contratista,
-        tipo_empleado: d.tipo_empleado,
-        ccosto: d.ccosto,
-        tipo_pago: tipoPago,
-        valor_hora: parseFloat(empInfo?.valor_hora ?? 0),
-        valor_dia: parseFloat(empInfo?.valor_dia ?? 0),
-        monto_fijo: parseFloat(empInfo?.monto_fijo_semanal ?? 0),
-        es_por_horas: tipoPago === 'HORAS',
-        total: 0,
-        dias: new Set()
-      }
-    }
-    empCCMap[ccKey].total += parseFloat(d.real_horas ?? d.prog_horas ?? 0)
-    if (parseFloat(d.real_horas ?? d.prog_horas ?? 0) > 0) {
-      empCCMap[ccKey].dias.add(String(d.fecha).split('T')[0])
-    }
-  })
-
-  // Calcular horas totales por empleado (para determinar OT correctamente)
-  const empTotalMap = {}
-  Object.values(empCCMap).forEach(empCC => {
-    if (!empTotalMap[empCC.empleado_id]) empTotalMap[empCC.empleado_id] = 0
-    empTotalMap[empCC.empleado_id] += empCC.total
-  })
-
-  // Agrupar por CC con cálculo correcto de OT (secuencial)
-  Object.values(empCCMap).forEach(empCC => {
-    const cc = empCC.ccosto
-    if (!map[cc]) map[cc] = []
-
-    // Obtener todas las horas del empleado en todos los CCs, ordenadas
-    const empCCs = Object.values(empCCMap).filter(e => e.empleado_id === empCC.empleado_id).sort((a, b) => a.ccosto.localeCompare(b.ccosto))
-
-    // Calcular cuántas horas regulares vs OT corresponden a este CC
-    let acumulado = 0
-    let regular = 0
-    let overtime = 0
-
-    for (const e of empCCs) {
-      const horasEnEsteCC = e.ccosto === empCC.ccosto ? empCC.total : 0
-      if (horasEnEsteCC === 0) continue
-
-      if (acumulado + horasEnEsteCC <= 40) {
-        // Todas estas horas son regulares
-        regular = horasEnEsteCC
-        acumulado += horasEnEsteCC
-      } else if (acumulado >= 40) {
-        // Todas estas horas son OT
-        overtime = horasEnEsteCC
-      } else {
-        // Parte regulares, parte OT
-        regular = 40 - acumulado
-        overtime = horasEnEsteCC - regular
-        acumulado = 40
-      }
-
-      if (e.ccosto === empCC.ccosto) break
-    }
-
-    const diasTrabajados = empCC.dias.size
-    let totalPagar
-    if (empCC.tipo_pago === 'DIA_LABORADO') {
-      totalPagar = diasTrabajados * empCC.valor_dia
-    } else if (empCC.tipo_pago === 'HORAS') {
-      totalPagar = (regular * empCC.valor_hora) + (overtime * empCC.valor_hora * 1.5)
-    } else {
-      totalPagar = empCC.monto_fijo
-    }
-
-    map[cc].push({ ...empCC, dias: [...empCC.dias], regular, overtime, total: empCC.total, diasTrabajados, totalPagar, centros: [cc] })
-  })
-
-  return map
-})
-
-const resumenCCOrdenados = computed(() => {
-  return Object.keys(resumenPorCC.value).sort()
-})
-
-const resumenTotalesPorCC = computed(() => {
-  const totales = {}
-  resumenCCOrdenados.value.forEach(cc => {
-    const empleados = resumenPorCC.value[cc] || []
-    totales[cc] = {
-      regular: empleados.reduce((s,e) => s + e.regular, 0),
-      overtime: empleados.reduce((s,e) => s + e.overtime, 0),
-      total: empleados.reduce((s,e) => s + e.total, 0),
-      totalPagar: empleados.reduce((s,e) => s + e.totalPagar, 0)
-    }
-  })
-  return totales
-})
-
-function getNombreCC(codigo) {
-  return ccostos.value.find(c => c.codigo === codigo)?.nombre || codigo
-}
 
 function fmtMoney(v) { return '$' + parseFloat(v ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
