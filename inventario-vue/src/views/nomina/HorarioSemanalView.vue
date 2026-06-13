@@ -950,7 +950,7 @@ async function confirmarGenerarHorarioPorCC() {
         ccosto: cc.codigo
       })
     }
-    dlgPlantillasPorCC.value = false
+    dlgPlantillaParaCC.value = false
     await cargarDetalle()
   } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
 }
