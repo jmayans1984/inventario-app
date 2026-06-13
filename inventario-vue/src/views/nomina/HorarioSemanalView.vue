@@ -918,10 +918,15 @@ async function confirmarGenerarHorario(cfgId) {
 async function confirmarGenerarHorarioPorCC() {
   if (!semanaSelId.value) return
   try {
-    await api.post(`/nomina/semanas/${semanaSelId.value}/generar-por-cc`, {
-      empresa: empresa.value,
-      plantillas_por_cc: plantillasPorCC.value
-    })
+    const ccsWithPlantillas = ccostos.value.filter(cc => plantillasPorCC.value[cc.codigo])
+    for (const cc of ccsWithPlantillas) {
+      const cfgId = plantillasPorCC.value[cc.codigo]
+      await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, {
+        empresa: empresa.value,
+        config_id: cfgId,
+        ccosto: cc.codigo
+      })
+    }
     dlgPlantillasPorCC.value = false
     await cargarDetalle()
   } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
