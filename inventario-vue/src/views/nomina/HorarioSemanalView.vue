@@ -326,7 +326,7 @@
           <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
             MODO DE IMPRESIÓN
           </div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;margin-bottom:18px">
             <div @click="imprimirModo='detalle'"
                  :style="imprimirModo==='detalle' ? 'border-color:#8b5cf6;background:rgba(139,92,246,0.08)' : ''"
                  style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
@@ -344,6 +344,31 @@
                 Solo color
               </div>
               <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Pinta de verde el día que trabaja, sin mostrar horas</div>
+            </div>
+          </div>
+
+          <!-- Separación de páginas -->
+          <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
+            SEPARACIÓN DE PÁGINAS
+          </div>
+          <div style="display:flex;gap:10px">
+            <div @click="imprimirSeparacion='cc'"
+                 :style="imprimirSeparacion==='cc' ? 'border-color:#06b6d4;background:rgba(6,182,212,0.08)' : ''"
+                 style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px">
+                <v-icon size="14" :color="imprimirSeparacion==='cc'?'#06b6d4':''" class="mr-1">mdi-file-multiple</v-icon>
+                Por Centro de Costo
+              </div>
+              <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Cada centro en página separada</div>
+            </div>
+            <div @click="imprimirSeparacion='todo'"
+                 :style="imprimirSeparacion==='todo' ? 'border-color:#06b6d4;background:rgba(6,182,212,0.08)' : ''"
+                 style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px">
+                <v-icon size="14" :color="imprimirSeparacion==='todo'?'#06b6d4':''" class="mr-1">mdi-file-document</v-icon>
+                Todo junto
+              </div>
+              <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Sin separación entre centros</div>
             </div>
           </div>
         </v-card-text>
@@ -394,10 +419,12 @@ const empleadosAgregados = ref({})
 const dlgImprimir            = ref(false)
 const imprimirCCSeleccionados = ref([])
 const imprimirModo           = ref('detalle')
+const imprimirSeparacion     = ref('cc')
 
 function abrirDialogImprimir() {
   imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
   imprimirModo.value = 'detalle'
+  imprimirSeparacion.value = 'cc'
   dlgImprimir.value = true
 }
 
@@ -408,7 +435,8 @@ function confirmarImprimir() {
     query: {
       semana: semanaSelId.value,
       ccostos: imprimirCCSeleccionados.value.join(','),
-      modo: imprimirModo.value
+      modo: imprimirModo.value,
+      separacion: imprimirSeparacion.value
     }
   })
 }

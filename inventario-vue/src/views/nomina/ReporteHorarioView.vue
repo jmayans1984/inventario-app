@@ -8,13 +8,17 @@
           <h1 class="nom-title">HORARIO SEMANAL — PARA PUBLICAR</h1>
           <p class="nom-sub">Una hoja por centro de costo al imprimir PDF</p>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select v-model="semanaSelId" class="drw-select" style="width:220px" @change="cargarDetalle">
             <option value="">— Seleccionar semana —</option>
             <option v-for="s in semanas" :key="s.id" :value="s.id">
               {{ fmtFecha(s.semana_inicio) }} — {{ s.estado }}
             </option>
           </select>
+          <v-btn color="#06b6d4" variant="outlined" size="small" :disabled="!semanaActual"
+                 @click="irAEditarNomina">
+            <v-icon size="14" class="mr-1">mdi-pencil</v-icon> Editar Nómina
+          </v-btn>
           <v-btn color="#8b5cf6" variant="flat" size="small" :disabled="!semanaActual"
                  @click="imprimirPDF">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
@@ -25,7 +29,7 @@
       <!-- REPORTE: UN BLOQUE POR CENTRO DE COSTOS -->
       <div v-if="semanaActual && semanaActual.semana_inicio" id="horario-print">
         <div v-for="(cc, idx) in ccostosConEmpleados" :key="cc.codigo"
-             class="rh-pagina" :class="{ 'page-break': idx < ccostosConEmpleados.length - 1 }">
+             class="rh-pagina" :class="{ 'page-break': separacionPaginas==='cc' && idx < ccostosConEmpleados.length - 1 }">
 
           <!-- Encabezado de página -->
           <div class="rh-encabezado">
@@ -106,13 +110,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
 
@@ -134,6 +139,7 @@ const filtroCC   = computed(() => {
   return arr.length > 0 ? arr : null
 })
 const modoImpresion = computed(() => route.query.modo || 'detalle')
+const separacionPaginas = computed(() => route.query.separacion || 'cc')
 
 // Solo ccostos que tienen al menos un empleado con turnos esta semana, filtrados por selección
 const ccostosConEmpleados = computed(() => {
@@ -273,10 +279,11 @@ function imprimirPDF() {
   const ventana = window.open('', '_blank')
   if (!ventana) { alert('Activa los pop-ups para abrir el reporte en nueva pestaña'); return }
 
+  const separacion = separacionPaginas.value
   const estilos = `
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; background: white; color: #111; }
-    .pagina { padding: 24px 20px; page-break-after: always; }
+    .pagina { padding: 24px 20px; ${separacion === 'cc' ? 'page-break-after: always;' : ''} }
     .pagina:last-child { page-break-after: auto; }
     .encabezado { text-align: center; margin-bottom: 14px; }
     .titulo { font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-bottom: 4px; }
@@ -368,8 +375,13 @@ function imprimirPDF() {
     <style>${estilos}</style></head><body>${body}</body></html>`)
   ventana.document.close()
   ventana.focus()
-  // Pequeño delay para que carguen los estilos antes de imprimir
-  setTimeout(() => ventana.print(), 500)
+}
+
+function irAEditarNomina() {
+  router.push({
+    path: '/nomina/procesos/horario',
+    query: { semana: semanaSelId.value }
+  })
 }
 
 onMounted(cargarSemanas)
