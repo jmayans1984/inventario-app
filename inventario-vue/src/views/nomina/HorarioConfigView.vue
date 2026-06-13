@@ -73,8 +73,8 @@
                 <span>Pasa medianoche</span>
               </label>
               <div class="cfg-edit-time">
-                <label>Horas</label>
-                <input v-model="editForm.dias[dia.num].horas_default" type="number" step="0.25" class="drw-input" style="width:70px"/>
+                <label>Horas (automático)</label>
+                <input :value="editForm.dias[dia.num].horas_default" type="number" class="drw-input" readonly style="width:70px;opacity:0.6;background:rgba(var(--v-theme-on-surface),0.05)"/>
               </div>
             </template>
           </div>
@@ -89,7 +89,7 @@
   </MainLayout>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
@@ -146,6 +146,27 @@ function editar(c) {
   editForm.value = { id: c.id, nombre: c.nombre, descripcion: c.descripcion||'', dias }
   dlg.value = true
 }
+
+function calcularHoras(hora_inicio, hora_fin, cruza_medianoche) {
+  if (!hora_inicio || !hora_fin) return 0
+  const [h1, m1] = hora_inicio.split(':').map(Number)
+  const [h2, m2] = hora_fin.split(':').map(Number)
+  let minutos = (h2 * 60 + m2) - (h1 * 60 + m1)
+  if (minutos < 0 || cruza_medianoche) minutos += 24 * 60
+  return parseFloat((minutos / 60).toFixed(2))
+}
+
+watch(() => editForm.value.dias, (newDias) => {
+  DIAS.forEach(dia => {
+    if (newDias[dia.num]?.activo && newDias[dia.num].hora_inicio && newDias[dia.num].hora_fin) {
+      newDias[dia.num].horas_default = calcularHoras(
+        newDias[dia.num].hora_inicio,
+        newDias[dia.num].hora_fin,
+        newDias[dia.num].cruza_medianoche
+      )
+    }
+  })
+}, { deep: true })
 
 async function guardar() {
   if (!editForm.value.nombre) return

@@ -125,9 +125,15 @@
 
       <!-- RESUMEN TOTAL DE HORAS -->
       <div v-if="semanaActual && resumenEmpleados.length" class="nom-card resumen-card">
-        <div class="resumen-titulo">
-          <v-icon size="16" color="#8b5cf6" class="mr-1">mdi-chart-bar</v-icon>
-          RESUMEN SEMANAL — HORAS TOTALES POR EMPLEADO
+        <div class="resumen-titulo" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <span>
+            <v-icon size="16" color="#8b5cf6" class="mr-1">mdi-chart-bar</v-icon>
+            RESUMEN SEMANAL — HORAS TOTALES POR EMPLEADO
+          </span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:rgba(var(--v-theme-on-surface),0.6);cursor:pointer">
+            <input type="checkbox" v-model="resumenAgrupadoPorCC" style="width:14px;height:14px;accent-color:#8b5cf6;cursor:pointer" />
+            Agrupar por Centro de Costo
+          </label>
         </div>
         <table class="resumen-tabla">
           <thead>
@@ -143,7 +149,14 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in resumenEmpleados" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
+            <template v-if="resumenAgrupadoPorCC">
+              <template v-for="cc in resumenCCOrdenados" :key="cc">
+                <tr class="resumen-cc-header">
+                  <td colspan="8" style="padding:8px 12px;background:rgba(139,92,246,0.1);font-weight:700;color:#8b5cf6">
+                    📍 {{ cc }}
+                  </td>
+                </tr>
+                <tr v-for="r in resumenPorCC[cc]" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
               <td class="resumen-nombre">
                 {{ r.apellido }}, {{ r.nombre }}
                 <span v-if="r.empresa_contratista" class="resumen-empresa">{{ r.empresa_contratista }}</span>
@@ -167,6 +180,34 @@
               </td>
               <td class="ta-c resumen-pagar">{{ fmtMoney(r.totalPagar) }}</td>
             </tr>
+              </template>
+            </template>
+            <template v-else>
+              <tr v-for="r in resumenEmpleados" :key="r.id" :class="r.overtime > 0 ? 'row-ot' : ''">
+                <td class="resumen-nombre">
+                  {{ r.apellido }}, {{ r.nombre }}
+                  <span v-if="r.empresa_contratista" class="resumen-empresa">{{ r.empresa_contratista }}</span>
+                </td>
+                <td class="ta-c">
+                  <span class="sg-emp-badge" :class="r.tipo_empleado==='W2'?'badge-w2':'badge-1099'">{{ r.tipo_empleado }}</span>
+                </td>
+                <td class="ta-c">
+                  <span v-for="cc in r.centros" :key="cc" class="ccosto-chip">{{ cc }}</span>
+                </td>
+                <td class="ta-c resumen-reg">{{ r.regular.toFixed(2) }}h</td>
+                <td class="ta-c">
+                  <span v-if="r.overtime > 0" class="ot-badge">+{{ r.overtime.toFixed(2) }}h</span>
+                  <span v-else style="color:rgba(var(--v-theme-on-surface),0.25)">—</span>
+                </td>
+                <td class="ta-c resumen-total">{{ r.total.toFixed(2) }}h</td>
+                <td class="ta-c resumen-rate">
+                  <span v-if="r.tipo_pago==='DIA_LABORADO'">{{ fmtMoney(r.valor_dia) }}/día · {{ r.diasTrabajados }}d</span>
+                  <span v-else-if="r.es_por_horas">{{ fmtMoney(r.valor_hora) }}/h</span>
+                  <span v-else class="resumen-fijo">FIJO</span>
+                </td>
+                <td class="ta-c resumen-pagar">{{ fmtMoney(r.totalPagar) }}</td>
+              </tr>
+            </template>
           </tbody>
           <tfoot>
             <tr class="resumen-footer">
@@ -381,6 +422,36 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog SELECCIONAR PLANTILLA -->
+    <v-dialog v-model="dlgSeleccionarPlantilla" max-width="420">
+      <v-card rounded="lg">
+        <v-card-title class="pa-4 d-flex align-center justify-space-between" style="font-size:14px;font-weight:700">
+          <span><v-icon size="16" class="mr-1">mdi-calendar-check</v-icon> Seleccionar Plantilla de Horario</span>
+          <v-btn icon="mdi-close" size="x-small" variant="text" @click="dlgSeleccionarPlantilla=false"/>
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label v-for="cfg in horarioConfigs" :key="cfg.id"
+                   style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px;border:2px solid rgba(var(--v-theme-on-surface),0.1);border-radius:8px;transition:all 0.15s"
+                   :style="plantillaSeleccionadaId === cfg.id ? 'border-color:#8b5cf6;background:rgba(139,92,246,0.08)' : ''">
+              <input type="radio" :value="cfg.id" v-model="plantillaSeleccionadaId" style="width:16px;height:16px;cursor:pointer;accent-color:#8b5cf6" />
+              <div>
+                <div style="font-size:13px;font-weight:700">{{ cfg.nombre || 'Plantilla ' + cfg.id }}</div>
+                <div v-if="cfg.descripcion" style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">{{ cfg.descripcion }}</div>
+              </div>
+            </label>
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer/>
+          <v-btn variant="text" @click="dlgSeleccionarPlantilla=false">Cancelar</v-btn>
+          <v-btn color="#8b5cf6" variant="flat" :disabled="!plantillaSeleccionadaId" @click="confirmarGenerarHorario(plantillaSeleccionadaId)">
+            <v-icon size="14" class="mr-1">mdi-check</v-icon> Generar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </MainLayout>
 </template>
 
@@ -420,6 +491,13 @@ const dlgImprimir            = ref(false)
 const imprimirCCSeleccionados = ref([])
 const imprimirModo           = ref('detalle')
 const imprimirSeparacion     = ref('cc')
+
+// Agrupación del resumen
+const resumenAgrupadoPorCC = ref(false)
+
+// Dialog seleccionar plantilla
+const dlgSeleccionarPlantilla = ref(false)
+const plantillaSeleccionadaId = ref(null)
 
 function abrirDialogImprimir() {
   imprimirCCSeleccionados.value = ccostos.value.map(c => c.codigo)
@@ -542,6 +620,21 @@ const resumenTotales = computed(() => ({
   total:       resumenEmpleados.value.reduce((s,e) => s + e.total,       0),
   totalPagar:  resumenEmpleados.value.reduce((s,e) => s + e.totalPagar,  0)
 }))
+
+const resumenPorCC = computed(() => {
+  const map = {}
+  resumenEmpleados.value.forEach(emp => {
+    emp.centros.forEach(cc => {
+      if (!map[cc]) map[cc] = []
+      map[cc].push(emp)
+    })
+  })
+  return map
+})
+
+const resumenCCOrdenados = computed(() => {
+  return Object.keys(resumenPorCC.value).sort()
+})
 
 function fmtMoney(v) { return '$' + parseFloat(v ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
@@ -732,10 +825,23 @@ async function copiarSemanaAnterior() {
 
 async function generarHorario() {
   if (!semanaSelId.value) return
+  if (!horarioConfigs.value.length) {
+    alert('⚠️ No hay plantillas de horario. Crea una primero.')
+    return
+  }
+  if (horarioConfigs.value.length === 1) {
+    await confirmarGenerarHorario(horarioConfigs.value[0].id)
+  } else {
+    plantillaSeleccionadaId.value = null
+    dlgSeleccionarPlantilla.value = true
+  }
+}
+
+async function confirmarGenerarHorario(cfgId) {
+  if (!semanaSelId.value || !cfgId) return
   try {
-    const cfgId = horarioConfigs.value[0]?.id || null
-    if (!cfgId) { alert('⚠️ No hay plantillas de horario. Crea una primero.'); return }
     await api.post(`/nomina/semanas/${semanaSelId.value}/generar`, { empresa: empresa.value, config_id: cfgId })
+    dlgSeleccionarPlantilla.value = false
     await cargarDetalle()
   } catch(e) { alert('❌ Error: ' + (e?.response?.data?.error || e.message)) }
 }
