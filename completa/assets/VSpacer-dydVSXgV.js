@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-CPLE2msm.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
