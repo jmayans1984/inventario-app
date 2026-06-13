@@ -57,7 +57,10 @@
                   <div class="rh-emp-nombre">{{ emp.apellido }}, {{ emp.nombre }}</div>
                 </td>
                 <td v-for="d in DIAS" :key="d.offset" class="rh-turno"
-                    :class="{ 'rh-verde': modoImpresion==='verde' && getTurnoCcosto(emp.id, d.offset, cc.codigo) && !getTurnoCcosto(emp.id, d.offset, cc.codigo)?.es_dia_libre }">
+                    :class="{
+                      'rh-verde':    modoImpresion==='verde' && getTurnoCcosto(emp.id, d.offset, cc.codigo) && !getTurnoCcosto(emp.id, d.offset, cc.codigo)?.es_dia_libre,
+                      'rh-otro-cc-bg': getTurnoCcosto(emp.id, d.offset, cc.codigo)?.es_dia_libre && tieneOtroCcosto(emp.id, d.offset, cc.codigo)
+                    }">
                   <template v-for="t in [getTurnoCcosto(emp.id, d.offset, cc.codigo)]" :key="0">
                     <template v-if="modoImpresion==='verde'">
                       <span v-if="t && !t.es_dia_libre" class="rh-verde-check">✓</span>
@@ -313,6 +316,8 @@ function imprimirPDF() {
     .libre { font-size: 8px; color: #aaa; font-style: italic; text-transform: uppercase; }
     .vacio { font-size: 11px; color: #ccc; }
     .otro-cc { font-size: 7px; color: #999; font-weight: 600; line-height: 1.2; display: block; }
+    .td-otro-cc { background: #fef9c3 !important; }
+    @media print { .td-otro-cc { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .td-verde { background: #d1fae5 !important; }
     .check-verde { font-size: 14px; color: #059669; font-weight: 900; }
     .td-total { font-weight: 800; font-size: 11px; text-align: center; white-space: nowrap; }
@@ -369,7 +374,8 @@ function imprimirPDF() {
             const t = getTurnoCcosto(emp.id, d.offset, cc.codigo)
             const otroCcNombre = (t && t.es_dia_libre) ? getOtroCcostoNombre(emp.id, d.offset, cc.codigo) : null
             const esVerde = modo === 'verde' && t && !t.es_dia_libre
-            return `<td${esVerde ? ' class="td-verde"' : ''}>${genTurno(t, otroCcNombre)}</td>`
+            const clsTd = esVerde ? 'td-verde' : (otroCcNombre ? 'td-otro-cc' : '')
+            return `<td${clsTd ? ` class="${clsTd}"` : ''}>${genTurno(t, otroCcNombre)}</td>`
           }).join('')}
         </tr>`
       })
@@ -443,6 +449,7 @@ onMounted(cargarSemanas)
 .rh-libre { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.3); text-transform: uppercase; font-style: italic; }
 .rh-vacio { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.15); }
 .rh-otro-cc { font-size: 8px; color: rgba(var(--v-theme-on-surface),0.4); font-weight: 600; line-height: 1.2; display: block; }
+.rh-otro-cc-bg { background: #fef9c3 !important; }
 
 .rh-total { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; font-weight: 800; font-size: 12px; padding: 6px 4px; white-space: nowrap; }
 .rh-ot    { display: block; font-size: 8px; background: rgba(239,68,68,0.15); color: #ef4444; padding: 1px 4px; border-radius: 3px; margin-top: 2px; font-weight: 800; }
@@ -476,6 +483,7 @@ onMounted(cargarSemanas)
   .rh-table th { background: #1e3a5f !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rh-footer-row td { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rh-verde { background: #d1fae5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rh-otro-cc-bg { background: #fef9c3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rh-horas { color: #0088aa !important; }
   .rh-ccosto-nombre { color: #0088aa !important; }
 
