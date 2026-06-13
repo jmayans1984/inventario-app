@@ -61,8 +61,8 @@
               <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="#ef4444" @click="limpiarHorariosPorCC(cc.codigo)">
                 <v-icon size="12" class="mr-1">mdi-trash-can</v-icon> Limpiar
               </v-btn>
-              <v-btn size="x-small" variant="outlined" color="#10b981" @click="abrirAgregarEmp(cc.codigo)">
-                <v-icon size="12" class="mr-1">mdi-plus</v-icon> Agregar
+              <v-btn size="small" variant="flat" color="#06b6d4" @click="abrirAgregarEmp(cc.codigo)">
+                <v-icon size="14" class="mr-1">mdi-account-plus</v-icon> AGREGAR EMPLEADO
               </v-btn>
             </div>
           </div>
