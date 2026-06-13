@@ -913,7 +913,7 @@ async function aplicarPlantillaYCerrar(event) {
   // Generar turnos SOLO para este CC y sus empleados
   try {
     // Obtener la plantilla seleccionada
-    const plantilla = horarioConfigs.value.find(h => h.id === cfgId)
+    const plantilla = horarioConfigs.value.find(h => String(h.id) === cfgId)
     if (!plantilla) throw new Error('Plantilla no encontrada')
 
     // Obtener empleados de este CC
