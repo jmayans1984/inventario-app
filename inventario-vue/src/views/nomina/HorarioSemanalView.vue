@@ -902,10 +902,13 @@ async function generarHorario() {
   if (horarioConfigs.value.length === 1) {
     await confirmarGenerarHorario(horarioConfigs.value[0].id)
   } else {
-    // Limpiar plantillas anteriores
-    Object.keys(plantillasPorCC).forEach(k => delete plantillasPorCC[k])
-    // El usuario debe hacer clic en "Plantilla" para cada CC
-    alert('ℹ️ Haz clic en el botón "Plantilla" de cada Centro de Costo para asignarle un horario')
+    // Con múltiples plantillas, generar directamente con lo que ya está asignado
+    const ccsConPlantilla = ccostos.value.filter(cc => plantillasPorCC[cc.codigo])
+    if (ccsConPlantilla.length === 0) {
+      alert('⚠️ Selecciona una plantilla para al menos un Centro de Costo haciendo clic en el botón "Plantilla"')
+      return
+    }
+    await confirmarGenerarHorarioPorCC()
   }
 }
 
