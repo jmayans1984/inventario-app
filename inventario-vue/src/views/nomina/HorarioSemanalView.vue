@@ -75,12 +75,9 @@
               <!-- Header días -->
               <div class="sg-header-emp">EMPLEADO</div>
               <div v-for="d in DIAS" :key="d.offset" class="sg-header-dia">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
-                  <div>
-                    <div class="sg-dia-nombre">{{ d.label }}</div>
-                    <div class="sg-dia-fecha">{{ fmtDiaMes(semanaActual.semana_inicio, d.offset) }}</div>
-                  </div>
-                  <v-icon size="16" style="cursor:pointer;color:#8b5cf6" @click="abrirEditarDiaMasivo(cc.codigo, d.offset, d.label)">mdi-pencil</v-icon>
+                <div style="display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap">
+                  <div style="font-size:12px;font-weight:700">{{ d.label }} {{ fmtDiaMes(semanaActual.semana_inicio, d.offset).split('-')[0] }}</div>
+                  <v-icon size="14" style="cursor:pointer;color:#8b5cf6" @click="abrirEditarDiaMasivo(cc.codigo, d.offset, d.label)">mdi-pencil</v-icon>
                 </div>
               </div>
 
@@ -1246,7 +1243,7 @@ onMounted(cargarSemanas)
 .estado-cerrado   { background: rgba(239,68,68,0.15); color: #ef4444; }
 
 /* Bloque por ccosto */
-.ccosto-bloque { display: flex; flex-direction: column; }
+.ccosto-bloque { display: flex; flex-direction: column; gap: 20px; }
 .ccosto-titulo-bar {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 16px;
