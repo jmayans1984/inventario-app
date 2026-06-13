@@ -78,6 +78,17 @@
               </div>
             </template>
           </div>
+
+          <!-- RESUMEN TOTAL DE HORAS -->
+          <div style="margin-top:20px;padding:12px;background:rgba(6,182,212,0.08);border-radius:8px;border:1px solid rgba(6,182,212,0.2)">
+            <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px">
+              TOTAL SEMANAL
+            </div>
+            <div style="font-size:24px;font-weight:900;color:#06b6d4;line-height:1">
+              {{ totalHorasSemana.toFixed(2) }}h
+              <span style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5);font-weight:400;margin-left:6px">por semana</span>
+            </div>
+          </div>
         </v-card-text>
         <v-card-actions class="pa-4">
           <v-spacer/>
@@ -112,6 +123,16 @@ function diasDefault() {
   return d
 }
 const editForm = ref({ id:null, nombre:'', descripcion:'', dias: diasDefault() })
+
+const totalHorasSemana = computed(() => {
+  let total = 0
+  DIAS.forEach(dia => {
+    if (editForm.value.dias[dia.num]?.activo) {
+      total += editForm.value.dias[dia.num].horas_default || 0
+    }
+  })
+  return total
+})
 
 function getDia(config, num) {
   return config.dias?.find(d => d.dia_semana === num)
