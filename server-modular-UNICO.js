@@ -9956,7 +9956,12 @@ crearTablasNomina();
 async function agregarColumnasNomina() {
     const queries = [
         `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS fecha_vencimiento_permiso DATE`,
-        `ALTER TABLE nom_config_fiscal ADD COLUMN IF NOT EXISTS cuenta_nomina VARCHAR(50) DEFAULT ''`
+        `ALTER TABLE nom_config_fiscal ADD COLUMN IF NOT EXISTS cuenta_nomina VARCHAR(50) DEFAULT ''`,
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS tipo_pago VARCHAR(15) DEFAULT 'HORAS'`,
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS valor_dia NUMERIC(10,2)`,
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS excluir_wc BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE nom_liquidacion_linea ADD COLUMN IF NOT EXISTS dias_trabajados INT DEFAULT 0`,
+        `ALTER TABLE nom_liquidacion_linea ADD COLUMN IF NOT EXISTS es_por_dia BOOLEAN DEFAULT FALSE`
     ];
     for (const sql of queries) {
         try { await pool.query(sql); }
@@ -10076,8 +10081,8 @@ function calcularRetenciones(empleado, totalBruto, ytdBruto, cfg) {
         fed_tax = Math.max(0, weekly - creditWeekly + parseFloat(empleado.w4_extra_withholding || 0));
     }
 
-    // Workers Comp (employee portion if applicable)
-    const workers_comp = bruto * wcRate;
+    // Workers Comp (employee portion — omitir si excluir_wc=true)
+    const workers_comp = empleado.excluir_wc ? 0 : bruto * wcRate;
 
     const total_deducciones = fed_tax + ss_emp + med_emp + med_adic + workers_comp;
     const total_aportes_er  = ss_er + med_er + futa + suta;
@@ -10169,9 +10174,10 @@ app.post('/api/nomina/empleados', async (req, res) => {
              fecha_ingreso,estado,tipo_empleado,tipo_contrato,empresa_contratista,
              es_por_horas,valor_hora,monto_fijo_semanal,frecuencia_pago,
              ssn,permiso_trabajo,fecha_vencimiento_permiso,w4_filing_status,w4_claim_dependents,
-             w4_extra_withholding,w4_exempt,wc_rate,wc_code,notas)
+             w4_extra_withholding,w4_exempt,wc_rate,wc_code,notas,
+             tipo_pago,valor_dia,excluir_wc)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-             $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
+             $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34)
              RETURNING id`,
             [d.empresa,d.nombre,d.apellido,d.fecha_nacimiento||null,d.email,d.telefono,
              d.direccion,d.ciudad,d.estado_residencia,d.zipcode,
@@ -10181,7 +10187,8 @@ app.post('/api/nomina/empleados', async (req, res) => {
              d.frecuencia_pago||'WEEKLY',d.ssn,d.permiso_trabajo,d.fecha_vencimiento_permiso||null,
              d.w4_filing_status||'SINGLE',d.w4_claim_dependents||0,
              d.w4_extra_withholding||0,d.w4_exempt||false,
-             d.wc_rate||null,d.wc_code,d.notas]
+             d.wc_rate||null,d.wc_code,d.notas,
+             d.tipo_pago||'HORAS',d.valor_dia||null,d.excluir_wc||false]
         );
         // Registrar en historial
         await pool.query(
@@ -10206,8 +10213,9 @@ app.put('/api/nomina/empleados/:id', async (req, res) => {
              frecuencia_pago=$19,ssn=$20,permiso_trabajo=$21,fecha_vencimiento_permiso=$22,
              w4_filing_status=$23,w4_claim_dependents=$24,w4_extra_withholding=$25,w4_exempt=$26,
              wc_rate=$27,wc_code=$28,notas=$29,fecha_retiro=$30,motivo_retiro=$31,
+             tipo_pago=$32,valor_dia=$33,excluir_wc=$34,
              updated_at=NOW()
-             WHERE id=$32`,
+             WHERE id=$35`,
             [d.nombre,d.apellido,d.fecha_nacimiento||null,d.email,d.telefono,
              d.direccion,d.ciudad,d.estado_residencia,d.zipcode,
              d.cargo_id||null,d.ccosto,d.estado,d.tipo_empleado,d.tipo_contrato,
@@ -10216,6 +10224,7 @@ app.put('/api/nomina/empleados/:id', async (req, res) => {
              d.fecha_vencimiento_permiso||null,d.w4_filing_status||'SINGLE',
              d.w4_claim_dependents||0,d.w4_extra_withholding||0,d.w4_exempt||false,
              d.wc_rate||null,d.wc_code,d.notas,d.fecha_retiro||null,d.motivo_retiro,
+             d.tipo_pago||'HORAS',d.valor_dia||null,d.excluir_wc||false,
              req.params.id]
         );
         res.json({ success: true });
@@ -10718,6 +10727,9 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
         let horasPorEmpleado = {};
         let empleadosEnSemana = new Set(); // empleados que tienen turnos en esta semana
 
+        // Días distintos trabajados por empleado (para tipo DIA_LABORADO)
+        let diasPorEmpleado = {};
+
         if (l.semana_id) {
             // Deduplicar: solo un registro por empleado+fecha+ccosto (tomar el MAX de horas)
             const det = await pool.query(
@@ -10740,6 +10752,19 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
                 if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
                 const cc = row.ccosto || 'GEN';
                 horasPorEmpleado[row.empleado_id][cc] = parseFloat(row.horas || 0);
+            }
+
+            // Contar días distintos con horas > 0 por empleado (para pago por día)
+            const diasDet = await pool.query(
+                `SELECT empleado_id, COUNT(DISTINCT fecha) AS dias
+                 FROM nom_semana_detalle
+                 WHERE semana_id=$1 AND es_dia_libre=FALSE
+                   AND COALESCE(real_horas, prog_horas, 0) > 0
+                 GROUP BY empleado_id`,
+                [l.semana_id]
+            );
+            for (const row of diasDet.rows) {
+                diasPorEmpleado[row.empleado_id] = parseInt(row.dias || 0);
             }
         }
 
@@ -10788,10 +10813,15 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
             const totalHoras = Object.values(ccHoras).reduce((s, h) => s + h, 0);
 
             let brutoRegular = 0, brutoOT = 0, brutoBase = 0;
-            let esMontoFijo = false;
+            let esMontoFijo = false, esPorDia = false, diasTrabajados = 0;
 
-            if (emp.tipo_empleado === '1099' && !emp.es_por_horas) {
-                // Fixed amount 1099
+            const tipoPago = emp.tipo_pago || (emp.es_por_horas ? 'HORAS' : 'FIJO_SEMANAL');
+
+            if (tipoPago === 'DIA_LABORADO') {
+                esPorDia = true;
+                diasTrabajados = diasPorEmpleado[emp.id] || 0;
+                brutoBase = diasTrabajados * parseFloat(emp.valor_dia || 0);
+            } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
                 esMontoFijo = true;
                 brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
             } else {
@@ -10815,16 +10845,18 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
                 `INSERT INTO nom_liquidacion_linea
                  (liquidacion_id,empleado_id,tipo_empleado,horas_regulares,horas_overtime,
                   valor_hora,valor_hora_ot,bruto_regular,bruto_overtime,bruto_base,es_monto_fijo,
+                  es_por_dia,dias_trabajados,
                   total_bruto,federal_income_tax,social_security_emp,medicare_emp,
                   medicare_adicional,workers_comp,otras_deducciones,total_deducciones,
                   social_security_er,medicare_er,futa,suta,total_aportes_er,total_neto,ytd_bruto,
                   empresa_contratista)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
                  RETURNING id`,
                 [req.params.id, emp.id, emp.tipo_empleado,
                  horasRegulares, horasOT,
                  emp.valor_hora||0, (emp.valor_hora||0)*otMult,
                  brutoRegular, brutoOT, brutoBase, esMontoFijo,
+                 esPorDia, diasTrabajados,
                  totalBrutoEmp, taxes.federal_income_tax, taxes.social_security_emp,
                  taxes.medicare_emp, taxes.medicare_adicional, taxes.workers_comp,
                  taxes.otras_deducciones, taxes.total_deducciones,

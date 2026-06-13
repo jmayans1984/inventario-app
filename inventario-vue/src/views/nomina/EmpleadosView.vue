@@ -51,8 +51,9 @@
               <td class="nom-cargo">{{ e.cargo_nombre || '—' }}</td>
               <td class="nom-cc">{{ e.ccosto_nombre || e.ccosto || '—' }}</td>
               <td class="nom-rate">
-                <span v-if="e.es_por_horas">${{ fmtNum(e.valor_hora) }}/hr</span>
-                <span v-else>${{ fmtNum(e.monto_fijo_semanal) }}/sem</span>
+                <span v-if="e.tipo_pago==='DIA_LABORADO'">${{ fmtNum(e.valor_dia) }}/día</span>
+                <span v-else-if="e.tipo_pago==='FIJO_SEMANAL' || !e.es_por_horas">${{ fmtNum(e.monto_fijo_semanal) }}/sem</span>
+                <span v-else>${{ fmtNum(e.valor_hora) }}/hr</span>
               </td>
               <td>
                 <span class="nom-estado" :class="e.estado === 'ACTIVO' ? 'estado-activo' : 'estado-inactivo'">
@@ -70,7 +71,7 @@
     </div>
 
     <!-- DRAWER FORMULARIO -->
-    <v-navigation-drawer v-model="drawer" location="right" width="600" temporary>
+    <v-navigation-drawer v-model="drawer" location="right" width="640" temporary>
       <div class="drw-wrap">
         <div class="drw-header">
           <span class="drw-title">{{ editando?.id ? 'EDITAR EMPLEADO' : 'NUEVO EMPLEADO' }}</span>
@@ -78,179 +79,164 @@
         </div>
 
         <div class="drw-body">
-          <!-- Foto -->
-          <div class="drw-foto-row">
-            <div class="drw-foto-wrap">
-              <img v-if="fotoPreview" :src="fotoPreview" class="drw-foto" />
-              <div v-else class="drw-foto-empty">
-                <v-icon size="32" color="rgba(255,255,255,0.2)">mdi-account-circle</v-icon>
+          <!-- Sidebar vertical -->
+          <div class="drw-nav">
+            <div class="drw-nav-foto">
+              <div class="drw-foto-wrap">
+                <img v-if="fotoPreview" :src="fotoPreview" class="drw-foto" />
+                <div v-else class="drw-foto-empty"><v-icon size="28" color="rgba(255,255,255,0.2)">mdi-account-circle</v-icon></div>
+                <v-btn size="x-small" variant="flat" color="#8b5cf6" class="drw-foto-btn" @click="$refs.fotoInput.click()">
+                  <v-icon size="11">mdi-camera</v-icon>
+                </v-btn>
+                <input ref="fotoInput" type="file" accept="image/*" hidden @change="onFoto" />
               </div>
-              <v-btn size="x-small" variant="flat" color="#8b5cf6" class="drw-foto-btn"
-                     @click="$refs.fotoInput.click()">
-                <v-icon size="13">mdi-camera</v-icon>
-              </v-btn>
-              <input ref="fotoInput" type="file" accept="image/*" hidden @change="onFoto" />
+              <div v-if="editando?.id" class="drw-nav-id">#{{ editando.id }}</div>
             </div>
-            <div class="drw-foto-info">
-              <div class="drw-foto-nombre" v-if="editando?.id">ID #{{ editando.id }}</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.4)">{{ editando?.estado || 'ACTIVO' }}</div>
-            </div>
+            <button v-for="t in navTabs" :key="t.value"
+                    class="drw-nav-btn" :class="{active: tabActual===t.value}"
+                    @click="tabActual=t.value">
+              <v-icon size="13">{{ t.icon }}</v-icon>
+              {{ t.label }}
+            </button>
           </div>
 
-          <!-- TABS -->
-          <v-tabs v-model="tabActual" class="drw-tabs">
-            <v-tab value="personal">PERSONAL</v-tab>
-            <v-tab value="direccion">DIRECCIÓN</v-tab>
-            <v-tab value="laboral">LABORAL</v-tab>
-            <v-tab value="compensacion">COMPENSACIÓN</v-tab>
-            <v-tab value="w4">W-4</v-tab>
-            <v-tab value="wc">WORKERS COMP</v-tab>
-            <v-tab value="notas">NOTAS</v-tab>
-          </v-tabs>
-
-          <!-- Secciones del formulario -->
-          <div v-show="tabActual === 'personal'" class="drw-section">
-            <div class="drw-section-title">INFORMACIÓN PERSONAL</div>
-            <div class="drw-grid-2">
-              <div class="drw-field"><label>NOMBRE *</label><input v-model="form.nombre" @input="form.nombre = form.nombre.toUpperCase()" class="drw-input" /></div>
-              <div class="drw-field"><label>APELLIDO *</label><input v-model="form.apellido" @input="form.apellido = form.apellido.toUpperCase()" class="drw-input" /></div>
-              <div class="drw-field"><label>FECHA NACIMIENTO</label><input v-model="form.fecha_nacimiento" type="date" class="drw-input" /></div>
-              <div class="drw-field"><label>EMAIL</label><input v-model="form.email" @input="form.email = form.email.toUpperCase()" type="email" class="drw-input" /></div>
-              <div class="drw-field"><label>TELÉFONO</label><input v-model="form.telefono" @input="form.telefono = form.telefono.toUpperCase()" class="drw-input" /></div>
-              <div class="drw-field"><label>SSN (SOCIAL SECURITY)</label><input v-model="form.ssn" @input="form.ssn = form.ssn.toUpperCase()" class="drw-input" placeholder="XXX-XX-XXXX" /></div>
-            </div>
-          </div>
-
-          <div v-show="tabActual === 'direccion'" class="drw-section">
-            <div class="drw-section-title">DIRECCIÓN</div>
-            <div class="drw-grid-2">
-              <div class="drw-field drw-span-2"><label>DIRECCIÓN</label><input v-model="form.direccion" @input="form.direccion = form.direccion.toUpperCase()" class="drw-input" /></div>
-              <div class="drw-field"><label>ESTADO *</label>
-                <v-select v-model="form.estado_residencia" :items="usaStates" item-title="name" item-value="code" @update:model-value="form.ciudad=''" clearable density="compact" variant="outlined"></v-select>
-              </div>
-              <div class="drw-field"><label>CIUDAD</label>
-                <input v-model="form.ciudad" @input="form.ciudad = form.ciudad.toUpperCase()" class="drw-input" :disabled="!form.estado_residencia" placeholder="ESCRIBE LA CIUDAD" />
-              </div>
-              <div class="drw-field"><label>ZIP CODE</label><input v-model="form.zipcode" @input="form.zipcode = form.zipcode.toUpperCase()" class="drw-input" /></div>
-            </div>
-          </div>
-
-          <div v-show="tabActual === 'laboral'" class="drw-section">
-            <div class="drw-section-title">INFORMACIÓN LABORAL</div>
-            <div class="drw-grid-2">
-              <div class="drw-field"><label>TIPO EMPLEADO *</label>
-                <v-select v-model="form.tipo_empleado" :items="[{title:'W2 — EMPLEADO',value:'W2'},{title:'1099 — CONTRATISTA',value:'1099'}]" density="compact" variant="outlined"></v-select>
-              </div>
-              <div class="drw-field"><label>TIPO CONTRATO</label>
-                <v-select v-model="form.tipo_contrato" :items="[{title:'FULL TIME',value:'FULL_TIME'},{title:'PART TIME',value:'PART_TIME'},{title:'TEMPORAL',value:'TEMPORAL'},{title:'SEASONAL',value:'SEASONAL'}]" density="compact" variant="outlined"></v-select>
-              </div>
-              <div class="drw-field" v-if="form.tipo_empleado === '1099'">
-                <label>EMPRESA CONTRATISTA</label>
-                <input v-model="form.empresa_contratista" @input="form.empresa_contratista = form.empresa_contratista.toUpperCase()" class="drw-input" />
-              </div>
-              <div class="drw-field"><label>CARGO</label>
-                <v-select v-model="form.cargo_id" :items="cargos" item-title="nombre" item-value="id" clearable density="compact" variant="outlined"></v-select>
-              </div>
-              <div class="drw-field"><label>CENTRO DE COSTO</label>
-                <v-select v-model="form.ccosto" :items="ccostos" item-title="nombre" item-value="codigo" clearable density="compact" variant="outlined"></v-select>
-              </div>
-              <div class="drw-field"><label>FECHA INGRESO *</label>
-                <input v-model="form.fecha_ingreso" type="date" class="drw-input" />
-              </div>
-              <div class="drw-field"><label>ESTADO</label>
-                <v-select v-model="form.estado" :items="[{title:'ACTIVO',value:'ACTIVO'},{title:'INACTIVO',value:'INACTIVO'},{title:'LICENCIA',value:'LICENCIA'}]" density="compact" variant="outlined"></v-select>
-              </div>
-              <div class="drw-field" v-if="form.estado === 'INACTIVO'">
-                <label>FECHA RETIRO</label>
-                <input v-model="form.fecha_retiro" type="date" class="drw-input" />
-              </div>
-              <div class="drw-field" v-if="form.estado === 'INACTIVO'" style="grid-column:span 2">
-                <label>MOTIVO RETIRO</label>
-                <input v-model="form.motivo_retiro" @input="form.motivo_retiro = form.motivo_retiro.toUpperCase()" class="drw-input" />
-              </div>
-              <div class="drw-field"><label># PERMISO DE TRABAJO</label>
-                <input v-model="form.permiso_trabajo" @input="form.permiso_trabajo = form.permiso_trabajo.toUpperCase()" class="drw-input" />
-              </div>
-              <div class="drw-field"><label>FECHA VENCIMIENTO PERMISO</label>
-                <input v-model="form.fecha_vencimiento_permiso" type="date" class="drw-input" />
+          <!-- Contenido -->
+          <div class="drw-content">
+            <div v-show="tabActual==='personal'" class="drw-section">
+              <div class="drw-section-title">INFORMACIÓN PERSONAL</div>
+              <div class="drw-grid-2">
+                <div class="drw-field"><label>NOMBRE *</label><input v-model="form.nombre" @input="form.nombre=form.nombre.toUpperCase()" class="drw-input" /></div>
+                <div class="drw-field"><label>APELLIDO *</label><input v-model="form.apellido" @input="form.apellido=form.apellido.toUpperCase()" class="drw-input" /></div>
+                <div class="drw-field"><label>FECHA NACIMIENTO</label><input v-model="form.fecha_nacimiento" type="date" class="drw-input" /></div>
+                <div class="drw-field"><label>EMAIL</label><input v-model="form.email" @input="form.email=form.email.toUpperCase()" type="email" class="drw-input" /></div>
+                <div class="drw-field"><label>TELÉFONO</label><input v-model="form.telefono" @input="form.telefono=form.telefono.toUpperCase()" class="drw-input" /></div>
+                <div class="drw-field"><label>SSN</label><input v-model="form.ssn" @input="form.ssn=form.ssn.toUpperCase()" class="drw-input" placeholder="XXX-XX-XXXX" /></div>
               </div>
             </div>
-          </div>
 
-          <div v-show="tabActual === 'compensacion'" class="drw-section">
-            <div class="drw-section-title">COMPENSACIÓN</div>
-            <div class="drw-grid-2">
-              <div class="drw-field"><label>TIPO DE PAGO</label>
-                <v-select v-model="form.es_por_horas" :items="[{title:'POR HORA',value:true},{title:'MONTO FIJO SEMANAL',value:false}]" density="compact" variant="outlined"></v-select>
-              </div>
-              <div class="drw-field" v-if="form.es_por_horas">
-                <label>VALOR POR HORA ($)</label>
-                <input v-model="form.valor_hora" type="number" step="0.01" min="0" class="drw-input" />
-              </div>
-              <div class="drw-field" v-else>
-                <label>MONTO FIJO SEMANAL ($)</label>
-                <input v-model="form.monto_fijo_semanal" type="number" step="0.01" min="0" class="drw-input" />
-              </div>
-              <div class="drw-field"><label>FRECUENCIA DE PAGO</label>
-                <v-select v-model="form.frecuencia_pago" :items="[{title:'SEMANAL',value:'WEEKLY'},{title:'QUINCENAL',value:'BIWEEKLY'}]" density="compact" variant="outlined"></v-select>
+            <div v-show="tabActual==='direccion'" class="drw-section">
+              <div class="drw-section-title">DIRECCIÓN</div>
+              <div class="drw-grid-2">
+                <div class="drw-field drw-span-2"><label>DIRECCIÓN</label><input v-model="form.direccion" @input="form.direccion=form.direccion.toUpperCase()" class="drw-input" /></div>
+                <div class="drw-field"><label>ESTADO *</label>
+                  <v-select v-model="form.estado_residencia" :items="usaStates" item-title="name" item-value="code" @update:model-value="form.ciudad=''" clearable density="compact" variant="outlined"></v-select>
+                </div>
+                <div class="drw-field"><label>CIUDAD</label>
+                  <input v-model="form.ciudad" @input="form.ciudad=form.ciudad.toUpperCase()" class="drw-input" :disabled="!form.estado_residencia" placeholder="ESCRIBE LA CIUDAD" />
+                </div>
+                <div class="drw-field"><label>ZIP CODE</label><input v-model="form.zipcode" @input="form.zipcode=form.zipcode.toUpperCase()" class="drw-input" /></div>
               </div>
             </div>
-          </div>
 
-          <!-- W4 solo para W2 -->
-          <div v-show="tabActual === 'w4' && form.tipo_empleado === 'W2'" class="drw-section">
-            <div class="drw-section-title">INFORMACIÓN W-4 (RETENCIÓN FEDERAL)</div>
-            <div class="drw-w4-note">
-              <v-icon size="14" color="#f59e0b">mdi-information-outline</v-icon>
-              FLORIDA NO TIENE IMPUESTO ESTATAL. LOS DATOS SOLICITADOS SON DEL FORMULARIO W-4 FEDERAL 2024.
-            </div>
-            <div class="drw-grid-2">
-              <div class="drw-field"><label>FILING STATUS</label>
-                <v-select v-model="form.w4_filing_status" :items="[{title:'SINGLE / MARRIED FILING SEP.',value:'SINGLE'},{title:'MARRIED FILING JOINTLY',value:'MARRIED_JOINTLY'},{title:'HEAD OF HOUSEHOLD',value:'HEAD_OF_HOUSEHOLD'}]" density="compact" variant="outlined"></v-select>
+            <div v-show="tabActual==='laboral'" class="drw-section">
+              <div class="drw-section-title">INFORMACIÓN LABORAL</div>
+              <div class="drw-grid-2">
+                <div class="drw-field"><label>TIPO EMPLEADO *</label>
+                  <v-select v-model="form.tipo_empleado" :items="[{title:'W2 — EMPLEADO',value:'W2'},{title:'1099 — CONTRATISTA',value:'1099'}]" density="compact" variant="outlined"></v-select>
+                </div>
+                <div class="drw-field"><label>TIPO CONTRATO</label>
+                  <v-select v-model="form.tipo_contrato" :items="[{title:'FULL TIME',value:'FULL_TIME'},{title:'PART TIME',value:'PART_TIME'},{title:'TEMPORAL',value:'TEMPORAL'},{title:'SEASONAL',value:'SEASONAL'}]" density="compact" variant="outlined"></v-select>
+                </div>
+                <div class="drw-field" v-if="form.tipo_empleado==='1099'">
+                  <label>EMPRESA CONTRATISTA</label>
+                  <input v-model="form.empresa_contratista" @input="form.empresa_contratista=form.empresa_contratista.toUpperCase()" class="drw-input" />
+                </div>
+                <div class="drw-field"><label>CARGO</label>
+                  <v-select v-model="form.cargo_id" :items="cargos" item-title="nombre" item-value="id" clearable density="compact" variant="outlined"></v-select>
+                </div>
+                <div class="drw-field"><label>CENTRO DE COSTO</label>
+                  <v-select v-model="form.ccosto" :items="ccostos" item-title="nombre" item-value="codigo" clearable density="compact" variant="outlined"></v-select>
+                </div>
+                <div class="drw-field"><label>FECHA INGRESO *</label><input v-model="form.fecha_ingreso" type="date" class="drw-input" /></div>
+                <div class="drw-field"><label>ESTADO</label>
+                  <v-select v-model="form.estado" :items="[{title:'ACTIVO',value:'ACTIVO'},{title:'INACTIVO',value:'INACTIVO'},{title:'LICENCIA',value:'LICENCIA'}]" density="compact" variant="outlined"></v-select>
+                </div>
+                <div class="drw-field" v-if="form.estado==='INACTIVO'"><label>FECHA RETIRO</label><input v-model="form.fecha_retiro" type="date" class="drw-input" /></div>
+                <div class="drw-field drw-span-2" v-if="form.estado==='INACTIVO'"><label>MOTIVO RETIRO</label><input v-model="form.motivo_retiro" @input="form.motivo_retiro=form.motivo_retiro.toUpperCase()" class="drw-input" /></div>
+                <div class="drw-field"><label># PERMISO DE TRABAJO</label><input v-model="form.permiso_trabajo" @input="form.permiso_trabajo=form.permiso_trabajo.toUpperCase()" class="drw-input" /></div>
+                <div class="drw-field"><label>VENCIMIENTO PERMISO</label><input v-model="form.fecha_vencimiento_permiso" type="date" class="drw-input" /></div>
               </div>
-              <div class="drw-field">
-                <label>EXENTO DE RETENCIÓN</label>
-                <div class="drw-check-row">
-                  <input type="checkbox" v-model="form.w4_exempt" class="drw-check" />
-                  <span style="font-size:12px;color:rgba(255,255,255,0.6)">MARCAR SI EL EMPLEADO ES EXEMPT</span>
+            </div>
+
+            <div v-show="tabActual==='compensacion'" class="drw-section">
+              <div class="drw-section-title">COMPENSACIÓN</div>
+              <div class="drw-grid-2">
+                <div class="drw-field"><label>TIPO DE PAGO</label>
+                  <v-select v-model="form.tipo_pago"
+                    :items="[{title:'POR HORA',value:'HORAS'},{title:'MONTO FIJO SEMANAL',value:'FIJO_SEMANAL'},{title:'POR DÍA LABORADO',value:'DIA_LABORADO'}]"
+                    density="compact" variant="outlined"></v-select>
+                </div>
+                <div class="drw-field" v-if="form.tipo_pago==='HORAS'">
+                  <label>VALOR POR HORA ($)</label>
+                  <input v-model="form.valor_hora" type="number" step="0.01" min="0" class="drw-input" />
+                </div>
+                <div class="drw-field" v-else-if="form.tipo_pago==='FIJO_SEMANAL'">
+                  <label>MONTO FIJO SEMANAL ($)</label>
+                  <input v-model="form.monto_fijo_semanal" type="number" step="0.01" min="0" class="drw-input" />
+                </div>
+                <div class="drw-field" v-else-if="form.tipo_pago==='DIA_LABORADO'">
+                  <label>VALOR POR DÍA ($)</label>
+                  <input v-model="form.valor_dia" type="number" step="0.01" min="0" class="drw-input" />
+                </div>
+                <div class="drw-field"><label>FRECUENCIA DE PAGO</label>
+                  <v-select v-model="form.frecuencia_pago" :items="[{title:'SEMANAL',value:'WEEKLY'},{title:'QUINCENAL',value:'BIWEEKLY'}]" density="compact" variant="outlined"></v-select>
                 </div>
               </div>
-              <div class="drw-field">
-                <label>CRÉDITO POR DEPENDIENTES ($)</label>
-                <input v-model="form.w4_claim_dependents" type="number" step="1" min="0" class="drw-input"
-                       placeholder="EJ: 2000 POR HIJO" />
-              </div>
-              <div class="drw-field">
-                <label>RETENCIÓN EXTRA POR PERÍODO ($)</label>
-                <input v-model="form.w4_extra_withholding" type="number" step="0.01" min="0" class="drw-input" />
+              <div v-if="form.tipo_pago==='DIA_LABORADO'" class="drw-info-box">
+                <v-icon size="13" color="#f59e0b">mdi-information-outline</v-icon>
+                EL SISTEMA CONTARÁ LOS DÍAS DISTINTOS QUE APAREZCAN EN EL HORARIO SEMANAL Y MULTIPLICARÁ POR EL VALOR POR DÍA.
               </div>
             </div>
-          </div>
-          <div v-show="tabActual === 'w4' && form.tipo_empleado !== 'W2'" class="drw-section">
-            <div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">
-              W-4 SOLO APLICA A EMPLEADOS W2
-            </div>
-          </div>
 
-          <div v-show="tabActual === 'wc'" class="drw-section">
-            <div class="drw-section-title">WORKERS' COMPENSATION</div>
-            <div class="drw-grid-2">
-              <div class="drw-field"><label>CÓDIGO CLASIFICACIÓN WC</label>
-                <input v-model="form.wc_code" @input="form.wc_code = form.wc_code.toUpperCase()" class="drw-input" placeholder="EJ: 9082 (RESTAURANT)" />
+            <div v-show="tabActual==='w4'" class="drw-section">
+              <template v-if="form.tipo_empleado==='W2'">
+                <div class="drw-section-title">INFORMACIÓN W-4 (RETENCIÓN FEDERAL)</div>
+                <div class="drw-w4-note">
+                  <v-icon size="14" color="#f59e0b">mdi-information-outline</v-icon>
+                  FLORIDA NO TIENE IMPUESTO ESTATAL. LOS DATOS SOLICITADOS SON DEL FORMULARIO W-4 FEDERAL 2024.
+                </div>
+                <div class="drw-grid-2">
+                  <div class="drw-field"><label>FILING STATUS</label>
+                    <v-select v-model="form.w4_filing_status" :items="[{title:'SINGLE / MARRIED FILING SEP.',value:'SINGLE'},{title:'MARRIED FILING JOINTLY',value:'MARRIED_JOINTLY'},{title:'HEAD OF HOUSEHOLD',value:'HEAD_OF_HOUSEHOLD'}]" density="compact" variant="outlined"></v-select>
+                  </div>
+                  <div class="drw-field">
+                    <label>EXENTO DE RETENCIÓN</label>
+                    <div class="drw-check-row"><input type="checkbox" v-model="form.w4_exempt" class="drw-check" /><span style="font-size:12px;color:rgba(255,255,255,0.6)">MARCAR SI EL EMPLEADO ES EXEMPT</span></div>
+                  </div>
+                  <div class="drw-field"><label>CRÉDITO POR DEPENDIENTES ($)</label><input v-model="form.w4_claim_dependents" type="number" step="1" min="0" class="drw-input" placeholder="EJ: 2000 POR HIJO" /></div>
+                  <div class="drw-field"><label>RETENCIÓN EXTRA POR PERÍODO ($)</label><input v-model="form.w4_extra_withholding" type="number" step="0.01" min="0" class="drw-input" /></div>
+                </div>
+              </template>
+              <div v-else style="text-align:center;padding:32px;color:rgba(255,255,255,0.4);font-size:13px">
+                W-4 SOLO APLICA A EMPLEADOS W2
               </div>
-              <div class="drw-field"><label>TASA WC (%)</label>
-                <input v-model="form.wc_rate" type="number" step="0.0001" min="0" class="drw-input"
-                       placeholder="EJ: 0.0525" />
+            </div>
+
+            <div v-show="tabActual==='wc'" class="drw-section">
+              <div class="drw-section-title">WORKERS' COMPENSATION</div>
+              <div class="drw-check-row" style="margin-bottom:12px">
+                <input type="checkbox" v-model="form.excluir_wc" class="drw-check" id="chk-excluir-wc" />
+                <label for="chk-excluir-wc" style="font-size:12px;font-weight:600;cursor:pointer">
+                  EXCLUIR DE WORKERS' COMP (no liquidar WC a este empleado)
+                </label>
+              </div>
+              <div class="drw-grid-2" :style="form.excluir_wc ? 'opacity:0.35;pointer-events:none' : ''">
+                <div class="drw-field"><label>CÓDIGO CLASIFICACIÓN WC</label>
+                  <input v-model="form.wc_code" @input="form.wc_code=form.wc_code.toUpperCase()" class="drw-input" placeholder="EJ: 9082 (RESTAURANT)" />
+                </div>
+                <div class="drw-field"><label>TASA WC (%)</label>
+                  <input v-model="form.wc_rate" type="number" step="0.0001" min="0" class="drw-input" placeholder="EJ: 0.0525" />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div v-show="tabActual === 'notas'" class="drw-section">
-            <div class="drw-section-title">NOTAS</div>
-            <textarea v-model="form.notas" @input="form.notas = form.notas.toUpperCase()" class="drw-textarea" rows="10" placeholder="OBSERVACIONES INTERNAS..."></textarea>
-          </div>
+            <div v-show="tabActual==='notas'" class="drw-section">
+              <div class="drw-section-title">NOTAS</div>
+              <textarea v-model="form.notas" @input="form.notas=form.notas.toUpperCase()" class="drw-textarea" rows="12" placeholder="OBSERVACIONES INTERNAS..."></textarea>
+            </div>
 
-          <div v-if="formErr" class="drw-error">{{ formErr }}</div>
+            <div v-if="formErr" class="drw-error">{{ formErr }}</div>
+          </div>
         </div>
 
         <div class="drw-footer">
@@ -364,16 +350,27 @@ function getNombreDisplay(emp) {
   return `${emp.apellido}, ${emp.nombre}`
 }
 
+const navTabs = [
+  { value: 'personal',     label: 'PERSONAL',     icon: 'mdi-account-outline' },
+  { value: 'direccion',    label: 'DIRECCIÓN',    icon: 'mdi-map-marker-outline' },
+  { value: 'laboral',      label: 'LABORAL',      icon: 'mdi-briefcase-outline' },
+  { value: 'compensacion', label: 'COMPENSACIÓN', icon: 'mdi-currency-usd' },
+  { value: 'w4',           label: 'W-4',          icon: 'mdi-file-document-outline' },
+  { value: 'wc',           label: 'WORKERS COMP', icon: 'mdi-shield-outline' },
+  { value: 'notas',        label: 'NOTAS',        icon: 'mdi-note-text-outline' },
+]
+
 const formDefault = () => ({
   nombre:'', apellido:'', fecha_nacimiento:'', email:'', telefono:'',
   direccion:'', ciudad:'', estado_residencia:'FL', zipcode:'',
   cargo_id:'', ccosto:'', fecha_ingreso:'', fecha_retiro:'', motivo_retiro:'',
   estado:'ACTIVO', tipo_empleado:'W2', tipo_contrato:'FULL_TIME', empresa_contratista:'',
-  es_por_horas:true, valor_hora:'', monto_fijo_semanal:'', frecuencia_pago:'WEEKLY',
+  tipo_pago:'HORAS', es_por_horas:true, valor_hora:'', monto_fijo_semanal:'', valor_dia:'',
+  frecuencia_pago:'WEEKLY',
   ssn:'', permiso_trabajo:'', fecha_vencimiento_permiso:'',
   w4_filing_status:'SINGLE', w4_claim_dependents:0,
   w4_extra_withholding:0, w4_exempt:false,
-  wc_rate:'', wc_code:'', notas:''
+  wc_rate:'', wc_code:'', excluir_wc:false, notas:''
 })
 const form = ref(formDefault())
 
@@ -417,15 +414,16 @@ function editar(e) {
     estado: e.estado||'ACTIVO',
     tipo_empleado: e.tipo_empleado||'W2', tipo_contrato: e.tipo_contrato||'FULL_TIME',
     empresa_contratista: e.empresa_contratista||'',
+    tipo_pago: e.tipo_pago || (e.es_por_horas !== false ? 'HORAS' : 'FIJO_SEMANAL'),
     es_por_horas: e.es_por_horas !== false,
     valor_hora: e.valor_hora||'', monto_fijo_semanal: e.monto_fijo_semanal||'',
-    frecuencia_pago: e.frecuencia_pago||'WEEKLY',
+    valor_dia: e.valor_dia||'', frecuencia_pago: e.frecuencia_pago||'WEEKLY',
     ssn: e.ssn||'', permiso_trabajo: e.permiso_trabajo||'', fecha_vencimiento_permiso: e.fecha_vencimiento_permiso?.split('T')[0]||'',
     w4_filing_status: e.w4_filing_status||'SINGLE',
     w4_claim_dependents: e.w4_claim_dependents||0,
     w4_extra_withholding: e.w4_extra_withholding||0,
     w4_exempt: e.w4_exempt||false,
-    wc_rate: e.wc_rate||'', wc_code: e.wc_code||'', notas: e.notas||''
+    wc_rate: e.wc_rate||'', wc_code: e.wc_code||'', excluir_wc: e.excluir_wc||false, notas: e.notas||''
   }
   fotoPreview.value = null
   fotoBase64.value  = null
@@ -460,7 +458,11 @@ async function guardar() {
   }
   guardando.value = true
   try {
-    const payload = { ...form.value, empresa: empresa.value }
+    const payload = {
+      ...form.value,
+      empresa: empresa.value,
+      es_por_horas: form.value.tipo_pago === 'HORAS'
+    }
     if (editando.value?.id) {
       await api.put(`/nomina/empleados/${editando.value.id}`, payload)
     } else {
@@ -546,29 +548,56 @@ onMounted(cargar)
 .drw-wrap { display: flex; flex-direction: column; height: 100%; background: rgb(var(--v-theme-surface)); }
 .drw-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08);
+  padding: 14px 18px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08);
   flex-shrink: 0;
 }
 .drw-title { font-size: 15px; font-weight: 700; }
-.drw-body  { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.drw-body  { flex: 1; overflow: hidden; display: flex; }
 .drw-footer {
   display: flex; justify-content: flex-end; gap: 10px;
-  padding: 14px 20px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.08);
+  padding: 12px 18px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.08);
   flex-shrink: 0;
 }
 
+/* Sidebar nav */
+.drw-nav {
+  width: 128px; flex-shrink: 0;
+  background: rgba(var(--v-theme-on-surface),0.02);
+  border-right: 1px solid rgba(var(--v-theme-on-surface),0.07);
+  display: flex; flex-direction: column;
+  padding: 12px 0; gap: 2px; overflow-y: auto;
+}
+.drw-nav-foto {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 0 16px; gap: 6px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.07);
+  margin-bottom: 8px;
+}
+.drw-nav-id { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.4); }
+.drw-nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 6px; border: none; background: none; cursor: pointer;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+  color: rgba(var(--v-theme-on-surface),0.45); text-transform: uppercase;
+  border-radius: 8px; margin: 0 6px; transition: all 0.15s;
+  text-align: center;
+}
+.drw-nav-btn:hover { background: rgba(139,92,246,0.08); color: #8b5cf6; }
+.drw-nav-btn.active { background: rgba(139,92,246,0.12); color: #8b5cf6; font-weight: 800; }
+
+/* Content area */
+.drw-content { flex: 1; overflow-y: auto; padding: 16px 18px; }
+
 /* Foto */
-.drw-foto-row { display: flex; align-items: center; gap: 16px; }
 .drw-foto-wrap {
-  width: 80px; height: 80px; border-radius: 50%; flex-shrink: 0;
+  width: 68px; height: 68px; border-radius: 50%;
   border: 2px solid rgba(139,92,246,0.4); position: relative; overflow: hidden;
   background: rgba(139,92,246,0.1);
   display: flex; align-items: center; justify-content: center;
 }
 .drw-foto { width: 100%; height: 100%; object-fit: cover; }
 .drw-foto-empty { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
-.drw-foto-btn { position: absolute; bottom: 2px; right: 2px; width: 24px !important; height: 24px !important; min-width: 0 !important; border-radius: 50% !important; }
-.drw-foto-nombre { font-size: 13px; font-weight: 600; }
+.drw-foto-btn { position: absolute; bottom: 1px; right: 1px; width: 22px !important; height: 22px !important; min-width: 0 !important; border-radius: 50% !important; }
 
 /* Form sections */
 .drw-section { display: flex; flex-direction: column; gap: 10px; }
@@ -592,29 +621,9 @@ onMounted(cargar)
 }
 .drw-input:focus { border-color: #8b5cf6; background: rgba(var(--v-theme-on-surface),0.08); }
 
-:deep(.drw-field .v-select) {
-  font-size: 12px !important;
-}
-:deep(.drw-field .v-select .v-field__input) {
-  font-size: 12px !important;
-  padding: 0 10px !important;
-  min-height: 34px !important;
-}
-:deep(.drw-field .v-select .v-field__control) {
-  min-height: 34px !important;
-}
-
-.drw-tabs {
-  margin-bottom: 12px;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.1);
-}
-:deep(.drw-tabs .v-tab) {
-  font-size: 10px !important;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  min-height: 40px !important;
-  padding: 0 12px !important;
-}
+:deep(.drw-field .v-select) { font-size: 12px !important; }
+:deep(.drw-field .v-select .v-field__input) { font-size: 12px !important; padding: 0 10px !important; min-height: 34px !important; }
+:deep(.drw-field .v-select .v-field__control) { min-height: 34px !important; }
 
 .drw-textarea {
   padding: 8px 10px; border-radius: 7px; width: 100%;
@@ -624,13 +633,19 @@ onMounted(cargar)
   outline: none; resize: vertical;
 }
 
-.drw-check-row { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
-.drw-check { width: 16px; height: 16px; cursor: pointer; }
+.drw-check-row { display: flex; align-items: center; gap: 8px; }
+.drw-check { width: 16px; height: 16px; cursor: pointer; accent-color: #8b5cf6; }
 
 .drw-w4-note {
   display: flex; align-items: center; gap: 6px;
   background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
   border-radius: 8px; padding: 8px 12px; font-size: 11px; color: rgba(var(--v-theme-on-surface),0.7);
 }
-.drw-error { color: #ef4444; font-size: 12px; font-weight: 600; }
+.drw-info-box {
+  display: flex; align-items: flex-start; gap: 6px;
+  background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.15);
+  border-radius: 8px; padding: 8px 12px; font-size: 11px; color: rgba(var(--v-theme-on-surface),0.6);
+  margin-top: 4px;
+}
+.drw-error { color: #ef4444; font-size: 12px; font-weight: 600; margin-top: 8px; }
 </style>
