@@ -163,6 +163,7 @@
                 <td class="ta-c resumen-rate">
                   <span v-if="r.tipo_pago==='DIA_LABORADO'">{{ fmtMoney(r.valor_dia) }}/día · {{ r.diasTrabajados }}d</span>
                   <span v-else-if="r.es_por_horas">{{ fmtMoney(r.valor_hora) }}/h</span>
+                  <span v-else-if="r.tipo_pago==='FIJO_MAS_HORAS'" class="resumen-fijo">FIJO+H</span>
                   <span v-else class="resumen-fijo">FIJO</span>
                 </td>
                 <td class="ta-c resumen-pagar">{{ fmtMoney(r.totalPagar) }}</td>
@@ -634,16 +635,22 @@ const resumenEmpleados = computed(() => {
         empresa_contratista: d.empresa_contratista,
         tipo_empleado: d.tipo_empleado,
         tipo_pago: tipoPago,
+        ccosto_propio: empInfo?.ccosto ?? null,
         valor_hora:  parseFloat(empInfo?.valor_hora  ?? 0),
         valor_dia:   parseFloat(empInfo?.valor_dia   ?? 0),
         monto_fijo:  parseFloat(empInfo?.monto_fijo_semanal ?? 0),
         es_por_horas: tipoPago === 'HORAS',
         total: 0,
+        horasPorCC: {},
         centros: new Set()
       }
     }
-    map[d.empleado_id].total += parseFloat(d.real_horas ?? d.prog_horas ?? 0)
-    if (d.ccosto) map[d.empleado_id].centros.add(d.ccosto)
+    const horas = parseFloat(d.real_horas ?? d.prog_horas ?? 0)
+    map[d.empleado_id].total += horas
+    if (d.ccosto) {
+      map[d.empleado_id].centros.add(d.ccosto)
+      map[d.empleado_id].horasPorCC[d.ccosto] = (map[d.empleado_id].horasPorCC[d.ccosto] ?? 0) + horas
+    }
   })
 
   return Object.values(map).map(e => {
@@ -655,6 +662,13 @@ const resumenEmpleados = computed(() => {
       totalPagar = diasTrabajados * e.valor_dia
     } else if (e.tipo_pago === 'HORAS') {
       totalPagar = (regular * e.valor_hora) + (overtime * e.valor_hora * 1.5)
+    } else if (e.tipo_pago === 'FIJO_MAS_HORAS') {
+      const horasOtrosCC = Object.entries(e.horasPorCC)
+        .filter(([cc]) => String(cc) !== String(e.ccosto_propio))
+        .reduce((s, [, h]) => s + h, 0)
+      const regOtros = Math.min(horasOtrosCC, 40)
+      const otOtros  = Math.max(horasOtrosCC - 40, 0)
+      totalPagar = e.monto_fijo + (regOtros * e.valor_hora) + (otOtros * e.valor_hora * 1.5)
     } else {
       totalPagar = e.monto_fijo
     }
