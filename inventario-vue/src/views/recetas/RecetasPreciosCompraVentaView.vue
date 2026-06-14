@@ -103,6 +103,7 @@
                     'pcv-row--saved':    guardadosOkC.has(item.codigo),
                     'pcv-row--focused':  filaActivaC === idx && tab === 'compra',
                   }]"
+                  :style="filaActivaC === idx && tab === 'compra' ? { background: rowHoverBg } : {}"
                   @click="enfocarC(idx)"
                 >
                   <td class="col-cod font-mono">{{ item.codigo }}</td>
@@ -224,6 +225,7 @@
                     'pcv-row--saved':    guardadosOkV.has(item.codigo),
                     'pcv-row--focused':  filaActivaV === idx && tab === 'venta',
                   }]"
+                  :style="filaActivaV === idx && tab === 'venta' ? { background: rowHoverBg } : {}"
                   @click="enfocarV(idx)"
                 >
                   <td class="col-cod font-mono">{{ item.codigo }}</td>
@@ -296,8 +298,14 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted, nextTick, watch } from 'vue'
+import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
+
+const theme = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
 
 // ── Tab activo ────────────────────────────────────────────────────────────────
 const tab = ref('compra')
@@ -662,7 +670,7 @@ kbd { background: rgba(var(--v-theme-on-surface),.1); border-radius: 4px; paddin
 /* filas */
 .pcv-row { transition: background .15s; cursor: default; }
 .pcv-row:hover           { background: rgba(var(--v-theme-on-surface),.03); }
-.pcv-row--focused        { background: rgba(245,158,11,.06) !important; }
+.pcv-row--focused        { }
 .pcv-row--modified       { background: rgba(245,158,11,.04); }
 .pcv-row--modified td:first-child { border-left: 3px solid #f59e0b; }
 .pcv-row--saved          { background: rgba(34,197,94,.05); }

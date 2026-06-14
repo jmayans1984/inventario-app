@@ -91,7 +91,11 @@
                 </td>
               </tr>
               <!-- Filas del grupo -->
-              <tr v-for="item in group.items" :key="item.codigo" class="ra-row">
+              <tr v-for="item in group.items" :key="item.codigo" class="ra-row"
+                :style="hoveredRow === item.codigo ? { background: rowHoverBg } : {}"
+                @focusin="hoveredRow = item.codigo"
+                @focusout="hoveredRow = null"
+              >
                 <td class="text-caption text-medium-emphasis">{{ item.codigo }}</td>
                 <td class="font-weight-medium">{{ item.nombre }}</td>
                 <td class="text-caption text-medium-emphasis">{{ item.und }}</td>
@@ -443,8 +447,15 @@
 
 <script setup>
 import { ref, computed, reactive, nextTick, onMounted } from 'vue'
+import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
+
+const theme = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
+const hoveredRow = ref(null)
 
 const articulos   = ref([])
 const grupos      = ref([])   // [{ codigo, nombre }] desde grupo_articulos

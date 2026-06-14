@@ -102,6 +102,7 @@
                   'rp-row--saved':    guardadosOk.has(item.codigo),
                   'rp-row--focused':  filaActiva === idx,
                 }]"
+                :style="filaActiva === idx ? { background: rowHoverBg } : {}"
                 @click="enfocar(idx)"
               >
                 <td class="col-cod font-mono">{{ item.codigo }}</td>
@@ -174,8 +175,14 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted, nextTick } from 'vue'
+import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
+
+const theme = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
 
 // ── Estado ────────────────────────────────────────────────────────────────────
 const recetas     = ref([])
@@ -427,7 +434,7 @@ kbd { background: rgba(var(--v-theme-on-surface),.1); border-radius: 4px; paddin
 /* filas */
 .rp-row { transition: background .15s; cursor: default; }
 .rp-row:hover           { background: rgba(var(--v-theme-on-surface),.03); }
-.rp-row--focused        { background: rgba(245,158,11,.06) !important; }
+.rp-row--focused        { }
 .rp-row--modified       { background: rgba(245,158,11,.04); }
 .rp-row--modified td:first-child { border-left: 3px solid #f59e0b; }
 .rp-row--saved          { background: rgba(34,197,94,.05); }

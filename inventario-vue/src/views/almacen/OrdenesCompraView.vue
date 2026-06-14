@@ -189,7 +189,11 @@
               <span class="prod-grupo-count">{{ items.length }} ítem{{ items.length !== 1 ? 's' : '' }}</span>
             </div>
             <div v-for="p in items" :key="p.codigo"
-              class="prod-row" :class="{ 'prod-row--selected': (cantidades[p.codigo] || 0) > 0 }">
+              class="prod-row" :class="{ 'prod-row--selected': (cantidades[p.codigo] || 0) > 0 }"
+              :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
+              @focusin="hoveredRow = p.codigo"
+              @focusout="hoveredRow = null"
+            >
               <div class="col-prod-nombre">
                 <div class="prod-nombre">{{ p.nombre }}</div>
               </div>
@@ -439,7 +443,11 @@
               <span class="prod-grupo-count">{{ items.length }} ítem{{ items.length !== 1 ? 's' : '' }}</span>
             </div>
             <div v-for="p in items" :key="p.codigo"
-              class="prod-row" :class="{ 'prod-row--selected': (cantEdicion[p.codigo] || 0) > 0 }">
+              class="prod-row" :class="{ 'prod-row--selected': (cantEdicion[p.codigo] || 0) > 0 }"
+              :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
+              @focusin="hoveredRow = p.codigo"
+              @focusout="hoveredRow = null"
+            >
               <div class="col-prod-nombre">
                 <div class="prod-nombre">{{ p.nombre }}</div>
               </div>
@@ -524,6 +532,7 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth.js'
@@ -531,6 +540,12 @@ import api from '../../services/api.js'
 import { formatFecha } from '../../utils/formatters'
 
 const authStore = useAuthStore()
+
+const theme = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
+const hoveredRow = ref(null)
 const getEmpresa = () => authStore.empresaCodigo || authStore.empresa || localStorage.getItem('empresaActual')
 
 // Estado principal

@@ -203,6 +203,9 @@
                   :key="p.codigo"
                   class="tf-prod-row"
                   :class="{ 'tf-row-diff': getDiferencia(p.codigo) !== 0 && getFisico(p.codigo) !== null }"
+                  :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
+                  @focusin="hoveredRow = p.codigo"
+                  @focusout="hoveredRow = null"
                 >
                   <td><span class="badge-cod">{{ p.codigo }}</span></td>
                   <td class="td-nom">{{ p.nombre }}</td>
@@ -308,6 +311,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
@@ -315,6 +319,12 @@ import { formatFecha } from '../../utils/formatters'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
+
+const theme = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
+const hoveredRow = ref(null)
 
 function fechaInputLocal() {
   const d = new Date()

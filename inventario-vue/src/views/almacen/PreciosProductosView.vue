@@ -91,7 +91,12 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in grupo.items" :key="p.codigo" :class="{ 'fila-modificada': p._modificado }">
+                <tr v-for="p in grupo.items" :key="p.codigo"
+                  :class="{ 'fila-modificada': p._modificado }"
+                  :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
+                  @focusin="hoveredRow = p.codigo"
+                  @focusout="hoveredRow = null"
+                >
                   <td class="cod-cell"><span class="badge-cod">{{ p.codigo }}</span></td>
                   <td class="nombre-cell">{{ p.nombre }}</td>
                   <td class="desc-cell" :title="p.descripcion">{{ p.descripcion || '—' }}</td>
@@ -148,8 +153,15 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
+
+const theme = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
+const hoveredRow = ref(null)
 
 const productos       = ref([])
 const grupos          = ref([])
