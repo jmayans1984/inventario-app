@@ -356,8 +356,8 @@
                 class="gi-prod-row"
                 :class="{ 'gi-prod-highlighted': getCantidad(p.codigo) !== 0 }"
                 :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
-                @mouseenter="hoveredRow = p.codigo"
-                @mouseleave="hoveredRow = null"
+                @focusin="hoveredRow = p.codigo"
+                @focusout="hoveredRow = null"
               >
                 <td><span class="badge-cod">{{ p.codigo }}</span></td>
                 <td class="td-nom">{{ p.nombre }}</td>
