@@ -60,6 +60,7 @@
                 <td class="nom-cc">{{ e.ccosto_nombre || e.ccosto || '—' }}</td>
                 <td class="nom-rate">
                   <span v-if="e.tipo_pago==='DIA_LABORADO'">${{ fmtNum(e.valor_dia) }}/día</span>
+                  <span v-else-if="e.tipo_pago==='FIJO_MAS_HORAS'">${{ fmtNum(e.monto_fijo_semanal) }}/sem + ${{ fmtNum(e.valor_hora) }}/h</span>
                   <span v-else-if="e.tipo_pago==='FIJO_SEMANAL' || !e.es_por_horas">${{ fmtNum(e.monto_fijo_semanal) }}/sem</span>
                   <span v-else>${{ fmtNum(e.valor_hora) }}/hr</span>
                 </td>
@@ -171,7 +172,7 @@
               <div class="drw-grid-2">
                 <div class="drw-field"><label>TIPO DE PAGO</label>
                   <v-select v-model="form.tipo_pago"
-                    :items="[{title:'POR HORA',value:'HORAS'},{title:'MONTO FIJO SEMANAL',value:'FIJO_SEMANAL'},{title:'POR DÍA LABORADO',value:'DIA_LABORADO'}]"
+                    :items="[{title:'POR HORA',value:'HORAS'},{title:'MONTO FIJO SEMANAL',value:'FIJO_SEMANAL'},{title:'FIJO + HORAS ADICIONALES',value:'FIJO_MAS_HORAS'},{title:'POR DÍA LABORADO',value:'DIA_LABORADO'}]"
                     density="compact" variant="outlined"></v-select>
                 </div>
                 <div class="drw-field" v-if="form.tipo_pago==='HORAS'">
@@ -182,6 +183,10 @@
                   <label>MONTO FIJO SEMANAL ($)</label>
                   <input v-model="form.monto_fijo_semanal" type="number" step="0.01" min="0" class="drw-input" />
                 </div>
+                <div class="drw-field" v-else-if="form.tipo_pago==='FIJO_MAS_HORAS'">
+                  <label>SALARIO FIJO SEMANAL ($)</label>
+                  <input v-model="form.monto_fijo_semanal" type="number" step="0.01" min="0" class="drw-input" />
+                </div>
                 <div class="drw-field" v-else-if="form.tipo_pago==='DIA_LABORADO'">
                   <label>VALOR POR DÍA ($)</label>
                   <input v-model="form.valor_dia" type="number" step="0.01" min="0" class="drw-input" />
@@ -189,6 +194,16 @@
                 <div class="drw-field"><label>FRECUENCIA DE PAGO</label>
                   <v-select v-model="form.frecuencia_pago" :items="[{title:'SEMANAL',value:'WEEKLY'},{title:'QUINCENAL',value:'BIWEEKLY'}]" density="compact" variant="outlined"></v-select>
                 </div>
+              </div>
+              <div v-if="form.tipo_pago==='FIJO_MAS_HORAS'" class="drw-grid-2" style="margin-top:8px">
+                <div class="drw-field">
+                  <label>VALOR POR HORA ADICIONAL ($)</label>
+                  <input v-model="form.valor_hora" type="number" step="0.01" min="0" class="drw-input" />
+                </div>
+              </div>
+              <div v-if="form.tipo_pago==='FIJO_MAS_HORAS'" class="drw-info-box">
+                <v-icon size="13" color="#8b5cf6">mdi-information-outline</v-icon>
+                EL SISTEMA PAGARÁ EL SALARIO FIJO SEMANAL MÁS LAS HORAS REGISTRADAS EN EL HORARIO MULTIPLICADAS POR LA TARIFA ADICIONAL. SI SUPERA 40H SE APLICA OVERTIME (×1.5) SOBRE LAS HORAS EXTRA.
               </div>
               <div v-if="form.tipo_pago==='DIA_LABORADO'" class="drw-info-box">
                 <v-icon size="13" color="#f59e0b">mdi-information-outline</v-icon>

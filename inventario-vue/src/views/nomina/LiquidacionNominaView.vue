@@ -141,8 +141,8 @@
                 <td class="ta-r" :class="parseFloat(l.horas_overtime)>0?'ot-hrs':''">
                   {{ fmtNum(l.horas_overtime) }}h
                 </td>
-                <td class="ta-r dim">{{ l.es_monto_fijo ? 'FIJO' : fmtMoney(l.valor_hora) }}</td>
-                <td class="ta-r dim">{{ fmtMoney(l.bruto_regular) }}</td>
+                <td class="ta-r dim">{{ l.es_monto_fijo && parseFloat(l.horas_regulares)>0 ? 'FIJO+H' : l.es_monto_fijo ? 'FIJO' : fmtMoney(l.valor_hora) }}</td>
+                <td class="ta-r dim">{{ l.es_monto_fijo && parseFloat(l.horas_regulares)===0 ? fmtMoney(l.bruto_base) : fmtMoney(l.bruto_regular) }}</td>
                 <td class="ta-r" :class="parseFloat(l.bruto_overtime)>0?'ot-hrs':''">
                   {{ parseFloat(l.bruto_overtime)>0 ? fmtMoney(l.bruto_overtime) : '—' }}
                 </td>
@@ -156,6 +156,24 @@
               <tr v-if="expandido.has(l.id)" class="expand-row">
                 <td colspan="12">
                   <div class="expand-grid">
+                    <!-- DESGLOSE BRUTO para FIJO+HORAS -->
+                    <div class="expand-section" v-if="l.es_monto_fijo && parseFloat(l.horas_regulares)>0">
+                      <div class="expand-titulo">DESGLOSE DE PAGO</div>
+                      <div class="expand-item">
+                        <span>Salario fijo semanal</span><span>{{ fmtMoney(l.bruto_base) }}</span>
+                      </div>
+                      <div class="expand-item">
+                        <span>Horas adicionales ({{ fmtNum(l.horas_regulares) }}h × {{ fmtMoney(l.valor_hora) }})</span>
+                        <span>{{ fmtMoney(l.bruto_regular) }}</span>
+                      </div>
+                      <div class="expand-item" v-if="parseFloat(l.bruto_overtime)>0">
+                        <span>Overtime ({{ fmtNum(l.horas_overtime) }}h × {{ fmtMoney(l.valor_hora_ot) }})</span>
+                        <span class="ot-hrs">{{ fmtMoney(l.bruto_overtime) }}</span>
+                      </div>
+                      <div class="expand-item expand-total">
+                        <span>TOTAL BRUTO</span><span>{{ fmtMoney(l.total_bruto) }}</span>
+                      </div>
+                    </div>
                     <!-- DEDUCCIONES EMPLEADO con total -->
                     <div class="expand-section">
                       <div class="expand-titulo">DEDUCCIONES EMPLEADO</div>
