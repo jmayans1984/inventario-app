@@ -354,10 +354,8 @@
                 v-for="p in grupo.items"
                 :key="p.codigo"
                 class="gi-prod-row"
-                :class="{
-                  'gi-prod-highlighted': getCantidad(p.codigo) !== 0,
-                  'gi-row-active': hoveredRow === p.codigo
-                }"
+                :class="{ 'gi-prod-highlighted': getCantidad(p.codigo) !== 0 }"
+                :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
                 @mouseenter="hoveredRow = p.codigo"
                 @mouseleave="hoveredRow = null"
               >
@@ -484,6 +482,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
@@ -520,6 +519,11 @@ const errFecha     = ref('')
 const errTipo      = ref('')
 const errCcOrigen  = ref('')
 const errCcDestino = ref('')
+
+const theme = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
 
 // ── Cantidades por producto ───────────────────────────────────
 const cantidades  = ref({})   // { [codigo]: number }
@@ -945,9 +949,6 @@ function aplicarOcr() {
 .gi-prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
 .gi-prod-highlighted { background: rgba(8,145,178,.04) !important; }
 .gi-prod-highlighted:hover { background: rgba(8,145,178,.07) !important; }
-/* Fila activa: rojo pastel en light, amarillo pastel en dark */
-.gi-row-active { background: #fee2e2 !important; }
-:global(.v-theme--dark) .gi-row-active { background: rgba(251,191,36,.18) !important; }
 .gi-table tbody td { padding: 7px 14px; }
 
 .th-cod  { width: 90px; }
