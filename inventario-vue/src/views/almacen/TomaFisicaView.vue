@@ -316,6 +316,11 @@ import { formatFecha } from '../../utils/formatters'
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
 
+function fechaInputLocal() {
+  const d = new Date()
+  return d.toISOString().split('T')[0]
+}
+
 // ── Formulario cabecera ───────────────────────────────────────
 const fecha        = ref(fechaInputLocal())
 const ccosto       = ref(null)

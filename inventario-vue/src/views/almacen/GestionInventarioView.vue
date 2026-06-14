@@ -354,7 +354,12 @@
                 v-for="p in grupo.items"
                 :key="p.codigo"
                 class="gi-prod-row"
-                :class="{ 'gi-prod-highlighted': getCantidad(p.codigo) !== 0 }"
+                :class="{
+                  'gi-prod-highlighted': getCantidad(p.codigo) !== 0,
+                  'gi-row-active': hoveredRow === p.codigo
+                }"
+                @mouseenter="hoveredRow = p.codigo"
+                @mouseleave="hoveredRow = null"
               >
                 <td><span class="badge-cod">{{ p.codigo }}</span></td>
                 <td class="td-nom">{{ p.nombre }}</td>
@@ -517,7 +522,8 @@ const errCcOrigen  = ref('')
 const errCcDestino = ref('')
 
 // ── Cantidades por producto ───────────────────────────────────
-const cantidades = ref({})   // { [codigo]: number }
+const cantidades  = ref({})   // { [codigo]: number }
+const hoveredRow  = ref(null)
 
 function getCantidad(codigo) {
   return cantidades.value[codigo] || 0
@@ -939,6 +945,9 @@ function aplicarOcr() {
 .gi-prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
 .gi-prod-highlighted { background: rgba(8,145,178,.04) !important; }
 .gi-prod-highlighted:hover { background: rgba(8,145,178,.07) !important; }
+/* Fila activa: rojo pastel en light, amarillo pastel en dark */
+.gi-row-active { background: #fee2e2 !important; }
+:global(.v-theme--dark) .gi-row-active { background: rgba(251,191,36,.18) !important; }
 .gi-table tbody td { padding: 7px 14px; }
 
 .th-cod  { width: 90px; }
