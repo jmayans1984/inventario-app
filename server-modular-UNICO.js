@@ -10827,13 +10827,17 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
             } else if (tipoPago === 'FIJO_MAS_HORAS') {
                 esMontoFijo = true;
                 brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+                // Solo contar horas en CCs distintos al CC propio del empleado
+                const horasOtrosCC = Object.entries(ccHoras)
+                    .filter(([cc]) => String(cc) !== String(emp.ccosto))
+                    .reduce((s, [, h]) => s + h, 0);
                 const valorHora = parseFloat(emp.valor_hora || 0);
                 const valorHoraOT = valorHora * otMult;
-                if (totalHoras <= otThreshold) {
-                    horasRegulares = totalHoras;
+                if (horasOtrosCC <= otThreshold) {
+                    horasRegulares = horasOtrosCC;
                 } else {
                     horasRegulares = otThreshold;
-                    horasOT = totalHoras - otThreshold;
+                    horasOT = horasOtrosCC - otThreshold;
                 }
                 brutoRegular = horasRegulares * valorHora;
                 brutoOT = horasOT * valorHoraOT;
