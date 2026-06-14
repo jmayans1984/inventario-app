@@ -123,8 +123,9 @@
                         step="0.01"
                         min="0"
                         class="minimo-input"
+                        :data-codigo="p.codigo"
                         @input="marcarModificado(p)"
-                        @keydown.enter="saltarSiguiente(grupo, p)"
+                        @keydown.enter="saltarSiguiente(p)"
                       />
                     </div>
                   </td>
@@ -268,19 +269,15 @@ function marcarModificado(p) {
   p._modificado = true
 }
 
-function saltarSiguiente(grupo, actual) {
-  const idx = grupo.items.indexOf(actual)
-  if (idx < grupo.items.length - 1) {
-    setTimeout(() => {
-      const inputs = document.querySelectorAll('.minimo-input')
-      const actualInput = Array.from(inputs).find(inp => inp.value === String(actual.stock_minimo))
-      const actualIdx = Array.from(inputs).indexOf(actualInput)
-      if (actualIdx >= 0 && actualIdx + 1 < inputs.length) {
-        inputs[actualIdx + 1].focus()
-        inputs[actualIdx + 1].select()
-      }
-    }, 0)
-  }
+function saltarSiguiente(actual) {
+  setTimeout(() => {
+    const inputs = Array.from(document.querySelectorAll('.minimo-input'))
+    const actualIdx = inputs.findIndex(inp => inp.dataset.codigo === String(actual.codigo))
+    if (actualIdx >= 0 && actualIdx + 1 < inputs.length) {
+      inputs[actualIdx + 1].focus()
+      inputs[actualIdx + 1].select()
+    }
+  }, 0)
 }
 
 async function cargar() {
