@@ -10821,9 +10821,6 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
                 esPorDia = true;
                 diasTrabajados = diasPorEmpleado[emp.id] || 0;
                 brutoBase = diasTrabajados * parseFloat(emp.valor_dia || 0);
-            } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
-                esMontoFijo = true;
-                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
             } else if (tipoPago === 'FIJO_MAS_HORAS') {
                 esMontoFijo = true;
                 brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
@@ -10841,6 +10838,9 @@ app.post('/api/nomina/liquidaciones/:id/calcular', async (req, res) => {
                 }
                 brutoRegular = horasRegulares * valorHora;
                 brutoOT = horasOT * valorHoraOT;
+            } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
+                esMontoFijo = true;
+                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
             } else {
                 const valorHora = parseFloat(emp.valor_hora || 0);
                 const valorHoraOT = valorHora * otMult;
