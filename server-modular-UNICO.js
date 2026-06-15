@@ -954,11 +954,12 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
 
         // ── Detectar conflicto (solo en modo 'new') ───────────────
         if (!mode || mode === 'new') {
-            // Para TRASLADO verificamos el ccOrigen con tipo SALIDA POR TRASLADO
+            // Para TRASLADO verificamos origen+destino específico (cc_relacion = ccDestino)
+            // así un traslado previo a otro CC diferente no genera falsa alarma
             const dupRes = await client.query(
                 `SELECT COUNT(*) AS cnt FROM detalle_inventario
-                 WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
-                [fecha, ccOrigen, emp, mapa.origen]
+                 WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4 AND cc_relacion=$5`,
+                [fecha, ccOrigen, emp, mapa.origen, ccDestino]
             );
             const cnt = parseInt(dupRes.rows[0].cnt);
             if (cnt > 0) {
