@@ -700,29 +700,17 @@ function imprimirDespacho() {
   if (!o) return
 
   const filas = o.detalle.map(item => {
-    const enviado = parseFloat(item.cant_packing) > 0 ? parseFloat(item.cant_packing)
-                  : parseFloat(item.cant_picking) > 0  ? parseFloat(item.cant_picking)
-                  : parseFloat(item.cant_requerida)
     const req = parseFloat(item.cant_requerida)
-    const dif = enviado - req
-    const difStr  = dif === 0 ? '✓' : (dif > 0 ? '+' : '') + dif
-    const difColor= dif === 0 ? '#10b981' : dif < 0 ? '#ef4444' : '#f59e0b'
     return `<tr>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb">${item.producto_nombre}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-family:monospace">${item.producto_codigo}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:12px">${item.producto_codigo}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">${item.producto_nombre}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#555">${item.descripcion || '—'}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${item.und}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700">${req}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700">${enviado}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${difColor}">${difStr}</td>
     </tr>`
   }).join('')
 
   const totalReq = o.detalle.reduce((s, i) => s + parseFloat(i.cant_requerida), 0)
-  const totalEnv = o.detalle.reduce((s, i) => {
-    return s + (parseFloat(i.cant_packing) > 0 ? parseFloat(i.cant_packing)
-               : parseFloat(i.cant_picking) > 0  ? parseFloat(i.cant_picking)
-               : parseFloat(i.cant_requerida))
-  }, 0)
 
   const color = estadoColor(o.estado)
   const estadoNames = { PENDIENTE:'Pendiente', EN_PICKING:'En Picking', EN_PACKING:'En Packing', COMPLETADO:'Completado', CANCELADO:'Cancelado' }
@@ -760,19 +748,16 @@ function imprimirDespacho() {
   </div>
   <table>
     <thead><tr>
+      <th style="width:90px">CÓDIGO</th>
       <th>PRODUCTO</th>
-      <th style="text-align:center">CÓDIGO</th>
-      <th style="text-align:center">UND</th>
-      <th style="text-align:center">REQUERIDO</th>
-      <th style="text-align:center">ENVIADO</th>
-      <th style="text-align:center">DIF.</th>
+      <th>DESCRIPCIÓN</th>
+      <th style="width:55px;text-align:center">UND</th>
+      <th style="width:80px;text-align:center">REQUERIDO</th>
     </tr></thead>
     <tbody>${filas}</tbody>
     <tfoot><tr>
-      <td colspan="3">TOTAL</td>
+      <td colspan="4">TOTAL</td>
       <td style="text-align:center">${totalReq}</td>
-      <td style="text-align:center">${totalEnv}</td>
-      <td style="text-align:center;color:${totalEnv===totalReq?'#10b981':totalEnv<totalReq?'#ef4444':'#f59e0b'}">${totalEnv===totalReq?'✓':(totalEnv>totalReq?'+':'')+(totalEnv-totalReq)}</td>
     </tr></tfoot>
   </table>
   <div class="firmas">
