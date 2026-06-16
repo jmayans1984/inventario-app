@@ -93,6 +93,7 @@ export const MODULES = [
         { name: 'Toma Física', icon: 'mdi-counter', path: '/almacen/procesos/toma-fisica' },
         { name: 'Valoración Mensual', icon: 'mdi-calculator-variant', path: '/almacen/procesos/valoracion' },
         { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/almacen/procesos/ordenes-compra' },
+        { name: 'Despachos de Bodega', icon: 'mdi-truck-delivery-outline', path: '/almacen/procesos/despachos' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Kardex por Período', icon: 'mdi-file-chart-outline', path: '/almacen/reportes/kardex' },

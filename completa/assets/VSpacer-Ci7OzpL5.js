@@ -1,0 +1,1 @@
+import{t as e}from"./createSimpleFunctional-CY4_U-of.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

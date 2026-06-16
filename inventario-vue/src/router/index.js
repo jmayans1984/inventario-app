@@ -40,6 +40,7 @@ const routes = [
   { path: '/almacen/procesos/toma-fisica',             component: () => import('../views/almacen/TomaFisicaView.vue'),        meta: { requiresAuth: true } },
   { path: '/almacen/procesos/valoracion',              component: () => import('../views/almacen/ValoracionView.vue'),        meta: { requiresAuth: true } },
   { path: '/almacen/procesos/ordenes-compra',          component: () => import('../views/almacen/OrdenesCompraView.vue'),     meta: { requiresAuth: true } },
+  { path: '/almacen/procesos/despachos',               component: () => import('../views/almacen/DespachosBodegaView.vue'),   meta: { requiresAuth: true } },
   { path: '/almacen/reportes/kardex',                  component: () => import('../views/almacen/ReporteKardexView.vue'),     meta: { requiresAuth: true } },
   { path: '/almacen/reportes/consumos',                component: () => import('../views/almacen/ReporteConsumosView.vue'),   meta: { requiresAuth: true } },
   { path: '/almacen/reportes/consumo-insumos',         component: () => import('../views/almacen/ReporteConsumoInsumosView.vue'), meta: { requiresAuth: true } },

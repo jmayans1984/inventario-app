@@ -849,6 +849,166 @@ app.get('/api/almacen/barcode-lookup', async (req, res) => {
     }
 });
 
+// ── DESPACHOS DE BODEGA ───────────────────────────────────────────────────────
+
+// GET /api/almacen/despachos?empresa=&fecha=&estado=&cc_destino=
+app.get('/api/almacen/despachos', async (req, res) => {
+    const { empresa, fecha, estado, cc_destino } = req.query;
+    try {
+        const conds = ['od.empresa=$1'];
+        const params = [empresa];
+        if (fecha)      { params.push(fecha);      conds.push(`od.fecha=$${params.length}`); }
+        if (estado)     { params.push(estado);     conds.push(`od.estado=$${params.length}`); }
+        if (cc_destino) { params.push(cc_destino); conds.push(`od.cc_destino=$${params.length}`); }
+
+        const result = await pool.query(`
+            SELECT od.*,
+                   co.nombre AS cc_origen_nombre,
+                   cd.nombre AS cc_destino_nombre,
+                   (SELECT COUNT(*) FROM ordenes_despacho_detalle WHERE orden_id=od.id) AS total_items,
+                   (SELECT COALESCE(SUM(cant_requerida),0) FROM ordenes_despacho_detalle WHERE orden_id=od.id) AS total_unidades
+            FROM ordenes_despacho od
+            LEFT JOIN ccostos co ON co.codigo=od.cc_origen AND co.empresa=od.empresa
+            LEFT JOIN ccostos cd ON cd.codigo=od.cc_destino AND cd.empresa=od.empresa
+            WHERE ${conds.join(' AND ')}
+            ORDER BY od.fecha DESC, od.id DESC
+        `, params);
+        res.json({ success: true, data: result.rows });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET /api/almacen/despachos/:id  — detalle completo con líneas
+app.get('/api/almacen/despachos/:id', async (req, res) => {
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    try {
+        const [rOrden, rDetalle] = await Promise.all([
+            pool.query(`
+                SELECT od.*,
+                       co.nombre AS cc_origen_nombre,
+                       cd.nombre AS cc_destino_nombre
+                FROM ordenes_despacho od
+                LEFT JOIN ccostos co ON co.codigo=od.cc_origen AND co.empresa=od.empresa
+                LEFT JOIN ccostos cd ON cd.codigo=od.cc_destino AND cd.empresa=od.empresa
+                WHERE od.id=$1 AND od.empresa=$2
+            `, [req.params.id, empresa]),
+            pool.query(`
+                SELECT odd.*, p.nombre AS producto_nombre, p.und
+                FROM ordenes_despacho_detalle odd
+                JOIN productos p ON p.codigo=odd.producto_codigo
+                WHERE odd.orden_id=$1
+                ORDER BY p.nombre
+            `, [req.params.id]),
+        ]);
+        if (rOrden.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
+        res.json({ success: true, data: { ...rOrden.rows[0], detalle: rDetalle.rows } });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST /api/almacen/despachos  — crear orden
+app.post('/api/almacen/despachos', async (req, res) => {
+    const { empresa, fecha, cc_origen, cc_destino, observaciones, creado_por, detalle } = req.body;
+    if (!fecha || !cc_origen || !cc_destino)
+        return res.status(400).json({ success: false, error: 'fecha, cc_origen y cc_destino son requeridos' });
+    if (!detalle || detalle.length === 0)
+        return res.status(400).json({ success: false, error: 'La orden debe tener al menos un producto' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const rOrden = await client.query(`
+            INSERT INTO ordenes_despacho (empresa, fecha, cc_origen, cc_destino, observaciones, creado_por)
+            VALUES ($1,$2,$3,$4,$5,$6) RETURNING id
+        `, [empresa, fecha, cc_origen, cc_destino, observaciones || null, creado_por || null]);
+        const ordenId = rOrden.rows[0].id;
+        for (const item of detalle) {
+            await client.query(`
+                INSERT INTO ordenes_despacho_detalle (orden_id, producto_codigo, cant_requerida)
+                VALUES ($1,$2,$3)
+            `, [ordenId, item.producto_codigo, parseFloat(item.cant_requerida) || 0]);
+        }
+        await client.query('COMMIT');
+        res.json({ success: true, id: ordenId });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PUT /api/almacen/despachos/:id  — editar orden (solo si está PENDIENTE)
+app.put('/api/almacen/despachos/:id', async (req, res) => {
+    const empresa = req.body.empresa || req.headers['x-empresa'];
+    const { fecha, cc_destino, observaciones, detalle } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const rCheck = await client.query(
+            `SELECT estado FROM ordenes_despacho WHERE id=$1 AND empresa=$2`, [req.params.id, empresa]
+        );
+        if (rCheck.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, error: 'No encontrado' }); }
+        if (rCheck.rows[0].estado !== 'PENDIENTE') { await client.query('ROLLBACK'); return res.status(409).json({ success: false, error: 'Solo se pueden editar órdenes en estado PENDIENTE' }); }
+
+        await client.query(
+            `UPDATE ordenes_despacho SET fecha=$1, cc_destino=$2, observaciones=$3 WHERE id=$4`,
+            [fecha, cc_destino, observaciones || null, req.params.id]
+        );
+        // Reemplazar detalle completo
+        await client.query(`DELETE FROM ordenes_despacho_detalle WHERE orden_id=$1`, [req.params.id]);
+        for (const item of (detalle || [])) {
+            await client.query(`
+                INSERT INTO ordenes_despacho_detalle (orden_id, producto_codigo, cant_requerida)
+                VALUES ($1,$2,$3)
+            `, [req.params.id, item.producto_codigo, parseFloat(item.cant_requerida) || 0]);
+        }
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PATCH /api/almacen/despachos/:id/estado  — cambiar estado
+app.patch('/api/almacen/despachos/:id/estado', async (req, res) => {
+    const empresa = req.body.empresa || req.headers['x-empresa'];
+    const { estado } = req.body;
+    const ESTADOS = ['PENDIENTE','EN_PICKING','EN_PACKING','COMPLETADO','CANCELADO'];
+    if (!ESTADOS.includes(estado)) return res.status(400).json({ success: false, error: 'Estado inválido' });
+    try {
+        const extra = estado === 'COMPLETADO' ? ', fecha_completado=NOW()' : '';
+        const result = await pool.query(
+            `UPDATE ordenes_despacho SET estado=$1${extra} WHERE id=$2 AND empresa=$3 RETURNING *`,
+            [estado, req.params.id, empresa]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// DELETE /api/almacen/despachos/:id  — cancelar/eliminar (solo PENDIENTE)
+app.delete('/api/almacen/despachos/:id', async (req, res) => {
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    try {
+        const rCheck = await pool.query(
+            `SELECT estado FROM ordenes_despacho WHERE id=$1 AND empresa=$2`, [req.params.id, empresa]
+        );
+        if (rCheck.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
+        if (rCheck.rows[0].estado !== 'PENDIENTE') return res.status(409).json({ success: false, error: 'Solo se pueden eliminar órdenes en estado PENDIENTE' });
+        await pool.query(`DELETE FROM ordenes_despacho WHERE id=$1 AND empresa=$2`, [req.params.id, empresa]);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // PATCH /api/almacen/productos/:codigo/toggle-control — alternar SI/NO
 app.patch('/api/almacen/productos/:codigo/toggle-control', async (req, res) => {
     const { codigo } = req.params;
@@ -11455,6 +11615,37 @@ app.listen(PORT, async () => {
         console.log('✅ Columna cc_relacion verificada/creada');
     } catch (err) {
         console.error('⚠️  Error al crear columna cc_relacion:', err.message);
+    }
+
+    // Crear tablas de despachos de bodega
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ordenes_despacho (
+                id           SERIAL PRIMARY KEY,
+                empresa      VARCHAR(20) NOT NULL,
+                fecha        DATE NOT NULL,
+                cc_origen    VARCHAR(10) NOT NULL,
+                cc_destino   VARCHAR(10) NOT NULL,
+                estado       VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
+                observaciones TEXT,
+                creado_por   VARCHAR(100),
+                creado_en    TIMESTAMP DEFAULT NOW(),
+                fecha_completado TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ordenes_despacho_detalle (
+                id              SERIAL PRIMARY KEY,
+                orden_id        INTEGER NOT NULL REFERENCES ordenes_despacho(id) ON DELETE CASCADE,
+                producto_codigo VARCHAR(20) NOT NULL,
+                cant_requerida  NUMERIC(12,4) DEFAULT 0,
+                cant_picking    NUMERIC(12,4) DEFAULT 0,
+                cant_packing    NUMERIC(12,4) DEFAULT 0
+            )
+        `);
+        console.log('✅ Tablas ordenes_despacho verificadas/creadas');
+    } catch (err) {
+        console.error('⚠️  Error al crear tablas ordenes_despacho:', err.message);
     }
 
     // Crear tabla producto_barcodes si no existe
