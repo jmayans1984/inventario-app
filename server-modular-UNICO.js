@@ -901,7 +901,7 @@ app.get('/api/almacen/despachos/:id', async (req, res) => {
                 JOIN productos p ON p.codigo=odd.producto_codigo
                 LEFT JOIN grupo_productos g ON g.codigo=p.grupo
                 WHERE odd.orden_id=$1
-                ORDER BY g.nombre NULLS LAST, p.nombre
+                ORDER BY g.codigo NULLS LAST, p.nombre
             `, [req.params.id]),
         ]);
         if (rOrden.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });

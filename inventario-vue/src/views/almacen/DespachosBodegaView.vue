@@ -441,7 +441,11 @@ const productosAgrupados = computed(() => {
     if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
     mapa.get(key).items.push(p)
   }
-  return Array.from(mapa.values())
+  return Array.from(mapa.values()).sort((a, b) => {
+    const na = parseInt(a.key) || 999999
+    const nb = parseInt(b.key) || 999999
+    return na - nb
+  })
 })
 
 const productosConCantidad = computed(() =>
