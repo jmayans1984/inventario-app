@@ -285,7 +285,14 @@
                 <div class="dlg-sub">{{ fmtFecha(detalleActivo.fecha) }} · {{ detalleActivo.cc_destino_nombre }}</div>
               </div>
             </div>
-            <v-btn icon variant="text" color="white" size="small" @click="dlgDetalle=false"><v-icon>mdi-close</v-icon></v-btn>
+            <div style="display:flex;align-items:center;gap:6px">
+              <v-btn v-if="detalleActivo.estado === 'PENDIENTE'" variant="flat"
+                style="background:rgba(255,255,255,.2);color:white" size="small"
+                prepend-icon="mdi-pencil" @click="abrirEditar(detalleActivo)">
+                Editar
+              </v-btn>
+              <v-btn icon variant="text" color="white" size="small" @click="dlgDetalle=false"><v-icon>mdi-close</v-icon></v-btn>
+            </div>
           </div>
 
           <v-card-text class="pa-5" style="max-height:65vh;overflow-y:auto">
@@ -306,7 +313,7 @@
             </div>
             <div v-if="detalleActivo.observaciones" class="det-obs mb-4">{{ detalleActivo.observaciones }}</div>
 
-            <!-- Tabla de detalle -->
+            <!-- Tabla de detalle agrupada por grupo -->
             <table class="detalle-table">
               <thead>
                 <tr>
@@ -318,30 +325,26 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in detalleActivo.detalle" :key="item.id" :class="difClass(item)">
-                  <td>
-                    <div class="item-cod">{{ item.producto_codigo }}</div>
-                    <div class="item-nom">{{ item.producto_nombre }}</div>
-                  </td>
-                  <td class="ta-c num-cell">{{ item.cant_requerida }}</td>
-                  <td class="ta-c num-cell">{{ item.cant_picking || 0 }}</td>
-                  <td class="ta-c num-cell">{{ item.cant_packing || 0 }}</td>
-                  <td class="ta-c">
-                    <span v-if="detalleActivo.estado==='COMPLETADO' || parseFloat(item.cant_packing)>0"
-                      :class="difValClass(item)">
-                      {{ difVal(item) }}
-                    </span>
-                    <span v-else class="dif-na">—</span>
-                  </td>
-                </tr>
+                <template v-for="grupo in detalleAgrupado" :key="grupo.nombre">
+                  <tr class="det-grupo-row">
+                    <td colspan="5" class="det-grupo-cell">{{ grupo.nombre }}</td>
+                  </tr>
+                  <tr v-for="item in grupo.items" :key="item.id" :class="difClass(item)">
+                    <td><div class="item-nom">{{ item.producto_nombre }}</div></td>
+                    <td class="ta-c num-cell">{{ item.cant_requerida }}</td>
+                    <td class="ta-c num-cell">{{ item.cant_picking || 0 }}</td>
+                    <td class="ta-c num-cell">{{ item.cant_packing || 0 }}</td>
+                    <td class="ta-c">
+                      <span v-if="detalleActivo.estado==='COMPLETADO' || parseFloat(item.cant_packing)>0"
+                        :class="difValClass(item)">
+                        {{ difVal(item) }}
+                      </span>
+                      <span v-else class="dif-na">—</span>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
-
-            <div v-if="detalleActivo.estado === 'PENDIENTE'" class="det-acciones mt-4">
-              <v-btn variant="tonal" color="#047857" @click="abrirEditar(detalleActivo)">
-                <v-icon start size="16">mdi-pencil</v-icon>Editar Orden
-              </v-btn>
-            </div>
           </v-card-text>
 
           <v-divider />
@@ -350,7 +353,7 @@
               Imprimir Reporte
             </v-btn>
             <v-spacer />
-            <v-btn variant="text" @click="dlgDetalle=false">Cerrar</v-btn>
+            <v-btn variant="flat" color="#ef4444" @click="dlgDetalle=false" style="color:white">Cerrar</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -451,6 +454,22 @@ const productosAgrupados = computed(() => {
 const productosConCantidad = computed(() =>
   Object.values(cantidades.value).filter(v => parseFloat(v) > 0).length
 )
+
+const detalleAgrupado = computed(() => {
+  if (!detalleActivo.value?.detalle) return []
+  const mapa = new Map()
+  for (const item of detalleActivo.value.detalle) {
+    const key    = item.grupo_codigo || '__sin_grupo__'
+    const nombre = item.grupo_nombre || 'Sin Grupo'
+    if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
+    mapa.get(key).items.push(item)
+  }
+  return Array.from(mapa.values()).sort((a, b) => {
+    const na = parseInt(a.key) || 999999
+    const nb = parseInt(b.key) || 999999
+    return na - nb
+  })
+})
 
 const despachosFiltrados = computed(() => {
   let lista = despachos.value
@@ -941,4 +960,6 @@ onMounted(async () => {
 .det-val       { font-size: 13px; font-weight: 600; }
 .det-obs       { font-size: 13px; color: rgba(var(--v-theme-on-surface),.6); font-style: italic; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 6px; }
 .det-acciones  { display: flex; gap: 8px; }
+.det-grupo-row { background: rgba(139,92,246,.07); }
+.det-grupo-cell { padding: 5px 10px !important; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #7c3aed; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
 </style>
