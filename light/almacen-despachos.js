@@ -812,6 +812,50 @@ function mostrarDialogoFactor(nombre, factor) {
     });
 }
 
+// ══════════════════════════════════════════════════════════════
+// CÁMARA — Escáner de barcode con cámara del celular
+// ══════════════════════════════════════════════════════════════
+let codeReader = null;
+
+async function abrirCamara() {
+    const overlay = document.getElementById('camaraOverlay');
+    overlay.classList.add('activo');
+
+    try {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        const video = document.getElementById('camaraVideo');
+
+        await codeReader.decodeFromConstraints(
+            { video: { facingMode: 'environment' } },
+            video,
+            (result, err) => {
+                if (result) {
+                    const codigo = result.getText();
+                    cerrarCamara();
+                    document.getElementById('scannerInput').value = codigo;
+                    procesarScan(codigo);
+                }
+                // err puede ser NotFoundException (frame sin código) — ignorar
+            }
+        );
+    } catch (e) {
+        cerrarCamara();
+        const msg = e.name === 'NotAllowedError'
+            ? 'Permiso de cámara denegado. Actívalo en la configuración del navegador.'
+            : 'No se pudo acceder a la cámara: ' + e.message;
+        alert(msg);
+    }
+}
+
+function cerrarCamara() {
+    if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+    }
+    document.getElementById('camaraOverlay').classList.remove('activo');
+    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();} }, 200);
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 function fmtFecha(f) {
     if (!f) return '—';
