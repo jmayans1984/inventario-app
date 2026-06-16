@@ -37,6 +37,17 @@
           </div>
           <v-icon size="16" color="#10b981" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
+
+        <div class="mod-card" @click="go('/almacen/configuracion/impresion-barcodes')">
+          <div class="mod-card-icon" style="background:rgba(16,185,129,.12)">
+            <v-icon size="22" color="#10b981">mdi-barcode</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Impresión de Códigos de Barras</div>
+            <div class="mod-card-desc">Etiquetas con nombre y código del producto</div>
+          </div>
+          <v-icon size="16" color="#10b981" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
       </div>
 
       <!-- SECCIÓN: PROCESOS -->

@@ -1,0 +1,261 @@
+<template>
+  <MainLayout>
+    <div class="bcv-container">
+
+      <!-- BREADCRUMB -->
+      <div class="bcv-breadcrumb">
+        <span class="bc-root">ALMACÉN</span>
+        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
+        <span class="bc-cat">Configuración</span>
+        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
+        <span class="bc-current">Impresión de Códigos de Barras</span>
+      </div>
+
+      <!-- HEADER -->
+      <div class="bcv-header">
+        <div class="bcv-header-left">
+          <div class="bcv-icon-wrap">
+            <v-icon size="22" color="white">mdi-barcode</v-icon>
+          </div>
+          <div>
+            <h1 class="bcv-title">IMPRESIÓN DE CÓDIGOS DE BARRAS</h1>
+            <p class="bcv-sub">Etiquetas con nombre y código del producto</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPCIONES DE IMPRESIÓN -->
+      <div class="bcv-opciones">
+        <v-text-field
+          v-model.number="cantidad"
+          type="number"
+          min="1"
+          label="Cant. por etiqueta"
+          variant="outlined"
+          density="compact"
+          hide-details
+          style="max-width: 160px"
+        />
+        <v-select
+          v-model="porFila"
+          :items="[2,3,4,5]"
+          label="Etiquetas por fila"
+          variant="outlined"
+          density="compact"
+          hide-details
+          style="max-width: 170px"
+        />
+      </div>
+
+      <!-- FILTROS -->
+      <div class="bcv-filtros">
+        <div class="bcv-search">
+          <v-icon size="18" style="color:rgba(var(--v-theme-on-surface),.4)">mdi-magnify</v-icon>
+          <input
+            v-model="search"
+            type="text"
+            placeholder="Buscar producto por nombre o código..."
+            class="bcv-search-input"
+          />
+          <v-icon v-if="search" size="16" style="cursor:pointer;color:rgba(var(--v-theme-on-surface),.4)" @click="search=''">mdi-close</v-icon>
+        </div>
+        <v-btn variant="text" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
+          Actualizar
+        </v-btn>
+      </div>
+
+      <div class="bcv-contador">
+        {{ productosFiltrados.length }} producto(s) · {{ seleccionados.size }} seleccionado(s)
+      </div>
+
+      <!-- LISTA -->
+      <div class="bcv-lista-wrap">
+        <div v-if="loading" class="bcv-empty">
+          <v-progress-circular indeterminate color="#0891b2" size="36" />
+          <p class="mt-3" style="color:rgba(var(--v-theme-on-surface),.5)">Cargando productos...</p>
+        </div>
+        <div v-else-if="productosFiltrados.length === 0" class="bcv-empty">
+          <v-icon size="36" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
+          <p style="color:rgba(var(--v-theme-on-surface),.4);margin:8px 0 0">No se encontraron productos</p>
+        </div>
+        <div v-else class="bcv-lista">
+          <div
+            v-for="p in productosFiltrados"
+            :key="p.codigo"
+            class="bcv-item"
+            :class="{ sel: seleccionados.has(p.codigo) }"
+            @click="toggleProducto(p.codigo)"
+          >
+            <v-checkbox
+              :model-value="seleccionados.has(p.codigo)"
+              density="compact"
+              hide-details
+              color="#10b981"
+              @click.stop="toggleProducto(p.codigo)"
+            />
+            <div>
+              <div class="bcv-item-nombre">{{ p.nombre }}</div>
+              <div class="bcv-item-cod">{{ p.codigo }}{{ p.und ? ' · ' + p.und : '' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BARRA INFERIOR -->
+      <div class="bcv-bottom-bar">
+        <v-btn variant="outlined" @click="toggleSeleccionarTodos">☑️ Todos / Ninguno</v-btn>
+        <v-btn color="#047857" variant="elevated" :disabled="seleccionados.size === 0" @click="imprimirSeleccionados">
+          🖨️ Imprimir ({{ seleccionados.size }})
+        </v-btn>
+      </div>
+
+    </div>
+  </MainLayout>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import MainLayout from '../../components/layouts/MainLayout.vue'
+import JsBarcode from 'jsbarcode'
+import { productosAlmacenService } from '../../services/productos-almacen.service'
+
+const productos     = ref([])
+const loading        = ref(false)
+const search         = ref('')
+const seleccionados  = ref(new Set())
+const cantidad        = ref(1)
+const porFila         = ref(3)
+
+const productosFiltrados = computed(() => {
+  const q = search.value.trim().toUpperCase()
+  if (!q) return productos.value
+  return productos.value.filter(p =>
+    p.nombre.toUpperCase().includes(q) || String(p.codigo).toUpperCase().includes(q)
+  )
+})
+
+async function cargar() {
+  loading.value = true
+  try {
+    const res = await productosAlmacenService.getProductos()
+    productos.value = res.data || []
+  } catch (e) {
+    console.error('Error cargando productos:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+function toggleProducto(codigo) {
+  if (seleccionados.value.has(codigo)) seleccionados.value.delete(codigo)
+  else seleccionados.value.add(codigo)
+  seleccionados.value = new Set(seleccionados.value)
+}
+
+function toggleSeleccionarTodos() {
+  const visibles = productosFiltrados.value
+  const todosYaSeleccionados = visibles.every(p => seleccionados.value.has(p.codigo))
+  if (todosYaSeleccionados) {
+    visibles.forEach(p => seleccionados.value.delete(p.codigo))
+  } else {
+    visibles.forEach(p => seleccionados.value.add(p.codigo))
+  }
+  seleccionados.value = new Set(seleccionados.value)
+}
+
+function imprimirSeleccionados() {
+  if (seleccionados.value.size === 0) return
+
+  const cant   = Math.max(1, parseInt(cantidad.value) || 1)
+  const fila   = parseInt(porFila.value) || 3
+  const elegidos = productos.value.filter(p => seleccionados.value.has(p.codigo))
+
+  let etiquetasHtml = ''
+  elegidos.forEach(p => {
+    const canvas = document.createElement('canvas')
+    try {
+      JsBarcode(canvas, String(p.codigo), {
+        format: 'CODE128', displayValue: true,
+        fontSize: 12, textMargin: 2, height: 40, width: 1.6, margin: 4,
+      })
+    } catch {
+      return
+    }
+    const img = canvas.toDataURL('image/png')
+    for (let i = 0; i < cant; i++) {
+      etiquetasHtml += `
+        <div class="etiqueta">
+          <div class="etiqueta-nombre">${p.nombre}</div>
+          <img src="${img}" class="etiqueta-img" />
+        </div>`
+    }
+  })
+
+  const ventana = window.open('', '_blank')
+  ventana.document.write(`
+    <!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>Códigos de Barras</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; margin: 10px; }
+      .grid { display: grid; grid-template-columns: repeat(${fila}, 1fr); gap: 8px; }
+      .etiqueta { border: 1px dashed #999; border-radius: 6px; padding: 8px 6px; text-align: center; page-break-inside: avoid; }
+      .etiqueta-nombre { font-size: 11px; font-weight: 700; margin-bottom: 4px; line-height: 1.2; min-height: 26px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+      .etiqueta-img { width: 100%; max-width: 220px; }
+      @media print { .etiqueta { border: none; } }
+    </style>
+    </head><body>
+    <div class="grid">${etiquetasHtml}</div>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>
+  `)
+  ventana.document.close()
+}
+
+onMounted(cargar)
+</script>
+
+<style scoped>
+.bcv-container { padding: 24px; max-width: 1000px; margin: 0 auto; padding-bottom: 90px; }
+
+.bcv-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
+.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
+.bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
+.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
+.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
+
+.bcv-header      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.bcv-header-left { display: flex; align-items: center; gap: 16px; }
+.bcv-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#047857,#10b981); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(16,185,129,.35); flex-shrink: 0; }
+.bcv-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
+.bcv-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
+
+.bcv-opciones { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+
+.bcv-filtros      { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.bcv-search       { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 8px; border: 1px solid rgba(var(--v-theme-on-surface),.08); flex: 1; min-width: 260px; }
+.bcv-search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: rgb(var(--v-theme-on-surface)); }
+.bcv-search-input::placeholder { color: rgba(var(--v-theme-on-surface),.4); }
+
+.bcv-contador { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 10px; }
+
+.bcv-lista-wrap { background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-theme-on-surface),.08); overflow: hidden; }
+.bcv-empty { display: flex; flex-direction: column; align-items: center; padding: 60px 20px; }
+.bcv-lista { display: flex; flex-direction: column; }
+.bcv-item {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
+}
+.bcv-item:hover { background: rgba(var(--v-theme-on-surface),.02); }
+.bcv-item.sel { background: rgba(16,185,129,.06); }
+.bcv-item-nombre { font-weight: 600; font-size: 14px; }
+.bcv-item-cod { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); font-family: monospace; }
+
+.bcv-bottom-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; background: rgb(var(--v-theme-surface));
+  border-top: 1px solid rgba(var(--v-theme-on-surface),.1); padding: 14px 16px; display: flex; gap: 10px;
+  justify-content: center; z-index: 100;
+}
+.bcv-bottom-bar .v-btn { max-width: 280px; flex: 1; }
+</style>
