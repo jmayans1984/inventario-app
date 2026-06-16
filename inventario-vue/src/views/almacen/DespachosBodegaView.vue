@@ -322,6 +322,9 @@
 
           <v-divider />
           <v-card-actions class="pa-4">
+            <v-btn variant="tonal" color="#047857" prepend-icon="mdi-printer-outline" @click="imprimirDespacho">
+              Imprimir Reporte
+            </v-btn>
             <v-spacer />
             <v-btn variant="text" @click="dlgDetalle=false">Cerrar</v-btn>
           </v-card-actions>
@@ -586,6 +589,100 @@ async function abrirDetalle(d) {
   } finally {
     cargandoDet.value = false
   }
+}
+
+function imprimirDespacho() {
+  const o = detalleActivo.value
+  if (!o) return
+
+  const filas = o.detalle.map(item => {
+    const enviado = parseFloat(item.cant_packing) > 0 ? parseFloat(item.cant_packing)
+                  : parseFloat(item.cant_picking) > 0  ? parseFloat(item.cant_picking)
+                  : parseFloat(item.cant_requerida)
+    const req = parseFloat(item.cant_requerida)
+    const dif = enviado - req
+    const difStr = dif === 0 ? '✓' : (dif > 0 ? '+' : '') + dif
+    const difColor = dif === 0 ? '#10b981' : dif < 0 ? '#ef4444' : '#f59e0b'
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb">${item.producto_nombre}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-family:monospace">${item.producto_codigo}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${item.und}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700">${req}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700">${enviado}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${difColor}">${difStr}</td>
+    </tr>`
+  }).join('')
+
+  const totalReq = o.detalle.reduce((s, i) => s + parseFloat(i.cant_requerida), 0)
+  const totalEnv = o.detalle.reduce((s, i) => {
+    return s + (parseFloat(i.cant_packing) > 0 ? parseFloat(i.cant_packing)
+               : parseFloat(i.cant_picking) > 0  ? parseFloat(i.cant_picking)
+               : parseFloat(i.cant_requerida))
+  }, 0)
+
+  const estadoColors = { PENDIENTE:'#f59e0b', EN_PICKING:'#3b82f6', EN_PACKING:'#8b5cf6', COMPLETADO:'#10b981', CANCELADO:'#6b7280' }
+  const estadoNames  = { PENDIENTE:'Pendiente', EN_PICKING:'En Picking', EN_PACKING:'En Packing', COMPLETADO:'Completado', CANCELADO:'Cancelado' }
+  const color = estadoColors[o.estado] || '#047857'
+
+  const ventana = window.open('', '_blank')
+  ventana.document.write(`<!DOCTYPE html><html><head>
+  <meta charset="UTF-8">
+  <title>Reporte Despacho #${o.id}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 30px; }
+    .encabezado { border-left: 5px solid ${color}; padding: 0 0 0 14px; margin-bottom: 24px; }
+    .encabezado h1 { font-size: 20px; font-weight: 800; }
+    .encabezado p  { font-size: 12px; color: #555; margin-top: 3px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: ${color}22; color: ${color}; }
+    .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin-bottom: 20px; }
+    .meta-item label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; display: block; }
+    .meta-item span  { font-size: 13px; font-weight: 600; margin-top: 2px; display: block; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 9px 10px; background: #f3f4f6; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 2px solid #d1d5db; }
+    tfoot td { padding: 9px 10px; font-weight: 700; border-top: 2px solid #d1d5db; background: #f9fafb; }
+    .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 50px; }
+    .firma-linea { border-top: 1px solid #000; padding-top: 8px; text-align: center; font-size: 12px; color: #555; }
+    @media print { body { padding: 15px; } }
+  </style>
+  </head><body>
+  <div class="encabezado">
+    <h1>REPORTE DE DESPACHO</h1>
+    <p>Orden #${o.id} &nbsp;·&nbsp; ${fmtFecha(o.fecha)} &nbsp;·&nbsp; <span class="badge">${estadoNames[o.estado] || o.estado}</span></p>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-item"><label>CC Origen</label><span>${o.cc_origen_nombre}</span></div>
+    <div class="meta-item"><label>CC Destino</label><span>${o.cc_destino_nombre}</span></div>
+    <div class="meta-item"><label>Observaciones</label><span>${o.observaciones || '—'}</span></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>PRODUCTO</th>
+        <th style="text-align:center">CÓDIGO</th>
+        <th style="text-align:center">UND</th>
+        <th style="text-align:center">REQUERIDO</th>
+        <th style="text-align:center">ENVIADO</th>
+        <th style="text-align:center">DIF.</th>
+      </tr>
+    </thead>
+    <tbody>${filas}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">TOTAL</td>
+        <td style="text-align:center">${totalReq}</td>
+        <td style="text-align:center">${totalEnv}</td>
+        <td style="text-align:center;color:${totalEnv===totalReq?'#10b981':totalEnv<totalReq?'#ef4444':'#f59e0b'}">${totalEnv===totalReq?'✓':(totalEnv>totalReq?'+':'')+(totalEnv-totalReq)}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="firmas">
+    <div class="firma-linea">Firma Despachador</div>
+    <div class="firma-linea">Firma Receptor</div>
+  </div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`)
+  ventana.document.close()
 }
 
 async function eliminar(d) {
