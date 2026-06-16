@@ -10,6 +10,7 @@ let modoEscaneo      = null;   // 'picking' | 'packing'
 let scanBuffer       = '';     // acumula chars del scanner BT
 let scanTimeout      = null;   // limpia buffer si el scanner tarda
 let barcodeNoEncontrado = null; // barcode pendiente de asociar
+let estadoCambiado   = false;  // evita actualizar estado antes del primer scan
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -98,9 +99,10 @@ async function abrirOrden(id) {
 function renderDetalle() {
     const o   = ordenActiva;
     const est = o.estado;
+    const algoPicado    = o.detalle.some(i => parseFloat(i.cant_picking) > 0);
     const puedePickear  = est === 'PENDIENTE' || est === 'EN_PICKING';
-    const puedePackear  = est === 'EN_PICKING' || est === 'EN_PACKING';
-    const puedeConfirmar= est === 'EN_PACKING' || est === 'EN_PICKING';
+    const puedePackear  = (est === 'EN_PICKING' && algoPicado) || est === 'EN_PACKING';
+    const puedeConfirmar= est === 'EN_PACKING' || (est === 'EN_PICKING' && algoPicado);
 
     const filas = o.detalle.map(item => {
         const req  = parseFloat(item.cant_requerida) || 0;
@@ -177,26 +179,10 @@ function renderDetalle() {
 async function iniciarEscaneo(modo) {
     modoEscaneo  = modo;
     scanBuffer   = '';
-
-    // Cambiar estado en backend
-    const nuevoEst = modo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
-    try {
-        await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
-        });
-        ordenActiva.estado = nuevoEst;
-    } catch(e) { /* continuar igualmente */ }
+    estadoCambiado = false; // se actualiza el estado solo al primer scan real
 
     renderEscaneo();
     mostrarScreen('escaneo');
-
-    // Focus automático al input del scanner
-    setTimeout(() => {
-        const inp = document.getElementById('scannerInput');
-        if (inp) { inp.focus(); inp.select(); }
-    }, 200);
 }
 
 function renderEscaneo() {
@@ -291,7 +277,21 @@ async function procesarScan(barcode) {
             delta = esCaja ? factor : 1;
         }
 
-        // 4. Registrar el scan en backend
+        // 4. Cambiar estado al primer scan real
+        if (!estadoCambiado) {
+            const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
+            try {
+                await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
+                });
+                ordenActiva.estado = nuevoEst;
+                estadoCambiado = true;
+            } catch(e) { /* continuar igualmente */ }
+        }
+
+        // 5. Registrar el scan en backend
         const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
         const resS  = await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
             method: 'PATCH',

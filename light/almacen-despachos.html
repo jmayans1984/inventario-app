@@ -318,9 +318,10 @@
             <!-- Input principal del scanner -->
             <div class="scan-input-wrap">
                 <input type="text" id="scannerInput"
-                    placeholder="📡 Escanea o escribe el código..."
+                    placeholder="📡 Escanea o toca aquí para escribir el código..."
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                    onkeydown="onScanKeydown(event)" />
+                    onkeydown="onScanKeydown(event)"
+                    onclick="this.select()" />
             </div>
 
             <!-- Feedback del último scan -->
