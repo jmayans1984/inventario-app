@@ -284,11 +284,86 @@ app.get('/api/empresas/all', async (req, res) => {
 app.get('/api/almacen/grupo-productos', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT codigo, nombre FROM grupo_productos ORDER BY nombre`
+            `SELECT codigo, nombre, COALESCE(activo,'SI') AS activo FROM grupo_productos ORDER BY nombre`
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error GET /api/almacen/grupo-productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/almacen/grupo-productos/proximo-codigo — siguiente código numérico disponible
+app.get('/api/almacen/grupo-productos/proximo-codigo', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT codigo FROM grupo_productos WHERE codigo ~ '^[0-9]+$' ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`
+        );
+        const ultimo = result.rows[0]?.codigo ? parseInt(result.rows[0].codigo) : 0;
+        res.json({ success: true, codigo: String(ultimo + 1).padStart(3, '0') });
+    } catch (error) {
+        console.error('Error GET /api/almacen/grupo-productos/proximo-codigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/almacen/grupo-productos — crear grupo
+app.post('/api/almacen/grupo-productos', async (req, res) => {
+    try {
+        const { codigo, nombre, activo } = req.body;
+        if (!codigo || !nombre) {
+            return res.status(400).json({ success: false, error: 'Código y nombre son requeridos' });
+        }
+        await pool.query(
+            `INSERT INTO grupo_productos (codigo, nombre, activo) VALUES ($1, $2, $3)`,
+            [codigo, nombre, activo || 'SI']
+        );
+        const result = await pool.query(
+            `SELECT codigo, nombre, COALESCE(activo,'SI') AS activo FROM grupo_productos WHERE codigo = $1`,
+            [codigo]
+        );
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/almacen/grupo-productos:', error);
+        if (error.code === '23505') {
+            return res.status(400).json({ success: false, error: 'Ya existe un grupo con ese código' });
+        }
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/almacen/grupo-productos/:codigo — editar grupo
+app.put('/api/almacen/grupo-productos/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { nombre, activo } = req.body;
+        await pool.query(
+            `UPDATE grupo_productos SET nombre = $1, activo = COALESCE($2, activo) WHERE codigo = $3`,
+            [nombre, activo, codigo]
+        );
+        const result = await pool.query(
+            `SELECT codigo, nombre, COALESCE(activo,'SI') AS activo FROM grupo_productos WHERE codigo = $1`,
+            [codigo]
+        );
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/almacen/grupo-productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/almacen/grupo-productos/:codigo — eliminar grupo (solo si no tiene productos asociados)
+app.delete('/api/almacen/grupo-productos/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const enUso = await pool.query(`SELECT 1 FROM productos WHERE grupo = $1 LIMIT 1`, [codigo]);
+        if (enUso.rows.length > 0) {
+            return res.status(400).json({ success: false, error: 'No se puede eliminar: hay productos asociados a este grupo' });
+        }
+        await pool.query(`DELETE FROM grupo_productos WHERE codigo = $1`, [codigo]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/almacen/grupo-productos:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -7764,6 +7839,10 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 // ── GRUPO DE PRODUCTOS DE VENTA ────────────────────────────────
 // Asegurar columna activo en grupo_productos_venta
 pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
+
+// ── GRUPO DE PRODUCTOS (ALMACÉN) ────────────────────────────────
+// Asegurar columna activo en grupo_productos
+pool.query(`ALTER TABLE grupo_productos ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 
 // ── PRODUCTOS ────────────────────────────────────────────────────
 // Asegurar columnas en productos (franquicia/proveeduría/precios)

@@ -1,6 +1,6 @@
 export const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api'
 
-export const APP_VERSION = '1.02'
+export const APP_VERSION = '1.03'
 
 export const MODULES = [
   {
@@ -93,6 +93,7 @@ export const MODULES = [
         { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos', requiredTipo: 'PROVEEDOR' },
         { name: 'Control de Stock', icon: 'mdi-package-variant-closed', path: '/almacen/configuracion/control-stock', requiredTipo: 'PROVEEDOR' },
         { name: 'Impresión de Códigos de Barras', icon: 'mdi-barcode', path: '/almacen/configuracion/impresion-barcodes' },
+        { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/almacen/configuracion/grupo-productos' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },

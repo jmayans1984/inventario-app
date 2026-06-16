@@ -14,6 +14,26 @@ export const productosAlmacenService = {
     return res.data
   },
 
+  async getProximoCodigoGrupo() {
+    const res = await api.get('/almacen/grupo-productos/proximo-codigo')
+    return res.data
+  },
+
+  async crearGrupo(data) {
+    const res = await api.post('/almacen/grupo-productos', data)
+    return res.data
+  },
+
+  async actualizarGrupo(codigo, data) {
+    const res = await api.put(`/almacen/grupo-productos/${codigo}`, data)
+    return res.data
+  },
+
+  async eliminarGrupo(codigo) {
+    const res = await api.delete(`/almacen/grupo-productos/${codigo}`)
+    return res.data
+  },
+
   async getProximoCodigo() {
     const res = await api.get(`${BASE}/proximo-codigo`)
     return res.data
