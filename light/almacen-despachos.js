@@ -588,38 +588,130 @@ function mostrarAsociadorBarcode(barcode) {
 
 async function seleccionarProductoParaBarcode(productoCodigo) {
     const barcode = barcodeNoEncontrado;
-    cerrarAsociador();
+    const item    = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
 
-    // 1. Guardar la asociación barcode → producto
+    // Cerrar el selector de producto y pedir el factor
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+    panel.innerHTML = `
+      <div style="padding:20px 16px 16px">
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Código escaneado</div>
+        <div style="font-size:15px;font-weight:700;font-family:monospace;margin-bottom:16px">${barcode}</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">
+          ¿Cuántas <strong>unidades</strong> representa este código de barras?
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button onclick="setFactor(1)"  class="btn-factor" id="bf1">× 1</button>
+          <button onclick="setFactor(6)"  class="btn-factor" id="bf6">× 6</button>
+          <button onclick="setFactor(12)" class="btn-factor" id="bf12">× 12</button>
+          <button onclick="setFactor(24)" class="btn-factor" id="bf24">× 24</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button onclick="setFactor(40)"  class="btn-factor" id="bf40">× 40</button>
+          <button onclick="setFactor(48)"  class="btn-factor" id="bf48">× 48</button>
+          <button onclick="setFactor(120)" class="btn-factor" id="bf120">× 120</button>
+          <button onclick="setFactor(0)"   class="btn-factor" id="bf0" style="background:var(--bg-input)">Otro</button>
+        </div>
+        <div id="factorOtroWrap" style="display:none;margin-bottom:12px">
+          <input type="number" id="factorOtroInput" min="1" inputmode="numeric"
+            placeholder="Ej: 50"
+            style="width:100%;padding:12px;border-radius:10px;border:2px solid var(--border-color);
+                   background:var(--bg-input);color:var(--text-primary);font-size:16px;box-sizing:border-box;outline:none" />
+        </div>
+        <button id="btnConfirmarFactor" onclick="confirmarFactorBarcode('${productoCodigo}', '${barcode}')"
+          style="width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
+                 background:#047857;color:white;font-size:15px;font-weight:700;margin-bottom:8px">
+          Confirmar y registrar
+        </button>
+        <button onclick="cancelarFactorBarcode()"
+          style="width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
+                 background:transparent;color:var(--text-secondary);font-size:13px">
+          Cancelar
+        </button>
+      </div>
+    `;
+
+    // Factor seleccionado actualmente
+    window._factorSeleccionado = 1;
+    document.getElementById('bf1').style.background = '#047857';
+    document.getElementById('bf1').style.color = 'white';
+}
+
+function setFactor(val) {
+    // Resaltar botón seleccionado
+    document.querySelectorAll('.btn-factor').forEach(b => {
+        b.style.background = 'var(--bg-input)';
+        b.style.color = 'var(--text-primary)';
+    });
+    const otroWrap = document.getElementById('factorOtroWrap');
+    if (val === 0) {
+        otroWrap.style.display = 'block';
+        document.getElementById('factorOtroInput').focus();
+        window._factorSeleccionado = 0;
+        document.getElementById('bf0').style.background = '#047857';
+        document.getElementById('bf0').style.color = 'white';
+    } else {
+        otroWrap.style.display = 'none';
+        window._factorSeleccionado = val;
+        const btn = document.getElementById('bf' + val);
+        if (btn) { btn.style.background = '#047857'; btn.style.color = 'white'; }
+    }
+}
+
+async function confirmarFactorBarcode(productoCodigo, barcode) {
+    let factor = window._factorSeleccionado;
+    if (factor === 0) {
+        factor = parseInt(document.getElementById('factorOtroInput').value) || 1;
+    }
+    if (factor < 1) factor = 1;
+
+    document.getElementById('bsOverlay').classList.remove('open');
+    barcodeNoEncontrado = null;
+
+    // 1. Guardar la asociación barcode → producto con factor
     try {
         await fetch(`${API_BASE}/almacen/productos/${productoCodigo}/barcodes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresa: getEmpresa(), barcode, es_principal: false })
+            body: JSON.stringify({ empresa: getEmpresa(), barcode, es_principal: false, factor })
         });
-    } catch(e) { /* si falla la asociación igual procesamos el scan */ }
+    } catch(e) { /* continuar igualmente */ }
 
-    // 2. Procesar el scan directamente (ya sabemos el producto)
+    // 2. Registrar el scan con el factor como delta
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
     const item  = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
     if (!item) { showFeedback('warn', '⚠️ Producto no encontrado en la orden'); return; }
+
+    // Cambiar estado al primer scan si aplica
+    if (!estadoCambiado) {
+        const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
+        try {
+            await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
+            });
+            ordenActiva.estado = nuevoEst;
+            estadoCambiado = true;
+        } catch(e) { /* continuar */ }
+    }
 
     try {
         const res  = await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: productoCodigo, tipo: modoEscaneo, delta: 1 })
+            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: productoCodigo, tipo: modoEscaneo, delta: factor })
         });
         const data = await res.json();
         if (!data.success) { showFeedback('error', '❌ Error al registrar scan'); return; }
 
         item[campo] = parseFloat(data.data[campo]) || 0;
-
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
-        const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre} — ${nuevo}/${req} (falta ${req-nuevo})`
-                    : nuevo === req ? `✅ ${item.producto_nombre} — ¡Completo! (${nuevo}/${req})`
-                    :                 `🔴 ${item.producto_nombre} — Sobrante: ${nuevo}/${req}`;
+        const sufijo = factor > 1 ? ` (×${factor})` : '';
+        const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`
+                    : nuevo === req ? `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`
+                    :                 `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`;
         showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
         actualizarFilaScan(item, campo);
     } catch(e) {
@@ -627,6 +719,12 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
     }
 
     setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 150);
+}
+
+function cancelarFactorBarcode() {
+    document.getElementById('bsOverlay').classList.remove('open');
+    barcodeNoEncontrado = null;
+    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
 }
 
 function cerrarAsociador(e) {
