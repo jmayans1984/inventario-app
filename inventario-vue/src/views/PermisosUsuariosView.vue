@@ -109,7 +109,7 @@
                     v-if="!isModuloDeshabilitado(mod.path)"
                     :model-value="estadoPlataforma(mod.path)"
                     @update:model-value="(val) => setEstadoPlataforma(mod.path, val)"
-                    :items="PLATAFORMA_OPTS"
+                    :items="platformOptsFor(mod.path)"
                     item-title="title"
                     item-value="value"
                     variant="outlined"
@@ -131,7 +131,7 @@
                 <div v-if="!isModuloDeshabilitado(mod.path)" class="pc-items-list">
                   <template v-for="cat in mod.children" :key="cat.name">
                     <template v-for="item in cat.items" :key="item.path">
-                      <div class="pc-item-row">
+                      <div v-if="!isClienteItemDeshabilitado(item.path)" class="pc-item-row">
                         <v-icon size="13" class="pc-item-icon">{{ item.icon }}</v-icon>
                         <span class="pc-item-nombre">{{ item.name }}</span>
                         <span class="pc-item-cat">{{ cat.name }}</span>
@@ -139,7 +139,7 @@
                           v-if="!isItemDeshabilitado(item.path)"
                           :model-value="estadoPlataforma(item.path)"
                           @update:model-value="(val) => setEstadoPlataforma(item.path, val)"
-                          :items="PLATAFORMA_OPTS"
+                          :items="platformOptsFor(item.path)"
                           item-title="title"
                           item-value="value"
                           variant="outlined"
@@ -194,6 +194,9 @@ const usuarioSeleccionado = ref(null)
 const rutasDeshabilitadas = ref([])
 const rutasDeshabilitadasMovil = ref([])
 const rutasDeshabilitadasCompleta = ref([])
+const clienteRutasDeshabilitadas = ref([])
+const clienteRutasDeshabilitadasMovil = ref([])
+const clienteRutasDeshabilitadasCompleta = ref([])
 const loadingPermisos = ref(false)
 const guardando = ref(false)
 
@@ -205,12 +208,12 @@ const PLATAFORMA_OPTS = [
   { title: 'Solo Móvil', value: 'MOVIL' },
 ]
 
-// ─── Módulos visibles en el árbol (excluir 'inicio' y 'configuracion') ──
+// ─── Módulos visibles en el árbol (excluir 'inicio'/'configuracion' y lo que la empresa ya deshabilitó) ──
 const modulosVisibles = computed(() =>
-  MODULES.filter(m => m.id !== 'inicio' && m.id !== 'configuracion')
+  MODULES.filter(m => m.id !== 'inicio' && m.id !== 'configuracion' && !isClienteModuloDeshabilitado(m.path))
 )
 
-// ─── Helpers de permisos ──────────────────────────────────────────
+// ─── Helpers de permisos (nivel usuario) ──────────────────────────
 function isModuloDeshabilitado(path) {
   return rutasDeshabilitadas.value.includes(path)
 }
@@ -233,6 +236,28 @@ function setEstadoPlataforma(path, val) {
   } else if (val === 'MOVIL') {
     rutasDeshabilitadasCompleta.value = [...rutasDeshabilitadasCompleta.value, path]
   }
+}
+
+// ─── Helpers de permisos (nivel empresa/cliente — restricción superior) ──
+function isClienteModuloDeshabilitado(path) {
+  return clienteRutasDeshabilitadas.value.includes(path)
+}
+
+function isClienteItemDeshabilitado(path) {
+  return clienteRutasDeshabilitadas.value.some(d => path === d || path.startsWith(d + '/'))
+}
+
+function clienteEstadoPlataforma(path) {
+  if (clienteRutasDeshabilitadasMovil.value.includes(path)) return 'COMPLETA'
+  if (clienteRutasDeshabilitadasCompleta.value.includes(path)) return 'MOVIL'
+  return 'AMBAS'
+}
+
+// Las opciones de plataforma que la empresa ya restringió no pueden re-habilitarse por usuario
+function platformOptsFor(path) {
+  const estadoCliente = clienteEstadoPlataforma(path)
+  if (estadoCliente === 'AMBAS') return PLATAFORMA_OPTS
+  return PLATAFORMA_OPTS.filter(o => o.value === estadoCliente)
 }
 
 // ─── Toggles ─────────────────────────────────────────────────────
@@ -266,6 +291,22 @@ function toggleItem(path, enabled) {
 }
 
 // ─── API calls ───────────────────────────────────────────────────
+async function cargarPermisosCliente() {
+  const empresaCod = authStore.empresaCodigo
+  if (!empresaCod) return
+  try {
+    const r = await fetch(`${API_BASE}/permisos-modulos/${empresaCod}`)
+    const j = await r.json()
+    if (j.success) {
+      clienteRutasDeshabilitadas.value = j.data?.rutas_deshabilitadas || []
+      clienteRutasDeshabilitadasMovil.value = j.data?.rutas_deshabilitadas_movil || []
+      clienteRutasDeshabilitadasCompleta.value = j.data?.rutas_deshabilitadas_completa || []
+    }
+  } catch (e) {
+    console.error('Error cargando permisos de la empresa:', e)
+  }
+}
+
 async function cargarUsuarios() {
   usuarioSeleccionado.value = null
   usuarios.value = []
@@ -273,6 +314,7 @@ async function cargarUsuarios() {
   if (!empresaCod) return
   loadingUsuarios.value = true
   try {
+    await cargarPermisosCliente()
     const r = await fetch(`${API_BASE}/configuracion/usuarios?empresa=${empresaCod}`)
     const j = await r.json()
     if (j.success) usuarios.value = j.data
