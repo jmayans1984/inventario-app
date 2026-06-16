@@ -87,7 +87,10 @@ export const MODULES = [
     color: '#047857',
     path: '/almacen',
     children: [
-      { name: 'Configuración', icon: 'mdi-cog-outline', items: [], keepEmpty: true },
+      { name: 'Configuración', icon: 'mdi-cog-outline', items: [
+        { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos', requiredTipo: 'PROVEEDOR' },
+        { name: 'Control de Stock', icon: 'mdi-package-variant-closed', path: '/almacen/configuracion/control-stock', requiredTipo: 'PROVEEDOR' },
+      ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },
         { name: 'Toma Física', icon: 'mdi-counter', path: '/almacen/procesos/toma-fisica' },
@@ -114,9 +117,7 @@ export const MODULES = [
     requiredTipo: 'PROVEEDOR',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Productos', icon: 'mdi-package-variant', path: '/produccion/configuracion/productos' },
         { name: 'Precios de Compra/Venta', icon: 'mdi-currency-usd', path: '/produccion/configuracion/precios' },
-        { name: 'Control de Stock', icon: 'mdi-package-variant-closed', path: '/produccion/configuracion/control-stock' },
         { name: 'Lista de Precios', icon: 'mdi-list-box-outline', path: '/produccion/configuracion/lista-precios' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
