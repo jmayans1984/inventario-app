@@ -32,6 +32,7 @@
         <div>
           <div class="sidebar-logo-title">RestManager Pro</div>
           <div class="sidebar-logo-sub">Sistema ERP</div>
+          <div class="sidebar-logo-version">v{{ APP_VERSION }}</div>
         </div>
       </div>
 
@@ -318,7 +319,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useDisplay } from 'vuetify'
 import { useAuthStore } from '../../stores/auth'
 import { useAppStore } from '../../stores/app'
-import { MODULES } from '../../utils/constants'
+import { MODULES, APP_VERSION } from '../../utils/constants'
 import { formatFechaLarga } from '../../utils/formatters'
 import { notificacionesService } from '../../services/notificaciones.service'
 import { useCalculadora } from '../../composables/useCalculadora'
@@ -543,6 +544,12 @@ const handleLogout = () => {
   font-size: 10px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
+}
+.sidebar-logo-version {
+  color: rgba(255,255,255,0.3);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
 }
 
 /* ─── MENÚ ─── */
