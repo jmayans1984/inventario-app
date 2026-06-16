@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Impresión de Códigos de Barras - Almacén</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .bc-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .bc-toolbar input[type=text] {
+            flex: 1; min-width: 220px; padding: 10px 14px; border-radius: 10px;
+            border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px;
+        }
+        .bc-contador { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
+        .bc-lista { display: flex; flex-direction: column; gap: 8px; margin-bottom: 90px; }
+        .bc-item {
+            display: flex; align-items: center; gap: 12px; background: var(--bg-card);
+            border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; cursor: pointer;
+        }
+        .bc-item.sel { border-color: #10b981; background: rgba(16,185,129,.08); }
+        .bc-item input[type=checkbox] { width: 20px; height: 20px; flex-shrink: 0; accent-color: #10b981; }
+        .bc-item-nombre { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+        .bc-item-cod { font-size: 12px; color: var(--text-secondary); font-family: monospace; }
+        .bc-bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card);
+            border-top: 1px solid var(--border-color); padding: 12px 16px; display: flex; gap: 10px;
+            justify-content: center; z-index: 100;
+        }
+        .bc-bottom-bar button { flex: 1; max-width: 280px; padding: 13px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; }
+        .btn-bc-todos { background: var(--bg-input); color: var(--text-primary); border: 1.5px solid var(--border-color) !important; }
+        .btn-bc-imprimir { background: #047857; color: white; }
+        .bc-empty { text-align: center; padding: 40px 16px; color: var(--text-tertiary); }
+
+        /* Opciones de impresión */
+        .bc-opciones { display: flex; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; }
+        .bc-opciones label { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+        .bc-opciones select, .bc-opciones input[type=number] {
+            padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 13px; width: 70px;
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER UNIVERSAL -->
+    <header class="header">
+        <div class="header-info">
+            <div class="user-info">
+                <span class="user-name" id="userName">👤 Usuario</span>
+                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
+            </div>
+            <div class="theme-switch-container">
+                <span class="theme-label">🌙</span>
+                <label class="theme-switch">
+                    <input type="checkbox" onchange="cambiarTema()">
+                    <span class="theme-slider"></span>
+                </label>
+                <span class="theme-label">☀️</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="window.location.href='almacen.html'">
+                ← Almacén
+            </button>
+            <button class="btn-header" onclick="cerrarSesion()">
+                🚪 Salir
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <div style="max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem;">
+        <h1 style="margin-bottom: 1.2rem; color: var(--text-primary); font-size: 1.4rem;">🏷️ Impresión de Códigos de Barras</h1>
+
+        <div class="bc-opciones">
+            <label>Cant. por etiqueta:
+                <input type="number" id="bcCantidad" min="1" value="1">
+            </label>
+            <label>Etiquetas por fila:
+                <select id="bcPorFila">
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="bc-toolbar">
+            <input type="text" id="bcBuscar" placeholder="🔍 Buscar producto por nombre o código..." oninput="filtrarProductos()">
+        </div>
+
+        <div class="bc-contador" id="bcContador"></div>
+
+        <div id="bcListaWrap"></div>
+    </div>
+
+    <div class="bc-bottom-bar no-print">
+        <button class="btn-bc-todos" onclick="toggleSeleccionarTodos()">☑️ Todos / Ninguno</button>
+        <button class="btn-bc-imprimir" onclick="imprimirSeleccionados()">🖨️ Imprimir (<span id="bcSelCount">0</span>)</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
+    <script src="almacen-config-barcodes.js"></script>
+</body>
+</html>
