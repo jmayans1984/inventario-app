@@ -6,6 +6,8 @@
       <div class="breadcrumb">
         <span class="bc-root">CONFIGURACIÓN</span>
         <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
+        <span class="bc-cat">Configuración</span>
+        <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
         <span class="bc-cur">Configuración General</span>
       </div>
 
@@ -498,6 +500,7 @@ onMounted(() => {
 /* BREADCRUMB */
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .bc-root { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; }
+.bc-cat  { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.5); }
 .bc-cur  { font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 
 /* HEADER */

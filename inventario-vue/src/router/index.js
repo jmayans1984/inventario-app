@@ -110,7 +110,8 @@ const routes = [
   { path: '/configuracion/notificaciones', component: () => import('../views/NotificacionesView.vue'), meta: { requiresAuth: true } },
   { path: '/configuracion/bodega-maestra', component: () => import('../views/BodegaMaestraView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/configuracion/permisos-clientes', component: () => import('../views/PermisosClientesView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/configuracion', component: () => import('../views/ConfiguracionView.vue'), meta: { requiresAuth: true } },
+  { path: '/configuracion/general', component: () => import('../views/ConfiguracionView.vue'), meta: { requiresAuth: true } },
+  { path: '/configuracion', component: () => import('../views/ConfiguracionDashboardView.vue'), meta: { requiresAuth: true } },
 
   // 404
   { path: '/:pathMatch(.*)*', component: () => import('../views/NotFoundView.vue') },

@@ -1,6 +1,6 @@
 export const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api'
 
-export const APP_VERSION = '1.03'
+export const APP_VERSION = '1.04'
 
 export const MODULES = [
   {
@@ -221,6 +221,7 @@ export const MODULES = [
     path: '/configuracion',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
+        { name: 'Configuración General', icon: 'mdi-tune', path: '/configuracion/general' },
         { name: 'Bodega Maestra / Proveeduría', icon: 'mdi-warehouse', path: '/configuracion/bodega-maestra', requiredTipo: 'PROVEEDOR' },
         { name: 'Preferencias de Notificaciones', icon: 'mdi-bell-cog', path: '/configuracion/notificaciones' },
         { name: 'Permisos por Cliente', icon: 'mdi-shield-account-outline', path: '/configuracion/permisos-clientes', requiredTipo: 'PROVEEDOR' },
