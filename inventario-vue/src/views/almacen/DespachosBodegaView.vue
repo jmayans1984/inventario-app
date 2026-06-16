@@ -121,6 +121,11 @@
                   <v-btn icon size="x-small" variant="text" color="#047857" title="Ver / Editar" @click="abrirDetalle(d)">
                     <v-icon>{{ d.estado === 'PENDIENTE' ? 'mdi-pencil' : 'mdi-eye' }}</v-icon>
                   </v-btn>
+                  <v-btn icon size="x-small" variant="text" color="#6b7280" title="Imprimir"
+                    :loading="imprimiendo === d.id"
+                    @click="imprimirDesdeTabla(d)">
+                    <v-icon>mdi-printer-outline</v-icon>
+                  </v-btn>
                   <v-btn icon size="x-small" variant="text" color="#ef4444" title="Eliminar"
                     v-if="d.estado === 'PENDIENTE'"
                     :loading="eliminando === d.id"
@@ -376,6 +381,7 @@ const despachos  = ref([])
 const ccostos    = ref([])
 const loading    = ref(false)
 const eliminando = ref(null)
+const imprimiendo = ref(null)
 
 // Filtros
 const filtroFecha   = ref(new Date().toISOString().split('T')[0])
@@ -695,8 +701,20 @@ async function eliminar(d) {
 }
 
 // ── Imprimir ──────────────────────────────────────────────────
-function imprimirDespacho() {
-  const o = detalleActivo.value
+async function imprimirDesdeTabla(d) {
+  imprimiendo.value = d.id
+  try {
+    const res = await api.get(`/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
+    imprimirDespacho(res.data?.data)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    imprimiendo.value = null
+  }
+}
+
+function imprimirDespacho(o) {
+  if (!o) o = detalleActivo.value
   if (!o) return
 
   const filas = o.detalle.map(item => {
