@@ -491,7 +491,10 @@ const totalUnidades = computed(() => {
 function fmtFecha(f) {
   if (!f) return '—'
   const d = new Date(f + (f.includes('T') ? '' : 'T12:00:00'))
-  return d.toLocaleDateString('es', { day:'2-digit', month:'short', year:'numeric' })
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const yy = d.getFullYear()
+  return `${mm}/${dd}/${yy}`
 }
 
 function estadoLabel(e) {
