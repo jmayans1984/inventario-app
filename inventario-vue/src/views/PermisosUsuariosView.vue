@@ -25,25 +25,17 @@
       <!-- BODY — dos columnas -->
       <div class="pc-body">
 
-        <!-- COLUMNA IZQUIERDA: empresa + usuarios -->
+        <!-- COLUMNA IZQUIERDA: empresa activa + usuarios -->
         <div class="pc-col-left">
           <div class="pc-section-title">
             <v-icon size="15" color="#f59e0b">mdi-domain</v-icon>
             Empresa
           </div>
 
-          <v-select
-            v-model="empresaSeleccionada"
-            :items="empresas"
-            item-title="nombre"
-            item-value="codigo"
-            variant="outlined"
-            density="compact"
-            hide-details
-            placeholder="Selecciona una empresa"
-            class="mb-4"
-            @update:model-value="cargarUsuarios"
-          />
+          <div class="pc-empresa-activa">
+            <v-icon size="16" color="#f59e0b">mdi-domain</v-icon>
+            {{ authStore.empresaNombre || authStore.empresaCodigo }}
+          </div>
 
           <div class="pc-section-title">
             <v-icon size="15" color="#f59e0b">mdi-account-multiple-outline</v-icon>
@@ -52,10 +44,6 @@
 
           <div v-if="loadingUsuarios" class="pc-loading">
             <v-progress-circular indeterminate color="#f59e0b" size="28" />
-          </div>
-
-          <div v-else-if="!empresaSeleccionada" class="pc-empty">
-            Selecciona una empresa para ver sus usuarios.
           </div>
 
           <div v-else-if="usuarios.length === 0" class="pc-empty">
@@ -195,10 +183,11 @@
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../components/layouts/MainLayout.vue'
 import { API_BASE, MODULES } from '../utils/constants'
+import { useAuthStore } from '../stores/auth'
+
+const authStore = useAuthStore()
 
 // ─── Estado ───────────────────────────────────────────────────────
-const empresas = ref([])
-const empresaSeleccionada = ref(null)
 const usuarios = ref([])
 const loadingUsuarios = ref(false)
 const usuarioSeleccionado = ref(null)
@@ -277,19 +266,10 @@ function toggleItem(path, enabled) {
 }
 
 // ─── API calls ───────────────────────────────────────────────────
-async function cargarEmpresas() {
-  try {
-    const r = await fetch(`${API_BASE}/empresas/all`)
-    const j = await r.json()
-    if (j.success) empresas.value = j.data
-  } catch (e) {
-    console.error('Error cargando empresas:', e)
-  }
-}
-
-async function cargarUsuarios(empresaCod) {
+async function cargarUsuarios() {
   usuarioSeleccionado.value = null
   usuarios.value = []
+  const empresaCod = authStore.empresaCodigo
   if (!empresaCod) return
   loadingUsuarios.value = true
   try {
@@ -310,7 +290,7 @@ async function seleccionarUsuario(usuario) {
   rutasDeshabilitadasCompleta.value = []
   loadingPermisos.value = true
   try {
-    const r = await fetch(`${API_BASE}/permisos-usuarios/${empresaSeleccionada.value}/${usuario.codigo}`)
+    const r = await fetch(`${API_BASE}/permisos-usuarios/${authStore.empresaCodigo}/${usuario.codigo}`)
     const j = await r.json()
     if (j.success) {
       rutasDeshabilitadas.value = j.data?.rutas_deshabilitadas || []
@@ -325,10 +305,10 @@ async function seleccionarUsuario(usuario) {
 }
 
 async function guardarPermisos() {
-  if (!usuarioSeleccionado.value || !empresaSeleccionada.value) return
+  if (!usuarioSeleccionado.value || !authStore.empresaCodigo) return
   guardando.value = true
   try {
-    const r = await fetch(`${API_BASE}/permisos-usuarios/${empresaSeleccionada.value}/${usuarioSeleccionado.value.codigo}`, {
+    const r = await fetch(`${API_BASE}/permisos-usuarios/${authStore.empresaCodigo}/${usuarioSeleccionado.value.codigo}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -351,7 +331,7 @@ async function guardarPermisos() {
 }
 
 onMounted(() => {
-  cargarEmpresas()
+  cargarUsuarios()
 })
 </script>
 
@@ -451,6 +431,20 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 24px 0;
+}
+
+.pc-empresa-activa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
 }
 
 .pc-empty {
