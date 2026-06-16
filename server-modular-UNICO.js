@@ -892,7 +892,7 @@ app.get('/api/almacen/despachos/:id', async (req, res) => {
                 FROM ordenes_despacho od
                 LEFT JOIN ccostos co ON co.codigo=od.cc_origen AND co.empresa=od.empresa
                 LEFT JOIN ccostos cd ON cd.codigo=od.cc_destino AND cd.empresa=od.empresa
-                WHERE od.id=$1 AND od.empresa=$2
+                WHERE od.id=$1 AND od.empresa=$2::integer
             `, [req.params.id, empresa]),
             pool.query(`
                 SELECT odd.*, p.nombre AS producto_nombre, p.und
@@ -921,7 +921,7 @@ app.post('/api/almacen/despachos', async (req, res) => {
         await client.query('BEGIN');
         const rOrden = await client.query(`
             INSERT INTO ordenes_despacho (empresa, fecha, cc_origen, cc_destino, observaciones, creado_por)
-            VALUES ($1,$2,$3,$4,$5,$6) RETURNING id
+            VALUES ($1::integer,$2,$3,$4,$5,$6) RETURNING id
         `, [empresa, fecha, cc_origen, cc_destino, observaciones || null, creado_por || null]);
         const ordenId = rOrden.rows[0].id;
         for (const item of detalle) {
@@ -948,7 +948,7 @@ app.put('/api/almacen/despachos/:id', async (req, res) => {
     try {
         await client.query('BEGIN');
         const rCheck = await client.query(
-            `SELECT estado FROM ordenes_despacho WHERE id=$1 AND empresa=$2`, [req.params.id, empresa]
+            `SELECT estado FROM ordenes_despacho WHERE id=$1 AND empresa=$2::integer`, [req.params.id, empresa]
         );
         if (rCheck.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, error: 'No encontrado' }); }
         if (rCheck.rows[0].estado !== 'PENDIENTE') { await client.query('ROLLBACK'); return res.status(409).json({ success: false, error: 'Solo se pueden editar órdenes en estado PENDIENTE' }); }
@@ -984,7 +984,7 @@ app.patch('/api/almacen/despachos/:id/estado', async (req, res) => {
     try {
         const extra = estado === 'COMPLETADO' ? ', fecha_completado=NOW()' : '';
         const result = await pool.query(
-            `UPDATE ordenes_despacho SET estado=$1${extra} WHERE id=$2 AND empresa=$3 RETURNING *`,
+            `UPDATE ordenes_despacho SET estado=$1${extra} WHERE id=$2 AND empresa=$3::integer RETURNING *`,
             [estado, req.params.id, empresa]
         );
         if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
@@ -999,11 +999,11 @@ app.delete('/api/almacen/despachos/:id', async (req, res) => {
     const empresa = req.query.empresa || req.headers['x-empresa'];
     try {
         const rCheck = await pool.query(
-            `SELECT estado FROM ordenes_despacho WHERE id=$1 AND empresa=$2`, [req.params.id, empresa]
+            `SELECT estado FROM ordenes_despacho WHERE id=$1 AND empresa=$2::integer`, [req.params.id, empresa]
         );
         if (rCheck.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
         if (rCheck.rows[0].estado !== 'PENDIENTE') return res.status(409).json({ success: false, error: 'Solo se pueden eliminar órdenes en estado PENDIENTE' });
-        await pool.query(`DELETE FROM ordenes_despacho WHERE id=$1 AND empresa=$2`, [req.params.id, empresa]);
+        await pool.query(`DELETE FROM ordenes_despacho WHERE id=$1 AND empresa=$2::integer`, [req.params.id, empresa]);
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -1043,7 +1043,7 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
              FROM ordenes_despacho od
              LEFT JOIN ccostos co ON co.codigo=od.cc_origen  AND co.empresa=od.empresa
              LEFT JOIN ccostos cd ON cd.codigo=od.cc_destino AND cd.empresa=od.empresa
-             WHERE od.id=$1 AND od.empresa=$2`,
+             WHERE od.id=$1 AND od.empresa=$2::integer`,
             [req.params.id, empresa]
         );
         if (rOrden.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, error: 'No encontrado' }); }
