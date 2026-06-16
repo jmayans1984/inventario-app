@@ -764,7 +764,7 @@ app.get('/api/almacen/productos/:codigo/barcodes', async (req, res) => {
     const empresa = req.query.empresa || req.headers['x-empresa'];
     try {
         const result = await pool.query(
-            `SELECT id, barcode, descripcion, es_principal, creado_en
+            `SELECT id, barcode, descripcion, es_principal, factor, creado_en
              FROM producto_barcodes
              WHERE empresa=$1 AND producto_codigo=$2
              ORDER BY es_principal DESC, creado_en ASC`,
@@ -780,8 +780,9 @@ app.get('/api/almacen/productos/:codigo/barcodes', async (req, res) => {
 app.post('/api/almacen/productos/:codigo/barcodes', async (req, res) => {
     const { codigo } = req.params;
     const empresa = req.body.empresa || req.headers['x-empresa'];
-    const { barcode, descripcion, es_principal } = req.body;
+    const { barcode, descripcion, es_principal, factor } = req.body;
     if (!barcode) return res.status(400).json({ success: false, error: 'Barcode requerido' });
+    const factorNum = parseFloat(factor) > 0 ? parseFloat(factor) : 1;
     try {
         // Si es_principal, quitar principal anterior
         if (es_principal) {
@@ -791,10 +792,10 @@ app.post('/api/almacen/productos/:codigo/barcodes', async (req, res) => {
             );
         }
         const result = await pool.query(
-            `INSERT INTO producto_barcodes (empresa, producto_codigo, barcode, descripcion, es_principal)
-             VALUES ($1,$2,$3,$4,$5)
+            `INSERT INTO producto_barcodes (empresa, producto_codigo, barcode, descripcion, es_principal, factor)
+             VALUES ($1,$2,$3,$4,$5,$6)
              RETURNING *`,
-            [empresa, codigo, barcode.trim(), (descripcion || '').trim() || null, !!es_principal]
+            [empresa, codigo, barcode.trim(), (descripcion || '').trim() || null, !!es_principal, factorNum]
         );
         res.json({ success: true, data: result.rows[0] });
     } catch (e) {
@@ -826,7 +827,7 @@ app.get('/api/almacen/barcode-lookup', async (req, res) => {
     try {
         // Primero buscar en tabla de barcodes
         const r = await pool.query(
-            `SELECT pb.producto_codigo, p.nombre, p.und, pb.descripcion AS barcode_desc
+            `SELECT pb.producto_codigo, p.nombre, p.und, pb.descripcion AS barcode_desc, pb.factor
              FROM producto_barcodes pb
              JOIN productos p ON p.codigo = pb.producto_codigo
              WHERE pb.barcode=$1 AND pb.empresa=$2`,
@@ -841,7 +842,7 @@ app.get('/api/almacen/barcode-lookup', async (req, res) => {
             [barcode.trim()]
         );
         if (r2.rows.length > 0) {
-            return res.json({ success: true, found: true, data: r2.rows[0] });
+            return res.json({ success: true, found: true, data: { ...r2.rows[0], factor: 1 } });
         }
         res.json({ success: true, found: false });
     } catch (e) {
@@ -1006,6 +1007,94 @@ app.delete('/api/almacen/despachos/:id', async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// PATCH /api/almacen/despachos/:id/scan — registrar un escaneo (picking o packing)
+// Body: { empresa, producto_codigo, tipo: 'picking'|'packing', delta: 1|-1 }
+app.patch('/api/almacen/despachos/:id/scan', async (req, res) => {
+    const { empresa, producto_codigo, tipo, delta } = req.body;
+    if (!['picking','packing'].includes(tipo)) return res.status(400).json({ success: false, error: 'tipo debe ser picking o packing' });
+    const col = tipo === 'picking' ? 'cant_picking' : 'cant_packing';
+    try {
+        const result = await pool.query(`
+            UPDATE ordenes_despacho_detalle
+            SET ${col} = GREATEST(0, ${col} + $1)
+            WHERE orden_id=$2 AND producto_codigo=$3
+            RETURNING *
+        `, [parseFloat(delta) || 1, req.params.id, producto_codigo]);
+        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'Producto no está en esta orden' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST /api/almacen/despachos/:id/confirmar — genera movimientos en inventario y cierra la orden
+app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
+    const empresa = req.body.empresa || req.headers['x-empresa'];
+    const client  = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Cargar orden + detalle
+        const rOrden = await client.query(
+            `SELECT od.*, co.nombre AS nom_origen, cd.nombre AS nom_destino
+             FROM ordenes_despacho od
+             LEFT JOIN ccostos co ON co.codigo=od.cc_origen  AND co.empresa=od.empresa
+             LEFT JOIN ccostos cd ON cd.codigo=od.cc_destino AND cd.empresa=od.empresa
+             WHERE od.id=$1 AND od.empresa=$2`,
+            [req.params.id, empresa]
+        );
+        if (rOrden.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, error: 'No encontrado' }); }
+        const orden = rOrden.rows[0];
+        if (orden.estado === 'COMPLETADO') { await client.query('ROLLBACK'); return res.status(409).json({ success: false, error: 'Ya está completada' }); }
+
+        const rDetalle = await client.query(
+            `SELECT * FROM ordenes_despacho_detalle WHERE orden_id=$1`, [req.params.id]
+        );
+
+        const fecha         = orden.fecha instanceof Date ? orden.fecha.toISOString().split('T')[0] : String(orden.fecha).split('T')[0];
+        const nombreOrigen  = (orden.nom_origen  || orden.cc_origen).toUpperCase();
+        const nombreDestino = (orden.nom_destino || orden.cc_destino).toUpperCase();
+
+        for (const item of rDetalle.rows) {
+            // Usar cant_packing si > 0, sino cant_picking, sino cant_requerida
+            const cant = parseFloat(item.cant_packing) > 0
+                ? parseFloat(item.cant_packing)
+                : parseFloat(item.cant_picking) > 0
+                    ? parseFloat(item.cant_picking)
+                    : parseFloat(item.cant_requerida);
+            if (!cant || cant <= 0) continue;
+
+            // SALIDA POR TRASLADO en cc_origen
+            await client.query(`
+                INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
+                VALUES ($1,$2,$3,0,$4,'SALIDA POR TRASLADO',$5,$6,$7)
+            `, [fecha, orden.cc_origen, item.producto_codigo, cant, empresa,
+                `Despacho #${orden.id} → ${nombreDestino}`, orden.cc_destino]);
+
+            // ENTRADA POR TRASLADO en cc_destino
+            await client.query(`
+                INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
+                VALUES ($1,$2,$3,$4,0,'ENTRADA POR TRASLADO',$5,$6,$7)
+            `, [fecha, orden.cc_destino, item.producto_codigo, cant, empresa,
+                `Despacho #${orden.id} desde ${nombreOrigen}`, orden.cc_origen]);
+        }
+
+        // Marcar orden como COMPLETADO
+        await client.query(
+            `UPDATE ordenes_despacho SET estado='COMPLETADO', fecha_completado=NOW() WHERE id=$1`,
+            [req.params.id]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
     }
 });
 
@@ -11658,10 +11747,16 @@ app.listen(PORT, async () => {
                 barcode        VARCHAR(100) NOT NULL,
                 descripcion    VARCHAR(200),
                 es_principal   BOOLEAN DEFAULT FALSE,
+                factor         NUMERIC(10,4) NOT NULL DEFAULT 1,
                 creado_en      TIMESTAMP DEFAULT NOW(),
                 UNIQUE(empresa, barcode)
             )
         `);
+        // Migración: agregar columna factor si no existe en BD existente
+        await pool.query(`
+            ALTER TABLE producto_barcodes
+            ADD COLUMN IF NOT EXISTS factor NUMERIC(10,4) NOT NULL DEFAULT 1
+        `).catch(() => {});
         console.log('✅ Tabla producto_barcodes verificada/creada');
     } catch (err) {
         console.error('⚠️  Error al crear tabla producto_barcodes:', err.message);

@@ -470,7 +470,10 @@
                     {{ bc.es_principal ? 'mdi-star' : 'mdi-star-outline' }}
                   </v-icon>
                   <div>
-                    <div class="bc-code">{{ bc.barcode }}</div>
+                    <div class="bc-code">
+                      {{ bc.barcode }}
+                      <span v-if="bc.factor && parseFloat(bc.factor) !== 1" class="bc-factor">×{{ bc.factor }}</span>
+                    </div>
                     <div class="bc-desc" v-if="bc.descripcion">{{ bc.descripcion }}</div>
                   </div>
                 </div>
@@ -505,7 +508,7 @@
                 <span class="sheet-title">Agregar Código</span>
               </div>
               <v-row dense>
-                <v-col cols="12">
+                <v-col cols="12" sm="8">
                   <v-text-field
                     v-model="bcNuevo.barcode"
                     label="Código de Barra *"
@@ -516,13 +519,26 @@
                     @keydown.enter.prevent="agregarBarcode"
                   />
                 </v-col>
+                <v-col cols="12" sm="4">
+                  <v-text-field
+                    v-model.number="bcNuevo.factor"
+                    label="Factor (unidades)"
+                    density="compact"
+                    variant="outlined"
+                    type="number"
+                    min="1"
+                    step="1"
+                    hint="Ej: 120 para caja"
+                    persistent-hint
+                  />
+                </v-col>
                 <v-col cols="12">
                   <v-text-field
                     v-model="bcNuevo.descripcion"
                     label="Descripción (opcional)"
                     density="compact"
                     variant="outlined"
-                    placeholder="Ej: Agua Cristal 500ml, Código propio"
+                    placeholder="Ej: Caja × 120 unidades"
                     @keydown.enter.prevent="agregarBarcode"
                   />
                 </v-col>
@@ -788,11 +804,11 @@ const bcGuardando   = ref(false)
 const bcDeleting    = ref(null)
 const bcToggling    = ref(null)
 const bcError       = ref('')
-const bcNuevo       = ref({ barcode: '', descripcion: '', es_principal: false })
+const bcNuevo       = ref({ barcode: '', descripcion: '', es_principal: false, factor: 1 })
 
 async function abrirBarcodes(p) {
   bcProducto.value = p
-  bcNuevo.value    = { barcode: '', descripcion: '', es_principal: false }
+  bcNuevo.value    = { barcode: '', descripcion: '', es_principal: false, factor: 1 }
   bcError.value    = ''
   dlgBarcodes.value = true
   await cargarBarcodes()
@@ -824,7 +840,7 @@ async function agregarBarcode() {
     const data = await res.json()
     if (!data.success) { bcError.value = data.error || 'Error al guardar'; return }
     await cargarBarcodes()
-    bcNuevo.value = { barcode: '', descripcion: '', es_principal: false }
+    bcNuevo.value = { barcode: '', descripcion: '', es_principal: false, factor: 1 }
   } catch (e) {
     bcError.value = e.message
   } finally {
@@ -1087,8 +1103,9 @@ onMounted(cargar)
 .bc-item  { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(var(--v-theme-on-surface),.03); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 8px; }
 .bc-item-left  { display: flex; align-items: center; gap: 10px; }
 .bc-item-right { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
-.bc-code  { font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; letter-spacing: .5px; color: #7c3aed; }
-.bc-desc  { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 2px; }
+.bc-code   { font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; letter-spacing: .5px; color: #7c3aed; display: flex; align-items: center; gap: 6px; }
+.bc-factor { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: rgba(16,185,129,.12); color: #059669; font-family: sans-serif; letter-spacing: 0; }
+.bc-desc   { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 2px; }
 .bc-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
 .bc-form  { }
 </style>

@@ -274,6 +274,7 @@ async function procesarScan(barcode) {
 
         const codigo = data.data.producto_codigo;
         const nombre = data.data.nombre;
+        const factor = parseFloat(data.data.factor) || 1;
 
         // 2. ¿Está en esta orden?
         const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
@@ -282,25 +283,34 @@ async function procesarScan(barcode) {
             return;
         }
 
-        // 3. Registrar el scan en backend (+1)
+        // 3. Si factor > 1, preguntar si es caja completa o unidades
+        let delta = factor;
+        if (factor > 1) {
+            const esCaja = await mostrarDialogoFactor(nombre, factor);
+            if (esCaja === null) return; // cancelado
+            delta = esCaja ? factor : 1;
+        }
+
+        // 4. Registrar el scan en backend
         const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
         const resS  = await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo: modoEscaneo, delta: 1 })
+            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo: modoEscaneo, delta })
         });
         const dataS = await resS.json();
         if (!dataS.success) { showFeedback('error', '❌ Error al registrar scan'); return; }
 
-        // 4. Actualizar estado local
+        // 5. Actualizar estado local
         item[campo] = parseFloat(dataS.data[campo]) || 0;
 
-        // 5. Feedback visual
+        // 6. Feedback visual
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
-        if (nuevo < req)       showFeedback('warn', `⚠️ ${nombre} — ${nuevo}/${req} (falta ${req-nuevo})`);
-        else if (nuevo === req) showFeedback('ok',   `✅ ${nombre} — ¡Completo! (${nuevo}/${req})`);
-        else                   showFeedback('warn',  `🔴 ${nombre} — Sobrante: ${nuevo}/${req}`);
+        const sufijo = factor > 1 ? (delta === factor ? ` (caja ×${factor})` : ' (unidad)') : '';
+        if (nuevo < req)       showFeedback('warn', `⚠️ ${nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`);
+        else if (nuevo === req) showFeedback('ok',   `✅ ${nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`);
+        else                   showFeedback('warn',  `🔴 ${nombre}${sufijo} — Sobrante: ${nuevo}/${req}`);
 
         // 6. Actualizar solo la fila del producto escaneado
         actualizarFilaScan(item, campo);
@@ -624,6 +634,61 @@ function cerrarAsociador(e) {
     document.getElementById('bsOverlay').classList.remove('open');
     barcodeNoEncontrado = null;
     setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+}
+
+// ══════════════════════════════════════════════════════════════
+// DIALOGO FACTOR — ¿Caja completa o unidad individual?
+// Devuelve: true=caja, false=unidad, null=cancelado
+// ══════════════════════════════════════════════════════════════
+function mostrarDialogoFactor(nombre, factor) {
+    return new Promise(resolve => {
+        // Reutilizar el overlay del bottom sheet con contenido propio
+        const overlay = document.getElementById('bsOverlay');
+        const panel   = overlay.querySelector('.bs-panel');
+
+        panel.innerHTML = `
+          <div style="padding:20px 16px 8px">
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px">Producto escaneado</div>
+            <div style="font-size:16px;font-weight:700;margin-bottom:16px">${nombre}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+              Este código corresponde a una caja de <strong>${factor} unidades</strong>.<br>¿Qué deseas registrar?
+            </div>
+            <button id="btnFactorCaja" style="
+              width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
+              background:#047857;color:white;font-size:15px;font-weight:700;margin-bottom:10px">
+              📦 Caja completa (×${factor} unidades)
+            </button>
+            <button id="btnFactorUnidad" style="
+              width:100%;padding:14px;border-radius:12px;border:2px solid #047857;cursor:pointer;
+              background:transparent;color:#047857;font-size:15px;font-weight:700;margin-bottom:10px">
+              🔹 Una unidad (×1)
+            </button>
+            <button id="btnFactorCancelar" style="
+              width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
+              background:transparent;color:var(--text-secondary);font-size:13px">
+              Cancelar
+            </button>
+          </div>
+        `;
+
+        overlay.classList.add('open');
+
+        document.getElementById('btnFactorCaja').onclick = () => {
+            overlay.classList.remove('open');
+            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+            resolve(true);
+        };
+        document.getElementById('btnFactorUnidad').onclick = () => {
+            overlay.classList.remove('open');
+            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+            resolve(false);
+        };
+        document.getElementById('btnFactorCancelar').onclick = () => {
+            overlay.classList.remove('open');
+            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+            resolve(null);
+        };
+    });
 }
 
 // ── Helpers ───────────────────────────────────────────────────
