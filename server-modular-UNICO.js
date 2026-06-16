@@ -10052,9 +10052,32 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
                 rutas_deshabilitadas TEXT DEFAULT '[]'
             )
         `);
+        // rutas_deshabilitadas: deshabilitado en AMBAS plataformas (legado)
+        // rutas_deshabilitadas_movil / _completa: deshabilitado solo en esa plataforma
+        await pool.query(`ALTER TABLE permisos_modulos ADD COLUMN IF NOT EXISTS rutas_deshabilitadas_movil TEXT DEFAULT '[]'`);
+        await pool.query(`ALTER TABLE permisos_modulos ADD COLUMN IF NOT EXISTS rutas_deshabilitadas_completa TEXT DEFAULT '[]'`);
         console.log('✅ Tabla permisos_modulos lista');
     } catch (err) {
         console.error('❌ Error creando tabla permisos_modulos:', err.message);
+    }
+})();
+
+// Auto-create tabla permisos_usuarios (permisos individuales por usuario)
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS permisos_usuarios (
+                usuario_codigo VARCHAR(20) NOT NULL,
+                empresa VARCHAR(50) NOT NULL,
+                rutas_deshabilitadas TEXT DEFAULT '[]',
+                rutas_deshabilitadas_movil TEXT DEFAULT '[]',
+                rutas_deshabilitadas_completa TEXT DEFAULT '[]',
+                PRIMARY KEY (usuario_codigo, empresa)
+            )
+        `);
+        console.log('✅ Tabla permisos_usuarios lista');
+    } catch (err) {
+        console.error('❌ Error creando tabla permisos_usuarios:', err.message);
     }
 })();
 
@@ -10185,20 +10208,30 @@ app.put('/api/empresas/bodega-maestra', async (req, res) => {
     }
 });
 
+function parseRutas(raw) {
+    return typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
+}
+
 // GET /api/permisos-modulos/:empresa — retorna rutas deshabilitadas para una empresa
 app.get('/api/permisos-modulos/:empresa', async (req, res) => {
     try {
         const { empresa } = req.params;
         const result = await pool.query(
-            'SELECT rutas_deshabilitadas FROM permisos_modulos WHERE empresa = $1',
+            'SELECT rutas_deshabilitadas, rutas_deshabilitadas_movil, rutas_deshabilitadas_completa FROM permisos_modulos WHERE empresa = $1',
             [empresa]
         );
         if (result.rows.length === 0) {
-            return res.json({ success: true, data: { rutas_deshabilitadas: [] } });
+            return res.json({ success: true, data: { rutas_deshabilitadas: [], rutas_deshabilitadas_movil: [], rutas_deshabilitadas_completa: [] } });
         }
-        const raw = result.rows[0].rutas_deshabilitadas;
-        const rutas = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
-        res.json({ success: true, data: { rutas_deshabilitadas: rutas } });
+        const row = result.rows[0];
+        res.json({
+            success: true,
+            data: {
+                rutas_deshabilitadas: parseRutas(row.rutas_deshabilitadas),
+                rutas_deshabilitadas_movil: parseRutas(row.rutas_deshabilitadas_movil),
+                rutas_deshabilitadas_completa: parseRutas(row.rutas_deshabilitadas_completa),
+            },
+        });
     } catch (error) {
         console.error('Error GET /api/permisos-modulos/:empresa:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -10209,24 +10242,83 @@ app.get('/api/permisos-modulos/:empresa', async (req, res) => {
 app.put('/api/permisos-modulos/:empresa', async (req, res) => {
     try {
         const { empresa } = req.params;
-        const { rutas_deshabilitadas } = req.body;
+        const { rutas_deshabilitadas, rutas_deshabilitadas_movil, rutas_deshabilitadas_completa } = req.body;
         const json = JSON.stringify(Array.isArray(rutas_deshabilitadas) ? rutas_deshabilitadas : []);
+        const jsonMovil = JSON.stringify(Array.isArray(rutas_deshabilitadas_movil) ? rutas_deshabilitadas_movil : []);
+        const jsonCompleta = JSON.stringify(Array.isArray(rutas_deshabilitadas_completa) ? rutas_deshabilitadas_completa : []);
 
         const check = await pool.query('SELECT empresa FROM permisos_modulos WHERE empresa = $1', [empresa]);
         if (check.rows.length > 0) {
             await pool.query(
-                'UPDATE permisos_modulos SET rutas_deshabilitadas = $1 WHERE empresa = $2',
-                [json, empresa]
+                'UPDATE permisos_modulos SET rutas_deshabilitadas = $1, rutas_deshabilitadas_movil = $2, rutas_deshabilitadas_completa = $3 WHERE empresa = $4',
+                [json, jsonMovil, jsonCompleta, empresa]
             );
         } else {
             await pool.query(
-                'INSERT INTO permisos_modulos (empresa, rutas_deshabilitadas) VALUES ($1, $2)',
-                [empresa, json]
+                'INSERT INTO permisos_modulos (empresa, rutas_deshabilitadas, rutas_deshabilitadas_movil, rutas_deshabilitadas_completa) VALUES ($1, $2, $3, $4)',
+                [empresa, json, jsonMovil, jsonCompleta]
             );
         }
         res.json({ success: true, message: 'Permisos guardados correctamente' });
     } catch (error) {
         console.error('Error PUT /api/permisos-modulos/:empresa:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/permisos-usuarios/:empresa/:usuarioCodigo — permisos individuales de un usuario
+app.get('/api/permisos-usuarios/:empresa/:usuarioCodigo', async (req, res) => {
+    try {
+        const { empresa, usuarioCodigo } = req.params;
+        const result = await pool.query(
+            'SELECT rutas_deshabilitadas, rutas_deshabilitadas_movil, rutas_deshabilitadas_completa FROM permisos_usuarios WHERE empresa = $1 AND usuario_codigo = $2',
+            [empresa, usuarioCodigo]
+        );
+        if (result.rows.length === 0) {
+            return res.json({ success: true, data: { rutas_deshabilitadas: [], rutas_deshabilitadas_movil: [], rutas_deshabilitadas_completa: [] } });
+        }
+        const row = result.rows[0];
+        res.json({
+            success: true,
+            data: {
+                rutas_deshabilitadas: parseRutas(row.rutas_deshabilitadas),
+                rutas_deshabilitadas_movil: parseRutas(row.rutas_deshabilitadas_movil),
+                rutas_deshabilitadas_completa: parseRutas(row.rutas_deshabilitadas_completa),
+            },
+        });
+    } catch (error) {
+        console.error('Error GET /api/permisos-usuarios/:empresa/:usuarioCodigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/permisos-usuarios/:empresa/:usuarioCodigo — upsert manual
+app.put('/api/permisos-usuarios/:empresa/:usuarioCodigo', async (req, res) => {
+    try {
+        const { empresa, usuarioCodigo } = req.params;
+        const { rutas_deshabilitadas, rutas_deshabilitadas_movil, rutas_deshabilitadas_completa } = req.body;
+        const json = JSON.stringify(Array.isArray(rutas_deshabilitadas) ? rutas_deshabilitadas : []);
+        const jsonMovil = JSON.stringify(Array.isArray(rutas_deshabilitadas_movil) ? rutas_deshabilitadas_movil : []);
+        const jsonCompleta = JSON.stringify(Array.isArray(rutas_deshabilitadas_completa) ? rutas_deshabilitadas_completa : []);
+
+        const check = await pool.query(
+            'SELECT usuario_codigo FROM permisos_usuarios WHERE empresa = $1 AND usuario_codigo = $2',
+            [empresa, usuarioCodigo]
+        );
+        if (check.rows.length > 0) {
+            await pool.query(
+                'UPDATE permisos_usuarios SET rutas_deshabilitadas = $1, rutas_deshabilitadas_movil = $2, rutas_deshabilitadas_completa = $3 WHERE empresa = $4 AND usuario_codigo = $5',
+                [json, jsonMovil, jsonCompleta, empresa, usuarioCodigo]
+            );
+        } else {
+            await pool.query(
+                'INSERT INTO permisos_usuarios (usuario_codigo, empresa, rutas_deshabilitadas, rutas_deshabilitadas_movil, rutas_deshabilitadas_completa) VALUES ($1, $2, $3, $4, $5)',
+                [usuarioCodigo, empresa, json, jsonMovil, jsonCompleta]
+            );
+        }
+        res.json({ success: true, message: 'Permisos guardados correctamente' });
+    } catch (error) {
+        console.error('Error PUT /api/permisos-usuarios/:empresa/:usuarioCodigo:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

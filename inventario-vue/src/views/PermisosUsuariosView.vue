@@ -6,18 +6,18 @@
       <div class="pc-breadcrumb">
         <span class="bc-root">CONFIGURACIÓN</span>
         <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Permisos de Módulos</span>
+        <span class="bc-current">Permisos de Usuarios</span>
       </div>
 
       <!-- HEADER -->
       <div class="pc-header">
         <div class="pc-header-left">
           <div class="pc-icon-wrap">
-            <v-icon size="22" color="white">mdi-shield-account-outline</v-icon>
+            <v-icon size="22" color="white">mdi-account-lock-outline</v-icon>
           </div>
           <div>
-            <h1 class="pc-title">PERMISOS POR CLIENTE</h1>
-            <p class="pc-sub">Activa o desactiva módulos para cada empresa cliente</p>
+            <h1 class="pc-title">PERMISOS DE USUARIOS</h1>
+            <p class="pc-sub">Activa o desactiva módulos para cada usuario individual</p>
           </div>
         </div>
       </div>
@@ -25,54 +25,73 @@
       <!-- BODY — dos columnas -->
       <div class="pc-body">
 
-        <!-- COLUMNA IZQUIERDA: lista de clientes -->
+        <!-- COLUMNA IZQUIERDA: empresa + usuarios -->
         <div class="pc-col-left">
           <div class="pc-section-title">
             <v-icon size="15" color="#f59e0b">mdi-domain</v-icon>
-            Empresas Cliente
+            Empresa
           </div>
 
-          <div v-if="loadingClientes" class="pc-loading">
+          <v-select
+            v-model="empresaSeleccionada"
+            :items="empresas"
+            item-title="nombre"
+            item-value="codigo"
+            variant="outlined"
+            density="compact"
+            hide-details
+            placeholder="Selecciona una empresa"
+            class="mb-4"
+            @update:model-value="cargarUsuarios"
+          />
+
+          <div class="pc-section-title">
+            <v-icon size="15" color="#f59e0b">mdi-account-multiple-outline</v-icon>
+            Usuarios
+          </div>
+
+          <div v-if="loadingUsuarios" class="pc-loading">
             <v-progress-circular indeterminate color="#f59e0b" size="28" />
           </div>
 
-          <div v-else-if="clientes.length === 0" class="pc-empty">
-            No hay empresas cliente registradas.
+          <div v-else-if="!empresaSeleccionada" class="pc-empty">
+            Selecciona una empresa para ver sus usuarios.
+          </div>
+
+          <div v-else-if="usuarios.length === 0" class="pc-empty">
+            No hay usuarios registrados para esta empresa.
           </div>
 
           <div v-else class="pc-clientes-list">
             <div
-              v-for="c in clientes"
-              :key="c.codigo"
+              v-for="u in usuarios"
+              :key="u.codigo"
               class="pc-cliente-card"
-              :class="{ 'pc-cliente-card--active': clienteSeleccionado?.codigo === c.codigo }"
-              @click="seleccionarCliente(c)"
+              :class="{ 'pc-cliente-card--active': usuarioSeleccionado?.codigo === u.codigo }"
+              @click="seleccionarUsuario(u)"
             >
-              <v-icon size="18" class="pc-cliente-icon">mdi-domain</v-icon>
+              <v-icon size="18" class="pc-cliente-icon">mdi-account-outline</v-icon>
               <div class="pc-cliente-info">
-                <div class="pc-cliente-nombre">{{ c.nombre }}</div>
-                <div class="pc-cliente-cod">{{ c.codigo }}</div>
-                <div v-if="c.lista_precio_nombre" class="pc-cliente-lista">
-                  {{ c.lista_precio_nombre }}
-                </div>
+                <div class="pc-cliente-nombre">{{ u.nombre || u.usuario }}</div>
+                <div class="pc-cliente-cod">{{ u.usuario }}</div>
               </div>
-              <v-icon v-if="clienteSeleccionado?.codigo === c.codigo" size="16" color="#f59e0b">mdi-chevron-right</v-icon>
+              <v-icon v-if="usuarioSeleccionado?.codigo === u.codigo" size="16" color="#f59e0b">mdi-chevron-right</v-icon>
             </div>
           </div>
         </div>
 
         <!-- COLUMNA DERECHA: árbol de módulos -->
         <div class="pc-col-right">
-          <div v-if="!clienteSeleccionado" class="pc-placeholder">
-            <v-icon size="48" color="rgba(var(--v-theme-on-surface), 0.2)">mdi-shield-account-outline</v-icon>
-            <p>Selecciona una empresa cliente para configurar sus permisos</p>
+          <div v-if="!usuarioSeleccionado" class="pc-placeholder">
+            <v-icon size="48" color="rgba(var(--v-theme-on-surface), 0.2)">mdi-account-lock-outline</v-icon>
+            <p>Selecciona un usuario para configurar sus permisos</p>
           </div>
 
           <template v-else>
             <div class="pc-panel-header">
               <div>
-                <div class="pc-panel-title">{{ clienteSeleccionado.nombre }}</div>
-                <div class="pc-panel-sub">Código: {{ clienteSeleccionado.codigo }}</div>
+                <div class="pc-panel-title">{{ usuarioSeleccionado.nombre || usuarioSeleccionado.usuario }}</div>
+                <div class="pc-panel-sub">Usuario: {{ usuarioSeleccionado.usuario }}</div>
               </div>
               <v-btn
                 color="#f59e0b"
@@ -85,30 +104,6 @@
                 Guardar Permisos
               </v-btn>
             </div>
-
-            <!-- Lista de precios asignada -->
-            <div class="pc-lista-precios-row">
-              <div class="pc-lp-label">
-                <v-icon size="15" color="#06b6d4" class="mr-1">mdi-tag-multiple-outline</v-icon>
-                Lista de precios asignada
-              </div>
-              <v-select
-                v-model="listaPrecioId"
-                :items="listasPrecios"
-                item-title="lista"
-                item-value="id"
-                variant="outlined"
-                density="compact"
-                hide-details
-                clearable
-                placeholder="Sin lista asignada"
-                color="#06b6d4"
-                style="max-width:280px"
-                @update:model-value="guardarListaPrecio"
-              />
-            </div>
-
-            <v-divider class="my-3" />
 
             <v-progress-linear v-if="loadingPermisos" indeterminate color="#f59e0b" height="3" class="mb-4" />
 
@@ -144,10 +139,10 @@
                   />
                 </div>
 
-                <!-- Items del módulo (todos los children > items) -->
+                <!-- Items del módulo -->
                 <div v-if="!isModuloDeshabilitado(mod.path)" class="pc-items-list">
                   <template v-for="cat in mod.children" :key="cat.name">
-                    <template v-for="item in itemsVisiblesParaCliente(cat.items)" :key="item.path">
+                    <template v-for="item in cat.items" :key="item.path">
                       <div class="pc-item-row">
                         <v-icon size="13" class="pc-item-icon">{{ item.icon }}</v-icon>
                         <span class="pc-item-nombre">{{ item.name }}</span>
@@ -202,16 +197,16 @@ import MainLayout from '../components/layouts/MainLayout.vue'
 import { API_BASE, MODULES } from '../utils/constants'
 
 // ─── Estado ───────────────────────────────────────────────────────
-const clientes = ref([])
-const loadingClientes = ref(false)
-const clienteSeleccionado = ref(null)
+const empresas = ref([])
+const empresaSeleccionada = ref(null)
+const usuarios = ref([])
+const loadingUsuarios = ref(false)
+const usuarioSeleccionado = ref(null)
 const rutasDeshabilitadas = ref([])
 const rutasDeshabilitadasMovil = ref([])
 const rutasDeshabilitadasCompleta = ref([])
 const loadingPermisos = ref(false)
 const guardando = ref(false)
-const listasPrecios = ref([])
-const listaPrecioId = ref(null)
 
 const snack = ref({ show: false, color: '#22c55e', text: '' })
 
@@ -226,12 +221,6 @@ const modulosVisibles = computed(() =>
   MODULES.filter(m => m.id !== 'inicio' && m.id !== 'configuracion')
 )
 
-// Filtra items que NO tienen requiredTipo = 'PROVEEDOR' (no aplican para cliente)
-function itemsVisiblesParaCliente(items) {
-  if (!items) return []
-  return items.filter(item => item.requiredTipo !== 'PROVEEDOR')
-}
-
 // ─── Helpers de permisos ──────────────────────────────────────────
 function isModuloDeshabilitado(path) {
   return rutasDeshabilitadas.value.includes(path)
@@ -241,7 +230,6 @@ function isItemDeshabilitado(path) {
   return rutasDeshabilitadas.value.some(d => path === d || path.startsWith(d + '/'))
 }
 
-// Disabled-only-on-movil => visible solo en completa. Disabled-only-en-completa => visible solo en movil.
 function estadoPlataforma(path) {
   if (rutasDeshabilitadasMovil.value.includes(path)) return 'COMPLETA'
   if (rutasDeshabilitadasCompleta.value.includes(path)) return 'MOVIL'
@@ -261,7 +249,6 @@ function setEstadoPlataforma(path, val) {
 // ─── Toggles ─────────────────────────────────────────────────────
 function toggleModulo(mod, enabled) {
   if (!enabled) {
-    // Deshabilitar módulo completo: agregar su path y quitar sub-paths individuales
     const subPaths = []
     mod.children?.forEach(cat => {
       cat.items?.forEach(item => subPaths.push(item.path))
@@ -273,7 +260,6 @@ function toggleModulo(mod, enabled) {
     rutasDeshabilitadasMovil.value = rutasDeshabilitadasMovil.value.filter(r => !subPaths.includes(r) && r !== mod.path)
     rutasDeshabilitadasCompleta.value = rutasDeshabilitadasCompleta.value.filter(r => !subPaths.includes(r) && r !== mod.path)
   } else {
-    // Habilitar módulo: quitar su path
     rutasDeshabilitadas.value = rutasDeshabilitadas.value.filter(r => r !== mod.path)
   }
 }
@@ -291,31 +277,40 @@ function toggleItem(path, enabled) {
 }
 
 // ─── API calls ───────────────────────────────────────────────────
-async function cargarClientes() {
-  loadingClientes.value = true
+async function cargarEmpresas() {
   try {
-    const [rc, rl] = await Promise.all([
-      fetch(`${API_BASE}/empresas/clientes`).then(r => r.json()),
-      fetch(`${API_BASE}/produccion/lista-precios`).then(r => r.json()),
-    ])
-    if (rc.success) clientes.value = rc.data
-    if (rl.success) listasPrecios.value = (rl.data || []).filter(l => l.activo === 'SI')
+    const r = await fetch(`${API_BASE}/empresas/all`)
+    const j = await r.json()
+    if (j.success) empresas.value = j.data
   } catch (e) {
-    console.error('Error cargando clientes:', e)
-  } finally {
-    loadingClientes.value = false
+    console.error('Error cargando empresas:', e)
   }
 }
 
-async function seleccionarCliente(cliente) {
-  clienteSeleccionado.value = cliente
+async function cargarUsuarios(empresaCod) {
+  usuarioSeleccionado.value = null
+  usuarios.value = []
+  if (!empresaCod) return
+  loadingUsuarios.value = true
+  try {
+    const r = await fetch(`${API_BASE}/configuracion/usuarios?empresa=${empresaCod}`)
+    const j = await r.json()
+    if (j.success) usuarios.value = j.data
+  } catch (e) {
+    console.error('Error cargando usuarios:', e)
+  } finally {
+    loadingUsuarios.value = false
+  }
+}
+
+async function seleccionarUsuario(usuario) {
+  usuarioSeleccionado.value = usuario
   rutasDeshabilitadas.value = []
   rutasDeshabilitadasMovil.value = []
   rutasDeshabilitadasCompleta.value = []
-  listaPrecioId.value = cliente.lista_precio_id || null
   loadingPermisos.value = true
   try {
-    const r = await fetch(`${API_BASE}/permisos-modulos/${cliente.codigo}`)
+    const r = await fetch(`${API_BASE}/permisos-usuarios/${empresaSeleccionada.value}/${usuario.codigo}`)
     const j = await r.json()
     if (j.success) {
       rutasDeshabilitadas.value = j.data?.rutas_deshabilitadas || []
@@ -324,37 +319,16 @@ async function seleccionarCliente(cliente) {
     }
   } catch (e) {
     console.error('Error cargando permisos:', e)
-    rutasDeshabilitadas.value = []
-    rutasDeshabilitadasMovil.value = []
-    rutasDeshabilitadasCompleta.value = []
   } finally {
     loadingPermisos.value = false
   }
 }
 
-async function guardarListaPrecio() {
-  if (!clienteSeleccionado.value) return
-  try {
-    await fetch(`${API_BASE}/empresas/clientes/${clienteSeleccionado.value.codigo}/lista-precio`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lista_precio_id: listaPrecioId.value })
-    })
-    // Actualizar local
-    const idx = clientes.value.findIndex(c => c.codigo === clienteSeleccionado.value.codigo)
-    if (idx >= 0) clientes.value[idx] = { ...clientes.value[idx], lista_precio_id: listaPrecioId.value }
-    const lista = listasPrecios.value.find(l => l.id === listaPrecioId.value)
-    snack.value = { show: true, color: '#22c55e', text: lista ? `Lista "${lista.lista}" asignada` : 'Lista de precios eliminada' }
-  } catch (e) {
-    snack.value = { show: true, color: '#ef4444', text: 'Error al guardar lista de precios' }
-  }
-}
-
 async function guardarPermisos() {
-  if (!clienteSeleccionado.value) return
+  if (!usuarioSeleccionado.value || !empresaSeleccionada.value) return
   guardando.value = true
   try {
-    const r = await fetch(`${API_BASE}/permisos-modulos/${clienteSeleccionado.value.codigo}`, {
+    const r = await fetch(`${API_BASE}/permisos-usuarios/${empresaSeleccionada.value}/${usuarioSeleccionado.value.codigo}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -377,7 +351,7 @@ async function guardarPermisos() {
 }
 
 onMounted(() => {
-  cargarClientes()
+  cargarEmpresas()
 })
 </script>
 
@@ -679,37 +653,5 @@ onMounted(() => {
   font-size: 11px;
   color: rgba(var(--v-theme-on-surface), 0.35);
   font-style: italic;
-}
-
-/* Lista de precios */
-.pc-lista-precios-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  background: rgba(6, 182, 212, 0.04);
-  border: 1px solid rgba(6, 182, 212, 0.2);
-  border-radius: 10px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
-}
-.pc-lp-label {
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.7);
-}
-
-/* Chip lista en tarjeta de cliente */
-.pc-cliente-lista {
-  font-size: 10px;
-  color: #0891b2;
-  background: rgba(6, 182, 212, 0.1);
-  padding: 1px 6px;
-  border-radius: 4px;
-  margin-top: 2px;
-  display: inline-block;
 }
 </style>

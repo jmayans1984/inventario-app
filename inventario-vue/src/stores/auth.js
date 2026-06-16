@@ -32,16 +32,29 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function cargarPermisos(empresaCod) {
+    const combinadas = new Set()
     try {
       const r = await fetch(`${API_BASE}/permisos-modulos/${empresaCod}`)
       const j = await r.json()
       if (j.success) {
-        const raw = j.data?.rutas_deshabilitadas
-        modulosDeshabilitados.value = Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw || '[]') : [])
+        ;[...(j.data?.rutas_deshabilitadas || []), ...(j.data?.rutas_deshabilitadas_completa || [])]
+          .forEach(p => combinadas.add(p))
       }
-    } catch {
-      modulosDeshabilitados.value = []
+    } catch { /* sin permisos de cliente */ }
+
+    const usuarioCodigo = usuario.value?.codigo
+    if (usuarioCodigo) {
+      try {
+        const r = await fetch(`${API_BASE}/permisos-usuarios/${empresaCod}/${usuarioCodigo}`)
+        const j = await r.json()
+        if (j.success) {
+          ;[...(j.data?.rutas_deshabilitadas || []), ...(j.data?.rutas_deshabilitadas_completa || [])]
+            .forEach(p => combinadas.add(p))
+        }
+      } catch { /* sin permisos de usuario */ }
     }
+
+    modulosDeshabilitados.value = Array.from(combinadas)
   }
 
   function setEmpresa(empresaCod, nombre = null, tipo = null) {

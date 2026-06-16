@@ -59,6 +59,17 @@
           </div>
           <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
+
+        <div class="mod-card" @click="go('/configuracion/permisos-usuarios')">
+          <div class="mod-card-icon" style="background:rgba(139,92,246,.12)">
+            <v-icon size="22" color="#8b5cf6">mdi-account-lock-outline</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Permisos de Usuarios</div>
+            <div class="mod-card-desc">Restringe módulos por usuario individual</div>
+          </div>
+          <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
       </div>
 
     </div>
