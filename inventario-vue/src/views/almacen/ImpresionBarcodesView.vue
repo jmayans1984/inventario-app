@@ -26,6 +26,17 @@
 
       <!-- OPCIONES DE IMPRESIÓN -->
       <div class="bcv-opciones">
+        <v-select
+          v-model="tipoCodigo"
+          :items="[{ title: 'Código QR (recomendado para celular)', value: 'QR' }, { title: 'Código de Barras (CODE128)', value: 'BARRAS' }]"
+          item-title="title"
+          item-value="value"
+          label="Tipo de código"
+          variant="outlined"
+          density="compact"
+          hide-details
+          style="max-width: 280px"
+        />
         <v-text-field
           v-model.number="cantidad"
           type="number"
@@ -117,6 +128,7 @@
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import JsBarcode from 'jsbarcode'
+import QRCode from 'qrcode'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 
 const productos     = ref([])
@@ -125,6 +137,7 @@ const search         = ref('')
 const seleccionados  = ref(new Set())
 const cantidad        = ref(1)
 const porFila         = ref(3)
+const tipoCodigo      = ref('QR')
 
 const productosFiltrados = computed(() => {
   const q = search.value.trim().toUpperCase()
@@ -163,33 +176,45 @@ function toggleSeleccionarTodos() {
   seleccionados.value = new Set(seleccionados.value)
 }
 
-function imprimirSeleccionados() {
+async function generarImagenCodigo(codigo) {
+  if (tipoCodigo.value === 'QR') {
+    return await QRCode.toDataURL(String(codigo), {
+      width: 240, margin: 1, errorCorrectionLevel: 'M',
+    })
+  }
+  const canvas = document.createElement('canvas')
+  JsBarcode(canvas, String(codigo), {
+    format: 'CODE128', displayValue: true,
+    fontSize: 14, textMargin: 3, height: 60, width: 2.4, margin: 8,
+  })
+  return canvas.toDataURL('image/png')
+}
+
+async function imprimirSeleccionados() {
   if (seleccionados.value.size === 0) return
 
   const cant   = Math.max(1, parseInt(cantidad.value) || 1)
   const fila   = parseInt(porFila.value) || 3
   const elegidos = productos.value.filter(p => seleccionados.value.has(p.codigo))
+  const esQR = tipoCodigo.value === 'QR'
 
   let etiquetasHtml = ''
-  elegidos.forEach(p => {
-    const canvas = document.createElement('canvas')
+  for (const p of elegidos) {
+    let img
     try {
-      JsBarcode(canvas, String(p.codigo), {
-        format: 'CODE128', displayValue: true,
-        fontSize: 12, textMargin: 2, height: 40, width: 1.6, margin: 4,
-      })
+      img = await generarImagenCodigo(p.codigo)
     } catch {
-      return
+      continue
     }
-    const img = canvas.toDataURL('image/png')
     for (let i = 0; i < cant; i++) {
       etiquetasHtml += `
         <div class="etiqueta">
           <div class="etiqueta-nombre">${p.nombre}</div>
-          <img src="${img}" class="etiqueta-img" />
+          <img src="${img}" class="etiqueta-img ${esQR ? 'etiqueta-img-qr' : ''}" />
+          ${esQR ? `<div class="etiqueta-codigo">${p.codigo}</div>` : ''}
         </div>`
     }
-  })
+  }
 
   const ventana = window.open('', '_blank')
   ventana.document.write(`
@@ -203,6 +228,8 @@ function imprimirSeleccionados() {
       .etiqueta { border: 1px dashed #999; border-radius: 6px; padding: 8px 6px; text-align: center; page-break-inside: avoid; }
       .etiqueta-nombre { font-size: 11px; font-weight: 700; margin-bottom: 4px; line-height: 1.2; min-height: 26px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
       .etiqueta-img { width: 100%; max-width: 220px; }
+      .etiqueta-img-qr { max-width: 140px; }
+      .etiqueta-codigo { font-size: 10px; font-family: monospace; margin-top: 3px; color: #333; }
       @media print { .etiqueta { border: none; } }
     </style>
     </head><body>
