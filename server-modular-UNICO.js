@@ -856,7 +856,7 @@ app.get('/api/almacen/barcode-lookup', async (req, res) => {
 app.get('/api/almacen/despachos', async (req, res) => {
     const { empresa, fecha, estado, cc_destino } = req.query;
     try {
-        const conds = ['od.empresa=$1'];
+        const conds = ['od.empresa=$1::integer'];
         const params = [empresa];
         if (fecha)      { params.push(fecha);      conds.push(`od.fecha=$${params.length}`); }
         if (estado)     { params.push(estado);     conds.push(`od.estado=$${params.length}`); }
