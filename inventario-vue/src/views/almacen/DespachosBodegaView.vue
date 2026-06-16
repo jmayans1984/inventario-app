@@ -664,6 +664,8 @@ async function guardar() {
       await api.post('/almacen/despachos', payload)
     }
     dlgForm.value = false
+    // Sincronizar filtro de fecha a la fecha de la orden guardada para que aparezca
+    if (form.value.fecha) filtroFecha.value = form.value.fecha
     await cargar()
   } catch (e) {
     formError.value = e?.response?.data?.error || e.message || 'Error al guardar'
