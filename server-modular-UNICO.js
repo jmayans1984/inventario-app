@@ -895,11 +895,13 @@ app.get('/api/almacen/despachos/:id', async (req, res) => {
                 WHERE od.id=$1 AND od.empresa=$2::integer
             `, [req.params.id, empresa]),
             pool.query(`
-                SELECT odd.*, p.nombre AS producto_nombre, p.und
+                SELECT odd.*, p.nombre AS producto_nombre, p.und, p.descripcion,
+                       p.grupo AS grupo_codigo, g.nombre AS grupo_nombre
                 FROM ordenes_despacho_detalle odd
                 JOIN productos p ON p.codigo=odd.producto_codigo
+                LEFT JOIN grupo_productos g ON g.codigo=p.grupo
                 WHERE odd.orden_id=$1
-                ORDER BY p.nombre
+                ORDER BY g.nombre NULLS LAST, p.nombre
             `, [req.params.id]),
         ]);
         if (rOrden.rows.length === 0) return res.status(404).json({ success: false, error: 'No encontrado' });

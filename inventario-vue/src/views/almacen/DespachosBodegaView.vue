@@ -717,18 +717,32 @@ function imprimirDespacho(o) {
   if (!o) o = detalleActivo.value
   if (!o) return
 
-  const filas = o.detalle.map(item => {
-    const req = parseFloat(item.cant_requerida)
-    return `<tr>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:12px">${item.producto_codigo}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">${item.producto_nombre}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#555">${item.descripcion || '—'}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${item.und}</td>
-      <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700">${req}</td>
-    </tr>`
-  }).join('')
+  // Agrupar detalle por grupo_nombre
+  const gruposMap = new Map()
+  for (const item of o.detalle) {
+    const key = item.grupo_codigo || '__sin_grupo__'
+    const nombre = item.grupo_nombre || 'Sin Grupo'
+    if (!gruposMap.has(key)) gruposMap.set(key, { nombre, items: [] })
+    gruposMap.get(key).items.push(item)
+  }
 
-  const totalReq = o.detalle.reduce((s, i) => s + parseFloat(i.cant_requerida), 0)
+  let filas = ''
+  for (const [, grupo] of gruposMap) {
+    filas += `<tr>
+      <td colspan="5" style="padding:6px 10px;background:#f3f0ff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;border-bottom:1px solid #e5e7eb">
+        ${grupo.nombre}
+      </td>
+    </tr>`
+    for (const item of grupo.items) {
+      filas += `<tr>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:12px">${item.producto_codigo}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">${item.producto_nombre}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#555">${item.descripcion || '—'}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${item.und}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700">${parseFloat(item.cant_requerida)}</td>
+      </tr>`
+    }
+  }
 
   const color = estadoColor(o.estado)
   const estadoNames = { PENDIENTE:'Pendiente', EN_PICKING:'En Picking', EN_PACKING:'En Packing', COMPLETADO:'Completado', CANCELADO:'Cancelado' }
@@ -749,7 +763,6 @@ function imprimirDespacho(o) {
     .meta-item span  { font-size: 13px; font-weight: 600; margin-top: 2px; display: block; }
     table { width: 100%; border-collapse: collapse; }
     thead th { padding: 9px 10px; background: #f3f4f6; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 2px solid #d1d5db; }
-    tfoot td { padding: 9px 10px; font-weight: 700; border-top: 2px solid #d1d5db; background: #f9fafb; }
     .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 50px; }
     .firma-linea { border-top: 1px solid #000; padding-top: 8px; text-align: center; font-size: 12px; color: #555; }
     @media print { body { padding: 15px; } }
@@ -773,10 +786,6 @@ function imprimirDespacho(o) {
       <th style="width:80px;text-align:center">REQUERIDO</th>
     </tr></thead>
     <tbody>${filas}</tbody>
-    <tfoot><tr>
-      <td colspan="4">TOTAL</td>
-      <td style="text-align:center">${totalReq}</td>
-    </tr></tfoot>
   </table>
   <div class="firmas">
     <div class="firma-linea">Firma Despachador</div>
