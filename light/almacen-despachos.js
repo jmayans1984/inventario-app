@@ -5,10 +5,11 @@
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
-let ordenActiva  = null;   // orden completa con detalle[]
-let modoEscaneo  = null;   // 'picking' | 'packing'
-let scanBuffer   = '';     // acumula chars del scanner BT
-let scanTimeout  = null;   // limpia buffer si el scanner tarda
+let ordenActiva      = null;   // orden completa con detalle[]
+let modoEscaneo      = null;   // 'picking' | 'packing'
+let scanBuffer       = '';     // acumula chars del scanner BT
+let scanTimeout      = null;   // limpia buffer si el scanner tarda
+let barcodeNoEncontrado = null; // barcode pendiente de asociar
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -267,7 +268,7 @@ async function procesarScan(barcode) {
         const data = await res.json();
 
         if (!data.found) {
-            showFeedback('error', `❌ Código no reconocido: ${barcode}`);
+            mostrarAsociadorBarcode(barcode);
             return;
         }
 
@@ -541,6 +542,88 @@ function imprimirReporte() {
         </body></html>
     `);
     ventana.document.close();
+}
+
+// ══════════════════════════════════════════════════════════════
+// BOTTOM SHEET — ASOCIAR BARCODE DESCONOCIDO A PRODUCTO
+// ══════════════════════════════════════════════════════════════
+function mostrarAsociadorBarcode(barcode) {
+    barcodeNoEncontrado = barcode;
+
+    document.getElementById('bsBarcode').textContent = barcode;
+
+    const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+    const lista = document.getElementById('bsList');
+
+    lista.innerHTML = ordenActiva.detalle.map(item => {
+        const req = parseFloat(item.cant_requerida) || 0;
+        const esc = parseFloat(item[campo]) || 0;
+        const completo = esc >= req;
+        return `
+        <div class="bs-item" onclick="seleccionarProductoParaBarcode('${item.producto_codigo}')">
+            <div class="bs-item-icon">${completo ? '✅' : '📦'}</div>
+            <div>
+                <div class="bs-item-name">${item.producto_nombre}</div>
+                <div class="bs-item-cod">${item.producto_codigo}</div>
+            </div>
+            <div class="bs-item-qty">
+                <div class="bs-item-qty-val" style="color:${completo?'#10b981':esc>0?'#f59e0b':'var(--text-tertiary)'}">${esc}/${req}</div>
+                <div class="bs-item-qty-lbl">escaneado</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('bsOverlay').classList.add('open');
+}
+
+async function seleccionarProductoParaBarcode(productoCodigo) {
+    const barcode = barcodeNoEncontrado;
+    cerrarAsociador();
+
+    // 1. Guardar la asociación barcode → producto
+    try {
+        await fetch(`${API_BASE}/almacen/productos/${productoCodigo}/barcodes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa: getEmpresa(), barcode, es_principal: false })
+        });
+    } catch(e) { /* si falla la asociación igual procesamos el scan */ }
+
+    // 2. Procesar el scan directamente (ya sabemos el producto)
+    const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+    const item  = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
+    if (!item) { showFeedback('warn', '⚠️ Producto no encontrado en la orden'); return; }
+
+    try {
+        const res  = await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: productoCodigo, tipo: modoEscaneo, delta: 1 })
+        });
+        const data = await res.json();
+        if (!data.success) { showFeedback('error', '❌ Error al registrar scan'); return; }
+
+        item[campo] = parseFloat(data.data[campo]) || 0;
+
+        const nuevo = parseFloat(item[campo]);
+        const req   = parseFloat(item.cant_requerida);
+        const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre} — ${nuevo}/${req} (falta ${req-nuevo})`
+                    : nuevo === req ? `✅ ${item.producto_nombre} — ¡Completo! (${nuevo}/${req})`
+                    :                 `🔴 ${item.producto_nombre} — Sobrante: ${nuevo}/${req}`;
+        showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
+        actualizarFilaScan(item, campo);
+    } catch(e) {
+        showFeedback('error', '❌ Error de conexión');
+    }
+
+    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 150);
+}
+
+function cerrarAsociador(e) {
+    if (e && e.target !== document.getElementById('bsOverlay')) return;
+    document.getElementById('bsOverlay').classList.remove('open');
+    barcodeNoEncontrado = null;
+    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
 }
 
 // ── Helpers ───────────────────────────────────────────────────
