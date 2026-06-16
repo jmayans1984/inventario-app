@@ -233,6 +233,17 @@
                     >
                       <v-icon>{{ p.para_venta === 'SI' ? 'mdi-shopping-outline' : 'mdi-shopping-outline' }}</v-icon>
                     </v-btn>
+                    <!-- Códigos de Barra -->
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      color="#8b5cf6"
+                      title="Códigos de Barra"
+                      @click="abrirBarcodes(p)"
+                    >
+                      <v-icon>mdi-barcode-scan</v-icon>
+                    </v-btn>
                     <!-- Editar -->
                     <v-btn
                       icon
@@ -431,6 +442,111 @@
             <v-btn variant="text" @click="cerrarDlg" :disabled="guardando">Cancelar</v-btn>
             <v-btn color="#0891b2" variant="elevated" size="large" :loading="guardando" @click="guardar">
               {{ editando ? 'Guardar Cambios' : 'Crear Producto' }}
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- ═══════════════════ DIALOG CÓDIGOS DE BARRA ═══════════════════ -->
+      <v-dialog v-model="dlgBarcodes" max-width="560">
+        <v-card rounded="lg" class="dlg-card">
+          <div class="dlg-header" style="background: linear-gradient(135deg,#7c3aed,#8b5cf6)">
+            <div class="dlg-header-left">
+              <div class="dlg-header-icon"><v-icon color="white" size="22">mdi-barcode-scan</v-icon></div>
+              <div>
+                <div class="dlg-header-title">Códigos de Barra</div>
+                <div class="dlg-header-sub">{{ bcProducto?.nombre }}</div>
+              </div>
+            </div>
+            <v-btn icon variant="text" color="white" size="small" @click="dlgBarcodes=false"><v-icon>mdi-close</v-icon></v-btn>
+          </div>
+
+          <v-card-text class="pa-5">
+            <!-- Lista de barcodes existentes -->
+            <div class="bc-list" v-if="barcodes.length">
+              <div v-for="bc in barcodes" :key="bc.id" class="bc-item">
+                <div class="bc-item-left">
+                  <v-icon size="16" :color="bc.es_principal ? '#8b5cf6' : 'rgba(var(--v-theme-on-surface),0.3)'">
+                    {{ bc.es_principal ? 'mdi-star' : 'mdi-star-outline' }}
+                  </v-icon>
+                  <div>
+                    <div class="bc-code">{{ bc.barcode }}</div>
+                    <div class="bc-desc" v-if="bc.descripcion">{{ bc.descripcion }}</div>
+                  </div>
+                </div>
+                <div class="bc-item-right">
+                  <v-btn icon size="x-small" variant="text"
+                    :color="bc.es_principal ? '#8b5cf6' : '#9ca3af'"
+                    :title="bc.es_principal ? 'Es el principal' : 'Marcar como principal'"
+                    :loading="bcToggling === bc.id"
+                    @click="marcarPrincipal(bc)"
+                  ><v-icon size="16">mdi-star</v-icon></v-btn>
+                  <v-btn icon size="x-small" variant="text" color="#ef4444" title="Eliminar"
+                    :loading="bcDeleting === bc.id"
+                    @click="eliminarBarcode(bc)"
+                  ><v-icon size="16">mdi-delete</v-icon></v-btn>
+                </div>
+              </div>
+            </div>
+            <div v-else-if="!bcLoading" class="bc-empty">
+              <v-icon size="36" color="rgba(var(--v-theme-on-surface),0.2)">mdi-barcode-off</v-icon>
+              <p>Sin códigos de barra registrados</p>
+            </div>
+            <div v-if="bcLoading" class="bc-empty">
+              <v-progress-circular indeterminate color="#8b5cf6" size="28" />
+            </div>
+
+            <v-divider class="my-4" />
+
+            <!-- Formulario agregar -->
+            <div class="bc-form">
+              <div class="sheet-header mb-3">
+                <v-icon size="16" color="#8b5cf6">mdi-plus-circle</v-icon>
+                <span class="sheet-title">Agregar Código</span>
+              </div>
+              <v-row dense>
+                <v-col cols="12">
+                  <v-text-field
+                    v-model="bcNuevo.barcode"
+                    label="Código de Barra *"
+                    density="compact"
+                    variant="outlined"
+                    hint="Puedes escribirlo o escanearlo directamente aquí"
+                    persistent-hint
+                    @keydown.enter.prevent="agregarBarcode"
+                  />
+                </v-col>
+                <v-col cols="12">
+                  <v-text-field
+                    v-model="bcNuevo.descripcion"
+                    label="Descripción (opcional)"
+                    density="compact"
+                    variant="outlined"
+                    placeholder="Ej: Agua Cristal 500ml, Código propio"
+                    @keydown.enter.prevent="agregarBarcode"
+                  />
+                </v-col>
+                <v-col cols="12">
+                  <v-checkbox
+                    v-model="bcNuevo.es_principal"
+                    label="Marcar como código principal"
+                    density="compact"
+                    color="#8b5cf6"
+                    hide-details
+                  />
+                </v-col>
+              </v-row>
+              <v-alert v-if="bcError" type="error" variant="tonal" density="compact" class="mt-3 mb-0">{{ bcError }}</v-alert>
+            </div>
+          </v-card-text>
+
+          <v-divider />
+          <v-card-actions class="pa-4">
+            <v-spacer />
+            <v-btn variant="text" @click="dlgBarcodes=false">Cerrar</v-btn>
+            <v-btn color="#8b5cf6" variant="elevated" :loading="bcGuardando" @click="agregarBarcode"
+              :disabled="!bcNuevo.barcode.trim()">
+              Agregar Código
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -662,6 +778,87 @@ async function toggleVisibleOperacional(p) {
 
 // Los 3 controles son independientes — no hay cascada
 
+// ── Barcodes ──────────────────────────────────────────────────
+const empresa       = computed(() => localStorage.getItem('empresaCodigo') || '')
+const dlgBarcodes   = ref(false)
+const bcProducto    = ref(null)
+const barcodes      = ref([])
+const bcLoading     = ref(false)
+const bcGuardando   = ref(false)
+const bcDeleting    = ref(null)
+const bcToggling    = ref(null)
+const bcError       = ref('')
+const bcNuevo       = ref({ barcode: '', descripcion: '', es_principal: false })
+
+async function abrirBarcodes(p) {
+  bcProducto.value = p
+  bcNuevo.value    = { barcode: '', descripcion: '', es_principal: false }
+  bcError.value    = ''
+  dlgBarcodes.value = true
+  await cargarBarcodes()
+}
+
+async function cargarBarcodes() {
+  bcLoading.value = true
+  try {
+    const res = await fetch(
+      `/api/almacen/productos/${bcProducto.value.codigo}/barcodes?empresa=${empresa.value}`
+    )
+    const data = await res.json()
+    barcodes.value = data.data || []
+  } catch { /* silencioso */ } finally {
+    bcLoading.value = false
+  }
+}
+
+async function agregarBarcode() {
+  if (!bcNuevo.value.barcode.trim()) return
+  bcGuardando.value = true
+  bcError.value = ''
+  try {
+    const res = await fetch(`/api/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...bcNuevo.value, empresa: empresa.value })
+    })
+    const data = await res.json()
+    if (!data.success) { bcError.value = data.error || 'Error al guardar'; return }
+    await cargarBarcodes()
+    bcNuevo.value = { barcode: '', descripcion: '', es_principal: false }
+  } catch (e) {
+    bcError.value = e.message
+  } finally {
+    bcGuardando.value = false
+  }
+}
+
+async function eliminarBarcode(bc) {
+  bcDeleting.value = bc.id
+  try {
+    await fetch(`/api/almacen/barcodes/${bc.id}?empresa=${empresa.value}`, { method: 'DELETE' })
+    await cargarBarcodes()
+  } catch { /* silencioso */ } finally {
+    bcDeleting.value = null
+  }
+}
+
+async function marcarPrincipal(bc) {
+  if (bc.es_principal) return
+  bcToggling.value = bc.id
+  try {
+    // Eliminar y re-crear con es_principal=true — más simple que un PATCH específico
+    await fetch(`/api/almacen/barcodes/${bc.id}?empresa=${empresa.value}`, { method: 'DELETE' })
+    await fetch(`/api/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ barcode: bc.barcode, descripcion: bc.descripcion, es_principal: true, empresa: empresa.value })
+    })
+    await cargarBarcodes()
+  } catch { /* silencioso */ } finally {
+    bcToggling.value = null
+  }
+}
+
 onMounted(cargar)
 </script>
 
@@ -884,4 +1081,14 @@ onMounted(cargar)
 }
 
 .th-venta { width: 110px; text-align: center; }
+
+/* Barcodes dialog */
+.bc-list  { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.bc-item  { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(var(--v-theme-on-surface),.03); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 8px; }
+.bc-item-left  { display: flex; align-items: center; gap: 10px; }
+.bc-item-right { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.bc-code  { font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; letter-spacing: .5px; color: #7c3aed; }
+.bc-desc  { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 2px; }
+.bc-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
+.bc-form  { }
 </style>

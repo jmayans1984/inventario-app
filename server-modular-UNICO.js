@@ -756,6 +756,99 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
     }
 });
 
+// ── BARCODES ──────────────────────────────────────────────────────────────────
+
+// GET /api/almacen/productos/:codigo/barcodes
+app.get('/api/almacen/productos/:codigo/barcodes', async (req, res) => {
+    const { codigo } = req.params;
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    try {
+        const result = await pool.query(
+            `SELECT id, barcode, descripcion, es_principal, creado_en
+             FROM producto_barcodes
+             WHERE empresa=$1 AND producto_codigo=$2
+             ORDER BY es_principal DESC, creado_en ASC`,
+            [empresa, codigo]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST /api/almacen/productos/:codigo/barcodes
+app.post('/api/almacen/productos/:codigo/barcodes', async (req, res) => {
+    const { codigo } = req.params;
+    const empresa = req.body.empresa || req.headers['x-empresa'];
+    const { barcode, descripcion, es_principal } = req.body;
+    if (!barcode) return res.status(400).json({ success: false, error: 'Barcode requerido' });
+    try {
+        // Si es_principal, quitar principal anterior
+        if (es_principal) {
+            await pool.query(
+                `UPDATE producto_barcodes SET es_principal=FALSE WHERE empresa=$1 AND producto_codigo=$2`,
+                [empresa, codigo]
+            );
+        }
+        const result = await pool.query(
+            `INSERT INTO producto_barcodes (empresa, producto_codigo, barcode, descripcion, es_principal)
+             VALUES ($1,$2,$3,$4,$5)
+             RETURNING *`,
+            [empresa, codigo, barcode.trim(), (descripcion || '').trim() || null, !!es_principal]
+        );
+        res.json({ success: true, data: result.rows[0] });
+    } catch (e) {
+        if (e.code === '23505') return res.status(409).json({ success: false, error: 'Este código de barra ya está registrado para otra empresa/producto' });
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// DELETE /api/almacen/barcodes/:id
+app.delete('/api/almacen/barcodes/:id', async (req, res) => {
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    try {
+        const result = await pool.query(
+            `DELETE FROM producto_barcodes WHERE id=$1 AND empresa=$2 RETURNING id`,
+            [req.params.id, empresa]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'No encontrado' });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET /api/almacen/barcode-lookup?barcode=xxx&empresa=xxx
+// Busca el producto asociado a un código de barra (usado por el scanner)
+app.get('/api/almacen/barcode-lookup', async (req, res) => {
+    const { barcode, empresa } = req.query;
+    if (!barcode) return res.status(400).json({ success: false, error: 'barcode requerido' });
+    try {
+        // Primero buscar en tabla de barcodes
+        const r = await pool.query(
+            `SELECT pb.producto_codigo, p.nombre, p.und, pb.descripcion AS barcode_desc
+             FROM producto_barcodes pb
+             JOIN productos p ON p.codigo = pb.producto_codigo
+             WHERE pb.barcode=$1 AND pb.empresa=$2`,
+            [barcode.trim(), empresa]
+        );
+        if (r.rows.length > 0) {
+            return res.json({ success: true, found: true, data: r.rows[0] });
+        }
+        // Fallback: buscar por código interno del producto
+        const r2 = await pool.query(
+            `SELECT codigo AS producto_codigo, nombre, und FROM productos WHERE codigo=$1`,
+            [barcode.trim()]
+        );
+        if (r2.rows.length > 0) {
+            return res.json({ success: true, found: true, data: r2.rows[0] });
+        }
+        res.json({ success: true, found: false });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // PATCH /api/almacen/productos/:codigo/toggle-control — alternar SI/NO
 app.patch('/api/almacen/productos/:codigo/toggle-control', async (req, res) => {
     const { codigo } = req.params;
@@ -11362,6 +11455,25 @@ app.listen(PORT, async () => {
         console.log('✅ Columna cc_relacion verificada/creada');
     } catch (err) {
         console.error('⚠️  Error al crear columna cc_relacion:', err.message);
+    }
+
+    // Crear tabla producto_barcodes si no existe
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS producto_barcodes (
+                id             SERIAL PRIMARY KEY,
+                empresa        VARCHAR(20) NOT NULL,
+                producto_codigo VARCHAR(20) NOT NULL,
+                barcode        VARCHAR(100) NOT NULL,
+                descripcion    VARCHAR(200),
+                es_principal   BOOLEAN DEFAULT FALSE,
+                creado_en      TIMESTAMP DEFAULT NOW(),
+                UNIQUE(empresa, barcode)
+            )
+        `);
+        console.log('✅ Tabla producto_barcodes verificada/creada');
+    } catch (err) {
+        console.error('⚠️  Error al crear tabla producto_barcodes:', err.message);
     }
 });
 
