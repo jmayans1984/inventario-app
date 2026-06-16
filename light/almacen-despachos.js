@@ -11,6 +11,10 @@ let scanBuffer       = '';     // acumula chars del scanner BT
 let scanTimeout      = null;   // limpia buffer si el scanner tarda
 let barcodeNoEncontrado = null; // barcode pendiente de asociar
 let estadoCambiado   = false;  // evita actualizar estado antes del primer scan
+let scanEnProceso    = false;  // evita scans concurrentes (FIX 2)
+let ultimoBarcode    = null;   // para reintentar (FIX 2)
+let itemsOcultos     = new Set(); // productos completados y ocultos (FIX 6)
+let mostrandoOcultos = false;  // toggle para ver ocultos (FIX 6)
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -30,6 +34,13 @@ function getEmpresa() {
     return localStorage.getItem('empresaActual') || '';
 }
 
+// FIX 2: fetch con timeout para evitar cuelgues en Railway
+function fetchConTimeout(url, opts = {}, ms = 12000) {
+    const ctrl = new AbortController();
+    const id   = setTimeout(() => ctrl.abort(), ms);
+    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
+
 // ── Navegación entre pantallas ────────────────────────────────
 function mostrarScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -47,7 +58,7 @@ async function cargarOrdenes() {
         '<div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div>';
     try {
         const params = `empresa=${empresa}${fecha ? '&fecha=' + fecha : ''}`;
-        const res  = await fetch(`${API_BASE}/almacen/despachos?${params}`);
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos?${params}`);
         const data = await res.json();
         renderLista(data.data || []);
     } catch (e) {
@@ -63,7 +74,6 @@ function renderLista(ordenes) {
         return;
     }
 
-    // Separar por estado para mostrar primero las activas
     const prioridad = ['EN_PICKING','EN_PACKING','PENDIENTE','COMPLETADO','CANCELADO'];
     ordenes.sort((a,b) => prioridad.indexOf(a.estado) - prioridad.indexOf(b.estado));
 
@@ -86,7 +96,7 @@ function renderLista(ordenes) {
 // ══════════════════════════════════════════════════════════════
 async function abrirOrden(id) {
     try {
-        const res  = await fetch(`${API_BASE}/almacen/despachos/${id}?empresa=${getEmpresa()}`);
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${id}?empresa=${getEmpresa()}`);
         const data = await res.json();
         ordenActiva = data.data;
         renderDetalle();
@@ -150,7 +160,6 @@ function renderDetalle() {
             </table>
         </div>
 
-        <!-- Botones de acción según estado -->
         ${puedePickear ? `
         <button class="btn-accion btn-picking" onclick="iniciarEscaneo('picking')">
             📦 ${est === 'EN_PICKING' ? 'Continuar Picking' : 'Iniciar Picking'}
@@ -177,9 +186,12 @@ function renderDetalle() {
 // PANTALLA 3 — ESCANEO (PICKING O PACKING)
 // ══════════════════════════════════════════════════════════════
 async function iniciarEscaneo(modo) {
-    modoEscaneo  = modo;
-    scanBuffer   = '';
-    estadoCambiado = false; // se actualiza el estado solo al primer scan real
+    modoEscaneo    = modo;
+    scanBuffer     = '';
+    estadoCambiado = false;
+    scanEnProceso  = false;
+    itemsOcultos   = new Set(); // FIX 6: reset al entrar
+    mostrandoOcultos = false;
 
     renderEscaneo();
     mostrarScreen('escaneo');
@@ -210,78 +222,129 @@ function renderEscaneo() {
 function renderScanList(campo) {
     campo = campo || (modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking');
     const el = document.getElementById('scanList');
-    el.innerHTML = ordenActiva.detalle.map(item => {
-        const req  = parseFloat(item.cant_requerida) || 0;
-        const esc  = parseFloat(item[campo]) || 0;
-        const dif  = esc - req;
-        let cls = '', icon = '';
-        if (esc === 0) { cls = ''; icon = '⬜'; }
-        else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; }
-        else if (dif > 0) { cls = 'item-sobre';  icon = '🔴'; }
-        else               { cls = 'item-ok';     icon = '✅'; }
 
-        return `<div class="scan-item ${cls}" id="si-${item.producto_codigo}">
-            <div>
-                <div class="scan-item-name">${item.producto_nombre}</div>
-                <div class="scan-item-cod">${item.producto_codigo}</div>
-            </div>
-            <div class="scan-counter">
-                <span class="scan-count-val" style="color:${esc===0?'var(--text-tertiary)':dif<0?'#ef4444':dif>0?'#f59e0b':'#10b981'}">${esc}</span>
+    // FIX 6: filtrar productos ocultos
+    const visibles = mostrandoOcultos
+        ? ordenActiva.detalle
+        : ordenActiva.detalle.filter(item => !itemsOcultos.has(item.producto_codigo));
+
+    const ocCnt = itemsOcultos.size;
+    const ocBanner = ocCnt > 0 ? `
+        <div class="scan-ocultos-banner" onclick="toggleOcultos()">
+            ${mostrandoOcultos ? '🙈' : '👁️'}
+            ${ocCnt} producto${ocCnt > 1 ? 's' : ''} completado${ocCnt > 1 ? 's' : ''}
+            ${mostrandoOcultos ? '— toca para ocultar' : '— toca para ver'}
+        </div>` : '';
+
+    el.innerHTML = ocBanner + visibles.map(item => renderScanItem(item, campo)).join('');
+}
+
+function renderScanItem(item, campo) {
+    const req  = parseFloat(item.cant_requerida) || 0;
+    const esc  = parseFloat(item[campo]) || 0;
+    const dif  = esc - req;
+    let cls = '', icon = '';
+    if (esc === 0)     { cls = '';           icon = '⬜'; }
+    else if (dif < 0)  { cls = 'item-falta'; icon = '⚠️'; }
+    else if (dif > 0)  { cls = 'item-sobre'; icon = '🔴'; }
+    else               { cls = 'item-ok';    icon = '✅'; }
+
+    const cod   = item.producto_codigo;
+    const color = esc === 0 ? 'var(--text-tertiary)' : dif < 0 ? '#ef4444' : dif > 0 ? '#f59e0b' : '#10b981';
+
+    // FIX 6: si está oculto (mostrandoOcultos=true), mostrar con estilo tenue
+    const ocultoCls = itemsOcultos.has(cod) ? ' item-oculto' : '';
+
+    return `<div class="scan-item ${cls}${ocultoCls}" id="si-${cod}">
+        <div class="scan-item-info" onclick="mostrarEntradaManual('${cod}','${campo}')">
+            <div class="scan-item-name">${item.producto_nombre}</div>
+            <div class="scan-item-cod">${cod} · ✏️ entrada manual</div>
+        </div>
+        <div class="scan-counter">
+            <button class="scan-adj-btn" onclick="ajustarCantidad('${cod}','${campo}',-1)">−</button>
+            <div class="scan-count-info">
+                <span class="scan-count-val" style="color:${color}">${esc}</span>
                 <span class="scan-count-req">/ ${req}</span>
                 <span class="scan-status-icon">${icon}</span>
             </div>
-        </div>`;
-    }).join('');
+            <button class="scan-adj-btn scan-adj-plus" onclick="ajustarCantidad('${cod}','${campo}',+1)">+</button>
+        </div>
+    </div>`;
+}
+
+// FIX 6: toggle mostrar/ocultar completados
+function toggleOcultos() {
+    mostrandoOcultos = !mostrandoOcultos;
+    const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+    renderScanList(campo);
 }
 
 // ── Captura del scanner ───────────────────────────────────────
 function onScanKeydown(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
-        const codigo = document.getElementById('scannerInput').value.trim();
-        if (codigo) procesarScan(codigo);
-        document.getElementById('scannerInput').value = '';
+        ejecutarScanManual();
         return;
     }
-    // Limpiar feedback al empezar a tipear
     hideFeedback();
 }
 
+// FIX 3: botón manual de búsqueda
+function ejecutarScanManual() {
+    const inp    = document.getElementById('scannerInput');
+    const codigo = inp.value.trim();
+    if (!codigo) { inp.focus(); return; }
+    inp.value = '';
+    procesarScan(codigo);
+}
+
 async function procesarScan(barcode) {
+    // FIX 2: bloquear scans concurrentes
+    if (scanEnProceso) return;
+    scanEnProceso = true;
+    ultimoBarcode = barcode;
+
     try {
         // 1. Lookup del barcode → producto
-        const res  = await fetch(`${API_BASE}/almacen/barcode-lookup?barcode=${encodeURIComponent(barcode)}&empresa=${getEmpresa()}`);
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/barcode-lookup?barcode=${encodeURIComponent(barcode)}&empresa=${getEmpresa()}`);
         const data = await res.json();
 
         if (!data.found) {
+            scanEnProceso = false;
             mostrarAsociadorBarcode(barcode);
             return;
         }
 
-        const codigo = data.data.producto_codigo;
-        const nombre = data.data.nombre;
-        const factor = parseFloat(data.data.factor) || 1;
+        const codigo   = data.data.producto_codigo;
+        const nombre   = data.data.nombre;
+        const factor   = parseFloat(data.data.factor) || 1;
+        // FIX 1: detectar si se encontró por código interno (no por barcode registrado)
+        const esCodigo = data.data.barcode_desc === undefined;
 
         // 2. ¿Está en esta orden?
         const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
         if (!item) {
             showFeedback('warn', `⚠️ ${nombre} no está en esta orden`);
+            scanEnProceso = false;
+            refocusInput();
             return;
         }
 
-        // 3. Si factor > 1, mostrar popup de cantidad
+        // FIX 1: mostrar diálogo si factor > 1 o si se escaneó el código del producto
         let delta = factor;
-        if (factor > 1) {
-            const elegido = await mostrarDialogoFactor(nombre, factor);
-            if (elegido === null) return; // cancelado
+        if (factor > 1 || esCodigo) {
+            scanEnProceso = false; // liberar mientras espera interacción
+            const elegido = await mostrarDialogoFactor(nombre, factor, esCodigo);
+            if (elegido === null) { refocusInput(); return; }
             delta = elegido;
+            scanEnProceso = true; // retomar
         }
 
-        // 4. Cambiar estado al primer scan real
+        // 3. Cambiar estado al primer scan real
         if (!estadoCambiado) {
             const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
             try {
-                await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+                await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
@@ -291,9 +354,9 @@ async function procesarScan(barcode) {
             } catch(e) { /* continuar igualmente */ }
         }
 
-        // 5. Registrar el scan en backend
+        // 4. Registrar el scan en backend
         const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
-        const resS  = await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+        const resS  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo: modoEscaneo, delta })
@@ -307,43 +370,250 @@ async function procesarScan(barcode) {
         // 6. Feedback visual
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
-        const sufijo = factor > 1 ? (delta === factor ? ` (caja ×${factor})` : ' (unidad)') : '';
+        const sufijo = delta > 1 ? ` (×${delta})` : '';
         if (nuevo < req)       showFeedback('warn', `⚠️ ${nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`);
         else if (nuevo === req) showFeedback('ok',   `✅ ${nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`);
         else                   showFeedback('warn',  `🔴 ${nombre}${sufijo} — Sobrante: ${nuevo}/${req}`);
 
-        // 6. Actualizar solo la fila del producto escaneado
+        // 7. Actualizar solo la fila del producto escaneado
         actualizarFilaScan(item, campo);
 
-        // 7. Re-focus al input
-        setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+        // FIX 6: si completó exactamente, preguntar packing y ocultar
+        if (nuevo === req) {
+            scanEnProceso = false;
+            await verificarCompletoYOcultar(item, campo);
+            return;
+        }
 
     } catch (e) {
-        showFeedback('error', '❌ Error de conexión');
+        // FIX 2: mostrar error con botón de reintento; refocus para no romper el flujo
+        const esTiempo = e.name === 'AbortError';
+        showFeedbackHTML('error',
+            `❌ ${esTiempo ? 'Tiempo de espera agotado' : 'Error de conexión'} &nbsp;` +
+            `<button onclick="reintentarScan()" style="padding:4px 10px;border-radius:8px;border:1.5px solid currentColor;background:transparent;color:inherit;font-size:12px;font-weight:700;cursor:pointer;">🔄 Reintentar</button>`
+        );
+    } finally {
+        scanEnProceso = false;
+        refocusInput();
     }
+}
+
+// FIX 2: reintentar último scan
+function reintentarScan() {
+    hideFeedback();
+    if (ultimoBarcode) procesarScan(ultimoBarcode);
+}
+
+// ── FIX 4 + 5: ajustar cantidad manualmente ──────────────────
+async function ajustarCantidad(codigo, campo, delta) {
+    if (scanEnProceso) return;
+    scanEnProceso = true;
+    try {
+        const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+        if (!item) return;
+
+        // Asegurar que estado se actualice al primer ajuste manual
+        if (!estadoCambiado) {
+            const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
+            try {
+                await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
+                });
+                ordenActiva.estado = nuevoEst;
+                estadoCambiado = true;
+            } catch(e) { /* continuar */ }
+        }
+
+        const tipo = campo === 'cant_packing' ? 'packing' : 'picking';
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo, delta })
+        });
+        const data = await res.json();
+        if (!data.success) { showFeedback('error', '❌ Error al ajustar'); return; }
+
+        item[campo] = parseFloat(data.data[campo]) || 0;
+        actualizarFilaScan(item, campo);
+
+        const nuevo = parseFloat(item[campo]);
+        const req   = parseFloat(item.cant_requerida);
+        if (nuevo < req)       showFeedback('warn', `⚠️ ${item.producto_nombre} — ${nuevo}/${req} (falta ${req-nuevo})`);
+        else if (nuevo === req) showFeedback('ok',   `✅ ${item.producto_nombre} — ¡Completo!`);
+        else                   showFeedback('warn',  `🔴 ${item.producto_nombre} — Sobrante: ${nuevo-req} de más`);
+
+        if (nuevo === req) {
+            scanEnProceso = false;
+            await verificarCompletoYOcultar(item, campo);
+            return;
+        }
+    } catch(e) {
+        showFeedback('error', '❌ Error de conexión');
+    } finally {
+        scanEnProceso = false;
+        refocusInput();
+    }
+}
+
+// FIX 5: entrada manual por producto (bottom sheet)
+function mostrarEntradaManual(codigo, campo) {
+    const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+    if (!item) return;
+
+    const esc = parseFloat(item[campo]) || 0;
+    const req = parseFloat(item.cant_requerida) || 0;
+
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+
+    panel.innerHTML = `
+      <div style="padding:20px 16px 20px">
+        <div class="bs-drag" style="width:40px;height:4px;background:var(--border-color);border-radius:2px;margin:0 auto 16px"></div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px">✏️ Entrada manual</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:4px;line-height:1.2">${item.producto_nombre}</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">
+          Registrado: <strong style="color:var(--text-primary)">${esc}</strong> / Requerido: <strong>${req}</strong>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Cantidad a agregar (usa número negativo para quitar):</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
+          <button onclick="ajustarCantidadManual('${codigo}','${campo}',-1)" style="width:52px;height:52px;border-radius:12px;border:2px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0">−</button>
+          <input id="manualCantInput" type="number" inputmode="decimal"
+            value=""
+            placeholder="Ej: 5"
+            style="flex:1;padding:14px;border-radius:12px;border:2px solid var(--border-color);
+                   background:var(--bg-input);color:var(--text-primary);font-size:22px;
+                   font-weight:700;text-align:center;outline:none;box-sizing:border-box" />
+          <button onclick="ajustarCantidadManual('${codigo}','${campo}',+1)" style="width:52px;height:52px;border-radius:12px;border:2px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0">+</button>
+        </div>
+        <button id="btnConfirmarManual"
+          style="width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
+                 background:#047857;color:white;font-size:15px;font-weight:700;margin-bottom:8px">
+          ✅ Registrar cantidad
+        </button>
+        <button onclick="cancelarManual()"
+          style="width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
+                 background:transparent;color:var(--text-secondary);font-size:13px">
+          Cancelar
+        </button>
+      </div>
+    `;
+
+    overlay.classList.add('open');
+    setTimeout(() => document.getElementById('manualCantInput')?.focus(), 100);
+
+    document.getElementById('btnConfirmarManual').onclick = () => {
+        const val = parseFloat(document.getElementById('manualCantInput').value);
+        if (!val || isNaN(val)) { document.getElementById('manualCantInput').focus(); return; }
+        overlay.classList.remove('open');
+        ajustarCantidad(codigo, campo, val);
+    };
+    document.getElementById('manualCantInput').onkeydown = (e) => {
+        if (e.key === 'Enter') document.getElementById('btnConfirmarManual').click();
+    };
+}
+
+function ajustarCantidadManual(codigo, campo, delta) {
+    const inp = document.getElementById('manualCantInput');
+    const v   = parseFloat(inp.value) || 0;
+    inp.value = v + delta;
+    inp.focus();
+}
+
+function cancelarManual() {
+    document.getElementById('bsOverlay').classList.remove('open');
+    refocusInput();
+}
+
+// FIX 6: verificar si completó y preguntar packing + ocultar
+async function verificarCompletoYOcultar(item, campo) {
+    const isPicking = modoEscaneo === 'picking';
+
+    if (isPicking) {
+        // preguntar si también hacer packing
+        const hacerPacking = await preguntarPacking(item);
+        if (hacerPacking) {
+            const req = parseFloat(item.cant_requerida);
+            try {
+                const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: item.producto_codigo, tipo: 'packing', delta: req })
+                });
+                const data = await res.json();
+                if (data.success) item.cant_packing = parseFloat(data.data.cant_packing) || 0;
+            } catch(e) { /* silencioso */ }
+        }
+    }
+
+    // Ocultar del listado
+    itemsOcultos.add(item.producto_codigo);
+    const el = document.getElementById('si-' + item.producto_codigo);
+    if (el) el.style.display = 'none';
+
+    // Actualizar banner de ocultos
+    const campo2 = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+    renderScanList(campo2);
+}
+
+function preguntarPacking(item) {
+    return new Promise(resolve => {
+        const overlay = document.getElementById('bsOverlay');
+        const panel   = overlay.querySelector('.bs-panel');
+
+        const cerrar = val => {
+            overlay.classList.remove('open');
+            resolve(val);
+        };
+
+        panel.innerHTML = `
+          <div style="padding:24px 16px 24px;text-align:center">
+            <div style="font-size:3.5rem;margin-bottom:10px">✅</div>
+            <div style="font-size:18px;font-weight:800;margin-bottom:8px;line-height:1.3">${item.producto_nombre}</div>
+            <div style="font-size:14px;color:var(--text-secondary);margin-bottom:26px">
+              Picking completo — <strong style="color:#10b981">${parseFloat(item.cant_requerida)} unidades</strong><br><br>
+              <strong style="color:var(--text-primary);font-size:15px">¿También hacer packing de este producto ahora?</strong>
+            </div>
+            <button id="btnSiPacking"
+              style="width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
+                     background:#8b5cf6;color:white;font-size:16px;font-weight:700;margin-bottom:12px">
+              📦 Sí, también packing
+            </button>
+            <button id="btnNoPacking"
+              style="width:100%;padding:13px;border-radius:14px;border:2px solid var(--border-color);
+                     background:transparent;color:var(--text-primary);font-size:14px;font-weight:600;cursor:pointer">
+              No, solo picking por ahora
+            </button>
+          </div>
+        `;
+
+        overlay.classList.add('open');
+        document.getElementById('btnSiPacking').onclick  = () => cerrar(true);
+        document.getElementById('btnNoPacking').onclick  = () => cerrar(false);
+    });
 }
 
 function actualizarFilaScan(item, campo) {
     const el = document.getElementById('si-' + item.producto_codigo);
     if (!el) return;
-    const req = parseFloat(item.cant_requerida) || 0;
-    const esc = parseFloat(item[campo]) || 0;
-    const dif = esc - req;
+    const req   = parseFloat(item.cant_requerida) || 0;
+    const esc   = parseFloat(item[campo]) || 0;
+    const dif   = esc - req;
     let cls = '', icon = '';
-    if (esc === 0) { cls = ''; icon = '⬜'; }
+    if (esc === 0)    { cls = '';           icon = '⬜'; }
     else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; }
-    else if (dif > 0) { cls = 'item-sobre';  icon = '🔴'; }
-    else               { cls = 'item-ok';     icon = '✅'; }
+    else if (dif > 0) { cls = 'item-sobre'; icon = '🔴'; }
+    else              { cls = 'item-ok';    icon = '✅'; }
 
-    el.className = `scan-item ${cls}`;
-    el.querySelector('.scan-count-val').textContent = esc;
-    el.querySelector('.scan-count-val').style.color = esc===0?'var(--text-tertiary)':dif<0?'#ef4444':dif>0?'#f59e0b':'#10b981';
-    el.querySelector('.scan-status-icon').textContent = icon;
+    const color = esc===0 ? 'var(--text-tertiary)' : dif<0 ? '#ef4444' : dif>0 ? '#f59e0b' : '#10b981';
 
-    // Scroll suave al item
+    el.className = `scan-item ${cls}${itemsOcultos.has(item.producto_codigo) ? ' item-oculto' : ''}`;
+    el.querySelector('.scan-count-val').textContent      = esc;
+    el.querySelector('.scan-count-val').style.color      = color;
+    el.querySelector('.scan-status-icon').textContent    = icon;
+
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-    // Animación flash
     el.style.transition = 'box-shadow .15s';
     el.style.boxShadow  = '0 0 0 3px rgba(16,185,129,.5)';
     setTimeout(() => { el.style.boxShadow = ''; }, 600);
@@ -354,15 +624,30 @@ function showFeedback(tipo, msg) {
     el.textContent = msg;
     el.className   = `scan-feedback ${tipo}`;
     clearTimeout(window._fbTimer);
-    window._fbTimer = setTimeout(() => hideFeedback(), 4000);
+    window._fbTimer = setTimeout(() => hideFeedback(), 5000);
+}
+
+// FIX 2: variante que permite HTML (para el botón reintentar)
+function showFeedbackHTML(tipo, html) {
+    const el = document.getElementById('scanFeedback');
+    el.innerHTML = html;
+    el.className  = `scan-feedback ${tipo}`;
+    clearTimeout(window._fbTimer);
+    window._fbTimer = setTimeout(() => hideFeedback(), 8000);
 }
 
 function hideFeedback() {
     document.getElementById('scanFeedback').className = 'scan-feedback';
 }
 
+function refocusInput() {
+    setTimeout(() => {
+        const i = document.getElementById('scannerInput');
+        if (i) { i.focus(); i.select(); }
+    }, 120);
+}
+
 function finalizarEscaneo() {
-    // Recargar detalle desde backend antes de mostrar detalle
     abrirOrden(ordenActiva.id).then(() => mostrarScreen('detalle'));
 }
 
@@ -377,7 +662,6 @@ function mostrarConfirmacion() {
     const o    = ordenActiva;
     const campo= o.estado === 'EN_PACKING' ? 'cant_packing' : 'cant_picking';
 
-    // Separar en: OK, faltantes, sobrantes
     const faltantes = o.detalle.filter(i => {
         const e = parseFloat(i[campo]) || 0;
         return e < parseFloat(i.cant_requerida);
@@ -454,11 +738,11 @@ async function confirmarDespacho() {
     btn.textContent = '⏳ Procesando...';
 
     try {
-        const res  = await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/confirmar`, {
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/confirmar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ empresa: getEmpresa() })
-        });
+        }, 30000);
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Error al confirmar');
 
@@ -473,7 +757,7 @@ async function confirmarDespacho() {
 
 function mostrarReporteExito() {
     const o     = ordenActiva;
-    const campo = 'cant_packing';  // usar packing si existe, sino picking
+    const campo = 'cant_packing';
 
     const filas = o.detalle.map(i => {
         const e = parseFloat(i[campo]) > 0 ? parseFloat(i[campo])
@@ -590,7 +874,6 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
     const barcode = barcodeNoEncontrado;
     const item    = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
 
-    // Cerrar el selector de producto y pedir el factor
     const overlay = document.getElementById('bsOverlay');
     const panel   = overlay.querySelector('.bs-panel');
     panel.innerHTML = `
@@ -631,14 +914,12 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
       </div>
     `;
 
-    // Factor seleccionado actualmente
     window._factorSeleccionado = 1;
     document.getElementById('bf1').style.background = '#047857';
     document.getElementById('bf1').style.color = 'white';
 }
 
 function setFactor(val) {
-    // Resaltar botón seleccionado
     document.querySelectorAll('.btn-factor').forEach(b => {
         b.style.background = 'var(--bg-input)';
         b.style.color = 'var(--text-primary)';
@@ -668,25 +949,22 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
     document.getElementById('bsOverlay').classList.remove('open');
     barcodeNoEncontrado = null;
 
-    // 1. Guardar la asociación barcode → producto con factor
     try {
-        await fetch(`${API_BASE}/almacen/productos/${productoCodigo}/barcodes`, {
+        await fetchConTimeout(`${API_BASE}/almacen/productos/${productoCodigo}/barcodes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ empresa: getEmpresa(), barcode, es_principal: false, factor })
         });
     } catch(e) { /* continuar igualmente */ }
 
-    // 2. Registrar el scan con el factor como delta
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
     const item  = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
     if (!item) { showFeedback('warn', '⚠️ Producto no encontrado en la orden'); return; }
 
-    // Cambiar estado al primer scan si aplica
     if (!estadoCambiado) {
         const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
         try {
-            await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+            await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
@@ -697,7 +975,7 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
     }
 
     try {
-        const res  = await fetch(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: productoCodigo, tipo: modoEscaneo, delta: factor })
@@ -714,70 +992,76 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
                     :                 `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`;
         showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
         actualizarFilaScan(item, campo);
+
+        if (nuevo === req) {
+            await verificarCompletoYOcultar(item, campo);
+            return;
+        }
     } catch(e) {
         showFeedback('error', '❌ Error de conexión');
     }
 
-    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 150);
+    refocusInput();
 }
 
 function cancelarFactorBarcode() {
     document.getElementById('bsOverlay').classList.remove('open');
     barcodeNoEncontrado = null;
-    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+    refocusInput();
 }
 
 function cerrarAsociador(e) {
     if (e && e.target !== document.getElementById('bsOverlay')) return;
     document.getElementById('bsOverlay').classList.remove('open');
     barcodeNoEncontrado = null;
-    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+    refocusInput();
 }
 
 // ══════════════════════════════════════════════════════════════
-// DIALOGO FACTOR — ¿Caja completa o unidad individual?
-// Devuelve: true=caja, false=unidad, null=cancelado
+// DIALOGO FACTOR — ¿Caja completa o cantidad personalizada?
+// FIX 1: esCodigo=true cuando se escaneó el código del producto
 // ══════════════════════════════════════════════════════════════
-function mostrarDialogoFactor(nombre, factor) {
+function mostrarDialogoFactor(nombre, factor, esCodigo = false) {
     return new Promise(resolve => {
         const overlay = document.getElementById('bsOverlay');
         const panel   = overlay.querySelector('.bs-panel');
 
         const cerrar = (delta) => {
             overlay.classList.remove('open');
-            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
             resolve(delta);
         };
 
+        const subtitulo = esCodigo
+            ? 'Código de producto · ingresa la cantidad a registrar'
+            : `Código de caja · <strong style="color:var(--text-primary)">${factor} unidades</strong>`;
+
+        const btnAceptarLabel = esCodigo
+            ? `✅ AGREGAR 1 UNIDAD`
+            : `✅ ACEPTAR<br><span style="font-size:15px;font-weight:600;opacity:.9">Agregar ${factor} unidades</span>`;
+
         panel.innerHTML = `
           <div style="padding:20px 16px 20px">
-
+            <div class="bs-drag" style="width:40px;height:4px;background:var(--border-color);border-radius:2px;margin:0 auto 14px"></div>
             <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px">Producto escaneado</div>
             <div style="font-size:17px;font-weight:800;margin-bottom:4px;line-height:1.2">${nombre}</div>
-            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">
-              Código de caja · <strong style="color:var(--text-primary)">${factor} unidades</strong>
-            </div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">${subtitulo}</div>
 
-            <!-- BOTÓN GRANDE ACEPTAR -->
             <button id="btnFactorAceptar" style="
               width:100%;padding:22px 16px;border-radius:16px;border:none;cursor:pointer;
               background:#047857;color:white;font-size:22px;font-weight:900;
               margin-bottom:20px;line-height:1.2;box-shadow:0 4px 14px rgba(4,120,87,.35)">
-              ✅ ACEPTAR<br>
-              <span style="font-size:15px;font-weight:600;opacity:.9">Agregar ${factor} unidades</span>
+              ${btnAceptarLabel}
             </button>
 
-            <!-- SEPARADOR -->
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
               <div style="flex:1;height:1px;background:var(--border-color)"></div>
               <span style="font-size:12px;color:var(--text-tertiary)">o ingresa otra cantidad</span>
               <div style="flex:1;height:1px;background:var(--border-color)"></div>
             </div>
 
-            <!-- INPUT CANTIDAD PERSONALIZADA -->
             <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
               <input id="factorCantInput" type="number" min="1" inputmode="numeric"
-                placeholder="Ej: 50"
+                placeholder="${esCodigo ? 'Ej: 6' : 'Ej: 50'}"
                 style="flex:1;padding:14px;border-radius:12px;border:2px solid var(--border-color);
                        background:var(--bg-input);color:var(--text-primary);font-size:20px;
                        font-weight:700;text-align:center;outline:none;box-sizing:border-box" />
@@ -788,7 +1072,6 @@ function mostrarDialogoFactor(nombre, factor) {
               </button>
             </div>
 
-            <!-- CANCELAR -->
             <button id="btnFactorCancelar" style="
               width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
               background:transparent;color:var(--text-secondary);font-size:13px">
@@ -799,7 +1082,7 @@ function mostrarDialogoFactor(nombre, factor) {
 
         overlay.classList.add('open');
 
-        document.getElementById('btnFactorAceptar').onclick  = () => cerrar(factor);
+        document.getElementById('btnFactorAceptar').onclick  = () => cerrar(esCodigo ? 1 : factor);
         document.getElementById('btnFactorCancelar').onclick = () => cerrar(null);
         document.getElementById('btnFactorCantidad').onclick = () => {
             const val = parseInt(document.getElementById('factorCantInput').value);
@@ -809,6 +1092,11 @@ function mostrarDialogoFactor(nombre, factor) {
         document.getElementById('factorCantInput').onkeydown = (e) => {
             if (e.key === 'Enter') document.getElementById('btnFactorCantidad').click();
         };
+
+        // Para código de producto, enfocar el input directamente
+        if (esCodigo) {
+            setTimeout(() => document.getElementById('factorCantInput')?.focus(), 100);
+        }
     });
 }
 
@@ -835,7 +1123,6 @@ async function abrirCamara() {
                     document.getElementById('scannerInput').value = codigo;
                     procesarScan(codigo);
                 }
-                // err puede ser NotFoundException (frame sin código) — ignorar
             }
         );
     } catch (e) {
@@ -853,7 +1140,7 @@ function cerrarCamara() {
         codeReader = null;
     }
     document.getElementById('camaraOverlay').classList.remove('activo');
-    setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();} }, 200);
+    refocusInput();
 }
 
 // ── Helpers ───────────────────────────────────────────────────
