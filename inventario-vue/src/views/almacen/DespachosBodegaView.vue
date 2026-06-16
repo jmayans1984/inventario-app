@@ -136,7 +136,7 @@
       </div>
 
       <!-- ═══════════════ DIALOG CREAR / EDITAR ═══════════════ -->
-      <v-dialog v-model="dlgForm" max-width="800" scrollable>
+      <v-dialog v-model="dlgForm" max-width="1000" scrollable>
         <v-card rounded="lg" class="dlg-card">
           <div class="dlg-header">
             <div class="dlg-header-left">
@@ -149,89 +149,107 @@
             <v-btn icon variant="text" color="white" size="small" @click="dlgForm=false"><v-icon>mdi-close</v-icon></v-btn>
           </div>
 
-          <v-card-text class="pa-5" style="max-height:70vh;overflow-y:auto">
+          <v-card-text class="pa-5" style="max-height:75vh;overflow-y:auto">
             <!-- Cabecera de la orden -->
             <div class="form-sheet mb-4">
               <div class="sheet-hdr"><v-icon size="15" color="#047857">mdi-information-outline</v-icon><span class="sheet-ttl">Información de la Orden</span></div>
               <v-row dense class="mt-2">
-                <v-col cols="12" sm="4">
+                <v-col cols="12" sm="3">
                   <v-text-field v-model="form.fecha" type="date" label="Fecha *" density="compact" variant="outlined"
                     :error-messages="errFecha" />
                 </v-col>
-                <v-col cols="12" sm="4">
+                <v-col cols="12" sm="3">
                   <v-text-field :model-value="ccOrigenNombre" label="CC Origen (Bodega)" density="compact"
                     variant="outlined" readonly disabled />
                 </v-col>
-                <v-col cols="12" sm="4">
+                <v-col cols="12" sm="3">
                   <v-select v-model="form.cc_destino" :items="ccostosDestino" item-title="nombre" item-value="codigo"
-                    label="CC Destino (Punto de Venta) *" density="compact" variant="outlined"
+                    label="CC Destino *" density="compact" variant="outlined"
                     :error-messages="errDestino" />
                 </v-col>
-                <v-col cols="12">
+                <v-col cols="12" sm="3">
                   <v-text-field v-model="form.observaciones" label="Observaciones" density="compact" variant="outlined" />
                 </v-col>
               </v-row>
             </div>
 
-            <!-- Líneas de productos -->
+            <!-- Grid de productos -->
             <div class="form-sheet">
               <div class="sheet-hdr mb-3">
                 <v-icon size="15" color="#047857">mdi-package-variant</v-icon>
                 <span class="sheet-ttl">Productos a Despachar</span>
-                <span class="sheet-count">{{ form.detalle.length }} item(s)</span>
+                <span class="sheet-count">{{ productosConCantidad }} con cantidad</span>
+                <v-btn v-if="productosConCantidad > 0" variant="text" size="x-small" color="grey" class="ml-2"
+                  prepend-icon="mdi-eraser" @click="cantidades={}">
+                  Limpiar
+                </v-btn>
               </div>
 
-              <!-- Buscador de productos -->
-              <div class="prod-search-wrap mb-3">
-                <v-autocomplete
-                  v-model="prodSeleccionado"
-                  :items="productosDisponibles"
-                  :item-title="p => `${p.codigo} – ${p.nombre} (${p.und})`"
-                  item-value="codigo"
-                  label="Buscar y agregar producto..."
-                  density="compact"
-                  variant="outlined"
-                  clearable
-                  hide-details
-                  return-object
-                  @update:model-value="agregarProducto"
-                />
+              <!-- Sin CC destino -->
+              <div v-if="!form.cc_destino" class="grid-placeholder">
+                <v-icon size="32" color="rgba(var(--v-theme-on-surface),.2)">mdi-store-search-outline</v-icon>
+                <p>Selecciona el CC Destino para cargar los productos</p>
               </div>
 
-              <!-- Tabla de líneas -->
-              <table class="detalle-table" v-if="form.detalle.length">
+              <!-- Cargando -->
+              <div v-else-if="loadingGrid" class="grid-placeholder">
+                <v-progress-circular indeterminate color="#047857" size="28" />
+                <p>Cargando productos y stock...</p>
+              </div>
+
+              <!-- Grid agrupado -->
+              <table v-else class="prod-grid">
                 <thead>
                   <tr>
-                    <th>PRODUCTO</th>
-                    <th style="width:80px">UND</th>
-                    <th style="width:120px;text-align:center">CANTIDAD</th>
-                    <th style="width:40px"></th>
+                    <th class="pg-cod">CÓDIGO</th>
+                    <th class="pg-nom">PRODUCTO</th>
+                    <th class="pg-desc">DESCRIPCIÓN</th>
+                    <th class="pg-und">UND</th>
+                    <th class="pg-stock">STOCK DESTINO</th>
+                    <th class="pg-cant">CANTIDAD A ENVIAR</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(item, idx) in form.detalle" :key="item.producto_codigo">
-                    <td>
-                      <div class="item-cod">{{ item.producto_codigo }}</div>
-                      <div class="item-nom">{{ item.producto_nombre }}</div>
-                    </td>
-                    <td><span class="badge-und">{{ item.und }}</span></td>
-                    <td class="ta-c">
-                      <input type="number" class="cant-input" v-model.number="item.cant_requerida"
-                        min="0.01" step="1" @keydown.enter.prevent="$event.target.blur()" />
-                    </td>
-                    <td class="ta-c">
-                      <v-btn icon size="x-small" variant="text" color="#ef4444" @click="quitarProducto(idx)">
-                        <v-icon size="16">mdi-close</v-icon>
-                      </v-btn>
-                    </td>
-                  </tr>
+                  <template v-if="productosAgrupados.length === 0">
+                    <tr><td colspan="6" class="grid-empty">No hay productos con control de inventario</td></tr>
+                  </template>
+                  <template v-for="grupo in productosAgrupados" :key="grupo.key">
+                    <!-- Cabecera de grupo -->
+                    <tr class="pg-grupo-row">
+                      <td colspan="6" class="pg-grupo-cell">
+                        <v-icon size="13" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
+                        <span class="pg-grupo-name">{{ grupo.nombre }}</span>
+                        <span class="pg-grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
+                      </td>
+                    </tr>
+                    <!-- Filas de productos -->
+                    <tr v-for="p in grupo.items" :key="p.codigo" class="pg-prod-row"
+                      :class="{ 'pg-highlighted': cantidades[p.codigo] > 0 }">
+                      <td><span class="badge-cod">{{ p.codigo }}</span></td>
+                      <td class="pg-td-nom">{{ p.nombre }}</td>
+                      <td class="pg-td-desc">{{ p.descripcion || '—' }}</td>
+                      <td><span class="badge-und">{{ p.und }}</span></td>
+                      <td class="pg-td-stock">
+                        <span :class="p.stock_actual > 0 ? 'stock-pos' : 'stock-zero'">
+                          {{ parseFloat(p.stock_actual || 0).toFixed(0) }}
+                        </span>
+                      </td>
+                      <td class="pg-td-cant">
+                        <input
+                          :value="cantidades[p.codigo] || ''"
+                          type="text"
+                          inputmode="decimal"
+                          class="pg-cant-input"
+                          :class="{ 'pg-cant-active': cantidades[p.codigo] > 0 }"
+                          placeholder="0"
+                          @input="setCantidad(p.codigo, $event.target.value)"
+                          @keydown.enter.prevent="siguienteInput($event)"
+                        />
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
-
-              <div v-else class="detalle-empty">
-                <v-icon size="32" color="rgba(var(--v-theme-on-surface),0.2)">mdi-package-variant-closed</v-icon>
-                <p>Agrega productos usando el buscador de arriba</p>
-              </div>
             </div>
 
             <v-alert v-if="formError" type="error" variant="tonal" density="compact" class="mt-4">{{ formError }}</v-alert>
@@ -242,7 +260,7 @@
             <v-spacer />
             <v-btn variant="text" @click="dlgForm=false" :disabled="guardando">Cancelar</v-btn>
             <v-btn color="#047857" variant="elevated" :loading="guardando" @click="guardar"
-              :disabled="!form.detalle.length">
+              :disabled="productosConCantidad === 0 || !form.cc_destino">
               {{ editandoId ? 'Guardar Cambios' : 'Crear Orden' }}
             </v-btn>
           </v-card-actions>
@@ -312,7 +330,6 @@
               </tbody>
             </table>
 
-            <!-- Acciones de estado (solo para PENDIENTE y si no está completado/cancelado) -->
             <div v-if="detalleActivo.estado === 'PENDIENTE'" class="det-acciones mt-4">
               <v-btn variant="tonal" color="#047857" @click="abrirEditar(detalleActivo)">
                 <v-icon start size="16">mdi-pencil</v-icon>Editar Orden
@@ -336,17 +353,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useAuthStore } from '../../stores/auth'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 
-const empresa    = computed(() => localStorage.getItem('empresaCodigo') || '')
-const usuario    = computed(() => localStorage.getItem('usuarioNombre') || '')
+const auth    = useAuthStore()
+const empresa = computed(() => auth.empresa)
+const usuario = computed(() => localStorage.getItem('usuarioNombre') || '')
 
 // ── Estado ────────────────────────────────────────────────────
 const despachos  = ref([])
 const ccostos    = ref([])
-const productos  = ref([])
 const loading    = ref(false)
 const eliminando = ref(null)
 
@@ -365,38 +383,60 @@ const estadoOpts = [
 ]
 
 // Dialog formulario
-const dlgForm       = ref(false)
-const editandoId    = ref(null)
-const guardando     = ref(false)
-const formError     = ref('')
-const errFecha      = ref('')
-const errDestino    = ref('')
-const prodSeleccionado = ref(null)
-const form = ref({ fecha: '', cc_origen: '', cc_destino: '', observaciones: '', detalle: [] })
+const dlgForm    = ref(false)
+const editandoId = ref(null)
+const guardando  = ref(false)
+const formError  = ref('')
+const errFecha   = ref('')
+const errDestino = ref('')
+const form = ref({ fecha: '', cc_origen: '', cc_destino: '', observaciones: '' })
+
+// Grid de productos
+const todosProductos  = ref([])   // lista completa control='SI' con descripcion
+const stockPorCodigo  = ref({})   // { [codigo]: stock_actual } para cc_destino
+const cantidades      = ref({})   // { [codigo]: number }
+const loadingGrid     = ref(false)
 
 // Dialog detalle
 const dlgDetalle    = ref(false)
 const detalleActivo = ref(null)
-const cargandoDet   = ref(false)
 
 // ── Computed ──────────────────────────────────────────────────
 const ccOrigenNombre = computed(() => {
-  const cc = ccostos.value.find(c => c.codigo === form.value.cc_origen)
-  return cc ? cc.nombre : form.value.cc_origen
+  const cc = ccostos.value.find(c => String(c.codigo) === String(form.value.cc_origen))
+  return cc ? cc.nombre : (form.value.cc_origen || '—')
 })
 
 const ccostosDestino = computed(() =>
-  ccostos.value.filter(c => c.codigo !== form.value.cc_origen)
+  ccostos.value.filter(c => String(c.codigo) !== String(form.value.cc_origen))
 )
 
-const productosDisponibles = computed(() =>
-  productos.value.filter(p => !form.value.detalle.find(d => d.producto_codigo === p.codigo))
+const productosGrid = computed(() =>
+  todosProductos.value.map(p => ({
+    ...p,
+    stock_actual: stockPorCodigo.value[p.codigo] ?? 0,
+  }))
+)
+
+const productosAgrupados = computed(() => {
+  const mapa = new Map()
+  for (const p of productosGrid.value) {
+    const key    = p.grupo_codigo || '__sin_grupo__'
+    const nombre = p.grupo_nombre || 'Sin Grupo'
+    if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
+    mapa.get(key).items.push(p)
+  }
+  return Array.from(mapa.values())
+})
+
+const productosConCantidad = computed(() =>
+  Object.values(cantidades.value).filter(v => parseFloat(v) > 0).length
 )
 
 const despachosFiltrados = computed(() => {
   let lista = despachos.value
   if (filtroEstado.value)  lista = lista.filter(d => d.estado === filtroEstado.value)
-  if (filtroDestino.value) lista = lista.filter(d => d.cc_destino === filtroDestino.value)
+  if (filtroDestino.value) lista = lista.filter(d => String(d.cc_destino) === String(filtroDestino.value))
   return lista
 })
 
@@ -449,13 +489,31 @@ function difClass(item) {
   return ''
 }
 
+function setCantidad(codigo, val) {
+  if (!val || val === '-' || val.endsWith('.') || val.endsWith(',')) return
+  const n = parseFloat(String(val).replace(',', '.'))
+  const nuevo = { ...cantidades.value }
+  if (isNaN(n) || n <= 0) delete nuevo[codigo]
+  else nuevo[codigo] = n
+  cantidades.value = nuevo
+}
+
+function siguienteInput(event) {
+  const inputs = Array.from(document.querySelectorAll('.pg-cant-input'))
+  const idx = inputs.indexOf(event.target)
+  if (idx !== -1 && idx < inputs.length - 1) {
+    inputs[idx + 1].focus()
+    inputs[idx + 1].select()
+  }
+}
+
 // ── Carga de datos ────────────────────────────────────────────
 async function cargar() {
   loading.value = true
   try {
     const params = { empresa: empresa.value }
     if (filtroFecha.value) params.fecha = filtroFecha.value
-    const res = await api.get('/api/almacen/despachos', { params })
+    const res = await api.get('/almacen/despachos', { params })
     despachos.value = res.data?.data || []
   } catch (e) {
     console.error(e)
@@ -471,28 +529,62 @@ async function cargarCcostos() {
   } catch { /* */ }
 }
 
-async function cargarProductos() {
+async function cargarGrid(ccDestino) {
+  if (!ccDestino) { todosProductos.value = []; stockPorCodigo.value = {}; return }
+  loadingGrid.value = true
   try {
-    const res = await api.get('/api/almacen/productos', { params: { empresa: empresa.value } })
-    productos.value = res.data?.data || []
-  } catch { /* */ }
+    const [resProds, resStock] = await Promise.all([
+      api.get('/almacen/productos', { params: { empresa: empresa.value } }),
+      api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccDestino } }),
+    ])
+
+    // Productos con control='SI' y sus datos
+    const todos = resProds.data?.data || []
+    todosProductos.value = todos
+      .filter(p => p.control === 'SI')
+      .map(p => ({
+        codigo:      p.codigo,
+        nombre:      p.nombre,
+        descripcion: p.descripcion || '',
+        und:         p.und,
+        grupo_codigo: p.grupo || '__sin_grupo__',
+        grupo_nombre: p.grupo_nombre || 'Sin Grupo',
+      }))
+
+    // Stock del CC destino
+    const stockRows = resStock.data?.data || []
+    stockPorCodigo.value = {}
+    for (const r of stockRows) {
+      stockPorCodigo.value[r.codigo] = parseFloat(r.stock_actual) || 0
+    }
+  } catch (e) {
+    console.error('Error cargando grid:', e)
+  } finally {
+    loadingGrid.value = false
+  }
 }
+
+// Recargar grid cuando cambia cc_destino
+watch(() => form.value.cc_destino, (val) => {
+  cantidades.value = {}
+  cargarGrid(val)
+})
 
 // ── CRUD ──────────────────────────────────────────────────────
 function abrirNuevo() {
-  editandoId.value   = null
-  formError.value    = ''
-  errFecha.value     = ''
-  errDestino.value   = ''
-  prodSeleccionado.value = null
-  // CC origen = primer CC con control='SI' (bodega principal)
-  const bodega = ccostos.value.find(c => c.codigo) // fallback: primero
+  editandoId.value = null
+  formError.value  = ''
+  errFecha.value   = ''
+  errDestino.value = ''
+  cantidades.value = {}
+  todosProductos.value  = []
+  stockPorCodigo.value  = {}
+  const bodega = ccostos.value[0]
   form.value = {
     fecha: new Date().toISOString().split('T')[0],
     cc_origen: bodega?.codigo || '',
     cc_destino: '',
     observaciones: '',
-    detalle: []
   }
   dlgForm.value = true
 }
@@ -503,46 +595,34 @@ async function abrirEditar(d) {
   formError.value  = ''
   errFecha.value   = ''
   errDestino.value = ''
-  prodSeleccionado.value = null
-  // Cargar detalle completo
+  cantidades.value = {}
+  todosProductos.value = []
+  stockPorCodigo.value = {}
   try {
-    const res = await api.get(`/api/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
+    const res = await api.get(`/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
     const orden = res.data?.data
     form.value = {
       fecha: String(orden.fecha).split('T')[0],
       cc_origen: orden.cc_origen,
       cc_destino: orden.cc_destino,
       observaciones: orden.observaciones || '',
-      detalle: orden.detalle.map(i => ({
-        producto_codigo: i.producto_codigo,
-        producto_nombre: i.producto_nombre,
-        und: i.und,
-        cant_requerida: parseFloat(i.cant_requerida)
-      }))
     }
+    // Pre-popular cantidades desde el detalle existente
+    const prevCant = {}
+    for (const item of orden.detalle) {
+      prevCant[item.producto_codigo] = parseFloat(item.cant_requerida)
+    }
+    // Cargar grid del cc_destino y luego restaurar cantidades
+    await cargarGrid(orden.cc_destino)
+    cantidades.value = prevCant
     dlgForm.value = true
   } catch (e) {
     console.error(e)
   }
 }
 
-function agregarProducto(prod) {
-  if (!prod) return
-  form.value.detalle.push({
-    producto_codigo: prod.codigo,
-    producto_nombre: prod.nombre,
-    und: prod.und,
-    cant_requerida: 1
-  })
-  prodSeleccionado.value = null
-}
-
-function quitarProducto(idx) {
-  form.value.detalle.splice(idx, 1)
-}
-
 function validar() {
-  errFecha.value   = !form.value.fecha    ? 'Requerido' : ''
+  errFecha.value   = !form.value.fecha      ? 'Requerido' : ''
   errDestino.value = !form.value.cc_destino ? 'Requerido' : ''
   return !errFecha.value && !errDestino.value
 }
@@ -552,6 +632,10 @@ async function guardar() {
   guardando.value = true
   formError.value = ''
   try {
+    const detalle = Object.entries(cantidades.value)
+      .filter(([, v]) => parseFloat(v) > 0)
+      .map(([codigo, cant]) => ({ producto_codigo: codigo, cant_requerida: parseFloat(cant) }))
+
     const payload = {
       empresa: empresa.value,
       fecha: form.value.fecha,
@@ -559,15 +643,12 @@ async function guardar() {
       cc_destino: form.value.cc_destino,
       observaciones: form.value.observaciones,
       creado_por: usuario.value,
-      detalle: form.value.detalle.map(i => ({
-        producto_codigo: i.producto_codigo,
-        cant_requerida: parseFloat(i.cant_requerida) || 1
-      }))
+      detalle,
     }
     if (editandoId.value) {
-      await api.put(`/api/almacen/despachos/${editandoId.value}`, payload)
+      await api.put(`/almacen/despachos/${editandoId.value}`, payload)
     } else {
-      await api.post('/api/almacen/despachos', payload)
+      await api.post('/almacen/despachos', payload)
     }
     dlgForm.value = false
     await cargar()
@@ -579,18 +660,30 @@ async function guardar() {
 }
 
 async function abrirDetalle(d) {
-  cargandoDet.value = true
   dlgDetalle.value  = true
+  detalleActivo.value = null
   try {
-    const res = await api.get(`/api/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
+    const res = await api.get(`/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
     detalleActivo.value = res.data?.data
   } catch (e) {
     console.error(e)
-  } finally {
-    cargandoDet.value = false
   }
 }
 
+async function eliminar(d) {
+  if (!confirm(`¿Eliminar la orden #${d.id}?`)) return
+  eliminando.value = d.id
+  try {
+    await api.delete(`/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
+    await cargar()
+  } catch (e) {
+    alert(e?.response?.data?.error || 'Error al eliminar')
+  } finally {
+    eliminando.value = null
+  }
+}
+
+// ── Imprimir ──────────────────────────────────────────────────
 function imprimirDespacho() {
   const o = detalleActivo.value
   if (!o) return
@@ -601,8 +694,8 @@ function imprimirDespacho() {
                   : parseFloat(item.cant_requerida)
     const req = parseFloat(item.cant_requerida)
     const dif = enviado - req
-    const difStr = dif === 0 ? '✓' : (dif > 0 ? '+' : '') + dif
-    const difColor = dif === 0 ? '#10b981' : dif < 0 ? '#ef4444' : '#f59e0b'
+    const difStr  = dif === 0 ? '✓' : (dif > 0 ? '+' : '') + dif
+    const difColor= dif === 0 ? '#10b981' : dif < 0 ? '#ef4444' : '#f59e0b'
     return `<tr>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb">${item.producto_nombre}</td>
       <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-family:monospace">${item.producto_codigo}</td>
@@ -620,9 +713,8 @@ function imprimirDespacho() {
                : parseFloat(i.cant_requerida))
   }, 0)
 
-  const estadoColors = { PENDIENTE:'#f59e0b', EN_PICKING:'#3b82f6', EN_PACKING:'#8b5cf6', COMPLETADO:'#10b981', CANCELADO:'#6b7280' }
-  const estadoNames  = { PENDIENTE:'Pendiente', EN_PICKING:'En Picking', EN_PACKING:'En Packing', COMPLETADO:'Completado', CANCELADO:'Cancelado' }
-  const color = estadoColors[o.estado] || '#047857'
+  const color = estadoColor(o.estado)
+  const estadoNames = { PENDIENTE:'Pendiente', EN_PICKING:'En Picking', EN_PACKING:'En Packing', COMPLETADO:'Completado', CANCELADO:'Cancelado' }
 
   const ventana = window.open('', '_blank')
   ventana.document.write(`<!DOCTYPE html><html><head>
@@ -656,25 +748,21 @@ function imprimirDespacho() {
     <div class="meta-item"><label>Observaciones</label><span>${o.observaciones || '—'}</span></div>
   </div>
   <table>
-    <thead>
-      <tr>
-        <th>PRODUCTO</th>
-        <th style="text-align:center">CÓDIGO</th>
-        <th style="text-align:center">UND</th>
-        <th style="text-align:center">REQUERIDO</th>
-        <th style="text-align:center">ENVIADO</th>
-        <th style="text-align:center">DIF.</th>
-      </tr>
-    </thead>
+    <thead><tr>
+      <th>PRODUCTO</th>
+      <th style="text-align:center">CÓDIGO</th>
+      <th style="text-align:center">UND</th>
+      <th style="text-align:center">REQUERIDO</th>
+      <th style="text-align:center">ENVIADO</th>
+      <th style="text-align:center">DIF.</th>
+    </tr></thead>
     <tbody>${filas}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="3">TOTAL</td>
-        <td style="text-align:center">${totalReq}</td>
-        <td style="text-align:center">${totalEnv}</td>
-        <td style="text-align:center;color:${totalEnv===totalReq?'#10b981':totalEnv<totalReq?'#ef4444':'#f59e0b'}">${totalEnv===totalReq?'✓':(totalEnv>totalReq?'+':'')+(totalEnv-totalReq)}</td>
-      </tr>
-    </tfoot>
+    <tfoot><tr>
+      <td colspan="3">TOTAL</td>
+      <td style="text-align:center">${totalReq}</td>
+      <td style="text-align:center">${totalEnv}</td>
+      <td style="text-align:center;color:${totalEnv===totalReq?'#10b981':totalEnv<totalReq?'#ef4444':'#f59e0b'}">${totalEnv===totalReq?'✓':(totalEnv>totalReq?'+':'')+(totalEnv-totalReq)}</td>
+    </tr></tfoot>
   </table>
   <div class="firmas">
     <div class="firma-linea">Firma Despachador</div>
@@ -685,22 +773,8 @@ function imprimirDespacho() {
   ventana.document.close()
 }
 
-async function eliminar(d) {
-  if (!confirm(`¿Eliminar la orden #${d.id}?`)) return
-  eliminando.value = d.id
-  try {
-    await api.delete(`/api/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
-    await cargar()
-  } catch (e) {
-    alert(e?.response?.data?.error || 'Error al eliminar')
-  } finally {
-    eliminando.value = null
-  }
-}
-
 onMounted(async () => {
-  await Promise.all([cargarCcostos(), cargarProductos()])
-  // CC origen default = primer ccosto disponible (bodega principal)
+  await cargarCcostos()
   if (ccostos.value.length) form.value.cc_origen = ccostos.value[0].codigo
   await cargar()
 })
@@ -732,7 +806,7 @@ onMounted(async () => {
 /* Filtros */
 .db-filtros { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
 
-/* Tabla */
+/* Tabla principal */
 .db-tabla-wrap { background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-theme-on-surface),.08); overflow: hidden; }
 .db-loading    { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 50px; color: rgba(var(--v-theme-on-surface),.5); }
 .db-table      { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -744,8 +818,9 @@ onMounted(async () => {
 .db-empty { text-align: center !important; padding: 50px 20px !important; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
 .ta-c { text-align: center; }
 
-.badge-id   { background: rgba(4,120,87,.12); color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
-.badge-und  { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+.badge-id  { background: rgba(4,120,87,.12); color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
+.badge-cod { background: rgba(6,182,212,.12); color: #0891b2; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px; font-family: monospace; }
+.badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
 .td-fecha   { font-size: 12px; color: rgba(var(--v-theme-on-surface),.7); }
 .td-destino { display: flex; align-items: center; gap: 6px; font-weight: 500; }
 .acc-btns   { display: inline-flex; align-items: center; gap: 2px; }
@@ -772,7 +847,52 @@ onMounted(async () => {
 .sheet-ttl  { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.8); }
 .sheet-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
 
-/* Tabla de detalle */
+/* Placeholders del grid */
+.grid-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
+
+/* Grid de productos */
+.prod-grid { width: 100%; border-collapse: collapse; font-size: 12px; }
+.prod-grid thead { background: rgba(var(--v-theme-on-surface),.04); }
+.prod-grid thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.pg-cod   { width: 90px; }
+.pg-nom   { width: 200px; }
+.pg-desc  { }
+.pg-und   { width: 60px; }
+.pg-stock { width: 110px; text-align: center !important; }
+.pg-cant  { width: 130px; text-align: right !important; }
+
+.pg-grupo-row  { background: rgba(139,92,246,.06); }
+.pg-grupo-cell { padding: 6px 10px !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
+.pg-grupo-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #8b5cf6; }
+.pg-grupo-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: 8px; }
+
+.pg-prod-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); }
+.pg-prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
+.pg-highlighted { background: rgba(4,120,87,.04) !important; }
+.pg-highlighted:hover { background: rgba(4,120,87,.07) !important; }
+.prod-grid tbody td { padding: 6px 10px; vertical-align: middle; }
+.pg-td-nom   { font-weight: 500; }
+.pg-td-desc  { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); }
+.pg-td-stock { text-align: center; font-family: monospace; font-size: 13px; font-weight: 600; }
+.pg-td-cant  { text-align: right; }
+.stock-pos  { color: #10b981; }
+.stock-zero { color: rgba(var(--v-theme-on-surface),.35); }
+
+.grid-empty { text-align: center !important; padding: 30px !important; color: rgba(var(--v-theme-on-surface),.4); }
+
+.pg-cant-input {
+  width: 100px; padding: 5px 10px;
+  border: 1px solid rgba(var(--v-theme-on-surface),.15);
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface),.03);
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 13px; text-align: right; outline: none;
+  transition: border-color .15s, background .15s;
+}
+.pg-cant-input:focus { border-color: #047857; background: rgba(4,120,87,.06); }
+.pg-cant-active { border-color: #047857; background: rgba(4,120,87,.08); font-weight: 700; color: #047857; }
+
+/* Detalle dialog */
 .detalle-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
 .detalle-table thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
 .detalle-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
@@ -780,12 +900,7 @@ onMounted(async () => {
 .item-cod { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); font-family: monospace; }
 .item-nom { font-weight: 600; font-size: 13px; }
 .num-cell { font-family: monospace; font-size: 13px; }
-.cant-input { width: 80px; text-align: center; border: 1px solid rgba(var(--v-theme-on-surface),.2); border-radius: 6px; padding: 4px 8px; font-size: 13px; background: transparent; color: rgb(var(--v-theme-on-surface)); outline: none; }
-.cant-input:focus { border-color: #047857; }
 
-.detalle-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 30px; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
-
-/* Diferencias */
 .dif-ok    { color: #10b981; font-weight: 700; }
 .dif-falta { color: #ef4444; font-weight: 700; }
 .dif-sobre { color: #f59e0b; font-weight: 700; }
@@ -793,7 +908,6 @@ onMounted(async () => {
 .row-falta { background: rgba(239,68,68,.04); }
 .row-sobre { background: rgba(245,158,11,.04); }
 
-/* Detalle dialog */
 .det-info-row  { display: flex; gap: 24px; flex-wrap: wrap; padding: 12px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 8px; }
 .det-info-item { display: flex; flex-direction: column; gap: 2px; }
 .det-lbl       { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.5); }
