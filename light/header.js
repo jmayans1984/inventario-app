@@ -27,6 +27,7 @@
         'almacen-ordenes-compra.html':  { title: 'Órdenes de Compra',  back: 'almacen.html',          module: 'almacen' },
         'almacen-reporte-ordenes.html': { title: 'Reporte Órdenes',    back: 'almacen.html',          module: 'almacen' },
         'almacen-toma-fisica.html':     { title: 'Toma Física',        back: 'almacen.html',          module: 'almacen' },
+        'almacen-despachos.html':       { title: 'Despachos de Bodega', back: 'almacen.html',          module: 'almacen' },
         'nomina-horario-semanal.html':  { title: 'Horario Semanal',    back: 'nomina.html',           module: 'nomina' },
         'nomina-liquidacion.html':      { title: 'Liquidación',        back: 'nomina.html',           module: 'nomina' },
         'nomina-reporte-horario.html':  { title: 'Horario Publicar',   back: 'nomina.html',           module: 'nomina' },

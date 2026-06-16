@@ -55,7 +55,6 @@
           variant="outlined"
           hide-details
           style="max-width:180px"
-          @update:model-value="cargar"
         />
         <v-select
           v-model="filtroEstado"
@@ -445,6 +444,7 @@ const productosConCantidad = computed(() =>
 
 const despachosFiltrados = computed(() => {
   let lista = despachos.value
+  if (filtroFecha.value)   lista = lista.filter(d => String(d.fecha).startsWith(filtroFecha.value))
   if (filtroEstado.value)  lista = lista.filter(d => d.estado === filtroEstado.value)
   if (filtroDestino.value) lista = lista.filter(d => String(d.cc_destino) === String(filtroDestino.value))
   return lista
@@ -524,9 +524,7 @@ function navegarGrid(event) {
 async function cargar() {
   loading.value = true
   try {
-    const params = { empresa: empresa.value }
-    if (filtroFecha.value) params.fecha = filtroFecha.value
-    const res = await api.get('/almacen/despachos', { params })
+    const res = await api.get('/almacen/despachos', { params: { empresa: empresa.value } })
     despachos.value = res.data?.data || []
   } catch (e) {
     console.error(e)
@@ -664,8 +662,6 @@ async function guardar() {
       await api.post('/almacen/despachos', payload)
     }
     dlgForm.value = false
-    // Sincronizar filtro de fecha a la fecha de la orden guardada para que aparezca
-    if (form.value.fecha) filtroFecha.value = form.value.fecha
     await cargar()
   } catch (e) {
     formError.value = e?.response?.data?.error || e.message || 'Error al guardar'
