@@ -224,7 +224,10 @@
                     </tr>
                     <!-- Filas de productos -->
                     <tr v-for="p in grupo.items" :key="p.codigo" class="pg-prod-row"
-                      :class="{ 'pg-highlighted': cantidades[p.codigo] > 0 }">
+                      :class="{ 'pg-highlighted': cantidades[p.codigo] > 0 }"
+                      :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
+                      @focusin="hoveredRow = p.codigo"
+                      @focusout="hoveredRow = null">
                       <td><span class="badge-cod">{{ p.codigo }}</span></td>
                       <td class="pg-td-nom">{{ p.nombre }}</td>
                       <td class="pg-td-desc">{{ p.descripcion || '—' }}</td>
@@ -243,7 +246,7 @@
                           :class="{ 'pg-cant-active': cantidades[p.codigo] > 0 }"
                           placeholder="0"
                           @input="setCantidad(p.codigo, $event.target.value)"
-                          @keydown.enter.prevent="siguienteInput($event)"
+                          @keydown="navegarGrid($event)"
                         />
                       </td>
                     </tr>
@@ -354,6 +357,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useTheme } from 'vuetify'
 import { useAuthStore } from '../../stores/auth'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
@@ -361,6 +365,12 @@ import api from '../../services/api'
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
 const usuario = computed(() => localStorage.getItem('usuarioNombre') || '')
+
+const theme      = useTheme()
+const rowHoverBg = computed(() =>
+  theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
+)
+const hoveredRow = ref(null)
 
 // ── Estado ────────────────────────────────────────────────────
 const despachos  = ref([])
@@ -498,13 +508,16 @@ function setCantidad(codigo, val) {
   cantidades.value = nuevo
 }
 
-function siguienteInput(event) {
+function navegarGrid(event) {
+  const { key } = event
+  if (key !== 'Enter' && key !== 'ArrowDown' && key !== 'ArrowUp') return
+  event.preventDefault()
   const inputs = Array.from(document.querySelectorAll('.pg-cant-input'))
-  const idx = inputs.indexOf(event.target)
-  if (idx !== -1 && idx < inputs.length - 1) {
-    inputs[idx + 1].focus()
-    inputs[idx + 1].select()
-  }
+  const idx    = inputs.indexOf(event.target)
+  if (idx === -1) return
+  const delta  = key === 'ArrowUp' ? -1 : 1
+  const target = inputs[idx + delta]
+  if (target) { target.focus(); target.select() }
 }
 
 // ── Carga de datos ────────────────────────────────────────────
