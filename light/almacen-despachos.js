@@ -269,12 +269,12 @@ async function procesarScan(barcode) {
             return;
         }
 
-        // 3. Si factor > 1, preguntar si es caja completa o unidades
+        // 3. Si factor > 1, mostrar popup de cantidad
         let delta = factor;
         if (factor > 1) {
-            const esCaja = await mostrarDialogoFactor(nombre, factor);
-            if (esCaja === null) return; // cancelado
-            delta = esCaja ? factor : 1;
+            const elegido = await mostrarDialogoFactor(nombre, factor);
+            if (elegido === null) return; // cancelado
+            delta = elegido;
         }
 
         // 4. Cambiar estado al primer scan real
@@ -740,27 +740,55 @@ function cerrarAsociador(e) {
 // ══════════════════════════════════════════════════════════════
 function mostrarDialogoFactor(nombre, factor) {
     return new Promise(resolve => {
-        // Reutilizar el overlay del bottom sheet con contenido propio
         const overlay = document.getElementById('bsOverlay');
         const panel   = overlay.querySelector('.bs-panel');
 
+        const cerrar = (delta) => {
+            overlay.classList.remove('open');
+            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
+            resolve(delta);
+        };
+
         panel.innerHTML = `
-          <div style="padding:20px 16px 8px">
-            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px">Producto escaneado</div>
-            <div style="font-size:16px;font-weight:700;margin-bottom:16px">${nombre}</div>
-            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
-              Este código corresponde a una caja de <strong>${factor} unidades</strong>.<br>¿Qué deseas registrar?
+          <div style="padding:20px 16px 20px">
+
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px">Producto escaneado</div>
+            <div style="font-size:17px;font-weight:800;margin-bottom:4px;line-height:1.2">${nombre}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">
+              Código de caja · <strong style="color:var(--text-primary)">${factor} unidades</strong>
             </div>
-            <button id="btnFactorCaja" style="
-              width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
-              background:#047857;color:white;font-size:15px;font-weight:700;margin-bottom:10px">
-              📦 Caja completa (×${factor} unidades)
+
+            <!-- BOTÓN GRANDE ACEPTAR -->
+            <button id="btnFactorAceptar" style="
+              width:100%;padding:22px 16px;border-radius:16px;border:none;cursor:pointer;
+              background:#047857;color:white;font-size:22px;font-weight:900;
+              margin-bottom:20px;line-height:1.2;box-shadow:0 4px 14px rgba(4,120,87,.35)">
+              ✅ ACEPTAR<br>
+              <span style="font-size:15px;font-weight:600;opacity:.9">Agregar ${factor} unidades</span>
             </button>
-            <button id="btnFactorUnidad" style="
-              width:100%;padding:14px;border-radius:12px;border:2px solid #047857;cursor:pointer;
-              background:transparent;color:#047857;font-size:15px;font-weight:700;margin-bottom:10px">
-              🔹 Una unidad (×1)
-            </button>
+
+            <!-- SEPARADOR -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+              <div style="flex:1;height:1px;background:var(--border-color)"></div>
+              <span style="font-size:12px;color:var(--text-tertiary)">o ingresa otra cantidad</span>
+              <div style="flex:1;height:1px;background:var(--border-color)"></div>
+            </div>
+
+            <!-- INPUT CANTIDAD PERSONALIZADA -->
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+              <input id="factorCantInput" type="number" min="1" inputmode="numeric"
+                placeholder="Ej: 50"
+                style="flex:1;padding:14px;border-radius:12px;border:2px solid var(--border-color);
+                       background:var(--bg-input);color:var(--text-primary);font-size:20px;
+                       font-weight:700;text-align:center;outline:none;box-sizing:border-box" />
+              <button id="btnFactorCantidad" style="
+                padding:14px 18px;border-radius:12px;border:none;cursor:pointer;
+                background:#1d4ed8;color:white;font-size:14px;font-weight:700;white-space:nowrap">
+                Agregar
+              </button>
+            </div>
+
+            <!-- CANCELAR -->
             <button id="btnFactorCancelar" style="
               width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
               background:transparent;color:var(--text-secondary);font-size:13px">
@@ -771,20 +799,15 @@ function mostrarDialogoFactor(nombre, factor) {
 
         overlay.classList.add('open');
 
-        document.getElementById('btnFactorCaja').onclick = () => {
-            overlay.classList.remove('open');
-            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
-            resolve(true);
+        document.getElementById('btnFactorAceptar').onclick  = () => cerrar(factor);
+        document.getElementById('btnFactorCancelar').onclick = () => cerrar(null);
+        document.getElementById('btnFactorCantidad').onclick = () => {
+            const val = parseInt(document.getElementById('factorCantInput').value);
+            if (!val || val < 1) { document.getElementById('factorCantInput').focus(); return; }
+            cerrar(val);
         };
-        document.getElementById('btnFactorUnidad').onclick = () => {
-            overlay.classList.remove('open');
-            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
-            resolve(false);
-        };
-        document.getElementById('btnFactorCancelar').onclick = () => {
-            overlay.classList.remove('open');
-            setTimeout(() => { const i = document.getElementById('scannerInput'); if(i){i.focus();i.select();} }, 100);
-            resolve(null);
+        document.getElementById('factorCantInput').onkeydown = (e) => {
+            if (e.key === 'Enter') document.getElementById('btnFactorCantidad').click();
         };
     });
 }
