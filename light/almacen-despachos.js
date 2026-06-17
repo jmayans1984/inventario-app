@@ -582,33 +582,39 @@ function cancelarManual() {
 
 // FIX 6: verificar si completó y preguntar packing + ocultar
 async function verificarCompletoYOcultar(item, campo) {
-    const isPicking = modoEscaneo === 'picking';
+    try {
+        const isPicking = modoEscaneo === 'picking';
 
-    if (isPicking) {
-        // preguntar si también hacer packing
-        const hacerPacking = await preguntarPacking(item);
-        if (hacerPacking) {
-            const req = parseFloat(item.cant_requerida);
-            try {
-                const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: item.producto_codigo, tipo: 'packing', delta: req })
-                });
-                const data = await res.json();
-                if (data.success) item.cant_packing = parseFloat(data.data.cant_packing) || 0;
-            } catch(e) { /* silencioso */ }
+        if (isPicking) {
+            // preguntar si también hacer packing
+            const hacerPacking = await preguntarPacking(item);
+            if (hacerPacking) {
+                const req = parseFloat(item.cant_requerida);
+                try {
+                    const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: item.producto_codigo, tipo: 'packing', delta: req })
+                    });
+                    const data = await res.json();
+                    if (data.success) item.cant_packing = parseFloat(data.data.cant_packing) || 0;
+                } catch(e) { console.error('[PACKING ERROR]', e); }
+            }
         }
+
+        // Ocultar del listado
+        itemsOcultos.add(item.producto_codigo);
+        const el = document.getElementById('si-' + item.producto_codigo);
+        if (el) el.style.display = 'none';
+
+        // Actualizar banner de ocultos
+        const campo2 = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+        renderScanList(campo2);
+    } catch(e) {
+        console.error('[VERIFY COMPLETO ERROR]', e);
+        scanEnProceso = false;
+        refocusInput();
     }
-
-    // Ocultar del listado
-    itemsOcultos.add(item.producto_codigo);
-    const el = document.getElementById('si-' + item.producto_codigo);
-    if (el) el.style.display = 'none';
-
-    // Actualizar banner de ocultos
-    const campo2 = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
-    renderScanList(campo2);
 }
 
 function preguntarPacking(item) {
@@ -1113,15 +1119,19 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
 }
 
 function cancelarFactorBarcode() {
+    console.log('[CANCEL] Cancelando factor barcode. scanEnProceso:', scanEnProceso);
     document.getElementById('bsOverlay').classList.remove('open');
     barcodeNoEncontrado = null;
+    scanEnProceso = false;
     refocusInput();
 }
 
 function cerrarAsociador(e) {
     if (e && e.target !== document.getElementById('bsOverlay')) return;
+    console.log('[CLOSE] Cerrando asociador. scanEnProceso:', scanEnProceso);
     document.getElementById('bsOverlay').classList.remove('open');
     barcodeNoEncontrado = null;
+    scanEnProceso = false;
     refocusInput();
 }
 
