@@ -985,7 +985,14 @@ function setFactor(val) {
     const otroWrap = document.getElementById('factorOtroWrap');
     if (val === 0) {
         otroWrap.style.display = 'block';
-        setTimeout(() => document.getElementById('factorOtroInput')?.focus(), 100);
+        const inp = document.getElementById('factorOtroInput');
+        setTimeout(() => {
+            if (inp) {
+                inp.focus();
+                inp.click();
+                inp.select();
+            }
+        }, 300);
         window._factorSeleccionado = 0;
         document.getElementById('bf0').style.background = '#047857';
         document.getElementById('bf0').style.color = 'white';
