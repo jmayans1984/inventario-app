@@ -1517,7 +1517,7 @@ app.get('/api/almacen/movimientos-recientes', async (req, res) => {
                 ) AS productos
             FROM detalle_inventario di
             LEFT JOIN ccostos  c  ON c.codigo  = di.ccosto      AND c.empresa  = di.empresa
-            LEFT JOIN productos p  ON p.codigo  = di.codigo      AND p.empresa  = di.empresa
+            LEFT JOIN productos p  ON p.codigo  = di.codigo
             LEFT JOIN ccostos  cr ON cr.codigo  = di.cc_relacion AND cr.empresa = di.empresa
             WHERE di.empresa = $1
               AND di.fecha >= CURRENT_DATE - ($2 * INTERVAL '1 day')
