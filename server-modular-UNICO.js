@@ -1479,6 +1479,198 @@ app.post('/api/almacen/gestion-inventario', async (req, res) => {
     }
 });
 
+// GET /api/almacen/movimientos-recientes?empresa=&ccosto=&dias=60
+// Devuelve lotes de movimientos editables (agrupados por fecha+cc+tipo+obs)
+app.get('/api/almacen/movimientos-recientes', async (req, res) => {
+    const { empresa, ccosto, dias = 60 } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa es requerido' });
+
+    // Map DB tipo → frontend tipo
+    const TIPO_FE = {
+        'ENTRADA DE ALMACEN':   'ENTRADA',
+        'SALIDA DE ALMACEN':    'SALIDA',
+        'SALIDA POR BAJA':      'BAJA',
+        'SALIDA POR TRASLADO':  'TRASLADO',
+    };
+
+    try {
+        const params = [parseInt(empresa), parseInt(dias) || 60];
+        let ccFilt = '';
+        if (ccosto) { params.push(ccosto); ccFilt = `AND di.ccosto = $${params.length}`; }
+
+        const result = await pool.query(`
+            SELECT
+                di.fecha,
+                di.ccosto,
+                c.nombre  AS ccosto_nombre,
+                di.tipo   AS tipo_db,
+                COALESCE(di.cc_relacion, '') AS cc_relacion,
+                cr.nombre AS cc_relacion_nombre,
+                COALESCE(di.observaciones, '') AS observaciones,
+                JSON_AGG(
+                    JSON_BUILD_OBJECT(
+                        'codigo',   di.codigo,
+                        'nombre',   COALESCE(p.nombre, di.codigo),
+                        'und',      COALESCE(p.und, ''),
+                        'cantidad', CASE WHEN di.entrada > 0 THEN di.entrada ELSE di.salida END
+                    ) ORDER BY COALESCE(p.nombre, di.codigo)
+                ) AS productos
+            FROM detalle_inventario di
+            LEFT JOIN ccostos  c  ON c.codigo  = di.ccosto      AND c.empresa  = di.empresa
+            LEFT JOIN productos p  ON p.codigo  = di.codigo      AND p.empresa  = di.empresa
+            LEFT JOIN ccostos  cr ON cr.codigo  = di.cc_relacion AND cr.empresa = di.empresa
+            WHERE di.empresa = $1
+              AND di.fecha >= CURRENT_DATE - ($2 * INTERVAL '1 day')
+              AND di.tipo IN (
+                  'ENTRADA DE ALMACEN',
+                  'SALIDA DE ALMACEN',
+                  'SALIDA POR BAJA',
+                  'SALIDA POR TRASLADO'
+              )
+              ${ccFilt}
+            GROUP BY di.fecha, di.ccosto, c.nombre, di.tipo, di.cc_relacion, cr.nombre, di.observaciones
+            ORDER BY di.fecha DESC, di.ccosto, di.tipo
+        `, params);
+
+        const data = result.rows.map(r => ({
+            ...r,
+            tipo_fe: TIPO_FE[r.tipo_db] || r.tipo_db,
+        }));
+
+        res.json({ success: true, data });
+    } catch (e) {
+        console.error('Error GET /api/almacen/movimientos-recientes:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// PUT /api/almacen/gestion-inventario — editar movimiento existente
+// Identifica el lote original por (fecha+ccosto+tipo_db+cc_relacion+observaciones),
+// lo borra y re-inserta con los nuevos valores.
+app.put('/api/almacen/gestion-inventario', async (req, res) => {
+    const {
+        empresa,
+        // Llave original (para identificar qué borrar)
+        orig_fecha, orig_ccosto, orig_tipo_db, orig_cc_relacion, orig_observaciones,
+        // Nuevos valores
+        fecha, tipo, ccOrigen, ccOrigenNombre, ccDestino, ccDestinoNombre, observaciones, productos,
+    } = req.body;
+
+    if (!empresa || !orig_fecha || !orig_ccosto || !orig_tipo_db)
+        return res.status(400).json({ success: false, error: 'Faltan parámetros originales para identificar el movimiento' });
+    if (!fecha || !tipo || !ccOrigen || !productos || productos.length === 0)
+        return res.status(400).json({ success: false, error: 'Faltan parámetros del movimiento nuevo' });
+    if (tipo === 'TRASLADO' && !ccDestino)
+        return res.status(400).json({ success: false, error: 'Se requiere CC Destino para traslados' });
+
+    const mapa = TIPO_DB[tipo];
+    if (!mapa) return res.status(400).json({ success: false, error: `Tipo desconocido: ${tipo}` });
+
+    const emp      = parseInt(empresa);
+    const origObs  = orig_observaciones || '';
+    const origCcRel = orig_cc_relacion  || '';
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // ── 1. Borrar lote original ───────────────────────────────────
+        if (orig_tipo_db === 'SALIDA POR TRASLADO') {
+            // Borrar lado origen (SALIDA POR TRASLADO con cc_relacion=destino)
+            await client.query(
+                `DELETE FROM detalle_inventario
+                 WHERE fecha=$1 AND ccosto=$2 AND empresa=$3
+                   AND tipo='SALIDA POR TRASLADO'
+                   AND COALESCE(cc_relacion,'') = $4`,
+                [orig_fecha, orig_ccosto, emp, origCcRel]
+            );
+            // Borrar lado destino (ENTRADA POR TRASLADO con cc_relacion=origen)
+            if (origCcRel) {
+                await client.query(
+                    `DELETE FROM detalle_inventario
+                     WHERE fecha=$1 AND ccosto=$2 AND empresa=$3
+                       AND tipo='ENTRADA POR TRASLADO'
+                       AND COALESCE(cc_relacion,'') = $4`,
+                    [orig_fecha, origCcRel, emp, orig_ccosto]
+                );
+            }
+        } else {
+            // ENTRADA / SALIDA / BAJA: borrar por fecha+ccosto+tipo+obs
+            await client.query(
+                `DELETE FROM detalle_inventario
+                 WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4
+                   AND COALESCE(observaciones,'') = $5`,
+                [orig_fecha, orig_ccosto, emp, orig_tipo_db, origObs]
+            );
+        }
+
+        // ── 2. Re-insertar con nuevos valores (misma lógica que POST) ─
+        const obs = (observaciones || '').trim();
+        let registrosCreados = 0;
+
+        for (const prod of productos) {
+            const cant = parseFloat(prod.cantidad);
+            if (!cant || cant === 0) continue;
+
+            if (tipo === 'ENTRADA') {
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                     VALUES ($1,$2,$3,$4,0,$5,$6,$7)`,
+                    [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp, obs]
+                );
+                registrosCreados++;
+            } else if (tipo === 'SALIDA' || tipo === 'BAJA') {
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                     VALUES ($1,$2,$3,0,$4,$5,$6,$7)`,
+                    [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp, obs]
+                );
+                registrosCreados++;
+            } else if (tipo === 'TRASLADO') {
+                const [resOrigen, resDestino] = await Promise.all([
+                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1 AND empresa=$2`, [ccOrigen, emp]),
+                    client.query(`SELECT nombre FROM ccostos WHERE codigo=$1 AND empresa=$2`, [ccDestino, emp]),
+                ]);
+                const nombreOrigen  = (resOrigen.rows[0]?.nombre  || ccOrigen).toUpperCase();
+                const nombreDestino = (resDestino.rows[0]?.nombre || ccDestino).toUpperCase();
+
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
+                     VALUES ($1,$2,$3,0,$4,$5,$6,$7,$8)`,
+                    [fecha, ccOrigen, prod.codigo, cant, mapa.origen, emp,
+                     obs || `Traslado a ${nombreDestino}`, ccDestino]
+                );
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
+                     VALUES ($1,$2,$3,$4,0,$5,$6,$7,$8)`,
+                    [fecha, ccDestino, prod.codigo, cant, mapa.destino, emp,
+                     obs || `Traslado desde ${nombreOrigen}`, ccOrigen]
+                );
+                registrosCreados += 2;
+            }
+        }
+
+        await client.query('COMMIT');
+
+        // Notificaciones de stock
+        for (const prod of productos) {
+            if (prod.codigo) {
+                await verificarYGenerarNotificacionesStock(prod.codigo, ccOrigen, empresa);
+                if (tipo === 'TRASLADO' && ccDestino)
+                    await verificarYGenerarNotificacionesStock(prod.codigo, ccDestino, empresa);
+            }
+        }
+
+        res.json({ success: true, registros: registrosCreados });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error PUT /api/almacen/gestion-inventario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // ── FIN GESTIÓN DE INVENTARIO ─────────────────────────────────────
 
 // ── AJUSTE DE INVENTARIO (TOMA FÍSICA) ──────────────────────────

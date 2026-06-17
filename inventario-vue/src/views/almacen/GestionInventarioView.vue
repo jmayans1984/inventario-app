@@ -22,7 +22,36 @@
             <p class="gi-sub">Registro de entradas, salidas y traslados de productos</p>
           </div>
         </div>
+        <v-btn
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-clipboard-text-clock-outline"
+          @click="abrirHistorial"
+        >
+          Historial / Editar
+        </v-btn>
       </div>
+
+      <!-- BANNER DE MODO EDICIÓN -->
+      <v-alert
+        v-if="modoEdicion"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="mb-3"
+        border="start"
+        :icon="false"
+      >
+        <div class="d-flex align-center justify-space-between gap-2 flex-wrap">
+          <div>
+            <v-icon size="16" class="mr-1">mdi-pencil-circle</v-icon>
+            <strong>Editando movimiento:</strong>
+            {{ editKey.orig_fecha }} · {{ editKey.orig_tipo_fe }} · {{ editKey.orig_ccosto_nombre }}
+            <span v-if="editKey.orig_cc_relacion"> → {{ editKey.orig_cc_relacion_nombre }}</span>
+          </div>
+          <v-btn size="x-small" variant="text" @click="cancelarEdicion">Cancelar edición</v-btn>
+        </div>
+      </v-alert>
 
       <!-- FORMULARIO DE CABECERA -->
       <div class="gi-form-card">
@@ -395,14 +424,14 @@
         <div class="gi-footer-btns">
           <v-btn variant="text" :disabled="guardando" @click="resetTodo">Limpiar todo</v-btn>
           <v-btn
-            color="#0891b2"
+            :color="modoEdicion ? '#f59e0b' : '#0891b2'"
             variant="elevated"
-            prepend-icon="mdi-content-save"
+            :prepend-icon="modoEdicion ? 'mdi-content-save-edit' : 'mdi-content-save'"
             :loading="guardando"
             :disabled="productosConCantidad === 0"
             @click="guardar()"
           >
-            Guardar Movimiento
+            {{ modoEdicion ? 'Actualizar Movimiento' : 'Guardar Movimiento' }}
           </v-btn>
         </div>
       </div>
@@ -473,6 +502,123 @@
             </v-btn>
             <v-btn variant="text" :disabled="guardando" @click="dlgConflicto=false">Cancelar</v-btn>
           </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- ══════════════ DIALOG HISTORIAL / EDITAR ══════════════ -->
+      <v-dialog v-model="dlgHistorial" max-width="780" scrollable>
+        <v-card rounded="xl">
+
+          <!-- Header -->
+          <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:18px 20px;display:flex;align-items:center;justify-content:space-between">
+            <div class="d-flex align-center gap-3">
+              <v-icon size="22" color="white">mdi-clipboard-text-clock-outline</v-icon>
+              <div>
+                <div style="color:white;font-size:15px;font-weight:700">Historial de Movimientos</div>
+                <div style="color:rgba(255,255,255,.75);font-size:12px">Últimos 60 días · selecciona uno para editar</div>
+              </div>
+            </div>
+            <v-btn icon size="small" variant="text" color="white" @click="dlgHistorial=false">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </div>
+
+          <!-- Filtro CC -->
+          <div style="padding:12px 16px;border-bottom:1px solid rgba(var(--v-border-color),.12)">
+            <v-select
+              v-model="historialFiltroCC"
+              :items="[{codigo:'',nombre:'Todos los centros de costo'},...ccostos]"
+              item-title="nombre"
+              item-value="codigo"
+              label="Filtrar por centro de costo"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              @update:model-value="cargarHistorial"
+            />
+          </div>
+
+          <v-card-text style="padding:0;max-height:60vh;overflow-y:auto">
+
+            <!-- Loading -->
+            <div v-if="historialLoading" class="d-flex justify-center align-center pa-8">
+              <v-progress-circular indeterminate color="#3b82f6" />
+            </div>
+
+            <!-- Vacío -->
+            <div v-else-if="!historialItems.length" class="pa-8 text-center" style="color:rgba(var(--v-theme-on-surface),.4)">
+              <v-icon size="40" class="mb-2">mdi-inbox-outline</v-icon>
+              <div style="font-size:14px">Sin movimientos registrados</div>
+            </div>
+
+            <!-- Lista -->
+            <div v-else>
+              <div
+                v-for="(mov, i) in historialItems"
+                :key="i"
+                style="border-bottom:1px solid rgba(var(--v-border-color),.1);padding:12px 16px;display:flex;align-items:center;gap:12px"
+              >
+                <!-- Badge tipo -->
+                <div style="flex-shrink:0;min-width:90px">
+                  <v-chip
+                    size="small"
+                    :color="{ ENTRADA:'#10b981', SALIDA:'#ef4444', BAJA:'#f59e0b', TRASLADO:'#3b82f6' }[mov.tipo_fe]"
+                    variant="flat"
+                    label
+                    style="font-size:10px;font-weight:700"
+                  >
+                    {{ mov.tipo_fe }}
+                  </v-chip>
+                  <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),.5);margin-top:4px;font-family:monospace">
+                    {{ mov.fecha }}
+                  </div>
+                </div>
+
+                <!-- Info -->
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    {{ mov.ccosto_nombre || mov.ccosto }}
+                    <span v-if="mov.tipo_fe==='TRASLADO' && mov.cc_relacion" style="opacity:.7">
+                      → {{ mov.cc_relacion_nombre || mov.cc_relacion }}
+                    </span>
+                  </div>
+                  <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),.5);margin-top:2px">
+                    {{ mov.observaciones || '(sin observaciones)' }}
+                    · {{ mov.productos?.length || 0 }} producto(s)
+                  </div>
+                  <!-- Productos -->
+                  <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
+                    <v-chip
+                      v-for="p in (mov.productos || []).slice(0,4)"
+                      :key="p.codigo"
+                      size="x-small"
+                      variant="tonal"
+                      color="grey"
+                    >
+                      {{ p.nombre }} · {{ p.cantidad }} {{ p.und }}
+                    </v-chip>
+                    <v-chip v-if="(mov.productos||[]).length > 4" size="x-small" variant="tonal" color="grey">
+                      +{{ mov.productos.length - 4 }} más
+                    </v-chip>
+                  </div>
+                </div>
+
+                <!-- Botón editar -->
+                <v-btn
+                  size="small"
+                  color="#f59e0b"
+                  variant="tonal"
+                  prepend-icon="mdi-pencil"
+                  style="flex-shrink:0"
+                  @click="cargarParaEditar(mov)"
+                >
+                  Editar
+                </v-btn>
+              </div>
+            </div>
+
+          </v-card-text>
         </v-card>
       </v-dialog>
 
@@ -570,6 +716,16 @@ const dlgExito     = ref(false)
 const dlgConflicto = ref(false)
 const conflictCount= ref(0)
 
+// ── Modo edición ──────────────────────────────────────────────
+const modoEdicion = ref(false)
+const editKey     = ref({})   // { orig_fecha, orig_ccosto, orig_tipo_db, orig_tipo_fe, orig_cc_relacion, orig_observaciones, orig_ccosto_nombre, orig_cc_relacion_nombre }
+
+// ── Historial ─────────────────────────────────────────────────
+const dlgHistorial      = ref(false)
+const historialItems    = ref([])
+const historialLoading  = ref(false)
+const historialFiltroCC = ref('')
+
 // ── Computed ──────────────────────────────────────────────────
 const nombreCcOrigen = computed(() => {
   const cc = ccostos.value.find(c => c.codigo === ccOrigen.value)
@@ -662,6 +818,12 @@ function validar() {
 
 // ── Guardar ───────────────────────────────────────────────────
 async function guardar(mode = 'new') {
+  // En modo edición usamos PUT y saltamos la detección de conflicto
+  if (modoEdicion.value) {
+    await guardarEdicion()
+    return
+  }
+
   if (mode === 'new') {
     if (!validar()) return
     if (productosConCantidad.value === 0) return
@@ -709,6 +871,57 @@ async function guardar(mode = 'new') {
   }
 }
 
+async function guardarEdicion() {
+  if (!validar()) return
+  if (productosConCantidad.value === 0) return
+
+  guardando.value    = true
+  errorGuardar.value = ''
+
+  const productosPayload = Object.entries(cantidades.value)
+    .map(([codigo, cantidad]) => ({ codigo, cantidad: parseFloat(cantidad) }))
+    .filter(p => !isNaN(p.cantidad) && p.cantidad !== 0)
+
+  try {
+    const res = await api.put('/almacen/gestion-inventario', {
+      empresa:          empresa.value,
+      // Llave original
+      orig_fecha:           editKey.value.orig_fecha,
+      orig_ccosto:          editKey.value.orig_ccosto,
+      orig_tipo_db:         editKey.value.orig_tipo_db,
+      orig_cc_relacion:     editKey.value.orig_cc_relacion || '',
+      orig_observaciones:   editKey.value.orig_observaciones || '',
+      // Nuevos valores
+      fecha:            fecha.value,
+      tipo:             tipoOp.value,
+      ccOrigen:         ccOrigen.value,
+      ccOrigenNombre:   nombreCcOrigen.value,
+      ccDestino:        ccDestino.value || null,
+      ccDestinoNombre:  nombreCcDestino.value || null,
+      observaciones:    observaciones.value,
+      productos:        productosPayload,
+    })
+
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al actualizar')
+
+    modoEdicion.value  = false
+    editKey.value      = {}
+    exitoMsg.value     = `Movimiento actualizado · ${res.data.registros || productosPayload.length} registro(s)`
+    dlgExito.value     = true
+    limpiarCantidades()
+  } catch (e) {
+    errorGuardar.value = e?.response?.data?.error || e.message || 'Error al actualizar'
+  } finally {
+    guardando.value = false
+  }
+}
+
+function cancelarEdicion() {
+  modoEdicion.value = false
+  editKey.value     = {}
+  limpiarCantidades()
+}
+
 function resetTodo() {
   limpiarCantidades()
   tipoOp.value        = null
@@ -718,6 +931,68 @@ function resetTodo() {
   errorGuardar.value  = ''
   exitoMsg.value      = ''
   dlgExito.value      = false
+  modoEdicion.value   = false
+  editKey.value       = {}
+}
+
+// ── Historial ─────────────────────────────────────────────────
+async function abrirHistorial() {
+  dlgHistorial.value = true
+  await cargarHistorial()
+}
+
+async function cargarHistorial() {
+  historialLoading.value = true
+  historialItems.value   = []
+  try {
+    const params = { empresa: empresa.value, dias: 60 }
+    if (historialFiltroCC.value) params.ccosto = historialFiltroCC.value
+    const res = await api.get('/almacen/movimientos-recientes', { params })
+    historialItems.value = res.data?.data || []
+  } catch (e) {
+    console.error('Error cargando historial:', e)
+  } finally {
+    historialLoading.value = false
+  }
+}
+
+async function cargarParaEditar(mov) {
+  dlgHistorial.value = false
+
+  // Guardar llave original
+  editKey.value = {
+    orig_fecha:              mov.fecha,
+    orig_ccosto:             mov.ccosto,
+    orig_ccosto_nombre:      mov.ccosto_nombre || mov.ccosto,
+    orig_tipo_db:            mov.tipo_db,
+    orig_tipo_fe:            mov.tipo_fe,
+    orig_cc_relacion:        mov.cc_relacion  || '',
+    orig_cc_relacion_nombre: mov.cc_relacion_nombre || mov.cc_relacion || '',
+    orig_observaciones:      mov.observaciones || '',
+  }
+
+  // Pre-llenar el formulario
+  fecha.value         = mov.fecha
+  tipoOp.value        = mov.tipo_fe === 'TRASLADO' ? 'TRASLADO'
+                      : mov.tipo_fe === 'ENTRADA'  ? 'ENTRADA'
+                      : mov.tipo_fe === 'BAJA'     ? 'BAJA'
+                      :                              'SALIDA'
+  ccOrigen.value      = mov.ccosto
+  ccDestino.value     = mov.cc_relacion || null
+  observaciones.value = mov.observaciones || ''
+
+  // Esperar a que cargarProductos() reaccione al cambio de ccOrigen
+  await new Promise(r => setTimeout(r, 300))
+
+  // Rellenar cantidades
+  const nuevasCantidades = {}
+  for (const p of (mov.productos || [])) {
+    nuevasCantidades[p.codigo] = p.cantidad
+  }
+  cantidades.value = nuevasCantidades
+
+  modoEdicion.value = true
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onMounted(async () => {
