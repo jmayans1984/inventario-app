@@ -12217,6 +12217,22 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
     }
 });
 
+// ── PRODUCTOS ENDPOINT ───────────────────────────────────────────
+// GET /api/productos - obtener todos los productos
+app.get('/api/productos', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT codigo, nombre
+            FROM productos
+            ORDER BY nombre ASC
+        `);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ── RECETA-PRODUCTO MAPPING ──────────────────────────────────────
 // GET /api/produccion/receta-producto - obtener todos los mapeos
 app.get('/api/produccion/receta-producto', async (req, res) => {
