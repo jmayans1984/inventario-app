@@ -376,16 +376,10 @@ async function procesarScan(barcode) {
             return;
         }
 
-        // FIX: usar factor de cache si existe
-        const cached = barcodeCache[barcode];
-        if (cached && cached.productoCodigo === codigo) {
-            console.log('[SCAN] Usando factor de cache (barcode encontrado):', cached);
-        }
-
-        // FIX 1: mostrar diálogo si factor > 1 o si se escaneó el código del producto
-        // PERO si está en cache, usar el factor guardado sin preguntar
-        let delta = cached?.factor || factor;
-        if (!cached && (factor > 1 || esCodigo)) {
+        // FIX: usar factor registrado en BD sin preguntar
+        // Solo mostrar diálogo si: factor=1 Y se escaneó código (no barcode registrado)
+        let delta = factor;
+        if (factor === 1 && esCodigo) {
             scanEnProceso = false; // liberar mientras espera interacción
             const elegido = await mostrarDialogoFactor(nombre, factor, esCodigo);
             if (elegido === null) { refocusInput(); return; }
