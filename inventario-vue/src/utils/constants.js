@@ -1,6 +1,6 @@
 export const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api'
 
-export const APP_VERSION = '1.07'
+export const APP_VERSION = '1.09'
 
 export const MODULES = [
   {
@@ -114,22 +114,19 @@ export const MODULES = [
   },
   {
     id: 'produccion',
-    name: 'PROVEEDURÍA',
-    icon: 'mdi-store',
-    color: '#b45309',
+    name: 'PRODUCCIÓN',
+    icon: 'mdi-factory',
+    color: '#8b5cf6',
     path: '/produccion',
-    requiredTipo: 'PROVEEDOR',
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Precios de Compra/Venta', icon: 'mdi-currency-usd', path: '/produccion/configuracion/precios' },
-        { name: 'Lista de Precios', icon: 'mdi-list-box-outline', path: '/produccion/configuracion/lista-precios' },
+        { name: 'Recetas y Artículos', icon: 'mdi-chef-hat', path: '/produccion/configuracion' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
-        { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/produccion/procesos/ordenes-compra' },
+        { name: 'Órdenes de Producción', icon: 'mdi-clipboard-list-outline', path: '/produccion/procesos' },
       ]},
-      { name: 'Informes', icon: 'mdi-chart-bar', items: [
-        { name: 'Lista de Precios', icon: 'mdi-file-chart-outline', path: '/produccion/informes/lista-precios' },
-        { name: 'Órdenes de Compra', icon: 'mdi-file-text-outline', path: '/produccion/informes/ordenes-compra' },
+      { name: 'Reportes', icon: 'mdi-chart-bar', items: [
+        { name: 'Análisis de Producción', icon: 'mdi-file-chart-outline', path: '/produccion/reportes' },
       ]},
     ],
   },
