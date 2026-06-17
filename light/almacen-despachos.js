@@ -395,6 +395,13 @@ async function procesarScan(barcode) {
     } catch (e) {
         // FIX 2: mostrar error con botón de reintento; refocus para no romper el flujo
         const esTiempo = e.name === 'AbortError';
+        console.error('[SCAN ERROR]', {
+            name: e.name,
+            message: e.message,
+            status: e.status,
+            barcode: barcode,
+            timestamp: new Date().toISOString()
+        });
         showFeedbackHTML('error',
             `❌ ${esTiempo ? 'Tiempo de espera agotado' : 'Error de conexión'} &nbsp;` +
             `<button onclick="reintentarScan()" style="padding:4px 10px;border-radius:8px;border:1.5px solid currentColor;background:transparent;color:inherit;font-size:12px;font-weight:700;cursor:pointer;">🔄 Reintentar</button>`
