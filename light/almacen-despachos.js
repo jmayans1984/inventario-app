@@ -635,15 +635,16 @@ function actualizarFilaScan(item, campo) {
 
 function showFeedback(tipo, msg) {
     const el = document.getElementById('scanFeedback');
+    if (!el) return;
     el.textContent = msg;
     el.className   = `scan-feedback ${tipo}`;
     clearTimeout(window._fbTimer);
     window._fbTimer = setTimeout(() => hideFeedback(), 5000);
 }
 
-// FIX 2: variante que permite HTML (para el botón reintentar)
 function showFeedbackHTML(tipo, html) {
     const el = document.getElementById('scanFeedback');
+    if (!el) return;
     el.innerHTML = html;
     el.className  = `scan-feedback ${tipo}`;
     clearTimeout(window._fbTimer);
@@ -651,7 +652,8 @@ function showFeedbackHTML(tipo, html) {
 }
 
 function hideFeedback() {
-    document.getElementById('scanFeedback').className = 'scan-feedback';
+    const el = document.getElementById('scanFeedback');
+    if (el) el.className = 'scan-feedback';
 }
 
 function refocusInput() {
