@@ -168,15 +168,9 @@ function renderDetalle() {
             </table>
         </div>
 
-        ${puedePickear || puedePackear ? `
-        <button class="btn-accion btn-picking" onclick="iniciarEscaneo('packing')">
+        <button class="btn-accion btn-picking" onclick="iniciarEscaneo('packing')" style="width:100%">
             📦 Iniciar Packing
-        </button>` : ''}
-
-        ${puedePackear ? `
-        <button class="btn-accion btn-packing" onclick="iniciarEscaneo('packing')">
-            📦 ${est === 'EN_PACKING' ? 'Continuar Packing' : 'Iniciar Packing'}
-        </button>` : ''}
+        </button>
 
         ${puedeConfirmar ? `
         <button class="btn-accion btn-confirmar" onclick="mostrarConfirmacion()">
@@ -214,7 +208,7 @@ function renderEscaneo() {
         <div class="scan-header ${color}">
             <div class="scan-icon">${isPacking ? '📦' : '🔍'}</div>
             <div>
-                <h2>${isPacking ? 'PACKING — Verificación' : 'PICKING — Recolección'}</h2>
+                <h2>📦 PACKING — Despacho</h2>
                 <p>${ordenActiva.cc_destino_nombre || ordenActiva.cc_destino} · #${ordenActiva.id}</p>
             </div>
         </div>
