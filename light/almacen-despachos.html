@@ -364,7 +364,8 @@
         <!-- ══════════════════════════════════════════════════ -->
         <div id="screen-lista" class="screen active">
             <div class="filtro-fecha">
-                <input type="date" id="filtrFecha" onchange="cargarOrdenes()" />
+                <input type="date" id="filtrFecha" onchange="cargarOrdenes()" title="Filtrar por fecha (ver historial)" />
+                <button class="btn btn-secondary" onclick="document.getElementById('filtrFecha').value='';cargarOrdenes()">Activas</button>
                 <button class="btn btn-secondary" onclick="document.getElementById('filtrFecha').value=hoy();cargarOrdenes()">Hoy</button>
             </div>
             <div id="listaOrdenes">

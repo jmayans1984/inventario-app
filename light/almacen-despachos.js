@@ -22,7 +22,7 @@ window.addEventListener('load', () => {
         window.location.href = 'index.html';
         return;
     }
-    document.getElementById('filtrFecha').value = hoy();
+    // Sin fecha por defecto — muestra solo órdenes activas
     cargarOrdenes();
 });
 
@@ -68,9 +68,16 @@ async function cargarOrdenes() {
 }
 
 function renderLista(ordenes) {
-    const el = document.getElementById('listaOrdenes');
+    const el    = document.getElementById('listaOrdenes');
+    const fecha = document.getElementById('filtrFecha').value;
+
+    // Sin fecha → solo activas (excluir completadas y canceladas)
+    const ACTIVAS = ['PENDIENTE','EN_PICKING','EN_PACKING'];
+    if (!fecha) ordenes = ordenes.filter(o => ACTIVAS.includes(o.estado));
+
     if (!ordenes.length) {
-        el.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>No hay órdenes para esta fecha</p></div>';
+        const msg = fecha ? 'No hay órdenes para esta fecha' : 'No hay órdenes activas';
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>${msg}</p></div>`;
         return;
     }
 
