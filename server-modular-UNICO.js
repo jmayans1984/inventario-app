@@ -12142,7 +12142,7 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
               AND ccosto = $3
               AND fecha >= $4
               AND fecha <= $5
-            ORDER BY fecha ASC, id ASC
+            ORDER BY fecha ASC
         `;
         const movRes = await pool.query(movimientosQuery, [codigo, empresa, ccosto, fechaInicioStr, fechaFinStr]);
 
