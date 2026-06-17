@@ -30,36 +30,77 @@
         <div class="prod-form-grid">
           <div class="prod-form-group">
             <label>SELECCIONAR RECETA (SUBPRODUCTO)</label>
-            <select v-model="ordenForm.receta_codigo" @change="cargarReceta" class="drw-input" :disabled="cargando">
-              <option value="">{{ cargando ? 'Cargando...' : '-- Seleccionar receta --' }}</option>
+            <select v-model="recetaSeleccionada" class="drw-input">
+              <option value="">-- Seleccionar receta --</option>
               <option v-for="p in productosProduccion" :key="p.codigo" :value="p.codigo">
                 {{ p.nombre }}
               </option>
             </select>
-            <div v-if="errorMsg" class="prod-hint" style="color:#ef4444">{{ errorMsg }}</div>
           </div>
 
           <div class="prod-form-group">
             <label>CANTIDAD A PRODUCIR</label>
-            <input v-model.number="ordenForm.cantidad_planeada" type="number" placeholder="1000" class="drw-input" />
+            <input v-model.number="cantidadReceta" type="number" placeholder="1000" class="drw-input" />
+          </div>
+
+          <div class="prod-form-group" style="display: flex; align-items: flex-end;">
+            <v-btn color="#8b5cf6" variant="flat" @click="agregarReceta" size="small" style="width: 100%;">
+              <v-icon start>mdi-plus</v-icon> Agregar Receta
+            </v-btn>
           </div>
         </div>
 
-        <!-- CONSUMO ÚLTIMA SEMANA -->
-        <div v-if="ordenForm.receta_codigo && consumoSemanal.length > 0" class="prod-info-banner" style="margin-top: 24px; background: #f0f9ff; border-color: #0ea5e9;">
-          <strong style="color: #0369a1;">📊 Consumo Última Semana:</strong>
-          <div style="margin-top: 12px; font-size: 12px;">
-            <div v-for="c in consumoSemanal" :key="c.fecha" style="display: grid; grid-template-columns: 100px 80px 80px 80px 100px; gap: 12px; margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px;">
-              <div><strong>{{ formatFecha(c.fecha) }}</strong></div>
-              <div>Saldo Ant: {{ c.saldo_anterior }}</div>
-              <div>Entradas: +{{ c.entradas }}</div>
-              <div>Salidas: -{{ c.salidas }}</div>
-              <div><strong>Saldo Final: {{ c.saldo_final }}</strong></div>
+        <!-- INFORMACIÓN DE INVENTARIO Y CONSUMO CUANDO SE SELECCIONA RECETA -->
+        <div v-if="recetaSeleccionada && inventarioInfo.codigo === recetaSeleccionada" class="prod-info-banner" style="margin-top: 24px; background: #f0f9ff; border-color: #0ea5e9;">
+          <strong style="color: #0369a1;">📊 Análisis de Inventario y Consumo:</strong>
+          <div style="margin-top: 12px; font-size: 13px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+            <div style="background: white; padding: 12px; border-radius: 4px; border-left: 4px solid #8b5cf6;">
+              <div style="font-size: 11px; color: #6b7280;">Inventario Bodega</div>
+              <div style="font-size: 20px; font-weight: 700; color: #8b5cf6;">{{ inventarioInfo.stock_actual }}</div>
             </div>
-            <div style="margin-top: 12px; padding: 8px; background: #e0f2fe; border-radius: 4px; font-weight: 700; color: #0369a1;">
-              Consumo Aproximado (Lunes-Domingo): {{ consumoPromedio.toFixed(2) }} unidades/día
+            <div style="background: white; padding: 12px; border-radius: 4px; border-left: 4px solid #f59e0b;">
+              <div style="font-size: 11px; color: #6b7280;">Consumo Últimos 7 Días</div>
+              <div style="font-size: 20px; font-weight: 700; color: #f59e0b;">{{ inventarioInfo.consumo_7_dias }}</div>
+            </div>
+            <div style="background: white; padding: 12px; border-radius: 4px; border-left: 4px solid #10b981;">
+              <div style="font-size: 11px; color: #6b7280;">Diferencia (a Producir)</div>
+              <div style="font-size: 20px; font-weight: 700; color: #10b981;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
             </div>
           </div>
+        </div>
+
+        <!-- TABLA DE RECETAS EN LA ORDEN -->
+        <div v-if="recetasEnOrden.length > 0" style="margin-top: 24px;">
+          <strong style="display: block; margin-bottom: 12px; color: #374151;">RECETAS EN LA ORDEN:</strong>
+          <div class="prod-table-wrap">
+            <table class="prod-table">
+              <thead>
+                <tr>
+                  <th>RECETA</th>
+                  <th class="ta-c">CANTIDAD</th>
+                  <th style="width: 80px; text-align: center;">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(rec, idx) in recetasEnOrden" :key="idx">
+                  <td>{{ rec.nombre }}</td>
+                  <td class="ta-c">{{ rec.cantidad }}</td>
+                  <td style="text-align: center;">
+                    <v-btn size="x-small" variant="text" color="#ef4444" @click="eliminarReceta(idx)">
+                      <v-icon size="14">mdi-delete</v-icon>
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- BOTONES PASO 1 -->
+        <div class="prod-form-actions" style="margin-top: 24px;">
+          <v-btn color="#22c55e" variant="flat" @click="crearOrden" size="large" :disabled="recetasEnOrden.length === 0">
+            <v-icon start>mdi-chevron-right</v-icon> Siguiente
+          </v-btn>
         </div>
 
         <div class="prod-form-grid" style="margin-top: 16px;">
@@ -92,15 +133,15 @@
         <h2>PASO 2: INGREDIENTES NECESARIOS</h2>
 
         <div class="prod-info-banner">
-          <strong>Receta:</strong> {{ recetaActual?.nombre }} |
-          <strong>Cantidad:</strong> {{ ordenForm.cantidad_planeada }} unidades |
-          <strong>Base:</strong> 1 porción
+          <strong>Recetas en la orden:</strong> {{ recetasEnOrden.length }} |
+          <strong>Total ingredientes:</strong> {{ ingredientesCalculados.length }}
         </div>
 
         <div class="prod-table-wrap">
           <table class="prod-table">
             <thead>
               <tr>
+                <th>RECETA</th>
                 <th>INGREDIENTE</th>
                 <th class="ta-r">CANTIDAD/UNIDAD</th>
                 <th class="ta-r">NECESARIA</th>
@@ -109,7 +150,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="ing in ingredientesCalculados" :key="ing.id">
+              <tr v-for="(ing, idx) in ingredientesCalculados" :key="idx">
+                <td><strong style="color: #8b5cf6;">{{ ing.receta_nombre }}</strong></td>
                 <td>{{ ing.nombre }}</td>
                 <td class="ta-r">{{ ing.cantidad_por_receta }} {{ ing.unidad }}</td>
                 <td class="ta-r"><strong>{{ ing.cantidad_necesaria.toFixed(2) }}</strong></td>
@@ -119,12 +161,8 @@
             </tbody>
             <tfoot>
               <tr class="prod-tfoot">
-                <td colspan="4" style="text-align:right"><strong>COSTO TOTAL PRODUCCIÓN:</strong></td>
+                <td colspan="5" style="text-align:right"><strong>COSTO TOTAL PRODUCCIÓN:</strong></td>
                 <td class="ta-r font-mono"><strong>${{ costoTotalProduccion.toFixed(2) }}</strong></td>
-              </tr>
-              <tr class="prod-tfoot">
-                <td colspan="4" style="text-align:right"><strong>COSTO UNITARIO:</strong></td>
-                <td class="ta-r font-mono"><strong>${{ (costoTotalProduccion / (ordenForm.cantidad_planeada || 1)).toFixed(4) }}</strong></td>
               </tr>
             </tfoot>
           </table>
@@ -147,15 +185,15 @@
 
         <div class="prod-form-grid">
           <div class="prod-form-group">
-            <label>CANTIDAD REALMENTE PRODUCIDA</label>
-            <input v-model.number="ordenForm.cantidad_real" type="number" placeholder="1000" class="drw-input" />
-            <div class="prod-hint">{{ ordenForm.cantidad_planeada }} planeadas vs {{ ordenForm.cantidad_real || 0 }} reales</div>
+            <label>CANTIDAD TOTAL PLANEADA</label>
+            <input :value="recetasEnOrden.reduce((sum, r) => sum + (r.cantidad || 0), 0)" type="number" disabled class="drw-input" />
+            <div class="prod-hint">Suma de todas las recetas en la orden</div>
           </div>
 
           <div class="prod-form-group">
-            <label>MARGEN DE ERROR</label>
-            <input :value="calcularMargenError().toFixed(2)" type="number" disabled class="drw-input" />
-            <div class="prod-hint">{{ calcularMargenError() > 0 ? 'Producción excedida ✓' : 'Producción insuficiente' }}</div>
+            <label>CANTIDAD REALMENTE PRODUCIDA</label>
+            <input v-model.number="ordenForm.cantidad_real" type="number" placeholder="1000" class="drw-input" />
+            <div class="prod-hint">Ingresa el total realizado</div>
           </div>
         </div>
 
@@ -229,8 +267,6 @@ const pasos = [
 ]
 
 const ordenForm = ref({
-  receta_codigo: '',
-  cantidad_planeada: null,
   cantidad_real: null,
   fecha_inicio: new Date().toISOString().split('T')[0],
   fecha_vencimiento: null,
@@ -239,18 +275,14 @@ const ordenForm = ref({
 
 // Recetas con subproducto === 'SI' (productos propios)
 const productosProduccion = ref([])
-const recetaActual = ref(null)
+const recetasEnOrden = ref([]) // Array de recetas en la orden actual
+const recetaSeleccionada = ref('')
+const cantidadReceta = ref(null)
 const ingredientesCalculados = ref([])
-const consumoSemanal = ref([])
+const inventarioInfo = ref({ codigo: '', stock_actual: 0, consumo_7_dias: 0 })
 
 const costoTotalProduccion = computed(() => {
   return ingredientesCalculados.value.reduce((sum, ing) => sum + ing.costo_total, 0)
-})
-
-const consumoPromedio = computed(() => {
-  if (consumoSemanal.value.length === 0) return 0
-  const totalSalidas = consumoSemanal.value.reduce((sum, c) => sum + (parseFloat(c.salidas) || 0), 0)
-  return consumoSemanal.value.length > 0 ? totalSalidas / consumoSemanal.value.length : 0
 })
 
 async function cargarRecetasSubproducto() {
@@ -267,16 +299,6 @@ async function cargarRecetasSubproducto() {
   }
 }
 
-async function cargarConsumoSemanal(codigo) {
-  try {
-    const r = await fetch(`${API_BASE}/detalle-inventario/consumo-semanal/${encodeURIComponent(codigo)}`)
-    const j = await r.json()
-    consumoSemanal.value = (j.data || []).sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
-  } catch (e) {
-    consumoSemanal.value = []
-  }
-}
-
 function formatFecha(fecha) {
   if (!fecha) return '—'
   const d = new Date(fecha + 'T00:00:00')
@@ -284,54 +306,110 @@ function formatFecha(fecha) {
   return `${dias[d.getDay()]} ${d.toLocaleDateString('es-ES')}`
 }
 
-async function cargarReceta() {
-  const codigo = ordenForm.value.receta_codigo
-  if (!codigo) return
+async function cargarInventarioYConsumo(codigo) {
   try {
-    cargando.value = true
-    const r = await fetch(`${API_BASE}/recetas/${encodeURIComponent(codigo)}`)
-    const j = await r.json()
-    if (!j.success) throw new Error(j.error)
-    recetaActual.value = j.data
-    calcularIngredientes(j.data.ingredientes || [])
-    await cargarConsumoSemanal(codigo)
+    const [invRes, consumoRes] = await Promise.all([
+      fetch(`${API_BASE}/productos/${encodeURIComponent(codigo)}`),
+      fetch(`${API_BASE}/ventas/consumo-7-dias/${encodeURIComponent(codigo)}`)
+    ])
+
+    const inv = await invRes.json()
+    const consumo = await consumoRes.json()
+
+    const stockActual = inv.data?.stock || 0
+    const consumo7d = consumo.data?.total || 0
+
+    inventarioInfo.value = {
+      codigo,
+      stock_actual: stockActual,
+      consumo_7_dias: consumo7d
+    }
   } catch (e) {
-    errorMsg.value = 'Error al cargar receta: ' + e.message
-  } finally {
-    cargando.value = false
+    console.error('Error cargando inventario/consumo:', e)
+    inventarioInfo.value = { codigo, stock_actual: 0, consumo_7_dias: 0 }
   }
 }
 
-function calcularIngredientes(ingredientes) {
-  const cantidad = ordenForm.value.cantidad_planeada || 1
-  ingredientesCalculados.value = ingredientes.map(ing => {
-    const cantBase = parseFloat(ing.cantidad) || 0
-    const precio   = parseFloat(ing.precio_unit) || 0
-    const cantNec  = cantBase * cantidad
-    return {
-      ...ing,
-      nombre:             ing.nombre_item || ing.articulo_nombre || ing.articulo || '',
-      cantidad_por_receta: cantBase,
-      precio_unitario:    precio,
-      cantidad_necesaria: cantNec,
-      costo_total:        cantNec * precio
-    }
+async function agregarReceta() {
+  if (!recetaSeleccionada.value || !cantidadReceta.value) {
+    alert('Selecciona una receta e ingresa una cantidad')
+    return
+  }
+
+  // Cargar inventario y consumo
+  await cargarInventarioYConsumo(recetaSeleccionada.value)
+
+  // Agregar a la tabla
+  recetasEnOrden.value.push({
+    codigo: recetaSeleccionada.value,
+    nombre: productosProduccion.value.find(p => p.codigo === recetaSeleccionada.value)?.nombre || '',
+    cantidad: cantidadReceta.value
   })
+
+  // Reset
+  recetaSeleccionada.value = ''
+  cantidadReceta.value = null
+}
+
+function eliminarReceta(index) {
+  recetasEnOrden.value.splice(index, 1)
 }
 
 function crearOrden() {
-  if (!ordenForm.value.receta_codigo || !ordenForm.value.cantidad_planeada) {
-    alert('Selecciona una receta e ingresa la cantidad')
+  if (recetasEnOrden.value.length === 0) {
+    alert('Agrega al menos una receta a la orden')
     return
   }
   pasoActivo.value = 2
-  cargarReceta()
+  calcularIngredientesTodas()
+}
+
+async function cargarRecetaDetalle(codigo) {
+  try {
+    const r = await fetch(`${API_BASE}/recetas/${encodeURIComponent(codigo)}`)
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    return j.data
+  } catch (e) {
+    console.error('Error cargando receta:', e)
+    return null
+  }
+}
+
+async function calcularIngredientesTodas() {
+  ingredientesCalculados.value = []
+
+  for (const receta of recetasEnOrden.value) {
+    const detalle = await cargarRecetaDetalle(receta.codigo)
+    if (!detalle) continue
+
+    const ingredientes = detalle.ingredientes || []
+    const cantidad = receta.cantidad || 1
+
+    const ingredsCalculados = ingredientes.map(ing => {
+      const cantBase = parseFloat(ing.cantidad) || 0
+      const precio   = parseFloat(ing.precio_unit) || 0
+      const cantNec  = cantBase * cantidad
+      return {
+        ...ing,
+        receta_codigo: receta.codigo,
+        receta_nombre: receta.nombre,
+        nombre:             ing.nombre_item || ing.articulo_nombre || ing.articulo || '',
+        cantidad_por_receta: cantBase,
+        precio_unitario:    precio,
+        cantidad_necesaria: cantNec,
+        costo_total:        cantNec * precio
+      }
+    })
+
+    ingredientesCalculados.value.push(...ingredsCalculados)
+  }
 }
 
 function calcularMargenError() {
-  const planeada = ordenForm.value.cantidad_planeada || 0
+  const planeada = recetasEnOrden.value.reduce((sum, r) => sum + (r.cantidad || 0), 0) || 0
   const real = ordenForm.value.cantidad_real || 0
-  return ((real - planeada) / planeada * 100) || 0
+  return planeada > 0 ? ((real - planeada) / planeada * 100) : 0
 }
 
 function finalizarProduccion() {
