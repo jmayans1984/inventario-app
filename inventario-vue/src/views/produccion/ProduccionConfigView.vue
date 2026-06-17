@@ -70,22 +70,14 @@
                 <tr>
                   <th>ARTÍCULO</th>
                   <th>UNIDAD</th>
-                  <th>PRECIO ACTUAL</th>
-                  <th>STOCK</th>
-                  <th>ACCIONES</th>
+                  <th class="ta-r">PRECIO</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="a in articulos" :key="a.codigo || a.id">
+                <tr v-for="a in articulos" :key="a.codigo || a.nombre">
                   <td>{{ a.nombre }}</td>
-                  <td>{{ a.und_medida || a.unidad_medida || '—' }}</td>
-                  <td class="ta-r font-mono">${{ parseFloat(a.precio_compra || a.precio || 0).toFixed(4) }}</td>
-                  <td class="ta-r">{{ a.stock || 0 }}</td>
-                  <td class="ta-c">
-                    <v-btn size="x-small" variant="text" color="#8b5cf6" @click="editarArticulo(a)">
-                      <v-icon size="14">mdi-pencil</v-icon>
-                    </v-btn>
-                  </td>
+                  <td>{{ a.und_medida || '—' }}</td>
+                  <td class="ta-r font-mono">${{ parseFloat(a.precio_compra || 0).toFixed(4) }}</td>
                 </tr>
               </tbody>
             </table>
