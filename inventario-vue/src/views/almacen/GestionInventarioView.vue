@@ -451,9 +451,11 @@
           </v-card-text>
           <v-divider />
           <v-card-actions class="pa-4">
+            <v-btn color="#0891b2" variant="tonal" prepend-icon="mdi-printer-outline" @click="imprimirMovimientoActual">
+              Imprimir
+            </v-btn>
             <v-spacer />
             <v-btn color="#10b981" variant="flat" @click="dlgExito = false">Aceptar</v-btn>
-            <v-spacer />
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -933,6 +935,103 @@ function resetTodo() {
   dlgExito.value      = false
   modoEdicion.value   = false
   editKey.value       = {}
+}
+
+function imprimirMovimientoActual() {
+  const productos = Object.entries(cantidades.value)
+    .filter(([, cant]) => parseFloat(cant) > 0)
+    .map(([codigo, cant]) => {
+      const prod = productos.value.find(p => p.codigo === codigo)
+      return { codigo, nombre: prod?.nombre || codigo, cantidad: cant, und: prod?.und || '' }
+    })
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Movimiento Inventario</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h2 { margin: 0 0 4px; font-size: 20px; }
+        .header p { margin: 2px 0; font-size: 13px; color: #666; }
+        .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 13px; }
+        .meta-item { display: flex; flex-direction: column; }
+        .meta-label { font-weight: 700; margin-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #f3f4f6; padding: 10px; text-align: left; font-size: 12px; font-weight: 700; border-bottom: 2px solid #d1d5db; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+        .total-row { font-weight: 700; background: #f9fafb; }
+        .firma { display: flex; justify-content: space-around; margin-top: 40px; }
+        .firma-item { text-align: center; }
+        .firma-line { border-top: 1px solid #000; width: 140px; margin-top: 30px; }
+        @media print { body { margin: 0; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>MOVIMIENTO DE INVENTARIO</h2>
+        <p>${formatFecha(fecha.value)}</p>
+      </div>
+
+      <div class="meta">
+        <div class="meta-item">
+          <div class="meta-label">Tipo de Operación</div>
+          <div>${tipoLabel.value}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Centro de Costo</div>
+          <div>${nombreCcOrigen.value}${tipoOp.value === 'TRASLADO' ? ' → ' + nombreCcDestino.value : ''}</div>
+        </div>
+        ${observaciones.value ? `
+        <div class="meta-item" style="grid-column: 1/-1">
+          <div class="meta-label">Observaciones</div>
+          <div>${observaciones.value}</div>
+        </div>
+        ` : ''}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th style="text-align:right">Cantidad</th>
+            <th style="text-align:center">Unidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${productos.map(p => `
+            <tr>
+              <td style="font-family:monospace;font-size:11px;color:#666">${p.codigo}</td>
+              <td>${p.nombre}</td>
+              <td style="text-align:right;font-weight:600">${parseFloat(p.cantidad).toFixed(0)}</td>
+              <td style="text-align:center;font-size:12px">${p.und}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div class="firma">
+        <div class="firma-item">
+          <div class="firma-line"></div>
+          <div style="font-size:12px;margin-top:8px">Responsable</div>
+        </div>
+        <div class="firma-item">
+          <div class="firma-line"></div>
+          <div style="font-size:12px;margin-top:8px">Supervisor</div>
+        </div>
+      </div>
+
+      <script>window.onload=()=>{window.print();window.close();}<\/script>
+    </body>
+    </html>
+  `
+
+  const ventana = window.open('', '_blank')
+  ventana.document.write(html)
+  ventana.document.close()
 }
 
 // ── Historial ─────────────────────────────────────────────────
