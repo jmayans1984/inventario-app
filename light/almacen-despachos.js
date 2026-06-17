@@ -527,12 +527,13 @@ function mostrarEntradaManual(codigo, campo) {
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Cantidad a agregar (usa número negativo para quitar):</div>
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
           <button onclick="ajustarCantidadManual('${codigo}','${campo}',-1)" style="width:52px;height:52px;border-radius:12px;border:2px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0">−</button>
-          <input id="manualCantInput" type="number" inputmode="decimal"
+          <input id="manualCantInput" type="text" inputmode="decimal" autocomplete="off"
             value=""
             placeholder="Ej: 5"
             style="flex:1;padding:14px;border-radius:12px;border:2px solid var(--border-color);
                    background:var(--bg-input);color:var(--text-primary);font-size:22px;
-                   font-weight:700;text-align:center;outline:none;box-sizing:border-box" />
+                   font-weight:700;text-align:center;outline:none;box-sizing:border-box;
+                   -webkit-appearance:none;-moz-appearance:textfield" />
           <button onclick="ajustarCantidadManual('${codigo}','${campo}',+1)" style="width:52px;height:52px;border-radius:12px;border:2px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0">+</button>
         </div>
         <button id="btnConfirmarManual"
