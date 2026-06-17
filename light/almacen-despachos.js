@@ -1028,83 +1028,116 @@ function cerrarAsociador(e) {
 // DIALOGO FACTOR — ¿Caja completa o cantidad personalizada?
 // FIX 1: esCodigo=true cuando se escaneó el código del producto
 // ══════════════════════════════════════════════════════════════
+// ── Numpad interno — sin dependencia del teclado virtual ─────
+let _numpadVal      = '';
+let _numpadResolver = null;
+
+function numpadDigit(d) {
+    if (_numpadVal.length >= 4) return;
+    _numpadVal += String(d);
+    _numpadRefresh();
+}
+function numpadBorrar() {
+    _numpadVal = _numpadVal.slice(0, -1);
+    _numpadRefresh();
+}
+function _numpadRefresh() {
+    const el = document.getElementById('numpadDisplay');
+    if (el) el.textContent = _numpadVal || '—';
+    const btn = document.getElementById('btnNumpadOk');
+    if (btn) {
+        const v = parseInt(_numpadVal);
+        btn.disabled = !(v >= 1);
+        btn.style.opacity = (v >= 1) ? '1' : '0.4';
+    }
+}
+function numpadConfirmar() {
+    const val = parseInt(_numpadVal);
+    if (!val || val < 1) return;
+    _numpadVal = '';
+    document.getElementById('bsOverlay').classList.remove('open');
+    const cb = _numpadResolver; _numpadResolver = null;
+    if (cb) cb(val);
+}
+function numpadCancelar() {
+    _numpadVal = '';
+    _numpadResolver = null;
+    document.getElementById('bsOverlay').classList.remove('open');
+    refocusInput();
+}
+
 function mostrarDialogoFactor(nombre, factor, esCodigo = false) {
     return new Promise(resolve => {
+        _numpadVal      = '';
+        _numpadResolver = resolve;
+
         const overlay = document.getElementById('bsOverlay');
         const panel   = overlay.querySelector('.bs-panel');
 
-        const cerrar = (delta) => {
-            overlay.classList.remove('open');
-            resolve(delta);
-        };
-
-        const subtitulo = esCodigo
-            ? 'Código de producto · ingresa la cantidad a registrar'
-            : `Código de caja · <strong style="color:var(--text-primary)">${factor} unidades</strong>`;
-
-        const btnAceptarLabel = esCodigo
-            ? `✅ AGREGAR 1 UNIDAD`
-            : `✅ ACEPTAR<br><span style="font-size:15px;font-weight:600;opacity:.9">Agregar ${factor} unidades</span>`;
+        // Para factor>1 (caja de unidades), el botón rápido acepta sin numpad
+        const btnRapidoHTML = !esCodigo ? `
+            <button onclick="(() => { _numpadVal=''; document.getElementById('bsOverlay').classList.remove('open'); const cb=_numpadResolver;_numpadResolver=null;if(cb)cb(${factor}); })()"
+              style="width:100%;padding:18px 16px;border-radius:14px;border:none;cursor:pointer;
+                     background:#047857;color:white;font-size:20px;font-weight:900;
+                     margin-bottom:14px;line-height:1.2;box-shadow:0 4px 14px rgba(4,120,87,.3)">
+              ✅ ACEPTAR &nbsp;<span style="font-size:14px;font-weight:600;opacity:.85">· ${factor} unidades</span>
+            </button>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="flex:1;height:1px;background:var(--border-color)"></div>
+              <span style="font-size:11px;color:var(--text-tertiary)">o ingresa otra cantidad</span>
+              <div style="flex:1;height:1px;background:var(--border-color)"></div>
+            </div>` : '';
 
         panel.innerHTML = `
-          <div style="padding:20px 16px 20px">
-            <div class="bs-drag" style="width:40px;height:4px;background:var(--border-color);border-radius:2px;margin:0 auto 14px"></div>
-            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px">Producto escaneado</div>
-            <div style="font-size:17px;font-weight:800;margin-bottom:4px;line-height:1.2">${nombre}</div>
-            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">${subtitulo}</div>
+          <div style="padding:16px 16px 20px">
+            <div style="width:40px;height:4px;background:var(--border-color);border-radius:2px;margin:0 auto 14px"></div>
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:3px">
+              ${esCodigo ? 'Código de producto' : 'Código de caja'}
+            </div>
+            <div style="font-size:16px;font-weight:800;margin-bottom:14px;line-height:1.3">${nombre}</div>
 
-            <button id="btnFactorAceptar" style="
-              width:100%;padding:22px 16px;border-radius:16px;border:none;cursor:pointer;
-              background:#047857;color:white;font-size:22px;font-weight:900;
-              margin-bottom:20px;line-height:1.2;box-shadow:0 4px 14px rgba(4,120,87,.35)">
-              ${btnAceptarLabel}
-            </button>
+            ${btnRapidoHTML}
 
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-              <div style="flex:1;height:1px;background:var(--border-color)"></div>
-              <span style="font-size:12px;color:var(--text-tertiary)">o ingresa otra cantidad</span>
-              <div style="flex:1;height:1px;background:var(--border-color)"></div>
+            <!-- Display del numpad -->
+            <div style="background:var(--bg-input);border-radius:14px;padding:14px 20px;
+                        text-align:center;margin-bottom:12px;border:2px solid var(--border-color)">
+              <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:2px">
+                ${esCodigo ? 'Cantidad a registrar' : 'Otra cantidad'}
+              </div>
+              <div id="numpadDisplay" style="font-size:36px;font-weight:900;color:var(--text-primary);
+                   min-height:44px;line-height:1">—</div>
             </div>
 
-            <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
-              <input id="factorCantInput" type="number" min="1" inputmode="numeric"
-                placeholder="${esCodigo ? 'Ej: 6' : 'Ej: 50'}"
-                style="flex:1;padding:14px;border-radius:12px;border:2px solid var(--border-color);
-                       background:var(--bg-input);color:var(--text-primary);font-size:20px;
-                       font-weight:700;text-align:center;outline:none;box-sizing:border-box" />
-              <button id="btnFactorCantidad" style="
-                padding:14px 18px;border-radius:12px;border:none;cursor:pointer;
-                background:#1d4ed8;color:white;font-size:14px;font-weight:700;white-space:nowrap">
-                Agregar
-              </button>
+            <!-- Grid numpad 3×4 -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+              ${[1,2,3,4,5,6,7,8,9].map(n =>
+                `<button onclick="numpadDigit(${n})" style="${_npBtnStyle()}">${n}</button>`
+              ).join('')}
+              <button onclick="numpadBorrar()" style="${_npBtnStyle('#7c3aed')}">⌫</button>
+              <button onclick="numpadDigit(0)"  style="${_npBtnStyle()}">0</button>
+              <button id="btnNumpadOk" onclick="numpadConfirmar()" disabled
+                style="${_npBtnStyle('#047857')};opacity:.4">✓</button>
             </div>
 
-            <button id="btnFactorCancelar" style="
-              width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
-              background:transparent;color:var(--text-secondary);font-size:13px">
+            <button onclick="numpadCancelar()"
+              style="width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
+                     background:transparent;color:var(--text-secondary);font-size:13px">
               Cancelar
             </button>
           </div>
         `;
 
         overlay.classList.add('open');
-
-        document.getElementById('btnFactorAceptar').onclick  = () => cerrar(esCodigo ? 1 : factor);
-        document.getElementById('btnFactorCancelar').onclick = () => cerrar(null);
-        document.getElementById('btnFactorCantidad').onclick = () => {
-            const val = parseInt(document.getElementById('factorCantInput').value);
-            if (!val || val < 1) { document.getElementById('factorCantInput').focus(); return; }
-            cerrar(val);
-        };
-        document.getElementById('factorCantInput').onkeydown = (e) => {
-            if (e.key === 'Enter') document.getElementById('btnFactorCantidad').click();
-        };
-
-        // Para código de producto, enfocar el input directamente
-        if (esCodigo) {
-            setTimeout(() => document.getElementById('factorCantInput')?.focus(), 100);
-        }
     });
+}
+
+function _npBtnStyle(bg) {
+    const b = bg || 'var(--bg-card)';
+    const c = bg ? 'white' : 'var(--text-primary)';
+    const bdr = bg ? 'none' : '1.5px solid var(--border-color)';
+    return `padding:0;height:54px;border-radius:12px;border:${bdr};
+            background:${b};color:${c};font-size:20px;font-weight:700;
+            cursor:pointer;transition:opacity .1s;-webkit-tap-highlight-color:transparent`;
 }
 
 // ══════════════════════════════════════════════════════════════
