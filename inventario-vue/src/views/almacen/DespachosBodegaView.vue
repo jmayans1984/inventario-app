@@ -127,7 +127,7 @@
                     <v-icon>mdi-printer-outline</v-icon>
                   </v-btn>
                   <v-btn icon size="x-small" variant="text" color="#ef4444" title="Eliminar"
-                    v-if="d.estado === 'PENDIENTE'"
+                    v-if="d.estado !== 'COMPLETADO'"
                     :loading="eliminando === d.id"
                     @click="eliminar(d)">
                     <v-icon>mdi-delete</v-icon>
