@@ -903,10 +903,11 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
           <button onclick="setFactor(0)"   class="btn-factor" id="bf0" style="background:var(--bg-input)">Otro</button>
         </div>
         <div id="factorOtroWrap" style="display:none;margin-bottom:12px">
-          <input type="number" id="factorOtroInput" min="1" inputmode="numeric"
+          <input type="text" id="factorOtroInput" inputmode="numeric" autocomplete="off"
             placeholder="Ej: 50"
-            style="width:100%;padding:12px;border-radius:10px;border:2px solid var(--border-color);
-                   background:var(--bg-input);color:var(--text-primary);font-size:16px;box-sizing:border-box;outline:none" />
+            style="width:100%;padding:14px;border-radius:10px;border:2px solid var(--border-color);
+                   background:var(--bg-input);color:var(--text-primary);font-size:16px;box-sizing:border-box;outline:none;
+                   -webkit-appearance:none;-moz-appearance:textfield" />
         </div>
         <button id="btnConfirmarFactor" onclick="confirmarFactorBarcode('${productoCodigo}', '${barcode}')"
           style="width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
