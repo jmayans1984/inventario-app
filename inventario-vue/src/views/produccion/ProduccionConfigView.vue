@@ -38,25 +38,14 @@
                 <tr>
                   <th>CÓDIGO</th>
                   <th>NOMBRE</th>
-                  <th>GRUPO</th>
-                  <th>COSTO UNITARIO</th>
-                  <th>ACCIONES</th>
+                  <th class="ta-r">COSTO UNITARIO</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="r in recetas" :key="r.codigo">
                   <td><strong>{{ r.codigo }}</strong></td>
                   <td>{{ r.nombre }}</td>
-                  <td>{{ r.grupo_receta || '—' }}</td>
                   <td class="ta-r font-mono">${{ parseFloat(r.costo_porcion || r.costo_total || 0).toFixed(2) }}</td>
-                  <td class="ta-c">
-                    <v-btn size="x-small" variant="text" color="#8b5cf6" @click="editarReceta(r)">
-                      <v-icon size="14">mdi-pencil</v-icon>
-                    </v-btn>
-                    <v-btn size="x-small" variant="text" color="#ef4444" @click="eliminarReceta(r.id)">
-                      <v-icon size="14">mdi-trash-can</v-icon>
-                    </v-btn>
-                  </td>
                 </tr>
               </tbody>
             </table>
