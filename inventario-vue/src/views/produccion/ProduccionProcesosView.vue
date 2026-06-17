@@ -95,12 +95,12 @@
               <h3 style="font-size: 14px; margin-bottom: 16px;">PASO 1: CREAR ORDEN DE PRODUCCIÓN</h3>
 
               <div class="prod-form-grid" style="margin-top: 16px; align-items: flex-end;">
-                <v-text-field v-model="ordenForm.fecha_inicio" label="Fecha" type="date" outlined dense />
+                <v-text-field v-model="ordenForm.fecha_inicio" label="Fecha" type="date" outlined dense style="font-size: 13px;" />
 
                 <v-select v-model="recetaSeleccionada" :items="productosProduccion" item-title="nombre" item-value="codigo"
-                  label="Seleccionar Receta (Subproducto)" outlined dense />
+                  label="Seleccionar Receta (Subproducto)" outlined dense style="font-size: 13px;" />
 
-                <v-text-field v-model.number="cantidadReceta" label="Cantidad a Producir" type="number" placeholder="1000" outlined dense />
+                <v-text-field v-model.number="cantidadReceta" label="Cantidad a Producir" type="number" placeholder="1000" outlined dense style="font-size: 13px;" />
 
                 <v-btn color="#8b5cf6" variant="flat" @click="agregarReceta" size="default">
                   <v-icon start>mdi-plus</v-icon> Agregar
@@ -112,17 +112,17 @@
                 <v-card-title style="font-size: 11px; padding: 8px 12px; font-weight: 600;">📊 Análisis de Inventario y Consumo</v-card-title>
                 <v-card-text style="padding: 0 12px 12px 12px;">
                   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #8b5cf6; background: rgba(139,92,246,0.05);">
-                      <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px;">Inventario Bodega</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #8b5cf6;">{{ inventarioInfo.stock_actual }}</div>
+                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #a78bfa; background: rgba(167,139,250,0.1);">
+                      <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Inventario Bodega</div>
+                      <div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">{{ inventarioInfo.stock_actual }}</div>
                     </div>
-                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #f59e0b; background: rgba(245,158,11,0.05);">
-                      <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px;">Consumo Últimos 7 Días</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #f59e0b;">{{ inventarioInfo.consumo_7_dias }}</div>
+                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #fbbf24; background: rgba(251,191,36,0.1);">
+                      <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Consumo Últimos 7 Días</div>
+                      <div style="font-size: 16px; font-weight: 700; color: #fcd34d;">{{ inventarioInfo.consumo_7_dias }}</div>
                     </div>
-                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #10b981; background: rgba(16,185,129,0.05);">
-                      <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px;">Diferencia (a Producir)</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #10b981;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
+                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #34d399; background: rgba(52,211,153,0.1);">
+                      <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Diferencia (a Producir)</div>
+                      <div style="font-size: 16px; font-weight: 700; color: #6ee7b7;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
                     </div>
                   </div>
                 </v-card-text>
@@ -144,7 +144,7 @@
                 </v-data-table>
               </v-card>
 
-              <v-textarea v-model="ordenForm.observaciones" label="Observaciones" rows="2" outlined dense style="margin-top: 16px;" />
+              <v-textarea v-model="ordenForm.observaciones" label="Observaciones" rows="2" outlined dense style="margin-top: 16px; font-size: 13px;" />
             </div>
 
             <!-- PASO 2: INGREDIENTES -->
