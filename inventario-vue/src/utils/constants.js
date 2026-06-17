@@ -113,22 +113,6 @@ export const MODULES = [
     ],
   },
   {
-    id: 'produccion',
-    name: 'PRODUCCIÓN',
-    icon: 'mdi-factory',
-    color: '#8b5cf6',
-    path: '/produccion',
-    children: [
-      { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Recetas y Artículos', icon: 'mdi-chef-hat', path: '/produccion/configuracion' },
-        { name: 'Mapeo Recetas ↔ Productos', icon: 'mdi-link-variant', path: '/produccion/mapeo' },
-      ]},
-      { name: 'Reportes', icon: 'mdi-chart-bar', items: [
-        { name: 'Análisis de Producción', icon: 'mdi-file-chart-outline', path: '/produccion/reportes' },
-      ]},
-    ],
-  },
-  {
     id: 'recetas',
     name: 'RECETAS',
     icon: 'mdi-chef-hat',
