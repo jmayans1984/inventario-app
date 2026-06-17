@@ -28,16 +28,16 @@
         <h2>PASO 1: CREAR ORDEN DE PRODUCCIÓN</h2>
 
         <div class="prod-form-grid">
+          <v-text-field v-model="ordenForm.fecha_inicio" label="Fecha" type="date" outlined dense />
+
           <v-select v-model="recetaSeleccionada" :items="productosProduccion" item-title="nombre" item-value="codigo"
             label="Seleccionar Receta (Subproducto)" outlined dense />
 
           <v-text-field v-model.number="cantidadReceta" label="Cantidad a Producir" type="number" placeholder="1000" outlined dense />
 
-          <div style="display: flex; align-items: flex-end;">
-            <v-btn color="#8b5cf6" variant="flat" @click="agregarReceta" size="small" style="width: 100%;">
-              <v-icon start>mdi-plus</v-icon> Agregar Receta
-            </v-btn>
-          </div>
+          <v-btn color="#8b5cf6" variant="flat" @click="agregarReceta" size="large" style="align-self: flex-end;">
+            <v-icon start>mdi-plus</v-icon> Agregar Receta
+          </v-btn>
         </div>
 
         <!-- INFORMACIÓN DE INVENTARIO Y CONSUMO CUANDO SE SELECCIONA RECETA -->
@@ -77,19 +77,7 @@
           </v-data-table>
         </v-card>
 
-        <!-- BOTONES PASO 1 -->
-        <div class="prod-form-actions" style="margin-top: 24px;">
-          <v-btn color="#22c55e" variant="flat" @click="crearOrden" size="large" :disabled="recetasEnOrden.length === 0">
-            <v-icon start>mdi-chevron-right</v-icon> Siguiente
-          </v-btn>
-        </div>
-
-        <div class="prod-form-grid" style="margin-top: 16px;">
-          <v-text-field v-model="ordenForm.fecha_inicio" label="Fecha de Inicio" type="date" outlined dense />
-          <v-text-field v-model="ordenForm.fecha_vencimiento" label="Fecha de Vencimiento" type="date" outlined dense />
-        </div>
-
-        <v-textarea v-model="ordenForm.observaciones" label="Observaciones" rows="3" outlined dense style="margin-top: 16px;" />
+        <v-textarea v-model="ordenForm.observaciones" label="Observaciones" rows="3" outlined dense style="margin-top: 24px;" />
 
         <div class="prod-form-actions">
           <v-btn color="#8b5cf6" variant="flat" @click="crearOrden" size="large">
@@ -112,6 +100,7 @@
               <th>RECETA</th>
               <th>INGREDIENTE</th>
               <th class="ta-r">CANTIDAD/UNIDAD</th>
+              <th class="ta-r">UNIDAD</th>
               <th class="ta-r">NECESARIA</th>
               <th class="ta-r">PRECIO UNITARIO</th>
               <th class="ta-r">COSTO TOTAL</th>
@@ -121,13 +110,14 @@
             <tr v-for="(ing, idx) in ingredientesCalculados" :key="idx">
               <td><strong style="color: #8b5cf6;">{{ ing.receta_nombre }}</strong></td>
               <td>{{ ing.nombre }}</td>
-              <td class="ta-r">{{ ing.cantidad_por_receta }} {{ ing.unidad }}</td>
-              <td class="ta-r"><strong>{{ ing.cantidad_necesaria.toFixed(2) }}</strong></td>
+              <td class="ta-r">{{ ing.cantidad_por_receta.toFixed(2) }}</td>
+              <td class="ta-r">{{ ing.unidad }}</td>
+              <td class="ta-r"><strong>{{ ing.cantidad_necesaria.toFixed(2) }} {{ ing.unidad }}</strong></td>
               <td class="ta-r font-mono">${{ ing.precio_unitario.toFixed(4) }}</td>
               <td class="ta-r font-mono"><strong>${{ ing.costo_total.toFixed(2) }}</strong></td>
             </tr>
             <tr style="font-weight: 700;">
-              <td colspan="5" style="text-align:right"><strong>COSTO TOTAL PRODUCCIÓN:</strong></td>
+              <td colspan="6" style="text-align:right"><strong>COSTO TOTAL PRODUCCIÓN:</strong></td>
               <td class="ta-r font-mono"><strong>${{ costoTotalProduccion.toFixed(2) }}</strong></td>
             </tr>
           </tbody>
@@ -138,8 +128,8 @@
             <v-icon start>mdi-chevron-left</v-icon> Anterior
           </v-btn>
           <v-spacer />
-          <v-btn color="#8b5cf6" variant="flat" @click="pasoActivo = 3" size="large">
-            <v-icon start>mdi-check</v-icon> Siguiente: Registrar Producción
+          <v-btn color="#22c55e" variant="flat" @click="guardarOrdenProduccion" size="large">
+            <v-icon start>mdi-check</v-icon> Guardar Orden de Producción
           </v-btn>
         </div>
       </div>
@@ -373,14 +363,25 @@ function calcularMargenError() {
   return planeada > 0 ? ((real - planeada) / planeada * 100) : 0
 }
 
+function guardarOrdenProduccion() {
+  // TODO: Implementar guardado real en BD
+  recetasEnOrden.value = []
+  ingredientesCalculados.value = []
+  recetaSeleccionada.value = ''
+  cantidadReceta.value = null
+  pasoActivo.value = 1
+  ordenForm.value = {
+    cantidad_real: null,
+    fecha_inicio: new Date().toISOString().split('T')[0],
+    observaciones: ''
+  }
+}
+
 function finalizarProduccion() {
   alert('✅ Producción completada. PDF de etiquetas generado.')
 }
 
 onMounted(() => {
-  const hoy = new Date()
-  const vencimiento = new Date(hoy.setDate(hoy.getDate() + 30))
-  ordenForm.value.fecha_vencimiento = vencimiento.toISOString().split('T')[0]
   cargarRecetasSubproducto()
 })
 </script>
