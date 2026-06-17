@@ -655,29 +655,33 @@ function preguntarPacking(item) {
 }
 
 function actualizarFilaScan(item, campo) {
-    const el = document.getElementById('si-' + item.producto_codigo);
-    if (!el) return;
-    const req   = parseFloat(item.cant_requerida) || 0;
-    const esc   = parseFloat(item[campo]) || 0;
-    const dif   = esc - req;
-    let cls = '', icon = '';
-    if (esc === 0)    { cls = '';           icon = '⬜'; }
-    else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; }
-    else if (dif > 0) { cls = 'item-sobre'; icon = '🔴'; }
-    else              { cls = 'item-ok';    icon = '✅'; }
+    try {
+        const el = document.getElementById('si-' + item.producto_codigo);
+        if (!el) return;
+        const req   = parseFloat(item.cant_requerida) || 0;
+        const esc   = parseFloat(item[campo]) || 0;
+        const dif   = esc - req;
+        let cls = '', icon = '';
+        if (esc === 0)    { cls = '';           icon = '⬜'; }
+        else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; }
+        else if (dif > 0) { cls = 'item-sobre'; icon = '🔴'; }
+        else              { cls = 'item-ok';    icon = '✅'; }
 
-    const color = esc===0 ? 'var(--text-tertiary)' : dif<0 ? '#ef4444' : dif>0 ? '#f59e0b' : '#10b981';
+        const color = esc===0 ? 'var(--text-tertiary)' : dif<0 ? '#ef4444' : dif>0 ? '#f59e0b' : '#10b981';
 
-    el.className = `scan-item ${cls}${itemsOcultos.has(item.producto_codigo) ? ' item-oculto' : ''}`;
-    const countVal  = el.querySelector('.scan-count-val');
-    const statusIcon = el.querySelector('.scan-status-icon');
-    if (countVal)  { countVal.textContent = esc; countVal.style.color = color; }
-    if (statusIcon)  statusIcon.textContent = icon;
+        el.className = `scan-item ${cls}${itemsOcultos.has(item.producto_codigo) ? ' item-oculto' : ''}`;
+        const countVal  = el.querySelector('.scan-count-val');
+        const statusIcon = el.querySelector('.scan-status-icon');
+        if (countVal) { countVal.textContent = esc; countVal.style.color = color; }
+        if (statusIcon) { statusIcon.textContent = icon; }
 
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    el.style.transition = 'box-shadow .15s';
-    el.style.boxShadow  = '0 0 0 3px rgba(16,185,129,.5)';
-    setTimeout(() => { el.style.boxShadow = ''; }, 600);
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        el.style.transition = 'box-shadow .15s';
+        el.style.boxShadow  = '0 0 0 3px rgba(16,185,129,.5)';
+        setTimeout(() => { if (el) el.style.boxShadow = ''; }, 600);
+    } catch(e) {
+        console.error('[ACTUALIZAR FILA SCAN ERROR]', e);
+    }
 }
 
 function showFeedback(tipo, msg) {
