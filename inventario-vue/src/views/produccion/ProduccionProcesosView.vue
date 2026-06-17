@@ -29,13 +29,14 @@
 
         <div class="prod-form-grid">
           <div class="prod-form-group">
-            <label>SELECCIONAR PRODUCTO</label>
-            <select v-model="ordenForm.producto_id" @change="cargarReceta" class="drw-input">
-              <option value="">-- Seleccionar producto --</option>
-              <option v-for="p in productosProduccion" :key="p.id" :value="p.id">
+            <label>SELECCIONAR RECETA (SUBPRODUCTO)</label>
+            <select v-model="ordenForm.receta_codigo" class="drw-input" :disabled="cargando">
+              <option value="">{{ cargando ? 'Cargando...' : '-- Seleccionar receta --' }}</option>
+              <option v-for="p in productosProduccion" :key="p.codigo" :value="p.codigo">
                 {{ p.nombre }}
               </option>
             </select>
+            <div v-if="errorMsg" class="prod-hint" style="color:#ef4444">{{ errorMsg }}</div>
           </div>
 
           <div class="prod-form-group">
@@ -71,9 +72,9 @@
         <h2>PASO 2: INGREDIENTES NECESARIOS</h2>
 
         <div class="prod-info-banner">
-          <strong>Producto:</strong> {{ recetaActual?.nombre }} |
+          <strong>Receta:</strong> {{ recetaActual?.nombre }} |
           <strong>Cantidad:</strong> {{ ordenForm.cantidad_planeada }} unidades |
-          <strong>Receta Base:</strong> 1 unidad
+          <strong>Base:</strong> 1 porción
         </div>
 
         <div class="prod-table-wrap">
@@ -160,7 +161,7 @@
 
         <div class="prod-label-preview">
           <div class="label-4x6">
-            <div class="label-title">{{ productosProduccion.find(p => p.id === ordenForm.producto_id)?.nombre }}</div>
+            <div class="label-title">{{ recetaActual?.nombre }}</div>
             <div class="label-info">
               <div><strong>Lote:</strong> PROD-{{ new Date().toISOString().split('T')[0].replace(/-/g, '') }}-001</div>
               <div><strong>Fecha Prod:</strong> {{ ordenForm.fecha_inicio }}</div>
@@ -193,9 +194,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import { API_BASE } from '../../utils/constants.js'
 
 const pasoActivo = ref(1)
 const cantidadEtiquetas = ref(0)
+const cargando = ref(false)
+const errorMsg = ref('')
 
 const pasos = [
   { id: 1, titulo: 'Crear Orden' },
@@ -205,7 +209,7 @@ const pasos = [
 ]
 
 const ordenForm = ref({
-  producto_id: null,
+  receta_codigo: '',
   cantidad_planeada: null,
   cantidad_real: null,
   fecha_inicio: new Date().toISOString().split('T')[0],
@@ -213,30 +217,8 @@ const ordenForm = ref({
   observaciones: ''
 })
 
-const productosProduccion = ref([
-  { id: 1, nombre: 'Carne de Hamburguesa Classic' },
-  { id: 2, nombre: 'Pan para Hamburguesa' },
-  { id: 3, nombre: 'Salsa Especial' }
-])
-
-const recetas = ref({
-  1: {
-    nombre: 'Carne de Hamburguesa Classic',
-    ingredientes: [
-      { id: 1, nombre: 'Carne Molida', cantidad_por_receta: 0.125, unidad: 'KG', precio_unitario: 8.50 },
-      { id: 2, nombre: 'Sal Común', cantidad_por_receta: 0.005, unidad: 'KG', precio_unitario: 1.20 },
-      { id: 3, nombre: 'Pimienta', cantidad_por_receta: 0.002, unidad: 'KG', precio_unitario: 15.00 }
-    ]
-  },
-  2: {
-    nombre: 'Pan para Hamburguesa',
-    ingredientes: [
-      { id: 4, nombre: 'Harina', cantidad_por_receta: 0.100, unidad: 'KG', precio_unitario: 2.50 },
-      { id: 5, nombre: 'Levadura', cantidad_por_receta: 0.005, unidad: 'KG', precio_unitario: 25.00 }
-    ]
-  }
-})
-
+// Recetas con subproducto === 'SI' (productos propios)
+const productosProduccion = ref([])
 const recetaActual = ref(null)
 const ingredientesCalculados = ref([])
 
@@ -244,26 +226,57 @@ const costoTotalProduccion = computed(() => {
   return ingredientesCalculados.value.reduce((sum, ing) => sum + ing.costo_total, 0)
 })
 
-function cargarReceta() {
-  const receta = recetas.value[ordenForm.value.producto_id]
-  if (receta) {
-    recetaActual.value = receta
-    calcularIngredientes()
+async function cargarRecetasSubproducto() {
+  try {
+    cargando.value = true
+    const r = await fetch(`${API_BASE}/recetas`)
+    const j = await r.json()
+    const todas = j.data || []
+    productosProduccion.value = todas.filter(rc => rc.subproducto === 'SI')
+  } catch (e) {
+    errorMsg.value = 'Error al cargar recetas'
+  } finally {
+    cargando.value = false
   }
 }
 
-function calcularIngredientes() {
+async function cargarReceta() {
+  const codigo = ordenForm.value.receta_codigo
+  if (!codigo) return
+  try {
+    cargando.value = true
+    const r = await fetch(`${API_BASE}/recetas/${encodeURIComponent(codigo)}`)
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error)
+    recetaActual.value = j.data
+    calcularIngredientes(j.data.ingredientes || [])
+  } catch (e) {
+    errorMsg.value = 'Error al cargar receta: ' + e.message
+  } finally {
+    cargando.value = false
+  }
+}
+
+function calcularIngredientes(ingredientes) {
   const cantidad = ordenForm.value.cantidad_planeada || 1
-  ingredientesCalculados.value = recetaActual.value.ingredientes.map(ing => ({
-    ...ing,
-    cantidad_necesaria: ing.cantidad_por_receta * cantidad,
-    costo_total: ing.cantidad_por_receta * cantidad * ing.precio_unitario
-  }))
+  ingredientesCalculados.value = ingredientes.map(ing => {
+    const cantBase = parseFloat(ing.cantidad) || 0
+    const precio   = parseFloat(ing.precio_unit) || 0
+    const cantNec  = cantBase * cantidad
+    return {
+      ...ing,
+      nombre:             ing.nombre_item || ing.articulo_nombre || ing.articulo || '',
+      cantidad_por_receta: cantBase,
+      precio_unitario:    precio,
+      cantidad_necesaria: cantNec,
+      costo_total:        cantNec * precio
+    }
+  })
 }
 
 function crearOrden() {
-  if (!ordenForm.value.producto_id || !ordenForm.value.cantidad_planeada) {
-    alert('Completa los campos requeridos')
+  if (!ordenForm.value.receta_codigo || !ordenForm.value.cantidad_planeada) {
+    alert('Selecciona una receta e ingresa la cantidad')
     return
   }
   pasoActivo.value = 2
@@ -277,16 +290,14 @@ function calcularMargenError() {
 }
 
 function finalizarProduccion() {
-  console.log('Finalizar producción:', ordenForm.value)
   alert('✅ Producción completada. PDF de etiquetas generado.')
-  // Aquí iría la generación real del PDF
 }
 
 onMounted(() => {
-  // Setear fecha vencimiento a 30 días desde hoy
   const hoy = new Date()
   const vencimiento = new Date(hoy.setDate(hoy.getDate() + 30))
   ordenForm.value.fecha_vencimiento = vencimiento.toISOString().split('T')[0]
+  cargarRecetasSubproducto()
 })
 </script>
 
