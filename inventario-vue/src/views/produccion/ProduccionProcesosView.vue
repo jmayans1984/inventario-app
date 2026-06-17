@@ -28,22 +28,12 @@
         <h2>PASO 1: CREAR ORDEN DE PRODUCCIÓN</h2>
 
         <div class="prod-form-grid">
-          <div class="prod-form-group">
-            <label>SELECCIONAR RECETA (SUBPRODUCTO)</label>
-            <select v-model="recetaSeleccionada" class="drw-input">
-              <option value="">-- Seleccionar receta --</option>
-              <option v-for="p in productosProduccion" :key="p.codigo" :value="p.codigo">
-                {{ p.nombre }}
-              </option>
-            </select>
-          </div>
+          <v-select v-model="recetaSeleccionada" :items="productosProduccion" item-title="nombre" item-value="codigo"
+            label="Seleccionar Receta (Subproducto)" outlined dense />
 
-          <div class="prod-form-group">
-            <label>CANTIDAD A PRODUCIR</label>
-            <input v-model.number="cantidadReceta" type="number" placeholder="1000" class="drw-input" />
-          </div>
+          <v-text-field v-model.number="cantidadReceta" label="Cantidad a Producir" type="number" placeholder="1000" outlined dense />
 
-          <div class="prod-form-group" style="display: flex; align-items: flex-end;">
+          <div style="display: flex; align-items: flex-end;">
             <v-btn color="#8b5cf6" variant="flat" @click="agregarReceta" size="small" style="width: 100%;">
               <v-icon start>mdi-plus</v-icon> Agregar Receta
             </v-btn>
@@ -51,50 +41,41 @@
         </div>
 
         <!-- INFORMACIÓN DE INVENTARIO Y CONSUMO CUANDO SE SELECCIONA RECETA -->
-        <div v-if="recetaSeleccionada && inventarioInfo.codigo === recetaSeleccionada" class="prod-info-banner" style="margin-top: 24px; background: #f0f9ff; border-color: #0ea5e9;">
-          <strong style="color: #0369a1;">📊 Análisis de Inventario y Consumo:</strong>
-          <div style="margin-top: 12px; font-size: 13px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-            <div style="background: white; padding: 12px; border-radius: 4px; border-left: 4px solid #8b5cf6;">
-              <div style="font-size: 11px; color: #6b7280;">Inventario Bodega</div>
-              <div style="font-size: 20px; font-weight: 700; color: #8b5cf6;">{{ inventarioInfo.stock_actual }}</div>
+        <v-card v-if="recetaSeleccionada && inventarioInfo.codigo === recetaSeleccionada" class="prod-info-banner" style="margin-top: 24px;">
+          <v-card-title style="font-size: 13px; padding: 12px;">📊 Análisis de Inventario y Consumo</v-card-title>
+          <v-card-text style="padding: 0 12px 12px 12px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+              <div style="padding: 12px; border-radius: 4px; border-left: 4px solid #8b5cf6; background: rgba(139,92,246,0.05);">
+                <div style="font-size: 11px; opacity: 0.7; margin-bottom: 6px;">Inventario Bodega</div>
+                <div style="font-size: 20px; font-weight: 700; color: #8b5cf6;">{{ inventarioInfo.stock_actual }}</div>
+              </div>
+              <div style="padding: 12px; border-radius: 4px; border-left: 4px solid #f59e0b; background: rgba(245,158,11,0.05);">
+                <div style="font-size: 11px; opacity: 0.7; margin-bottom: 6px;">Consumo Últimos 7 Días</div>
+                <div style="font-size: 20px; font-weight: 700; color: #f59e0b;">{{ inventarioInfo.consumo_7_dias }}</div>
+              </div>
+              <div style="padding: 12px; border-radius: 4px; border-left: 4px solid #10b981; background: rgba(16,185,129,0.05);">
+                <div style="font-size: 11px; opacity: 0.7; margin-bottom: 6px;">Diferencia (a Producir)</div>
+                <div style="font-size: 20px; font-weight: 700; color: #10b981;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
+              </div>
             </div>
-            <div style="background: white; padding: 12px; border-radius: 4px; border-left: 4px solid #f59e0b;">
-              <div style="font-size: 11px; color: #6b7280;">Consumo Últimos 7 Días</div>
-              <div style="font-size: 20px; font-weight: 700; color: #f59e0b;">{{ inventarioInfo.consumo_7_dias }}</div>
-            </div>
-            <div style="background: white; padding: 12px; border-radius: 4px; border-left: 4px solid #10b981;">
-              <div style="font-size: 11px; color: #6b7280;">Diferencia (a Producir)</div>
-              <div style="font-size: 20px; font-weight: 700; color: #10b981;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
-            </div>
-          </div>
-        </div>
+          </v-card-text>
+        </v-card>
 
         <!-- TABLA DE RECETAS EN LA ORDEN -->
-        <div v-if="recetasEnOrden.length > 0" style="margin-top: 24px;">
-          <strong style="display: block; margin-bottom: 12px; color: #374151;">RECETAS EN LA ORDEN:</strong>
-          <div class="prod-table-wrap">
-            <table class="prod-table">
-              <thead>
-                <tr>
-                  <th>RECETA</th>
-                  <th class="ta-c">CANTIDAD</th>
-                  <th style="width: 80px; text-align: center;">ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(rec, idx) in recetasEnOrden" :key="idx">
-                  <td>{{ rec.nombre }}</td>
-                  <td class="ta-c">{{ rec.cantidad }}</td>
-                  <td style="text-align: center;">
-                    <v-btn size="x-small" variant="text" color="#ef4444" @click="eliminarReceta(idx)">
-                      <v-icon size="14">mdi-delete</v-icon>
-                    </v-btn>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <v-card v-if="recetasEnOrden.length > 0" style="margin-top: 24px;">
+          <v-card-title style="font-size: 13px; padding: 12px;">RECETAS EN LA ORDEN</v-card-title>
+          <v-data-table :items="recetasEnOrden" :headers="[
+            { title: 'RECETA', key: 'nombre' },
+            { title: 'CANTIDAD', key: 'cantidad' },
+            { title: 'ACCIONES', key: 'acciones', width: '80px' }
+          ]" density="compact" hide-default-footer>
+            <template #item.acciones="{ item, index }">
+              <v-btn size="x-small" variant="text" color="#ef4444" @click="eliminarReceta(index)">
+                <v-icon size="14">mdi-delete</v-icon>
+              </v-btn>
+            </template>
+          </v-data-table>
+        </v-card>
 
         <!-- BOTONES PASO 1 -->
         <div class="prod-form-actions" style="margin-top: 24px;">
@@ -104,22 +85,11 @@
         </div>
 
         <div class="prod-form-grid" style="margin-top: 16px;">
-
-          <div class="prod-form-group">
-            <label>FECHA DE INICIO</label>
-            <input v-model="ordenForm.fecha_inicio" type="date" class="drw-input" />
-          </div>
-
-          <div class="prod-form-group">
-            <label>FECHA DE VENCIMIENTO</label>
-            <input v-model="ordenForm.fecha_vencimiento" type="date" class="drw-input" />
-          </div>
+          <v-text-field v-model="ordenForm.fecha_inicio" label="Fecha de Inicio" type="date" outlined dense />
+          <v-text-field v-model="ordenForm.fecha_vencimiento" label="Fecha de Vencimiento" type="date" outlined dense />
         </div>
 
-        <div class="prod-form-group">
-          <label>OBSERVACIONES</label>
-          <textarea v-model="ordenForm.observaciones" rows="3" class="drw-input"></textarea>
-        </div>
+        <v-textarea v-model="ordenForm.observaciones" label="Observaciones" rows="3" outlined dense style="margin-top: 16px;" />
 
         <div class="prod-form-actions">
           <v-btn color="#8b5cf6" variant="flat" @click="crearOrden" size="large">
@@ -132,41 +102,36 @@
       <div v-if="pasoActivo === 2" class="prod-step-content">
         <h2>PASO 2: INGREDIENTES NECESARIOS</h2>
 
-        <div class="prod-info-banner">
-          <strong>Recetas en la orden:</strong> {{ recetasEnOrden.length }} |
-          <strong>Total ingredientes:</strong> {{ ingredientesCalculados.length }}
-        </div>
+        <v-alert type="info" variant="outlined" icon="mdi-information" style="margin-bottom: 16px;">
+          <strong>Recetas en la orden:</strong> {{ recetasEnOrden.length }} | <strong>Total ingredientes:</strong> {{ ingredientesCalculados.length }}
+        </v-alert>
 
-        <div class="prod-table-wrap">
-          <table class="prod-table">
-            <thead>
-              <tr>
-                <th>RECETA</th>
-                <th>INGREDIENTE</th>
-                <th class="ta-r">CANTIDAD/UNIDAD</th>
-                <th class="ta-r">NECESARIA</th>
-                <th class="ta-r">PRECIO UNITARIO</th>
-                <th class="ta-r">COSTO TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(ing, idx) in ingredientesCalculados" :key="idx">
-                <td><strong style="color: #8b5cf6;">{{ ing.receta_nombre }}</strong></td>
-                <td>{{ ing.nombre }}</td>
-                <td class="ta-r">{{ ing.cantidad_por_receta }} {{ ing.unidad }}</td>
-                <td class="ta-r"><strong>{{ ing.cantidad_necesaria.toFixed(2) }}</strong></td>
-                <td class="ta-r font-mono">${{ ing.precio_unitario.toFixed(4) }}</td>
-                <td class="ta-r font-mono"><strong>${{ ing.costo_total.toFixed(2) }}</strong></td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="prod-tfoot">
-                <td colspan="5" style="text-align:right"><strong>COSTO TOTAL PRODUCCIÓN:</strong></td>
-                <td class="ta-r font-mono"><strong>${{ costoTotalProduccion.toFixed(2) }}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <v-table density="compact">
+          <thead>
+            <tr>
+              <th>RECETA</th>
+              <th>INGREDIENTE</th>
+              <th class="ta-r">CANTIDAD/UNIDAD</th>
+              <th class="ta-r">NECESARIA</th>
+              <th class="ta-r">PRECIO UNITARIO</th>
+              <th class="ta-r">COSTO TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(ing, idx) in ingredientesCalculados" :key="idx">
+              <td><strong style="color: #8b5cf6;">{{ ing.receta_nombre }}</strong></td>
+              <td>{{ ing.nombre }}</td>
+              <td class="ta-r">{{ ing.cantidad_por_receta }} {{ ing.unidad }}</td>
+              <td class="ta-r"><strong>{{ ing.cantidad_necesaria.toFixed(2) }}</strong></td>
+              <td class="ta-r font-mono">${{ ing.precio_unitario.toFixed(4) }}</td>
+              <td class="ta-r font-mono"><strong>${{ ing.costo_total.toFixed(2) }}</strong></td>
+            </tr>
+            <tr style="font-weight: 700;">
+              <td colspan="5" style="text-align:right"><strong>COSTO TOTAL PRODUCCIÓN:</strong></td>
+              <td class="ta-r font-mono"><strong>${{ costoTotalProduccion.toFixed(2) }}</strong></td>
+            </tr>
+          </tbody>
+        </v-table>
 
         <div class="prod-form-actions">
           <v-btn variant="outlined" color="#8b5cf6" @click="pasoActivo = 1" size="large">
@@ -184,23 +149,11 @@
         <h2>PASO 3: REGISTRAR PRODUCCIÓN REAL</h2>
 
         <div class="prod-form-grid">
-          <div class="prod-form-group">
-            <label>CANTIDAD TOTAL PLANEADA</label>
-            <input :value="recetasEnOrden.reduce((sum, r) => sum + (r.cantidad || 0), 0)" type="number" disabled class="drw-input" />
-            <div class="prod-hint">Suma de todas las recetas en la orden</div>
-          </div>
-
-          <div class="prod-form-group">
-            <label>CANTIDAD REALMENTE PRODUCIDA</label>
-            <input v-model.number="ordenForm.cantidad_real" type="number" placeholder="1000" class="drw-input" />
-            <div class="prod-hint">Ingresa el total realizado</div>
-          </div>
+          <v-text-field :value="recetasEnOrden.reduce((sum, r) => sum + (r.cantidad || 0), 0)" label="Cantidad Total Planeada" type="number" disabled outlined dense helper-text="Suma de todas las recetas en la orden" />
+          <v-text-field v-model.number="ordenForm.cantidad_real" label="Cantidad Realmente Producida" type="number" placeholder="1000" outlined dense helper-text="Ingresa el total realizado" />
         </div>
 
-        <div class="prod-form-group">
-          <label>OBSERVACIONES DE PRODUCCIÓN</label>
-          <textarea v-model="ordenForm.observaciones" rows="3" class="drw-input"></textarea>
-        </div>
+        <v-textarea v-model="ordenForm.observaciones" label="Observaciones de Producción" rows="3" outlined dense style="margin-top: 16px;" />
 
         <div class="prod-form-actions">
           <v-btn variant="outlined" color="#8b5cf6" @click="pasoActivo = 2" size="large">
@@ -230,10 +183,7 @@
           </div>
         </div>
 
-        <div class="prod-form-group">
-          <label>CANTIDAD DE ETIQUETAS A IMPRIMIR</label>
-          <input v-model.number="cantidadEtiquetas" type="number" class="drw-input" />
-        </div>
+        <v-text-field v-model.number="cantidadEtiquetas" label="Cantidad de Etiquetas a Imprimir" type="number" outlined dense style="max-width: 300px; margin-top: 16px;" />
 
         <div class="prod-form-actions">
           <v-btn variant="outlined" color="#8b5cf6" @click="pasoActivo = 3" size="large">
@@ -497,58 +447,10 @@ onMounted(() => {
   gap: 16px; margin-bottom: 16px;
 }
 
-.prod-form-group {
-  display: flex; flex-direction: column; gap: 6px;
-}
-
-.prod-form-group label {
-  font-size: 12px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.drw-input {
-  padding: 10px 12px; border: 1px solid rgb(var(--v-theme-outline)); border-radius: 6px;
-  font-size: 13px; font-family: inherit; background: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.drw-input:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.1); }
-
-.prod-hint { font-size: 11px; color: rgb(var(--v-theme-on-surface-variant)); margin-top: 4px; opacity: 0.7; }
-
 .prod-form-actions {
   display: flex; gap: 12px; margin-top: 24px; align-items: center;
 }
 
-.prod-info-banner {
-  background: rgba(139,92,246,0.1); border-left: 4px solid #8b5cf6;
-  padding: 12px 16px; border-radius: 6px; font-size: 13px; margin-bottom: 20px;
-}
-
-.prod-table-wrap { overflow-x: auto; margin-bottom: 20px; }
-
-.prod-table {
-  width: 100%; border-collapse: collapse; font-size: 13px;
-}
-
-.prod-table thead { background: rgb(var(--v-theme-surface-variant)); }
-
-.prod-table th {
-  padding: 12px; text-align: left; font-weight: 700;
-  color: rgb(var(--v-theme-on-surface-variant)); border-bottom: 2px solid rgb(var(--v-theme-outline));
-  font-size: 11px; text-transform: uppercase;
-}
-
-.prod-table td {
-  padding: 12px; border-bottom: 1px solid rgb(var(--v-theme-outline-variant)); color: rgb(var(--v-theme-on-surface));
-}
-
-.prod-table tbody tr:hover { background: rgb(var(--v-theme-surface-variant)); }
-
-.prod-tfoot td {
-  background: rgb(var(--v-theme-surface-variant)); font-weight: 700; border-top: 2px solid rgb(var(--v-theme-outline));
-  padding: 14px 12px; color: rgb(var(--v-theme-on-surface));
-}
 
 .ta-r { text-align: right; }
 .font-mono { font-family: monospace; }
@@ -558,10 +460,10 @@ onMounted(() => {
 }
 
 .label-4x6 {
-  width: 400px; height: 600px; border: 1px dashed #d1d5db;
-  border-radius: 8px; padding: 16px; background: white;
+  width: 400px; height: 600px; border: 2px solid #8b5cf6;
+  border-radius: 8px; padding: 16px; background: rgb(var(--v-theme-surface));
   display: flex; flex-direction: column; gap: 8px;
-  font-size: 12px;
+  font-size: 12px; color: rgb(var(--v-theme-on-surface));
 }
 
 .label-title {
@@ -573,7 +475,7 @@ onMounted(() => {
 
 .label-barcode {
   text-align: center; font-family: monospace; font-size: 20px;
-  letter-spacing: 2px; padding: 8px; background: #f9fafb;
-  border-radius: 4px;
+  letter-spacing: 2px; padding: 8px; background: rgb(var(--v-theme-surface-variant));
+  border-radius: 4px; color: rgb(var(--v-theme-on-surface));
 }
 </style>
