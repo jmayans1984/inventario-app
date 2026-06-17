@@ -12053,9 +12053,10 @@ app.put('/api/nomina/config-fiscal', async (req, res) => {
 
 // GET /api/detalle-inventario/analisis/:codigo
 // Calcula stock actual y consumo basado en:
-// 1. Si hay ventas ayer → analiza últimos 8 días (contando desde hace 8 días)
-// 2. Busca en detalle_inventario ese rango, filtrando por empresa y centro de costo (bodega maestra)
-// 3. Retorna: saldo_inicial, ingresos, salidas, saldo_final, consumo_7_dias, stock_actual
+// 1. Si hay ventas ayer → analiza últimos 8 días
+// 2. Busca en detalle_inventario ese rango, filtrando por empresa y bodega maestra
+// 3. Usa mapeo receta_producto para obtener el codigo_producto real si es una receta
+// 4. Retorna: saldo_inicial, ingresos, salidas, saldo_final, consumo_7_dias, stock_actual
 app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
     const { codigo } = req.params;
     const empresa = req.body?.empresa || req.headers['x-empresa'] || 1;
@@ -12088,6 +12089,21 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
                 success: false,
                 error: 'La empresa no tiene bodega maestra configurada'
             });
+        }
+
+        // Buscar el código_producto mapeado desde la receta (si existe mapeo)
+        let codigo_inventario = codigo;
+        try {
+            const mapeoRes = await pool.query(
+                'SELECT codigo_producto FROM receta_producto WHERE codigo_receta = $1',
+                [codigo]
+            );
+            if (mapeoRes.rows.length > 0) {
+                codigo_inventario = mapeoRes.rows[0].codigo_producto;
+            }
+        } catch (err) {
+            // Si no existe el mapeo, usar el codigo original
+            console.log(`No hay mapeo para receta ${codigo}, usando código original`);
         }
 
         const hoy = new Date();
@@ -12125,7 +12141,7 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
               AND ccosto = $3
               AND fecha < $4
         `;
-        const saldoInicialRes = await pool.query(saldoInicialQuery, [codigo, empresa, ccosto, fechaInicioStr]);
+        const saldoInicialRes = await pool.query(saldoInicialQuery, [codigo_inventario, empresa, ccosto, fechaInicioStr]);
         let saldo_inicial = parseFloat(saldoInicialRes.rows[0]?.saldo) || 0;
 
         // 4. Buscar movimientos en el rango en detalle_inventario
@@ -12144,7 +12160,7 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
               AND fecha <= $5
             ORDER BY fecha ASC
         `;
-        const movRes = await pool.query(movimientosQuery, [codigo, empresa, ccosto, fechaInicioStr, fechaFinStr]);
+        const movRes = await pool.query(movimientosQuery, [codigo_inventario, empresa, ccosto, fechaInicioStr, fechaFinStr]);
 
         // 5. Calcular saldos acumulativamente
         let saldo_actual = saldo_inicial;
@@ -12176,6 +12192,7 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
             success: true,
             data: {
                 codigo,
+                codigo_inventario,
                 empresa,
                 ccosto,
                 hay_ventas_ayer: hayVentasYer,
@@ -12197,6 +12214,72 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
             success: false,
             error: error.message
         });
+    }
+});
+
+// ── RECETA-PRODUCTO MAPPING ──────────────────────────────────────
+// GET /api/produccion/receta-producto - obtener todos los mapeos
+app.get('/api/produccion/receta-producto', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT codigo_receta, codigo_producto, created_at
+            FROM receta_producto
+            ORDER BY codigo_receta ASC
+        `);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/produccion/receta-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/produccion/receta-producto/:codigo_receta - obtener un mapeo
+app.get('/api/produccion/receta-producto/:codigo_receta', async (req, res) => {
+    const { codigo_receta } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT codigo_receta, codigo_producto
+            FROM receta_producto
+            WHERE codigo_receta = $1
+        `, [codigo_receta]);
+        res.json({ success: true, data: result.rows[0] || null });
+    } catch (error) {
+        console.error('Error GET /api/produccion/receta-producto/:codigo_receta:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/produccion/receta-producto - crear un mapeo
+app.post('/api/produccion/receta-producto', async (req, res) => {
+    const { codigo_receta, codigo_producto } = req.body;
+    if (!codigo_receta || !codigo_producto) {
+        return res.status(400).json({ success: false, error: 'codigo_receta y codigo_producto son requeridos' });
+    }
+    try {
+        const result = await pool.query(`
+            INSERT INTO receta_producto (codigo_receta, codigo_producto)
+            VALUES ($1, $2)
+            ON CONFLICT (codigo_receta) DO UPDATE SET codigo_producto = $2
+            RETURNING codigo_receta, codigo_producto
+        `, [codigo_receta, codigo_producto]);
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/produccion/receta-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/produccion/receta-producto/:codigo_receta - eliminar un mapeo
+app.delete('/api/produccion/receta-producto/:codigo_receta', async (req, res) => {
+    const { codigo_receta } = req.params;
+    try {
+        await pool.query(`
+            DELETE FROM receta_producto WHERE codigo_receta = $1
+        `, [codigo_receta]);
+        res.json({ success: true, message: 'Mapeo eliminado' });
+    } catch (error) {
+        console.error('Error DELETE /api/produccion/receta-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -12222,6 +12305,20 @@ app.listen(PORT, async () => {
         console.log('✅ Columna cc_relacion verificada/creada');
     } catch (err) {
         console.error('⚠️  Error al crear columna cc_relacion:', err.message);
+    }
+
+    // Crear tabla receta_producto (mapeo 1:1)
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS receta_producto (
+                codigo_receta VARCHAR(20) PRIMARY KEY,
+                codigo_producto VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Tabla receta_producto verificada/creada');
+    } catch (err) {
+        console.error('⚠️  Error al crear tabla receta_producto:', err.message);
     }
 
     // Crear tablas de despachos de bodega
