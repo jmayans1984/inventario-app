@@ -12051,10 +12051,14 @@ app.put('/api/nomina/config-fiscal', async (req, res) => {
 // MÓDULO DETALLE INVENTARIO - ANÁLISIS DE STOCK Y CONSUMO
 // ================================================================
 
-// GET /api/detalle-inventario/analisis/:codigo
-// Obtiene stock_actual (último saldo_final) y consumo_7_dias (suma de salidas últimos 7 días)
+// GET /api/detalle-inventario/analisis/:codigo?empresa=X&ccosto=BODEGA_MAESTRA
+// Calcula stock actual y consumo basado en:
+// 1. Si hay ventas ayer → analiza últimos 8 días (contando desde hace 8 días)
+// 2. Busca en detalle_inventario ese rango, filtrando por empresa y centro de costo
+// 3. Retorna: saldo_inicial, ingresos, salidas, saldo_final, consumo_7_dias, stock_actual
 app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
     const { codigo } = req.params;
+    const { empresa = 1, ccosto = 'BODEGA_MAESTRA' } = req.query;
 
     if (!codigo) {
         return res.status(400).json({
@@ -12064,38 +12068,121 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
     }
 
     try {
-        // 1. Obtener stock_actual = último saldo_final
-        const stockQuery = `
+        const hoy = new Date();
+        const ayer = new Date(hoy);
+        ayer.setDate(ayer.getDate() - 1);
+        const ayerStr = ayer.toISOString().split('T')[0];
+
+        // 1. Verificar si hay registros en ventas ayer
+        const ventasYerQuery = `
+            SELECT COUNT(*) as cnt
+            FROM ventas
+            WHERE fecha = $1 AND empresa = $2
+        `;
+        const ventasYerRes = await pool.query(ventasYerQuery, [ayerStr, empresa]);
+        const hayVentasYer = ventasYerRes.rows[0]?.cnt > 0;
+
+        // 2. Definir rango de fechas
+        let fechaInicio = new Date(hoy);
+        if (hayVentasYer) {
+            // Si hay ventas ayer, analizar los últimos 8 días (8 al 16 de junio si hoy es 17)
+            fechaInicio.setDate(fechaInicio.getDate() - 8);
+        } else {
+            // Si no hay ventas, usar los últimos 7 días
+            fechaInicio.setDate(fechaInicio.getDate() - 7);
+        }
+        const fechaInicioStr = fechaInicio.toISOString().split('T')[0];
+        const fechaFinStr = ayerStr;
+
+        // 3. Buscar movimientos en el rango en detalle_inventario
+        const movimientosQuery = `
             SELECT
-                COALESCE(saldo_final, 0) as stock_actual
+                codigo,
+                fecha,
+                tipo,
+                entrada,
+                salida,
+                saldo_final,
+                CASE
+                    WHEN tipo IN ('SALIDA DE ALMACEN', 'SALIDA POR BAJA', 'SALIDA POR TRASLADO') THEN salida
+                    ELSE 0
+                END as consumo
             FROM detalle_inventario
             WHERE codigo = $1
-            ORDER BY fecha DESC, id DESC
-            LIMIT 1
+              AND empresa = $2
+              AND ccosto = $3
+              AND fecha >= $4
+              AND fecha <= $5
+            ORDER BY fecha ASC, id ASC
         `;
+        const movRes = await pool.query(movimientosQuery, [codigo, empresa, ccosto, fechaInicioStr, fechaFinStr]);
 
-        const stockResult = await pool.query(stockQuery, [codigo]);
-        const stock_actual = stockResult.rows.length > 0 ? parseFloat(stockResult.rows[0].stock_actual) || 0 : 0;
+        // 4. Calcular saldos
+        let saldo_inicial = 0;
+        let total_entrada = 0;
+        let total_salida = 0;
+        let saldo_final = 0;
+        let consumo_7_dias = 0;
 
-        // 2. Obtener consumo_7_dias = suma de salidas últimos 7 días
-        const consumoQuery = `
-            SELECT
-                COALESCE(SUM(CAST(salidas AS NUMERIC)), 0) as consumo_7_dias
-            FROM detalle_inventario
-            WHERE codigo = $1
-              AND fecha >= CURRENT_DATE - INTERVAL '7 days'
-              AND fecha < CURRENT_DATE
-        `;
+        if (movRes.rows.length > 0) {
+            // Saldo inicial = saldo final del día anterior al rango
+            const saldoInicialQuery = `
+                SELECT COALESCE(saldo_final, 0) as stock
+                FROM detalle_inventario
+                WHERE codigo = $1
+                  AND empresa = $2
+                  AND ccosto = $3
+                  AND fecha < $4
+                ORDER BY fecha DESC, id DESC
+                LIMIT 1
+            `;
+            const saldoInicialRes = await pool.query(saldoInicialQuery, [codigo, empresa, ccosto, fechaInicioStr]);
+            saldo_inicial = saldoInicialRes.rows.length > 0 ? parseFloat(saldoInicialRes.rows[0].stock) || 0 : 0;
 
-        const consumoResult = await pool.query(consumoQuery, [codigo]);
-        const consumo_7_dias = consumoResult.rows.length > 0 ? parseFloat(consumoResult.rows[0].consumo_7_dias) || 0 : 0;
+            // Procesar movimientos
+            for (const mov of movRes.rows) {
+                const entrada = parseFloat(mov.entrada) || 0;
+                const salida = parseFloat(mov.salida) || 0;
+                const consumo = parseFloat(mov.consumo) || 0;
+
+                total_entrada += entrada;
+                total_salida += salida;
+                saldo_final = parseFloat(mov.saldo_final) || 0;
+                consumo_7_dias += consumo;
+            }
+        } else {
+            // Si no hay movimientos, obtener stock actual del último registro
+            const stockActualQuery = `
+                SELECT COALESCE(saldo_final, 0) as stock
+                FROM detalle_inventario
+                WHERE codigo = $1
+                  AND empresa = $2
+                  AND ccosto = $3
+                ORDER BY fecha DESC, id DESC
+                LIMIT 1
+            `;
+            const stockRes = await pool.query(stockActualQuery, [codigo, empresa, ccosto]);
+            saldo_final = stockRes.rows.length > 0 ? parseFloat(stockRes.rows[0].stock) || 0 : 0;
+        }
+
+        const stock_actual = saldo_final;
 
         res.json({
             success: true,
             data: {
                 codigo,
+                empresa,
+                ccosto,
+                hay_ventas_ayer: hayVentasYer,
+                fecha_inicio: fechaInicioStr,
+                fecha_fin: fechaFinStr,
+                saldo_inicial,
+                total_entrada,
+                total_salida,
+                saldo_final,
                 stock_actual,
-                consumo_7_dias
+                consumo_7_dias,
+                total_movimientos: movRes.rows.length
             }
         });
 
