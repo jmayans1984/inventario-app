@@ -108,25 +108,20 @@
               </div>
 
               <!-- INFORMACIÓN DE INVENTARIO -->
-              <v-card v-if="recetaSeleccionada && inventarioInfo.codigo === recetaSeleccionada" class="prod-info-banner" style="margin-top: 16px;">
-                <v-card-title style="font-size: 11px; padding: 8px 12px; font-weight: 600;">📊 Análisis de Inventario y Consumo</v-card-title>
-                <v-card-text style="padding: 0 12px 12px 12px;">
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #a78bfa; background: rgba(167,139,250,0.1);">
-                      <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Inventario Bodega</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #c4b5fd;">{{ inventarioInfo.stock_actual }}</div>
-                    </div>
-                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #fbbf24; background: rgba(251,191,36,0.1);">
-                      <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Consumo Últimos 7 Días</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #fcd34d;">{{ inventarioInfo.consumo_7_dias }}</div>
-                    </div>
-                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #34d399; background: rgba(52,211,153,0.1);">
-                      <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Diferencia (a Producir)</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #6ee7b7;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
-                    </div>
-                  </div>
-                </v-card-text>
-              </v-card>
+              <div v-if="recetaSeleccionada && inventarioInfo.codigo === recetaSeleccionada" class="inv-banner" style="margin-top: 16px;">
+                <div class="inv-kpi" style="border-left-color: #a78bfa;">
+                  <div class="inv-kpi-label">Inventario Bodega</div>
+                  <div class="inv-kpi-val" style="color: #a78bfa;">{{ inventarioInfo.stock_actual }}</div>
+                </div>
+                <div class="inv-kpi" style="border-left-color: #f59e0b;">
+                  <div class="inv-kpi-label">Consumo Últimos 7 Días</div>
+                  <div class="inv-kpi-val" style="color: #f59e0b;">{{ inventarioInfo.consumo_7_dias }}</div>
+                </div>
+                <div class="inv-kpi" style="border-left-color: #10b981;">
+                  <div class="inv-kpi-label">Diferencia (a Producir)</div>
+                  <div class="inv-kpi-val" style="color: #10b981;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
+                </div>
+              </div>
 
               <!-- TABLA DE RECETAS EN LA ORDEN -->
               <v-card v-if="recetasEnOrden.length > 0" style="margin-top: 16px;">
@@ -489,8 +484,33 @@ onMounted(() => {
   gap: 16px;
 }
 
-.prod-info-banner {
-  background: rgb(var(--v-theme-surface-variant));
+.inv-banner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.inv-kpi {
+  padding: 12px 14px;
+  border-left: 3px solid;
+  border-radius: 4px;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-left-width: 3px;
+}
+
+.inv-kpi-label {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.inv-kpi-val {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: monospace;
 }
 
 .ta-r { text-align: right; }
