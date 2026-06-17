@@ -953,11 +953,28 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
           <button onclick="setFactor(0)"   class="btn-factor" id="bf0" style="background:var(--bg-input)">Otro</button>
         </div>
         <div id="factorOtroWrap" style="display:none;margin-bottom:12px">
-          <input type="text" id="factorOtroInput" inputmode="numeric" autocomplete="off"
-            placeholder="Ej: 50"
-            style="width:100%;padding:14px;border-radius:10px;border:2px solid var(--border-color);
-                   background:var(--bg-input);color:var(--text-primary);font-size:16px;box-sizing:border-box;outline:none;
-                   -webkit-appearance:none;-moz-appearance:textfield" />
+          <div style="background:var(--bg-input);border-radius:14px;padding:18px 20px;
+                      text-align:center;margin-bottom:16px;border:2px solid var(--border-color)">
+            <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Otra cantidad</div>
+            <div id="factorOtroDisplay" style="font-size:48px;font-weight:900;color:var(--text-primary);
+                 min-height:60px;line-height:1">—</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+            ${[1,2,3,4,5,6,7,8,9].map(n =>
+              `<button onclick="factorOtroDigit(${n})" style="padding:0;height:72px;border-radius:14px;border:1.5px solid var(--border-color);
+                      background:var(--bg-card);color:var(--text-primary);font-size:28px;font-weight:700;
+                      cursor:pointer;transition:opacity .1s;touch-action:manipulation;user-select:none">${n}</button>`
+            ).join('')}
+            <button onclick="factorOtroBorrar()" style="padding:0;height:72px;border-radius:14px;border:none;
+                    background:#7c3aed;color:white;font-size:28px;font-weight:700;
+                    cursor:pointer;touch-action:manipulation;user-select:none">⌫</button>
+            <button onclick="factorOtroDigit(0)" style="padding:0;height:72px;border-radius:14px;border:1.5px solid var(--border-color);
+                    background:var(--bg-card);color:var(--text-primary);font-size:28px;font-weight:700;
+                    cursor:pointer;touch-action:manipulation;user-select:none">0</button>
+            <button id="btnFactorOtroOk" onclick="factorOtroConfirmar()" disabled style="padding:0;height:72px;border-radius:14px;border:none;
+                    background:#047857;color:white;font-size:28px;font-weight:700;opacity:.4;
+                    cursor:pointer;touch-action:manipulation;user-select:none">✓</button>
+          </div>
         </div>
         <button id="btnConfirmarFactor" onclick="confirmarFactorBarcode('${productoCodigo}', '${barcode}')"
           style="width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
@@ -977,6 +994,8 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
     document.getElementById('bf1').style.color = 'white';
 }
 
+let _factorOtroVal = '';
+
 function setFactor(val) {
     document.querySelectorAll('.btn-factor').forEach(b => {
         b.style.background = 'var(--bg-input)';
@@ -985,14 +1004,8 @@ function setFactor(val) {
     const otroWrap = document.getElementById('factorOtroWrap');
     if (val === 0) {
         otroWrap.style.display = 'block';
-        const inp = document.getElementById('factorOtroInput');
-        setTimeout(() => {
-            if (inp) {
-                inp.focus();
-                inp.click();
-                inp.select();
-            }
-        }, 300);
+        _factorOtroVal = '';
+        _actualizarFactorOtroDisplay();
         window._factorSeleccionado = 0;
         document.getElementById('bf0').style.background = '#047857';
         document.getElementById('bf0').style.color = 'white';
@@ -1002,6 +1015,35 @@ function setFactor(val) {
         const btn = document.getElementById('bf' + val);
         if (btn) { btn.style.background = '#047857'; btn.style.color = 'white'; }
     }
+}
+
+function factorOtroDigit(d) {
+    if (_factorOtroVal.length >= 4) return;
+    _factorOtroVal += String(d);
+    _actualizarFactorOtroDisplay();
+}
+
+function factorOtroBorrar() {
+    _factorOtroVal = _factorOtroVal.slice(0, -1);
+    _actualizarFactorOtroDisplay();
+}
+
+function _actualizarFactorOtroDisplay() {
+    const el = document.getElementById('factorOtroDisplay');
+    if (el) el.textContent = _factorOtroVal || '—';
+    const btn = document.getElementById('btnFactorOtroOk');
+    if (btn) {
+        const v = parseInt(_factorOtroVal);
+        btn.disabled = !(v >= 1);
+        btn.style.opacity = (v >= 1) ? '1' : '0.4';
+    }
+}
+
+function factorOtroConfirmar() {
+    const val = parseInt(_factorOtroVal);
+    if (!val || val < 1) return;
+    window._factorSeleccionado = val;
+    _factorOtroVal = '';
 }
 
 async function confirmarFactorBarcode(productoCodigo, barcode) {
