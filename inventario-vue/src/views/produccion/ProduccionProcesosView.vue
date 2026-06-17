@@ -232,7 +232,7 @@
 
         <div class="prod-form-group">
           <label>CANTIDAD DE ETIQUETAS A IMPRIMIR</label>
-          <input v-model.number="cantidadEtiquetas" type="number" :value="ordenForm.cantidad_real || 1" class="drw-input" />
+          <input v-model.number="cantidadEtiquetas" type="number" class="drw-input" />
         </div>
 
         <div class="prod-form-actions">
