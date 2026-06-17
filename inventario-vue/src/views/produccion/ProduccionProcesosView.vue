@@ -250,7 +250,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 
@@ -280,6 +280,11 @@ const recetaSeleccionada = ref('')
 const cantidadReceta = ref(null)
 const ingredientesCalculados = ref([])
 const inventarioInfo = ref({ codigo: '', stock_actual: 0, consumo_7_dias: 0 })
+
+watch(recetaSeleccionada, (codigo) => {
+  if (codigo) cargarInventarioYConsumo(codigo)
+  else inventarioInfo.value = { codigo: '', stock_actual: 0, consumo_7_dias: 0 }
+})
 
 const costoTotalProduccion = computed(() => {
   return ingredientesCalculados.value.reduce((sum, ing) => sum + ing.costo_total, 0)
