@@ -985,7 +985,7 @@ function setFactor(val) {
     const otroWrap = document.getElementById('factorOtroWrap');
     if (val === 0) {
         otroWrap.style.display = 'block';
-        document.getElementById('factorOtroInput').focus();
+        setTimeout(() => document.getElementById('factorOtroInput')?.focus(), 100);
         window._factorSeleccionado = 0;
         document.getElementById('bf0').style.background = '#047857';
         document.getElementById('bf0').style.color = 'white';
