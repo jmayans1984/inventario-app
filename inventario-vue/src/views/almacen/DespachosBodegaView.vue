@@ -755,17 +755,17 @@ function imprimirDespacho(o) {
   let filas = ''
   for (const [, grupo] of gruposMap) {
     filas += `<tr>
-      <td colspan="5" style="padding:6px 10px;background:#f3f0ff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;border-bottom:1px solid #e5e7eb">
+      <td colspan="5" style="padding:3px 8px;background:#f3f0ff;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;border-bottom:1px solid #e5e7eb">
         ${grupo.nombre}
       </td>
     </tr>`
     for (const item of grupo.items) {
       filas += `<tr>
-        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:12px">${item.producto_codigo}</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;font-weight:600">${item.producto_nombre}</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;color:#555">${item.descripcion || '—'}</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${item.und}</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700">${parseFloat(item.cant_requerida)}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:10px">${item.producto_codigo}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:10px">${item.producto_nombre}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;color:#555;font-size:9px">${item.descripcion || '—'}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:10px">${item.und}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:10px">${parseFloat(item.cant_requerida)}</td>
       </tr>`
     }
   }
@@ -788,7 +788,7 @@ function imprimirDespacho(o) {
     .meta-item label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; display: block; }
     .meta-item span  { font-size: 13px; font-weight: 600; margin-top: 2px; display: block; }
     table { width: 100%; border-collapse: collapse; }
-    thead th { padding: 9px 10px; background: #f3f4f6; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 2px solid #d1d5db; }
+    thead th { padding: 5px 8px; background: #f3f4f6; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 2px solid #d1d5db; }
     .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 50px; }
     .firma-linea { border-top: 1px solid #000; padding-top: 8px; text-align: center; font-size: 12px; color: #555; }
     @media print { body { padding: 15px; } }
@@ -942,13 +942,13 @@ onMounted(async () => {
 .pg-cant-active { border-color: #047857; background: rgba(4,120,87,.08); font-weight: 700; color: #047857; }
 
 /* Detalle dialog */
-.detalle-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; }
-.detalle-table thead th { padding: 6px 8px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: rgba(var(--v-theme-on-surface),.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.detalle-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+.detalle-table thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
 .detalle-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
-.detalle-table tbody td { padding: 2px 8px; vertical-align: middle; }
-.item-cod { font-size: 9px; color: rgba(var(--v-theme-on-surface),.4); font-family: monospace; }
-.item-nom { font-weight: 600; font-size: 10px; }
-.num-cell { font-family: monospace; font-size: 10px; }
+.detalle-table tbody td { padding: 3px 10px; vertical-align: middle; }
+.item-cod { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); font-family: monospace; }
+.item-nom { font-weight: 600; font-size: 13px; }
+.num-cell { font-family: monospace; font-size: 13px; }
 
 .dif-ok    { color: #10b981; font-weight: 700; }
 .dif-falta { color: #ef4444; font-weight: 700; }
