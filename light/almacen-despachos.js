@@ -623,9 +623,10 @@ function actualizarFilaScan(item, campo) {
     const color = esc===0 ? 'var(--text-tertiary)' : dif<0 ? '#ef4444' : dif>0 ? '#f59e0b' : '#10b981';
 
     el.className = `scan-item ${cls}${itemsOcultos.has(item.producto_codigo) ? ' item-oculto' : ''}`;
-    el.querySelector('.scan-count-val').textContent      = esc;
-    el.querySelector('.scan-count-val').style.color      = color;
-    el.querySelector('.scan-status-icon').textContent    = icon;
+    const countVal  = el.querySelector('.scan-count-val');
+    const statusIcon = el.querySelector('.scan-status-icon');
+    if (countVal)  { countVal.textContent = esc; countVal.style.color = color; }
+    if (statusIcon)  statusIcon.textContent = icon;
 
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     el.style.transition = 'box-shadow .15s';
