@@ -17,5 +17,17 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      (function(){
+        var v='111';
+        if(localStorage.getItem('_appv')!==v){
+          localStorage.setItem('_appv',v);
+          fetch(location.href,{cache:'no-store'}).then(function(r){return r.text()}).then(function(html){
+            if(html.indexOf('v='+v)<0)return;
+            location.reload(true);
+          });
+        }
+      })();
+    </script>
   </body>
 </html>
