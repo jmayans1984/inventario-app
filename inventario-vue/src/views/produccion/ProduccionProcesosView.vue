@@ -30,7 +30,7 @@
         <div class="prod-form-grid">
           <div class="prod-form-group">
             <label>SELECCIONAR RECETA (SUBPRODUCTO)</label>
-            <select v-model="ordenForm.receta_codigo" class="drw-input" :disabled="cargando">
+            <select v-model="ordenForm.receta_codigo" @change="cargarReceta" class="drw-input" :disabled="cargando">
               <option value="">{{ cargando ? 'Cargando...' : '-- Seleccionar receta --' }}</option>
               <option v-for="p in productosProduccion" :key="p.codigo" :value="p.codigo">
                 {{ p.nombre }}
@@ -43,6 +43,26 @@
             <label>CANTIDAD A PRODUCIR</label>
             <input v-model.number="ordenForm.cantidad_planeada" type="number" placeholder="1000" class="drw-input" />
           </div>
+        </div>
+
+        <!-- CONSUMO ÚLTIMA SEMANA -->
+        <div v-if="ordenForm.receta_codigo && consumoSemanal.length > 0" class="prod-info-banner" style="margin-top: 24px; background: #f0f9ff; border-color: #0ea5e9;">
+          <strong style="color: #0369a1;">📊 Consumo Última Semana:</strong>
+          <div style="margin-top: 12px; font-size: 12px;">
+            <div v-for="c in consumoSemanal" :key="c.fecha" style="display: grid; grid-template-columns: 100px 80px 80px 80px 100px; gap: 12px; margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px;">
+              <div><strong>{{ formatFecha(c.fecha) }}</strong></div>
+              <div>Saldo Ant: {{ c.saldo_anterior }}</div>
+              <div>Entradas: +{{ c.entradas }}</div>
+              <div>Salidas: -{{ c.salidas }}</div>
+              <div><strong>Saldo Final: {{ c.saldo_final }}</strong></div>
+            </div>
+            <div style="margin-top: 12px; padding: 8px; background: #e0f2fe; border-radius: 4px; font-weight: 700; color: #0369a1;">
+              Consumo Aproximado (Lunes-Domingo): {{ consumoPromedio.toFixed(2) }} unidades/día
+            </div>
+          </div>
+        </div>
+
+        <div class="prod-form-grid" style="margin-top: 16px;">
 
           <div class="prod-form-group">
             <label>FECHA DE INICIO</label>
@@ -221,9 +241,16 @@ const ordenForm = ref({
 const productosProduccion = ref([])
 const recetaActual = ref(null)
 const ingredientesCalculados = ref([])
+const consumoSemanal = ref([])
 
 const costoTotalProduccion = computed(() => {
   return ingredientesCalculados.value.reduce((sum, ing) => sum + ing.costo_total, 0)
+})
+
+const consumoPromedio = computed(() => {
+  if (consumoSemanal.value.length === 0) return 0
+  const totalSalidas = consumoSemanal.value.reduce((sum, c) => sum + (parseFloat(c.salidas) || 0), 0)
+  return consumoSemanal.value.length > 0 ? totalSalidas / consumoSemanal.value.length : 0
 })
 
 async function cargarRecetasSubproducto() {
@@ -240,6 +267,23 @@ async function cargarRecetasSubproducto() {
   }
 }
 
+async function cargarConsumoSemanal(codigo) {
+  try {
+    const r = await fetch(`${API_BASE}/detalle-inventario/consumo-semanal/${encodeURIComponent(codigo)}`)
+    const j = await r.json()
+    consumoSemanal.value = (j.data || []).sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+  } catch (e) {
+    consumoSemanal.value = []
+  }
+}
+
+function formatFecha(fecha) {
+  if (!fecha) return '—'
+  const d = new Date(fecha + 'T00:00:00')
+  const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  return `${dias[d.getDay()]} ${d.toLocaleDateString('es-ES')}`
+}
+
 async function cargarReceta() {
   const codigo = ordenForm.value.receta_codigo
   if (!codigo) return
@@ -250,6 +294,7 @@ async function cargarReceta() {
     if (!j.success) throw new Error(j.error)
     recetaActual.value = j.data
     calcularIngredientes(j.data.ingredientes || [])
+    await cargarConsumoSemanal(codigo)
   } catch (e) {
     errorMsg.value = 'Error al cargar receta: ' + e.message
   } finally {
