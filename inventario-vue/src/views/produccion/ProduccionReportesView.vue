@@ -11,30 +11,21 @@
       </div>
 
       <!-- FILTROS -->
-      <div class="prod-filters-card">
-        <div class="prod-filters-row">
-          <div class="filter-group">
-            <label>FECHA INICIO</label>
-            <input v-model="filtros.fechaInicio" type="date" class="drw-input" />
-          </div>
-          <div class="filter-group">
-            <label>FECHA FIN</label>
-            <input v-model="filtros.fechaFin" type="date" class="drw-input" />
-          </div>
-          <div class="filter-group">
-            <label>ESTADO</label>
-            <select v-model="filtros.estado" class="drw-select">
-              <option value="">Todos</option>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="EN_PROCESO">En Proceso</option>
-              <option value="COMPLETADA">Completada</option>
-            </select>
-          </div>
+      <v-card style="margin-bottom: 24px;">
+        <v-card-text style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+          <v-text-field v-model="filtros.fechaInicio" label="Fecha Inicio" type="date" density="compact" style="max-width: 180px" />
+          <v-text-field v-model="filtros.fechaFin" label="Fecha Fin" type="date" density="compact" style="max-width: 180px" />
+          <v-select v-model="filtros.estado" :items="[
+            { title: 'Todos', value: '' },
+            { title: 'Pendiente', value: 'PENDIENTE' },
+            { title: 'En Proceso', value: 'EN_PROCESO' },
+            { title: 'Completada', value: 'COMPLETADA' }
+          ]" item-title="title" item-value="value" label="Estado" density="compact" style="max-width: 180px" />
           <v-btn color="#8b5cf6" variant="flat" @click="aplicarFiltros" size="small">
             <v-icon start>mdi-magnify</v-icon> Filtrar
           </v-btn>
-        </div>
-      </div>
+        </v-card-text>
+      </v-card>
 
       <!-- TABS DE REPORTES -->
       <div class="prod-tabs-card">
@@ -296,49 +287,25 @@ onMounted(() => {
 .prod-sub { font-size: 13px; color: rgba(255,255,255,0.8); margin: 4px 0 0 0; }
 .flex-1 { flex: 1; }
 
-.prod-filters-card {
-  background: white; border-radius: 10px; padding: 16px;
-  margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.prod-filters-row {
-  display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
-}
-
-.filter-group { display: flex; flex-direction: column; gap: 6px; }
-
-.filter-group label {
-  font-size: 11px; font-weight: 700; color: #374151; text-transform: uppercase;
-}
-
-.drw-input {
-  padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px;
-  font-size: 13px; min-width: 140px;
-}
-
-.drw-select {
-  padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px;
-  font-size: 13px; min-width: 120px; background: white;
-}
 
 .prod-tabs-card {
-  background: white; border-radius: 10px; overflow: hidden;
+  background: rgb(var(--v-theme-surface)); border-radius: 10px; overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .prod-tabs-header {
-  display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; background: #fafafa;
+  display: flex; gap: 0; border-bottom: 1px solid rgb(var(--v-theme-outline)); background: rgb(var(--v-theme-surface-variant));
 }
 
 .prod-tab {
   flex: 1; padding: 14px 16px; border: none; background: none;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  gap: 6px; font-size: 13px; font-weight: 600; color: #6b7280;
+  gap: 6px; font-size: 13px; font-weight: 600; color: rgb(var(--v-theme-on-surface-variant));
   transition: all 0.2s ease; border-bottom: 3px solid transparent;
 }
 
 .prod-tab:hover { color: #8b5cf6; background: rgba(139,92,246,0.05); }
-.prod-tab--active { color: #8b5cf6; border-bottom-color: #8b5cf6; background: white; }
+.prod-tab--active { color: #8b5cf6; border-bottom-color: #8b5cf6; background: rgb(var(--v-theme-surface)); }
 
 .prod-tab-content { padding: 20px; }
 
@@ -354,7 +321,7 @@ onMounted(() => {
 }
 
 .kpi-label {
-  font-size: 11px; font-weight: 700; color: #6b7280;
+  font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface-variant));
   text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
 }
 
@@ -368,19 +335,19 @@ onMounted(() => {
   width: 100%; border-collapse: collapse; font-size: 13px;
 }
 
-.prod-table thead { background: #f9fafb; }
+.prod-table thead { background: rgb(var(--v-theme-surface-variant)); }
 
 .prod-table th {
   padding: 12px; text-align: left; font-weight: 700;
-  color: #6b7280; border-bottom: 2px solid #e5e7eb;
+  color: rgb(var(--v-theme-on-surface-variant)); border-bottom: 2px solid rgb(var(--v-theme-outline));
   font-size: 11px; text-transform: uppercase;
 }
 
 .prod-table td {
-  padding: 12px; border-bottom: 1px solid #f3f4f6; color: #374151;
+  padding: 12px; border-bottom: 1px solid rgb(var(--v-theme-outline-variant)); color: rgb(var(--v-theme-on-surface));
 }
 
-.prod-table tbody tr:hover { background: #f9fafb; }
+.prod-table tbody tr:hover { background: rgb(var(--v-theme-surface-variant)); }
 
 .ta-r { text-align: right; }
 .ta-c { text-align: center; }

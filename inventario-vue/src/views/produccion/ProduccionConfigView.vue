@@ -91,12 +91,12 @@
               <v-icon size="14" class="mr-1">mdi-plus</v-icon> Generar Lote
             </v-btn>
             <v-spacer />
-            <select v-model="filtroEstadoLote" class="drw-select" style="width:150px">
-              <option value="">Todos los estados</option>
-              <option value="ACTIVO">Activo</option>
-              <option value="VENCIDO">Vencido</option>
-              <option value="CANCELADO">Cancelado</option>
-            </select>
+            <v-select v-model="filtroEstadoLote" :items="[
+              { title: 'Todos los estados', value: '' },
+              { title: 'Activo', value: 'ACTIVO' },
+              { title: 'Vencido', value: 'VENCIDO' },
+              { title: 'Cancelado', value: 'CANCELADO' }
+            ]" item-title="title" item-value="value" density="compact" style="max-width:150px" />
           </div>
 
           <div class="prod-table-wrap">
@@ -208,21 +208,21 @@ onMounted(async () => {
 .prod-sub { font-size: 13px; color: rgba(255,255,255,0.8); margin: 4px 0 0 0; }
 .flex-1 { flex: 1; }
 
-.prod-tabs-card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.prod-tabs-card { background: rgb(var(--v-theme-surface)); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
 .prod-tabs-header {
-  display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; background: #fafafa;
+  display: flex; gap: 0; border-bottom: 1px solid rgb(var(--v-theme-outline)); background: rgb(var(--v-theme-surface-variant));
 }
 
 .prod-tab {
   flex: 1; padding: 14px 16px; border: none; background: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  font-size: 13px; font-weight: 600; color: #6b7280;
+  font-size: 13px; font-weight: 600; color: rgb(var(--v-theme-on-surface-variant));
   transition: all 0.2s ease; border-bottom: 3px solid transparent;
 }
 
 .prod-tab:hover { color: #8b5cf6; background: rgba(139,92,246,0.05); }
-.prod-tab--active { color: #8b5cf6; border-bottom-color: #8b5cf6; background: white; }
+.prod-tab--active { color: #8b5cf6; border-bottom-color: #8b5cf6; background: rgb(var(--v-theme-surface)); }
 
 .prod-tab-content { padding: 20px; }
 
@@ -236,21 +236,21 @@ onMounted(async () => {
   width: 100%; border-collapse: collapse; font-size: 13px;
 }
 
-.prod-table thead { background: #f9fafb; }
+.prod-table thead { background: rgb(var(--v-theme-surface-variant)); }
 
 .prod-table th {
   padding: 12px 14px; font-weight: 700; text-align: left;
-  color: #6b7280; border-bottom: 2px solid #e5e7eb;
+  color: rgb(var(--v-theme-on-surface-variant)); border-bottom: 2px solid rgb(var(--v-theme-outline));
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
 }
 
 .prod-table th.ta-r { text-align: right; }
 
 .prod-table td {
-  padding: 12px 14px; border-bottom: 1px solid #f3f4f6; color: #374151;
+  padding: 12px 14px; border-bottom: 1px solid rgb(var(--v-theme-outline-variant)); color: rgb(var(--v-theme-on-surface));
 }
 
-.prod-table tbody tr:hover { background: #f9fafb; }
+.prod-table tbody tr:hover { background: rgb(var(--v-theme-surface-variant)); }
 
 .ta-r { text-align: right; }
 .ta-c { text-align: center; }
@@ -266,8 +266,4 @@ onMounted(async () => {
 .badge-vencido { background: #fee2e2; color: #991b1b; }
 .badge-cancelado { background: #f3f4f6; color: #374151; }
 
-.drw-select {
-  padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;
-  font-size: 13px; background: white; cursor: pointer;
-}
 </style>

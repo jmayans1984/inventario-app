@@ -156,11 +156,11 @@ onMounted(cargarEstadisticas)
   align-items: center;
   gap: 16px;
   padding: 20px;
-  border: 2px solid #f0f0f0;
+  border: 2px solid rgb(var(--v-theme-outline-variant));
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: white;
+  background: rgb(var(--v-theme-surface));
 }
 
 .prod-menu-card:hover {
@@ -187,13 +187,13 @@ onMounted(cargarEstadisticas)
 .prod-menu-content h3 {
   font-size: 16px;
   font-weight: 700;
-  color: #1f2937;
+  color: rgb(var(--v-theme-on-surface));
   margin: 0 0 4px 0;
 }
 
 .prod-menu-content p {
   font-size: 13px;
-  color: #6b7280;
+  color: rgb(var(--v-theme-on-surface-variant));
   margin: 0;
 }
 
@@ -204,8 +204,8 @@ onMounted(cargarEstadisticas)
 }
 
 .stat-card {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgb(var(--v-theme-outline));
   border-radius: 10px;
   padding: 16px;
   text-align: center;
@@ -215,7 +215,7 @@ onMounted(cargarEstadisticas)
 .stat-label {
   font-size: 11px;
   font-weight: 700;
-  color: #9ca3af;
+  color: rgb(var(--v-theme-on-surface-variant));
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
