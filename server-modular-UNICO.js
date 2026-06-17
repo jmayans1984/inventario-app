@@ -12051,14 +12051,14 @@ app.put('/api/nomina/config-fiscal', async (req, res) => {
 // MÓDULO DETALLE INVENTARIO - ANÁLISIS DE STOCK Y CONSUMO
 // ================================================================
 
-// GET /api/detalle-inventario/analisis/:codigo?empresa=X&ccosto=BODEGA_MAESTRA
+// GET /api/detalle-inventario/analisis/:codigo
 // Calcula stock actual y consumo basado en:
 // 1. Si hay ventas ayer → analiza últimos 8 días (contando desde hace 8 días)
-// 2. Busca en detalle_inventario ese rango, filtrando por empresa y centro de costo
+// 2. Busca en detalle_inventario ese rango, filtrando por empresa y centro de costo (bodega maestra)
 // 3. Retorna: saldo_inicial, ingresos, salidas, saldo_final, consumo_7_dias, stock_actual
 app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { empresa = 1, ccosto = 'BODEGA_MAESTRA' } = req.query;
+    const empresa = req.body?.empresa || req.headers['x-empresa'] || 1;
 
     if (!codigo) {
         return res.status(400).json({
@@ -12068,6 +12068,28 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
     }
 
     try {
+        // 0. Obtener bodega_maestra de la tabla empresas
+        const empresaRes = await pool.query(
+            'SELECT bodega_maestra FROM empresas WHERE codigo = $1',
+            [empresa]
+        );
+
+        if (empresaRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Empresa no encontrada'
+            });
+        }
+
+        const ccosto = empresaRes.rows[0].bodega_maestra;
+
+        if (!ccosto) {
+            return res.status(400).json({
+                success: false,
+                error: 'La empresa no tiene bodega maestra configurada'
+            });
+        }
+
         const hoy = new Date();
         const ayer = new Date(hoy);
         ayer.setDate(ayer.getDate() - 1);
