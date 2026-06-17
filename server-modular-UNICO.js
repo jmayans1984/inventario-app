@@ -12172,8 +12172,6 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
         const saldo_final = saldo_actual;
         const stock_actual = saldo_final;
 
-        const stock_actual = saldo_final;
-
         res.json({
             success: true,
             data: {
