@@ -12116,19 +12116,26 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
         const fechaInicioStr = fechaInicio.toISOString().split('T')[0];
         const fechaFinStr = ayerStr;
 
-        // 3. Buscar movimientos en el rango en detalle_inventario
+        // 3. Obtener saldo inicial (último movimiento antes del rango)
+        const saldoInicialQuery = `
+            SELECT COALESCE(SUM(CAST(entrada AS NUMERIC)), 0) - COALESCE(SUM(CAST(salida AS NUMERIC)), 0) as saldo
+            FROM detalle_inventario
+            WHERE codigo = $1
+              AND empresa = $2
+              AND ccosto = $3
+              AND fecha < $4
+        `;
+        const saldoInicialRes = await pool.query(saldoInicialQuery, [codigo, empresa, ccosto, fechaInicioStr]);
+        let saldo_inicial = parseFloat(saldoInicialRes.rows[0]?.saldo) || 0;
+
+        // 4. Buscar movimientos en el rango en detalle_inventario
         const movimientosQuery = `
             SELECT
                 codigo,
                 fecha,
                 tipo,
-                entrada,
-                salida,
-                saldo_final,
-                CASE
-                    WHEN tipo IN ('SALIDA DE ALMACEN', 'SALIDA POR BAJA', 'SALIDA POR TRASLADO') THEN salida
-                    ELSE 0
-                END as consumo
+                COALESCE(CAST(entrada AS NUMERIC), 0) as entrada,
+                COALESCE(CAST(salida AS NUMERIC), 0) as salida
             FROM detalle_inventario
             WHERE codigo = $1
               AND empresa = $2
@@ -12139,53 +12146,31 @@ app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
         `;
         const movRes = await pool.query(movimientosQuery, [codigo, empresa, ccosto, fechaInicioStr, fechaFinStr]);
 
-        // 4. Calcular saldos
-        let saldo_inicial = 0;
+        // 5. Calcular saldos acumulativamente
+        let saldo_actual = saldo_inicial;
         let total_entrada = 0;
         let total_salida = 0;
-        let saldo_final = 0;
         let consumo_7_dias = 0;
 
-        if (movRes.rows.length > 0) {
-            // Saldo inicial = saldo final del día anterior al rango
-            const saldoInicialQuery = `
-                SELECT COALESCE(saldo_final, 0) as stock
-                FROM detalle_inventario
-                WHERE codigo = $1
-                  AND empresa = $2
-                  AND ccosto = $3
-                  AND fecha < $4
-                ORDER BY fecha DESC, id DESC
-                LIMIT 1
-            `;
-            const saldoInicialRes = await pool.query(saldoInicialQuery, [codigo, empresa, ccosto, fechaInicioStr]);
-            saldo_inicial = saldoInicialRes.rows.length > 0 ? parseFloat(saldoInicialRes.rows[0].stock) || 0 : 0;
+        for (const mov of movRes.rows) {
+            const entrada = parseFloat(mov.entrada) || 0;
+            const salida = parseFloat(mov.salida) || 0;
 
-            // Procesar movimientos
-            for (const mov of movRes.rows) {
-                const entrada = parseFloat(mov.entrada) || 0;
-                const salida = parseFloat(mov.salida) || 0;
-                const consumo = parseFloat(mov.consumo) || 0;
+            // Acumular totales
+            total_entrada += entrada;
+            total_salida += salida;
 
-                total_entrada += entrada;
-                total_salida += salida;
-                saldo_final = parseFloat(mov.saldo_final) || 0;
-                consumo_7_dias += consumo;
+            // Calcular saldo actual = saldo anterior + entrada - salida
+            saldo_actual = saldo_actual + entrada - salida;
+
+            // Contar consumo (salidas de almacén, bajas, traslados)
+            if (['SALIDA DE ALMACEN', 'SALIDA POR BAJA', 'SALIDA POR TRASLADO'].includes(mov.tipo)) {
+                consumo_7_dias += salida;
             }
-        } else {
-            // Si no hay movimientos, obtener stock actual del último registro
-            const stockActualQuery = `
-                SELECT COALESCE(saldo_final, 0) as stock
-                FROM detalle_inventario
-                WHERE codigo = $1
-                  AND empresa = $2
-                  AND ccosto = $3
-                ORDER BY fecha DESC, id DESC
-                LIMIT 1
-            `;
-            const stockRes = await pool.query(stockActualQuery, [codigo, empresa, ccosto]);
-            saldo_final = stockRes.rows.length > 0 ? parseFloat(stockRes.rows[0].stock) || 0 : 0;
         }
+
+        const saldo_final = saldo_actual;
+        const stock_actual = saldo_final;
 
         const stock_actual = saldo_final;
 
