@@ -208,16 +208,16 @@ onMounted(async () => {
 .prod-sub { font-size: 13px; color: rgba(255,255,255,0.8); margin: 4px 0 0 0; }
 .flex-1 { flex: 1; }
 
-.prod-tabs-card { background: rgb(var(--v-theme-surface)); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.prod-tabs-card { background: rgb(var(--v-theme-surface)); border-radius: 14px; overflow: hidden; border: 1px solid rgba(var(--v-theme-on-surface), 0.08); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 
 .prod-tabs-header {
-  display: flex; gap: 0; border-bottom: 1px solid rgb(var(--v-theme-outline)); background: rgb(var(--v-theme-surface-variant));
+  display: flex; gap: 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1); background: rgb(var(--v-theme-surface-variant));
 }
 
 .prod-tab {
   flex: 1; padding: 14px 16px; border: none; background: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  font-size: 13px; font-weight: 600; color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 13px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.6);
   transition: all 0.2s ease; border-bottom: 3px solid transparent;
 }
 

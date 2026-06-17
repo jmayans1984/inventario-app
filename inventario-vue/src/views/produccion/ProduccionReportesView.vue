@@ -289,18 +289,19 @@ onMounted(() => {
 
 
 .prod-tabs-card {
-  background: rgb(var(--v-theme-surface)); border-radius: 10px; overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background: rgb(var(--v-theme-surface)); border-radius: 14px; overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .prod-tabs-header {
-  display: flex; gap: 0; border-bottom: 1px solid rgb(var(--v-theme-outline)); background: rgb(var(--v-theme-surface-variant));
+  display: flex; gap: 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1); background: rgb(var(--v-theme-surface-variant));
 }
 
 .prod-tab {
   flex: 1; padding: 14px 16px; border: none; background: none;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  gap: 6px; font-size: 13px; font-weight: 600; color: rgb(var(--v-theme-on-surface-variant));
+  gap: 6px; font-size: 13px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.6);
   transition: all 0.2s ease; border-bottom: 3px solid transparent;
 }
 
@@ -310,18 +311,25 @@ onMounted(() => {
 .prod-tab-content { padding: 20px; }
 
 .prod-kpi-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px; margin-bottom: 24px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px; margin-bottom: 24px;
 }
 
 .kpi-card {
-  background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(139,92,246,0.05));
-  border: 1px solid rgba(139,92,246,0.2); border-radius: 10px;
-  padding: 16px; text-align: center;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 14px;
+  padding: 18px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.kpi-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+  transform: translateY(-2px);
 }
 
 .kpi-label {
-  font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5);
   text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
 }
 

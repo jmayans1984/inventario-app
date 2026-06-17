@@ -156,11 +156,12 @@ onMounted(cargarEstadisticas)
   align-items: center;
   gap: 16px;
   padding: 20px;
-  border: 2px solid rgb(var(--v-theme-outline-variant));
-  border-radius: 10px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
   background: rgb(var(--v-theme-surface));
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .prod-menu-card:hover {
@@ -205,17 +206,24 @@ onMounted(cargarEstadisticas)
 
 .stat-card {
   background: rgb(var(--v-theme-surface));
-  border: 1px solid rgb(var(--v-theme-outline));
-  border-radius: 10px;
-  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px;
+  padding: 18px;
   text-align: center;
   border-left: 4px solid #8b5cf6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.stat-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+  transform: translateY(-2px);
 }
 
 .stat-label {
   font-size: 11px;
   font-weight: 700;
-  color: rgb(var(--v-theme-on-surface-variant));
+  color: rgba(var(--v-theme-on-surface), 0.5);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
