@@ -15,6 +15,7 @@ let scanEnProceso    = false;  // evita scans concurrentes (FIX 2)
 let ultimoBarcode    = null;   // para reintentar (FIX 2)
 let itemsOcultos     = new Set(); // productos completados y ocultos (FIX 6)
 let mostrandoOcultos = false;  // toggle para ver ocultos (FIX 6)
+let barcodeCache     = {};     // cache de barcodes registrados con sus factores
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -317,6 +318,42 @@ async function procesarScan(barcode) {
         const data = await res.json();
 
         if (!data.found) {
+            const cached = barcodeCache[barcode];
+            if (cached) {
+                const codigo = cached.productoCodigo;
+                const factor = cached.factor;
+                const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+                if (item) {
+                    const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+                    try {
+                        const resS  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo: modoEscaneo, delta: factor })
+                        });
+                        const dataS = await resS.json();
+                        if (dataS.success) {
+                            item[campo] = parseFloat(dataS.data[campo]) || 0;
+                            const nuevo = parseFloat(item[campo]);
+                            const req   = parseFloat(item.cant_requerida);
+                            const sufijo = factor > 1 ? ` (×${factor})` : '';
+                            const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`
+                                        : nuevo === req ? `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`
+                                        :                 `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`;
+                            showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
+                            actualizarFilaScan(item, campo);
+                            if (nuevo === req) {
+                                scanEnProceso = false;
+                                await verificarCompletoYOcultar(item, campo);
+                                return;
+                            }
+                        }
+                    } catch(e) { /* continuar */ }
+                    scanEnProceso = false;
+                    refocusInput();
+                    return;
+                }
+            }
             scanEnProceso = false;
             mostrarAsociadorBarcode(barcode);
             return;
@@ -973,6 +1010,7 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ empresa: getEmpresa(), barcode, es_principal: false, factor })
         });
+        barcodeCache[barcode] = { factor, productoCodigo };
     } catch(e) { /* continuar igualmente */ }
 
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
