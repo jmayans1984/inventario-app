@@ -6,7 +6,7 @@ const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
 let ordenActiva      = null;   // orden completa con detalle[]
-let modoEscaneo      = null;   // 'picking' | 'packing'
+let modoEscaneo      = 'packing';   // siempre 'packing' (no hay picking)
 let scanBuffer       = '';     // acumula chars del scanner BT
 let scanTimeout      = null;   // limpia buffer si el scanner tarda
 let barcodeNoEncontrado = null; // barcode pendiente de asociar
@@ -168,9 +168,9 @@ function renderDetalle() {
             </table>
         </div>
 
-        ${puedePickear ? `
-        <button class="btn-accion btn-picking" onclick="iniciarEscaneo('picking')">
-            📦 ${est === 'EN_PICKING' ? 'Continuar Picking' : 'Iniciar Picking'}
+        ${puedePickear || puedePackear ? `
+        <button class="btn-accion btn-picking" onclick="iniciarEscaneo('packing')">
+            📦 Iniciar Packing
         </button>` : ''}
 
         ${puedePackear ? `
@@ -194,7 +194,7 @@ function renderDetalle() {
 // PANTALLA 3 — ESCANEO (PICKING O PACKING)
 // ══════════════════════════════════════════════════════════════
 async function iniciarEscaneo(modo) {
-    modoEscaneo    = modo;
+    modoEscaneo    = 'packing';
     scanBuffer     = '';
     estadoCambiado = false;
     scanEnProceso  = false;
@@ -583,25 +583,6 @@ function cancelarManual() {
 // FIX 6: verificar si completó y preguntar packing + ocultar
 async function verificarCompletoYOcultar(item, campo) {
     try {
-        const isPicking = modoEscaneo === 'picking';
-
-        if (isPicking) {
-            // preguntar si también hacer packing
-            const hacerPacking = await preguntarPacking(item);
-            if (hacerPacking) {
-                const req = parseFloat(item.cant_requerida);
-                try {
-                    const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: item.producto_codigo, tipo: 'packing', delta: req })
-                    });
-                    const data = await res.json();
-                    if (data.success) item.cant_packing = parseFloat(data.data.cant_packing) || 0;
-                } catch(e) { console.error('[PACKING ERROR]', e); }
-            }
-        }
-
         // Ocultar del listado
         itemsOcultos.add(item.producto_codigo);
         const el = document.getElementById('si-' + item.producto_codigo);
