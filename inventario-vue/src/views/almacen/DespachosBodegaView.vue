@@ -349,7 +349,7 @@
 
           <v-divider />
           <v-card-actions class="pa-4">
-            <v-btn variant="tonal" color="#047857" prepend-icon="mdi-printer-outline" @click="imprimirDespacho">
+            <v-btn variant="tonal" color="#047857" prepend-icon="mdi-printer-outline" @click="imprimirDespacho(detalleActivo)">
               Imprimir Reporte
             </v-btn>
             <v-spacer />
