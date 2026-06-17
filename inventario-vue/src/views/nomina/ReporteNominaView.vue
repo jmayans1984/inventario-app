@@ -413,12 +413,12 @@ async function exportarPDF() {
       .section { margin-bottom: 36px; }
       .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: #be185d; border-bottom: 2px solid #ec4899; padding-bottom: 4px; margin-bottom: 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 10px; }
-      th { background: #fdf2f8; padding: 7px 10px; text-align: right; font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+      th { background: #fdf2f8; padding: 4px 10px; text-align: right; font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
       th:first-child { text-align: left; }
-      td { padding: 7px 10px; text-align: right; border-bottom: 1px solid #f3f4f6; }
+      td { padding: 4px 10px; text-align: right; border-bottom: 1px solid #f3f4f6; }
       td:first-child { text-align: left; font-weight: 500; }
       tr:nth-child(even) { background: #fafafa; }
-      .tfoot td { background: #fdf2f8; font-weight: 700; font-size: 11px; border-top: 2px solid #f9a8d4; padding: 8px 10px; }
+      .tfoot td { background: #fdf2f8; font-weight: 700; font-size: 11px; border-top: 2px solid #f9a8d4; padding: 5px 10px; }
       .text-red  { color: #ef4444; }
       .text-green{ color: #22c55e; }
       .text-amber{ color: #f59e0b; }
