@@ -308,21 +308,20 @@ function formatFecha(fecha) {
 
 async function cargarInventarioYConsumo(codigo) {
   try {
-    const [invRes, consumoRes] = await Promise.all([
-      fetch(`${API_BASE}/productos/${encodeURIComponent(codigo)}`),
-      fetch(`${API_BASE}/ventas/consumo-7-dias/${encodeURIComponent(codigo)}`)
-    ])
+    const r = await fetch(`${API_BASE}/detalle-inventario/analisis/${encodeURIComponent(codigo)}`)
+    const j = await r.json()
 
-    const inv = await invRes.json()
-    const consumo = await consumoRes.json()
+    if (!j.success || !j.data) {
+      inventarioInfo.value = { codigo, stock_actual: 0, consumo_7_dias: 0 }
+      return
+    }
 
-    const stockActual = inv.data?.stock || 0
-    const consumo7d = consumo.data?.total || 0
+    const { stock_actual, consumo_7_dias } = j.data
 
     inventarioInfo.value = {
       codigo,
-      stock_actual: stockActual,
-      consumo_7_dias: consumo7d
+      stock_actual: parseFloat(stock_actual) || 0,
+      consumo_7_dias: parseFloat(consumo_7_dias) || 0
     }
   } catch (e) {
     console.error('Error cargando inventario/consumo:', e)
