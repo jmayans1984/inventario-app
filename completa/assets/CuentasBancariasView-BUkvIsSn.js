@@ -1,1 +1,0 @@
-import{I as e,_ as t,i as n,z as r}from"./vue-router-DPIvL7j7.js";var i={__name:`CuentasBancariasView`,setup(i){let a=n();return e(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(e,n)=>(r(),t(`div`))}};export{i as default};
