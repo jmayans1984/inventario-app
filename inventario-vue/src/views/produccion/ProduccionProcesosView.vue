@@ -202,7 +202,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import { useAuthStore } from '../../stores/auth.js'
 import { API_BASE } from '../../utils/constants.js'
+
+const auth = useAuthStore()
 
 const pasoActivo = ref(1)
 const cantidadEtiquetas = ref(0)
@@ -263,7 +266,11 @@ function formatFecha(fecha) {
 
 async function cargarInventarioYConsumo(codigo) {
   try {
-    const r = await fetch(`${API_BASE}/detalle-inventario/analisis/${encodeURIComponent(codigo)}`)
+    const r = await fetch(`${API_BASE}/detalle-inventario/analisis/${encodeURIComponent(codigo)}`, {
+      headers: {
+        'x-empresa': auth.empresaCodigo
+      }
+    })
     const j = await r.json()
 
     if (!j.success || !j.data) {
