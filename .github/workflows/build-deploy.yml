@@ -23,10 +23,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: inventario-vue/package-lock.json
 
       - name: Install dependencies
         working-directory: inventario-vue
-        run: npm install
+        run: npm ci
 
       - name: Build
         working-directory: inventario-vue
