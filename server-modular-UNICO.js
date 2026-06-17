@@ -12047,6 +12047,67 @@ app.put('/api/nomina/config-fiscal', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// ================================================================
+// MÓDULO DETALLE INVENTARIO - ANÁLISIS DE STOCK Y CONSUMO
+// ================================================================
+
+// GET /api/detalle-inventario/analisis/:codigo
+// Obtiene stock_actual (último saldo_final) y consumo_7_dias (suma de salidas últimos 7 días)
+app.get('/api/detalle-inventario/analisis/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+
+    if (!codigo) {
+        return res.status(400).json({
+            success: false,
+            error: 'Código de producto requerido'
+        });
+    }
+
+    try {
+        // 1. Obtener stock_actual = último saldo_final
+        const stockQuery = `
+            SELECT
+                COALESCE(saldo_final, 0) as stock_actual
+            FROM detalle_inventario
+            WHERE codigo = $1
+            ORDER BY fecha DESC, id DESC
+            LIMIT 1
+        `;
+
+        const stockResult = await pool.query(stockQuery, [codigo]);
+        const stock_actual = stockResult.rows.length > 0 ? parseFloat(stockResult.rows[0].stock_actual) || 0 : 0;
+
+        // 2. Obtener consumo_7_dias = suma de salidas últimos 7 días
+        const consumoQuery = `
+            SELECT
+                COALESCE(SUM(CAST(salidas AS NUMERIC)), 0) as consumo_7_dias
+            FROM detalle_inventario
+            WHERE codigo = $1
+              AND fecha >= CURRENT_DATE - INTERVAL '7 days'
+              AND fecha < CURRENT_DATE
+        `;
+
+        const consumoResult = await pool.query(consumoQuery, [codigo]);
+        const consumo_7_dias = consumoResult.rows.length > 0 ? parseFloat(consumoResult.rows[0].consumo_7_dias) || 0 : 0;
+
+        res.json({
+            success: true,
+            data: {
+                codigo,
+                stock_actual,
+                consumo_7_dias
+            }
+        });
+
+    } catch (error) {
+        console.error('Error GET /api/detalle-inventario/analisis:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ── FIN MÓDULO NÓMINA ────────────────────────────────────────────
 
 // ================================================================
