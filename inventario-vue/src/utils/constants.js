@@ -121,6 +121,7 @@ export const MODULES = [
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
         { name: 'Recetas y Artículos', icon: 'mdi-chef-hat', path: '/produccion/configuracion' },
+        { name: 'Mapeo Recetas ↔ Productos', icon: 'mdi-link-variant', path: '/produccion/mapeo' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Órdenes de Producción', icon: 'mdi-clipboard-list-outline', path: '/produccion/procesos' },
