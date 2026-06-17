@@ -44,6 +44,33 @@
 
 ## Cambios recientes ✅
 
+### Módulo PRODUCCIÓN — Órdenes Multi-Receta (2026-06-17)
+- ✅ **Paso 1 - Crear Orden:** Flujo dinámico para agregar múltiples recetas a UNA orden (mismo día)
+  - Selector de receta (subproducto='SI') + cantidad + botón "Agregar Receta"
+  - Tabla que muestra todas las recetas en la orden con opción eliminar
+  - Campos de fecha inicio, vencimiento, observaciones
+  - **Nuevo:** Muestra automáticamente:
+    - 📦 Inventario Bodega (último saldo_final de DETALLE_INVENTARIO)
+    - 📊 Consumo Últimos 7 Días (suma salidas en DETALLE_INVENTARIO)
+    - ✅ Diferencia recomendada (consumo - stock = cuánto producir)
+
+- ✅ **Paso 2 - Ingredientes:** Consolidados de TODAS las recetas
+  - Tabla muestra ingrediente + receta de origen + cantidad necesaria + costo
+  - Costo total es suma de todos los ingredientes de todas las recetas
+
+- ✅ **Paso 3 - Registrar Producción:** Cantidad planeada = suma de todas las recetas
+  - Campo cantidad real producida
+  - Observaciones de producción
+
+- ✅ **Paso 4 - Generar Etiquetas:** Label 4x6 (pendiente completar)
+
+- ✅ **Endpoint Backend:** `GET /api/detalle-inventario/analisis/:codigo`
+  - Retorna: `{ success, data: { codigo, stock_actual, consumo_7_dias } }`
+  - stock_actual = último saldo_final
+  - consumo_7_dias = SUM(salidas) últimos 7 días
+
+- ✅ **UI:** Color uniforme #8b5cf6 (morado) para todo el módulo
+
 ### Franquicia + Productos Unificados
 - ✅ **Tabla `productos` expandida** con campos: `para_venta`, `precio_venta1/2/3`
 - ✅ **GET /api/almacen/productos** filtra por `para_venta='SI'` si `tipo_empresa='CLIENTE'` (franquiciado)
@@ -60,6 +87,14 @@
 - **Siguiente:** UI para que MAYDO marque precios por franquiciado (si aplica)
 
 ## Próximos pasos (Orden de prioridad)
+
+### P0 — Módulo PRODUCCIÓN (EN PROGRESO)
+1. ✅ Paso 1: Crear orden multi-receta con inventario/consumo
+2. ✅ Paso 2: Ingredientes consolidados
+3. ✅ Paso 3: Registrar producción real
+4. ⚠️ **TODO:** Paso 4 - Generar etiquetas 4x6 (diseño completo)
+5. ⚠️ **TODO:** Reportes de producción
+6. ⚠️ **ISSUE:** GitHub Pages caché - v1.13 aún muestra v1.11 (necesita verificación)
 
 ### P1 — Franquicia + Precios
 1. ✅ Tabla productos unificada con para_venta y precio_venta1/2/3
@@ -146,7 +181,33 @@ inventario-app/
 - Backend logs: `console.error()` en routes, visible en Railway dashboard
 - Frontend: DevTools Vue, Vuetify inspect, localStorage para empresaActual
 
+### GitHub Pages Cache Busting (IMPORTANTE)
+**Proceso CONSISTENTE para forzar recarga en producción:**
+```powershell
+# 1. Build la app
+cd inventario-vue
+npm run build
+
+# 2. Obtener nuevo hash (si cambió) o reutilizar
+# Los hashes están en completa/assets/index-XXXXX.js
+
+# 3. Actualizar index.html MANUALMENTE:
+#    - Incrementar meta version (1.11 → 1.12 → 1.13...)
+#    - Incrementar query params (?v=119 → ?v=120 → ?v=121...)
+#    ejemplo:
+#    <meta name="version" content="1.13" />
+#    <script src="/inventario-app/completa/assets/index-DfmmwHDU.js?v=121"></script>
+#    <link rel="stylesheet" href="/inventario-app/completa/assets/index-BhiTv2Zo.css?v=121">
+
+# 4. Commit y push
+git add -A
+git commit -m "Chore: actualizar a v1.13 (query param 121) - forzar recarga"
+git push
+```
+**Usuario debe:** Abrir en incógnito o vaciar caché para ver cambios
+
 ### Próxima sesión
-- **Decisión:** Modelo de bodega única (REVENTA vs CONSUMO en compras)
-- **Luego:** Migrations para agregar `ccosto_id` a `ordenes_compra` + `factura_venta`
-- **Build:** `npm run build` + `git add -A && git commit -m "..." && git push`
+- **Verificar:** Si v1.13 finalmente se muestra (GitHub Pages caché)
+- **Si aún falla:** Revisar endpoint `/api/detalle-inventario/analisis/{codigo}` retorna datos
+- **Completar:** Paso 4 - Generar etiquetas (diseño label 4x6)
+- **Luego:** Franquicia + Precios (P1)
