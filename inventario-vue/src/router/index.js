@@ -56,8 +56,7 @@ const routes = [
   // PRODUCCIÓN ESPECÍFICAS — MÓDULO NUEVO
   { path: '/produccion/configuracion', component: () => import('../views/produccion/ProduccionConfigView.vue'), meta: { requiresAuth: true } },
   { path: '/produccion/mapeo', component: () => import('../views/produccion/ProduccionMapeoView.vue'), meta: { requiresAuth: true } },
-  { path: '/produccion/procesos', component: () => import('../views/produccion/ProduccionProcesosView.vue'), meta: { requiresAuth: true } },
-  { path: '/produccion/reportes', component: () => import('../views/produccion/ProduccionReportesView.vue'), meta: { requiresAuth: true } },
+{ path: '/produccion/reportes', component: () => import('../views/produccion/ProduccionReportesView.vue'), meta: { requiresAuth: true } },
 
   // PRODUCCIÓN — patrón general (menú principal)
   { path: '/produccion', component: () => import('../views/produccion/ProduccionView.vue'), meta: { requiresAuth: true } },

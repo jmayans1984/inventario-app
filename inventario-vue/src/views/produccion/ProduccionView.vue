@@ -24,18 +24,6 @@
           <v-icon size="18" color="#8b5cf6">mdi-chevron-right</v-icon>
         </div>
 
-        <!-- PROCESOS -->
-        <div class="prod-menu-card" @click="irA('/produccion/procesos')">
-          <div class="prod-menu-icon">
-            <v-icon size="32" color="#8b5cf6">mdi-hammer-wrench</v-icon>
-          </div>
-          <div class="prod-menu-content">
-            <h3>PROCESOS</h3>
-            <p>Crear órdenes y registrar producción</p>
-          </div>
-          <v-icon size="18" color="#8b5cf6">mdi-chevron-right</v-icon>
-        </div>
-
         <!-- REPORTES -->
         <div class="prod-menu-card" @click="irA('/produccion/reportes')">
           <div class="prod-menu-icon">

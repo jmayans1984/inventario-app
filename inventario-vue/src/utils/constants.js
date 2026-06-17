@@ -123,9 +123,6 @@ export const MODULES = [
         { name: 'Recetas y Artículos', icon: 'mdi-chef-hat', path: '/produccion/configuracion' },
         { name: 'Mapeo Recetas ↔ Productos', icon: 'mdi-link-variant', path: '/produccion/mapeo' },
       ]},
-      { name: 'Procesos', icon: 'mdi-cogs', items: [
-        { name: 'Órdenes de Producción', icon: 'mdi-clipboard-list-outline', path: '/produccion/procesos' },
-      ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Análisis de Producción', icon: 'mdi-file-chart-outline', path: '/produccion/reportes' },
       ]},
