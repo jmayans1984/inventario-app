@@ -387,7 +387,7 @@ const eliminando = ref(null)
 const imprimiendo = ref(null)
 
 // Filtros
-const filtroFecha   = ref(new Date().toISOString().split('T')[0])
+const filtroFecha   = ref('')
 const filtroEstado  = ref('')
 const filtroDestino = ref('')
 
@@ -945,7 +945,7 @@ onMounted(async () => {
 .detalle-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
 .detalle-table thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
 .detalle-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
-.detalle-table tbody td { padding: 8px 10px; vertical-align: middle; }
+.detalle-table tbody td { padding: 3px 10px; vertical-align: middle; }
 .item-cod { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); font-family: monospace; }
 .item-nom { font-weight: 600; font-size: 13px; }
 .num-cell { font-family: monospace; font-size: 13px; }
