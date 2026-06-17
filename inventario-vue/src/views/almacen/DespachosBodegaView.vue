@@ -942,13 +942,13 @@ onMounted(async () => {
 .pg-cant-active { border-color: #047857; background: rgba(4,120,87,.08); font-weight: 700; color: #047857; }
 
 /* Detalle dialog */
-.detalle-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
-.detalle-table thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.detalle-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; }
+.detalle-table thead th { padding: 6px 8px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: rgba(var(--v-theme-on-surface),.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
 .detalle-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
-.detalle-table tbody td { padding: 3px 10px; vertical-align: middle; }
-.item-cod { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); font-family: monospace; }
-.item-nom { font-weight: 600; font-size: 13px; }
-.num-cell { font-family: monospace; font-size: 13px; }
+.detalle-table tbody td { padding: 2px 8px; vertical-align: middle; }
+.item-cod { font-size: 9px; color: rgba(var(--v-theme-on-surface),.4); font-family: monospace; }
+.item-nom { font-weight: 600; font-size: 10px; }
+.num-cell { font-family: monospace; font-size: 10px; }
 
 .dif-ok    { color: #10b981; font-weight: 700; }
 .dif-falta { color: #ef4444; font-weight: 700; }
