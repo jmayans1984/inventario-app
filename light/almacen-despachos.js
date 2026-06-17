@@ -138,58 +138,45 @@ function renderDetalle() {
 // PANTALLA 2 — ESCANEO SIMPLE
 // ══════════════════════════════════════════════════════════════
 function iniciarEscaneo() {
-    const el = document.getElementById('escaneoContenido');
-    if (!el) return;
+    const scanList = document.getElementById('scanList');
+    const scanHeader = document.getElementById('scanHeader');
+    const scanInput = document.getElementById('scannerInput');
+
+    if (!scanList || !scanInput) return;
 
     const listaHtml = Object.entries(productosEscaneados).map(([cod, qty]) => {
         const item = ordenActiva.detalle.find(d => d.producto_codigo === cod);
         if (!item) return '';
-        return `<div style="padding:12px;background:var(--bg-input);border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-                <div style="font-weight:600">${item.producto_nombre}</div>
-                <div style="font-size:12px;color:var(--text-secondary)">${cod}</div>
+        return `<div class="scan-item" style="background:var(--bg-input)">
+            <div class="scan-item-info">
+                <div class="scan-item-name">${item.producto_nombre}</div>
+                <div class="scan-item-cod">${cod}</div>
             </div>
-            <div style="font-size:18px;font-weight:700">${qty}</div>
+            <div class="scan-counter">
+                <div style="text-align:center;font-size:20px;font-weight:700">${qty}</div>
+            </div>
         </div>`;
     }).join('');
 
-    el.innerHTML = `
-        <button class="btn btn-secondary" onclick="mostrarScreen('detalle')" style="margin-bottom:16px;width:100%">
-            ← Volver
-        </button>
-
-        <div style="background:var(--bg-card);border-radius:12px;padding:16px;margin-bottom:16px;border:2px solid var(--border-color)">
-            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px">📦 Despacho</div>
+    scanHeader.innerHTML = `
+        <div style="background:var(--bg-card);border-radius:12px;padding:16px;border:2px solid var(--border-color)">
+            <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase">Despachando a</div>
             <div style="font-size:16px;font-weight:700">${ordenActiva.cc_destino_nombre}</div>
         </div>
-
-        <div style="margin-bottom:16px">
-            <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:8px">Escanea un producto:</label>
-            <input type="text" id="scanInput" placeholder="Escanear barcode..."
-                style="width:100%;padding:14px;border-radius:10px;border:2px solid var(--border-color);background:var(--bg-input);font-size:16px;box-sizing:border-box"
-                onkeydown="if(event.key==='Enter') procesarBarcode()" autofocus />
-        </div>
-
-        <div id="scanFeedback" style="min-height:40px;margin-bottom:16px;padding:12px;border-radius:10px;text-align:center;font-size:13px;display:none"></div>
-
-        <div style="background:var(--bg-card);border-radius:12px;border:2px solid var(--border-color);padding:12px;margin-bottom:16px;max-height:300px;overflow-y:auto">
-            ${listaHtml || '<div style="text-align:center;color:var(--text-secondary);padding:20px">Ningún producto escaneado aún</div>'}
-        </div>
-
-        <button class="btn-accion btn-confirmar" onclick="confirmarPacking()" style="width:100%">
-            ✅ Confirmar Packing
-        </button>
     `;
 
+    scanList.innerHTML = listaHtml || '<div style="text-align:center;color:var(--text-secondary);padding:20px">Escanea un producto para comenzar</div>';
+
     mostrarScreen('escaneo');
-    setTimeout(() => document.getElementById('scanInput')?.focus(), 100);
+    scanInput.value = '';
+    scanInput.focus();
 }
 
 async function procesarBarcode() {
     if (scanEnProceso) return;
     scanEnProceso = true;
 
-    const input = document.getElementById('scanInput');
+    const input = document.getElementById('scannerInput');
     const barcode = input?.value?.trim();
 
     if (!barcode) {
@@ -227,12 +214,19 @@ async function procesarBarcode() {
         input.value = '';
 
         iniciarEscaneo();
-        setTimeout(() => document.getElementById('scanInput')?.focus(), 100);
+        setTimeout(() => document.getElementById('scannerInput')?.focus(), 100);
     } catch (e) {
         mostrarFeedback('❌ Error de conexión', 'error');
         console.error('[BARCODE ERROR]', e);
     } finally {
         scanEnProceso = false;
+    }
+}
+
+function onScanKeydown(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        procesarBarcode();
     }
 }
 
@@ -288,10 +282,18 @@ function mostrarConfirmacion() {
             <div style="font-size:4rem;margin-bottom:16px">✅</div>
             <h2 style="font-size:20px;font-weight:800;margin-bottom:8px">¡Packing Confirmado!</h2>
             <p style="color:var(--text-secondary);margin-bottom:24px">El traslado entre bodegas ha sido registrado</p>
-            <button class="btn-accion btn-confirmar" onclick="mostrarScreen('lista');cargarOrdenes()" style="width:100%">
+            <button class="btn btn-secondary" onclick="mostrarScreen('lista');cargarOrdenes()" style="width:100%">
                 ← Volver a órdenes
             </button>
         </div>
     `;
     mostrarScreen('confirmacion');
+}
+
+function volverAlDetalle() {
+    mostrarScreen('detalle');
+}
+
+function finalizarEscaneo() {
+    confirmarPacking();
 }
