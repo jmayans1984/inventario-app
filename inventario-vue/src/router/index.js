@@ -53,20 +53,14 @@ const routes = [
   // ALMACÉN — patrón general
   { path: '/almacen/:section?/:item?', component: () => import('../views/AlmacenView.vue'), meta: { requiresAuth: true } },
 
-  // PRODUCCIÓN ESPECÍFICAS (Solo para PROVEEDOR)
-  // Alias de Almacén → abren las mismas vistas pero bajo ruta /produccion para que el menú resalte Proveeduría
-  { path: '/produccion/configuracion/productos',         component: () => import('../views/almacen/ProductosView.vue'),           meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/configuracion/precios',           component: () => import('../views/almacen/PreciosProductosView.vue'),    meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/configuracion/control-stock',     component: () => import('../views/almacen/ControlStockView.vue'),        meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/configuracion/productos-venta',   component: () => import('../views/produccion/ProductosVentaView.vue'),   meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/configuracion/grupo-productos',   component: () => import('../views/produccion/GrupoProductosView.vue'),   meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/configuracion/lista-precios',     component: () => import('../views/produccion/ListaPreciosView.vue'),     meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/procesos/ordenes-compra',         component: () => import('../views/produccion/OrdenesCompraView.vue'),    meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/informes/lista-precios',          component: () => import('../views/produccion/ReporteListaPreciosView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
-  { path: '/produccion/informes/ordenes-compra',         component: () => import('../views/produccion/ReporteOrdenesCompraView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  // PRODUCCIÓN ESPECÍFICAS — MÓDULO NUEVO
+  { path: '/produccion/configuracion', component: () => import('../views/produccion/ProduccionConfigView.vue'), meta: { requiresAuth: true } },
+  { path: '/produccion/procesos', component: () => import('../views/produccion/ProduccionProcesosView.vue'), meta: { requiresAuth: true } },
+  { path: '/produccion/reportes', component: () => import('../views/produccion/ProduccionReportesView.vue'), meta: { requiresAuth: true } },
 
-  // PRODUCCIÓN — patrón general
-  { path: '/produccion/:section?/:item?', component: () => import('../views/ProduccionView.vue'), meta: { requiresAuth: true } },
+  // PRODUCCIÓN — patrón general (menú principal)
+  { path: '/produccion', component: () => import('../views/produccion/ProduccionView.vue'), meta: { requiresAuth: true } },
+  { path: '/produccion/:section?/:item?', component: () => import('../views/produccion/ProduccionView.vue'), meta: { requiresAuth: true } },
 
   // RECETAS ESPECÍFICAS
   { path: '/recetas/configuracion/catalogo',  component: () => import('../views/recetas/RecetasCatalogoView.vue'),  meta: { requiresAuth: true } },
