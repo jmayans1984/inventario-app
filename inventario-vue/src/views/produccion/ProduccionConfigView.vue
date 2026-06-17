@@ -239,10 +239,12 @@ onMounted(async () => {
 .prod-table thead { background: #f9fafb; }
 
 .prod-table th {
-  padding: 12px 14px; text-align: left; font-weight: 700;
+  padding: 12px 14px; font-weight: 700; text-align: left;
   color: #6b7280; border-bottom: 2px solid #e5e7eb;
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
 }
+
+.prod-table th.ta-r { text-align: right; }
 
 .prod-table td {
   padding: 12px 14px; border-bottom: 1px solid #f3f4f6; color: #374151;
