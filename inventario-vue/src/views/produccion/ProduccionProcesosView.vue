@@ -8,14 +8,14 @@
           <h1 class="prod-title">PROCESOS DE PRODUCCIÓN</h1>
           <p class="prod-sub">Gestiona órdenes de producción, cálculo de ingredientes y registra lo producido</p>
         </div>
-        <v-btn color="#8b5cf6" variant="flat" rounded="lg" @click="abrirNuevaOrden">
+        <v-btn color="#22c55e" variant="flat" rounded="lg" @click="abrirNuevaOrden" size="small">
           <v-icon start>mdi-plus</v-icon> Nuevo Orden
         </v-btn>
       </div>
 
       <!-- GRID DE ÓRDENES -->
       <v-card style="margin-top: 24px;">
-        <v-card-title style="font-size: 13px; padding: 12px;">ÓRDENES DE PRODUCCIÓN</v-card-title>
+        <v-card-title style="font-size: 12px; padding: 12px; font-weight: 600;">ÓRDENES DE PRODUCCIÓN</v-card-title>
         <v-card-text style="padding: 12px;">
           <v-data-table :items="ordenes" :headers="headersOrdenes" density="compact" hover>
             <template #item.acciones="{ item }">
@@ -89,12 +89,12 @@
             </div>
           </div>
 
-          <v-card-text style="padding: 20px;">
+          <v-card-text style="padding: 20px; font-size: 13px;">
             <!-- PASO 1: CREAR ORDEN -->
             <div v-if="pasoActivo === 1">
-              <h3>PASO 1: CREAR ORDEN DE PRODUCCIÓN</h3>
+              <h3 style="font-size: 14px; margin-bottom: 16px;">PASO 1: CREAR ORDEN DE PRODUCCIÓN</h3>
 
-              <div class="prod-form-grid" style="margin-top: 16px;">
+              <div class="prod-form-grid" style="margin-top: 16px; align-items: flex-end;">
                 <v-text-field v-model="ordenForm.fecha_inicio" label="Fecha" type="date" outlined dense />
 
                 <v-select v-model="recetaSeleccionada" :items="productosProduccion" item-title="nombre" item-value="codigo"
@@ -102,27 +102,27 @@
 
                 <v-text-field v-model.number="cantidadReceta" label="Cantidad a Producir" type="number" placeholder="1000" outlined dense />
 
-                <v-btn color="#8b5cf6" variant="flat" @click="agregarReceta" size="large" style="align-self: flex-end;">
-                  <v-icon start>mdi-plus</v-icon> Agregar Receta
+                <v-btn color="#8b5cf6" variant="flat" @click="agregarReceta" size="default">
+                  <v-icon start>mdi-plus</v-icon> Agregar
                 </v-btn>
               </div>
 
               <!-- INFORMACIÓN DE INVENTARIO -->
               <v-card v-if="recetaSeleccionada && inventarioInfo.codigo === recetaSeleccionada" class="prod-info-banner" style="margin-top: 16px;">
-                <v-card-title style="font-size: 13px; padding: 12px;">📊 Análisis de Inventario y Consumo</v-card-title>
+                <v-card-title style="font-size: 11px; padding: 8px 12px; font-weight: 600;">📊 Análisis de Inventario y Consumo</v-card-title>
                 <v-card-text style="padding: 0 12px 12px 12px;">
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                    <div style="padding: 12px; border-radius: 4px; border-left: 4px solid #8b5cf6; background: rgba(139,92,246,0.05);">
-                      <div style="font-size: 11px; opacity: 0.7; margin-bottom: 6px;">Inventario Bodega</div>
-                      <div style="font-size: 20px; font-weight: 700; color: #8b5cf6;">{{ inventarioInfo.stock_actual }}</div>
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #8b5cf6; background: rgba(139,92,246,0.05);">
+                      <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px;">Inventario Bodega</div>
+                      <div style="font-size: 16px; font-weight: 700; color: #8b5cf6;">{{ inventarioInfo.stock_actual }}</div>
                     </div>
-                    <div style="padding: 12px; border-radius: 4px; border-left: 4px solid #f59e0b; background: rgba(245,158,11,0.05);">
-                      <div style="font-size: 11px; opacity: 0.7; margin-bottom: 6px;">Consumo Últimos 7 Días</div>
-                      <div style="font-size: 20px; font-weight: 700; color: #f59e0b;">{{ inventarioInfo.consumo_7_dias }}</div>
+                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #f59e0b; background: rgba(245,158,11,0.05);">
+                      <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px;">Consumo Últimos 7 Días</div>
+                      <div style="font-size: 16px; font-weight: 700; color: #f59e0b;">{{ inventarioInfo.consumo_7_dias }}</div>
                     </div>
-                    <div style="padding: 12px; border-radius: 4px; border-left: 4px solid #10b981; background: rgba(16,185,129,0.05);">
-                      <div style="font-size: 11px; opacity: 0.7; margin-bottom: 6px;">Diferencia (a Producir)</div>
-                      <div style="font-size: 20px; font-weight: 700; color: #10b981;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
+                    <div style="padding: 10px; border-radius: 4px; border-left: 3px solid #10b981; background: rgba(16,185,129,0.05);">
+                      <div style="font-size: 10px; opacity: 0.7; margin-bottom: 4px;">Diferencia (a Producir)</div>
+                      <div style="font-size: 16px; font-weight: 700; color: #10b981;">{{ Math.max(0, inventarioInfo.consumo_7_dias - inventarioInfo.stock_actual) }}</div>
                     </div>
                   </div>
                 </v-card-text>
@@ -130,7 +130,7 @@
 
               <!-- TABLA DE RECETAS EN LA ORDEN -->
               <v-card v-if="recetasEnOrden.length > 0" style="margin-top: 16px;">
-                <v-card-title style="font-size: 13px; padding: 12px;">RECETAS EN LA ORDEN</v-card-title>
+                <v-card-title style="font-size: 11px; padding: 8px 12px; font-weight: 600;">RECETAS EN LA ORDEN</v-card-title>
                 <v-data-table :items="recetasEnOrden" :headers="[
                   { title: 'RECETA', key: 'nombre' },
                   { title: 'CANTIDAD', key: 'cantidad' },
@@ -149,22 +149,22 @@
 
             <!-- PASO 2: INGREDIENTES -->
             <div v-if="pasoActivo === 2">
-              <h3>PASO 2: INGREDIENTES NECESARIOS</h3>
+              <h3 style="font-size: 14px; margin-bottom: 16px;">PASO 2: INGREDIENTES NECESARIOS</h3>
 
-              <v-alert type="info" variant="outlined" icon="mdi-information" style="margin: 16px 0;">
+              <v-alert type="info" variant="outlined" icon="mdi-information" style="margin: 16px 0; font-size: 12px;" density="compact">
                 <strong>Recetas en la orden:</strong> {{ recetasEnOrden.length }} | <strong>Total ingredientes:</strong> {{ ingredientesCalculados.length }}
               </v-alert>
 
-              <v-table density="compact" style="margin-top: 16px;">
-                <thead>
+              <v-table density="compact" style="margin-top: 16px; font-size: 12px;">
+                <thead style="background: rgba(var(--v-theme-on-surface), 0.05);">
                   <tr>
-                    <th>RECETA</th>
-                    <th>INGREDIENTE</th>
-                    <th class="ta-r">CANTIDAD/UNIDAD</th>
-                    <th class="ta-r">UNIDAD</th>
-                    <th class="ta-r">NECESARIA</th>
-                    <th class="ta-r">PRECIO UNITARIO</th>
-                    <th class="ta-r">COSTO TOTAL</th>
+                    <th style="font-size: 11px; font-weight: 600; padding: 8px;">RECETA</th>
+                    <th style="font-size: 11px; font-weight: 600; padding: 8px;">INGREDIENTE</th>
+                    <th class="ta-r" style="font-size: 11px; font-weight: 600; padding: 8px;">CANTIDAD/UNIDAD</th>
+                    <th class="ta-r" style="font-size: 11px; font-weight: 600; padding: 8px;">UNIDAD</th>
+                    <th class="ta-r" style="font-size: 11px; font-weight: 600; padding: 8px;">NECESARIA</th>
+                    <th class="ta-r" style="font-size: 11px; font-weight: 600; padding: 8px;">PRECIO UNITARIO</th>
+                    <th class="ta-r" style="font-size: 11px; font-weight: 600; padding: 8px;">COSTO TOTAL</th>
                   </tr>
                 </thead>
                 <tbody>
