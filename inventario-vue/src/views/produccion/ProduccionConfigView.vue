@@ -36,19 +36,19 @@
             <table class="prod-table">
               <thead>
                 <tr>
-                  <th>RECETA</th>
-                  <th>PRODUCTO</th>
-                  <th>INGREDIENTES</th>
+                  <th>CÓDIGO</th>
+                  <th>NOMBRE</th>
+                  <th>GRUPO</th>
                   <th>COSTO UNITARIO</th>
                   <th>ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in recetas" :key="r.id">
+                <tr v-for="r in recetas" :key="r.codigo">
+                  <td><strong>{{ r.codigo }}</strong></td>
                   <td>{{ r.nombre }}</td>
-                  <td>{{ r.producto_nombre }}</td>
-                  <td>{{ r.total_ingredientes }} items</td>
-                  <td class="ta-r font-mono">${{ r.costo_unitario?.toFixed(2) || '0.00' }}</td>
+                  <td>{{ r.grupo_receta || '—' }}</td>
+                  <td class="ta-r font-mono">${{ parseFloat(r.costo_porcion || r.costo_total || 0).toFixed(2) }}</td>
                   <td class="ta-c">
                     <v-btn size="x-small" variant="text" color="#8b5cf6" @click="editarReceta(r)">
                       <v-icon size="14">mdi-pencil</v-icon>
@@ -87,10 +87,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="a in articulos" :key="a.id">
+                <tr v-for="a in articulos" :key="a.codigo || a.id">
                   <td>{{ a.nombre }}</td>
-                  <td>{{ a.unidad_medida }}</td>
-                  <td class="ta-r font-mono">${{ a.precio?.toFixed(4) || '0.0000' }}</td>
+                  <td>{{ a.und_medida || a.unidad_medida || '—' }}</td>
+                  <td class="ta-r font-mono">${{ parseFloat(a.precio_compra || a.precio || 0).toFixed(4) }}</td>
                   <td class="ta-r">{{ a.stock || 0 }}</td>
                   <td class="ta-c">
                     <v-btn size="x-small" variant="text" color="#8b5cf6" @click="editarArticulo(a)">
@@ -159,6 +159,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import { API_BASE } from '../../utils/constants.js'
 
 const tabActiva = ref('recetas')
 const searchRecetas = ref('')
@@ -166,6 +167,7 @@ const searchArticulos = ref('')
 const filtroEstadoLote = ref('')
 const dlgNuevaReceta = ref(false)
 const dlgNuevoArticulo = ref(false)
+const cargando = ref(false)
 
 const recetas = ref([])
 const articulos = ref([])
@@ -183,41 +185,26 @@ function formatFecha(fecha) {
   return `${m}/${d}/${y}`
 }
 
-function editarReceta(r) {
-  console.log('Editar receta:', r)
-}
-
-function eliminarReceta(id) {
-  console.log('Eliminar receta:', id)
-}
-
-function editarArticulo(a) {
-  console.log('Editar artículo:', a)
-}
-
-function generarNuevoLote() {
-  console.log('Generar nuevo lote')
-}
-
-function verLote(l) {
-  console.log('Ver lote:', l)
-}
+function editarReceta(r) { console.log('Editar receta:', r) }
+function eliminarReceta(id) { console.log('Eliminar receta:', id) }
+function editarArticulo(a) { console.log('Editar artículo:', a) }
+function generarNuevoLote() { console.log('Generar nuevo lote') }
+function verLote(l) { console.log('Ver lote:', l) }
 
 onMounted(async () => {
-  // Cargar datos de ejemplo
-  recetas.value = [
-    { id: 1, nombre: 'Carne de Hamburguesa', producto_nombre: 'Hamburguesa Classic', total_ingredientes: 5, costo_unitario: 2.50 },
-    { id: 2, nombre: 'Pan de Hamburguesa', producto_nombre: 'Pan Classic', total_ingredientes: 4, costo_unitario: 0.30 }
-  ]
-
-  articulos.value = [
-    { id: 1, nombre: 'Carne Molida', unidad_medida: 'KG', precio: 8.50, stock: 100 },
-    { id: 2, nombre: 'Sal Común', unidad_medida: 'KG', precio: 1.20, stock: 50 }
-  ]
-
-  lotes.value = [
-    { id: 1, codigo_lote: 'PROD-20260617-001', producto_nombre: 'Hamburguesa Classic', fecha_vencimiento: '2026-07-17', cantidad_producida: 1000, estado: 'ACTIVO' }
-  ]
+  cargando.value = true
+  try {
+    const [rr, ra] = await Promise.all([
+      fetch(`${API_BASE}/recetas`).then(r => r.json()),
+      fetch(`${API_BASE}/articulos`).then(r => r.json()),
+    ])
+    recetas.value = (rr.data || []).filter(r => r.subproducto === 'SI')
+    articulos.value = ra.data || []
+  } catch (e) {
+    console.error('Error cargando datos:', e)
+  } finally {
+    cargando.value = false
+  }
 })
 </script>
 
