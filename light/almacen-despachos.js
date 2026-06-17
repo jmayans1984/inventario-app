@@ -1099,17 +1099,17 @@ function mostrarDialogoFactor(nombre, factor, esCodigo = false) {
             ${btnRapidoHTML}
 
             <!-- Display del numpad -->
-            <div style="background:var(--bg-input);border-radius:14px;padding:14px 20px;
-                        text-align:center;margin-bottom:12px;border:2px solid var(--border-color)">
-              <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:2px">
+            <div style="background:var(--bg-input);border-radius:14px;padding:18px 20px;
+                        text-align:center;margin-bottom:16px;border:2px solid var(--border-color)">
+              <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">
                 ${esCodigo ? 'Cantidad a registrar' : 'Otra cantidad'}
               </div>
-              <div id="numpadDisplay" style="font-size:36px;font-weight:900;color:var(--text-primary);
-                   min-height:44px;line-height:1">—</div>
+              <div id="numpadDisplay" style="font-size:48px;font-weight:900;color:var(--text-primary);
+                   min-height:60px;line-height:1">—</div>
             </div>
 
             <!-- Grid numpad 3×4 -->
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
               ${[1,2,3,4,5,6,7,8,9].map(n =>
                 `<button onclick="numpadDigit(${n})" style="${_npBtnStyle()}">${n}</button>`
               ).join('')}
@@ -1135,9 +1135,10 @@ function _npBtnStyle(bg) {
     const b = bg || 'var(--bg-card)';
     const c = bg ? 'white' : 'var(--text-primary)';
     const bdr = bg ? 'none' : '1.5px solid var(--border-color)';
-    return `padding:0;height:54px;border-radius:12px;border:${bdr};
-            background:${b};color:${c};font-size:20px;font-weight:700;
-            cursor:pointer;transition:opacity .1s;-webkit-tap-highlight-color:transparent`;
+    return `padding:0;height:72px;border-radius:14px;border:${bdr};
+            background:${b};color:${c};font-size:28px;font-weight:700;
+            cursor:pointer;transition:opacity .1s;-webkit-tap-highlight-color:transparent;
+            touch-action:manipulation;user-select:none`;
 }
 
 // ══════════════════════════════════════════════════════════════
