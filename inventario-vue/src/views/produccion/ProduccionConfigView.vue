@@ -45,7 +45,7 @@
                 <tr v-for="r in recetas" :key="r.codigo">
                   <td><strong>{{ r.codigo }}</strong></td>
                   <td>{{ r.nombre }}</td>
-                  <td class="ta-r font-mono">${{ parseFloat(r.costo_porcion || r.costo_total || 0).toFixed(2) }}</td>
+                  <td class="ta-r font-mono">${{ parseFloat(r.valor || 0).toFixed(2) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -76,8 +76,8 @@
               <tbody>
                 <tr v-for="a in articulos" :key="a.codigo || a.nombre">
                   <td>{{ a.nombre }}</td>
-                  <td>{{ a.und_medida || '—' }}</td>
-                  <td class="ta-r font-mono">${{ parseFloat(a.precio_compra || 0).toFixed(4) }}</td>
+                  <td>{{ a.und || '—' }}</td>
+                  <td class="ta-r font-mono">${{ parseFloat(a.valor || 0).toFixed(4) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -180,7 +180,7 @@ onMounted(async () => {
       fetch(`${API_BASE}/articulos`).then(r => r.json()),
     ])
     recetas.value = (rr.data || []).filter(r => r.subproducto === 'SI')
-    articulos.value = ra.data || []
+    articulos.value = (ra.data || []).filter(a => a.prod_propio !== 'SI')
   } catch (e) {
     console.error('Error cargando datos:', e)
   } finally {
