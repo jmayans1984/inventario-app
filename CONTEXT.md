@@ -181,33 +181,72 @@ inventario-app/
 - Backend logs: `console.error()` en routes, visible en Railway dashboard
 - Frontend: DevTools Vue, Vuetify inspect, localStorage para empresaActual
 
-### GitHub Pages Cache Busting (IMPORTANTE)
-**Proceso CONSISTENTE para forzar recarga en producción:**
-```powershell
-# 1. Build la app
-cd inventario-vue
-npm run build
+### GitHub Pages — Arquitectura del Deployment (IMPORTANTE)
 
-# 2. Obtener nuevo hash (si cambió) o reutilizar
-# Los hashes están en completa/assets/index-XXXXX.js
+**Cómo funciona el sistema actual:**
+- GitHub Pages publica desde la rama `gh-pages`
+- El workflow `.github/workflows/build-deploy.yml` se dispara cuando hay cambios en `inventario-vue/**`
+- El workflow: instala deps → build Vite → commitea `completa/` → pushea a `main` Y `gh-pages`
+- `completa/index.html` es GENERADO por Vite desde `inventario-vue/index.html` (no editar manualmente)
+- El script de auto-reload y la versión van en `inventario-vue/index.html` para que persistan en los builds
 
-# 3. Actualizar index.html MANUALMENTE:
-#    - Incrementar meta version (1.11 → 1.12 → 1.13...)
-#    - Incrementar query params (?v=119 → ?v=120 → ?v=121...)
-#    ejemplo:
-#    <meta name="version" content="1.13" />
-#    <script src="/inventario-app/completa/assets/index-DfmmwHDU.js?v=121"></script>
-#    <link rel="stylesheet" href="/inventario-app/completa/assets/index-BhiTv2Zo.css?v=121">
-
-# 4. Commit y push
-git add -A
-git commit -m "Chore: actualizar a v1.13 (query param 121) - forzar recarga"
-git push
+**Script de auto-reload (en `inventario-vue/index.html`):**
+```html
+<meta name="version" content="X.X" />
+...
+<script>
+  (function(){
+    var v='X.X';
+    if(localStorage.getItem('_appv')!==v){
+      fetch(location.href,{cache:'no-store'}).then(function(r){return r.text()}).then(function(html){
+        if(html.indexOf('content="'+v+'"')<0)return;
+        localStorage.setItem('_appv',v);
+        location.reload(true);
+      });
+    }
+  })();
+</script>
 ```
-**Usuario debe:** Abrir en incógnito o vaciar caché para ver cambios
+- Busca `content="X.X"` en el HTML fetchado (sin caché)
+- Solo recarga si el servidor YA tiene la nueva versión
+- Para forzar nueva recarga: incrementar la versión en ambos lugares (`meta` y `var v=`)
+- También actualizar `APP_VERSION` en `inventario-vue/src/utils/constants.js`
+
+**Para forzar actualización en producción:**
+```powershell
+# Solo cambiar la versión en inventario-vue/index.html y constants.js
+# El workflow hace el build y deploy automáticamente
+# Después: abrir en incógnito la primera vez
+```
+
+**Problemas que tuvimos y sus soluciones:**
+
+| Problema | Causa | Solución |
+|----------|-------|----------|
+| `gh-pages` desactualizado | El workflow solo pusheaba a `main` | Agregar `git push -f origin HEAD:gh-pages` al workflow |
+| `npm ci` falla | `package-lock.json` está en `.gitignore` | Usar `npm install` en el workflow |
+| `git push 403` en workflow | GITHUB_TOKEN sin permisos de escritura | Agregar `permissions: contents: write` al job |
+| Workflow no se dispara | Cambio en `.github/` no cumple path filter `inventario-vue/**` | Hacer un cambio dummy en `inventario-vue/index.html` |
+| `gh-pages` muy atrás | Fix del workflow no se ejecutó (sin cambios en `inventario-vue/`) | `git push -f origin main:gh-pages` manualmente |
+| Página en caché | Browser sirve HTML viejo | Abrir en incógnito o Ctrl+Shift+R |
+
+**Estado del workflow (`.github/workflows/build-deploy.yml`):**
+```yaml
+jobs:
+  build:
+    permissions:
+      contents: write    # ← CRÍTICO para poder hacer git push
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'  # sin cache (package-lock no está en git)
+      - run: npm install      # no npm ci
+      - run: npm run build
+      - run: |
+          git push origin HEAD:main
+          git push -f origin HEAD:gh-pages  # ← pushea a las DOS ramas
+```
 
 ### Próxima sesión
-- **Verificar:** Si v1.13 finalmente se muestra (GitHub Pages caché)
-- **Si aún falla:** Revisar endpoint `/api/detalle-inventario/analisis/{codigo}` retorna datos
 - **Completar:** Paso 4 - Generar etiquetas (diseño label 4x6)
 - **Luego:** Franquicia + Precios (P1)
