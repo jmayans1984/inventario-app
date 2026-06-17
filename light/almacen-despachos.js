@@ -318,8 +318,10 @@ async function procesarScan(barcode) {
         const data = await res.json();
 
         if (!data.found) {
+            console.log('[SCAN] Barcode no encontrado en API. Cache:', barcodeCache[barcode]);
             const cached = barcodeCache[barcode];
             if (cached) {
+                console.log('[SCAN] Usando factor de cache:', cached);
                 const codigo = cached.productoCodigo;
                 const factor = cached.factor;
                 const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
