@@ -1737,7 +1737,7 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
 
     const emp = parseInt(empresa);
     const obs = (observaciones || '').trim().toUpperCase();
-    const TIPO = 'AJUSTE DE INVENTARIO';
+    const TIPO = 'TOMA FISICA';
 
     const client = await pool.connect();
     try {
