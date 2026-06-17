@@ -116,7 +116,6 @@ async function cargarDatos() {
 
 async function guardarMapeo() {
   if (!recetaSeleccionada.value || !productoSeleccionado.value) {
-    alert('Por favor selecciona una receta y un producto')
     return
   }
 
@@ -134,7 +133,6 @@ async function guardarMapeo() {
       throw new Error('Error al guardar el mapeo')
     }
 
-    alert('Mapeo guardado correctamente')
     recetaSeleccionada.value = ''
     productoSeleccionado.value = ''
     await cargarDatos()
@@ -156,7 +154,6 @@ async function eliminarMapeo(codigoReceta) {
       throw new Error('Error al eliminar el mapeo')
     }
 
-    alert('Mapeo eliminado correctamente')
     await cargarDatos()
   } catch (e) {
     console.error('Error:', e)
