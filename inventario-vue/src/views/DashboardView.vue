@@ -20,30 +20,32 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
-           WEATHER KPI
+           WEATHER KPI - TODO EN UNA FILA
       ══════════════════════════════════════════════════════ -->
       <div class="dweather-container">
+        <!-- Clima actual (hoy) -->
         <div class="dweather-main">
           <div class="dweather-bg" :style="{ background: weatherGradient }"></div>
           <div class="dweather-content">
             <div class="dweather-icon">{{ weatherIcon }}</div>
             <div class="dweather-body">
+              <div class="dweather-label">Hoy</div>
               <div class="dweather-temp">{{ tempActualF }}°F</div>
               <div class="dweather-condition">{{ weatherCondition }}</div>
               <div class="dweather-location">📍 {{ ubicacion }}</div>
-              <div v-if="precipitacion > 0" class="dweather-rain">🌧️ {{ precipitacion }}% chance de lluvia</div>
+              <div v-if="precipitacion > 0" class="dweather-rain">🌧️ {{ precipitacion }}%</div>
             </div>
           </div>
+        </div>
 
-          <!-- Pronóstico 5 días dentro del panel -->
-          <div class="dweather-forecast">
-            <div v-for="(day, idx) in proximos5Dias" :key="idx" class="dforecast-day">
-              <div class="dfd-dayname">{{ day.dayName }}</div>
-              <div class="dfd-date">{{ day.date }}</div>
-              <div class="dfd-icon">{{ day.icon }}</div>
-              <div class="dfd-temp">{{ day.tempF }}°F</div>
-              <div class="dfd-rain" v-if="day.rain > 0">{{ day.rain }}%</div>
-            </div>
+        <!-- Pronóstico 5 días siguientes en fila -->
+        <div class="dweather-forecast">
+          <div v-for="(day, idx) in proximos5Dias" :key="idx" class="dforecast-day">
+            <div class="dfd-dayname">{{ day.dayName }}</div>
+            <div class="dfd-date">{{ day.date }}</div>
+            <div class="dfd-icon">{{ day.icon }}</div>
+            <div class="dfd-temp">{{ day.tempF }}°F</div>
+            <div class="dfd-rain" v-if="day.rain > 0">{{ day.rain }}%</div>
           </div>
         </div>
       </div>
@@ -224,13 +226,16 @@ const alertas = ref([])
 async function cargarAlertas() {
   try {
     const notificaciones = await notificacionesService.obtenerNotificaciones()
-    alertas.value = notificaciones.map(n => ({
-      tipo: n.tipo,
-      icon: obtenerIconoTipo(n.tipo),
-      titulo: n.titulo,
-      descripcion: n.mensaje,
-      hora: formatFecha(n.fecha_creacion)
-    }))
+    console.log('Notificaciones cargadas:', notificaciones)
+    if (Array.isArray(notificaciones)) {
+      alertas.value = notificaciones.map(n => ({
+        tipo: n.tipo || 'INFO',
+        icon: obtenerIconoTipo(n.tipo || 'INFO'),
+        titulo: n.titulo,
+        descripcion: n.mensaje,
+        hora: formatFecha(n.fecha_creacion)
+      }))
+    }
   } catch (e) {
     console.error('Error cargando alertas:', e)
     alertas.value = []
@@ -458,8 +463,9 @@ function fmtFecha(f) {
 /* ══ WEATHER CARD ════════════════════════════════════════════ */
 .dweather-container {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-direction: row;
+  gap: 12px;
+  align-items: stretch;
 }
 
 .dweather-main {
@@ -467,7 +473,10 @@ function fmtFecha(f) {
   border-radius: 16px;
   overflow: hidden;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  min-width: 280px;
+  flex-shrink: 0;
 }
 
 .dweather-bg {
@@ -484,74 +493,82 @@ function fmtFecha(f) {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
   color: white;
   width: 100%;
-  padding: 24px 40px;
-  min-height: 160px;
+  padding: 20px 24px;
 }
 
 .dweather-icon {
-  font-size: 70px;
+  font-size: 50px;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .dweather-body {
   text-align: left;
+  flex: 1;
+}
+
+.dweather-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: 2px;
+  letter-spacing: 0.5px;
 }
 
 .dweather-temp {
-  font-size: 42px;
+  font-size: 32px;
   font-weight: 900;
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .dweather-condition {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
   opacity: 0.95;
 }
 
 .dweather-location {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
   opacity: 0.9;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .dweather-rain {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   opacity: 0.95;
 }
 
 /* ══ Pronóstico 5 días ═══════════════════════════════════════ */
 .dweather-forecast {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  padding: 0 40px 20px 40px;
-  background: rgba(0, 0, 0, 0.08);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .dforecast-day {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 10px;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 10px;
+  padding: 12px 8px;
   text-align: center;
-  backdrop-filter: blur(10px);
-  color: white;
+  flex: 1;
+  min-width: 0;
 }
 
 .dfd-dayname {
   font-size: 11px;
   font-weight: 800;
-  color: white;
+  color: rgb(var(--v-theme-on-surface));
   margin-bottom: 2px;
   text-transform: capitalize;
 }
@@ -559,27 +576,27 @@ function fmtFecha(f) {
 .dfd-date {
   font-size: 9px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(var(--v-theme-on-surface), 0.5);
   margin-bottom: 6px;
   letter-spacing: 0.5px;
 }
 
 .dfd-icon {
-  font-size: 28px;
+  font-size: 24px;
   margin-bottom: 4px;
 }
 
 .dfd-temp {
   font-size: 13px;
   font-weight: 800;
-  color: white;
+  color: rgb(var(--v-theme-on-surface));
   margin-bottom: 3px;
 }
 
 .dfd-rain {
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  color: #06b6d4;
 }
 
 /* ══ PANEL DE ALERTAS ════════════════════════════════════════ */
