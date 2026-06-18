@@ -100,7 +100,7 @@
 
             <!-- ETIQUETA (select de etiquetas_producto) -->
             <div class="field-group">
-              <label class="field-label">Etiqueta de Producto *</label>
+              <label class="field-label">Producto *</label>
               <select v-model="form.etiqueta" class="field-input field-select" :class="{ 'field-error': err.etiqueta }">
                 <option value="">— Seleccionar —</option>
                 <option v-for="e in etiquetas" :key="e.codigo" :value="e.codigo">
@@ -515,7 +515,7 @@ onMounted(cargar)
 .field-input:focus { border-color: #10b981; }
 .field-input.field-error { border-color: #ef4444; }
 .field-input:disabled { opacity: .55; cursor: not-allowed; }
-.field-select { appearance: auto; cursor: pointer; }
+.field-select { appearance: auto; cursor: pointer; background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
 .field-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 .cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
 .cod-wrap { position: relative; }
