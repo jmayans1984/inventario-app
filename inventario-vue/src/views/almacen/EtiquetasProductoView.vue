@@ -68,9 +68,11 @@
                 </span>
               </td>
               <td class="col-acc">
-                <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(e)" />
-                <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
-                  :loading="eliminando === e.codigo" @click="eliminar(e)" />
+                <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(e)" />
+                  <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
+                    :loading="eliminando === e.codigo" @click="eliminar(e)" />
+                </div>
               </td>
             </tr>
           </tbody>

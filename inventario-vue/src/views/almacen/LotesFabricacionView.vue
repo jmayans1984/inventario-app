@@ -41,7 +41,7 @@
           <thead>
             <tr>
               <th>CÓDIGO LOTE</th>
-              <th>PRODUCTO / ETIQUETA</th>
+              <th>PRODUCTO</th>
               <th class="col-center">FECHA FABRICACIÓN</th>
               <th class="col-center">FECHA VENCIMIENTO</th>
               <th>RESPONSABLE</th>
@@ -57,10 +57,7 @@
             </tr>
             <tr v-for="l in filtrados" :key="l.codigo" class="data-row">
               <td><span class="cod-badge">{{ l.codigo }}</span></td>
-              <td>
-                <div class="fw500">{{ l.etiqueta_nombre || '—' }}</div>
-                <div class="sub-txt">{{ l.etiqueta }}</div>
-              </td>
+              <td class="fw500">{{ l.etiqueta_nombre || '—' }}</td>
               <td class="col-center">{{ fmtFecha(l.fecha_fab) }}</td>
               <td class="col-center">
                 <span :class="venceProximo(l.fecha_vence) ? 'chip-warn' : ''">
