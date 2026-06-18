@@ -490,7 +490,7 @@ const totalUnidades = computed(() => {
 // ── Helpers ───────────────────────────────────────────────────
 function fmtFecha(f) {
   if (!f) return '—'
-  const d = new Date(f + (f.includes('T') ? '' : 'T12:00:00'))
+  const d = new Date(String(f).substring(0, 10) + 'T12:00:00')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   const yy = d.getFullYear()
