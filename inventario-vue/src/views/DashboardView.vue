@@ -87,6 +87,7 @@ import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import { notificacionesService } from '../services/notificaciones.service'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -210,42 +211,38 @@ const proximos5Dias = computed(() => {
 })
 
 // ── Alertas del sistema ────────────────────────────────────────
-const alertas = computed(() => {
-  const alts = []
+const alertas = ref([])
 
-  // Alerta de lluvia si hay probabilidad alta
-  if (precipitacion.value > 70) {
-    alts.push({
-      tipo: 'CRÍTICO',
-      icon: '⚠️',
-      titulo: 'Lluvia Moderada Esperada',
-      descripcion: 'Se espera lluvia moderada en las próximas horas. Tomar precauciones.',
-      hora: `${String(ahora.value.getHours()).padStart(2, '0')}:${String(ahora.value.getMinutes()).padStart(2, '0')}`
-    })
+async function cargarAlertas() {
+  try {
+    const notificaciones = await notificacionesService.obtenerNotificaciones()
+    alertas.value = notificaciones.map(n => ({
+      tipo: n.tipo,
+      icon: obtenerIconoTipo(n.tipo),
+      titulo: n.titulo,
+      descripcion: n.mensaje,
+      hora: formatFecha(n.fecha_creacion)
+    }))
+  } catch (e) {
+    console.error('Error cargando alertas:', e)
+    alertas.value = []
   }
+}
 
-  // Alerta de información general
-  alts.push({
-    tipo: 'INFO',
-    icon: 'ℹ️',
-    titulo: 'Sistema Operativo Normal',
-    descripcion: 'Todos los módulos funcionando correctamente. Continúa con tus actividades.',
-    hora: `${String(ahora.value.getHours()).padStart(2, '0')}:${String(ahora.value.getMinutes()).padStart(2, '0')}`
-  })
-
-  // Alerta de temperatura
-  if (tempActual.value > 30) {
-    alts.push({
-      tipo: 'ADVERTENCIA',
-      icon: '🌡️',
-      titulo: 'Temperatura Elevada',
-      descripcion: 'La temperatura está por encima de 30°C. Mantente hidratado.',
-      hora: `${String(ahora.value.getHours()).padStart(2, '0')}:${String(ahora.value.getMinutes()).padStart(2, '0')}`
-    })
+function obtenerIconoTipo(tipo) {
+  const iconMap = {
+    'CRÍTICO': '⚠️',
+    'ADVERTENCIA': '⚡',
+    'INFO': 'ℹ️'
   }
+  return iconMap[tipo] || 'ℹ️'
+}
 
-  return alts
-})
+function formatFecha(fecha) {
+  if (!fecha) return '—'
+  const d = new Date(fecha)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 // ── Datos del dashboard ───────────────────────────────────────
 const resumen  = ref(null)
@@ -265,7 +262,10 @@ async function cargarResumen() {
   finally { cargando.value = false }
 }
 
-onMounted(cargarResumen)
+onMounted(() => {
+  cargarResumen()
+  cargarAlertas()
+})
 
 // ── Formatters ────────────────────────────────────────────────
 function fmt(val) {
