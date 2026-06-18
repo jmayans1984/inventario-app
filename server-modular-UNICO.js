@@ -2062,6 +2062,158 @@ app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
 });
 // ── FIN REPORTE CONSUMO INSUMOS ───────────────────────────────────
 
+// ═══════════════════════════════════════════════════════════════════
+// ETIQUETAS PRODUCTO
+// ═══════════════════════════════════════════════════════════════════
+app.get('/api/almacen/etiquetas-producto', async (req, res) => {
+    try {
+        const { empresa } = req.query;
+        if (!empresa) return res.status(400).json({ success: false, error: 'Falta empresa' });
+        const r = await pool.query(
+            `SELECT * FROM etiquetas_producto WHERE empresa = $1 ORDER BY producto`,
+            [parseInt(empresa)]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (e) {
+        console.error('Error GET /api/almacen/etiquetas-producto:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/almacen/etiquetas-producto', async (req, res) => {
+    try {
+        const { codigo, producto, empresa, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo } = req.body;
+        if (!codigo || !producto || !empresa) return res.status(400).json({ success: false, error: 'Código, producto y empresa son requeridos' });
+        await pool.query(
+            `INSERT INTO etiquetas_producto (codigo, producto, empresa, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [codigo, producto, parseInt(empresa), peso_neto_oz||null, peso_neto_g||null, porciones||null, tamano_porcion||null, ingredientes||null, alergenos||null, instrucciones||null, dias_vencimiento||null, activo||'SI']
+        );
+        const r = await pool.query(`SELECT * FROM etiquetas_producto WHERE codigo = $1`, [codigo]);
+        res.json({ success: true, data: r.rows[0] });
+    } catch (e) {
+        console.error('Error POST /api/almacen/etiquetas-producto:', e);
+        if (e.code === '23505') return res.status(400).json({ success: false, error: 'Ya existe una etiqueta con ese código' });
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.put('/api/almacen/etiquetas-producto/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { producto, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo } = req.body;
+        await pool.query(
+            `UPDATE etiquetas_producto SET producto=$1, peso_neto_oz=$2, peso_neto_g=$3, porciones=$4, tamano_porcion=$5, ingredientes=$6, alergenos=$7, instrucciones=$8, dias_vencimiento=$9, activo=$10 WHERE codigo=$11`,
+            [producto, peso_neto_oz||null, peso_neto_g||null, porciones||null, tamano_porcion||null, ingredientes||null, alergenos||null, instrucciones||null, dias_vencimiento||null, activo||'SI', codigo]
+        );
+        const r = await pool.query(`SELECT * FROM etiquetas_producto WHERE codigo = $1`, [codigo]);
+        res.json({ success: true, data: r.rows[0] });
+    } catch (e) {
+        console.error('Error PUT /api/almacen/etiquetas-producto:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/almacen/etiquetas-producto/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        await pool.query(`DELETE FROM etiquetas_producto WHERE codigo = $1`, [codigo]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error DELETE /api/almacen/etiquetas-producto:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// LOTES DE FABRICACIÓN
+// ═══════════════════════════════════════════════════════════════════
+app.get('/api/almacen/lotes-fabricacion/proximo-codigo', async (req, res) => {
+    try {
+        const hoy = new Date();
+        const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+        const dd = String(hoy.getDate()).padStart(2, '0');
+        const aa = String(hoy.getFullYear()).slice(-2);
+        const prefijo = `${mm}${dd}${aa}`;
+        const r = await pool.query(
+            `SELECT codigo FROM lotes_fabricacion WHERE codigo LIKE $1 ORDER BY codigo DESC LIMIT 1`,
+            [`${prefijo}%`]
+        );
+        const consecutivo = r.rows[0] ? parseInt(r.rows[0].codigo.slice(-3)) + 1 : 1;
+        res.json({ success: true, codigo: `${prefijo}${String(consecutivo).padStart(3, '0')}` });
+    } catch (e) {
+        console.error('Error GET proximo-codigo lotes-fabricacion:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/almacen/lotes-fabricacion', async (req, res) => {
+    try {
+        const { empresa } = req.query;
+        const r = await pool.query(
+            `SELECT lf.*, ep.producto AS etiqueta_nombre
+             FROM lotes_fabricacion lf
+             LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta AND ep.empresa = $1
+             ORDER BY lf.codigo DESC`,
+            [parseInt(empresa) || 0]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (e) {
+        console.error('Error GET /api/almacen/lotes-fabricacion:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/almacen/lotes-fabricacion', async (req, res) => {
+    try {
+        const { codigo, etiqueta, fecha_fab, fecha_vence, responsable, observaciones } = req.body;
+        if (!codigo || !etiqueta || !fecha_fab) return res.status(400).json({ success: false, error: 'Código, etiqueta y fecha de fabricación son requeridos' });
+        await pool.query(
+            `INSERT INTO lotes_fabricacion (codigo, etiqueta, fecha_fab, fecha_vence, responsable, observaciones) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [codigo, etiqueta, fecha_fab, fecha_vence||null, responsable||null, observaciones||null]
+        );
+        const r = await pool.query(
+            `SELECT lf.*, ep.producto AS etiqueta_nombre FROM lotes_fabricacion lf LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta WHERE lf.codigo = $1`,
+            [codigo]
+        );
+        res.json({ success: true, data: r.rows[0] });
+    } catch (e) {
+        console.error('Error POST /api/almacen/lotes-fabricacion:', e);
+        if (e.code === '23505') return res.status(400).json({ success: false, error: 'Ya existe un lote con ese código' });
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.put('/api/almacen/lotes-fabricacion/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { etiqueta, fecha_fab, fecha_vence, responsable, observaciones } = req.body;
+        await pool.query(
+            `UPDATE lotes_fabricacion SET etiqueta=$1, fecha_fab=$2, fecha_vence=$3, responsable=$4, observaciones=$5 WHERE codigo=$6`,
+            [etiqueta, fecha_fab, fecha_vence||null, responsable||null, observaciones||null, codigo]
+        );
+        const r = await pool.query(
+            `SELECT lf.*, ep.producto AS etiqueta_nombre FROM lotes_fabricacion lf LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta WHERE lf.codigo = $1`,
+            [codigo]
+        );
+        res.json({ success: true, data: r.rows[0] });
+    } catch (e) {
+        console.error('Error PUT /api/almacen/lotes-fabricacion:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/almacen/lotes-fabricacion/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        await pool.query(`DELETE FROM lotes_fabricacion WHERE codigo = $1`, [codigo]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error DELETE /api/almacen/lotes-fabricacion:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // POST /api/inventario/movimientos - Registrar movimientos (formato nuevo)
 app.post('/api/inventario/movimientos', async (req, res) => {
     const { movimientos } = req.body;
