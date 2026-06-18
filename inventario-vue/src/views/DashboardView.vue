@@ -22,14 +22,27 @@
       <!-- ══════════════════════════════════════════════════════
            WEATHER KPI
       ══════════════════════════════════════════════════════ -->
-      <div class="dash-weather">
-        <div class="dweather-bg" :style="{ background: weatherGradient }"></div>
-        <div class="dweather-content">
-          <div class="dweather-icon">{{ weatherIcon }}</div>
-          <div class="dweather-body">
-            <div class="dweather-temp">{{ tempActual }}°C</div>
-            <div class="dweather-condition">{{ weatherCondition }}</div>
-            <div class="dweather-location">📍 {{ ubicacion }}</div>
+      <div class="dweather-container">
+        <div class="dweather-main">
+          <div class="dweather-bg" :style="{ background: weatherGradient }"></div>
+          <div class="dweather-content">
+            <div class="dweather-icon">{{ weatherIcon }}</div>
+            <div class="dweather-body">
+              <div class="dweather-temp">{{ tempActual }}°</div>
+              <div class="dweather-condition">{{ weatherCondition }}</div>
+              <div class="dweather-location">📍 {{ ubicacion }}</div>
+              <div v-if="precipitacion > 0" class="dweather-rain">🌧️ {{ precipitacion }}% chance de lluvia</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pronóstico 5 días -->
+        <div class="dweather-forecast">
+          <div v-for="(day, idx) in proximos5Dias" :key="idx" class="dforecast-day">
+            <div class="dfd-date">{{ day.date }}</div>
+            <div class="dfd-icon">{{ day.icon }}</div>
+            <div class="dfd-temp">{{ day.temp }}°</div>
+            <div class="dfd-rain" v-if="day.rain > 0">{{ day.rain }}%</div>
           </div>
         </div>
       </div>
@@ -175,33 +188,84 @@ const greetingEmoji = computed(() => {
 })
 
 // ── Clima ──────────────────────────────────────────────────────
-const ubicacion = 'Medellín, Colombia'
+const ubicacion = 'Orlando, Florida, USA'
+
 const tempActual = computed(() => {
   const h = ahora.value.getHours()
-  if (h < 6) return 18
-  if (h < 12) return 20 + Math.floor(Math.random() * 5)
-  if (h < 18) return 26 + Math.floor(Math.random() * 4)
-  return 22 + Math.floor(Math.random() * 3)
+  if (h < 6) return 15
+  if (h < 12) return 22 + Math.floor(Math.random() * 6)
+  if (h < 18) return 28 + Math.floor(Math.random() * 5)
+  return 24 + Math.floor(Math.random() * 4)
+})
+
+const precipitacion = computed(() => {
+  const conditions = Math.random()
+  if (conditions > 0.7) return 80
+  if (conditions > 0.5) return 60
+  if (conditions > 0.3) return 30
+  return 10
 })
 
 const weatherCondition = computed(() => {
-  const conditions = ['Soleado', 'Parcialmente Nublado', 'Nublado', 'Lluvia Ligera']
-  return conditions[Math.floor(Math.random() * conditions.length)]
+  if (precipitacion.value > 70) return 'Lluvia Moderada'
+  if (precipitacion.value > 50) return 'Lluvia Ligera'
+  if (precipitacion.value > 30) return 'Nublado'
+  if (precipitacion.value > 15) return 'Parcialmente Nublado'
+  return 'Soleado'
 })
 
 const weatherIcon = computed(() => {
-  if (weatherCondition.value.includes('Soleado')) return '☀️'
-  if (weatherCondition.value.includes('Parcialmente')) return '⛅'
-  if (weatherCondition.value.includes('Nublado')) return '☁️'
-  return '🌧️'
+  if (precipitacion.value > 70) return '🌧️'
+  if (precipitacion.value > 50) return '🌦️'
+  if (precipitacion.value > 30) return '☁️'
+  if (precipitacion.value > 15) return '⛅'
+  return '☀️'
 })
 
 const weatherGradient = computed(() => {
   const h = ahora.value.getHours()
-  if (h < 6) return 'linear-gradient(135deg, #1a1a2e, #16213e)'
-  if (h < 12) return 'linear-gradient(135deg, #87ceeb, #e0f6ff)'
-  if (h < 18) return 'linear-gradient(135deg, #ffa500, #ffb347)'
-  return 'linear-gradient(135deg, #1a237e, #3949ab)'
+  let baseGradient = ''
+
+  // Según la hora del día
+  if (h < 6) baseGradient = 'linear-gradient(135deg, #0a0e27, #1a1a3f)'
+  else if (h < 9) baseGradient = 'linear-gradient(135deg, #667eea, #764ba2)'
+  else if (h < 12) baseGradient = 'linear-gradient(135deg, #87ceeb, #e0f6ff)'
+  else if (h < 15) baseGradient = 'linear-gradient(135deg, #ffd89b, #19547b)'
+  else if (h < 18) baseGradient = 'linear-gradient(135deg, #ff9a56, #ff6a88)'
+  else if (h < 20) baseGradient = 'linear-gradient(135deg, #ff8c42, #ff5722)'
+  else baseGradient = 'linear-gradient(135deg, #2c3e50, #3498db)'
+
+  // Oscurecer según el clima
+  if (precipitacion.value > 70) return 'linear-gradient(135deg, #4a5568, #2d3748)'
+  if (precipitacion.value > 50) return 'linear-gradient(135deg, #667eea, #5a67d8)'
+  if (precipitacion.value > 30) return 'linear-gradient(135deg, #718096, #4a5568)'
+
+  return baseGradient
+})
+
+const proximos5Dias = computed(() => {
+  const dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie']
+  const today = new Date()
+  return dias.map((d, i) => {
+    const fecha = new Date(today)
+    fecha.setDate(fecha.getDate() + i + 1)
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0')
+    const dia = String(fecha.getDate()).padStart(2, '0')
+
+    const rainChance = [30, 60, 20, 50, 40][i]
+    let icon = '☀️'
+    if (rainChance > 70) icon = '🌧️'
+    else if (rainChance > 50) icon = '🌦️'
+    else if (rainChance > 30) icon = '☁️'
+    else if (rainChance > 15) icon = '⛅'
+
+    return {
+      date: `${mes}/${dia}`,
+      icon,
+      temp: 24 + Math.floor(Math.random() * 6),
+      rain: rainChance
+    }
+  })
 })
 
 // ── Datos del dashboard ───────────────────────────────────────
@@ -473,11 +537,17 @@ function fmtFecha(f) {
 }
 
 /* ══ WEATHER CARD ════════════════════════════════════════════ */
-.dash-weather {
+.dweather-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dweather-main {
   position: relative;
   border-radius: 16px;
   overflow: hidden;
-  height: 180px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -498,14 +568,13 @@ function fmtFecha(f) {
   display: flex;
   align-items: center;
   gap: 24px;
-  text-align: center;
   color: white;
   width: 100%;
   padding: 0 40px;
 }
 
 .dweather-icon {
-  font-size: 80px;
+  font-size: 70px;
   line-height: 1;
   flex-shrink: 0;
 }
@@ -515,24 +584,73 @@ function fmtFecha(f) {
 }
 
 .dweather-temp {
-  font-size: 48px;
+  font-size: 42px;
   font-weight: 900;
   line-height: 1;
   margin-bottom: 4px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .dweather-condition {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
   opacity: 0.95;
 }
 
 .dweather-location {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   opacity: 0.9;
+  margin-bottom: 4px;
+}
+
+.dweather-rain {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
+/* ══ Pronóstico 5 días ═══════════════════════════════════════ */
+.dweather-forecast {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.dforecast-day {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.dfd-date {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.dfd-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.dfd-temp {
+  font-size: 13px;
+  font-weight: 800;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 3px;
+}
+
+.dfd-rain {
+  font-size: 11px;
+  font-weight: 600;
+  color: #06b6d4;
 }
 
 /* ══ CUERPO PRINCIPAL ════════════════════════════════════════ */
