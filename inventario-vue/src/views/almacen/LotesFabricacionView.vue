@@ -349,7 +349,7 @@ function imprimirEtiqueta(l) {
   .lbl-header .emp-name { font-size: 13pt; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
   .lbl-header .lot-code { font-size: 8pt; color: #6ee7b7; margin-top: 2px; letter-spacing: 2px; font-weight: 700; font-family: monospace; }
 
-  .lbl-product { background: #f0fdf4; padding: 8px 12px; border-bottom: 2px solid #064e3b; }
+  .lbl-product { background: #f0fdf4; padding: 8px 12px; border-bottom: 2px solid #064e3b; text-align: center; }
   .lbl-product .prod-name { font-size: 15pt; font-weight: 900; color: #064e3b; text-transform: uppercase; line-height: 1.1; }
   .lbl-product .prod-sub { font-size: 7.5pt; color: #555; margin-top: 3px; }
 
@@ -389,46 +389,46 @@ function imprimirEtiqueta(l) {
 
   <div class="lbl-product">
     <div class="prod-name">${l.etiqueta_nombre || l.etiqueta}</div>
-    ${l.tamano_porcion || l.porciones ? `<div class="prod-sub">${l.porciones ? 'Porciones: ' + l.porciones : ''}${l.porciones && l.tamano_porcion ? ' &nbsp;|&nbsp; ' : ''}${l.tamano_porcion ? 'Tamaño porción: ' + l.tamano_porcion : ''}</div>` : ''}
+    <div class="lot-code" style="font-size:7.5pt;color:#047857;margin-top:3px;font-family:monospace;letter-spacing:1px;">LOT: ${l.codigo}</div>
   </div>
 
   <div class="lbl-body">
     <div class="dates-row">
       <div class="date-box">
-        <div class="date-lbl">Fecha Fabricación</div>
+        <div class="date-lbl">Manufactured</div>
         <div class="date-val">${fmtD(l.fecha_fab)}</div>
       </div>
       <div class="date-box exp">
-        <div class="date-lbl">Fecha Vencimiento</div>
+        <div class="date-lbl">Best By / Exp. Date</div>
         <div class="date-val">${fmtD(l.fecha_vence)}</div>
       </div>
     </div>
 
     ${(l.peso_neto_oz || l.peso_neto_g) ? `
     <div class="weight-row">
-      ${l.peso_neto_oz ? `<div class="w-box"><div class="w-lbl">Peso Neto</div><div class="w-val">${l.peso_neto_oz} oz</div></div>` : ''}
-      ${l.peso_neto_g  ? `<div class="w-box"><div class="w-lbl">Peso Neto</div><div class="w-val">${l.peso_neto_g} g</div></div>` : ''}
+      ${l.peso_neto_oz ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_oz} oz</div></div>` : ''}
+      ${l.peso_neto_g  ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_g} g</div></div>` : ''}
+      ${l.porciones    ? `<div class="w-box"><div class="w-lbl">Servings</div><div class="w-val">${l.porciones}</div></div>` : ''}
+      ${l.tamano_porcion ? `<div class="w-box"><div class="w-lbl">Serving Size</div><div class="w-val">${l.tamano_porcion}</div></div>` : ''}
     </div>` : ''}
 
     ${l.ingredientes ? `
     <div>
-      <div class="section-title">Ingredientes</div>
+      <div class="section-title">Ingredients</div>
       <div class="section-txt">${l.ingredientes}</div>
     </div>` : ''}
 
     ${l.alergenos ? `
     <div>
-      <div class="section-title">Contiene / Alérgenos</div>
+      <div class="section-title">Contains / Allergens</div>
       <div class="alerg-txt">${l.alergenos}</div>
     </div>` : ''}
 
     ${l.instrucciones ? `
     <div>
-      <div class="section-title">Instrucciones</div>
+      <div class="section-title">Storage Instructions</div>
       <div class="instr-txt">${l.instrucciones}</div>
     </div>` : ''}
-
-    ${l.responsable ? `<div class="resp-row">Responsable: <span>${l.responsable}</span></div>` : ''}
   </div>
 
   <div class="lbl-barcode">
