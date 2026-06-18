@@ -103,7 +103,7 @@
                         </div>
                         <v-icon size="10" style="opacity:0.2;margin-top:2px">mdi-pencil</v-icon>
                       </div>
-                      <div v-else class="sg-libre">{{ t.ausencia_tipo || 'LIBRE' }}</div>
+                      <div v-else class="sg-libre">{{ t.ausencia_tipo || 'DAY OFF' }}</div>
                     </template>
                     <template v-else>
                       <div class="sg-sin-turno">+</div>

@@ -65,7 +65,7 @@
                     <template v-if="modoImpresion==='verde'">
                       <span v-if="t && !t.es_dia_libre" class="rh-verde-check">✓</span>
                       <span v-else-if="t && t.es_dia_libre && getOtroCcostoNombre(emp.id, d.offset, cc.codigo)" class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
-                      <span v-else-if="t && t.es_dia_libre" class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
+                      <span v-else-if="t && t.es_dia_libre" class="rh-libre">{{ t.ausencia_tipo || 'DAY OFF' }}</span>
                       <span v-else class="rh-vacio"></span>
                     </template>
                     <template v-else>
@@ -80,7 +80,7 @@
                         <span class="rh-otro-cc">{{ getOtroCcostoNombre(emp.id, d.offset, cc.codigo) }}</span>
                       </template>
                       <template v-else-if="t && t.es_dia_libre">
-                        <span class="rh-libre">{{ t.ausencia_tipo || 'LIBRE' }}</span>
+                        <span class="rh-libre">{{ t.ausencia_tipo || 'DAY OFF' }}</span>
                       </template>
                       <template v-else>
                         <span class="rh-vacio">—</span>
@@ -399,11 +399,11 @@ function imprimirPDF() {
   const genTurno = (t, otroCcNombre = null) => {
     if (modo === 'verde') {
       if (!t) return ''
-      if (t.es_dia_libre) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
+      if (t.es_dia_libre) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="libre">${t.ausencia_tipo || 'DAY OFF'}</span>`
       return `<span class="check-verde">✓</span>`
     }
     if (!t) return `<span class="vacio">—</span>`
-    if (t.es_dia_libre) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="libre">${t.ausencia_tipo || 'LIBRE'}</span>`
+    if (t.es_dia_libre) return otroCcNombre ? `<span class="otro-cc">${otroCcNombre}</span>` : `<span class="libre">${t.ausencia_tipo || 'DAY OFF'}</span>`
     const ini = (t.real_inicio || t.prog_inicio || '').slice(0,5)
     const fin = (t.real_fin   || t.prog_fin   || '').slice(0,5)
     const hrs = parseFloat(t.real_horas ?? t.prog_horas ?? 0).toFixed(2)
