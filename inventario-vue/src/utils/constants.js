@@ -94,6 +94,7 @@ export const MODULES = [
         { name: 'Control de Stock', icon: 'mdi-package-variant-closed', path: '/almacen/configuracion/control-stock', requiredTipo: 'PROVEEDOR' },
         { name: 'Impresión de Códigos de Barras', icon: 'mdi-barcode', path: '/almacen/configuracion/impresion-barcodes' },
         { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/almacen/configuracion/grupo-productos' },
+        { name: 'Etiquetas de Producto', icon: 'mdi-label-outline', path: '/almacen/configuracion/etiquetas-producto' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },
@@ -101,6 +102,7 @@ export const MODULES = [
         { name: 'Valoración Mensual', icon: 'mdi-calculator-variant', path: '/almacen/procesos/valoracion' },
         { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/almacen/procesos/ordenes-compra' },
         { name: 'Despachos de Bodega', icon: 'mdi-truck-delivery-outline', path: '/almacen/procesos/despachos' },
+        { name: 'Órdenes de Producción', icon: 'mdi-factory', path: '/almacen/procesos/ordenes-produccion' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Kardex por Período', icon: 'mdi-file-chart-outline', path: '/almacen/reportes/kardex' },
