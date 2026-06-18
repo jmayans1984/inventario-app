@@ -2082,12 +2082,12 @@ app.get('/api/almacen/etiquetas-producto', async (req, res) => {
 
 app.post('/api/almacen/etiquetas-producto', async (req, res) => {
     try {
-        const { codigo, producto, empresa, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo } = req.body;
+        const { codigo, producto, empresa, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo, barcode } = req.body;
         if (!codigo || !producto || !empresa) return res.status(400).json({ success: false, error: 'Código, producto y empresa son requeridos' });
         await pool.query(
-            `INSERT INTO etiquetas_producto (codigo, producto, empresa, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-            [codigo, producto, parseInt(empresa), peso_neto_oz||null, peso_neto_g||null, porciones||null, tamano_porcion||null, ingredientes||null, alergenos||null, instrucciones||null, dias_vencimiento||null, activo||'SI']
+            `INSERT INTO etiquetas_producto (codigo, producto, empresa, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo, barcode)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+            [codigo, producto, parseInt(empresa), peso_neto_oz||null, peso_neto_g||null, porciones||null, tamano_porcion||null, ingredientes||null, alergenos||null, instrucciones||null, dias_vencimiento||null, activo||'SI', barcode||null]
         );
         const r = await pool.query(`SELECT * FROM etiquetas_producto WHERE codigo = $1`, [codigo]);
         res.json({ success: true, data: r.rows[0] });
@@ -2101,10 +2101,10 @@ app.post('/api/almacen/etiquetas-producto', async (req, res) => {
 app.put('/api/almacen/etiquetas-producto/:codigo', async (req, res) => {
     try {
         const { codigo } = req.params;
-        const { producto, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo } = req.body;
+        const { producto, peso_neto_oz, peso_neto_g, porciones, tamano_porcion, ingredientes, alergenos, instrucciones, dias_vencimiento, activo, barcode } = req.body;
         await pool.query(
-            `UPDATE etiquetas_producto SET producto=$1, peso_neto_oz=$2, peso_neto_g=$3, porciones=$4, tamano_porcion=$5, ingredientes=$6, alergenos=$7, instrucciones=$8, dias_vencimiento=$9, activo=$10 WHERE codigo=$11`,
-            [producto, peso_neto_oz||null, peso_neto_g||null, porciones||null, tamano_porcion||null, ingredientes||null, alergenos||null, instrucciones||null, dias_vencimiento||null, activo||'SI', codigo]
+            `UPDATE etiquetas_producto SET producto=$1, peso_neto_oz=$2, peso_neto_g=$3, porciones=$4, tamano_porcion=$5, ingredientes=$6, alergenos=$7, instrucciones=$8, dias_vencimiento=$9, activo=$10, barcode=$11 WHERE codigo=$12`,
+            [producto, peso_neto_oz||null, peso_neto_g||null, porciones||null, tamano_porcion||null, ingredientes||null, alergenos||null, instrucciones||null, dias_vencimiento||null, activo||'SI', barcode||null, codigo]
         );
         const r = await pool.query(`SELECT * FROM etiquetas_producto WHERE codigo = $1`, [codigo]);
         res.json({ success: true, data: r.rows[0] });
@@ -2151,7 +2151,11 @@ app.get('/api/almacen/lotes-fabricacion', async (req, res) => {
     try {
         const { empresa } = req.query;
         const r = await pool.query(
-            `SELECT lf.*, ep.producto AS etiqueta_nombre
+            `SELECT lf.*,
+                    ep.producto AS etiqueta_nombre,
+                    ep.ingredientes, ep.alergenos, ep.instrucciones,
+                    ep.peso_neto_oz, ep.peso_neto_g, ep.porciones, ep.tamano_porcion,
+                    ep.barcode
              FROM lotes_fabricacion lf
              LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta AND ep.empresa = $1
              ORDER BY lf.codigo DESC`,
@@ -8198,6 +8202,7 @@ pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta1 NUMERIC
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta2 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0`).catch(() => {});
+pool.query(`ALTER TABLE etiquetas_producto ADD COLUMN IF NOT EXISTS barcode VARCHAR(100) DEFAULT NULL`).catch(() => {});
 
 // Migración: asegurar precisión de 2 decimales en campos de precios (por si la columna existe con otro tipo)
 (async () => {
@@ -10992,6 +10997,19 @@ app.delete('/api/nomina/cargos/:id', async (req, res) => {
 });
 
 // ── EMPLEADOS ───────────────────────────────────────────────────
+app.get('/api/nomina/empleados-basico', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const r = await pool.query(
+            `SELECT id, nombre, apellido, estado FROM nom_empleados
+             WHERE empresa = $1 AND estado != 'INACTIVO'
+             ORDER BY apellido, nombre`,
+            [empresa]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.get('/api/nomina/empleados', async (req, res) => {
     const { empresa, estado } = req.query;
     try {
