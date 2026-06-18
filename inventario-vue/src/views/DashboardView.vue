@@ -48,6 +48,34 @@
         </div>
       </div>
 
+      <!-- ══════════════════════════════════════════════════════
+           PANEL DE ALERTAS
+      ══════════════════════════════════════════════════════ -->
+      <div class="dalerts-panel">
+        <div class="dalerts-header">
+          <v-icon size="18" color="#fff">mdi-alert-circle</v-icon>
+          <span>ALERTAS DEL SISTEMA</span>
+          <div class="dalerts-count">{{ alertas.length }}</div>
+        </div>
+
+        <div v-if="alertas.length === 0" class="dalerts-empty">
+          <v-icon size="40">mdi-check-circle-outline</v-icon>
+          <span>Todo en orden</span>
+        </div>
+
+        <div v-else class="dalerts-list">
+          <div v-for="(alerta, idx) in alertas" :key="idx" class="dalert-card" :class="`dalert-${alerta.tipo}`">
+            <div class="dalert-badge">{{ alerta.tipo }}</div>
+            <div class="dalert-icon">{{ alerta.icon }}</div>
+            <div class="dalert-content">
+              <div class="dalert-title">{{ alerta.titulo }}</div>
+              <div class="dalert-desc">{{ alerta.descripcion }}</div>
+              <div class="dalert-time">{{ alerta.hora }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
 
     </div>
   </MainLayout>
@@ -156,11 +184,13 @@ const weatherGradient = computed(() => {
 const proximos5Dias = computed(() => {
   const diasNombre = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
   const today = new Date()
-  return diasNombre.slice(0, 5).map((d, i) => {
+  return [1, 2, 3, 4, 5].map((offset, i) => {
     const fecha = new Date(today)
-    fecha.setDate(fecha.getDate() + i + 1)
+    fecha.setDate(fecha.getDate() + offset)
     const diaNum = String(fecha.getDate()).padStart(2, '0')
     const mesNum = String(fecha.getMonth() + 1).padStart(2, '0')
+    const dayIdx = fecha.getDay()
+    const dayName = diasNombre[dayIdx]
 
     const rainChance = [30, 60, 20, 50, 40][i]
     let icon = '☀️'
@@ -170,13 +200,51 @@ const proximos5Dias = computed(() => {
     else if (rainChance > 15) icon = '⛅'
 
     return {
-      dayName: d,
+      dayName,
       date: `${mesNum}/${diaNum}`,
       icon,
       temp: 24 + 1,
       rain: rainChance
     }
   })
+})
+
+// ── Alertas del sistema ────────────────────────────────────────
+const alertas = computed(() => {
+  const alts = []
+
+  // Alerta de lluvia si hay probabilidad alta
+  if (precipitacion.value > 70) {
+    alts.push({
+      tipo: 'CRÍTICO',
+      icon: '⚠️',
+      titulo: 'Lluvia Moderada Esperada',
+      descripcion: 'Se espera lluvia moderada en las próximas horas. Tomar precauciones.',
+      hora: `${String(ahora.value.getHours()).padStart(2, '0')}:${String(ahora.value.getMinutes()).padStart(2, '0')}`
+    })
+  }
+
+  // Alerta de información general
+  alts.push({
+    tipo: 'INFO',
+    icon: 'ℹ️',
+    titulo: 'Sistema Operativo Normal',
+    descripcion: 'Todos los módulos funcionando correctamente. Continúa con tus actividades.',
+    hora: `${String(ahora.value.getHours()).padStart(2, '0')}:${String(ahora.value.getMinutes()).padStart(2, '0')}`
+  })
+
+  // Alerta de temperatura
+  if (tempActual.value > 30) {
+    alts.push({
+      tipo: 'ADVERTENCIA',
+      icon: '🌡️',
+      titulo: 'Temperatura Elevada',
+      descripcion: 'La temperatura está por encima de 30°C. Mantente hidratado.',
+      hora: `${String(ahora.value.getHours()).padStart(2, '0')}:${String(ahora.value.getMinutes()).padStart(2, '0')}`
+    })
+  }
+
+  return alts
 })
 
 // ── Datos del dashboard ───────────────────────────────────────
@@ -501,6 +569,174 @@ function fmtFecha(f) {
   font-size: 11px;
   font-weight: 600;
   color: #06b6d4;
+}
+
+/* ══ PANEL DE ALERTAS ════════════════════════════════════════ */
+.dalerts-panel {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.dalerts-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.dalerts-count {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.dalerts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  font-size: 13px;
+  text-align: center;
+}
+
+.dalerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.dalert-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border-left: 4px solid;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.dalert-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.dalert-card:hover {
+  transform: translateX(4px);
+}
+
+.dalert-card:hover::before {
+  opacity: 0.05;
+}
+
+/* Tipos de alerta */
+.dalert-CRÍTICO {
+  background: rgba(239, 68, 68, 0.08);
+  border-left-color: #ef4444;
+}
+
+.dalert-CRÍTICO::before {
+  background: #ef4444;
+}
+
+.dalert-ADVERTENCIA {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: #f59e0b;
+}
+
+.dalert-ADVERTENCIA::before {
+  background: #f59e0b;
+}
+
+.dalert-INFO {
+  background: rgba(6, 182, 212, 0.08);
+  border-left-color: #06b6d4;
+}
+
+.dalert-INFO::before {
+  background: #06b6d4;
+}
+
+.dalert-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dalert-CRÍTICO .dalert-badge {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.dalert-ADVERTENCIA .dalert-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.dalert-INFO .dalert-badge {
+  background: rgba(6, 182, 212, 0.2);
+  color: #06b6d4;
+}
+
+.dalert-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dalert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.dalert-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 3px;
+}
+
+.dalert-desc {
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.dalert-time {
+  font-size: 10px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  font-weight: 600;
 }
 
 </style>
