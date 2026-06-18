@@ -225,8 +225,8 @@ const alertas = ref([])
 
 async function cargarAlertas() {
   try {
-    const notificaciones = await notificacionesService.obtenerNotificaciones()
-    console.log('Notificaciones cargadas:', notificaciones)
+    const res = await notificacionesService.obtenerNotificaciones()
+    const notificaciones = res.data || []
     if (Array.isArray(notificaciones)) {
       alertas.value = notificaciones.map(n => ({
         tipo: n.tipo || 'INFO',
