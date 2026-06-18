@@ -44,7 +44,7 @@
           <table class="rh-table" v-if="empleadosDelCcosto(cc.codigo).length">
             <thead>
               <tr>
-                <th class="th-emp">EMPLEADO</th>
+                <th class="th-emp">EMPLOYEE</th>
                 <th v-for="d in DIAS" :key="d.offset">
                   {{ d.label }}<br/>
                   <span class="rh-fecha">{{ fmtDiaMes(semanaActual.semana_inicio, d.offset) }}</span>
@@ -99,13 +99,13 @@
         <!-- Grid resumen multi-CC -->
         <div v-if="mostrarGridResumen && empleadosTodos.length" class="rh-pagina rh-grid-resumen">
           <div class="rh-encabezado">
-            <div class="rh-titulo" style="font-size:16px;margin-bottom:2px">RESUMEN — CENTRO DE COSTOS POR DÍA</div>
+            <div class="rh-titulo" style="font-size:16px;margin-bottom:2px">SUMMARY — DEPT. BY DAY</div>
             <div class="rh-periodo">{{ fmtFecha(semanaActual.semana_inicio) }} &mdash; {{ fmtFecha(semanaActual.semana_fin) }}</div>
           </div>
           <table class="rh-table">
             <thead>
               <tr>
-                <th class="th-emp">EMPLEADO</th>
+                <th class="th-emp">EMPLOYEE</th>
                 <th v-for="d in DIAS" :key="d.offset">
                   {{ d.label }}<br/>
                   <span class="rh-fecha">{{ fmtDiaMes(semanaActual.semana_inicio, d.offset) }}</span>
@@ -149,8 +149,8 @@ const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
 
 const DIAS = [
-  { label:'Lunes', offset:0 }, { label:'Martes', offset:1 }, { label:'Miércoles', offset:2 },
-  { label:'Jueves', offset:3 }, { label:'Viernes', offset:4 }, { label:'Sábado', offset:5 }, { label:'Domingo', offset:6 }
+  { label:'Monday', offset:0 }, { label:'Tuesday', offset:1 }, { label:'Wednesday', offset:2 },
+  { label:'Thursday', offset:3 }, { label:'Friday', offset:4 }, { label:'Saturday', offset:5 }, { label:'Sunday', offset:6 }
 ]
 
 const semanas           = ref([])
@@ -323,7 +323,7 @@ function fmtDiaMes(inicio, offset) {
   try {
     const f = addDays(inicio, offset)
     const [,m,d] = f.split('-')
-    return `${parseInt(d)}/${parseInt(m)}`
+    return `${parseInt(m)}/${parseInt(d)}`
   } catch { return '—' }
 }
 
@@ -423,7 +423,7 @@ function imprimirPDF() {
 
     if (emps.length) {
       body += `<table><thead><tr>
-        <th class="th-emp">EMPLEADO</th>
+        <th class="th-emp">EMPLOYEE</th>
         ${DIAS.map(d => `<th>${d.label}<span class="rh-fecha">${fmtDiaMes(semanaActual.value.semana_inicio, d.offset)}</span></th>`).join('')}
         </tr></thead><tbody>`
 
@@ -454,12 +454,12 @@ function imprimirPDF() {
   if (mostrarGridResumen.value && empleadosTodos.value.length) {
     body += `<div class="pagina">
       <div class="encabezado">
-        <div class="titulo" style="font-size:16px;margin-bottom:2px">RESUMEN — CENTRO DE COSTOS POR DÍA</div>
+        <div class="titulo" style="font-size:16px;margin-bottom:2px">SUMMARY — DEPT. BY DAY</div>
         <div class="periodo">${fmtFecha(semanaActual.value.semana_inicio)} &mdash; ${fmtFecha(semanaActual.value.semana_fin)}</div>
       </div>
       <table>
         <thead><tr>
-          <th class="th-emp">EMPLEADO</th>
+          <th class="th-emp">EMPLOYEE</th>
           ${DIAS.map(d => `<th>${d.label}<span class="rh-fecha">${fmtDiaMes(semanaActual.value.semana_inicio, d.offset)}</span></th>`).join('')}
         </tr></thead>
         <tbody>
@@ -538,8 +538,8 @@ onMounted(cargarSemanas)
 .rh-libre { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.3); text-transform: uppercase; font-style: italic; }
 .rh-vacio { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.15); }
 .rh-otro-cc { font-size: 8px; color: rgba(var(--v-theme-on-surface),0.4); font-weight: 600; line-height: 1.2; display: block; }
-.rh-otro-cc-bg { background: #fef9c3 !important; }
-.rh-grid-cc { font-size: 8px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); line-height: 1.2; display: block; }
+.rh-otro-cc-bg { background: #fef9c3 !important; color: #000 !important; }
+.rh-grid-cc { font-size: 8px; font-weight: 700; color: #000; line-height: 1.2; display: block; }
 
 .rh-total { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; font-weight: 800; font-size: 12px; padding: 6px 4px; white-space: nowrap; }
 .rh-ot    { display: block; font-size: 8px; background: rgba(239,68,68,0.15); color: #ef4444; padding: 1px 4px; border-radius: 3px; margin-top: 2px; font-weight: 800; }

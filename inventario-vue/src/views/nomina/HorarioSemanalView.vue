@@ -127,19 +127,19 @@
       <div v-if="semanaActual && resumenEmpleados.length" class="nom-card resumen-card">
         <div class="resumen-titulo">
           <v-icon size="16" color="#8b5cf6" class="mr-1">mdi-chart-bar</v-icon>
-          RESUMEN SEMANAL — HORAS TOTALES POR EMPLEADO
+          WEEKLY SUMMARY — TOTAL HOURS PER EMPLOYEE
         </div>
         <table class="resumen-tabla">
           <thead>
             <tr>
-              <th style="text-align:left">EMPLEADO</th>
-              <th>TIPO</th>
-              <th>CENTROS</th>
-              <th>HRS REG.</th>
-              <th>HRS OT</th>
+              <th style="text-align:left">EMPLOYEE</th>
+              <th>TYPE</th>
+              <th>DEPT.</th>
+              <th>REG. HRS</th>
+              <th>OT HRS</th>
               <th>TOTAL HRS</th>
-              <th>VALOR/HR</th>
-              <th>TOTAL A PAGAR</th>
+              <th>RATE</th>
+              <th>TOTAL PAY</th>
             </tr>
           </thead>
           <tbody>
@@ -171,7 +171,7 @@
           </tbody>
           <tfoot>
             <tr class="resumen-footer">
-              <td colspan="3"><strong>TOTAL EMPRESA</strong></td>
+              <td colspan="3"><strong>COMPANY TOTAL</strong></td>
               <td class="ta-c"><strong>{{ resumenTotales.regular.toFixed(2) }}h</strong></td>
               <td class="ta-c"><strong style="color:#ef4444">{{ resumenTotales.overtime.toFixed(2) }}h OT</strong></td>
               <td class="ta-c"><strong>{{ resumenTotales.total.toFixed(2) }}h</strong></td>
@@ -491,8 +491,8 @@ const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
 
 const DIAS = [
-  { label:'Lun', offset:0 }, { label:'Mar', offset:1 }, { label:'Mié', offset:2 },
-  { label:'Jue', offset:3 }, { label:'Vie', offset:4 }, { label:'Sáb', offset:5 }, { label:'Dom', offset:6 }
+  { label:'Mon', offset:0 }, { label:'Tue', offset:1 }, { label:'Wed', offset:2 },
+  { label:'Thu', offset:3 }, { label:'Fri', offset:4 }, { label:'Sat', offset:5 }, { label:'Sun', offset:6 }
 ]
 
 const semanas          = ref([])
@@ -786,7 +786,7 @@ function fmtFecha(f) {
 }
 function fmtDiaMes(inicio, offset) {
   if (!inicio) return '—'
-  try { const f = addDays(inicio, offset); const [,m,d] = f.split('-'); return `${parseInt(d)}/${parseInt(m)}` }
+  try { const f = addDays(inicio, offset); const [,m,d] = f.split('-'); return `${parseInt(m)}/${parseInt(d)}` }
   catch { return '—' }
 }
 function fmtFechaLarga(f) {
