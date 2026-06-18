@@ -336,60 +336,74 @@ function imprimirEtiqueta(l) {
 
   const barcodeVal = l.barcode || l.codigo
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Etiqueta ${l.codigo}</title>
+<title>Label – ${l.etiqueta_nombre || l.etiqueta} – ${l.codigo}</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
 <style>
   @page { size: 4in 6in; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
-  body { width: 4in; height: 6in; background: #fff; color: #111; overflow: hidden; }
+  body { width: 4in; min-height: 6in; background: #fff; color: #000; }
 
-  .lbl { display: flex; flex-direction: column; height: 6in; padding: 0; }
+  .lbl { display: flex; flex-direction: column; min-height: 6in; border: 1.5px solid #000; }
 
-  .lbl-header { background: #064e3b; color: #fff; padding: 8px 12px; text-align: center; }
-  .lbl-header .emp-name { font-size: 13pt; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-  .lbl-header .lot-code { font-size: 8pt; color: #6ee7b7; margin-top: 2px; letter-spacing: 2px; font-weight: 700; font-family: monospace; }
+  /* Header: empresa – solo borde inferior, sin fondo */
+  .lbl-header { padding: 7px 12px 5px; text-align: center; border-bottom: 2px solid #000; }
+  .emp-name { font-size: 13pt; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+  .emp-sub  { font-size: 7pt; color: #333; margin-top: 1px; }
 
-  .lbl-product { background: #f0fdf4; padding: 8px 12px; border-bottom: 2px solid #064e3b; text-align: center; }
-  .lbl-product .prod-name { font-size: 15pt; font-weight: 900; color: #064e3b; text-transform: uppercase; line-height: 1.1; }
-  .lbl-product .prod-sub { font-size: 7.5pt; color: #555; margin-top: 3px; }
+  /* Producto – centrado, sin fondo */
+  .lbl-product { padding: 7px 12px 6px; text-align: center; border-bottom: 1.5px solid #000; }
+  .prod-name { font-size: 16pt; font-weight: 900; text-transform: uppercase; line-height: 1.1; }
+  .lot-tag   { font-size: 7.5pt; font-family: monospace; letter-spacing: 1.5px; margin-top: 3px; color: #333; }
 
-  .lbl-body { flex: 1; padding: 7px 12px; display: flex; flex-direction: column; gap: 5px; }
+  /* Cuerpo */
+  .lbl-body { flex: 1; padding: 7px 12px; display: flex; flex-direction: column; gap: 6px; }
 
-  .section-title { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; color: #064e3b; border-bottom: 1px solid #d1fae5; padding-bottom: 1px; margin-bottom: 2px; }
-  .section-txt { font-size: 7.5pt; color: #222; line-height: 1.35; }
-  .alerg-txt { font-size: 7.5pt; color: #92400e; font-weight: 700; line-height: 1.3; }
+  /* Fechas */
+  .dates-row { display: flex; gap: 8px; }
+  .date-box  { flex: 1; border: 1px solid #000; padding: 4px 7px; }
+  .date-lbl  { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+  .date-val  { font-size: 10pt; font-weight: 900; }
 
-  .dates-row { display: flex; gap: 8px; margin-top: 2px; }
-  .date-box { flex: 1; background: #f0fdf4; border: 1px solid #a7f3d0; border-radius: 5px; padding: 4px 7px; }
-  .date-box.exp { background: #fff7ed; border-color: #fed7aa; }
-  .date-lbl { font-size: 6pt; font-weight: 900; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; }
-  .date-val { font-size: 9.5pt; font-weight: 900; color: #064e3b; }
-  .date-box.exp .date-val { color: #c2410c; }
+  /* Pesos */
+  .weight-row { display: flex; gap: 6px; }
+  .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 3px 5px; }
+  .w-lbl { font-size: 6pt; text-transform: uppercase; font-weight: 700; }
+  .w-val { font-size: 9pt; font-weight: 900; }
 
-  .weight-row { display: flex; gap: 8px; }
-  .w-box { flex: 1; text-align: center; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 5px; padding: 3px 5px; }
-  .w-lbl { font-size: 6pt; text-transform: uppercase; color: #6b7280; font-weight: 700; }
-  .w-val { font-size: 9pt; font-weight: 900; color: #111; }
+  /* Secciones */
+  .section-title { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
+  .section-txt   { font-size: 7.5pt; line-height: 1.35; }
+  .alerg-txt     { font-size: 7.5pt; font-weight: 700; line-height: 1.3; }
+  .instr-txt     { font-size: 7pt; font-style: italic; line-height: 1.3; }
 
-  .resp-row { font-size: 7pt; color: #555; }
-  .resp-row span { font-weight: 700; color: #111; }
-
-  .lbl-barcode { padding: 6px 12px 8px; text-align: center; border-top: 1px solid #e5e7eb; background: #fff; }
+  /* Barcode */
+  .lbl-barcode { padding: 6px 12px 8px; text-align: center; border-top: 1.5px solid #000; }
   .lbl-barcode svg { max-width: 100%; }
-  .bc-num { font-size: 7pt; color: #555; margin-top: 1px; font-family: monospace; letter-spacing: 1px; }
+  .bc-num { font-size: 7pt; margin-top: 1px; font-family: monospace; letter-spacing: 1px; }
 
-  .instr-txt { font-size: 7pt; color: #444; font-style: italic; }
+  /* Botón imprimir – solo pantalla */
+  @media screen {
+    .print-btn-wrap { text-align: center; padding: 12px; }
+    .print-btn { background: #000; color: #fff; border: none; padding: 8px 24px; font-size: 11pt; font-weight: 700; cursor: pointer; border-radius: 4px; }
+    .print-btn:hover { background: #333; }
+  }
+  @media print {
+    .print-btn-wrap { display: none; }
+    body { margin: 0; }
+  }
 </style>
 </head><body>
+<div class="print-btn-wrap">
+  <button class="print-btn" onclick="window.print()">🖨 Print Label</button>
+</div>
 <div class="lbl">
   <div class="lbl-header">
     <div class="emp-name">${empresaNombre}</div>
-    <div class="lot-code">LOTE: ${l.codigo}</div>
   </div>
 
   <div class="lbl-product">
     <div class="prod-name">${l.etiqueta_nombre || l.etiqueta}</div>
-    <div class="lot-code" style="font-size:7.5pt;color:#047857;margin-top:3px;font-family:monospace;letter-spacing:1px;">LOT: ${l.codigo}</div>
+    <div class="lot-tag">LOT: ${l.codigo}</div>
   </div>
 
   <div class="lbl-body">
@@ -398,17 +412,17 @@ function imprimirEtiqueta(l) {
         <div class="date-lbl">Manufactured</div>
         <div class="date-val">${fmtD(l.fecha_fab)}</div>
       </div>
-      <div class="date-box exp">
+      <div class="date-box">
         <div class="date-lbl">Best By / Exp. Date</div>
         <div class="date-val">${fmtD(l.fecha_vence)}</div>
       </div>
     </div>
 
-    ${(l.peso_neto_oz || l.peso_neto_g) ? `
+    ${(l.peso_neto_oz || l.peso_neto_g || l.porciones || l.tamano_porcion) ? `
     <div class="weight-row">
-      ${l.peso_neto_oz ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_oz} oz</div></div>` : ''}
-      ${l.peso_neto_g  ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_g} g</div></div>` : ''}
-      ${l.porciones    ? `<div class="w-box"><div class="w-lbl">Servings</div><div class="w-val">${l.porciones}</div></div>` : ''}
+      ${l.peso_neto_oz   ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_oz} oz</div></div>` : ''}
+      ${l.peso_neto_g    ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_g} g</div></div>` : ''}
+      ${l.porciones      ? `<div class="w-box"><div class="w-lbl">Servings</div><div class="w-val">${l.porciones}</div></div>` : ''}
       ${l.tamano_porcion ? `<div class="w-box"><div class="w-lbl">Serving Size</div><div class="w-val">${l.tamano_porcion}</div></div>` : ''}
     </div>` : ''}
 
@@ -440,16 +454,15 @@ function imprimirEtiqueta(l) {
   window.onload = function() {
     try {
       JsBarcode("#bc", "${barcodeVal}", {
-        format: "CODE128", width: 1.6, height: 40,
-        displayValue: false, margin: 0, background: "#ffffff"
+        format: "CODE128", width: 1.8, height: 45,
+        displayValue: false, margin: 0, background: "#ffffff", lineColor: "#000000"
       });
     } catch(e) {}
-    setTimeout(function(){ window.print(); }, 400);
   };
 <\/script>
 </body></html>`
 
-  const w = window.open('', '_blank', 'width=400,height=620')
+  const w = window.open('', '_blank')
   w.document.write(html)
   w.document.close()
 }
