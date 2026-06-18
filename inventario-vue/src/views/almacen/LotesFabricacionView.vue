@@ -69,6 +69,7 @@
               </td>
               <td>{{ l.responsable || '—' }}</td>
               <td class="col-acc">
+                <v-btn icon="mdi-printer-outline" size="x-small" variant="text" color="#047857" @click="imprimirEtiqueta(l)" />
                 <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(l)" />
                 <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
                   :loading="eliminando === l.codigo" @click="eliminar(l)" />
@@ -325,6 +326,134 @@ async function eliminar(l) {
   } finally { eliminando.value = null }
 }
 
+function imprimirEtiqueta(l) {
+  const empresaNombre = auth.empresaNombre || ''
+  const fmtD = (f) => {
+    if (!f) return '—'
+    const d = new Date(String(f).substring(0, 10) + 'T12:00:00')
+    return d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  const barcodeVal = l.barcode || l.codigo
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Etiqueta ${l.codigo}</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<style>
+  @page { size: 4in 6in; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
+  body { width: 4in; height: 6in; background: #fff; color: #111; overflow: hidden; }
+
+  .lbl { display: flex; flex-direction: column; height: 6in; padding: 0; }
+
+  .lbl-header { background: #064e3b; color: #fff; padding: 8px 12px; text-align: center; }
+  .lbl-header .emp-name { font-size: 13pt; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+  .lbl-header .lot-code { font-size: 8pt; color: #6ee7b7; margin-top: 2px; letter-spacing: 2px; font-weight: 700; font-family: monospace; }
+
+  .lbl-product { background: #f0fdf4; padding: 8px 12px; border-bottom: 2px solid #064e3b; }
+  .lbl-product .prod-name { font-size: 15pt; font-weight: 900; color: #064e3b; text-transform: uppercase; line-height: 1.1; }
+  .lbl-product .prod-sub { font-size: 7.5pt; color: #555; margin-top: 3px; }
+
+  .lbl-body { flex: 1; padding: 7px 12px; display: flex; flex-direction: column; gap: 5px; }
+
+  .section-title { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; color: #064e3b; border-bottom: 1px solid #d1fae5; padding-bottom: 1px; margin-bottom: 2px; }
+  .section-txt { font-size: 7.5pt; color: #222; line-height: 1.35; }
+  .alerg-txt { font-size: 7.5pt; color: #92400e; font-weight: 700; line-height: 1.3; }
+
+  .dates-row { display: flex; gap: 8px; margin-top: 2px; }
+  .date-box { flex: 1; background: #f0fdf4; border: 1px solid #a7f3d0; border-radius: 5px; padding: 4px 7px; }
+  .date-box.exp { background: #fff7ed; border-color: #fed7aa; }
+  .date-lbl { font-size: 6pt; font-weight: 900; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; }
+  .date-val { font-size: 9.5pt; font-weight: 900; color: #064e3b; }
+  .date-box.exp .date-val { color: #c2410c; }
+
+  .weight-row { display: flex; gap: 8px; }
+  .w-box { flex: 1; text-align: center; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 5px; padding: 3px 5px; }
+  .w-lbl { font-size: 6pt; text-transform: uppercase; color: #6b7280; font-weight: 700; }
+  .w-val { font-size: 9pt; font-weight: 900; color: #111; }
+
+  .resp-row { font-size: 7pt; color: #555; }
+  .resp-row span { font-weight: 700; color: #111; }
+
+  .lbl-barcode { padding: 6px 12px 8px; text-align: center; border-top: 1px solid #e5e7eb; background: #fff; }
+  .lbl-barcode svg { max-width: 100%; }
+  .bc-num { font-size: 7pt; color: #555; margin-top: 1px; font-family: monospace; letter-spacing: 1px; }
+
+  .instr-txt { font-size: 7pt; color: #444; font-style: italic; }
+</style>
+</head><body>
+<div class="lbl">
+  <div class="lbl-header">
+    <div class="emp-name">${empresaNombre}</div>
+    <div class="lot-code">LOTE: ${l.codigo}</div>
+  </div>
+
+  <div class="lbl-product">
+    <div class="prod-name">${l.etiqueta_nombre || l.etiqueta}</div>
+    ${l.tamano_porcion || l.porciones ? `<div class="prod-sub">${l.porciones ? 'Porciones: ' + l.porciones : ''}${l.porciones && l.tamano_porcion ? ' &nbsp;|&nbsp; ' : ''}${l.tamano_porcion ? 'Tamaño porción: ' + l.tamano_porcion : ''}</div>` : ''}
+  </div>
+
+  <div class="lbl-body">
+    <div class="dates-row">
+      <div class="date-box">
+        <div class="date-lbl">Fecha Fabricación</div>
+        <div class="date-val">${fmtD(l.fecha_fab)}</div>
+      </div>
+      <div class="date-box exp">
+        <div class="date-lbl">Fecha Vencimiento</div>
+        <div class="date-val">${fmtD(l.fecha_vence)}</div>
+      </div>
+    </div>
+
+    ${(l.peso_neto_oz || l.peso_neto_g) ? `
+    <div class="weight-row">
+      ${l.peso_neto_oz ? `<div class="w-box"><div class="w-lbl">Peso Neto</div><div class="w-val">${l.peso_neto_oz} oz</div></div>` : ''}
+      ${l.peso_neto_g  ? `<div class="w-box"><div class="w-lbl">Peso Neto</div><div class="w-val">${l.peso_neto_g} g</div></div>` : ''}
+    </div>` : ''}
+
+    ${l.ingredientes ? `
+    <div>
+      <div class="section-title">Ingredientes</div>
+      <div class="section-txt">${l.ingredientes}</div>
+    </div>` : ''}
+
+    ${l.alergenos ? `
+    <div>
+      <div class="section-title">Contiene / Alérgenos</div>
+      <div class="alerg-txt">${l.alergenos}</div>
+    </div>` : ''}
+
+    ${l.instrucciones ? `
+    <div>
+      <div class="section-title">Instrucciones</div>
+      <div class="instr-txt">${l.instrucciones}</div>
+    </div>` : ''}
+
+    ${l.responsable ? `<div class="resp-row">Responsable: <span>${l.responsable}</span></div>` : ''}
+  </div>
+
+  <div class="lbl-barcode">
+    <svg id="bc"></svg>
+    <div class="bc-num">${barcodeVal}</div>
+  </div>
+</div>
+<script>
+  window.onload = function() {
+    try {
+      JsBarcode("#bc", "${barcodeVal}", {
+        format: "CODE128", width: 1.6, height: 40,
+        displayValue: false, margin: 0, background: "#ffffff"
+      });
+    } catch(e) {}
+    setTimeout(function(){ window.print(); }, 400);
+  };
+<\/script>
+</body></html>`
+
+  const w = window.open('', '_blank', 'width=400,height=620')
+  w.document.write(html)
+  w.document.close()
+}
+
 onMounted(cargar)
 </script>
 
@@ -353,7 +482,7 @@ onMounted(cargar)
 .crud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .crud-table thead th { padding: 11px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); text-align: left; }
 .col-center { text-align: center !important; }
-.col-acc { width: 90px; text-align: center !important; }
+.col-acc { width: 115px; text-align: center !important; }
 .data-row td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); vertical-align: middle; }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }

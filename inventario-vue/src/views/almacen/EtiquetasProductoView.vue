@@ -131,6 +131,12 @@
             </div>
 
             <div class="field-group">
+              <label class="field-label">Código de Barras</label>
+              <input v-model="form.barcode" type="text" maxlength="100" class="field-input"
+                placeholder="Ej. 0068778788407" />
+            </div>
+
+            <div class="field-group">
               <label class="field-label">Ingredientes</label>
               <textarea v-model="form.ingredientes" rows="3" class="field-input field-textarea"
                 placeholder="Lista de ingredientes..." />
@@ -193,7 +199,7 @@ const err        = ref({})
 const formVacio = () => ({
   codigo: '', producto: '', peso_neto_oz: '', peso_neto_g: '',
   porciones: '', tamano_porcion: '', ingredientes: '',
-  alergenos: '', instrucciones: '', dias_vencimiento: '', activo: 'SI'
+  alergenos: '', instrucciones: '', dias_vencimiento: '', activo: 'SI', barcode: ''
 })
 const form = ref(formVacio())
 
