@@ -111,30 +111,35 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore()
-  if (!authStore.isAuthenticated) authStore.loadFromLocalStorage()
+  try {
+    const authStore = useAuthStore()
+    if (!authStore.isAuthenticated) authStore.loadFromLocalStorage()
 
-  // Verificar autenticación
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
-    return
-  }
-
-  // Verificar tipo de empresa si la ruta lo requiere
-  // Solo bloquea si el tipo está explícitamente definido Y no coincide
-  if (to.meta.requiredTipo && authStore.empresa && authStore.empresaTipo) {
-    const tipoEmpresa = authStore.empresaTipo
-    if (tipoEmpresa !== to.meta.requiredTipo) {
-      // Usuario no tiene permiso para esta ruta, redirecciona a inicio
-      next('/')
+    // Verificar autenticación
+    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+      next('/login')
       return
     }
-  }
 
-  // Redirigir login → home si ya está autenticado
-  if (to.path === '/login' && authStore.isAuthenticated) {
-    next('/')
-  } else {
+    // Verificar tipo de empresa si la ruta lo requiere
+    // Solo bloquea si el tipo está explícitamente definido Y no coincide
+    if (to.meta.requiredTipo && authStore.empresa && authStore.empresaTipo) {
+      const tipoEmpresa = authStore.empresaTipo
+      if (tipoEmpresa !== to.meta.requiredTipo) {
+        // Usuario no tiene permiso para esta ruta, redirecciona a inicio
+        next('/')
+        return
+      }
+    }
+
+    // Redirigir login → home si ya está autenticado
+    if (to.path === '/login' && authStore.isAuthenticated) {
+      next('/')
+    } else {
+      next()
+    }
+  } catch (e) {
+    // Si Pinia no está inicializado aún, solo continúa
     next()
   }
 })
