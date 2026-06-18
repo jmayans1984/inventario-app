@@ -28,22 +28,22 @@
           <div class="dweather-content">
             <div class="dweather-icon">{{ weatherIcon }}</div>
             <div class="dweather-body">
-              <div class="dweather-temp">{{ tempActual }}°</div>
+              <div class="dweather-temp">{{ tempActualF }}°F</div>
               <div class="dweather-condition">{{ weatherCondition }}</div>
               <div class="dweather-location">📍 {{ ubicacion }}</div>
               <div v-if="precipitacion > 0" class="dweather-rain">🌧️ {{ precipitacion }}% chance de lluvia</div>
             </div>
           </div>
-        </div>
 
-        <!-- Pronóstico 5 días -->
-        <div class="dweather-forecast">
-          <div v-for="(day, idx) in proximos5Dias" :key="idx" class="dforecast-day">
-            <div class="dfd-dayname">{{ day.dayName }}</div>
-            <div class="dfd-date">{{ day.date }}</div>
-            <div class="dfd-icon">{{ day.icon }}</div>
-            <div class="dfd-temp">{{ day.temp }}°</div>
-            <div class="dfd-rain" v-if="day.rain > 0">{{ day.rain }}%</div>
+          <!-- Pronóstico 5 días dentro del panel -->
+          <div class="dweather-forecast">
+            <div v-for="(day, idx) in proximos5Dias" :key="idx" class="dforecast-day">
+              <div class="dfd-dayname">{{ day.dayName }}</div>
+              <div class="dfd-date">{{ day.date }}</div>
+              <div class="dfd-icon">{{ day.icon }}</div>
+              <div class="dfd-temp">{{ day.tempF }}°F</div>
+              <div class="dfd-rain" v-if="day.rain > 0">{{ day.rain }}%</div>
+            </div>
           </div>
         </div>
       </div>
@@ -137,6 +137,10 @@ const tempActual = computed(() => {
   return 24 + 1
 })
 
+const tempActualF = computed(() => {
+  return Math.round((tempActual.value * 9/5) + 32)
+})
+
 const precipitacion = computed(() => {
   const conditions = Math.random()
   if (conditions > 0.7) return 80
@@ -183,7 +187,7 @@ const weatherGradient = computed(() => {
 })
 
 const proximos5Dias = computed(() => {
-  const diasNombre = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const diasNombre = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
   const today = new Date()
   return [1, 2, 3, 4, 5].map((offset, i) => {
     const fecha = new Date(today)
@@ -200,11 +204,15 @@ const proximos5Dias = computed(() => {
     else if (rainChance > 30) icon = '☁️'
     else if (rainChance > 15) icon = '⛅'
 
+    const tempC = 24 + 1
+    const tempF = Math.round((tempC * 9/5) + 32)
+
     return {
       dayName,
       date: `${mesNum}/${diaNum}`,
       icon,
-      temp: 24 + 1,
+      temp: tempC,
+      tempF,
       rain: rainChance
     }
   })
@@ -458,10 +466,8 @@ function fmtFecha(f) {
   position: relative;
   border-radius: 16px;
   overflow: hidden;
-  height: 160px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
 }
 
 .dweather-bg {
@@ -481,7 +487,8 @@ function fmtFecha(f) {
   gap: 24px;
   color: white;
   width: 100%;
-  padding: 0 40px;
+  padding: 24px 40px;
+  min-height: 160px;
 }
 
 .dweather-icon {
@@ -526,21 +533,25 @@ function fmtFecha(f) {
 .dweather-forecast {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
+  gap: 8px;
+  padding: 0 40px 20px 40px;
+  background: rgba(0, 0, 0, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dforecast-day {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   padding: 10px;
   text-align: center;
+  backdrop-filter: blur(10px);
+  color: white;
 }
 
 .dfd-dayname {
   font-size: 11px;
   font-weight: 800;
-  color: rgb(var(--v-theme-on-surface));
+  color: white;
   margin-bottom: 2px;
   text-transform: capitalize;
 }
@@ -548,7 +559,7 @@ function fmtFecha(f) {
 .dfd-date {
   font-size: 9px;
   font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.5);
+  color: rgba(255, 255, 255, 0.7);
   margin-bottom: 6px;
   letter-spacing: 0.5px;
 }
@@ -561,14 +572,14 @@ function fmtFecha(f) {
 .dfd-temp {
   font-size: 13px;
   font-weight: 800;
-  color: rgb(var(--v-theme-on-surface));
+  color: white;
   margin-bottom: 3px;
 }
 
 .dfd-rain {
   font-size: 11px;
   font-weight: 600;
-  color: #06b6d4;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* ══ PANEL DE ALERTAS ════════════════════════════════════════ */
