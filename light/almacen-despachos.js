@@ -1288,7 +1288,7 @@ function cerrarCamara() {
 // ── Helpers ───────────────────────────────────────────────────
 function fmtFecha(f) {
     if (!f) return '—';
-    const d = new Date(f + (String(f).includes('T') ? '' : 'T12:00:00'));
+    const d = new Date(String(f).substring(0, 10) + 'T12:00:00');
     return d.toLocaleDateString('es', { day:'2-digit', month:'short', year:'numeric' });
 }
 
