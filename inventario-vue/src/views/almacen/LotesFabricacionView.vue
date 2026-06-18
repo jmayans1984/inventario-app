@@ -129,8 +129,12 @@
 
             <div class="field-group">
               <label class="field-label">Responsable</label>
-              <input v-model="form.responsable" type="text" maxlength="100" class="field-input"
-                @input="form.responsable = form.responsable.toUpperCase()" />
+              <select v-model="form.responsable" class="field-input field-select">
+                <option value="">— Seleccionar —</option>
+                <option v-for="emp in empleados" :key="emp.id" :value="`${emp.nombre} ${emp.apellido}`">
+                  {{ emp.nombre }} {{ emp.apellido }}
+                </option>
+              </select>
             </div>
 
             <div class="field-group">
@@ -164,6 +168,7 @@ const empresa = computed(() => auth.empresaCodigo)
 
 const lotes    = ref([])
 const etiquetas = ref([])
+const empleados = ref([])
 const busqueda  = ref('')
 const loading   = ref(false)
 const guardando = ref(false)
@@ -202,7 +207,7 @@ const diasVencimientoStr = computed(() => {
 })
 
 watch([() => form.value.etiqueta, () => form.value.fecha_fab], () => {
-  if (diasVencimientoStr.value && !editando.value) {
+  if (diasVencimientoStr.value) {
     form.value.fecha_vence = diasVencimientoStr.value
   }
 })
@@ -233,12 +238,14 @@ function venceProximo(f) {
 async function cargar() {
   loading.value = true
   try {
-    const [rLotes, rEtiq] = await Promise.all([
+    const [rLotes, rEtiq, rEmp] = await Promise.all([
       fetch(`${API_BASE}/almacen/lotes-fabricacion?empresa=${empresa.value}`).then(r => r.json()),
-      fetch(`${API_BASE}/almacen/etiquetas-producto?empresa=${empresa.value}`).then(r => r.json())
+      fetch(`${API_BASE}/almacen/etiquetas-producto?empresa=${empresa.value}`).then(r => r.json()),
+      fetch(`${API_BASE}/nomina/empleados-basico?empresa=${empresa.value}`).then(r => r.json())
     ])
-    lotes.value    = rLotes.data || []
+    lotes.value     = rLotes.data || []
     etiquetas.value = rEtiq.data || []
+    empleados.value = rEmp.data || []
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
