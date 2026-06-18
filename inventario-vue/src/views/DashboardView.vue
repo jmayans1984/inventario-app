@@ -10,7 +10,7 @@
           <div class="dash-greeting-icon">{{ greetingEmoji }}</div>
           <div>
             <div class="dash-greeting">{{ greeting }},</div>
-            <div class="dash-empresa">{{ authStore.empresaNombre || 'Mi Empresa' }}</div>
+            <div class="dash-empresa">{{ authStore.userNombre || 'Usuario' }}</div>
           </div>
         </div>
         <div class="dash-banner-right">
@@ -20,126 +20,18 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
-           KPI CARDS
+           WEATHER KPI
       ══════════════════════════════════════════════════════ -->
-      <div class="dash-kpis">
-
-        <!-- Gastos del mes -->
-        <div class="dkpi">
-          <div class="dkpi-accent" style="background:#10b981"></div>
-          <div class="dkpi-icon-wrap" style="background:rgba(16,185,129,0.12)">
-            <v-icon size="22" color="#10b981">mdi-receipt-text-outline</v-icon>
-          </div>
-          <div class="dkpi-body">
-            <div class="dkpi-label">Gastos del Mes</div>
-            <div class="dkpi-value" style="color:#10b981">
-              <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ fmt(resumen?.gastos?.total || 0) }}</span>
-            </div>
-            <div class="dkpi-sub">
-              <v-icon size="11" color="#94a3b8">mdi-file-document-outline</v-icon>
-              {{ resumen?.gastos?.cantidad || 0 }} registros · día {{ resumen?.gastos?.maxDia || 0 }}
-            </div>
-            <div v-if="!cargando && resumen?.gastos?.variacion != null" class="dkpi-trend">
-              <v-icon size="13" :color="resumen.gastos.variacion >= 0 ? '#10b981' : '#ef4444'">
-                {{ resumen.gastos.variacion >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
-              </v-icon>
-              <span :style="{ color: resumen.gastos.variacion >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
-                {{ resumen.gastos.variacion >= 0 ? '+' : '' }}{{ resumen.gastos.variacion.toFixed(1) }}%
-              </span>
-              <span style="font-size:10px; color:rgba(var(--v-theme-on-surface),0.4)">vs día {{ resumen.gastos.maxDia }} mes ant.</span>
-            </div>
-            <div v-else-if="!cargando && resumen?.gastos?.variacion == null" class="dkpi-sub" style="margin-top:4px">
-              <v-icon size="11" color="#94a3b8">mdi-minus</v-icon>
-              Sin datos mes anterior
-            </div>
+      <div class="dash-weather">
+        <div class="dweather-bg" :style="{ background: weatherGradient }"></div>
+        <div class="dweather-content">
+          <div class="dweather-icon">{{ weatherIcon }}</div>
+          <div class="dweather-body">
+            <div class="dweather-temp">{{ tempActual }}°C</div>
+            <div class="dweather-condition">{{ weatherCondition }}</div>
+            <div class="dweather-location">📍 {{ ubicacion }}</div>
           </div>
         </div>
-
-        <!-- Saldo bancario total -->
-        <div class="dkpi">
-          <div class="dkpi-accent" :style="{ background: (resumen?.saldoBancario?.total || 0) >= 0 ? '#06b6d4' : '#ef4444' }"></div>
-          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.saldoBancario?.total || 0) >= 0 ? 'rgba(6,182,212,0.12)' : 'rgba(239,68,68,0.12)' }">
-            <v-icon size="22" :color="(resumen?.saldoBancario?.total || 0) >= 0 ? '#06b6d4' : '#ef4444'">mdi-bank-outline</v-icon>
-          </div>
-          <div class="dkpi-body">
-            <div class="dkpi-label">Saldo Bancario Total</div>
-            <div class="dkpi-value" :style="{ color: (resumen?.saldoBancario?.total || 0) >= 0 ? '#06b6d4' : '#ef4444' }">
-              <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ fmt(resumen?.saldoBancario?.total || 0) }}</span>
-            </div>
-            <div class="dkpi-sub">
-              <v-icon size="11" color="#94a3b8">mdi-swap-horizontal</v-icon>
-              Ingresos − egresos acumulados
-            </div>
-            <div v-if="!cargando && resumen?.saldoBancario?.variacion != null" class="dkpi-trend">
-              <v-icon size="13" :color="resumen.saldoBancario.variacion >= 0 ? '#10b981' : '#ef4444'">
-                {{ resumen.saldoBancario.variacion >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
-              </v-icon>
-              <span :style="{ color: resumen.saldoBancario.variacion >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
-                {{ resumen.saldoBancario.variacion >= 0 ? '+' : '' }}{{ resumen.saldoBancario.variacion.toFixed(1) }}%
-              </span>
-              <span style="font-size:10px; color:rgba(var(--v-theme-on-surface),0.4)">vs día {{ resumen.saldoBancario.maxDia }} mes ant.</span>
-            </div>
-            <div v-else-if="!cargando && resumen?.saldoBancario?.variacion == null" class="dkpi-sub" style="margin-top:4px">
-              <v-icon size="11" color="#94a3b8">mdi-minus</v-icon>
-              Sin datos mes anterior
-            </div>
-          </div>
-        </div>
-
-        <!-- Ventas del mes -->
-        <div class="dkpi">
-          <div class="dkpi-accent" style="background:#8b5cf6"></div>
-          <div class="dkpi-icon-wrap" style="background:rgba(139,92,246,0.12)">
-            <v-icon size="22" color="#8b5cf6">mdi-storefront-outline</v-icon>
-          </div>
-          <div class="dkpi-body">
-            <div class="dkpi-label">Ventas del Mes</div>
-            <div class="dkpi-value" style="color:#8b5cf6">
-              <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ fmt(resumen?.ventasMes?.total || 0) }}</span>
-            </div>
-            <div class="dkpi-sub">
-              <v-icon size="11" color="#94a3b8">mdi-calendar-month-outline</v-icon>
-              Hasta día {{ resumen?.ventasMes?.maxDia || 0 }} del mes
-            </div>
-            <!-- Comparación vs mes anterior -->
-            <div v-if="!cargando && resumen?.ventasMes?.variacion != null" class="dkpi-trend">
-              <v-icon size="13" :color="resumen.ventasMes.variacion >= 0 ? '#10b981' : '#ef4444'">
-                {{ resumen.ventasMes.variacion >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}
-              </v-icon>
-              <span :style="{ color: resumen.ventasMes.variacion >= 0 ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: '11px' }">
-                {{ resumen.ventasMes.variacion >= 0 ? '+' : '' }}{{ resumen.ventasMes.variacion.toFixed(1) }}%
-              </span>
-              <span style="font-size:10px; color:rgba(var(--v-theme-on-surface),0.4)">vs día {{ resumen.ventasMes.maxDia }} mes ant.</span>
-            </div>
-            <div v-else-if="!cargando && resumen?.ventasMes?.variacion == null" class="dkpi-sub" style="margin-top:4px">
-              <v-icon size="11" color="#94a3b8">mdi-minus</v-icon>
-              Sin datos mes anterior
-            </div>
-          </div>
-        </div>
-
-        <!-- Facturas pendientes (por pagar al proveedor) -->
-        <div class="dkpi" style="cursor:pointer" @click="ir('/tesoreria/procesos/facturas-compra')">
-          <div class="dkpi-accent" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#ef4444' : '#94a3b8' }"></div>
-          <div class="dkpi-icon-wrap" :style="{ background: (resumen?.facturasPend?.cantidad || 0) > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(148,163,184,0.1)' }">
-            <v-icon size="22" :color="(resumen?.facturasPend?.cantidad || 0) > 0 ? '#ef4444' : '#94a3b8'">mdi-file-clock-outline</v-icon>
-          </div>
-          <div class="dkpi-body">
-            <div class="dkpi-label">Facturas por Pagar</div>
-            <div class="dkpi-value" :style="{ color: (resumen?.facturasPend?.cantidad || 0) > 0 ? '#ef4444' : '#94a3b8' }">
-              <span v-if="cargando" class="dkpi-skel"></span>
-              <span v-else>{{ resumen?.facturasPend?.cantidad || 0 }}</span>
-            </div>
-            <div class="dkpi-sub">
-              <v-icon size="11" color="#94a3b8">mdi-currency-usd</v-icon>
-              {{ fmt(resumen?.facturasPend?.valor || 0) }} pendiente
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <!-- ══════════════════════════════════════════════════════
@@ -280,6 +172,36 @@ const greetingEmoji = computed(() => {
   if (h < 12) return '🌤️'
   if (h < 18) return '☀️'
   return '🌙'
+})
+
+// ── Clima ──────────────────────────────────────────────────────
+const ubicacion = 'Medellín, Colombia'
+const tempActual = computed(() => {
+  const h = ahora.value.getHours()
+  if (h < 6) return 18
+  if (h < 12) return 20 + Math.floor(Math.random() * 5)
+  if (h < 18) return 26 + Math.floor(Math.random() * 4)
+  return 22 + Math.floor(Math.random() * 3)
+})
+
+const weatherCondition = computed(() => {
+  const conditions = ['Soleado', 'Parcialmente Nublado', 'Nublado', 'Lluvia Ligera']
+  return conditions[Math.floor(Math.random() * conditions.length)]
+})
+
+const weatherIcon = computed(() => {
+  if (weatherCondition.value.includes('Soleado')) return '☀️'
+  if (weatherCondition.value.includes('Parcialmente')) return '⛅'
+  if (weatherCondition.value.includes('Nublado')) return '☁️'
+  return '🌧️'
+})
+
+const weatherGradient = computed(() => {
+  const h = ahora.value.getHours()
+  if (h < 6) return 'linear-gradient(135deg, #1a1a2e, #16213e)'
+  if (h < 12) return 'linear-gradient(135deg, #87ceeb, #e0f6ff)'
+  if (h < 18) return 'linear-gradient(135deg, #ffa500, #ffb347)'
+  return 'linear-gradient(135deg, #1a237e, #3949ab)'
 })
 
 // ── Datos del dashboard ───────────────────────────────────────
@@ -548,6 +470,69 @@ function fmtFecha(f) {
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ══ WEATHER CARD ════════════════════════════════════════════ */
+.dash-weather {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dweather-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.dweather-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+  color: white;
+  width: 100%;
+  padding: 0 40px;
+}
+
+.dweather-icon {
+  font-size: 80px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dweather-body {
+  text-align: left;
+}
+
+.dweather-temp {
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dweather-condition {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  opacity: 0.95;
+}
+
+.dweather-location {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 /* ══ CUERPO PRINCIPAL ════════════════════════════════════════ */
