@@ -118,7 +118,7 @@
             <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
           </div>
 
-          <div v-if="contarAlertasPorTipo('actualizaciones') > 0" class="quick-action-card actualizaciones" @click="irA('/')">
+          <div v-if="contarAlertasPorTipo('actualizaciones') > 0" class="quick-action-card actualizaciones" @click="irA('/configuracion/general')">
             <div class="qac-icon">⚡</div>
             <div class="qac-content">
               <div class="qac-label">Actualizaciones</div>
