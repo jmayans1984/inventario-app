@@ -51,30 +51,53 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
-           PANEL DE ALERTAS
+           ALERTAS COMPACTO + ACCIONES RÁPIDAS
       ══════════════════════════════════════════════════════ -->
-      <div class="dalerts-panel">
-        <div class="dalerts-header">
-          <v-icon size="18" color="#fff">mdi-alert-circle</v-icon>
-          <span>ALERTAS DEL SISTEMA</span>
-          <div class="dalerts-count">{{ alertas.length }}</div>
-        </div>
-
-        <div v-if="alertas.length === 0" class="dalerts-empty">
-          <v-icon size="40">mdi-check-circle-outline</v-icon>
-          <span>Todo en orden</span>
-        </div>
-
-        <div v-else class="dalerts-list">
-          <div v-for="(alerta, idx) in alertas" :key="idx" class="dalert-card" :class="`dalert-${alerta.tipo}`">
-            <div class="dalert-badge">{{ alerta.tipo }}</div>
-            <div class="dalert-icon">{{ alerta.icon }}</div>
-            <div class="dalert-content">
-              <div class="dalert-title">{{ alerta.titulo }}</div>
-              <div class="dalert-desc">{{ alerta.descripcion }}</div>
-              <div class="dalert-time">{{ alerta.hora }}</div>
+      <div class="dalerts-compact">
+        <div v-if="alertas.length > 0" class="dalerts-mini">
+          <div class="dalerts-mini-header">
+            <v-icon size="16">mdi-alert-circle</v-icon>
+            <span>{{ alertas.length }} Alertas</span>
+          </div>
+          <div class="dalerts-mini-list">
+            <div v-for="(alerta, idx) in alertas.slice(0, 2)" :key="idx" class="dalert-mini-card">
+              <div class="dalert-mini-icon">{{ alerta.icon }}</div>
+              <div class="dalert-mini-text">
+                <div class="dalert-mini-title">{{ alerta.titulo }}</div>
+              </div>
+              <button class="dalert-mini-close" @click="eliminarAlerta(idx)">✕</button>
             </div>
-            <button class="dalert-delete" @click="eliminarAlerta(idx)" title="Eliminar alerta">✕</button>
+            <div v-if="alertas.length > 2" class="dalert-mini-more">+{{ alertas.length - 2 }} más</div>
+          </div>
+        </div>
+
+        <!-- ACCIONES RÁPIDAS BASADAS EN NOTIFICACIONES -->
+        <div class="quick-actions-grid">
+          <div v-if="contarAlertasPorTipo('stock_bajo') > 0" class="quick-action-card stock-bajo" @click="irA('/almacen/reportes/alertas-stock')">
+            <div class="qac-icon">📦</div>
+            <div class="qac-content">
+              <div class="qac-label">Stock Bajo</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('stock_bajo') }} productos</div>
+            </div>
+            <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
+          </div>
+
+          <div v-if="contarAlertasPorTipo('stock_fuera') > 0" class="quick-action-card stock-fuera" @click="irA('/almacen/reportes/alertas-stock')">
+            <div class="qac-icon">🔴</div>
+            <div class="qac-content">
+              <div class="qac-label">Sin Stock</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('stock_fuera') }} productos</div>
+            </div>
+            <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
+          </div>
+
+          <div v-if="contarAlertasPorTipo('alerta_general') > 0" class="quick-action-card alerta-general" @click="irA('/almacen/procesos/gestion-inventario')">
+            <div class="qac-icon">⚠️</div>
+            <div class="qac-content">
+              <div class="qac-label">Alerta General</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('alerta_general') }} alertas</div>
+            </div>
+            <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
           </div>
         </div>
       </div>
@@ -269,6 +292,14 @@ async function eliminarAlerta(idx) {
   } catch (e) {
     console.error('Error eliminando alerta:', e)
   }
+}
+
+function contarAlertasPorTipo(tipo) {
+  return alertas.value.filter(a => a.tipo === tipo).length
+}
+
+function irA(ruta) {
+  router.push(ruta)
 }
 
 // ── Datos del dashboard ───────────────────────────────────────
@@ -805,6 +836,204 @@ function fmtFecha(f) {
 
 .dalert-delete:active {
   transform: scale(0.95);
+}
+
+/* ══ ALERTAS COMPACTO ══════════════════════════════════ */
+.dalerts-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dalerts-mini {
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 4px solid #ef4444;
+  border-radius: 12px;
+  padding: 12px 16px;
+  overflow: hidden;
+}
+
+.dalerts-mini-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ef4444;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dalerts-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dalert-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.dalert-mini-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.dalert-mini-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dalert-mini-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dalert-mini-close {
+  background: none;
+  border: none;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.dalert-mini-close:hover {
+  color: #ef4444;
+}
+
+.dalert-mini-more {
+  font-size: 11px;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  padding: 6px 8px;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ══ QUICK ACTIONS GRID ════════════════════════════════ */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.quick-action-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+  overflow: hidden;
+  position: relative;
+}
+
+.quick-action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-4px);
+  border-color: currentColor;
+}
+
+.quick-action-card:hover::before {
+  opacity: 0.1;
+}
+
+.quick-action-card.stock-bajo {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+  border-left: 4px solid #f59e0b;
+  color: #f59e0b;
+}
+
+.quick-action-card.stock-bajo::before {
+  background: #f59e0b;
+}
+
+.quick-action-card.stock-fuera {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+  border-left: 4px solid #ef4444;
+  color: #ef4444;
+}
+
+.quick-action-card.stock-fuera::before {
+  background: #ef4444;
+}
+
+.quick-action-card.alerta-general {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(168, 85, 247, 0.05));
+  border-left: 4px solid #a855f7;
+  color: #a855f7;
+}
+
+.quick-action-card.alerta-general::before {
+  background: #a855f7;
+}
+
+.qac-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.qac-content {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.qac-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.qac-value {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.qac-arrow {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+  position: relative;
+  z-index: 1;
+}
+
+.quick-action-card:hover .qac-arrow {
+  opacity: 1;
 }
 
 </style>
