@@ -1,46 +1,69 @@
 <template>
-  <v-dialog v-model="mostrar" max-width="600px">
-    <v-card>
-      <v-card-title class="bg-primary text-white">
-        <v-icon>mdi-star-circle</v-icon>
-        Actualizaciones del Sistema
-      </v-card-title>
+  <v-dialog v-model="mostrar" max-width="650px">
+    <v-card class="rounded-lg">
+      <!-- Header Moderno -->
+      <div class="header-gradient pa-6 text-white">
+        <div class="d-flex align-center gap-3">
+          <div class="header-icon">
+            <v-icon size="32">mdi-rocket-launch</v-icon>
+          </div>
+          <div>
+            <div class="text-h5 font-weight-700">Actualizaciones</div>
+            <div class="text-caption opacity-75">Novedades del sistema</div>
+          </div>
+        </div>
+      </div>
 
-      <v-card-text class="pa-4">
-        <div v-if="cargando" class="text-center py-6">
-          <v-progress-circular indeterminate color="primary" />
+      <!-- Contenido -->
+      <v-card-text class="updates-container pa-6">
+        <div v-if="cargando" class="text-center py-12">
+          <v-progress-circular indeterminate color="primary" size="48" />
+          <div class="mt-4 text-secondary">Cargando actualizaciones...</div>
         </div>
 
-        <div v-else-if="actualizaciones.length === 0" class="text-center py-6 text-secondary">
-          No hay actualizaciones disponibles
+        <div v-else-if="actualizaciones.length === 0" class="text-center py-12">
+          <div class="empty-icon">✨</div>
+          <div class="text-h6 font-weight-600 mt-3">Sin actualizaciones</div>
+          <div class="text-secondary text-sm">Todo está al día</div>
         </div>
 
         <div v-else class="actualizaciones-list">
           <div
             v-for="(act, idx) in actualizaciones"
             :key="act.id"
-            class="update-item"
-            :class="{ 'border-b': idx < actualizaciones.length - 1 }"
+            class="update-card"
+            :class="{ 'mb-3': idx < actualizaciones.length - 1 }"
           >
-            <div class="update-header">
-              <div class="update-title">
-                <v-icon color="primary" class="mr-2">mdi-bell-circle</v-icon>
-                <span class="font-weight-600">{{ act.titulo }}</span>
+            <div class="update-card-inner">
+              <div class="update-badge">
+                <v-icon size="20">mdi-star</v-icon>
               </div>
-              <div class="update-date text-caption text-secondary">
-                {{ formatFecha(act.fecha_creacion) }}
+
+              <div class="update-content">
+                <div class="d-flex justify-space-between align-start">
+                  <h3 class="update-title">{{ act.titulo }}</h3>
+                  <span class="update-time">{{ formatFecha(act.fecha_creacion) }}</span>
+                </div>
+
+                <p class="update-description">{{ act.mensaje }}</p>
               </div>
-            </div>
-            <div class="update-description pl-9 mt-2">
-              {{ act.mensaje }}
             </div>
           </div>
         </div>
       </v-card-text>
 
+      <!-- Footer -->
+      <v-divider />
       <v-card-actions class="pa-4">
         <v-spacer />
-        <v-btn variant="text" @click="cerrar">Cerrar</v-btn>
+        <v-btn
+          variant="elevated"
+          color="primary"
+          @click="cerrar"
+          class="px-6"
+        >
+          Cerrar
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -119,39 +142,158 @@ function cerrar() {
 </script>
 
 <style scoped>
-.actualizaciones-list {
-  max-height: 400px;
-  overflow-y: auto;
+.header-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  border-radius: 8px 8px 0 0;
 }
 
-.update-item {
-  padding: 16px 0;
-}
-
-.update-item.border-b {
-  border-bottom: 1px solid #eee;
-}
-
-.update-header {
+.header-icon {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.updates-container {
+  background: #f8f9fa;
+  min-height: 300px;
+}
+
+.actualizaciones-list {
+  max-height: 450px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.actualizaciones-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.actualizaciones-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.actualizaciones-list::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 3px;
+}
+
+.actualizaciones-list::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+.update-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #e8e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.update-card:hover {
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.12);
+  transform: translateY(-2px);
+  border-color: #667eea;
+}
+
+.update-card-inner {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.update-badge {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.update-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .update-title {
-  display: flex;
-  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
+  margin-bottom: 6px;
+  line-height: 1.4;
 }
 
 .update-description {
-  color: #666;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  color: #6b7280;
+  font-size: 0.85rem;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  margin: 0;
 }
 
-.bg-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+.update-time {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  margin-left: 12px;
+  font-weight: 500;
+}
+
+.empty-icon {
+  font-size: 48px;
+}
+
+.opacity-75 {
+  opacity: 0.75;
+}
+
+.gap-3 {
+  gap: 12px;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+/* Animación de entrada */
+.update-card {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .update-card-inner {
+    padding: 12px;
+  }
+
+  .update-title {
+    font-size: 0.9rem;
+  }
+
+  .update-description {
+    font-size: 0.8rem;
+  }
 }
 </style>
