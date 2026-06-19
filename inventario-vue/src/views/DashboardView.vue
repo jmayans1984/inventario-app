@@ -82,6 +82,15 @@
             <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
           </div>
 
+          <div v-if="contarAlertasPorTipo('DESPACHO_BODEGA') > 0" class="quick-action-card despachos" @click="irA('/almacen/procesos/despachos')">
+            <div class="qac-icon">📦</div>
+            <div class="qac-content">
+              <div class="qac-label">Despachos</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('DESPACHO_BODEGA') }} pendientes</div>
+            </div>
+            <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
+          </div>
+
           <div v-if="contarAlertasPorTipo('stock_fuera') > 0" class="quick-action-card stock-fuera" @click="irA('/almacen/reportes/alertas-stock')">
             <div class="qac-icon">🔴</div>
             <div class="qac-content">
@@ -1037,6 +1046,16 @@ function fmtFecha(f) {
 
 .quick-action-card.orden-compra::before {
   background: #3b82f6;
+}
+
+.quick-action-card.despachos {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+  border-left: 4px solid #8b5cf6;
+  color: #8b5cf6;
+}
+
+.quick-action-card.despachos::before {
+  background: #8b5cf6;
 }
 
 .quick-action-card.reportes {

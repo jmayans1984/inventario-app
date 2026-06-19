@@ -1007,6 +1007,35 @@ app.post('/api/almacen/despachos', async (req, res) => {
                 VALUES ($1,$2,$3)
             `, [ordenId, item.producto_codigo, parseFloat(item.cant_requerida) || 0]);
         }
+
+        // Crear notificación de despacho creado
+        try {
+            const notifResult = await client.query(
+                `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
+                 VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW())
+                 RETURNING id`,
+                [empresa, 'Nuevo Despacho', `Despacho #${ordenId} creado. Origen: ${cc_origen} → Destino: ${cc_destino}`]
+            );
+
+            const notif_id = notifResult.rows[0].id;
+
+            // Obtener usuarios de la empresa para notificar
+            const usuariosResult = await client.query(
+                'SELECT codigo FROM usuarios WHERE empresa = $1',
+                [empresa]
+            );
+
+            for (const usr of usuariosResult.rows) {
+                await client.query(
+                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                     VALUES ($1, $2, 'NO')`,
+                    [notif_id, usr.codigo]
+                ).catch(() => {});
+            }
+        } catch (notifError) {
+            console.error('Error creando notificación de despacho:', notifError);
+        }
+
         await client.query('COMMIT');
         res.json({ success: true, id: ordenId });
     } catch (e) {
@@ -1177,6 +1206,34 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
             `UPDATE ordenes_despacho SET estado='COMPLETADO', fecha_completado=NOW() WHERE id=$1`,
             [req.params.id]
         );
+
+        // Crear notificación de despacho completado
+        try {
+            const notifResult = await client.query(
+                `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
+                 VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW())
+                 RETURNING id`,
+                [empresa, 'Despacho Completado', `Despacho #${orden.id} completado. De ${nombreOrigen} a ${nombreDestino}`]
+            );
+
+            const notif_id = notifResult.rows[0].id;
+
+            // Obtener usuarios de la empresa para notificar
+            const usuariosResult = await client.query(
+                'SELECT codigo FROM usuarios WHERE empresa = $1',
+                [empresa]
+            );
+
+            for (const usr of usuariosResult.rows) {
+                await client.query(
+                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                     VALUES ($1, $2, 'NO')`,
+                    [notif_id, usr.codigo]
+                ).catch(() => {});
+            }
+        } catch (notifError) {
+            console.error('Error creando notificación de despacho completado:', notifError);
+        }
 
         await client.query('COMMIT');
         res.json({ success: true });
