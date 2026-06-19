@@ -230,6 +230,7 @@ async function cargarAlertas() {
     const notificaciones = res.data || []
     if (Array.isArray(notificaciones)) {
       alertas.value = notificaciones.map(n => ({
+        id: n.id,
         tipo: n.tipo || 'INFO',
         icon: obtenerIconoTipo(n.tipo || 'INFO'),
         titulo: n.titulo,
@@ -258,8 +259,16 @@ function formatFecha(fecha) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-function eliminarAlerta(idx) {
-  alertas.value.splice(idx, 1)
+async function eliminarAlerta(idx) {
+  const alerta = alertas.value[idx]
+  if (!alerta?.id) return
+
+  try {
+    await notificacionesService.eliminarNotificacion(alerta.id)
+    alertas.value.splice(idx, 1)
+  } catch (e) {
+    console.error('Error eliminando alerta:', e)
+  }
 }
 
 // ── Datos del dashboard ───────────────────────────────────────
