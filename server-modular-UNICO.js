@@ -1093,14 +1093,27 @@ app.patch('/api/almacen/despachos/:id/scan', async (req, res) => {
     const { empresa, producto_codigo, tipo, delta } = req.body;
     if (!['picking','packing'].includes(tipo)) return res.status(400).json({ success: false, error: 'tipo debe ser picking o packing' });
     const col = tipo === 'picking' ? 'cant_picking' : 'cant_packing';
+    const d   = parseFloat(delta) || 1;
     try {
-        const result = await pool.query(`
+        // Intentar actualizar la línea existente
+        let result = await pool.query(`
             UPDATE ordenes_despacho_detalle
             SET ${col} = GREATEST(0, ${col} + $1)
             WHERE orden_id=$2 AND producto_codigo=$3
             RETURNING *
-        `, [parseFloat(delta) || 1, req.params.id, producto_codigo]);
-        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'Producto no está en esta orden' });
+        `, [d, req.params.id, producto_codigo]);
+
+        // Si el producto no estaba en la orden, agregarlo automáticamente (cant_requerida=0)
+        if (result.rowCount === 0) {
+            // Verificar que el producto exista en el catálogo antes de insertar (evita FK)
+            const rProd = await pool.query(`SELECT 1 FROM productos WHERE codigo=$1`, [producto_codigo]);
+            if (rProd.rowCount === 0) return res.status(404).json({ success: false, error: 'Producto no existe en el catálogo' });
+            result = await pool.query(`
+                INSERT INTO ordenes_despacho_detalle (orden_id, producto_codigo, cant_requerida, ${col})
+                VALUES ($1, $2, 0, GREATEST(0, $3))
+                RETURNING *
+            `, [req.params.id, producto_codigo, d]);
+        }
         res.json({ success: true, data: result.rows[0] });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });

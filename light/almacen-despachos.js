@@ -436,12 +436,14 @@ async function procesarScan(barcode) {
 
         // 5. Actualizar estado local
         item[campo] = parseFloat(dataS.data[campo]) || 0;
+        if (dataS.data.cant_requerida != null) item.cant_requerida = parseFloat(dataS.data.cant_requerida) || 0;
 
         // 6. Feedback visual
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
         const sufijo = delta > 1 ? ` (×${delta})` : '';
-        if (nuevo < req)       showFeedback('warn', `⚠️ ${nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`);
+        if (req === 0)         showFeedback('ok',   `✅ ${nombre}${sufijo} — agregado (${nuevo})`);
+        else if (nuevo < req)  showFeedback('warn', `⚠️ ${nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`);
         else if (nuevo === req) showFeedback('ok',   `✅ ${nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`);
         else                   showFeedback('warn',  `🔴 ${nombre}${sufijo} — Sobrante: ${nuevo}/${req}`);
 
@@ -458,6 +460,7 @@ async function procesarScan(barcode) {
     } catch (e) {
         // FIX 2: mostrar error con botón de reintento; refocus para no romper el flujo
         const esTiempo = e.name === 'AbortError';
+        const esRed    = esTiempo || e.name === 'TypeError'; // fetch falló = red real
         console.error('[SCAN ERROR]', {
             name: e.name,
             message: e.message,
@@ -465,8 +468,11 @@ async function procesarScan(barcode) {
             barcode: barcode,
             timestamp: new Date().toISOString()
         });
+        const titulo = esTiempo ? 'Tiempo de espera agotado'
+                     : esRed    ? 'Error de conexión'
+                     :            'Error: ' + (e.message || e.name);
         showFeedbackHTML('error',
-            `❌ ${esTiempo ? 'Tiempo de espera agotado' : 'Error de conexión'} &nbsp;` +
+            `❌ ${titulo} &nbsp;` +
             `<button onclick="reintentarScan()" style="padding:4px 10px;border-radius:8px;border:1.5px solid currentColor;background:transparent;color:inherit;font-size:12px;font-weight:700;cursor:pointer;">🔄 Reintentar</button>`
         );
     } finally {
@@ -662,7 +668,7 @@ function preguntarPacking(item) {
 function actualizarFilaScan(item, campo) {
     try {
         const el = document.getElementById('si-' + item.producto_codigo);
-        if (!el) return;
+        if (!el) { renderScanList(campo); return; }  // producto nuevo: reconstruir lista
         const req   = parseFloat(item.cant_requerida) || 0;
         const esc   = parseFloat(item[campo]) || 0;
         const dif   = esc - req;
@@ -970,16 +976,24 @@ async function cargarTodosLosProductos() {
             return;
         }
 
+        // Guardar nombres para usarlos al asociar (evita problemas de comillas en onclick)
+        window._catalogoNombres = {};
+        productos.forEach(p => { window._catalogoNombres[p.codigo] = p.nombre; });
+
         const botonVolver = `
-            <button onclick="mostrarAsociadorBarcode('${barcodeNoEncontrado}')" style="width:100%;padding:12px;margin-bottom:12px;
+            <button onclick="mostrarAsociadorBarcode('${barcodeNoEncontrado}')" style="width:100%;padding:12px;margin-bottom:8px;
                     border-radius:12px;border:1px solid var(--border-color);cursor:pointer;background:transparent;color:var(--text-secondary);
                     font-size:13px;font-weight:700">
                 ← Volver a productos de la orden
             </button>
+            <input id="bsBuscarProd" type="text" placeholder="🔍 Buscar producto..." autocomplete="off"
+                   oninput="filtrarCatalogoProductos()"
+                   style="width:100%;padding:12px;margin-bottom:12px;border-radius:12px;border:1px solid var(--border-color);
+                          background:var(--bg-input);color:var(--text-primary);font-size:14px;box-sizing:border-box">
         `;
 
         const productosList = productos.map(prod => `
-            <div class="bs-item" onclick="seleccionarProductoParaBarcode('${prod.codigo}')">
+            <div class="bs-item bs-prod-item" data-nombre="${(prod.nombre||'').toLowerCase()}" data-cod="${prod.codigo}" onclick="seleccionarProductoParaBarcode('${prod.codigo}')">
                 <div class="bs-item-icon">📦</div>
                 <div>
                     <div class="bs-item-name">${prod.nombre}</div>
@@ -988,16 +1002,28 @@ async function cargarTodosLosProductos() {
             </div>
         `).join('');
 
-        lista.innerHTML = botonVolver + productosList;
+        lista.innerHTML = botonVolver + '<div id="bsProdContainer">' + productosList + '</div>';
     } catch(e) {
         console.error('Error cargarTodosLosProductos:', e);
         lista.innerHTML = '<div style="padding:20px;text-align:center">❌ Error cargando productos: ' + e.message + '</div>';
     }
 }
 
+function filtrarCatalogoProductos() {
+    const q = (document.getElementById('bsBuscarProd')?.value || '').toLowerCase().trim();
+    document.querySelectorAll('.bs-prod-item').forEach(el => {
+        const nom = el.getAttribute('data-nombre') || '';
+        const cod = (el.getAttribute('data-cod') || '').toLowerCase();
+        el.style.display = (!q || nom.includes(q) || cod.includes(q)) ? '' : 'none';
+    });
+}
+
 async function seleccionarProductoParaBarcode(productoCodigo) {
     const barcode = barcodeNoEncontrado;
     const item    = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
+    // Guardar nombre del producto (de la orden o del catálogo) para mostrarlo al agregar
+    window._nombreProductoBarcode = item ? item.producto_nombre
+                                  : (window._catalogoNombres && window._catalogoNombres[productoCodigo]) || productoCodigo;
 
     const overlay = document.getElementById('bsOverlay');
     const panel   = overlay.querySelector('.bs-panel');
@@ -1009,15 +1035,15 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
           ¿Cuántas <strong>unidades</strong> representa este código de barras?
         </div>
         <div style="display:flex;gap:8px;margin-bottom:12px">
-          <button onclick="setFactor(1)"  class="btn-factor" id="bf1">× 1</button>
-          <button onclick="setFactor(6)"  class="btn-factor" id="bf6">× 6</button>
-          <button onclick="setFactor(12)" class="btn-factor" id="bf12">× 12</button>
-          <button onclick="setFactor(24)" class="btn-factor" id="bf24">× 24</button>
+          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',1)"  class="btn-factor" id="bf1">× 1</button>
+          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',6)"  class="btn-factor" id="bf6">× 6</button>
+          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',12)" class="btn-factor" id="bf12">× 12</button>
+          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',24)" class="btn-factor" id="bf24">× 24</button>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button onclick="setFactor(40)"  class="btn-factor" id="bf40">× 40</button>
-          <button onclick="setFactor(48)"  class="btn-factor" id="bf48">× 48</button>
-          <button onclick="setFactor(120)" class="btn-factor" id="bf120">× 120</button>
+          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',40)"  class="btn-factor" id="bf40">× 40</button>
+          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',48)"  class="btn-factor" id="bf48">× 48</button>
+          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',120)" class="btn-factor" id="bf120">× 120</button>
           <button onclick="setFactor(0)"   class="btn-factor" id="bf0" style="background:var(--bg-input)">Otro</button>
         </div>
         <div id="factorOtroWrap" style="display:none;margin-bottom:12px">
@@ -1109,10 +1135,10 @@ function factorOtroConfirmar() {
     _factorOtroVal = '';
 }
 
-async function confirmarFactorBarcode(productoCodigo, barcode) {
-    let factor = window._factorSeleccionado;
+async function confirmarFactorBarcode(productoCodigo, barcode, factorDirecto) {
+    let factor = (factorDirecto != null) ? factorDirecto : window._factorSeleccionado;
     if (factor === 0) {
-        factor = parseInt(document.getElementById('factorOtroInput').value) || 1;
+        factor = parseInt(_factorOtroVal) || 1;
     }
     if (factor < 1) factor = 1;
 
@@ -1125,12 +1151,23 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ empresa: getEmpresa(), barcode, es_principal: false, factor })
         });
+        // 409 = ya existía ese barcode; no es un error fatal
         barcodeCache[barcode] = { factor, productoCodigo };
     } catch(e) { /* continuar igualmente */ }
 
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
-    const item  = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
-    if (!item) { showFeedback('warn', '⚠️ Producto no encontrado en la orden'); return; }
+    let item    = ordenActiva.detalle.find(d => d.producto_codigo === productoCodigo);
+    if (!item) {
+        // Producto no estaba en la orden: agregarlo localmente (backend lo acepta vía upsert)
+        item = {
+            producto_codigo: productoCodigo,
+            producto_nombre: window._nombreProductoBarcode || productoCodigo,
+            cant_requerida: 0,
+            cant_picking: 0,
+            cant_packing: 0
+        };
+        ordenActiva.detalle.push(item);
+    }
 
     if (!estadoCambiado) {
         const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
@@ -1155,13 +1192,16 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
         if (!data.success) { showFeedback('error', '❌ Error al registrar scan'); return; }
 
         item[campo] = parseFloat(data.data[campo]) || 0;
+        if (data.data.cant_requerida != null) item.cant_requerida = parseFloat(data.data.cant_requerida) || 0;
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
         const sufijo = factor > 1 ? ` (×${factor})` : '';
-        const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`
-                    : nuevo === req ? `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`
-                    :                 `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`;
-        showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
+        let tipo, msg;
+        if (req === 0)        { tipo = 'ok';   msg = `✅ ${item.producto_nombre}${sufijo} — agregado (${nuevo})`; }
+        else if (nuevo < req) { tipo = 'warn'; msg = `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`; }
+        else if (nuevo === req){ tipo = 'ok';   msg = `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`; }
+        else                  { tipo = 'warn'; msg = `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`; }
+        showFeedback(tipo, msg);
         actualizarFilaScan(item, campo);
 
         if (nuevo === req) {
@@ -1169,7 +1209,9 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
             return;
         }
     } catch(e) {
-        showFeedback('error', '❌ Error de conexión');
+        console.error('[CONFIRMAR FACTOR ERROR]', e);
+        const esRed = e.name === 'AbortError' || e.name === 'TypeError';
+        showFeedback('error', esRed ? '❌ Error de conexión' : '❌ Error: ' + (e.message || e.name));
     } finally {
         scanEnProceso = false;
         refocusInput();
