@@ -74,6 +74,7 @@
               <div class="dalert-desc">{{ alerta.descripcion }}</div>
               <div class="dalert-time">{{ alerta.hora }}</div>
             </div>
+            <button class="dalert-delete" @click="eliminarAlerta(idx)" title="Eliminar alerta">✕</button>
           </div>
         </div>
       </div>
@@ -255,6 +256,10 @@ function formatFecha(fecha) {
   if (!fecha) return '—'
   const d = new Date(fecha)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function eliminarAlerta(idx) {
+  alertas.value.splice(idx, 1)
 }
 
 // ── Datos del dashboard ───────────────────────────────────────
@@ -765,6 +770,32 @@ function fmtFecha(f) {
   font-size: 10px;
   color: rgba(var(--v-theme-on-surface), 0.4);
   font-weight: 600;
+}
+
+.dalert-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 0, 0, 0.1);
+  color: #ef4444;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.dalert-delete:hover {
+  background: rgba(255, 0, 0, 0.2);
+  transform: scale(1.1);
+}
+
+.dalert-delete:active {
+  transform: scale(0.95);
 }
 
 </style>
