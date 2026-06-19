@@ -8798,39 +8798,15 @@ app.post('/api/admin/actualizaciones', async (req, res) => {
 
         // Crear notificación de actualización
         const notifRes = await pool.query(
-            `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
-             VALUES ($1, $2, $3, 'actualizaciones', NOW())
+            `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo)
+             VALUES ($1, $2, $3, 'actualizaciones')
              RETURNING id`,
             [empresa, titulo, mensaje]
         );
 
         const notif_id = notifRes.rows[0].id;
 
-        // Enviar a usuarios especificados o a todos
-        if (usuarios_receptores && Array.isArray(usuarios_receptores) && usuarios_receptores.length > 0) {
-            for (const usuario of usuarios_receptores) {
-                await pool.query(
-                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
-                     VALUES ($1, $2, 'NO')`,
-                    [notif_id, usuario]
-                ).catch(() => {});
-            }
-        } else {
-            // Si no se especifican usuarios, enviar a todos los de la empresa
-            const usuariosRes = await pool.query(
-                `SELECT DISTINCT usuario FROM usuarios WHERE empresa = $1 AND activo = 'SI'`,
-                [empresa]
-            );
-            for (const row of usuariosRes.rows) {
-                await pool.query(
-                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
-                     VALUES ($1, $2, 'NO')`,
-                    [notif_id, row.usuario]
-                ).catch(() => {});
-            }
-        }
-
-        res.json({ success: true, notificacion_id: notif_id });
+        res.json({ success: true, notificacion_id: notif_id, mensaje: 'Actualización registrada correctamente' });
     } catch (e) {
         console.error('Error POST /api/admin/actualizaciones:', e);
         res.status(500).json({ success: false, error: e.message });
