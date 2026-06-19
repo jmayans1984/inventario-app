@@ -73,11 +73,11 @@
 
         <!-- ACCIONES RÁPIDAS BASADAS EN NOTIFICACIONES -->
         <div class="quick-actions-grid">
-          <div v-if="contarAlertasPorTipo('stock_bajo') > 0" class="quick-action-card stock-bajo" @click="irA('/almacen/reportes/alertas-stock')">
-            <div class="qac-icon">📦</div>
+          <div v-if="contarAlertasPorTipo('ORDEN_COMPRA') > 0" class="quick-action-card orden-compra" @click="irA('/almacen/procesos/ordenes-compra')">
+            <div class="qac-icon">📋</div>
             <div class="qac-content">
-              <div class="qac-label">Stock Bajo</div>
-              <div class="qac-value">{{ contarAlertasPorTipo('stock_bajo') }} productos</div>
+              <div class="qac-label">Órdenes Compra</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('ORDEN_COMPRA') }} nuevas</div>
             </div>
             <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
           </div>
@@ -91,11 +91,38 @@
             <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
           </div>
 
+          <div v-if="contarAlertasPorTipo('stock_bajo') > 0" class="quick-action-card stock-bajo" @click="irA('/almacen/reportes/alertas-stock')">
+            <div class="qac-icon">📦</div>
+            <div class="qac-content">
+              <div class="qac-label">Stock Bajo</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('stock_bajo') }} productos</div>
+            </div>
+            <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
+          </div>
+
           <div v-if="contarAlertasPorTipo('alerta_general') > 0" class="quick-action-card alerta-general" @click="irA('/almacen/procesos/gestion-inventario')">
             <div class="qac-icon">⚠️</div>
             <div class="qac-content">
               <div class="qac-label">Alerta General</div>
               <div class="qac-value">{{ contarAlertasPorTipo('alerta_general') }} alertas</div>
+            </div>
+            <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
+          </div>
+
+          <div v-if="contarAlertasPorTipo('reportes') > 0" class="quick-action-card reportes" @click="irA('/almacen/reportes/kardex')">
+            <div class="qac-icon">📊</div>
+            <div class="qac-content">
+              <div class="qac-label">Reportes</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('reportes') }} listos</div>
+            </div>
+            <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
+          </div>
+
+          <div v-if="contarAlertasPorTipo('actualizaciones') > 0" class="quick-action-card actualizaciones" @click="irA('/')">
+            <div class="qac-icon">⚡</div>
+            <div class="qac-content">
+              <div class="qac-label">Actualizaciones</div>
+              <div class="qac-value">{{ contarAlertasPorTipo('actualizaciones') }} nuevas</div>
             </div>
             <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
           </div>
@@ -996,6 +1023,36 @@ function fmtFecha(f) {
 
 .quick-action-card.alerta-general::before {
   background: #a855f7;
+}
+
+.quick-action-card.orden-compra {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+  border-left: 4px solid #3b82f6;
+  color: #3b82f6;
+}
+
+.quick-action-card.orden-compra::before {
+  background: #3b82f6;
+}
+
+.quick-action-card.reportes {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+  border-left: 4px solid #22c55e;
+  color: #22c55e;
+}
+
+.quick-action-card.reportes::before {
+  background: #22c55e;
+}
+
+.quick-action-card.actualizaciones {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.05));
+  border-left: 4px solid #0ea5e9;
+  color: #0ea5e9;
+}
+
+.quick-action-card.actualizaciones::before {
+  background: #0ea5e9;
 }
 
 .qac-icon {
