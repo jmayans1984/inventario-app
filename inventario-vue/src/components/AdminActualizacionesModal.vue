@@ -61,7 +61,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import adminActualizacionesService from '@/services/admin-actualizaciones.service'
+import adminActualizacionesService from '../services/admin-actualizaciones.service.js'
 
 const mostrar = ref(false)
 const cargando = ref(false)

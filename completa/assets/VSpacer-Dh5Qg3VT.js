@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-BMX0eJVO.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};
