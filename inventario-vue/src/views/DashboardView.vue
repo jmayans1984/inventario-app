@@ -118,7 +118,7 @@
             <v-icon class="qac-arrow">mdi-chevron-right</v-icon>
           </div>
 
-          <div v-if="contarAlertasPorTipo('actualizaciones') > 0" class="quick-action-card actualizaciones" @click="irA('/configuracion/general')">
+          <div v-if="contarAlertasPorTipo('actualizaciones') > 0" class="quick-action-card actualizaciones" @click="mostrarActualizaciones = true">
             <div class="qac-icon">⚡</div>
             <div class="qac-content">
               <div class="qac-label">Actualizaciones</div>
@@ -131,6 +131,8 @@
 
 
     </div>
+
+    <ActualizacionesModal v-model:mostrar="mostrarActualizaciones" />
   </MainLayout>
 </template>
 
@@ -138,6 +140,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import ActualizacionesModal from '../components/ActualizacionesModal.vue'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { notificacionesService } from '../services/notificaciones.service'
@@ -273,6 +276,7 @@ const proximos5Dias = computed(() => {
 
 // ── Alertas del sistema ────────────────────────────────────────
 const alertas = ref([])
+const mostrarActualizaciones = ref(false)
 
 async function cargarAlertas() {
   try {
