@@ -957,7 +957,7 @@ async function cargarTodosLosProductos() {
     lista.innerHTML = '<div style="padding:20px;text-align:center">⏳ Cargando productos...</div>';
 
     try {
-        const res = await fetchConTimeout(`${API_BASE}/bodega-maestra?control=si`);
+        const res = await fetchConTimeout(`${API_BASE}/empresas/bodega-maestra?empresa=${getEmpresa()}`);
         const data = await res.json();
         const productos = data.data || [];
 
