@@ -1010,27 +1010,34 @@ app.post('/api/almacen/despachos', async (req, res) => {
 
         // Crear notificación de despacho creado
         try {
-            const notifResult = await client.query(
-                `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
-                 VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW())
-                 RETURNING id`,
-                [empresa, 'Nuevo Despacho', `Despacho #${ordenId} creado. Origen: ${cc_origen} → Destino: ${cc_destino}`]
-            );
-
-            const notif_id = notifResult.rows[0].id;
-
-            // Obtener usuarios de la empresa para notificar
-            const usuariosResult = await client.query(
-                'SELECT codigo FROM usuarios WHERE empresa = $1',
+            // Obtener preferencias de notificación para DESPACHO_BODEGA
+            const prefRes = await client.query(
+                `SELECT usuarios_receptores FROM preferencias_notificaciones
+                 WHERE empresa = $1 AND tipo = 'DESPACHO_BODEGA' AND activa = 'SI'`,
                 [empresa]
             );
 
-            for (const usr of usuariosResult.rows) {
-                await client.query(
-                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
-                     VALUES ($1, $2, 'NO')`,
-                    [notif_id, usr.codigo]
-                ).catch(() => {});
+            if (prefRes.rows.length > 0) {
+                const usuarios = JSON.parse(prefRes.rows[0].usuarios_receptores || '[]');
+
+                if (usuarios.length > 0) {
+                    const notifResult = await client.query(
+                        `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
+                         VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW())
+                         RETURNING id`,
+                        [empresa, 'Nuevo Despacho', `Despacho #${ordenId} creado. Origen: ${cc_origen} → Destino: ${cc_destino}`]
+                    );
+
+                    const notif_id = notifResult.rows[0].id;
+
+                    for (const usr of usuarios) {
+                        await client.query(
+                            `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                             VALUES ($1, $2, 'NO')`,
+                            [notif_id, usr]
+                        ).catch(() => {});
+                    }
+                }
             }
         } catch (notifError) {
             console.error('Error creando notificación de despacho:', notifError);
@@ -1209,27 +1216,34 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
 
         // Crear notificación de despacho completado
         try {
-            const notifResult = await client.query(
-                `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
-                 VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW())
-                 RETURNING id`,
-                [empresa, 'Despacho Completado', `Despacho #${orden.id} completado. De ${nombreOrigen} a ${nombreDestino}`]
-            );
-
-            const notif_id = notifResult.rows[0].id;
-
-            // Obtener usuarios de la empresa para notificar
-            const usuariosResult = await client.query(
-                'SELECT codigo FROM usuarios WHERE empresa = $1',
+            // Obtener preferencias de notificación para DESPACHO_BODEGA
+            const prefRes = await client.query(
+                `SELECT usuarios_receptores FROM preferencias_notificaciones
+                 WHERE empresa = $1 AND tipo = 'DESPACHO_BODEGA' AND activa = 'SI'`,
                 [empresa]
             );
 
-            for (const usr of usuariosResult.rows) {
-                await client.query(
-                    `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
-                     VALUES ($1, $2, 'NO')`,
-                    [notif_id, usr.codigo]
-                ).catch(() => {});
+            if (prefRes.rows.length > 0) {
+                const usuarios = JSON.parse(prefRes.rows[0].usuarios_receptores || '[]');
+
+                if (usuarios.length > 0) {
+                    const notifResult = await client.query(
+                        `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
+                         VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW())
+                         RETURNING id`,
+                        [empresa, 'Despacho Completado', `Despacho #${orden.id} completado. De ${nombreOrigen} a ${nombreDestino}`]
+                    );
+
+                    const notif_id = notifResult.rows[0].id;
+
+                    for (const usr of usuarios) {
+                        await client.query(
+                            `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                             VALUES ($1, $2, 'NO')`,
+                            [notif_id, usr]
+                        ).catch(() => {});
+                    }
+                }
             }
         } catch (notifError) {
             console.error('Error creando notificación de despacho completado:', notifError);
