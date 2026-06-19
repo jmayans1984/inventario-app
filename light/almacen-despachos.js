@@ -986,7 +986,8 @@ async function cargarTodosLosProductos() {
 
         lista.innerHTML = botonVolver + productosList;
     } catch(e) {
-        lista.innerHTML = '<div style="padding:20px;text-align:center">❌ Error cargando productos</div>';
+        console.error('Error cargarTodosLosProductos:', e);
+        lista.innerHTML = '<div style="padding:20px;text-align:center">❌ Error cargando productos: ' + e.message + '</div>';
     }
 }
 
