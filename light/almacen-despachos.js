@@ -960,7 +960,14 @@ async function cargarTodosLosProductos() {
         const res = await fetchConTimeout(`${API_BASE}/empresas/bodega-maestra?empresa=${getEmpresa()}`);
         const data = await res.json();
         console.log('Respuesta bodega-maestra:', data);
-        const productos = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+        console.log('data.data type:', typeof data.data, 'isArray:', Array.isArray(data.data));
+        console.log('data.data keys:', data.data ? Object.keys(data.data) : 'undefined');
+        let productos = [];
+        if (Array.isArray(data.data)) {
+            productos = data.data;
+        } else if (typeof data.data === 'object' && data.data !== null) {
+            productos = Object.values(data.data);
+        }
 
         if (productos.length === 0) {
             lista.innerHTML = '<div style="padding:20px;text-align:center">❌ No hay productos disponibles</div>';
