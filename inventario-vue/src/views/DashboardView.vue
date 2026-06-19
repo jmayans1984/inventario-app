@@ -60,14 +60,14 @@
             <span>{{ alertas.length }} Alertas</span>
           </div>
           <div class="dalerts-mini-list">
-            <div v-for="(alerta, idx) in alertas.slice(0, 2)" :key="idx" class="dalert-mini-card">
+            <div v-for="(alerta, idx) in alertas.slice(0, 4)" :key="idx" class="dalert-mini-card">
               <div class="dalert-mini-icon">{{ alerta.icon }}</div>
               <div class="dalert-mini-text">
                 <div class="dalert-mini-title">{{ alerta.titulo }}</div>
               </div>
               <button class="dalert-mini-close" @click="eliminarAlerta(idx)">✕</button>
             </div>
-            <div v-if="alertas.length > 2" class="dalert-mini-more">+{{ alertas.length - 2 }} más</div>
+            <div v-if="alertas.length > 4" class="dalert-mini-more">+{{ alertas.length - 4 }} más</div>
           </div>
         </div>
 
