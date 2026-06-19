@@ -255,6 +255,23 @@
         </div>
       </div>
 
+      <!-- ══════════════════════════════════════════════
+           SECCIÓN 4: ACTUALIZACIONES DEL SISTEMA
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(245,158,11,0.12)">
+            <v-icon size="16" color="#f59e0b">mdi-star-circle-outline</v-icon>
+          </div>
+          <span class="cfg-section-title">ACTUALIZACIONES DEL SISTEMA</span>
+        </div>
+
+        <div class="cfg-update-section">
+          <p class="cfg-update-desc">Notifica a todos los usuarios sobre nuevas features, mejoras y cambios del sistema</p>
+          <AdminActualizacionesModal />
+        </div>
+      </div>
+
     </div>
   </MainLayout>
 </template>
@@ -262,6 +279,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import AdminActualizacionesModal from '../components/AdminActualizacionesModal.vue'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 
@@ -651,4 +669,18 @@ onMounted(() => {
 /* Mensajes */
 .cfg-ok-msg  { font-size: 12px; font-weight: 600; color: #10b981; display: flex; align-items: center; gap: 4px; }
 .cfg-err-msg { font-size: 12px; font-weight: 600; color: #ef4444; }
+
+/* ═══ ACTUALIZACIONES ═══ */
+.cfg-update-section {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 16px;
+  background: rgba(245, 158, 11, 0.03);
+  border-radius: 8px;
+}
+.cfg-update-desc {
+  font-size: 13px;
+  color: rgba(var(--v-theme-on-surface), 0.65);
+  margin: 0;
+  line-height: 1.5;
+}
 </style>
