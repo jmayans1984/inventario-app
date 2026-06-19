@@ -69,6 +69,17 @@ const routes = [
   // RECETAS — patrón general
   { path: '/recetas/:section?/:item?', component: () => import('../views/RecetasView.vue'), meta: { requiresAuth: true } },
 
+  // PRODUCCIÓN/PROVEEDURÍA ESPECÍFICAS
+  { path: '/produccion/configuracion/productos-venta', component: () => import('../views/produccion/ProductosVentaView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/produccion/configuracion/grupo-productos', component: () => import('../views/produccion/GrupoProductosView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/produccion/configuracion/lista-precios', component: () => import('../views/produccion/ListaPreciosView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/produccion/procesos/ordenes-compra', component: () => import('../views/produccion/OrdenesCompraView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/produccion/informes/lista-precios', component: () => import('../views/produccion/ReporteListaPreciosView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/produccion/informes/ordenes-compra', component: () => import('../views/produccion/ReporteOrdenesCompraView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+
+  // PRODUCCIÓN/PROVEEDURÍA — patrón general
+  { path: '/produccion/:section?/:item?', component: () => import('../views/ProduccionView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+
   // NÓMINA — vistas específicas (antes del catch-all)
   { path: '/nomina/configuracion/empleados',      component: () => import('../views/nomina/EmpleadosView.vue'),         meta: { requiresAuth: true } },
   { path: '/nomina/configuracion/cargos',         component: () => import('../views/nomina/CargosView.vue'),            meta: { requiresAuth: true } },
