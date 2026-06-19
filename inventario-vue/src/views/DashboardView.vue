@@ -73,7 +73,7 @@
 
         <!-- ACCIONES RÁPIDAS BASADAS EN NOTIFICACIONES -->
         <div class="quick-actions-grid">
-          <div v-if="contarAlertasPorTipo('ORDEN_COMPRA') > 0" class="quick-action-card orden-compra" @click="irA('/almacen/procesos/ordenes-compra')">
+          <div v-if="contarAlertasPorTipo('ORDEN_COMPRA') > 0" class="quick-action-card orden-compra" @click="irA('/produccion/procesos/ordenes-compra')">
             <div class="qac-icon">📋</div>
             <div class="qac-content">
               <div class="qac-label">Órdenes Compra</div>
