@@ -959,7 +959,8 @@ async function cargarTodosLosProductos() {
     try {
         const res = await fetchConTimeout(`${API_BASE}/empresas/bodega-maestra?empresa=${getEmpresa()}`);
         const data = await res.json();
-        const productos = data.data || [];
+        console.log('Respuesta bodega-maestra:', data);
+        const productos = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
 
         if (productos.length === 0) {
             lista.innerHTML = '<div style="padding:20px;text-align:center">❌ No hay productos disponibles</div>';
