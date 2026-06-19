@@ -921,7 +921,15 @@ function mostrarAsociadorBarcode(barcode) {
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
     const lista = document.getElementById('bsList');
 
-    lista.innerHTML = ordenActiva.detalle.map(item => {
+    const botonCargarTodos = `
+        <button onclick="cargarTodosLosProductos()" style="width:100%;padding:12px;margin-bottom:12px;
+                border-radius:12px;border:none;cursor:pointer;background:#3b82f6;color:white;
+                font-size:13px;font-weight:700">
+            📦 Cargar todos los productos de bodega
+        </button>
+    `;
+
+    const productosOrden = ordenActiva.detalle.map(item => {
         const req = parseFloat(item.cant_requerida) || 0;
         const esc = parseFloat(item[campo]) || 0;
         const completo = esc >= req;
@@ -939,7 +947,47 @@ function mostrarAsociadorBarcode(barcode) {
         </div>`;
     }).join('');
 
+    lista.innerHTML = botonCargarTodos + productosOrden;
+
     document.getElementById('bsOverlay').classList.add('open');
+}
+
+async function cargarTodosLosProductos() {
+    const lista = document.getElementById('bsList');
+    lista.innerHTML = '<div style="padding:20px;text-align:center">⏳ Cargando productos...</div>';
+
+    try {
+        const res = await fetchConTimeout(`${API_BASE}/bodega-maestra?control=si`);
+        const data = await res.json();
+        const productos = data.data || [];
+
+        if (productos.length === 0) {
+            lista.innerHTML = '<div style="padding:20px;text-align:center">❌ No hay productos disponibles</div>';
+            return;
+        }
+
+        const botonVolver = `
+            <button onclick="mostrarAsociadorBarcode('${barcodeNoEncontrado}')" style="width:100%;padding:12px;margin-bottom:12px;
+                    border-radius:12px;border:1px solid var(--border-color);cursor:pointer;background:transparent;color:var(--text-secondary);
+                    font-size:13px;font-weight:700">
+                ← Volver a productos de la orden
+            </button>
+        `;
+
+        const productosList = productos.map(prod => `
+            <div class="bs-item" onclick="seleccionarProductoParaBarcode('${prod.codigo}')">
+                <div class="bs-item-icon">📦</div>
+                <div>
+                    <div class="bs-item-name">${prod.nombre}</div>
+                    <div class="bs-item-cod">${prod.codigo}</div>
+                </div>
+            </div>
+        `).join('');
+
+        lista.innerHTML = botonVolver + productosList;
+    } catch(e) {
+        lista.innerHTML = '<div style="padding:20px;text-align:center">❌ Error cargando productos</div>';
+    }
 }
 
 async function seleccionarProductoParaBarcode(productoCodigo) {
