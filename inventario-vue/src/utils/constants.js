@@ -115,6 +115,28 @@ export const MODULES = [
     ],
   },
   {
+    id: 'produccion',
+    name: 'PROVEEDURÍA',
+    icon: 'mdi-store',
+    color: '#b45309',
+    path: '/produccion',
+    requiredTipo: 'PROVEEDOR',
+    children: [
+      { name: 'Configuración', icon: 'mdi-cog-outline', items: [
+        { name: 'Productos para Venta', icon: 'mdi-package-variant', path: '/produccion/configuracion/productos-venta' },
+        { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/produccion/configuracion/grupo-productos' },
+        { name: 'Lista de Precios', icon: 'mdi-list-box-outline', path: '/produccion/configuracion/lista-precios' },
+      ]},
+      { name: 'Procesos', icon: 'mdi-cogs', items: [
+        { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/produccion/procesos/ordenes-compra' },
+      ]},
+      { name: 'Informes', icon: 'mdi-chart-bar', items: [
+        { name: 'Lista de Precios', icon: 'mdi-file-chart-outline', path: '/produccion/informes/lista-precios' },
+        { name: 'Órdenes de Compra', icon: 'mdi-file-text-outline', path: '/produccion/informes/ordenes-compra' },
+      ]},
+    ],
+  },
+  {
     id: 'recetas',
     name: 'RECETAS',
     icon: 'mdi-chef-hat',
