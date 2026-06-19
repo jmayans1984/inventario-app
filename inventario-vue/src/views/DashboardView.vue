@@ -10,7 +10,7 @@
           <div class="dash-greeting-icon">{{ greetingEmoji }}</div>
           <div>
             <div class="dash-greeting">{{ greeting }},</div>
-            <div class="dash-empresa">{{ authStore.userNombre || 'Usuario' }}</div>
+            <div class="dash-empresa">{{ (authStore.userNombre || 'Usuario').split(' ')[0] }}</div>
           </div>
         </div>
         <div class="dash-banner-right">
