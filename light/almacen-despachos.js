@@ -922,10 +922,7 @@ function imprimirReporte() {
 function mostrarAsociadorBarcode(barcode) {
     barcodeNoEncontrado = barcode;
 
-    document.getElementById('bsBarcode').textContent = barcode;
-
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
-    const lista = document.getElementById('bsList');
 
     const botonCargarTodos = `
         <button onclick="cargarTodosLosProductos()" style="width:100%;padding:12px;margin-bottom:12px;
@@ -953,9 +950,25 @@ function mostrarAsociadorBarcode(barcode) {
         </div>`;
     }).join('');
 
-    lista.innerHTML = botonCargarTodos + productosOrden;
+    // Reconstruir TODO el panel cada vez. seleccionarProductoParaBarcode()
+    // reemplaza el innerHTML del panel (destruye bsBarcode/bsList), así que
+    // hay que regenerar la estructura completa o el siguiente scan crashea.
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+    panel.innerHTML = `
+        <div class="bs-header">
+            <div class="bs-drag"></div>
+            <div class="bs-title">📡 Código no reconocido</div>
+            <div><span class="bs-barcode" id="bsBarcode">${barcode}</span></div>
+            <div class="bs-subtitle">Selecciona el producto para asociar este código de barras</div>
+        </div>
+        <div class="bs-list" id="bsList">${botonCargarTodos + productosOrden}</div>
+        <div class="bs-footer">
+            <button class="bs-cancel" onclick="cerrarAsociador()">Cancelar — ignorar este escaneo</button>
+        </div>
+    `;
 
-    document.getElementById('bsOverlay').classList.add('open');
+    overlay.classList.add('open');
 }
 
 async function cargarTodosLosProductos() {
