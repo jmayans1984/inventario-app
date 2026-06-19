@@ -8777,6 +8777,7 @@ const TIPOS_NOTIFICACIONES_DEFAULT = [
     { valor: 'alerta_general', label: 'Alertas Generales', descripcion: 'Alertas y cambios importantes del sistema', icon: 'mdi-bell' },
     { valor: 'actualizaciones', label: 'Actualizaciones del Sistema', descripcion: 'Notificaciones sobre mantenimiento y nuevas características', icon: 'mdi-refresh' },
     { valor: 'reportes', label: 'Reportes Completados', descripcion: 'Notificaciones cuando tus reportes están listos', icon: 'mdi-file-chart' },
+    { valor: 'DESPACHO_BODEGA', label: 'Despachos de Bodega', descripcion: 'Notificación cuando se crea o completa un despacho de bodega', icon: 'mdi-truck-delivery' },
 ];
 
 // Insertar tipos por defecto si no existen
