@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
+import pkg from './package.json'
 
 export default defineConfig({
   base: '/inventario-app/completa/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   build: {
     outDir: '../completa',
     emptyOutDir: true,

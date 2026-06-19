@@ -1,6 +1,6 @@
 export const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api'
 
-export const APP_VERSION = '2.4'
+export const APP_VERSION = __APP_VERSION__
 
 export const MODULES = [
   {
