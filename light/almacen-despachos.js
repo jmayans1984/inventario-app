@@ -195,6 +195,18 @@ async function iniciarEscaneo(modo) {
     itemsOcultos   = new Set(); // FIX 6: reset al entrar
     mostrandoOcultos = false;
 
+    // Cargar productos ya completados en packing desde la BD
+    if (ordenActiva && ordenActiva.detalle) {
+        ordenActiva.detalle.forEach(item => {
+            const req = parseFloat(item.cant_requerida) || 0;
+            const pack = parseFloat(item.cant_packing) || 0;
+            // Si ya tiene el packing completado, ocultar
+            if (pack > 0 && pack >= req) {
+                itemsOcultos.add(item.producto_codigo);
+            }
+        });
+    }
+
     renderEscaneo();
     mostrarScreen('escaneo');
 }
@@ -366,12 +378,19 @@ async function procesarScan(barcode) {
         const esCodigo = data.data.barcode_desc === undefined;
 
         // 2. ¿Está en esta orden?
-        const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+        let item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
         if (!item) {
-            showFeedback('warn', `⚠️ ${nombre} no está en esta orden`);
-            scanEnProceso = false;
-            refocusInput();
-            return;
+            // Producto no está en la orden, pero existe en el catálogo
+            // Agregarlo a la orden
+            item = {
+                producto_codigo: codigo,
+                producto_nombre: nombre,
+                cant_requerida: 0,  // No tiene cantidad requerida (es adicional)
+                cant_picking: 0,
+                cant_packing: 0
+            };
+            ordenActiva.detalle.push(item);
+            showFeedback('ok', `✅ ${nombre} agregado a la orden`);
         }
 
         // FIX: usar factor registrado en BD sin preguntar
@@ -967,16 +986,11 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
             <button onclick="factorOtroDigit(0)" style="padding:0;height:72px;border-radius:14px;border:1.5px solid var(--border-color);
                     background:var(--bg-card);color:var(--text-primary);font-size:28px;font-weight:700;
                     cursor:pointer;touch-action:manipulation;user-select:none">0</button>
-            <button id="btnFactorOtroOk" onclick="factorOtroConfirmar()" disabled style="padding:0;height:72px;border-radius:14px;border:none;
+            <button id="btnFactorOtroOk" onclick="factorOtroConfirmar(); confirmarFactorBarcode('${productoCodigo}', '${barcode}')" disabled style="padding:0;height:72px;border-radius:14px;border:none;
                     background:#047857;color:white;font-size:28px;font-weight:700;opacity:.4;
                     cursor:pointer;touch-action:manipulation;user-select:none">✓</button>
           </div>
         </div>
-        <button id="btnConfirmarFactor" onclick="confirmarFactorBarcode('${productoCodigo}', '${barcode}')"
-          style="width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
-                 background:#047857;color:white;font-size:15px;font-weight:700;margin-bottom:8px">
-          Confirmar y registrar
-        </button>
         <button onclick="cancelarFactorBarcode()"
           style="width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
                  background:transparent;color:var(--text-secondary);font-size:13px">
@@ -1103,9 +1117,10 @@ async function confirmarFactorBarcode(productoCodigo, barcode) {
         }
     } catch(e) {
         showFeedback('error', '❌ Error de conexión');
+    } finally {
+        scanEnProceso = false;
+        refocusInput();
     }
-
-    refocusInput();
 }
 
 function cancelarFactorBarcode() {
