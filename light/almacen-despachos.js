@@ -980,7 +980,7 @@ function imprimirReporte() {
     <div class="meta-grid">
         <div class="meta-item"><label>CC Origen</label><span>${o.cc_origen_nombre}</span></div>
         <div class="meta-item"><label>CC Destino</label><span>${o.cc_destino_nombre}</span></div>
-        <div class="meta-item"><label>Observaciones</label><span>${o.observaciones || '—'}</span></div>
+        <div class="meta-item"><label>Otros</label><span>${o.observaciones || '—'}</span></div>
     </div>
     <table>
         <thead><tr>
@@ -992,10 +992,6 @@ function imprimirReporte() {
         </tr></thead>
         <tbody>${filas}</tbody>
     </table>
-    <div class="firmas">
-        <div class="firma-linea">Firma Despachador</div>
-        <div class="firma-linea">Firma Receptor</div>
-    </div>
     <script>window.onload=()=>{window.print();}<\/script>
 </body>
 </html>`);
