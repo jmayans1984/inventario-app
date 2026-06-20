@@ -52,34 +52,105 @@
 
         .container {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1400px;
             position: relative;
             z-index: 2;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .sidebar {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(26, 45, 77, 0.8) 100%);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px 30px;
+            border-radius: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sidebar-top {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-logo {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .sidebar-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .sidebar-features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-features li {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            padding: 12px 0;
+            padding-left: 28px;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .sidebar-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .sidebar-version {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
         }
 
         .header {
-            text-align: center;
-            margin-bottom: 60px;
+            text-align: left;
+            margin-bottom: 50px;
             color: white;
             animation: fadeInDown 0.8s ease;
         }
 
-        .header-logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
-        }
-
         .header h1 {
-            font-size: 2.8rem;
-            margin-bottom: 12px;
+            font-size: 2.2rem;
+            margin-bottom: 8px;
             background: linear-gradient(135deg, #ffffff 0%, #e0e0ff 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -89,10 +160,10 @@
         }
 
         .header p {
-            font-size: 1.15rem;
-            opacity: 0.85;
+            font-size: 1rem;
+            opacity: 0.8;
             font-weight: 300;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .selector {
@@ -316,6 +387,58 @@
             animation: slideInUp 0.6s ease 0.2s both;
         }
 
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 30px;
+                min-height: auto;
+                flex-direction: row;
+                align-items: flex-start;
+                justify-content: space-between;
+                margin-bottom: 20px;
+            }
+
+            .sidebar-top {
+                display: flex;
+                flex-direction: row;
+                align-items: flex-start;
+                gap: 20px;
+                flex: 1;
+            }
+
+            .sidebar-logo {
+                width: 60px;
+                height: 60px;
+                font-size: 1.8rem;
+                margin: 0;
+                flex-shrink: 0;
+            }
+
+            .sidebar-title {
+                font-size: 1.5rem;
+            }
+
+            .sidebar-subtitle {
+                margin-bottom: 0;
+            }
+
+            .sidebar-features {
+                display: none;
+            }
+
+            .sidebar-version {
+                position: absolute;
+                bottom: 20px;
+                right: 30px;
+            }
+        }
+
         @media (max-width: 768px) {
             .selector {
                 grid-template-columns: 1fr;
@@ -323,11 +446,11 @@
             }
 
             .header h1 {
-                font-size: 2rem;
+                font-size: 1.8rem;
             }
 
             .header p {
-                font-size: 1rem;
+                font-size: 0.95rem;
             }
 
             .card {
@@ -348,6 +471,35 @@
                 width: 300px;
                 height: 300px;
             }
+
+            .sidebar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .sidebar-top {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .sidebar-logo {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+
+            .sidebar-title {
+                font-size: 1.3rem;
+            }
+
+            .sidebar-subtitle {
+                font-size: 0.85rem;
+            }
+
+            .sidebar-version {
+                position: static;
+                margin-top: 20px;
+            }
         }
     </style>
 </head>
@@ -355,54 +507,76 @@
     <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
 
     <div class="container">
-        <div class="header">
-            <div class="header-logo">📊</div>
-            <h1>RestManager Pro</h1>
-            <p>Sistema de Gestión Empresarial</p>
+        <!-- PANEL LATERAL IZQUIERDO -->
+        <div class="sidebar">
+            <div class="sidebar-top">
+                <div class="sidebar-logo">📊</div>
+                <div class="sidebar-title">RestManager Pro</div>
+                <div class="sidebar-subtitle">Sistema de Gestión Empresarial</div>
+
+                <ul class="sidebar-features">
+                    <li>Acceso seguro y encriptado</li>
+                    <li>Soporte multi-empresa</li>
+                    <li>Reportes y análisis en tiempo real</li>
+                    <li>Datos sincronizados en la nube</li>
+                </ul>
+            </div>
+
+            <div class="sidebar-version">
+                SISTEMA ERP v2.0
+            </div>
         </div>
 
-        <div class="selector">
-            <!-- LIGHT -->
-            <a href="light/index.html" class="card">
-                <div>
-                    <div class="card-badge">OPTIMIZADO MÓVIL</div>
-                    <div class="card-icon">📱</div>
-                    <div class="card-title">Versión LIGHT</div>
-                </div>
-                <p>Interfaz rápida y ligera diseñada específicamente para dispositivos móviles. Acceso a todas las funciones esenciales.</p>
-                <div class="card-features">
-                    <ul>
-                        <li>Diseño 100% responsivo</li>
-                        <li>Carga en menos de 2 segundos</li>
-                        <li>Bajo consumo de datos</li>
-                        <li>Perfecto para celulares</li>
-                    </ul>
-                </div>
-                <button class="card-button">Abrir Versión LIGHT</button>
-            </a>
+        <!-- CONTENIDO PRINCIPAL -->
+        <div class="content">
+            <div class="header">
+                <h1>Selecciona tu versión</h1>
+                <p>Elige la plataforma que mejor se adapte a tu dispositivo</p>
+            </div>
 
-            <!-- COMPLETA -->
-            <a href="completa/index.html" class="card">
-                <div>
-                    <div class="card-badge">FULL FEATURES</div>
-                    <div class="card-icon">💻</div>
-                    <div class="card-title">Versión COMPLETA</div>
-                </div>
-                <p>Plataforma completa con todas las funciones avanzadas. Diseñada para computadoras y tablets con pantallas grandes.</p>
-                <div class="card-features">
-                    <ul>
-                        <li>Interfaz profesional y moderna</li>
-                        <li>Todas las funciones avanzadas</li>
-                        <li>Gestión completa de proveedores</li>
-                        <li>Óptima para escritorio</li>
-                    </ul>
-                </div>
-                <button class="card-button">Abrir Versión COMPLETA</button>
-            </a>
-        </div>
+            <div class="selector">
+                <!-- LIGHT -->
+                <a href="light/index.html" class="card">
+                    <div>
+                        <div class="card-badge">OPTIMIZADO MÓVIL</div>
+                        <div class="card-icon">📱</div>
+                        <div class="card-title">Versión LIGHT</div>
+                    </div>
+                    <p>Interfaz rápida y ligera diseñada específicamente para dispositivos móviles. Acceso a todas las funciones esenciales.</p>
+                    <div class="card-features">
+                        <ul>
+                            <li>Diseño 100% responsivo</li>
+                            <li>Carga en menos de 2 segundos</li>
+                            <li>Bajo consumo de datos</li>
+                            <li>Perfecto para celulares</li>
+                        </ul>
+                    </div>
+                    <button class="card-button">Abrir Versión LIGHT</button>
+                </a>
 
-        <div class="footer">
-            <p>© 2026 RestManager Pro | Todos los derechos reservados | v1.09.0</p>
+                <!-- COMPLETA -->
+                <a href="completa/index.html" class="card">
+                    <div>
+                        <div class="card-badge">FULL FEATURES</div>
+                        <div class="card-icon">💻</div>
+                        <div class="card-title">Versión COMPLETA</div>
+                    </div>
+                    <p>Plataforma completa con todas las funciones avanzadas. Diseñada para computadoras y tablets con pantallas grandes.</p>
+                    <div class="card-features">
+                        <ul>
+                            <li>Interfaz profesional y moderna</li>
+                            <li>Todas las funciones avanzadas</li>
+                            <li>Gestión completa de proveedores</li>
+                            <li>Óptima para escritorio</li>
+                        </ul>
+                    </div>
+                    <button class="card-button">Abrir Versión COMPLETA</button>
+                </a>
+            </div>
+
+            <div class="footer">
+                <p>© 2026 RestManager Pro | Todos los derechos reservados | v1.09.0</p>
+            </div>
         </div>
     </div>
 
