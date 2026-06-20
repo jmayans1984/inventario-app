@@ -131,6 +131,10 @@ async function imprimirDespacho(id) {
         </tr></thead>
         <tbody>${filas}</tbody>
     </table>
+    <div style="margin-top:20px;padding:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:6px">Otros</div>
+        <div style="font-size:13px;color:#333">${o.observaciones || '—'}</div>
+    </div>
     <script>window.onload=()=>{window.print();}<\/script>
 </body>
 </html>`);
