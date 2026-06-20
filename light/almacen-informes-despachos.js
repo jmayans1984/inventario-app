@@ -19,18 +19,13 @@ function fmtFecha(dateStr) {
 }
 
 async function buscarDespachos() {
-    const fecha = document.getElementById('filtroFecha').value;
-    const estado = document.getElementById('filtroEstado').value;
     const empresa = getEmpresa();
 
     const el = document.getElementById('listaDespachos');
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Buscando...</p></div>';
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando despachos...</p></div>';
 
     try {
-        let url = `${API_BASE}/almacen/despachos?empresa=${empresa}`;
-        if (fecha) url += `&fecha=${fecha}`;
-        if (estado) url += `&estado=${estado}`;
-
+        const url = `${API_BASE}/almacen/despachos?empresa=${empresa}`;
         const res = await fetch(url, { timeout: 15000 });
         const data = await res.json();
         renderDespachos(data.data || []);
@@ -149,13 +144,6 @@ async function imprimirDespacho(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        // Cargar automáticamente últimos 7 días
-        const hoy = new Date();
-        const hace7dias = new Date(hoy.getTime() - (7 * 24 * 60 * 60 * 1000));
-
-        const fechaStr = hace7dias.toISOString().split('T')[0];
-        document.getElementById('filtroFecha').value = fechaStr;
-
         buscarDespachos();
     }, 300);
 });
