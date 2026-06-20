@@ -122,22 +122,42 @@ function renderDetalle() {
     const puedePackear  = (est === 'EN_PICKING' && algoPicado) || est === 'EN_PACKING';
     const puedeConfirmar= est === 'EN_PACKING' || (est === 'EN_PICKING' && algoPicado);
 
-    const filas = o.detalle.map(item => {
-        const req  = parseFloat(item.cant_requerida) || 0;
-        const pack = parseFloat(item.cant_packing)   || 0;
-        const dif  = pack - req;
-        const rowCls = pack === 0 ? '' : dif < 0 ? 'row-falta' : dif > 0 ? 'row-sobre' : 'row-ok';
-        const difStr = pack === 0 ? '<span style="color:var(--text-tertiary)">—</span>'
-                     : dif === 0 ? '<span class="dif-ok">✓</span>'
-                     : dif  < 0  ? `<span class="dif-falta">${dif}</span>`
-                                 : `<span class="dif-sobre">+${dif}</span>`;
-        return `<tr class="${rowCls}">
-            <td><div class="prod-nombre">${item.producto_nombre}</div><div class="prod-cod">${item.producto_codigo}</div></td>
-            <td class="num-cell">${req}</td>
-            <td class="num-cell">${pack || '—'}</td>
-            <td class="num-cell">${difStr}</td>
-        </tr>`;
-    }).join('');
+    // Agrupar por grupo_nombre, ordenar por grupo_codigo
+    const grupos = {};
+    o.detalle.forEach(item => {
+        const grupoNombre = item.grupo_nombre || 'Sin grupo';
+        const grupoCodigo = item.grupo_codigo || '';
+        const grupoKey = `${grupoCodigo}|${grupoNombre}`;
+        if (!grupos[grupoKey]) grupos[grupoKey] = [];
+        grupos[grupoKey].push(item);
+    });
+
+    const gruposOrdenados = Object.keys(grupos).sort();
+
+    let filasHtml = '';
+    gruposOrdenados.forEach(grupoKey => {
+        const [, grupoNombre] = grupoKey.split('|');
+        filasHtml += `<tr><td colspan="4" style="padding-top:12px;padding-bottom:6px;font-weight:600;color:var(--text-secondary);font-size:12px;border-bottom:2px solid var(--border-color)">${grupoNombre}</td></tr>`;
+
+        grupos[grupoKey].forEach(item => {
+            const req  = parseFloat(item.cant_requerida) || 0;
+            const pack = parseFloat(item.cant_packing)   || 0;
+            const dif  = pack - req;
+            const rowCls = pack === 0 ? '' : dif < 0 ? 'row-falta' : dif > 0 ? 'row-sobre' : 'row-ok';
+            const difStr = pack === 0 ? '<span style="color:var(--text-tertiary)">—</span>'
+                         : dif === 0 ? '<span class="dif-ok">✓</span>'
+                         : dif  < 0  ? `<span class="dif-falta">${dif}</span>`
+                                     : `<span class="dif-sobre">+${dif}</span>`;
+            filasHtml += `<tr class="${rowCls}">
+                <td><div class="prod-nombre">${item.producto_nombre}</div></td>
+                <td class="num-cell">${req}</td>
+                <td class="num-cell">${pack || '—'}</td>
+                <td class="num-cell">${difStr}</td>
+            </tr>`;
+        });
+    });
+
+    const filas = filasHtml;
 
     document.getElementById('detalleContenido').innerHTML = `
         <button class="btn btn-secondary no-print" onclick="mostrarScreen('lista');cargarOrdenes()" style="margin-bottom:14px">
