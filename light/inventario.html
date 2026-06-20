@@ -7,114 +7,62 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header class="header"></header>
+    <!-- Top bar injected by header.js -->
 
-    <!-- CONTENIDO -->
-    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
-        <!-- TÍTULO -->
-        <div style="text-align: center; margin-bottom: 3rem;">
-            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 700; letter-spacing: 0.05em;">
-                MÓDULO DE INVENTARIO
-            </h1>
-            <p style="color: var(--text-secondary);">Selecciona una opción</p>
+    <!-- Hero -->
+    <div class="mod-hero mod-hero-inventario">
+        <div class="mod-hero-icon">📋</div>
+        <div class="mod-hero-title">Inventario</div>
+        <div class="mod-hero-sub">Stock, gestión y órdenes</div>
+    </div>
+
+    <div class="page-content">
+
+        <!-- PROCESOS -->
+        <div class="section-label">Procesos</div>
+        <div class="section-group">
+            <a class="section-item" href="almacen-gestion.html">
+                <div class="item-icon icon-red">📝</div>
+                <div class="item-body">
+                    <div class="item-name">Gestión de Inventario</div>
+                    <div class="item-desc">Entradas, salidas y transferencias</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-toma-fisica.html">
+                <div class="item-icon icon-red">📦</div>
+                <div class="item-body">
+                    <div class="item-name">Toma Física</div>
+                    <div class="item-desc">Conteo y verificación de stock</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-ordenes-compra.html">
+                <div class="item-icon icon-red">📋</div>
+                <div class="item-body">
+                    <div class="item-name">Órdenes de Compra</div>
+                    <div class="item-desc">Registrar solicitudes de compra</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
         </div>
 
-        <!-- TARJETAS PRINCIPALES -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
-
-            <!-- TARJETA: PROCESOS -->
-            <div class="menu-item" onclick="mostrarProcesos()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">PROCESOS</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Gestión y operaciones</p>
-            </div>
-
-            <!-- TARJETA: INFORMES -->
-            <div class="menu-item" onclick="mostrarInformes()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">INFORMES</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Reportes y análisis</p>
-            </div>
-
-        </div>
-
-        <!-- SUBMÓDULOS (ocultos por defecto) -->
-        <div id="submodulos" style="display: none; margin-top: 3rem;">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <button class="btn btn-secondary" onclick="ocultarSubmodulos()">
-                    ← Volver
-                </button>
-            </div>
-
-            <!-- PROCESOS -->
-            <div id="procesos" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">⚙️ PROCESOS</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='almacen-gestion.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📝</div>
-                        <h4>Gestión de Inventario</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Entradas, salidas y transferencias</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-toma-fisica.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📦</div>
-                        <h4>Toma Física</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Conteo y verificación de stock</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-ordenes-compra.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📋</div>
-                        <h4>Órdenes de Compra</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Registrar solicitudes de compra</p>
-                    </div>
+        <!-- INFORMES -->
+        <div class="section-label">Informes</div>
+        <div class="section-group">
+            <a class="section-item" href="inventario-stock.html">
+                <div class="item-icon icon-red">📊</div>
+                <div class="item-body">
+                    <div class="item-name">Stock Actual</div>
+                    <div class="item-desc">Visualizar inventario por centro de costo</div>
                 </div>
-            </div>
-
-            <!-- INFORMES -->
-            <div id="informes" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 INFORMES</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='inventario-stock.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📊</div>
-                        <h4>Stock Actual</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Visualizar inventario por centro de costo</p>
-                    </div>
-                </div>
-            </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
         </div>
 
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
-    <script>
-        window.addEventListener('load', () => {
-            if (!localStorage.getItem('empresaActual') || !localStorage.getItem('usuario')) {
-                window.location.href = 'index.html';
-                return;
-            }
-        });
-
-        function mostrarProcesos() {
-            document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('procesos').style.display = 'block';
-            document.getElementById('informes').style.display = 'none';
-            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
-        }
-
-        function mostrarInformes() {
-            document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('informes').style.display = 'block';
-            document.getElementById('procesos').style.display = 'none';
-            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
-        }
-
-        function ocultarSubmodulos() {
-            document.getElementById('submodulos').style.display = 'none';
-            document.getElementById('procesos').style.display = 'none';
-            document.getElementById('informes').style.display = 'none';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    </script>
 </body>
 </html>

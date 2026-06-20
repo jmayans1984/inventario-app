@@ -3,57 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Plantillas</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0a0a0f;
-            color: #f1f5f9;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-        }
-        .placeholder {
-            max-width: 600px;
-        }
-        .placeholder h1 {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-        .placeholder h2 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-        .placeholder p {
-            color: #94a3b8;
-            margin-bottom: 2rem;
-            line-height: 1.6;
-        }
-        .btn-back {
-            padding: 1rem 2rem;
-            background: #3b82f6;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 700;
-            display: inline-block;
-        }
-        .btn-back:hover {
-            background: #2563eb;
-        }
-    </style>
+    <title>Plantillas - RestManager Pro</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="placeholder">
-        <h1>📋</h1>
-        <h2>Módulo de Plantillas</h2>
-        <p>Este módulo estará disponible próximamente.<br>Aquí podrás configurar formatos, documentos y plantillas del sistema.</p>
-        <a href="principal.html" class="btn-back">← Volver al Menú Principal</a>
+    <!-- Top bar injected by header.js -->
+
+    <!-- Hero -->
+    <div class="mod-hero" style="background: linear-gradient(135deg, #475569, #334155); margin: 16px 16px 0; border-radius: 14px; padding: 24px 20px; color: white;">
+        <div class="mod-hero-icon">📋</div>
+        <div class="mod-hero-title">Plantillas</div>
+        <div class="mod-hero-sub">Formatos, documentos y plantillas del sistema</div>
     </div>
+
+    <div class="page-content">
+
+        <div class="section-label">Próximamente</div>
+        <div class="section-group">
+            <div class="section-item" style="cursor:default;">
+                <div class="item-icon" style="background:rgba(71,85,105,0.12);color:#475569;">📋</div>
+                <div class="item-body">
+                    <div class="item-name">Módulo en desarrollo</div>
+                    <div class="item-desc">Configurar formatos, documentos y plantillas del sistema</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
 </body>
 </html>

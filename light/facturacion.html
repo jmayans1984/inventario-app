@@ -3,57 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Facturación</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0a0a0f;
-            color: #f1f5f9;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-        }
-        .placeholder {
-            max-width: 600px;
-        }
-        .placeholder h1 {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-        .placeholder h2 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-        .placeholder p {
-            color: #94a3b8;
-            margin-bottom: 2rem;
-            line-height: 1.6;
-        }
-        .btn-back {
-            padding: 1rem 2rem;
-            background: #3b82f6;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 700;
-            display: inline-block;
-        }
-        .btn-back:hover {
-            background: #2563eb;
-        }
-    </style>
+    <title>Facturación - RestManager Pro</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="placeholder">
-        <h1>🧾</h1>
-        <h2>Módulo de Facturación</h2>
-        <p>Este módulo estará disponible próximamente.<br>Aquí podrás emitir facturas, cotizaciones, notas de crédito y débito.</p>
-        <a href="principal.html" class="btn-back">← Volver al Menú Principal</a>
+    <!-- Top bar injected by header.js -->
+
+    <!-- Hero -->
+    <div class="mod-hero mod-hero-facturacion">
+        <div class="mod-hero-icon">🧾</div>
+        <div class="mod-hero-title">Facturación</div>
+        <div class="mod-hero-sub">Facturas, cotizaciones y notas</div>
     </div>
+
+    <div class="page-content">
+
+        <div class="section-label">Próximamente</div>
+        <div class="section-group">
+            <div class="section-item" style="cursor:default;">
+                <div class="item-icon icon-cyan">🧾</div>
+                <div class="item-body">
+                    <div class="item-name">Módulo en desarrollo</div>
+                    <div class="item-desc">Facturas, cotizaciones, notas de crédito y débito</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
 </body>
 </html>

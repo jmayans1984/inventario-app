@@ -7,119 +7,46 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- HEADER UNIVERSAL -->
-    <header class="header">
-        <div class="header-info">
-            <div class="user-info">
-                <span class="user-name" id="userName">👤 Usuario</span>
-                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
-            </div>
-            <div class="theme-switch-container">
-                <span class="theme-label">🌙</span>
-                <label class="theme-switch">
-                    <input type="checkbox" onchange="cambiarTema()">
-                    <span class="theme-slider"></span>
-                </label>
-                <span class="theme-label">☀️</span>
-            </div>
-        </div>
-        <div class="header-actions">
-            <button class="btn-header" onclick="window.location.href='principal.html'">
-                🏠 Inicio
-            </button>
-            <button class="btn-header" onclick="cerrarSesion()">
-                🚪 Salir
-            </button>
-        </div>
-    </header>
+    <!-- Top bar injected by header.js -->
 
-    <!-- CONTENIDO -->
-    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
-        <!-- TÍTULO -->
-        <div style="text-align: center; margin-bottom: 3rem;">
-            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 700; letter-spacing: 0.05em;">
-                MÓDULO DE CONTABILIDAD
-            </h1>
-            <p style="color: var(--text-secondary);">Selecciona una opción</p>
-        </div>
+    <!-- Hero -->
+    <div class="mod-hero mod-hero-contabilidad">
+        <div class="mod-hero-icon">📊</div>
+        <div class="mod-hero-title">Contabilidad</div>
+        <div class="mod-hero-sub">Operaciones y reportes contables</div>
+    </div>
 
-        <!-- TARJETAS PRINCIPALES -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
-            
-            <!-- TARJETA: PROCESOS -->
-            <div class="menu-item" onclick="mostrarProcesos()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">PROCESOS</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Registrar operaciones contables</p>
-            </div>
+    <div class="page-content">
 
-            <!-- TARJETA: REPORTES -->
-            <div class="menu-item" onclick="mostrarReportes()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">REPORTES</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Ver informes y análisis</p>
-            </div>
-
-        </div>
-
-        <!-- SUBMÓDULOS (ocultos por defecto) -->
-        <div id="submodulos" style="display: none; margin-top: 3rem;">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <button class="btn btn-secondary" onclick="ocultarSubmodulos()">
-                    ← Volver
-                </button>
-            </div>
-
-            <!-- PROCESOS -->
-            <div id="procesos" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">⚙️ PROCESOS</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='contabilidad-gastos.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">💰</div>
-                        <h4>Gestión de Gastos</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Registrar y administrar gastos</p>
-                    </div>
+        <!-- PROCESOS -->
+        <div class="section-label">Procesos</div>
+        <div class="section-group">
+            <a class="section-item" href="contabilidad-gastos.html">
+                <div class="item-icon icon-green">💰</div>
+                <div class="item-body">
+                    <div class="item-name">Gestión de Gastos</div>
+                    <div class="item-desc">Registrar y administrar gastos</div>
                 </div>
-            </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+        </div>
 
-            <!-- REPORTES -->
-            <div id="reportes" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 REPORTES</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='contabilidad-reportes.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📈</div>
-                        <h4>Reporte de Gastos</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Consultar gastos registrados</p>
-                    </div>
+        <!-- REPORTES -->
+        <div class="section-label">Reportes</div>
+        <div class="section-group">
+            <a class="section-item" href="contabilidad-reportes.html">
+                <div class="item-icon icon-green">📈</div>
+                <div class="item-body">
+                    <div class="item-name">Reporte de Gastos</div>
+                    <div class="item-desc">Consultar gastos registrados</div>
                 </div>
-            </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
         </div>
 
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
-    <script>
-        function mostrarProcesos() {
-            document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('procesos').style.display = 'block';
-            document.getElementById('reportes').style.display = 'none';
-            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
-        }
-
-        function mostrarReportes() {
-            document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('reportes').style.display = 'block';
-            document.getElementById('procesos').style.display = 'none';
-            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
-        }
-
-        function ocultarSubmodulos() {
-            document.getElementById('submodulos').style.display = 'none';
-            document.getElementById('procesos').style.display = 'none';
-            document.getElementById('reportes').style.display = 'none';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    </script>
 </body>
 </html>

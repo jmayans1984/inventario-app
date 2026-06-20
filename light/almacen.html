@@ -7,198 +7,115 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- HEADER UNIVERSAL -->
-    <header class="header">
-        <div class="header-info">
-            <div class="user-info">
-                <span class="user-name" id="userName">👤 Usuario</span>
-                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
-            </div>
-            <div class="theme-switch-container">
-                <span class="theme-label">🌙</span>
-                <label class="theme-switch">
-                    <input type="checkbox" onchange="cambiarTema()">
-                    <span class="theme-slider"></span>
-                </label>
-                <span class="theme-label">☀️</span>
-            </div>
-        </div>
-        <div class="header-actions">
-            <button class="btn-header" onclick="window.location.href='principal.html'">
-                🏠 Inicio
-            </button>
-            <button class="btn-header" onclick="cerrarSesion()">
-                🚪 Salir
-            </button>
-        </div>
-    </header>
+    <!-- Top bar injected by header.js -->
 
-    <!-- CONTENIDO -->
-    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
-        <!-- TÍTULO -->
-        <div style="text-align: center; margin-bottom: 3rem;">
-            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 700; letter-spacing: 0.05em;">
-                MÓDULO DE ALMACÉN
-            </h1>
-            <p style="color: var(--text-secondary);">Selecciona una opción</p>
-        </div>
+    <!-- Hero -->
+    <div class="mod-hero mod-hero-almacen">
+        <div class="mod-hero-icon">📦</div>
+        <div class="mod-hero-title">Almacén</div>
+        <div class="mod-hero-sub">Gestión de inventario y bodega</div>
+    </div>
 
-        <!-- TARJETAS PRINCIPALES -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto;">
+    <div class="page-content">
 
-            <!-- TARJETA: PROCESOS -->
-            <div class="menu-item" onclick="mostrarProcesos()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">⚙️</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">PROCESOS</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Registrar movimientos y operaciones</p>
-            </div>
-
-            <!-- TARJETA: INFORMES -->
-            <div class="menu-item" onclick="mostrarInformes()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">📊</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">INFORMES</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Ver reportes y análisis</p>
-            </div>
-
-            <!-- TARJETA: CONFIGURACIÓN -->
-            <div class="menu-item" onclick="mostrarConfiguracion()">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">🛠️</div>
-                <h3 style="font-size: 1.3rem; margin-bottom: 0.75rem;">CONFIGURACIÓN</h3>
-                <p style="font-size: 0.95rem; opacity: 0.8;">Ajustes y utilidades del almacén</p>
-            </div>
-
-        </div>
-
-        <!-- SUBMÓDULOS (ocultos por defecto) -->
-        <div id="submodulos" style="display: none; margin-top: 3rem;">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <button class="btn btn-secondary" onclick="ocultarSubmodulos()">
-                    ← Volver
-                </button>
-            </div>
-
-            <!-- PROCESOS -->
-            <div id="procesos" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">⚙️ PROCESOS</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='almacen-gestion.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📝</div>
-                        <h4>Gestión de Inventario</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Entradas, salidas y transferencias</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-toma-fisica.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📦</div>
-                        <h4>Toma Física de Inventario</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Conteo y verificación de stock</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-ordenes-compra.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📋</div>
-                        <h4>Creación de Órdenes de Compra</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Registrar solicitudes de compra</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-despachos.html'" style="border-left: 4px solid #10b981;">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🚚</div>
-                        <h4>Despachos de Bodega</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Picking · Packing · Confirmación con scanner</p>
-                    </div>
+        <!-- PROCESOS -->
+        <div class="section-label">Procesos</div>
+        <div class="section-group">
+            <a class="section-item" href="almacen-gestion.html">
+                <div class="item-icon icon-blue">📝</div>
+                <div class="item-body">
+                    <div class="item-name">Gestión de Inventario</div>
+                    <div class="item-desc">Entradas, salidas y transferencias</div>
                 </div>
-            </div>
-
-            <!-- INFORMES -->
-            <div id="informes" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">📊 INFORMES</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='almacen-kardex.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📈</div>
-                        <h4>Kardex por Período</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Historial de movimientos por producto</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-consumos.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📉</div>
-                        <h4>Consumos de Productos</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Salidas por venta en un período</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-consumo-insumos.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📦</div>
-                        <h4>Consumo de Insumos</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Traslados desde Bodega Maestra</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-movimiento-producto.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🔄</div>
-                        <h4>Movimiento por Producto</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Detalle día a día por producto</p>
-                    </div>
-
-                    <div class="menu-item" onclick="window.location.href='almacen-reporte-ordenes.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🛒</div>
-                        <h4>Órdenes de Compra</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Consultar estado de órdenes</p>
-                    </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-toma-fisica.html">
+                <div class="item-icon icon-blue">📦</div>
+                <div class="item-body">
+                    <div class="item-name">Toma Física de Inventario</div>
+                    <div class="item-desc">Conteo y verificación de stock</div>
                 </div>
-            </div>
-
-            <!-- CONFIGURACIÓN -->
-            <div id="configuracion" style="display: none;">
-                <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 2rem;">🛠️ CONFIGURACIÓN</h2>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                    <div class="menu-item" onclick="window.location.href='almacen-config-barcodes.html'">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🏷️</div>
-                        <h4>Impresión de Códigos de Barras</h4>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">Etiquetas con nombre y código del producto</p>
-                    </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-ordenes-compra.html">
+                <div class="item-icon icon-blue">📋</div>
+                <div class="item-body">
+                    <div class="item-name">Órdenes de Compra</div>
+                    <div class="item-desc">Registrar solicitudes de compra</div>
                 </div>
-            </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-despachos.html">
+                <div class="item-icon icon-teal">🚚</div>
+                <div class="item-body">
+                    <div class="item-name">Despachos de Bodega</div>
+                    <div class="item-desc">Picking · Packing · Confirmación con scanner</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+        </div>
+
+        <!-- INFORMES -->
+        <div class="section-label">Informes</div>
+        <div class="section-group">
+            <a class="section-item" href="almacen-kardex.html">
+                <div class="item-icon icon-indigo">📈</div>
+                <div class="item-body">
+                    <div class="item-name">Kardex por Período</div>
+                    <div class="item-desc">Historial de movimientos por producto</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-consumos.html">
+                <div class="item-icon icon-indigo">📉</div>
+                <div class="item-body">
+                    <div class="item-name">Consumos de Productos</div>
+                    <div class="item-desc">Salidas por venta en un período</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-consumo-insumos.html">
+                <div class="item-icon icon-indigo">📦</div>
+                <div class="item-body">
+                    <div class="item-name">Consumo de Insumos</div>
+                    <div class="item-desc">Traslados desde Bodega Maestra</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-movimiento-producto.html">
+                <div class="item-icon icon-indigo">🔄</div>
+                <div class="item-body">
+                    <div class="item-name">Movimiento por Producto</div>
+                    <div class="item-desc">Detalle día a día por producto</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="section-item" href="almacen-reporte-ordenes.html">
+                <div class="item-icon icon-indigo">🛒</div>
+                <div class="item-body">
+                    <div class="item-name">Reporte Órdenes de Compra</div>
+                    <div class="item-desc">Consultar estado de órdenes</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+        </div>
+
+        <!-- CONFIGURACIÓN -->
+        <div class="section-label">Configuración</div>
+        <div class="section-group">
+            <a class="section-item" href="almacen-config-barcodes.html">
+                <div class="item-icon icon-orange">🏷️</div>
+                <div class="item-body">
+                    <div class="item-name">Códigos de Barras</div>
+                    <div class="item-desc">Etiquetas con nombre y código del producto</div>
+                </div>
+                <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
         </div>
 
     </div>
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
-    <script>
-        window.addEventListener('load', () => {
-            if (!window.sesion) {
-                window.location.href = 'index.html';
-                return;
-            }
-        });
-
-        function mostrarProcesos() {
-            document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('procesos').style.display = 'block';
-            document.getElementById('informes').style.display = 'none';
-            document.getElementById('configuracion').style.display = 'none';
-            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
-        }
-
-        function mostrarInformes() {
-            document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('informes').style.display = 'block';
-            document.getElementById('procesos').style.display = 'none';
-            document.getElementById('configuracion').style.display = 'none';
-            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
-        }
-
-        function mostrarConfiguracion() {
-            document.getElementById('submodulos').style.display = 'block';
-            document.getElementById('configuracion').style.display = 'block';
-            document.getElementById('procesos').style.display = 'none';
-            document.getElementById('informes').style.display = 'none';
-            window.scrollTo({ top: document.getElementById('submodulos').offsetTop - 100, behavior: 'smooth' });
-        }
-
-        function ocultarSubmodulos() {
-            document.getElementById('submodulos').style.display = 'none';
-            document.getElementById('procesos').style.display = 'none';
-            document.getElementById('informes').style.display = 'none';
-            document.getElementById('configuracion').style.display = 'none';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    </script>
 </body>
 </html>

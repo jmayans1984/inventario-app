@@ -1,169 +1,109 @@
 // ================================================================
-// HEADER.JS - Mobile-first header + slide-in drawer
+// HEADER.JS - Bottom nav + auth check
 // ================================================================
 
 (function () {
     'use strict';
 
     const PAGE_MAP = {
-        'principal.html':               { title: 'RestManager Pro',    back: null,                    module: null },
-        'contabilidad.html':            { title: 'Contabilidad',       back: 'principal.html',        module: 'contabilidad' },
-        'tesoreria.html':               { title: 'Tesorería',          back: 'principal.html',        module: 'tesoreria' },
-        'almacen.html':                 { title: 'Almacén',            back: 'principal.html',        module: 'almacen' },
-        'nomina.html':                  { title: 'Nómina',             back: 'principal.html',        module: 'nomina' },
-        'inventario.html':              { title: 'Inventario',         back: 'principal.html',        module: 'inventario' },
-        'inventario-stock.html':        { title: 'Stock por Centro',   back: 'inventario.html',       module: 'inventario' },
-        'facturacion.html':             { title: 'Facturación',        back: 'principal.html',        module: 'facturacion' },
-        'contabilidad-gastos.html':     { title: 'Gestión de Gastos',  back: 'contabilidad.html',     module: 'contabilidad' },
-        'contabilidad-reportes.html':   { title: 'Reportes Contables', back: 'contabilidad.html',     module: 'contabilidad' },
-        'tesoreria-movimientos.html':   { title: 'Movimientos',        back: 'tesoreria.html',        module: 'tesoreria' },
-        'tesoreria-facturas-compra.html':{ title: 'Facturas de Compra',back: 'tesoreria.html',        module: 'tesoreria' },
-        'tesoreria-reporte.html':       { title: 'Reporte Tesorería',  back: 'tesoreria.html',        module: 'tesoreria' },
-        'almacen-gestion.html':         { title: 'Gestión Inventario', back: 'almacen.html',          module: 'almacen' },
-        'almacen-kardex.html':          { title: 'Kardex por Período', back: 'almacen.html',          module: 'almacen' },
-        'almacen-consumos.html':        { title: 'Consumos Productos', back: 'almacen.html',          module: 'almacen' },
-        'almacen-consumo-insumos.html': { title: 'Consumo Insumos',    back: 'almacen.html',          module: 'almacen' },
-        'almacen-movimiento-producto.html': { title: 'Movimiento Producto', back: 'almacen.html',     module: 'almacen' },
-        'almacen-ordenes-compra.html':  { title: 'Órdenes de Compra',  back: 'almacen.html',          module: 'almacen' },
-        'almacen-reporte-ordenes.html': { title: 'Reporte Órdenes',    back: 'almacen.html',          module: 'almacen' },
-        'almacen-toma-fisica.html':     { title: 'Toma Física',        back: 'almacen.html',          module: 'almacen' },
-        'almacen-despachos.html':       { title: 'Despachos de Bodega', back: 'almacen.html',          module: 'almacen' },
-        'nomina-horario-semanal.html':  { title: 'Horario Semanal',    back: 'nomina.html',           module: 'nomina' },
-        'nomina-liquidacion.html':      { title: 'Liquidación',        back: 'nomina.html',           module: 'nomina' },
-        'nomina-reporte-horario.html':  { title: 'Horario Publicar',   back: 'nomina.html',           module: 'nomina' },
-        'nomina-recibos.html':          { title: 'Recibos de Pago',    back: 'nomina.html',           module: 'nomina' },
-        'ordenes-recepcion.html':       { title: 'Recepción OC',       back: 'almacen.html',          module: 'almacen' },
-        'entrega-ordenes.html':         { title: 'Entregas',           back: 'principal.html',        module: null },
-        'plantillas.html':              { title: 'Plantillas',         back: 'principal.html',        module: null },
+        'principal.html':                   { title: 'Inicio',               back: null,                     module: null,          nav: 'inicio' },
+        'contabilidad.html':                { title: 'Contabilidad',         back: 'principal.html',         module: 'contabilidad', nav: null },
+        'tesoreria.html':                   { title: 'Tesorería',            back: 'principal.html',         module: 'tesoreria',    nav: null },
+        'almacen.html':                     { title: 'Almacén',              back: 'principal.html',         module: 'almacen',      nav: null },
+        'nomina.html':                      { title: 'Nómina',               back: 'principal.html',         module: 'nomina',       nav: null },
+        'inventario.html':                  { title: 'Inventario',           back: 'principal.html',         module: 'inventario',   nav: null },
+        'inventario-stock.html':            { title: 'Stock por Centro',     back: 'inventario.html',        module: 'inventario',   nav: null },
+        'facturacion.html':                 { title: 'Facturación',          back: 'principal.html',         module: 'facturacion',  nav: null },
+        'contabilidad-gastos.html':         { title: 'Gestión de Gastos',   back: 'contabilidad.html',      module: 'contabilidad', nav: null },
+        'contabilidad-reportes.html':       { title: 'Reportes Contables',  back: 'contabilidad.html',      module: 'contabilidad', nav: null },
+        'tesoreria-movimientos.html':       { title: 'Movimientos',          back: 'tesoreria.html',         module: 'tesoreria',    nav: null },
+        'tesoreria-facturas-compra.html':   { title: 'Facturas de Compra',  back: 'tesoreria.html',         module: 'tesoreria',    nav: null },
+        'tesoreria-reporte.html':           { title: 'Reporte Tesorería',   back: 'tesoreria.html',         module: 'tesoreria',    nav: null },
+        'almacen-gestion.html':             { title: 'Gestión Inventario',  back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-kardex.html':              { title: 'Kardex por Período',  back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-consumos.html':            { title: 'Consumos Productos',  back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-consumo-insumos.html':     { title: 'Consumo Insumos',     back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-movimiento-producto.html': { title: 'Movimiento Producto', back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-ordenes-compra.html':      { title: 'Órdenes de Compra',  back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-reporte-ordenes.html':     { title: 'Reporte Órdenes',    back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-toma-fisica.html':         { title: 'Toma Física',         back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-despachos.html':           { title: 'Despachos de Bodega', back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-config-barcodes.html':     { title: 'Códigos de Barras',  back: 'almacen.html',           module: 'almacen',      nav: null },
+        'nomina-horario-semanal.html':      { title: 'Horario Semanal',     back: 'nomina.html',            module: 'nomina',       nav: null },
+        'nomina-liquidacion.html':          { title: 'Liquidación',          back: 'nomina.html',            module: 'nomina',       nav: null },
+        'nomina-reporte-horario.html':      { title: 'Horario Publicar',    back: 'nomina.html',            module: 'nomina',       nav: null },
+        'nomina-recibos.html':              { title: 'Recibos de Pago',     back: 'nomina.html',            module: 'nomina',       nav: null },
+        'ordenes-recepcion.html':           { title: 'Recepción OC',        back: 'almacen.html',           module: 'almacen',      nav: null },
+        'entrega-ordenes.html':             { title: 'Entregas',             back: 'principal.html',         module: null,           nav: null },
+        'plantillas.html':                  { title: 'Plantillas',           back: 'principal.html',         module: null,           nav: null },
     };
-
-    const NAV_MODULES = [
-        { id: 'contabilidad', title: 'Contabilidad',  icon: '📊', url: 'contabilidad.html' },
-        { id: 'tesoreria',    title: 'Tesorería',     icon: '💰', url: 'tesoreria.html' },
-        { id: 'almacen',      title: 'Almacén',       icon: '📦', url: 'almacen.html' },
-        { id: 'nomina',       title: 'Nómina',        icon: '👥', url: 'nomina.html' },
-        { id: 'inventario',   title: 'Inventario',    icon: '📋', url: 'inventario.html' },
-        { id: 'facturacion',  title: 'Facturación',   icon: '🧾', url: 'facturacion.html' },
-    ];
 
     function getCurrentPage() {
         return location.pathname.split('/').pop() || 'principal.html';
     }
 
-    function getThemeIcon() {
-        return (localStorage.getItem('theme') || 'light') === 'dark' ? '☀️' : '🌙';
-    }
-
-    // ── Render the compact mobile header ──────────────────────────
-    function renderHeader() {
-        const header = document.querySelector('.header');
-        if (!header) return;
-
+    // ── Inject top bar (back button + title) for internal pages ───
+    function renderTopBar() {
         const page = getCurrentPage();
-        const info = PAGE_MAP[page] || { title: 'Menú', back: 'principal.html', module: null };
+        const info = PAGE_MAP[page] || { title: 'Menú', back: 'principal.html' };
 
-        const backBtn = info.back
-            ? `<a href="${info.back}" class="header-icon-btn header-back-btn" title="Atrás">
-                   <svg width="10" height="17" viewBox="0 0 10 17" fill="none" style="flex-shrink:0">
-                       <path d="M8.5 1L1.5 8.5L8.5 16" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
-                   </svg>
-                   <span>Atrás</span>
-               </a>`
-            : `<div style="min-width:44px;flex-shrink:0;"></div>`;
+        if (!info.back) return; // principal.html has no top bar
 
-        header.innerHTML = `
-            <div class="header-inner">
-                ${backBtn}
-                <span class="header-title">${info.title}</span>
-                <div class="header-right">
-                    <button class="header-icon-btn" id="headerThemeBtn" title="Cambiar tema" onclick="cambiarTema()">
-                        <span id="headerThemeIcon">${getThemeIcon()}</span>
-                    </button>
-                    <button class="header-icon-btn" id="drawerToggle" title="Menú">
-                        <span class="hamburger-icon"><span></span><span></span><span></span></span>
-                    </button>
-                </div>
-            </div>
-        `;
+        // Remove existing header if legacy markup present
+        const legacyHeader = document.querySelector('header.header');
+        if (legacyHeader) legacyHeader.style.display = 'none';
 
-        document.getElementById('drawerToggle')?.addEventListener('click', openDrawer);
-
-        // Patch cambiarTema to also update the header icon
-        const _orig = window.cambiarTema;
-        window.cambiarTema = function () {
-            if (_orig) _orig();
-            const el = document.getElementById('headerThemeIcon');
-            if (el) el.textContent = getThemeIcon();
-        };
-    }
-
-    // ── Inject the slide-in drawer ─────────────────────────────────
-    function renderDrawer() {
-        const page = getCurrentPage();
-        const info = PAGE_MAP[page] || { module: null };
-
-        const isHome = !info.module;
-
-        const overlay = document.createElement('div');
-        overlay.className = 'app-overlay';
-        overlay.id = 'appOverlay';
-        overlay.addEventListener('click', closeDrawer);
-
-        const drawer = document.createElement('div');
-        drawer.className = 'app-drawer';
-        drawer.id = 'appDrawer';
-        drawer.innerHTML = `
-            <div class="drawer-header">
-                <div class="drawer-avatar" id="drawerAvatar">?</div>
-                <div class="drawer-username" id="drawerUser">Cargando…</div>
-                <div class="drawer-empresa" id="drawerEmpresa"></div>
-            </div>
-            <nav class="drawer-nav">
-                <a href="principal.html" class="drawer-link ${isHome ? 'active' : ''}">
-                    <span class="drawer-link-icon">🏠</span>
-                    <span>Inicio</span>
+        const topBar = document.createElement('header');
+        topBar.className = 'top-bar';
+        topBar.innerHTML = `
+            <div class="top-bar-inner">
+                <a href="${info.back}" class="top-bar-back">
+                    <svg width="10" height="17" viewBox="0 0 10 17" fill="none">
+                        <path d="M8.5 1L1.5 8.5L8.5 16" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Inicio
                 </a>
-                <div class="drawer-separator"></div>
-                <div class="drawer-section-title">Módulos</div>
-                ${NAV_MODULES.map(m => `
-                    <a href="${m.url}" class="drawer-link ${info.module === m.id ? 'active' : ''}">
-                        <span class="drawer-link-icon">${m.icon}</span>
-                        <span>${m.title}</span>
-                    </a>
-                `).join('')}
-            </nav>
-            <div class="drawer-footer">
-                <div class="drawer-separator"></div>
-                <button class="drawer-logout-btn" onclick="cerrarSesion()">
-                    <span class="drawer-link-icon">🚪</span>
-                    <span>Cerrar Sesión</span>
-                </button>
+                <span class="top-bar-title">${info.title}</span>
+                <div class="top-bar-spacer"></div>
             </div>
         `;
 
-        document.body.appendChild(overlay);
-        document.body.appendChild(drawer);
+        document.body.insertBefore(topBar, document.body.firstChild);
     }
 
-    function openDrawer() {
-        document.getElementById('appDrawer')?.classList.add('open');
-        document.getElementById('appOverlay')?.classList.add('open');
-        document.body.style.overflow = 'hidden';
+    // ── Inject bottom nav ──────────────────────────────────────────
+    function renderBottomNav() {
+        const page = getCurrentPage();
+        const info = PAGE_MAP[page] || {};
+        const activeNav = info.nav || null;
+
+        const nav = document.createElement('nav');
+        nav.className = 'bottom-nav';
+        nav.id = 'bottomNav';
+        nav.innerHTML = `
+            <a href="principal.html" class="nav-item ${activeNav === 'inicio' ? 'active' : ''}" id="navInicio">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Inicio</span>
+            </a>
+            <a href="#" class="nav-item" id="navAlertas">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                <span>Alertas</span>
+            </a>
+            <a href="#" class="nav-item" id="navBuscar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Buscar</span>
+            </a>
+            <a href="#" class="nav-item" id="navPerfil" onclick="cerrarSesion(); return false;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Perfil</span>
+            </a>
+        `;
+
+        document.body.appendChild(nav);
     }
 
-    function closeDrawer() {
-        document.getElementById('appDrawer')?.classList.remove('open');
-        document.getElementById('appOverlay')?.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-
-    // Close drawer with Escape key
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeDrawer();
-    });
-
-    // ── Initialize session and fill user info ─────────────────────
-    async function inicializarHeader() {
+    // ── Initialize session ─────────────────────────────────────────
+    async function inicializarSesion() {
         const usuario    = JSON.parse(localStorage.getItem('usuario') || 'null');
         const empresaCod = localStorage.getItem('empresaActual');
 
@@ -172,20 +112,8 @@
             return null;
         }
 
-        const empresaData = usuario.empresas?.find(e => String(e.empresa) === String(empresaCod));
+        const empresaData   = usuario.empresas?.find(e => String(e.empresa) === String(empresaCod));
         const empresaNombre = empresaData ? empresaData.empresa_nombre : empresaCod;
-
-        // Fill drawer
-        const drawerUser    = document.getElementById('drawerUser');
-        const drawerEmpresa = document.getElementById('drawerEmpresa');
-        const drawerAvatar  = document.getElementById('drawerAvatar');
-
-        if (drawerUser)    drawerUser.textContent    = (usuario.usuario || '').toUpperCase();
-        if (drawerEmpresa) drawerEmpresa.textContent = empresaNombre;
-        if (drawerAvatar) {
-            const name = usuario.nombre || usuario.usuario || 'U';
-            drawerAvatar.textContent = name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
-        }
 
         window.sesion = {
             usuario:      usuario.usuario,
@@ -201,9 +129,9 @@
 
     // ── Boot ───────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', async () => {
-        renderHeader();
-        renderDrawer();
-        await inicializarHeader();
+        renderTopBar();
+        renderBottomNav();
+        await inicializarSesion();
     });
 
     // ── Global helpers ─────────────────────────────────────────────
@@ -213,6 +141,14 @@
             localStorage.removeItem('empresaActual');
             window.location.href = 'index.html';
         }
+    };
+
+    window.cambiarTema = function () {
+        const html    = document.documentElement;
+        const current = html.getAttribute('data-theme') || localStorage.getItem('theme') || 'light';
+        const next    = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
     };
 
 })();
