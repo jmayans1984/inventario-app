@@ -172,6 +172,7 @@
         }
 
         const modulos = [
+            // ALMACÉN
             { nombre: 'Almacén', icon: '📦', url: 'almacen.html', desc: 'Gestión de inventario' },
             { nombre: 'Despachos de Bodega', icon: '🚚', url: 'almacen-despachos.html', desc: 'Órdenes de despacho' },
             { nombre: 'Kardex por Período', icon: '📈', url: 'almacen-kardex.html', desc: 'Historial de movimientos' },
@@ -180,9 +181,22 @@
             { nombre: 'Movimiento por Producto', icon: '🔄', url: 'almacen-movimiento-producto.html', desc: 'Detalle diario' },
             { nombre: 'Órdenes de Compra', icon: '🛒', url: 'almacen-ordenes-compra.html', desc: 'Gestión de compras' },
             { nombre: 'Imprimir Despachos', icon: '🖨️', url: 'almacen-informes-despachos.html', desc: 'Reportes de despachos' },
+            // CONTABILIDAD
             { nombre: 'Contabilidad', icon: '📊', url: 'contabilidad.html', desc: 'Gestión contable' },
+            { nombre: 'Gestión de Gastos', icon: '💳', url: 'contabilidad-gastos.html', desc: 'Control de gastos' },
+            { nombre: 'Reportes Contables', icon: '📋', url: 'contabilidad-reportes.html', desc: 'Informes contables' },
+            // TESORERÍA
             { nombre: 'Tesorería', icon: '💰', url: 'tesoreria.html', desc: 'Gestión de tesorería' },
+            { nombre: 'Movimientos', icon: '💸', url: 'tesoreria-movimientos.html', desc: 'Registro de movimientos' },
+            { nombre: 'Facturas de Compra', icon: '📄', url: 'tesoreria-facturas-compra.html', desc: 'Control de compras' },
+            { nombre: 'Reporte Tesorería', icon: '📊', url: 'tesoreria-reporte.html', desc: 'Informe financiero' },
+            // NÓMINA
             { nombre: 'Nómina', icon: '👥', url: 'nomina.html', desc: 'Gestión de personal' },
+            { nombre: 'Horario Semanal', icon: '🕐', url: 'nomina-horario-semanal.html', desc: 'Turnos y horarios' },
+            { nombre: 'Liquidación de Nómina', icon: '💼', url: 'nomina-liquidacion.html', desc: 'Cálculo de salarios' },
+            { nombre: 'Horario para Publicar', icon: '📅', url: 'nomina-reporte-horario.html', desc: 'Publicación de horarios' },
+            { nombre: 'Recibos de Pago', icon: '🧾', url: 'nomina-recibos.html', desc: 'Comprobantes de pago' },
+            // FACTURACIÓN
             { nombre: 'Facturación', icon: '🧾', url: 'facturacion.html', desc: 'Gestión de facturas' }
         ];
 
