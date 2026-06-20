@@ -12,7 +12,10 @@ function getEmpresa() {
 function fmtFecha(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    return d.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    const ano = d.getFullYear();
+    return `${mes}/${dia}/${ano}`;
 }
 
 async function buscarDespachos() {
