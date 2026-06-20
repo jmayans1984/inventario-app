@@ -194,15 +194,13 @@
 
         /* Bottom sticky bar en escaneo */
         .scan-bottom-bar {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
             padding: 12px 16px;
             padding-bottom: calc(12px + env(safe-area-inset-bottom));
             background: var(--bg-card);
             border-top: 1px solid var(--border-color);
             display: flex;
             gap: 10px;
-            z-index: 100;
+            margin-top: 16px;
         }
         .scan-bottom-bar button { flex: 1; padding: 14px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; }
         .btn-finalizar { background: #047857; color: white; }
