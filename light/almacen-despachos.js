@@ -842,7 +842,7 @@ function mostrarConfirmacion() {
         <button class="btn-accion btn-confirmar" id="btnConfirmarFinal" onclick="confirmarDespacho()">
             🚚 Confirmar y Registrar Despacho
         </button>
-        <button class="btn-accion btn-secondary-act no-print" onclick="mostrarScreen('detalle')">
+        <button class="btn-accion btn-cancelar-confirm no-print" onclick="mostrarScreen('detalle')">
             Cancelar
         </button>
     `;
@@ -852,8 +852,10 @@ function mostrarConfirmacion() {
 
 async function confirmarDespacho() {
     const btn = document.getElementById('btnConfirmarFinal');
+    const overlay = document.getElementById('loadingOverlay');
+
     btn.disabled = true;
-    btn.textContent = '⏳ Procesando...';
+    overlay.classList.add('active');
 
     try {
         const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/confirmar`, {
@@ -865,10 +867,11 @@ async function confirmarDespacho() {
         if (!data.success) throw new Error(data.error || 'Error al confirmar');
 
         ordenActiva.estado = 'COMPLETADO';
+        overlay.classList.remove('active');
         mostrarReporteExito();
     } catch (e) {
-        btn.disabled    = false;
-        btn.textContent = '🚚 Confirmar y Registrar Despacho';
+        btn.disabled = false;
+        overlay.classList.remove('active');
         alert('Error: ' + e.message);
     }
 }
