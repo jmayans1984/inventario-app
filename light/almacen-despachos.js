@@ -53,13 +53,11 @@ function mostrarScreen(id) {
 // PANTALLA 1 — LISTA DE ÓRDENES
 // ══════════════════════════════════════════════════════════════
 async function cargarOrdenes() {
-    const fecha   = document.getElementById('filtrFecha').value;
     const empresa = getEmpresa();
     document.getElementById('listaOrdenes').innerHTML =
         '<div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div>';
     try {
-        const params = `empresa=${empresa}${fecha ? '&fecha=' + fecha : ''}`;
-        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos?${params}`);
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos?empresa=${empresa}`);
         const data = await res.json();
         renderLista(data.data || []);
     } catch (e) {
@@ -69,12 +67,11 @@ async function cargarOrdenes() {
 }
 
 function renderLista(ordenes) {
-    const el    = document.getElementById('listaOrdenes');
-    const fecha = document.getElementById('filtrFecha').value;
+    const el = document.getElementById('listaOrdenes');
 
-    // Sin fecha → solo activas (excluir completadas y canceladas)
+    // Solo mostrar órdenes activas (excluir completadas y canceladas)
     const ACTIVAS = ['PENDIENTE','EN_PICKING','EN_PACKING'];
-    if (!fecha) ordenes = ordenes.filter(o => ACTIVAS.includes(o.estado));
+    ordenes = ordenes.filter(o => ACTIVAS.includes(o.estado));
 
     if (!ordenes.length) {
         const msg = fecha ? 'No hay órdenes para esta fecha' : 'No hay órdenes activas';
