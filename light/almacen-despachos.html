@@ -352,6 +352,56 @@
         .empty-state { text-align: center; padding: 50px 20px; color: var(--text-tertiary); }
         .empty-state .empty-icon { font-size: 3rem; margin-bottom: 10px; }
         .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-secondary); margin: 16px 0 10px; }
+
+        /* ── Popup Pedido Completado ──────────────────────────── */
+        .popup-pedido-completado {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.4);
+            animation: popupFadeIn 0.3s ease-out;
+        }
+        .popup-pedido-completado.mostrar {
+            display: flex;
+        }
+        .popup-inner {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: popupScaleIn 0.3s ease-out;
+        }
+        .popup-icon {
+            font-size: 60px;
+            margin-bottom: 16px;
+            animation: popupBounce 0.6s ease-out;
+        }
+        .popup-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #16a34a;
+            letter-spacing: -0.3px;
+        }
+        @keyframes popupFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes popupScaleIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes popupBounce {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -456,6 +506,14 @@
             <button class="btn-cerrar-camara" onclick="cerrarCamara()">✕ Cerrar</button>
         </div>
         <div id="camaraFeedback" class="camara-feedback"></div>
+    </div>
+
+    <!-- POPUP: PEDIDO COMPLETADO -->
+    <div id="popupPedidoCompletado" class="popup-pedido-completado">
+        <div class="popup-inner">
+            <div class="popup-icon">✅</div>
+            <div class="popup-text">¡Pedido completado!</div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>

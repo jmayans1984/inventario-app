@@ -529,6 +529,7 @@ async function ajustarCantidad(codigo, campo, delta) {
 
         if (nuevo === req) {
             scanEnProceso = false;
+            mostrarPopupCompletado();
             await verificarCompletoYOcultar(item, campo);
             return;
         }
@@ -1418,4 +1419,15 @@ function fmtFecha(f) {
 function estadoLabel(e) {
     return { PENDIENTE:'Pendiente', EN_PICKING:'En Picking', EN_PACKING:'En Packing',
              COMPLETADO:'Completado', CANCELADO:'Cancelado' }[e] || e;
+}
+
+function mostrarPopupCompletado() {
+    const popup = document.getElementById('popupPedidoCompletado');
+    if (!popup) return;
+
+    popup.classList.add('mostrar');
+
+    setTimeout(() => {
+        popup.classList.remove('mostrar');
+    }, 2000);
 }
