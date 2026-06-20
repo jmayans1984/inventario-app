@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'completa/**'
+      - 'light/**'
   workflow_dispatch:
 
 jobs:
