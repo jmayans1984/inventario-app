@@ -111,7 +111,7 @@ body {
     transition: background-color 0.3s, color 0.3s;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
 }
 
 /* =================================================================
