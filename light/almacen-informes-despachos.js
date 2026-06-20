@@ -147,5 +147,14 @@ async function imprimirDespacho(id) {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (!window.sesion) return;
+
+        // Cargar automáticamente últimos 7 días
+        const hoy = new Date();
+        const hace7dias = new Date(hoy.getTime() - (7 * 24 * 60 * 60 * 1000));
+
+        const fechaStr = hace7dias.toISOString().split('T')[0];
+        document.getElementById('filtroFecha').value = fechaStr;
+
+        buscarDespachos();
     }, 150);
 });
