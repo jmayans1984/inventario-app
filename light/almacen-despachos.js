@@ -241,10 +241,23 @@ function renderScanList(campo) {
     campo = campo || (modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking');
     const el = document.getElementById('scanList');
 
-    // FIX 6: filtrar productos ocultos
+    // Filtrar productos ocultos
     const visibles = mostrandoOcultos
         ? ordenActiva.detalle
         : ordenActiva.detalle.filter(item => !itemsOcultos.has(item.producto_codigo));
+
+    // Agrupar por grupo_productos.nombre, ordenado por grupo_productos.codigo
+    const grupos = {};
+    visibles.forEach(item => {
+        const grupoNombre = item.grupo_productos?.nombre || 'Sin grupo';
+        const grupoCodigo = item.grupo_productos?.codigo || '';
+        const grupoKey = `${grupoCodigo}|${grupoNombre}`;
+        if (!grupos[grupoKey]) grupos[grupoKey] = [];
+        grupos[grupoKey].push(item);
+    });
+
+    // Ordenar grupos por código
+    const gruposOrdenados = Object.keys(grupos).sort();
 
     const ocCnt = itemsOcultos.size;
     const ocBanner = ocCnt > 0 ? `
@@ -254,7 +267,14 @@ function renderScanList(campo) {
             ${mostrandoOcultos ? '— toca para ocultar' : '— toca para ver'}
         </div>` : '';
 
-    el.innerHTML = ocBanner + visibles.map(item => renderScanItem(item, campo)).join('');
+    let html = ocBanner;
+    gruposOrdenados.forEach(grupoKey => {
+        const [, grupoNombre] = grupoKey.split('|');
+        html += `<div class="scan-grupo-header">${grupoNombre}</div>`;
+        html += grupos[grupoKey].map(item => renderScanItem(item, campo)).join('');
+    });
+
+    el.innerHTML = html;
 }
 
 function renderScanItem(item, campo) {
@@ -276,7 +296,7 @@ function renderScanItem(item, campo) {
     return `<div class="scan-item ${cls}${ocultoCls}" id="si-${cod}">
         <div class="scan-item-info" onclick="mostrarEntradaManual('${cod}','${campo}')">
             <div class="scan-item-name">${item.producto_nombre}</div>
-            <div class="scan-item-cod">${cod} · ✏️ entrada manual</div>
+            <div class="scan-item-cod">✏️ entrada manual</div>
         </div>
         <div class="scan-counter">
             <button class="scan-adj-btn" onclick="ajustarCantidad('${cod}','${campo}',-1)">−</button>
