@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Impresión de Despachos</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        /* Búsqueda y filtros */
+        .inf-filtros {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .inf-filtro-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .inf-filtro-row input,
+        .inf-filtro-row select {
+            flex: 1;
+            min-width: 120px;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        /* Lista de despachos para impresión */
+        .inf-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .inf-item:active { background: var(--bg-secondary); }
+        .inf-item-info {
+            flex: 1;
+        }
+        .inf-item-id {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-family: monospace;
+        }
+        .inf-item-dest {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 4px 0;
+        }
+        .inf-item-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .inf-item-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+        .inf-item-btn:active { background: #2563eb; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; margin: 0; }
+
+        @media print {
+            .inf-filtros { display: none !important; }
+            .inf-item-btn { display: none !important; }
+            body { background: white; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header"></header>
+
+    <div class="container">
+        <div id="screen-lista" class="screen active">
+            <div class="inf-filtros">
+                <div class="inf-filtro-row">
+                    <input type="date" id="filtroFecha" placeholder="Fecha">
+                    <select id="filtroEstado">
+                        <option value="">Todos los estados</option>
+                        <option value="PENDIENTE">Pendiente</option>
+                        <option value="EN_PICKING">En Picking</option>
+                        <option value="EN_PACKING">En Packing</option>
+                        <option value="COMPLETADO">Completado</option>
+                        <option value="CANCELADO">Cancelado</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="buscarDespachos()" style="width:100%">
+                    🔍 Buscar Despachos
+                </button>
+            </div>
+
+            <div id="listaDespachos">
+                <div class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <p>Usa los filtros para buscar despachos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
+    <script src="almacen-informes-despachos.js"></script>
+</body>
+</html>
