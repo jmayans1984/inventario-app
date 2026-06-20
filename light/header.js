@@ -103,6 +103,113 @@
         `;
 
         document.body.appendChild(nav);
+
+        // Agregar evento al botón buscar
+        document.getElementById('navBuscar').addEventListener('click', (e) => {
+            e.preventDefault();
+            abrirBusqueda();
+        });
+    }
+
+    // ── Búsqueda global ───────────────────────────────────────────
+    function abrirBusqueda() {
+        const modal = document.getElementById('searchModal') || crearModalBusqueda();
+        const input = modal.querySelector('#searchInput');
+        modal.style.display = 'flex';
+        input.focus();
+    }
+
+    function crearModalBusqueda() {
+        const modal = document.createElement('div');
+        modal.id = 'searchModal';
+        modal.style.cssText = `
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding-top: 10px;
+        `;
+
+        modal.innerHTML = `
+            <div style="width: 100%; max-width: 100%; background: var(--bg-primary); border-radius: 0 0 16px 16px; padding: 16px; margin-bottom: 0;">
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="searchInput" placeholder="🔍 Busca módulos, reportes..." style="flex: 1; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; background: var(--bg-card);" />
+                    <button onclick="cerrarBusqueda()" style="width: 36px; height: 36px; border: none; background: var(--bg-card); border-radius: 8px; cursor: pointer; font-size: 18px;">✕</button>
+                </div>
+                <div id="searchResults" style="max-height: 60vh; overflow-y: auto;"></div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Event listeners
+        const input = modal.querySelector('#searchInput');
+        input.addEventListener('input', (e) => buscarModulos(e.target.value));
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') cerrarBusqueda();
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) cerrarBusqueda();
+        });
+
+        return modal;
+    }
+
+    function buscarModulos(query) {
+        const resultados = document.getElementById('searchResults');
+
+        if (!query.trim()) {
+            resultados.innerHTML = '<p style="color: var(--text-secondary); padding: 16px; font-size: 14px;">Escribe para buscar módulos y reportes</p>';
+            return;
+        }
+
+        const modulos = [
+            { nombre: 'Almacén', icon: '📦', url: 'almacen.html', desc: 'Gestión de inventario' },
+            { nombre: 'Despachos de Bodega', icon: '🚚', url: 'almacen-despachos.html', desc: 'Órdenes de despacho' },
+            { nombre: 'Kardex por Período', icon: '📈', url: 'almacen-kardex.html', desc: 'Historial de movimientos' },
+            { nombre: 'Consumos de Productos', icon: '📉', url: 'almacen-consumos.html', desc: 'Salidas por venta' },
+            { nombre: 'Consumo de Insumos', icon: '📦', url: 'almacen-consumo-insumos.html', desc: 'Traslados desde bodega' },
+            { nombre: 'Movimiento por Producto', icon: '🔄', url: 'almacen-movimiento-producto.html', desc: 'Detalle diario' },
+            { nombre: 'Órdenes de Compra', icon: '🛒', url: 'almacen-ordenes-compra.html', desc: 'Gestión de compras' },
+            { nombre: 'Imprimir Despachos', icon: '🖨️', url: 'almacen-informes-despachos.html', desc: 'Reportes de despachos' },
+            { nombre: 'Contabilidad', icon: '📊', url: 'contabilidad.html', desc: 'Gestión contable' },
+            { nombre: 'Tesorería', icon: '💰', url: 'tesoreria.html', desc: 'Gestión de tesorería' },
+            { nombre: 'Nómina', icon: '👥', url: 'nomina.html', desc: 'Gestión de personal' },
+            { nombre: 'Facturación', icon: '🧾', url: 'facturacion.html', desc: 'Gestión de facturas' }
+        ];
+
+        const filtered = modulos.filter(m =>
+            m.nombre.toLowerCase().includes(query.toLowerCase()) ||
+            m.desc.toLowerCase().includes(query.toLowerCase())
+        );
+
+        if (filtered.length === 0) {
+            resultados.innerHTML = '<p style="color: var(--text-secondary); padding: 16px; font-size: 14px;">No encontramos módulos con ese nombre</p>';
+            return;
+        }
+
+        resultados.innerHTML = filtered.map(m => `
+            <a href="${m.url}" style="display: flex; align-items: center; gap: 12px; padding: 12px 12px; border-bottom: 1px solid var(--border-color); text-decoration: none; color: inherit; transition: background 0.15s;" onclick="cerrarBusqueda()">
+                <span style="font-size: 24px;">${m.icon}</span>
+                <div style="flex: 1;">
+                    <p style="font-size: 14px; font-weight: 500; color: var(--text-primary); margin: 0;">${m.nombre}</p>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0;">${m.desc}</p>
+                </div>
+            </a>
+        `).join('');
+    }
+
+    function cerrarBusqueda() {
+        const modal = document.getElementById('searchModal');
+        if (modal) modal.style.display = 'none';
     }
 
     // ── Initialize session ─────────────────────────────────────────
