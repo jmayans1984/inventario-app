@@ -119,7 +119,7 @@ async function imprimirDespacho(id) {
     <div class="meta-grid">
         <div class="meta-item"><label>CC Origen</label><span>${o.cc_origen_nombre}</span></div>
         <div class="meta-item"><label>CC Destino</label><span>${o.cc_destino_nombre}</span></div>
-        <div class="meta-item"><label>Otros</label><span>${o.observaciones || '—'}</span></div>
+        <div class="meta-item"><label>Fecha</label><span>${fmtFecha(o.fecha)}</span></div>
     </div>
     <table>
         <thead><tr>
@@ -133,7 +133,7 @@ async function imprimirDespacho(id) {
     </table>
     <div style="margin-top:20px;padding:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:6px">Otros</div>
-        <div style="font-size:13px;color:#333">${o.observaciones || '—'}</div>
+        <div style="font-size:9px;color:#333">${o.observaciones || '—'}</div>
     </div>
     <script>window.onload=()=>{window.print();}<\/script>
 </body>
