@@ -252,8 +252,8 @@ function renderScanList(campo) {
     // Agrupar por grupo_productos.nombre, ordenado por grupo_productos.codigo
     const grupos = {};
     visibles.forEach(item => {
-        const grupoNombre = item.grupo_productos?.nombre || 'Sin grupo';
-        const grupoCodigo = item.grupo_productos?.codigo || '';
+        const grupoNombre = item.grupo_nombre || 'Sin grupo';
+        const grupoCodigo = item.grupo_codigo || '';
         const grupoKey = `${grupoCodigo}|${grupoNombre}`;
         if (!grupos[grupoKey]) grupos[grupoKey] = [];
         grupos[grupoKey].push(item);
