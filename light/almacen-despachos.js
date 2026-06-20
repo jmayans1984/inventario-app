@@ -241,6 +241,9 @@ function renderScanList(campo) {
     campo = campo || (modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking');
     const el = document.getElementById('scanList');
 
+    console.log('[RENDER SCAN] Campo:', campo);
+    console.log('[RENDER SCAN] Primer item:', ordenActiva?.detalle?.[0]);
+
     // Filtrar productos ocultos
     const visibles = mostrandoOcultos
         ? ordenActiva.detalle
