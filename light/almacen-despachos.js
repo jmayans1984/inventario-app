@@ -941,11 +941,11 @@ function imprimirReporte() {
                 : parseFloat(i.cant_picking) > 0 ? parseFloat(i.cant_picking)
                 : parseFloat(i.cant_requerida);
         return `<tr>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb">${i.producto_codigo}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb">${i.producto_nombre}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb">${i.descripcion || '—'}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${i.und}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:12px">${e}</td>
+            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.producto_codigo}</td>
+            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.producto_nombre}</td>
+            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.descripcion || '—'}</td>
+            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:9px">${i.und}</td>
+            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:9px">${e}</td>
         </tr>`;
     }).join('');
 
