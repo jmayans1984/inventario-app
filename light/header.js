@@ -64,7 +64,10 @@
                     Inicio
                 </a>
                 <span class="top-bar-title">${info.title}</span>
-                <div class="top-bar-spacer"></div>
+                <button class="top-bar-theme-btn" onclick="cambiarTema()" aria-label="Cambiar tema">
+                    <span class="theme-icon-light">☀️</span>
+                    <span class="theme-icon-dark">🌙</span>
+                </button>
             </div>
         `;
 
@@ -93,9 +96,9 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <span>Buscar</span>
             </a>
-            <a href="#" class="nav-item" id="navPerfil" onclick="cerrarSesion(); return false;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span>Perfil</span>
+            <a href="#" class="nav-item nav-item-danger" id="navPerfil" onclick="cerrarSesion(); return false;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Salir</span>
             </a>
         `;
 

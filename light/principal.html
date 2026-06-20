@@ -11,8 +11,33 @@
         }
 
         .home-top {
-            padding: 20px 16px 0;
+            padding: 8px 16px 0;
         }
+
+        .home-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 40px;
+        }
+
+        .home-topbar-spacer { flex: 1; }
+
+        .home-theme-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: rgba(0,0,0,0.05);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        [data-theme="dark"] .home-theme-btn { background: rgba(255,255,255,0.08); }
 
         .home-content {
             padding: 16px 16px 24px;
@@ -20,7 +45,15 @@
     </style>
 </head>
 <body>
-    <div class="home-top"></div>
+    <div class="home-top">
+        <div class="home-topbar">
+            <div class="home-topbar-spacer"></div>
+            <button class="home-theme-btn" onclick="cambiarTema()" aria-label="Cambiar tema">
+                <span class="theme-icon-light">☀️</span>
+                <span class="theme-icon-dark">🌙</span>
+            </button>
+        </div>
+    </div>
 
     <div class="home-content">
         <!-- Hero card -->
@@ -34,8 +67,7 @@
         </div>
 
         <!-- Modules -->
-        <div class="home-section-label" style="margin-top:24px;">Módulos</div>
-        <div class="modules-grid" id="modulesGrid">
+        <div class="modules-grid" id="modulesGrid" style="margin-top:24px;">
             <a class="module-card" href="contabilidad.html">
                 <div class="module-icon module-icon-contabilidad">📊</div>
                 <span class="module-label">Contabilidad</span>
@@ -54,11 +86,6 @@
             <a class="module-card" href="nomina.html">
                 <div class="module-icon module-icon-nomina">👥</div>
                 <span class="module-label">Nómina</span>
-            </a>
-
-            <a class="module-card" href="inventario.html">
-                <div class="module-icon module-icon-inventario">📋</div>
-                <span class="module-label">Inventario</span>
             </a>
 
             <a class="module-card" href="facturacion.html">
