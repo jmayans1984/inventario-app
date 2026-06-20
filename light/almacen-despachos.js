@@ -124,19 +124,16 @@ function renderDetalle() {
 
     const filas = o.detalle.map(item => {
         const req  = parseFloat(item.cant_requerida) || 0;
-        const pick = parseFloat(item.cant_picking)   || 0;
         const pack = parseFloat(item.cant_packing)   || 0;
-        const base = pack > 0 ? pack : pick;
-        const dif  = base - req;
-        const rowCls = base === 0 ? '' : dif < 0 ? 'row-falta' : dif > 0 ? 'row-sobre' : 'row-ok';
-        const difStr = base === 0 ? '<span style="color:var(--text-tertiary)">—</span>'
+        const dif  = pack - req;
+        const rowCls = pack === 0 ? '' : dif < 0 ? 'row-falta' : dif > 0 ? 'row-sobre' : 'row-ok';
+        const difStr = pack === 0 ? '<span style="color:var(--text-tertiary)">—</span>'
                      : dif === 0 ? '<span class="dif-ok">✓</span>'
                      : dif  < 0  ? `<span class="dif-falta">${dif}</span>`
                                  : `<span class="dif-sobre">+${dif}</span>`;
         return `<tr class="${rowCls}">
             <td><div class="prod-nombre">${item.producto_nombre}</div><div class="prod-cod">${item.producto_codigo}</div></td>
             <td class="num-cell">${req}</td>
-            <td class="num-cell">${pick || '—'}</td>
             <td class="num-cell">${pack || '—'}</td>
             <td class="num-cell">${difStr}</td>
         </tr>`;
@@ -160,7 +157,6 @@ function renderDetalle() {
                 <thead><tr>
                     <th>Producto</th>
                     <th style="text-align:center">Req.</th>
-                    <th style="text-align:center">Pick.</th>
                     <th style="text-align:center">Pack.</th>
                     <th style="text-align:center">Dif.</th>
                 </tr></thead>
