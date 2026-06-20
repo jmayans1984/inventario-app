@@ -1443,11 +1443,14 @@ function estadoLabel(e) {
 
 function mostrarPopupCompletado() {
     const popup = document.getElementById('popupPedidoCompletado');
+    console.log('[POPUP] Mostrando popup completado', popup);
     if (!popup) return;
 
     popup.classList.add('mostrar');
+    console.log('[POPUP] Clase mostrar agregada');
 
     setTimeout(() => {
         popup.classList.remove('mostrar');
+        console.log('[POPUP] Popup ocultado');
     }, 2000);
 }
