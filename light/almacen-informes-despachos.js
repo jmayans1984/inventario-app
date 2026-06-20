@@ -149,8 +149,6 @@ async function imprimirDespacho(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        if (!window.sesion) return;
-
         // Cargar automáticamente últimos 7 días
         const hoy = new Date();
         const hace7dias = new Date(hoy.getTime() - (7 * 24 * 60 * 60 * 1000));
@@ -159,5 +157,5 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('filtroFecha').value = fechaStr;
 
         buscarDespachos();
-    }, 150);
+    }, 300);
 });
