@@ -168,15 +168,16 @@
 
         .selector {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
             margin-bottom: 50px;
+            max-width: 700px;
         }
 
         .card {
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 245, 255, 0.9) 100%);
-            border-radius: 28px;
-            padding: 50px 35px;
+            border-radius: 24px;
+            padding: 35px 28px;
             text-align: center;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -185,7 +186,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 420px;
+            min-height: 340px;
             position: relative;
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.8);
@@ -535,12 +536,12 @@
             </div>
 
             <div class="selector">
-                <!-- LIGHT -->
+                <!-- MÓVIL -->
                 <a href="light/index.html" class="card">
                     <div>
                         <div class="card-badge">OPTIMIZADO MÓVIL</div>
                         <div class="card-icon">📱</div>
-                        <div class="card-title">Versión LIGHT</div>
+                        <div class="card-title">Versión Móvil</div>
                     </div>
                     <p>Interfaz rápida y ligera diseñada específicamente para dispositivos móviles. Acceso a todas las funciones esenciales.</p>
                     <div class="card-features">
@@ -551,15 +552,15 @@
                             <li>Perfecto para celulares</li>
                         </ul>
                     </div>
-                    <button class="card-button">Abrir Versión LIGHT</button>
+                    <button class="card-button">Abrir Versión Móvil</button>
                 </a>
 
-                <!-- COMPLETA -->
+                <!-- WEB -->
                 <a href="completa/index.html" class="card">
                     <div>
                         <div class="card-badge">FULL FEATURES</div>
                         <div class="card-icon">💻</div>
-                        <div class="card-title">Versión COMPLETA</div>
+                        <div class="card-title">Versión Web</div>
                     </div>
                     <p>Plataforma completa con todas las funciones avanzadas. Diseñada para computadoras y tablets con pantallas grandes.</p>
                     <div class="card-features">
@@ -570,7 +571,7 @@
                             <li>Óptima para escritorio</li>
                         </ul>
                     </div>
-                    <button class="card-button">Abrir Versión COMPLETA</button>
+                    <button class="card-button">Abrir Versión Web</button>
                 </a>
             </div>
 
