@@ -3,588 +3,315 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RestManager Pro - Seleccionar Versión</title>
+    <title>RestManager Pro</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1a2d4d 50%, #1a3a52 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #09090b;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+            height: 60px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            flex-shrink: 0;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #7c3aed, #a78bfa);
+            border-radius: 8px;
+            display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
         }
 
-        /* Elementos decorativos de fondo */
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%;
-            right: -10%;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 1;
+        .navbar-icon svg { width: 18px; height: 18px; }
+
+        .navbar-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            letter-spacing: -0.2px;
         }
 
-        body::after {
-            content: '';
-            position: fixed;
-            bottom: -30%;
-            left: -5%;
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(30, 144, 255, 0.08) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1400px;
-            position: relative;
-            z-index: 2;
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 40px;
-            align-items: center;
-        }
-
-        .sidebar {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(26, 45, 77, 0.8) 100%);
-            backdrop-filter: blur(10px);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 40px 30px;
+        .navbar-badge {
+            margin-left: 10px;
+            background: rgba(255,255,255,0.07);
+            color: rgba(255,255,255,0.45);
+            font-size: 11px;
+            padding: 3px 10px;
             border-radius: 20px;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.08);
         }
 
-        .sidebar-top {
+        /* MAIN */
+        .main {
+            flex: 1;
             display: flex;
             flex-direction: column;
-        }
-
-        .sidebar-logo {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 16px;
-            display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            padding: 40px 24px;
         }
 
-        .sidebar-title {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: white;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
+        .hero {
+            text-align: center;
+            margin-bottom: 48px;
+            animation: fadeUp 0.6s ease both;
         }
 
-        .sidebar-subtitle {
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        .sidebar-features {
-            list-style: none;
-            margin-bottom: 20px;
-        }
-
-        .sidebar-features li {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.9rem;
-            padding: 12px 0;
-            padding-left: 28px;
-            position: relative;
-            line-height: 1.5;
-        }
-
-        .sidebar-features li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #667eea;
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-
-        .sidebar-version {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .content {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            text-align: left;
-            margin-bottom: 50px;
-            color: white;
-            animation: fadeInDown 0.8s ease;
-        }
-
-        .header h1 {
-            font-size: 2.2rem;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #ffffff 0%, #e0e0ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 800;
-            letter-spacing: -1px;
-        }
-
-        .header p {
-            font-size: 1rem;
-            opacity: 0.8;
-            font-weight: 300;
+        .hero-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(167,139,250,0.1);
+            border: 1px solid rgba(167,139,250,0.2);
+            color: #c4b5fd;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 5px 14px;
+            border-radius: 20px;
+            margin-bottom: 24px;
             letter-spacing: 0.3px;
         }
 
-        .selector {
+        .hero-tag span {
+            width: 6px;
+            height: 6px;
+            background: #a78bfa;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+        }
+
+        .hero h1 em {
+            font-style: normal;
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 17px;
+            color: rgba(255,255,255,0.45);
+            font-weight: 400;
+            line-height: 1.6;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* CARDS */
+        .cards {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 30px;
-            margin-bottom: 50px;
-            max-width: 700px;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            width: 100%;
+            max-width: 580px;
+            animation: fadeUp 0.6s ease 0.1s both;
         }
 
         .card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 245, 255, 0.9) 100%);
-            border-radius: 24px;
-            padding: 35px 28px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 28px 24px;
             text-decoration: none;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            min-height: 340px;
+            align-items: center;
+            text-align: center;
+            transition: all 0.25s ease;
+            cursor: pointer;
             position: relative;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.8);
         }
 
         .card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            inset: 0;
+            background: radial-gradient(circle at 50% 0%, rgba(167,139,250,0.08) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .card:hover {
-            transform: translateY(-15px) scale(1.02);
-            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-        }
-
-        .card:hover .card-icon {
-            transform: scale(1.15) rotateY(10deg);
-            filter: drop-shadow(0 10px 20px rgba(102, 126, 234, 0.3));
-        }
-
-        .card-icon {
-            font-size: 5rem;
-            margin-bottom: 25px;
-            transition: all 0.4s ease;
-            display: inline-block;
-        }
-
-        .card-title {
-            color: #1a1a2e;
-            font-size: 1.95rem;
-            margin-bottom: 10px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .card-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
-        .card p {
-            color: #555;
-            font-size: 1rem;
-            line-height: 1.8;
-            margin-bottom: 30px;
-            flex: 1;
-            font-weight: 400;
-        }
-
-        .card-features {
-            text-align: left;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
-            border-radius: 14px;
-            padding: 20px;
-            margin-bottom: 25px;
-            font-size: 0.95rem;
-            color: #444;
-            border: 1px solid rgba(102, 126, 234, 0.15);
-        }
-
-        .card-features li {
-            list-style: none;
-            padding: 10px 0;
-            padding-left: 32px;
-            position: relative;
-            font-weight: 500;
-        }
-
-        .card-features li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #667eea;
-            font-weight: 900;
-            font-size: 1.1em;
-        }
-
-        .card-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 16px 32px;
-            border-radius: 12px;
-            font-size: 1.05rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-            letter-spacing: 0.3px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .card-button::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .card-button:hover {
+            border-color: rgba(167,139,250,0.35);
+            background: rgba(167,139,250,0.06);
             transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
         }
 
-        .card-button:hover::before {
-            width: 300px;
-            height: 300px;
-        }
+        .card:hover::before { opacity: 1; }
 
-        .card-button:active {
-            transform: translateY(-1px);
-        }
-
-        .footer {
-            text-align: center;
-            color: white;
-            opacity: 0.75;
-            font-size: 0.95rem;
-            margin-top: 50px;
-            font-weight: 300;
-            letter-spacing: 0.3px;
-        }
-
-        /* Tema oscuro toggle (opcional) */
-        .theme-toggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            width: 45px;
-            height: 45px;
-            border-radius: 12px;
-            cursor: pointer;
+        .card-icon-wrap {
+            width: 56px;
+            height: 56px;
+            background: rgba(167,139,250,0.12);
+            border: 1px solid rgba(167,139,250,0.2);
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.3rem;
-            transition: all 0.3s ease;
-            z-index: 100;
-            backdrop-filter: blur(10px);
+            margin-bottom: 18px;
+            transition: all 0.25s ease;
         }
 
-        .theme-toggle:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.3);
+        .card:hover .card-icon-wrap {
+            background: rgba(167,139,250,0.2);
+            border-color: rgba(167,139,250,0.4);
         }
 
-        /* Animaciones */
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .card-icon-wrap svg {
+            width: 28px;
+            height: 28px;
+            color: #a78bfa;
         }
 
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 6px;
+            letter-spacing: -0.2px;
         }
 
-        .card:nth-child(1) {
-            animation: slideInUp 0.6s ease 0.1s both;
+        .card-desc {
+            font-size: 13px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 22px;
+            line-height: 1.5;
         }
 
-        .card:nth-child(2) {
-            animation: slideInUp 0.6s ease 0.2s both;
+        .card-btn {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(167,139,250,0.3);
+            background: transparent;
+            color: #c4b5fd;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            letter-spacing: 0.2px;
         }
 
-        @media (max-width: 1024px) {
-            .container {
-                grid-template-columns: 1fr;
-                gap: 30px;
-            }
-
-            .sidebar {
-                border-right: none;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                padding: 30px;
-                min-height: auto;
-                flex-direction: row;
-                align-items: flex-start;
-                justify-content: space-between;
-                margin-bottom: 20px;
-            }
-
-            .sidebar-top {
-                display: flex;
-                flex-direction: row;
-                align-items: flex-start;
-                gap: 20px;
-                flex: 1;
-            }
-
-            .sidebar-logo {
-                width: 60px;
-                height: 60px;
-                font-size: 1.8rem;
-                margin: 0;
-                flex-shrink: 0;
-            }
-
-            .sidebar-title {
-                font-size: 1.5rem;
-            }
-
-            .sidebar-subtitle {
-                margin-bottom: 0;
-            }
-
-            .sidebar-features {
-                display: none;
-            }
-
-            .sidebar-version {
-                position: absolute;
-                bottom: 20px;
-                right: 30px;
-            }
+        .card:hover .card-btn {
+            background: rgba(167,139,250,0.15);
+            border-color: rgba(167,139,250,0.5);
+            color: #ddd6fe;
         }
 
-        @media (max-width: 768px) {
-            .selector {
-                grid-template-columns: 1fr;
-                gap: 25px;
-            }
+        /* FOOTER */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255,255,255,0.2);
+            font-size: 12px;
+            flex-shrink: 0;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
 
-            .header h1 {
-                font-size: 1.8rem;
-            }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
 
-            .header p {
-                font-size: 0.95rem;
-            }
-
-            .card {
-                padding: 35px 25px;
-                min-height: auto;
-            }
-
-            .card-icon {
-                font-size: 3.5rem;
-            }
-
-            .card-title {
-                font-size: 1.6rem;
-            }
-
-            body::before,
-            body::after {
-                width: 300px;
-                height: 300px;
-            }
-
-            .sidebar {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .sidebar-top {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .sidebar-logo {
-                width: 50px;
-                height: 50px;
-                font-size: 1.5rem;
-            }
-
-            .sidebar-title {
-                font-size: 1.3rem;
-            }
-
-            .sidebar-subtitle {
-                font-size: 0.85rem;
-            }
-
-            .sidebar-version {
-                position: static;
-                margin-top: 20px;
-            }
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 32px; }
+            .cards { grid-template-columns: 1fr; max-width: 320px; }
+            .navbar { padding: 0 20px; }
+            .navbar-badge { display: none; }
         }
     </style>
 </head>
 <body>
-    <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
 
-    <div class="container">
-        <!-- PANEL LATERAL IZQUIERDO -->
-        <div class="sidebar">
-            <div class="sidebar-top">
-                <div class="sidebar-logo">📊</div>
-                <div class="sidebar-title">RestManager Pro</div>
-                <div class="sidebar-subtitle">Sistema de Gestión Empresarial</div>
-
-                <ul class="sidebar-features">
-                    <li>Acceso seguro y encriptado</li>
-                    <li>Soporte multi-empresa</li>
-                    <li>Reportes y análisis en tiempo real</li>
-                    <li>Datos sincronizados en la nube</li>
-                </ul>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="navbar-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="4" height="12" rx="1"/>
+                    <rect x="9" y="4" width="4" height="15" rx="1"/>
+                    <rect x="16" y="1" width="4" height="18" rx="1"/>
+                    <path d="M4 5 L11 2 L18 3" stroke-width="1.5" opacity="0.6"/>
+                </svg>
             </div>
+            <span class="navbar-name">RestManager Pro</span>
+            <span class="navbar-badge">v1.09.0</span>
+        </div>
+    </nav>
 
-            <div class="sidebar-version">
-                SISTEMA ERP v2.0
+    <!-- MAIN -->
+    <main class="main">
+        <div class="hero">
+            <div class="hero-tag">
+                <span></span>
+                Sistema de Gestión Empresarial
             </div>
+            <h1>¿Desde qué<br>dispositivo <em>ingresas?</em></h1>
+            <p>Selecciona la versión que mejor se adapte a tu pantalla y necesidades.</p>
         </div>
 
-        <!-- CONTENIDO PRINCIPAL -->
-        <div class="content">
-            <div class="header">
-                <h1>Selecciona tu versión</h1>
-                <p>Elige la plataforma que mejor se adapte a tu dispositivo</p>
-            </div>
+        <div class="cards">
+            <!-- MÓVIL -->
+            <a href="light/index.html" class="card">
+                <div class="card-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2"/>
+                        <circle cx="12" cy="18" r="1" fill="currentColor" stroke="none"/>
+                    </svg>
+                </div>
+                <div class="card-title">Versión Móvil</div>
+                <div class="card-desc">Optimizada para celulares y tablets. Rápida y ligera.</div>
+                <div class="card-btn">Entrar →</div>
+            </a>
 
-            <div class="selector">
-                <!-- MÓVIL -->
-                <a href="light/index.html" class="card">
-                    <div>
-                        <div class="card-badge">OPTIMIZADO MÓVIL</div>
-                        <div class="card-icon">📱</div>
-                        <div class="card-title">Versión Móvil</div>
-                    </div>
-                    <p>Interfaz rápida y ligera diseñada específicamente para dispositivos móviles. Acceso a todas las funciones esenciales.</p>
-                    <div class="card-features">
-                        <ul>
-                            <li>Diseño 100% responsivo</li>
-                            <li>Carga en menos de 2 segundos</li>
-                            <li>Bajo consumo de datos</li>
-                            <li>Perfecto para celulares</li>
-                        </ul>
-                    </div>
-                    <button class="card-button">Abrir Versión Móvil</button>
-                </a>
-
-                <!-- WEB -->
-                <a href="completa/index.html" class="card">
-                    <div>
-                        <div class="card-badge">FULL FEATURES</div>
-                        <div class="card-icon">💻</div>
-                        <div class="card-title">Versión Web</div>
-                    </div>
-                    <p>Plataforma completa con todas las funciones avanzadas. Diseñada para computadoras y tablets con pantallas grandes.</p>
-                    <div class="card-features">
-                        <ul>
-                            <li>Interfaz profesional y moderna</li>
-                            <li>Todas las funciones avanzadas</li>
-                            <li>Gestión completa de proveedores</li>
-                            <li>Óptima para escritorio</li>
-                        </ul>
-                    </div>
-                    <button class="card-button">Abrir Versión Web</button>
-                </a>
-            </div>
-
-            <div class="footer">
-                <p>© 2026 RestManager Pro | Todos los derechos reservados | v1.09.0</p>
-            </div>
+            <!-- WEB -->
+            <a href="completa/index.html" class="card">
+                <div class="card-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/>
+                        <path d="M8 21h8M12 17v4"/>
+                    </svg>
+                </div>
+                <div class="card-title">Versión Web</div>
+                <div class="card-desc">Funciones completas para computadora y escritorio.</div>
+                <div class="card-btn">Entrar →</div>
+            </a>
         </div>
-    </div>
+    </main>
 
-    <script>
-        function toggleTheme() {
-            document.body.style.filter = document.body.style.filter === 'invert(1)' ? 'invert(0)' : 'invert(1)';
-        }
-    </script>
+    <!-- FOOTER -->
+    <footer class="footer">
+        © 2026 RestManager Pro · Todos los derechos reservados
+    </footer>
+
 </body>
 </html>
