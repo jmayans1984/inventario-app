@@ -88,6 +88,76 @@ async function imprimirDespacho(id) {
             </tr>`;
         }).join('');
 
+        const html = `
+            <button class="btn btn-secondary no-print" onclick="volverDelReporteInformes()" style="margin-bottom:14px">
+                ← Volver
+            </button>
+            <button class="btn btn-secondary no-print" onclick="abrirImpresionInformes(${id})" style="margin-bottom:14px;margin-left:8px">
+                🖨️ Imprimir
+            </button>
+
+            <div style="border-left: 5px solid ${color}; padding: 0 0 0 14px; margin-bottom: 24px">
+                <h2 style="font-size:20px;font-weight:800;margin:0 0 6px">REPORTE DE DESPACHO</h2>
+                <p style="font-size:12px;color:#555;margin:0">Orden #${o.id} &nbsp;·&nbsp; ${fmtFecha(o.fecha)}</p>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:20px">
+                <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;display:block">CC Origen</label><span style="font-size:13px;font-weight:600;margin-top:2px;display:block">${o.cc_origen_nombre}</span></div>
+                <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;display:block">CC Destino</label><span style="font-size:13px;font-weight:600;margin-top:2px;display:block">${o.cc_destino_nombre}</span></div>
+                <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;display:block">Fecha</label><span style="font-size:13px;font-weight:600;margin-top:2px;display:block">${fmtFecha(o.fecha)}</span></div>
+            </div>
+
+            <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse">
+                    <thead><tr style="background:#f3f4f6">
+                        <th style="padding:5px 8px;background:#f3f4f6;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:left;border-bottom:2px solid #d1d5db;width:90px">CÓDIGO</th>
+                        <th style="padding:5px 8px;background:#f3f4f6;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:left;border-bottom:2px solid #d1d5db">PRODUCTO</th>
+                        <th style="padding:5px 8px;background:#f3f4f6;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:left;border-bottom:2px solid #d1d5db">DESCRIPCIÓN</th>
+                        <th style="padding:5px 8px;background:#f3f4f6;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:center;border-bottom:2px solid #d1d5db;width:55px">UND</th>
+                        <th style="padding:5px 8px;background:#f3f4f6;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:center;border-bottom:2px solid #d1d5db;width:80px">REQUERIDO</th>
+                    </tr></thead>
+                    <tbody>${filas}</tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:20px;padding:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px">
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:6px">Otros</div>
+                <div style="font-size:9px;color:#333">${o.observaciones || '—'}</div>
+            </div>
+        `;
+
+        document.getElementById('reporteContenido').innerHTML = html;
+        mostrarScreen('reporte');
+    } catch (e) {
+        alert('Error cargando despacho: ' + e.message);
+    }
+}
+
+function volverDelReporteInformes() {
+    document.getElementById('reporteContenido').innerHTML = '';
+    mostrarScreen('lista');
+}
+
+async function abrirImpresionInformes(id) {
+    try {
+        const res = await fetch(`${API_BASE}/almacen/despachos/${id}?empresa=${getEmpresa()}`);
+        const data = await res.json();
+        const o = data.data;
+
+        const color = '#047857';
+        const filas = o.detalle.map(i => {
+            const e = parseFloat(i.cant_packing) > 0 ? parseFloat(i.cant_packing)
+                    : parseFloat(i.cant_picking) > 0 ? parseFloat(i.cant_picking)
+                    : parseFloat(i.cant_requerida);
+            return `<tr>
+                <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.producto_codigo}</td>
+                <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.producto_nombre}</td>
+                <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.descripcion || '—'}</td>
+                <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:9px">${i.und}</td>
+                <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:9px">${e}</td>
+            </tr>`;
+        }).join('');
+
         const ventana = window.open('', '_blank');
         ventana.document.write(`<!DOCTYPE html>
 <html>
@@ -138,8 +208,14 @@ async function imprimirDespacho(id) {
 </html>`);
         ventana.document.close();
     } catch (e) {
-        alert('Error cargando despacho: ' + e.message);
+        alert('Error abriendo impresión: ' + e.message);
     }
+}
+
+function mostrarScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + screenId).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
