@@ -489,6 +489,7 @@ async function procesarScan(barcode) {
         // FIX 6: si completó exactamente, preguntar packing y ocultar
         if (nuevo === req) {
             scanEnProceso = false;
+            mostrarPopupCompletado();
             await verificarCompletoYOcultar(item, campo);
             return;
         }
