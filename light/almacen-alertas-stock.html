@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Alertas de Stock - Almacén</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .as-page { padding: 16px; }
+
+        /* Estado vacío / loading */
+        .as-empty {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--text-secondary);
+        }
+        .as-empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .as-empty-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+        .as-empty-sub { font-size: 13px; }
+
+        .as-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 60px 24px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .as-spin {
+            width: 28px; height: 28px;
+            border: 3px solid var(--border-color);
+            border-top-color: #dc2626;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Chips resumen */
+        .as-resumen {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .as-chip {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .as-chip-total  { background: rgba(220,38,38,.1);  color: #dc2626; border: 1px solid rgba(220,38,38,.25); }
+        .as-chip-cero   { background: rgba(220,38,38,.06); color: #9f1239; border: 1px solid rgba(220,38,38,.15); }
+        .as-chip-bodega { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); }
+
+        /* Grupos */
+        .as-grupo {
+            margin-bottom: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .as-grupo-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: rgba(220,38,38,.05);
+            border-bottom: 1px solid rgba(220,38,38,.12);
+        }
+        .as-grupo-nombre {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            color: var(--text-primary);
+            flex: 1;
+        }
+        .as-grupo-cnt {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* Filas de productos */
+        .as-fila {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .as-fila:last-child { border-bottom: none; }
+        .as-fila.fila-cero { background: rgba(220,38,38,.03); }
+
+        .as-fila-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .as-cod {
+            font-size: 10px;
+            font-weight: 700;
+            font-family: monospace;
+            background: rgba(220,38,38,.1);
+            color: #dc2626;
+            padding: 2px 7px;
+            border-radius: 5px;
+        }
+        .as-nombre {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+        }
+        .as-und {
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(59,130,246,.1);
+            color: #3b82f6;
+            padding: 2px 7px;
+            border-radius: 5px;
+        }
+
+        .as-fila-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .as-fila-stocks {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-top: 2px;
+        }
+        .as-stock-item {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .as-stock-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            color: var(--text-secondary);
+        }
+        .as-stock-val {
+            font-size: 13px;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .as-stock-val.val-min  { color: var(--text-primary); }
+        .as-stock-val.val-bajo { color: #ca8a04; }
+        .as-stock-val.val-cero { color: #dc2626; }
+        .as-stock-val.val-falt { color: #dc2626; }
+
+        /* Barra de nivel */
+        .as-barra-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .as-barra-bg {
+            flex: 1;
+            height: 5px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .as-barra-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+        .barra-bajo { background: #ca8a04; }
+        .barra-cero { background: #dc2626; width: 0% !important; }
+        .as-barra-pct {
+            font-size: 10px;
+            font-family: monospace;
+            color: var(--text-secondary);
+            width: 34px;
+            text-align: right;
+        }
+
+        /* Advertencia */
+        .as-advertencia {
+            background: rgba(234,179,8,.1);
+            border: 1px solid rgba(234,179,8,.35);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #92400e;
+            margin-bottom: 14px;
+        }
+
+        /* OK state */
+        .as-ok {
+            text-align: center;
+            padding: 60px 24px;
+        }
+        .as-ok-icon { font-size: 52px; margin-bottom: 12px; }
+        .as-ok-title { font-size: 16px; font-weight: 800; color: #16a34a; margin-bottom: 6px; }
+        .as-ok-sub { font-size: 13px; color: var(--text-secondary); }
+
+        /* Botón generar */
+        .as-btn-generar {
+            width: 100%;
+            padding: 13px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .as-btn-generar:active { background: #b91c1c; }
+        .as-btn-generar:disabled { background: var(--text-secondary); opacity: .6; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="as-page" id="asPage">
+        <!-- header injected by header.js -->
+
+        <button class="as-btn-generar" id="btnGenerar" onclick="generarReporte()">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            Generar Reporte
+        </button>
+
+        <div id="asContent">
+            <div class="as-empty">
+                <div class="as-empty-icon">⚠️</div>
+                <div class="as-empty-title">Alertas de Stock</div>
+                <div class="as-empty-sub">Presiona <strong>Generar Reporte</strong> para consultar los productos bajo stock mínimo en la Bodega Maestra</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="theme.js"></script>
+    <script src="header.js"></script>
+    <script src="almacen-alertas-stock.js"></script>
+</body>
+</html>

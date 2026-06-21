@@ -29,6 +29,7 @@
         'almacen-toma-fisica.html':         { title: 'Toma Física',         back: 'almacen.html',           module: 'almacen',      nav: null },
         'almacen-despachos.html':           { title: 'Despachos de Bodega', back: 'almacen.html',           module: 'almacen',      nav: null },
         'almacen-config-barcodes.html':     { title: 'Códigos de Barras',  back: 'almacen.html',           module: 'almacen',      nav: null },
+        'almacen-alertas-stock.html':       { title: 'Alertas de Stock',   back: 'almacen.html',           module: 'almacen',      nav: null },
         'nomina-horario-semanal.html':      { title: 'Horario Semanal',     back: 'nomina.html',            module: 'nomina',       nav: null },
         'nomina-liquidacion.html':          { title: 'Liquidación',          back: 'nomina.html',            module: 'nomina',       nav: null },
         'nomina-reporte-horario.html':      { title: 'Horario Publicar',    back: 'nomina.html',            module: 'nomina',       nav: null },
@@ -144,6 +145,7 @@
             { nombre: 'Movimiento por Producto', icon: '🔄', url: 'almacen-movimiento-producto.html', desc: 'Detalle diario' },
             { nombre: 'Órdenes de Compra', icon: '🛒', url: 'almacen-ordenes-compra.html', desc: 'Gestión de compras' },
             { nombre: 'Imprimir Despachos', icon: '🖨️', url: 'almacen-informes-despachos.html', desc: 'Reportes de despachos' },
+            { nombre: 'Alertas de Stock', icon: '⚠️', url: 'almacen-alertas-stock.html', desc: 'Productos bajo stock mínimo' },
             // CONTABILIDAD
             { nombre: 'Contabilidad', icon: '📊', url: 'contabilidad.html', desc: 'Gestión contable' },
             { nombre: 'Gestión de Gastos', icon: '💳', url: 'contabilidad-gastos.html', desc: 'Control de gastos' },
