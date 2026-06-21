@@ -717,8 +717,8 @@ function mostrarEntradaManual(codigo, campo) {
           ✅ Registrar cantidad
         </button>
         <button onclick="cancelarManual()"
-          style="width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
-                 background:transparent;color:var(--text-secondary);font-size:13px">
+          style="width:100%;padding:10px;border-radius:12px;border:1px solid rgba(239,68,68,.3);cursor:pointer;
+                 background:rgba(239,68,68,.1);color:#ef4444;font-size:13px">
           Cancelar
         </button>
       </div>
@@ -776,8 +776,8 @@ function tapParaCompletar(codigo, campo) {
           ✅ Confirmar — Marcar como completo
         </button>
         <button id="btnCancelarTapCompletar"
-          style="width:100%;padding:13px;border-radius:14px;border:2px solid var(--border-color);
-                 background:transparent;color:var(--text-primary);font-size:14px;font-weight:600;cursor:pointer">
+          style="width:100%;padding:13px;border-radius:14px;border:1px solid rgba(239,68,68,.3);
+                 background:rgba(239,68,68,.1);color:#ef4444;font-size:14px;font-weight:600;cursor:pointer">
           Cancelar
         </button>
       </div>
@@ -1374,8 +1374,8 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
           </div>
         </div>
         <button onclick="cancelarFactorBarcode()"
-          style="width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
-                 background:transparent;color:var(--text-secondary);font-size:13px">
+          style="width:100%;padding:10px;border-radius:12px;border:1px solid rgba(239,68,68,.3);cursor:pointer;
+                 background:rgba(239,68,68,.1);color:#ef4444;font-size:13px">
           Cancelar
         </button>
       </div>
@@ -1634,8 +1634,8 @@ function mostrarDialogoFactor(nombre, factor, esCodigo = false) {
             </div>
 
             <button onclick="numpadCancelar()"
-              style="width:100%;padding:10px;border-radius:12px;border:none;cursor:pointer;
-                     background:transparent;color:var(--text-secondary);font-size:13px">
+              style="width:100%;padding:10px;border-radius:12px;border:1px solid rgba(239,68,68,.3);cursor:pointer;
+                     background:rgba(239,68,68,.1);color:#ef4444;font-size:13px">
               Cancelar
             </button>
           </div>
