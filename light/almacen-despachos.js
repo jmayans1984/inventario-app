@@ -469,6 +469,7 @@ async function procesarScan(barcode) {
     if (scanEnProceso) return;
     scanEnProceso = true;
     ultimoBarcode = barcode;
+    let completado = false;
 
     try {
         // 1. Lookup del barcode → producto
@@ -503,8 +504,9 @@ async function procesarScan(barcode) {
                             showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
                             actualizarFilaScan(item, campo);
                             if (nuevo === req) {
-                                scanEnProceso = false;
+                                completado = true;
                                 await verificarCompletoYOcultar(item, campo);
+                                mostrarPopupCompletado(() => { scanEnProceso = false; refocusInput(); });
                                 return;
                             }
                         }
@@ -600,23 +602,16 @@ async function procesarScan(barcode) {
 
         // FIX 6: si completó exactamente, preguntar packing y ocultar
         if (nuevo === req) {
-            scanEnProceso = false;
-            mostrarPopupCompletado();
+            completado = true;
             await verificarCompletoYOcultar(item, campo);
+            mostrarPopupCompletado(() => { scanEnProceso = false; refocusInput(); });
             return;
         }
 
     } catch (e) {
-        // FIX 2: mostrar error con botón de reintento; refocus para no romper el flujo
         const esTiempo = e.name === 'AbortError';
-        const esRed    = esTiempo || e.name === 'TypeError'; // fetch falló = red real
-        console.error('[SCAN ERROR]', {
-            name: e.name,
-            message: e.message,
-            status: e.status,
-            barcode: barcode,
-            timestamp: new Date().toISOString()
-        });
+        const esRed    = esTiempo || e.name === 'TypeError';
+        console.error('[SCAN ERROR]', { name: e.name, message: e.message, barcode: barcode });
         const titulo = esTiempo ? 'Tiempo de espera agotado'
                      : esRed    ? 'Error de conexión'
                      :            'Error: ' + (e.message || e.name);
@@ -625,8 +620,10 @@ async function procesarScan(barcode) {
             `<button onclick="reintentarScan()" style="padding:4px 10px;border-radius:8px;border:1.5px solid currentColor;background:transparent;color:inherit;font-size:12px;font-weight:700;cursor:pointer;">🔄 Reintentar</button>`
         );
     } finally {
-        scanEnProceso = false;
-        refocusInput();
+        if (!completado) {
+            scanEnProceso = false;
+            refocusInput();
+        }
     }
 }
 
@@ -640,6 +637,7 @@ function reintentarScan() {
 async function ajustarCantidad(codigo, campo, delta) {
     if (scanEnProceso) return;
     scanEnProceso = true;
+    let completado = false;
     try {
         const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
         if (!item) return;
@@ -677,16 +675,18 @@ async function ajustarCantidad(codigo, campo, delta) {
         else                   showFeedback('warn',  `🔴 ${item.producto_nombre} — Sobrante: ${nuevo-req} de más`);
 
         if (nuevo === req) {
-            scanEnProceso = false;
-            mostrarPopupCompletado();
+            completado = true;
             await verificarCompletoYOcultar(item, campo);
+            mostrarPopupCompletado(() => { scanEnProceso = false; refocusInput(); });
             return;
         }
     } catch(e) {
         showFeedback('error', '❌ Error de conexión');
     } finally {
-        scanEnProceso = false;
-        refocusInput();
+        if (!completado) {
+            scanEnProceso = false;
+            refocusInput();
+        }
     }
 }
 
@@ -1720,16 +1720,12 @@ function estadoLabel(e) {
              COMPLETADO:'Completado', CANCELADO:'Cancelado' }[e] || e;
 }
 
-function mostrarPopupCompletado() {
+function mostrarPopupCompletado(onClose) {
     const popup = document.getElementById('popupPedidoCompletado');
-    console.log('[POPUP] Mostrando popup completado', popup);
-    if (!popup) return;
-
+    if (!popup) { if (onClose) onClose(); return; }
     popup.classList.add('mostrar');
-    console.log('[POPUP] Clase mostrar agregada');
-
     setTimeout(() => {
         popup.classList.remove('mostrar');
-        console.log('[POPUP] Popup ocultado');
+        if (onClose) onClose();
     }, 2000);
 }
