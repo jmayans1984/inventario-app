@@ -16,6 +16,7 @@ let ultimoBarcode    = null;   // para reintentar (FIX 2)
 let itemsOcultos     = new Set(); // productos completados y ocultos (FIX 6)
 let mostrandoOcultos = false;  // toggle para ver ocultos (FIX 6)
 let barcodeCache     = {};     // cache de barcodes registrados con sus factores
+let mostrarCompletadas = false; // mostrar órdenes completadas en lista
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -1059,69 +1060,7 @@ function volverDelReporte() {
 }
 
 function abrirImpresion() {
-    const o = ordenActiva;
-    const color = '#047857';
-
-    const filas = o.detalle.map(i => {
-        const e = parseFloat(i.cant_packing) > 0 ? parseFloat(i.cant_packing)
-                : parseFloat(i.cant_picking) > 0 ? parseFloat(i.cant_picking)
-                : parseFloat(i.cant_requerida);
-        return `<tr>
-            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.producto_codigo}</td>
-            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.producto_nombre}</td>
-            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;font-size:9px">${i.descripcion || '—'}</td>
-            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:9px">${i.und}</td>
-            <td style="padding:3px 5px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:9px">${e}</td>
-        </tr>`;
-    }).join('');
-
-    const ventana = window.open('', '_blank');
-    ventana.document.write(`<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Reporte Despacho #${o.id}</title>
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .encabezado { border-left: 5px solid ${color}; padding: 0 0 0 14px; margin-bottom: 24px; }
-        .encabezado h1 { font-size: 20px; font-weight: 800; }
-        .encabezado p  { font-size: 12px; color: #555; margin-top: 3px; }
-        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: ${color}22; color: ${color}; }
-        .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin-bottom: 20px; }
-        .meta-item label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; display: block; }
-        .meta-item span  { font-size: 13px; font-weight: 600; margin-top: 2px; display: block; }
-        table { width: 100%; border-collapse: collapse; }
-        thead th { padding: 5px 8px; background: #f3f4f6; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 2px solid #d1d5db; }
-        .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 50px; }
-        .firma-linea { border-top: 1px solid #000; padding-top: 8px; text-align: center; font-size: 12px; color: #555; }
-        @media print { body { padding: 15px; } }
-    </style>
-</head>
-<body>
-    <div class="encabezado">
-        <h1>REPORTE DE DESPACHO</h1>
-        <p>Orden #${o.id} &nbsp;·&nbsp; ${fmtFecha(o.fecha)}</p>
-    </div>
-    <div class="meta-grid">
-        <div class="meta-item"><label>CC Origen</label><span>${o.cc_origen_nombre}</span></div>
-        <div class="meta-item"><label>CC Destino</label><span>${o.cc_destino_nombre}</span></div>
-        <div class="meta-item"><label>Otros</label><span>${o.observaciones || '—'}</span></div>
-    </div>
-    <table>
-        <thead><tr>
-            <th style="width:90px">CÓDIGO</th>
-            <th>PRODUCTO</th>
-            <th>DESCRIPCIÓN</th>
-            <th style="width:55px;text-align:center">UND</th>
-            <th style="width:80px;text-align:center">REQUERIDO</th>
-        </tr></thead>
-        <tbody>${filas}</tbody>
-    </table>
-    <script>window.onload=()=>{window.print();}<\/script>
-</body>
-</html>`);
-    ventana.document.close();
+    window.print();
 }
 
 // ══════════════════════════════════════════════════════════════
