@@ -271,6 +271,9 @@ async function guardarTomaFisica() {
     const tipoTxt = esParcial ? 'Parcial' : 'Completa';
     if (!confirm(`¿Confirmas toma física ${tipoTxt} con ${ajustes.length} ajuste(s)?`)) return;
 
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.add('active');
+
     try {
         const res  = await fetch(`${API_BASE}/almacen/ajuste-inventario`, {
             method: 'POST',
@@ -284,6 +287,8 @@ async function guardarTomaFisica() {
             }),
         });
         const data = await res.json();
+
+        overlay.classList.remove('active');
 
         if (data.conflict) {
             if (confirm(`⚠️ Ya existe una toma física para esta fecha y CC (${data.count} registro(s)).\n¿Reemplazar los datos existentes?`)) {
@@ -305,11 +310,15 @@ async function guardarTomaFisica() {
         }
     } catch (e) {
         console.error('Error:', e);
+        overlay.classList.remove('active');
         alert('❌ Error de conexión');
     }
 }
 
 async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tipoTxt) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.add('active');
+
     try {
         const res  = await fetch(`${API_BASE}/almacen/ajuste-inventario`, {
             method: 'POST',
@@ -325,6 +334,9 @@ async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tip
             }),
         });
         const data = await res.json();
+
+        overlay.classList.remove('active');
+
         if (data.success) {
             alert(`✓ Toma Física ${tipoTxt} reemplazada — ${data.registros} ajuste(s)`);
             fisico = {};
@@ -336,6 +348,7 @@ async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tip
             alert('❌ ' + (data.error || 'Error guardando'));
         }
     } catch (e) {
+        overlay.classList.remove('active');
         alert('❌ Error de conexión');
     }
 }

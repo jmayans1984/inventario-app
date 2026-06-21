@@ -267,6 +267,9 @@ async function guardarMovimiento() {
 
     console.log('📤 Guardando:', payload);
 
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.add('active');
+
     try {
         const res = await fetch(`${API_BASE}/almacen/gestion-inventario`, {
             method: 'POST',
@@ -277,6 +280,8 @@ async function guardarMovimiento() {
         });
 
         const data = await res.json();
+
+        overlay.classList.remove('active');
 
         if (data.success) {
             alert('✓ Movimiento guardado correctamente');
@@ -291,6 +296,7 @@ async function guardarMovimiento() {
         }
     } catch (e) {
         console.error('Error:', e);
+        overlay.classList.remove('active');
         alert('❌ Error de conexión');
     }
 }
