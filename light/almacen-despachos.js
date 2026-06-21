@@ -625,11 +625,11 @@ function mostrarEntradaManual(codigo, campo) {
     overlay.classList.add('open');
     setTimeout(() => document.getElementById('manualCantInput')?.focus(), 100);
 
-    document.getElementById('btnConfirmarManual').onclick = () => {
+    document.getElementById('btnConfirmarManual').onclick = async () => {
         const val = parseFloat(document.getElementById('manualCantInput').value);
         if (!val || isNaN(val)) { document.getElementById('manualCantInput').focus(); return; }
         overlay.classList.remove('open');
-        ajustarCantidad(codigo, campo, val);
+        await ajustarCantidad(codigo, campo, val);
     };
     document.getElementById('manualCantInput').onkeydown = (e) => {
         if (e.key === 'Enter') document.getElementById('btnConfirmarManual').click();
