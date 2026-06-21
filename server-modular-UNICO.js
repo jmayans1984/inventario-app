@@ -1802,6 +1802,7 @@ app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
                 p.codigo,
                 p.nombre,
                 p.und,
+                p.ubicacion,
                 COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
                 COALESCE(gp.codigo, '999')        AS grupo_codigo,
                 COALESCE(

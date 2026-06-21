@@ -15,6 +15,8 @@ window.addEventListener('load', () => {
 let productos = [];
 let centrosCosto = [];
 let fisico = {};
+let bodegaMaestre    = null;   // código CC de la bodega principal de la empresa
+let modoVisualizacion = 'categoria'; // 'ubicacion' | 'categoria'
 
 function getEmpresa() {
     return localStorage.getItem('empresaActual') || (window.sesion && window.sesion.empresa) || '';
@@ -27,9 +29,14 @@ function cargarTomaFisica() {
 
 async function cargarCentrosCosto() {
     try {
-        const res  = await fetch(`${API_BASE}/ccostos?empresa=${getEmpresa()}`);
-        const data = await res.json();
-        centrosCosto = data.data || [];
+        const [resCC, resBodega] = await Promise.all([
+            fetch(`${API_BASE}/ccostos?empresa=${getEmpresa()}`),
+            fetch(`${API_BASE}/empresas/bodega-maestra?empresa=${getEmpresa()}`)
+        ]);
+        const dataCC     = await resCC.json();
+        const dataBodega = await resBodega.json();
+        centrosCosto  = dataCC.data || [];
+        bodegaMaestre = dataBodega.data?.centro_costo_codigo || null;
     } catch (e) {
         console.error('Error cargando CC:', e);
     }
@@ -55,12 +62,74 @@ async function cargarProductos() {
         const data = await res.json();
         productos = data.data || [];
         fisico = {};
-        renderProductos();
+
+        // Solo mostrar popup de visualización si es la bodega principal
+        if (bodegaMaestre && ccSel === bodegaMaestre) {
+            mostrarPopupVisualizacion();
+        } else {
+            modoVisualizacion = 'categoria';
+            renderProductos();
+        }
     } catch (e) {
         console.error('Error cargando productos:', e);
         document.getElementById('gridProductos').innerHTML =
             '<div style="padding:20px;text-align:center;color:#ef4444">❌ Error cargando productos</div>';
     }
+}
+
+// ── Popup: método de visualización (solo bodega principal) ────────
+function mostrarPopupVisualizacion() {
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+
+    panel.innerHTML = `
+      <div style="padding:28px 20px 24px;text-align:center">
+        <div style="font-size:2.2rem;margin-bottom:10px">📦</div>
+        <div style="font-size:19px;font-weight:800;margin-bottom:6px;color:var(--text-primary)">Toma Física</div>
+        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">¿Cómo quieres visualizar los productos?</div>
+
+        <button onclick="confirmarVisualizacion('ubicacion')"
+          style="width:100%;padding:18px 16px;border-radius:14px;border:none;cursor:pointer;
+                 background:#0ea5e9;color:white;font-size:15px;font-weight:700;margin-bottom:12px;
+                 display:flex;align-items:center;gap:14px;text-align:left">
+          <span style="font-size:26px;flex-shrink:0">📍</span>
+          <div>
+            <div style="font-size:15px;font-weight:800;letter-spacing:.3px">UBICACIÓN EN ALMACÉN</div>
+            <div style="font-size:12px;font-weight:400;opacity:.9;margin-top:2px">Agrupado por posición física en bodega</div>
+          </div>
+        </button>
+
+        <button onclick="confirmarVisualizacion('categoria')"
+          style="width:100%;padding:18px 16px;border-radius:14px;border:none;cursor:pointer;
+                 background:#8b5cf6;color:white;font-size:15px;font-weight:700;margin-bottom:20px;
+                 display:flex;align-items:center;gap:14px;text-align:left">
+          <span style="font-size:26px;flex-shrink:0">📂</span>
+          <div>
+            <div style="font-size:15px;font-weight:800;letter-spacing:.3px">CATEGORÍA DE PRODUCTOS</div>
+            <div style="font-size:12px;font-weight:400;opacity:.9;margin-top:2px">Agrupado por tipo/categoría</div>
+          </div>
+        </button>
+
+        <button onclick="cerrarBsOverlay()"
+          style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(239,68,68,.3);
+                 background:rgba(239,68,68,.1);color:#ef4444;font-size:14px;font-weight:600;cursor:pointer">
+          Cancelar
+        </button>
+      </div>
+    `;
+
+    overlay.classList.add('open');
+}
+
+function confirmarVisualizacion(modo) {
+    modoVisualizacion = modo;
+    cerrarBsOverlay();
+    renderProductos();
+}
+
+function cerrarBsOverlay(event) {
+    if (event && event.target !== document.getElementById('bsOverlay')) return;
+    document.getElementById('bsOverlay').classList.remove('open');
 }
 
 // ── Render tabla ──────────────────────────────────────────────────
@@ -72,12 +141,23 @@ function renderProductos() {
     }
 
     const grupos = {};
-    productos.forEach(p => {
-        const key    = p.grupo_codigo || '__sin_grupo__';
-        const nombre = p.grupo_nombre || 'Sin Categoría';
-        if (!grupos[key]) grupos[key] = { nombre, items: [] };
-        grupos[key].items.push(p);
-    });
+    if (modoVisualizacion === 'ubicacion') {
+        productos.forEach(p => {
+            const ub  = (p.ubicacion || '').trim();
+            const key = ub || '~~~sin_ubicacion';
+            if (!grupos[key]) grupos[key] = { nombre: ub ? `📍 ${ub}` : '📦 Sin ubicación específica', items: [] };
+            grupos[key].items.push(p);
+        });
+        // Ordenar alfabéticamente, sin ubicación al final
+        Object.values(grupos).forEach(g => g.items.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+    } else {
+        productos.forEach(p => {
+            const key    = p.grupo_codigo || '__sin_grupo__';
+            const nombre = p.grupo_nombre || 'Sin Categoría';
+            if (!grupos[key]) grupos[key] = { nombre, items: [] };
+            grupos[key].items.push(p);
+        });
+    }
 
     let html = '<table class="grid-table">';
     html += '<thead><tr>'
@@ -89,7 +169,8 @@ function renderProductos() {
           + '<th style="width:80px">DIFERENCIA</th>'
           + '</tr></thead><tbody>';
 
-    Object.entries(grupos).forEach(([, grupo]) => {
+    const gruposOrdenados = Object.entries(grupos).sort(([ka], [kb]) => ka.localeCompare(kb));
+    gruposOrdenados.forEach(([, grupo]) => {
         html += `<tr>
             <td colspan="6" style="background:var(--bg-secondary);padding:10px;font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">
                 📁 ${grupo.nombre}
