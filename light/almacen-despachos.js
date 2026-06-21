@@ -259,6 +259,7 @@ function renderEscaneo() {
     inp.className = isPacking ? 'packing-mode' : '';
 
     renderScanList(campo);
+    setupScannerAutoFocus();
 
     const obsField = document.getElementById('observacionesField');
     if (obsField) {
@@ -269,9 +270,6 @@ function renderEscaneo() {
 function renderScanList(campo) {
     campo = campo || (modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking');
     const el = document.getElementById('scanList');
-
-    console.log('[RENDER SCAN] Campo:', campo);
-    console.log('[RENDER SCAN] Primer item:', ordenActiva?.detalle?.[0]);
 
     // Filtrar productos ocultos
     const visibles = mostrandoOcultos
@@ -288,7 +286,6 @@ function renderScanList(campo) {
         grupos[grupoKey].push(item);
     });
 
-    // Ordenar grupos por código
     const gruposOrdenados = Object.keys(grupos).sort();
 
     const ocCnt = itemsOcultos.size;
@@ -299,7 +296,7 @@ function renderScanList(campo) {
             ${mostrandoOcultos ? '— toca para ocultar' : '— toca para ver'}
         </div>` : '';
 
-    let html = ocBanner;
+    let html = renderScanStats(campo) + ocBanner;
     gruposOrdenados.forEach(grupoKey => {
         const [, grupoNombre] = grupoKey.split('|');
         html += `<div class="scan-grupo-header">${grupoNombre}</div>`;
@@ -309,36 +306,85 @@ function renderScanList(campo) {
     el.innerHTML = html;
 }
 
+function renderScanStats(campo) {
+    const totalAll    = ordenActiva.detalle.length;
+    const completados = itemsOcultos.size;
+    const enProgreso  = ordenActiva.detalle.filter(i => {
+        const esc = parseFloat(i[campo]) || 0;
+        const req = parseFloat(i.cant_requerida) || 0;
+        return esc > 0 && esc < req && !itemsOcultos.has(i.producto_codigo);
+    }).length;
+    const pct = totalAll > 0 ? Math.round((completados / totalAll) * 100) : 0;
+    return `<div id="scanStatsBanner" class="scan-stats-banner">
+        <div>
+            <div class="stat-num stat-completados">${completados}/${totalAll}</div>
+            <div class="stat-lbl">Completados</div>
+        </div>
+        <div style="text-align:center">
+            <div class="stat-pct-num stat-pct">${pct}%</div>
+            <div class="stat-lbl">Avance</div>
+        </div>
+        <div style="text-align:right">
+            <div class="stat-num stat-progreso">${enProgreso}</div>
+            <div class="stat-lbl">En progreso</div>
+        </div>
+    </div>`;
+}
+
+function actualizarStatsBanner(campo) {
+    const banner = document.getElementById('scanStatsBanner');
+    if (!banner) return;
+    const totalAll    = ordenActiva.detalle.length;
+    const completados = itemsOcultos.size;
+    const enProgreso  = ordenActiva.detalle.filter(i => {
+        const esc = parseFloat(i[campo]) || 0;
+        const req = parseFloat(i.cant_requerida) || 0;
+        return esc > 0 && esc < req && !itemsOcultos.has(i.producto_codigo);
+    }).length;
+    const pct = totalAll > 0 ? Math.round((completados / totalAll) * 100) : 0;
+    const sc = banner.querySelector('.stat-completados');
+    const sp = banner.querySelector('.stat-pct');
+    const sr = banner.querySelector('.stat-progreso');
+    if (sc) sc.textContent = `${completados}/${totalAll}`;
+    if (sp) sp.textContent = `${pct}%`;
+    if (sr) sr.textContent = enProgreso;
+}
+
 function renderScanItem(item, campo) {
     const req  = parseFloat(item.cant_requerida) || 0;
     const esc  = parseFloat(item[campo]) || 0;
     const dif  = esc - req;
-    let cls = '', icon = '';
-    if (esc === 0)     { cls = '';           icon = '⬜'; }
-    else if (dif < 0)  { cls = 'item-falta'; icon = '⚠️'; }
-    else if (dif > 0)  { cls = 'item-sobre'; icon = '🔴'; }
-    else               { cls = 'item-ok';    icon = '✅'; }
+    let cls = '', icon = '', colorBarra = '#e5e7eb', colorContador = 'var(--text-tertiary)';
+    if (esc === 0)    { cls = '';           icon = '⬜'; }
+    else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; colorBarra = '#ef4444'; colorContador = '#ef4444'; }
+    else if (dif > 0) { cls = 'item-sobre'; icon = '🔴'; colorBarra = '#f59e0b'; colorContador = '#f59e0b'; }
+    else              { cls = 'item-ok';    icon = '✅'; colorBarra = '#10b981'; colorContador = '#10b981'; }
 
-    const cod   = item.producto_codigo;
-    const color = esc === 0 ? 'var(--text-tertiary)' : dif < 0 ? '#ef4444' : dif > 0 ? '#f59e0b' : '#10b981';
-
-    // FIX 6: si está oculto (mostrandoOcultos=true), mostrar con estilo tenue
-    const ocultoCls = itemsOcultos.has(cod) ? ' item-oculto' : '';
+    const cod        = item.producto_codigo;
+    const pct        = req > 0 ? Math.min(100, Math.round((esc / req) * 100)) : 0;
+    const enProgreso = esc > 0 && dif < 0;
+    const ocultoCls  = itemsOcultos.has(cod) ? ' item-oculto' : '';
 
     return `<div class="scan-item ${cls}${ocultoCls}" id="si-${cod}">
-        <div class="scan-item-info" onclick="mostrarEntradaManual('${cod}','${campo}')">
-            <div class="scan-item-name">${item.producto_nombre}</div>
-            <div class="scan-item-cod">✏️ entrada manual</div>
-        </div>
-        <div class="scan-counter">
-            <button class="scan-adj-btn" onclick="ajustarCantidad('${cod}','${campo}',-1)">−</button>
-            <div class="scan-count-info">
-                <span class="scan-count-val" style="color:${color}">${esc}</span>
-                <span class="scan-count-req">/ ${req}</span>
-                <span class="scan-status-icon">${icon}</span>
+        <div class="scan-item-top">
+            <div class="scan-item-body" onclick="mostrarEntradaManual('${cod}','${campo}')">
+                <div class="scan-item-name">${item.producto_nombre}</div>
+                <div class="scan-item-cod">✏️ entrada manual</div>
+                <div class="scan-item-progress">
+                    <div class="scan-item-progress-bar" style="width:${pct}%;background:${colorBarra}"></div>
+                </div>
             </div>
-            <button class="scan-adj-btn scan-adj-plus" onclick="ajustarCantidad('${cod}','${campo}',+1)">+</button>
+            <div class="scan-counter">
+                <button class="scan-adj-btn" onclick="ajustarCantidad('${cod}','${campo}',-1)">−</button>
+                <div class="scan-count-info">
+                    <span class="scan-count-val" style="color:${colorContador}">${esc}</span>
+                    <span class="scan-count-req">/ ${req}</span>
+                    <span class="scan-status-icon">${icon}</span>
+                </div>
+                <button class="scan-adj-btn scan-adj-plus" onclick="ajustarCantidad('${cod}','${campo}',+1)">+</button>
+            </div>
         </div>
+        ${enProgreso ? `<button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')">⚡ Tap para completar — faltan ${req - esc}</button>` : ''}
     </div>`;
 }
 
@@ -714,6 +760,78 @@ function cancelarManual() {
     refocusInput();
 }
 
+// Popup de confirmación para marcar producto como completo de un tap
+function tapParaCompletar(codigo, campo) {
+    const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+    if (!item) return;
+
+    const req   = parseFloat(item.cant_requerida);
+    const esc   = parseFloat(item[campo]) || 0;
+    const delta = req - esc;
+
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+
+    panel.innerHTML = `
+      <div style="padding:28px 20px;text-align:center">
+        <div style="font-size:3rem;margin-bottom:12px">⚡</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:10px;line-height:1.3">${item.producto_nombre}</div>
+        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.6">
+          Escaneado: <strong style="color:#ef4444">${esc}</strong> / Requerido: <strong style="color:#10b981">${req}</strong><br>
+          <span style="margin-top:6px;display:block">Se agregarán <strong style="color:var(--text-primary)">${delta}</strong> unidades para completar</span>
+        </div>
+        <button id="btnConfirmarTapCompletar"
+          style="width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
+                 background:#10b981;color:white;font-size:16px;font-weight:700;margin-bottom:12px">
+          ✅ Confirmar — Marcar como completo
+        </button>
+        <button id="btnCancelarTapCompletar"
+          style="width:100%;padding:13px;border-radius:14px;border:2px solid var(--border-color);
+                 background:transparent;color:var(--text-primary);font-size:14px;font-weight:600;cursor:pointer">
+          Cancelar
+        </button>
+      </div>
+    `;
+
+    overlay.classList.add('open');
+    document.getElementById('btnConfirmarTapCompletar').onclick = async () => {
+        overlay.classList.remove('open');
+        await ajustarCantidad(codigo, campo, delta);
+    };
+    document.getElementById('btnCancelarTapCompletar').onclick = () => {
+        overlay.classList.remove('open');
+        refocusInput();
+    };
+}
+
+// Auto-refocus del scanner: si el input pierde foco y no hay modal abierto, lo recupera
+function setupScannerAutoFocus() {
+    const inp = document.getElementById('scannerInput');
+    if (!inp || inp._autoFocusSetup) return;
+    inp._autoFocusSetup = true;
+
+    const hint = document.getElementById('scannerFocusHint');
+
+    inp.addEventListener('focus', () => {
+        if (hint) { hint.textContent = '📡 Scanner activo — listo para escanear'; hint.className = 'scanner-focus-hint activo'; }
+    });
+    inp.addEventListener('blur', () => {
+        if (hint) { hint.textContent = '⚠️ Scanner inactivo — toca aquí para activar'; hint.className = 'scanner-focus-hint inactivo'; }
+        const escaneoActivo = document.getElementById('screen-escaneo').classList.contains('active');
+        const bsOpen        = document.getElementById('bsOverlay').classList.contains('open');
+        const camaraOpen    = document.getElementById('camaraOverlay').classList.contains('activo');
+        if (escaneoActivo && !bsOpen && !camaraOpen) {
+            setTimeout(() => {
+                const i    = document.getElementById('scannerInput');
+                const aun  = document.getElementById('screen-escaneo').classList.contains('active');
+                const bs2  = document.getElementById('bsOverlay').classList.contains('open');
+                const cam2 = document.getElementById('camaraOverlay').classList.contains('activo');
+                if (i && aun && !bs2 && !cam2) i.focus();
+            }, 150);
+        }
+    });
+}
+
 // FIX 6: verificar si completó y preguntar packing + ocultar
 async function verificarCompletoYOcultar(item, campo) {
     try {
@@ -772,23 +890,42 @@ function preguntarPacking(item) {
 function actualizarFilaScan(item, campo) {
     try {
         const el = document.getElementById('si-' + item.producto_codigo);
-        if (!el) { renderScanList(campo); return; }  // producto nuevo: reconstruir lista
-        const req   = parseFloat(item.cant_requerida) || 0;
-        const esc   = parseFloat(item[campo]) || 0;
-        const dif   = esc - req;
-        let cls = '', icon = '';
+        if (!el) { renderScanList(campo); return; }
+        const req  = parseFloat(item.cant_requerida) || 0;
+        const esc  = parseFloat(item[campo]) || 0;
+        const dif  = esc - req;
+        let cls = '', icon = '', colorBarra = '#e5e7eb', colorContador = 'var(--text-tertiary)';
         if (esc === 0)    { cls = '';           icon = '⬜'; }
-        else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; }
-        else if (dif > 0) { cls = 'item-sobre'; icon = '🔴'; }
-        else              { cls = 'item-ok';    icon = '✅'; }
+        else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; colorBarra = '#ef4444'; colorContador = '#ef4444'; }
+        else if (dif > 0) { cls = 'item-sobre'; icon = '🔴'; colorBarra = '#f59e0b'; colorContador = '#f59e0b'; }
+        else              { cls = 'item-ok';    icon = '✅'; colorBarra = '#10b981'; colorContador = '#10b981'; }
 
-        const color = esc===0 ? 'var(--text-tertiary)' : dif<0 ? '#ef4444' : dif>0 ? '#f59e0b' : '#10b981';
+        const pct        = req > 0 ? Math.min(100, Math.round((esc / req) * 100)) : 0;
+        const enProgreso = esc > 0 && dif < 0;
 
         el.className = `scan-item ${cls}${itemsOcultos.has(item.producto_codigo) ? ' item-oculto' : ''}`;
-        const countVal  = el.querySelector('.scan-count-val');
-        const statusIcon = el.querySelector('.scan-status-icon');
-        if (countVal) { countVal.textContent = esc; countVal.style.color = color; }
-        if (statusIcon) { statusIcon.textContent = icon; }
+
+        const countVal    = el.querySelector('.scan-count-val');
+        const statusIcon  = el.querySelector('.scan-status-icon');
+        const progressBar = el.querySelector('.scan-item-progress-bar');
+        if (countVal)    { countVal.textContent = esc; countVal.style.color = colorContador; }
+        if (statusIcon)  { statusIcon.textContent = icon; }
+        if (progressBar) { progressBar.style.width = pct + '%'; progressBar.style.background = colorBarra; }
+
+        let tapBtn = el.querySelector('.btn-tap-completar');
+        if (enProgreso) {
+            if (!tapBtn) {
+                tapBtn = document.createElement('button');
+                tapBtn.className = 'btn-tap-completar';
+                el.appendChild(tapBtn);
+            }
+            tapBtn.textContent = `⚡ Tap para completar — faltan ${req - esc}`;
+            tapBtn.onclick = () => tapParaCompletar(item.producto_codigo, campo);
+        } else if (tapBtn) {
+            tapBtn.remove();
+        }
+
+        actualizarStatsBanner(campo);
 
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         el.style.transition = 'box-shadow .15s';
