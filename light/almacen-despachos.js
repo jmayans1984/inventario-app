@@ -362,23 +362,22 @@ function renderScanItem(item, campo) {
     const ocultoCls  = itemsOcultos.has(cod) ? ' item-oculto' : '';
 
     return `<div class="scan-item ${cls}${ocultoCls}" id="si-${cod}">
-        <div class="scan-item-top">
+        <div class="scan-item-header">
+            <div class="scan-item-icon">${icon}</div>
             <div class="scan-item-body" onclick="mostrarEntradaManual('${cod}','${campo}')">
                 <div class="scan-item-name">${item.producto_nombre}</div>
-                <div class="scan-item-cod">✏️ entrada manual</div>
-                <div class="scan-item-progress">
-                    <div class="scan-item-progress-bar" style="width:${pct}%;background:${colorBarra}"></div>
-                </div>
             </div>
             <div class="scan-counter">
                 <button class="scan-adj-btn" onclick="ajustarCantidad('${cod}','${campo}',-1)">−</button>
-                <div class="scan-count-info">
+                <div class="scan-count-display">
                     <span class="scan-count-val" style="color:${colorContador}">${esc}</span>
-                    <span class="scan-count-req">/ ${req}</span>
-                    <span class="scan-status-icon">${icon}</span>
+                    <span class="scan-count-req">/${req}</span>
                 </div>
                 <button class="scan-adj-btn scan-adj-plus" onclick="ajustarCantidad('${cod}','${campo}',+1)">+</button>
             </div>
+        </div>
+        <div class="scan-item-progress">
+            <div class="scan-item-progress-bar" style="width:${pct}%;background:${colorBarra}"></div>
         </div>
         ${enProgreso ? `<button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')">⚡ Tap para completar — faltan ${req - esc}</button>` : ''}
     </div>`;
@@ -895,11 +894,11 @@ function actualizarFilaScan(item, campo) {
 
         el.className = `scan-item ${cls}${itemsOcultos.has(item.producto_codigo) ? ' item-oculto' : ''}`;
 
+        const iconEl      = el.querySelector('.scan-item-icon');
         const countVal    = el.querySelector('.scan-count-val');
-        const statusIcon  = el.querySelector('.scan-status-icon');
         const progressBar = el.querySelector('.scan-item-progress-bar');
+        if (iconEl)      { iconEl.textContent = icon; }
         if (countVal)    { countVal.textContent = esc; countVal.style.color = colorContador; }
-        if (statusIcon)  { statusIcon.textContent = icon; }
         if (progressBar) { progressBar.style.width = pct + '%'; progressBar.style.background = colorBarra; }
 
         let tapBtn = el.querySelector('.btn-tap-completar');

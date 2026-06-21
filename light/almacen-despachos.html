@@ -194,17 +194,17 @@
         .scan-item.item-ok    { border-color: rgba(16,185,129,.5);  background: rgba(16,185,129,.04); }
         .scan-item.item-falta { border-color: rgba(239,68,68,.4);   background: rgba(239,68,68,.03); }
         .scan-item.item-sobre { border-color: rgba(245,158,11,.4);  background: rgba(245,158,11,.03); }
-        .scan-item-top { display: flex; align-items: flex-start; gap: 10px; }
+        .scan-item-header { display: flex; align-items: center; gap: 10px; }
+        .scan-item-icon { font-size: 18px; flex-shrink: 0; }
         .scan-item-body { flex: 1; min-width: 0; cursor: pointer; }
         .scan-item-body:active { opacity: .7; }
-        .scan-item-name { font-weight: 700; font-size: 14px; }
-        .scan-item-cod  { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+        .scan-item-name { font-weight: 700; font-size: 14px; color: var(--text-primary); }
         .scan-item-progress {
-            height: 5px;
+            height: 4px;
             background: var(--border-color);
-            border-radius: 3px;
+            border-radius: 2px;
             overflow: hidden;
-            margin: 8px 0 2px;
+            margin-top: 8px;
         }
         .scan-item-progress-bar {
             height: 100%;
@@ -231,12 +231,17 @@
             display: flex;
             flex-direction: row;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             flex-shrink: 0;
         }
-        .scan-count-val { font-size: 22px; font-weight: 800; line-height: 1; }
-        .scan-count-req { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
-        .scan-status-icon { font-size: 16px; display: block; margin-top: 3px; }
+        .scan-count-display {
+            display: flex;
+            align-items: baseline;
+            gap: 2px;
+            min-width: 45px;
+        }
+        .scan-count-val { font-size: 18px; font-weight: 800; line-height: 1; }
+        .scan-count-req { font-size: 12px; color: var(--text-tertiary); line-height: 1; }
 
         /* Scanner input — indicador de estado activo */
         #scannerInput:focus {
@@ -440,23 +445,18 @@
         .btn-buscar-scan:active { opacity: .8; }
 
         /* FIX 4: botones +/- por producto */
-        .scan-count-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 52px;
-        }
         .scan-adj-btn {
             flex-shrink: 0;
-            width: 34px; height: 34px;
+            width: 32px; height: 32px;
             border-radius: 8px;
             border: 1.5px solid var(--border-color);
             background: var(--bg-input);
             color: var(--text-primary);
-            font-size: 20px; font-weight: 700;
+            font-size: 18px; font-weight: 700;
             cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             line-height: 1;
+            padding: 0;
         }
         .scan-adj-btn:active { background: var(--border-color); }
         /* FIX 5: indicar que el nombre es clickeable */
