@@ -171,8 +171,6 @@ function renderDetalle() {
             <p style="margin-top:6px"><span class="estado-badge est-${est}">${estadoLabel(est)}</span></p>
         </div>
 
-        ${o.observaciones ? `<div style="background:var(--bg-card);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text-secondary);border:1px solid var(--border-color)">📝 ${o.observaciones}</div>` : ''}
-
         <div style="overflow-x:auto;margin-bottom:16px">
             <table class="det-table">
                 <thead><tr>
@@ -183,6 +181,14 @@ function renderDetalle() {
                 </tr></thead>
                 <tbody>${filas}</tbody>
             </table>
+        </div>
+
+        <div style="margin-bottom:16px">
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">📝 Otros</label>
+            <textarea id="detalleObservacionesField"
+                style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:14px;font-family:inherit;resize:vertical;min-height:80px;outline:none;box-sizing:border-box"
+                placeholder="Agrega notas o comentarios sobre este despacho..."
+                onchange="guardarObservacionesDetalle()">${o.observaciones || ''}</textarea>
         </div>
 
         <button class="btn-accion btn-picking" onclick="iniciarEscaneo('packing')" style="width:100%">
@@ -252,6 +258,11 @@ function renderEscaneo() {
     inp.className = isPacking ? 'packing-mode' : '';
 
     renderScanList(campo);
+
+    const obsField = document.getElementById('observacionesField');
+    if (obsField) {
+        obsField.value = ordenActiva.observaciones || '';
+    }
 }
 
 function renderScanList(campo) {
@@ -335,6 +346,56 @@ function toggleOcultos() {
     mostrandoOcultos = !mostrandoOcultos;
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
     renderScanList(campo);
+}
+
+async function guardarObservaciones() {
+    const obsField = document.getElementById('observacionesField');
+    if (!obsField || !ordenActiva) return;
+
+    const nuevasObs = obsField.value.trim();
+    if (nuevasObs === (ordenActiva.observaciones || '')) return;
+
+    try {
+        const res = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/observaciones`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                empresa: getEmpresa(),
+                observaciones: nuevasObs
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            ordenActiva.observaciones = nuevasObs;
+        }
+    } catch (e) {
+        console.error('Error guardando observaciones:', e);
+    }
+}
+
+async function guardarObservacionesDetalle() {
+    const obsField = document.getElementById('detalleObservacionesField');
+    if (!obsField || !ordenActiva) return;
+
+    const nuevasObs = obsField.value.trim();
+    if (nuevasObs === (ordenActiva.observaciones || '')) return;
+
+    try {
+        const res = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/observaciones`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                empresa: getEmpresa(),
+                observaciones: nuevasObs
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            ordenActiva.observaciones = nuevasObs;
+        }
+    } catch (e) {
+        console.error('Error guardando observaciones:', e);
+    }
 }
 
 // ── Captura del scanner ───────────────────────────────────────

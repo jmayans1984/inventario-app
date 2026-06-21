@@ -509,6 +509,15 @@
             <div class="section-title">PRODUCTOS DE LA ORDEN</div>
             <div id="scanList" class="scan-list"></div>
 
+            <!-- OTROS -->
+            <div style="margin-top:20px;margin-bottom:16px">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">📝 Otros</label>
+                <textarea id="observacionesField"
+                    style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:14px;font-family:inherit;resize:vertical;min-height:80px;outline:none;box-sizing:border-box"
+                    placeholder="Agrega notas o comentarios sobre este despacho..."
+                    onchange="guardarObservaciones()"></textarea>
+            </div>
+
             <!-- Barra inferior fija -->
             <div class="scan-bottom-bar no-print">
                 <button class="btn-cancelar-scan" onclick="volverAlDetalle()">✕ Cancelar</button>
