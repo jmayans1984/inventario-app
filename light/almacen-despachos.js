@@ -247,10 +247,6 @@ function renderEscaneo() {
                 <h2>📦 PACKING — Despacho</h2>
                 <p>${ordenActiva.cc_destino_nombre || ordenActiva.cc_destino} · #${ordenActiva.id}</p>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(239,68,68,.1);border-radius:8px">
-                <input type="checkbox" id="modoEliminar" style="cursor:pointer">
-                <label for="modoEliminar" style="cursor:pointer;font-size:12px;font-weight:600;color:#ef4444">Eliminar</label>
-            </div>
         </div>
     `;
 
@@ -552,12 +548,6 @@ async function procesarScan(barcode) {
             if (elegido === null) { refocusInput(); return; }
             delta = elegido;
             scanEnProceso = true; // retomar
-        }
-
-        // Verificar si modo eliminar está activo (restar en lugar de sumar)
-        const modoEliminar = document.getElementById('modoEliminar')?.checked || false;
-        if (modoEliminar) {
-            delta = -delta;
         }
 
         // 3. Cambiar estado al primer scan real
