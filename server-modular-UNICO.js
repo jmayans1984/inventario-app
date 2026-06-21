@@ -971,7 +971,7 @@ app.get('/api/almacen/despachos/:id', async (req, res) => {
             `, [req.params.id, empresa]),
             pool.query(`
                 SELECT odd.*, p.nombre AS producto_nombre, p.und, p.descripcion,
-                       p.grupo AS grupo_codigo, g.nombre AS grupo_nombre
+                       p.grupo AS grupo_codigo, g.nombre AS grupo_nombre, p.ubicacion
                 FROM ordenes_despacho_detalle odd
                 JOIN productos p ON p.codigo=odd.producto_codigo
                 LEFT JOIN grupo_productos g ON g.codigo=p.grupo
