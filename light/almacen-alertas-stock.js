@@ -100,7 +100,7 @@
             html += `
                 <div class="as-grupo">
                     <div class="as-grupo-header">
-                        <span style="font-size:13px">📁</span>
+                        <span style="font-size:11px;opacity:.5">▸</span>
                         <span class="as-grupo-nombre">${grupo.nombre}</span>
                         <span class="as-grupo-cnt">${grupo.items.length}</span>
                     </div>`;
@@ -108,7 +108,8 @@
             for (const p of grupo.items) {
                 const cero = parseFloat(p.stock_actual) <= 0;
                 const pct  = nivelPct(p.stock_actual, p.stock_minimo);
-                const valClass = cero ? 'val-cero' : 'val-bajo';
+                const valClass  = cero ? 'val-cero' : 'val-bajo';
+                const faltClass = cero ? 'val-falt-cero' : 'val-falt';
                 const barraClass = cero ? 'barra-cero' : 'barra-bajo';
 
                 html += `
@@ -130,7 +131,7 @@
                             </div>
                             <div class="as-stock-item">
                                 <span class="as-stock-label">Faltante</span>
-                                <span class="as-stock-val val-falt">${fmtNum(p.faltante)}</span>
+                                <span class="as-stock-val ${faltClass}">${fmtNum(p.faltante)}</span>
                             </div>
                             <div class="as-barra-wrap">
                                 <div class="as-barra-bg">
