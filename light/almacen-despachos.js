@@ -79,8 +79,7 @@ function renderLista(ordenes) {
     ordenes = ordenes.filter(o => ACTIVAS.includes(o.estado));
 
     if (!ordenes.length) {
-        const msg = fecha ? 'No hay órdenes para esta fecha' : 'No hay órdenes activas';
-        el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>${msg}</p></div>`;
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No hay órdenes activas</p></div>`;
         return;
     }
 
