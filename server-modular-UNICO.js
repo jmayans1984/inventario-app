@@ -408,7 +408,7 @@ app.get('/api/almacen/productos', async (req, res) => {
                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
                    COALESCE(p.precio_venta3, 0) AS precio_venta3,
                    COALESCE(p.stock_minimo, 0) AS stock_minimo,
-                   p.descripcion
+                   p.descripcion, p.ubicacion
             FROM productos p
             LEFT JOIN grupo_productos g ON g.codigo = p.grupo
         `;
