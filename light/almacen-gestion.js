@@ -269,6 +269,8 @@ async function guardarMovimiento() {
 
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('active');
+    document.querySelector('.popup-state-loading').classList.remove('hide');
+    document.querySelector('.popup-state-success').classList.remove('show');
 
     try {
         const res = await fetch(`${API_BASE}/almacen/gestion-inventario`, {
@@ -281,10 +283,8 @@ async function guardarMovimiento() {
 
         const data = await res.json();
 
-        overlay.classList.remove('active');
-
         if (data.success) {
-            alert('✓ Movimiento guardado correctamente');
+            mostrarExitoPopup();
             document.getElementById('tipoOp').value = '';
             document.getElementById('ccOrigen').value = '';
             document.getElementById('observaciones').value = '';
@@ -292,6 +292,7 @@ async function guardarMovimiento() {
             document.getElementById('gridProductos').innerHTML = '';
             actualizarFooter();
         } else {
+            overlay.classList.remove('active');
             alert('❌ ' + (data.error || 'Error guardando'));
         }
     } catch (e) {
@@ -299,4 +300,15 @@ async function guardarMovimiento() {
         overlay.classList.remove('active');
         alert('❌ Error de conexión');
     }
+}
+
+function mostrarExitoPopup() {
+    document.querySelector('.popup-state-loading').classList.add('hide');
+    document.querySelector('.popup-state-success').classList.add('show');
+}
+
+function cerrarPopupExito() {
+    document.getElementById('loadingOverlay').classList.remove('active');
+    document.querySelector('.popup-state-loading').classList.remove('hide');
+    document.querySelector('.popup-state-success').classList.remove('show');
 }

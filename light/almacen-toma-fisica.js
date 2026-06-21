@@ -273,6 +273,8 @@ async function guardarTomaFisica() {
 
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('active');
+    document.querySelector('.popup-state-loading').classList.remove('hide');
+    document.querySelector('.popup-state-success').classList.remove('show');
 
     try {
         const res  = await fetch(`${API_BASE}/almacen/ajuste-inventario`, {
@@ -288,9 +290,8 @@ async function guardarTomaFisica() {
         });
         const data = await res.json();
 
-        overlay.classList.remove('active');
-
         if (data.conflict) {
+            overlay.classList.remove('active');
             if (confirm(`⚠️ Ya existe una toma física para esta fecha y CC (${data.count} registro(s)).\n¿Reemplazar los datos existentes?`)) {
                 return guardarConMode('replace', fecha, ccOrigen, observaciones, ajustes, tipoTxt);
             }
@@ -298,7 +299,7 @@ async function guardarTomaFisica() {
         }
 
         if (data.success) {
-            alert(`✓ Toma Física ${tipoTxt} registrada — ${data.registros} ajuste(s)`);
+            mostrarExitoPopup();
             fisico = {};
             document.getElementById('ccOrigen').value = '';
             document.getElementById('observaciones').value = '';
@@ -306,6 +307,7 @@ async function guardarTomaFisica() {
                 '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Selecciona un Centro de Costo</div>';
             actualizarFooter();
         } else {
+            overlay.classList.remove('active');
             alert('❌ ' + (data.error || 'Error guardando'));
         }
     } catch (e) {
@@ -318,6 +320,8 @@ async function guardarTomaFisica() {
 async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tipoTxt) {
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('active');
+    document.querySelector('.popup-state-loading').classList.remove('hide');
+    document.querySelector('.popup-state-success').classList.remove('show');
 
     try {
         const res  = await fetch(`${API_BASE}/almacen/ajuste-inventario`, {
@@ -335,20 +339,30 @@ async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tip
         });
         const data = await res.json();
 
-        overlay.classList.remove('active');
-
         if (data.success) {
-            alert(`✓ Toma Física ${tipoTxt} reemplazada — ${data.registros} ajuste(s)`);
+            mostrarExitoPopup();
             fisico = {};
             document.getElementById('ccOrigen').value = '';
             document.getElementById('gridProductos').innerHTML =
                 '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Selecciona un Centro de Costo</div>';
             actualizarFooter();
         } else {
+            overlay.classList.remove('active');
             alert('❌ ' + (data.error || 'Error guardando'));
         }
     } catch (e) {
         overlay.classList.remove('active');
         alert('❌ Error de conexión');
     }
+}
+
+function mostrarExitoPopup() {
+    document.querySelector('.popup-state-loading').classList.add('hide');
+    document.querySelector('.popup-state-success').classList.add('show');
+}
+
+function cerrarPopupExito() {
+    document.getElementById('loadingOverlay').classList.remove('active');
+    document.querySelector('.popup-state-loading').classList.remove('hide');
+    document.querySelector('.popup-state-success').classList.remove('show');
 }

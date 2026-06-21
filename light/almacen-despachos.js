@@ -920,6 +920,8 @@ async function confirmarDespacho() {
 
     btn.disabled = true;
     overlay.classList.add('active');
+    document.querySelector('.popup-state-loading').classList.remove('hide');
+    document.querySelector('.popup-state-success').classList.remove('show');
 
     try {
         const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/confirmar`, {
@@ -931,13 +933,25 @@ async function confirmarDespacho() {
         if (!data.success) throw new Error(data.error || 'Error al confirmar');
 
         ordenActiva.estado = 'COMPLETADO';
-        overlay.classList.remove('active');
-        mostrarReporteExito();
+        mostrarExitoPopup();
     } catch (e) {
         btn.disabled = false;
         overlay.classList.remove('active');
         alert('Error: ' + e.message);
     }
+}
+
+function mostrarExitoPopup() {
+    document.querySelector('.popup-state-loading').classList.add('hide');
+    document.querySelector('.popup-state-success').classList.add('show');
+}
+
+function cerrarPopupExito() {
+    document.getElementById('loadingOverlay').classList.remove('active');
+    document.querySelector('.popup-state-loading').classList.remove('hide');
+    document.querySelector('.popup-state-success').classList.remove('show');
+    // Reiniciar la app (ir al listado de despachos)
+    cargarDespachos();
 }
 
 function mostrarReporteExito() {
