@@ -58,11 +58,16 @@ async function cargarOrdenes() {
         '<div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div>';
     try {
         const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos?empresa=${empresa}`);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
         const data = await res.json();
         renderLista(data.data || []);
     } catch (e) {
+        console.error('[CARGAR ÓRDENES ERROR]', e);
+        const errMsg = e.message || 'Error de conexión';
         document.getElementById('listaOrdenes').innerHTML =
-            '<div class="empty-state"><div class="empty-icon">❌</div><p>Error cargando órdenes</p></div>';
+            `<div class="empty-state"><div class="empty-icon">❌</div><p>Error cargando órdenes</p><p style="font-size:12px;color:var(--text-secondary);margin-top:8px">${errMsg}</p></div>`;
     }
 }
 
