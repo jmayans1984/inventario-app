@@ -17,6 +17,7 @@ let itemsOcultos     = new Set(); // productos completados y ocultos (FIX 6)
 let mostrandoOcultos = false;  // toggle para ver ocultos (FIX 6)
 let barcodeCache     = {};     // cache de barcodes registrados con sus factores
 let mostrarCompletadas = false; // mostrar órdenes completadas en lista
+let modoVisualizacion  = 'categoria'; // 'ubicacion' | 'categoria'
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -211,12 +212,59 @@ function renderDetalle() {
 // ══════════════════════════════════════════════════════════════
 // PANTALLA 3 — ESCANEO (PICKING O PACKING)
 // ══════════════════════════════════════════════════════════════
-async function iniciarEscaneo(modo) {
+function iniciarEscaneo(modo) {
+    // Mostrar popup para elegir método de visualización
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+
+    panel.innerHTML = `
+      <div style="padding:28px 20px 24px;text-align:center">
+        <div style="font-size:2.2rem;margin-bottom:10px">📦</div>
+        <div style="font-size:19px;font-weight:800;margin-bottom:6px;color:var(--text-primary)">Iniciar Packing</div>
+        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">¿Cómo quieres visualizar los productos?</div>
+
+        <button onclick="confirmarIniciarEscaneo('ubicacion')"
+          style="width:100%;padding:18px 16px;border-radius:14px;border:none;cursor:pointer;
+                 background:#0ea5e9;color:white;font-size:15px;font-weight:700;margin-bottom:12px;
+                 display:flex;align-items:center;gap:14px;text-align:left">
+          <span style="font-size:26px;flex-shrink:0">📍</span>
+          <div>
+            <div style="font-size:15px;font-weight:800;letter-spacing:.3px">UBICACIÓN EN ALMACÉN</div>
+            <div style="font-size:12px;font-weight:400;opacity:.9;margin-top:2px">Agrupado por posición física en bodega</div>
+          </div>
+        </button>
+
+        <button onclick="confirmarIniciarEscaneo('categoria')"
+          style="width:100%;padding:18px 16px;border-radius:14px;border:none;cursor:pointer;
+                 background:#8b5cf6;color:white;font-size:15px;font-weight:700;margin-bottom:20px;
+                 display:flex;align-items:center;gap:14px;text-align:left">
+          <span style="font-size:26px;flex-shrink:0">📂</span>
+          <div>
+            <div style="font-size:15px;font-weight:800;letter-spacing:.3px">CATEGORÍA DE PRODUCTOS</div>
+            <div style="font-size:12px;font-weight:400;opacity:.9;margin-top:2px">Agrupado por tipo/categoría</div>
+          </div>
+        </button>
+
+        <button onclick="document.getElementById('bsOverlay').classList.remove('open')"
+          style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(239,68,68,.3);
+                 background:rgba(239,68,68,.1);color:#ef4444;font-size:14px;font-weight:600;cursor:pointer">
+          Cancelar
+        </button>
+      </div>
+    `;
+
+    overlay.classList.add('open');
+}
+
+async function confirmarIniciarEscaneo(modoViz) {
+    document.getElementById('bsOverlay').classList.remove('open');
+    modoVisualizacion = modoViz;
+
     modoEscaneo    = 'packing';
     scanBuffer     = '';
     estadoCambiado = false;
     scanEnProceso  = false;
-    itemsOcultos   = new Set(); // FIX 6: reset al entrar
+    itemsOcultos   = new Set();
     mostrandoOcultos = false;
 
     // Cargar productos ya completados en packing desde la BD
@@ -224,7 +272,6 @@ async function iniciarEscaneo(modo) {
         ordenActiva.detalle.forEach(item => {
             const req = parseFloat(item.cant_requerida) || 0;
             const pack = parseFloat(item.cant_packing) || 0;
-            // Si ya tiene el packing completado, ocultar
             if (pack > 0 && pack >= req) {
                 itemsOcultos.add(item.producto_codigo);
             }
@@ -267,22 +314,34 @@ function renderScanList(campo) {
     campo = campo || (modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking');
     const el = document.getElementById('scanList');
 
-    // Filtrar productos ocultos
     const visibles = mostrandoOcultos
         ? ordenActiva.detalle
         : ordenActiva.detalle.filter(item => !itemsOcultos.has(item.producto_codigo));
 
-    // Agrupar por grupo_productos.nombre, ordenado por grupo_productos.codigo
     const grupos = {};
-    visibles.forEach(item => {
-        const grupoNombre = item.grupo_nombre || 'Sin grupo';
-        const grupoCodigo = item.grupo_codigo || '';
-        const grupoKey = `${grupoCodigo}|${grupoNombre}`;
-        if (!grupos[grupoKey]) grupos[grupoKey] = [];
-        grupos[grupoKey].push(item);
-    });
+    let gruposOrdenados;
 
-    const gruposOrdenados = Object.keys(grupos).sort();
+    if (modoVisualizacion === 'ubicacion') {
+        visibles.forEach(item => {
+            const ub = (item.ubicacion || '').trim();
+            // Prefijo ~ garantiza que "sin ubicación" quede al final en el sort
+            const grupoKey = ub ? ub : '~~~SIN_UBICACION';
+            if (!grupos[grupoKey]) grupos[grupoKey] = [];
+            grupos[grupoKey].push(item);
+        });
+        // Dentro de cada grupo, ordenar alfabéticamente por nombre
+        gruposOrdenados = Object.keys(grupos).sort();
+        gruposOrdenados.forEach(k => grupos[k].sort((a, b) => a.producto_nombre.localeCompare(b.producto_nombre)));
+    } else {
+        visibles.forEach(item => {
+            const grupoNombre = item.grupo_nombre || 'Sin grupo';
+            const grupoCodigo = item.grupo_codigo || '';
+            const grupoKey = `${grupoCodigo}|${grupoNombre}`;
+            if (!grupos[grupoKey]) grupos[grupoKey] = [];
+            grupos[grupoKey].push(item);
+        });
+        gruposOrdenados = Object.keys(grupos).sort();
+    }
 
     const ocCnt = itemsOcultos.size;
     const ocBanner = ocCnt > 0 ? `
@@ -294,8 +353,16 @@ function renderScanList(campo) {
 
     let html = renderScanStats(campo) + ocBanner;
     gruposOrdenados.forEach(grupoKey => {
-        const [, grupoNombre] = grupoKey.split('|');
-        html += `<div class="scan-grupo-header">${grupoNombre}</div>`;
+        let grupoLabel;
+        if (modoVisualizacion === 'ubicacion') {
+            grupoLabel = grupoKey === '~~~SIN_UBICACION'
+                ? '📦 Sin ubicación específica'
+                : `📍 ${grupoKey}`;
+        } else {
+            const [, grupoNombre] = grupoKey.split('|');
+            grupoLabel = grupoNombre;
+        }
+        html += `<div class="scan-grupo-header">${grupoLabel}</div>`;
         html += grupos[grupoKey].map(item => renderScanItem(item, campo)).join('');
     });
 
