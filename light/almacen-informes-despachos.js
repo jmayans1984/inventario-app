@@ -127,6 +127,7 @@ async function imprimirDespacho(id) {
         `;
 
         document.getElementById('reporteContenido').innerHTML = html;
+        document.querySelector('header').style.display = 'none';
         mostrarScreen('reporte');
     } catch (e) {
         alert('Error cargando despacho: ' + e.message);
@@ -135,6 +136,7 @@ async function imprimirDespacho(id) {
 
 function volverDelReporteInformes() {
     document.getElementById('reporteContenido').innerHTML = '';
+    document.querySelector('header').style.display = 'block';
     mostrarScreen('lista');
 }
 

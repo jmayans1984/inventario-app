@@ -1050,11 +1050,13 @@ function imprimirReporte() {
     `;
 
     document.getElementById('printArea').innerHTML = html;
+    document.querySelector('header').style.display = 'none';
     mostrarScreen('confirmacion');
 }
 
 function volverDelReporte() {
     document.getElementById('printArea').innerHTML = '';
+    document.querySelector('header').style.display = 'block';
     mostrarScreen('lista');
     cargarOrdenes();
 }
