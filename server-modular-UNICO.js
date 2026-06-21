@@ -1323,6 +1323,23 @@ app.patch('/api/almacen/productos/:codigo/toggle-visible-operacional', async (re
     }
 });
 
+// PATCH /api/almacen/productos/:codigo/ubicacion — guardar ubicación física en bodega
+app.patch('/api/almacen/productos/:codigo/ubicacion', async (req, res) => {
+    const { codigo } = req.params;
+    const { ubicacion } = req.body;
+    try {
+        const r = await pool.query(
+            `UPDATE productos SET ubicacion = $1 WHERE codigo = $2`,
+            [ubicacion ? ubicacion.trim() : null, codigo]
+        );
+        if (r.rowCount === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+        res.json({ success: true, ubicacion: ubicacion ? ubicacion.trim() : null });
+    } catch (e) {
+        console.error('Error PATCH /api/almacen/productos/:codigo/ubicacion:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ── FIN GESTIÓN DE PRODUCTOS ─────────────────────────────────────
 
 // GET /api/inventario - Obtener productos con control = SI y stock por ccosto y empresa
