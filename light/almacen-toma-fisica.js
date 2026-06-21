@@ -291,11 +291,8 @@ async function guardarTomaFisica() {
         const data = await res.json();
 
         if (data.conflict) {
-            overlay.classList.remove('active');
-            if (confirm(`⚠️ Ya existe una toma física para esta fecha y CC (${data.count} registro(s)).\n¿Reemplazar los datos existentes?`)) {
-                return guardarConMode('replace', fecha, ccOrigen, observaciones, ajustes, tipoTxt);
-            }
-            return;
+            mostrarAviso(`⚠️ Ya existe una toma física para esta fecha y CC. Se guardará como un nuevo registro.`);
+            return guardarConMode('add', fecha, ccOrigen, observaciones, ajustes, tipoTxt);
         }
 
         if (data.success) {
@@ -365,4 +362,31 @@ function cerrarPopupExito() {
     document.getElementById('loadingOverlay').classList.remove('active');
     document.querySelector('.popup-state-loading').classList.remove('hide');
     document.querySelector('.popup-state-success').classList.remove('show');
+}
+
+function mostrarAviso(msg) {
+    const aviso = document.createElement('div');
+    aviso.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
+        padding: 14px 24px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        animation: slideDown 0.3s ease;
+        max-width: 90%;
+    `;
+    aviso.textContent = msg;
+    document.body.appendChild(aviso);
+
+    setTimeout(() => {
+        aviso.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => aviso.remove(), 300);
+    }, 3000);
 }
