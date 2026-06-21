@@ -62,7 +62,10 @@
                       maxlength="80"
                       placeholder="Ej: Pasillo A - Estante 3"
                       class="ub-input"
-                      @keydown.enter="guardar(item)"
+                      :data-cod="item.codigo"
+                      @keydown.enter.prevent="navegarYGuardar(item, 1)"
+                      @keydown.arrow-down.prevent="navegarYGuardar(item, 1)"
+                      @keydown.arrow-up.prevent="navegarYGuardar(item, -1)"
                       @blur="guardar(item)"
                     />
                   </td>
@@ -139,6 +142,17 @@ const gruposFiltrados = computed(() => {
 })
 
 const totalFiltrados = computed(() => gruposFiltrados.value.reduce((s, g) => s + g.items.length, 0))
+
+const productosFlat = computed(() => gruposFiltrados.value.flatMap(g => g.items))
+
+function navegarYGuardar(item, delta) {
+  guardar(item)
+  const idx = productosFlat.value.findIndex(p => p.codigo === item.codigo)
+  const siguiente = productosFlat.value[idx + delta]
+  if (!siguiente) return
+  const input = document.querySelector(`.ub-input[data-cod="${siguiente.codigo}"]`)
+  if (input) { input.focus(); input.select() }
+}
 
 async function guardar(item) {
   const nueva = (item.ubicacion_draft || '').trim()
