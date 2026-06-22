@@ -10951,6 +10951,7 @@ async function agregarColumnasNomina() {
     const queries = [
         `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS fecha_vencimiento_permiso DATE`,
         `ALTER TABLE nom_config_fiscal ADD COLUMN IF NOT EXISTS cuenta_nomina VARCHAR(50) DEFAULT ''`,
+        `ALTER TABLE nom_config_fiscal ADD COLUMN IF NOT EXISTS fit_config JSONB`,
         `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS tipo_pago VARCHAR(15) DEFAULT 'HORAS'`,
         `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS valor_dia NUMERIC(10,2)`,
         `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS excluir_wc BOOLEAN DEFAULT FALSE`,
@@ -10965,55 +10966,52 @@ async function agregarColumnasNomina() {
 }
 agregarColumnasNomina();
 
-// ── Cálculo de Federal Income Tax (IRS Percentage Method 2024) ──
-function calcularFederalIncomeTax(brutoAnualizado, filingStatus) {
-    if (!filingStatus || filingStatus === 'EXEMPT') return 0;
-    // Standard deductions 2024
-    const stdDeductions = {
-        'SINGLE': 14600, 'HEAD_OF_HOUSEHOLD': 21900,
-        'MARRIED_JOINTLY': 29200, 'MARRIED_SEPARATELY': 14600
-    };
-    const deduccion = stdDeductions[filingStatus] || 14600;
-    const taxableIncome = Math.max(0, brutoAnualizado - deduccion);
+// ── Cálculo de Federal Income Tax (IRS Pub. 15-T) ──────────────
+// Valores por defecto 2025. Se sobreescriben con fit_config de nom_config_fiscal.
+const FIT_RATES = [0.10, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37];
+const FIT_DEFAULTS = {
+    sd_single:  15000, sd_mfj: 30000, sd_hoh: 22500,
+    brackets_single: [11925, 48475, 103350, 197300, 250525, 626350],
+    brackets_mfj:    [23850, 96950, 206700, 394600, 501050, 751600],
+    brackets_hoh:    [17000, 64850, 103350, 197300, 250500, 626350]
+};
 
-    // Tax brackets 2024 — Single & Married Separately
-    const bracketsSingle = [
-        [0, 11600, 0.10, 0],
-        [11600, 47150, 0.12, 1160],
-        [47150, 100525, 0.22, 5426],
-        [100525, 191950, 0.24, 17168.50],
-        [191950, 243725, 0.32, 39110.50],
-        [243725, 609350, 0.35, 55678.50],
-        [609350, Infinity, 0.37, 183647.25]
-    ];
-    // MFJ brackets (approximately double)
-    const bracketsMFJ = [
-        [0, 23200, 0.10, 0],
-        [23200, 94300, 0.12, 2320],
-        [94300, 201050, 0.22, 10852],
-        [201050, 383900, 0.24, 34337],
-        [383900, 487450, 0.32, 78221],
-        [487450, 731200, 0.35, 111357],
-        [731200, Infinity, 0.37, 196669.50]
-    ];
-    const bracketsHoH = [
-        [0, 16550, 0.10, 0],
-        [16550, 63100, 0.12, 1655],
-        [63100, 100500, 0.22, 7241],
-        [100500, 191950, 0.24, 15469],
-        [191950, 243700, 0.32, 37417],
-        [243700, 609350, 0.35, 54951],
-        [609350, Infinity, 0.37, 183254.75]
-    ];
-    let brackets = bracketsSingle;
-    if (filingStatus === 'MARRIED_JOINTLY') brackets = bracketsMFJ;
-    else if (filingStatus === 'HEAD_OF_HOUSEHOLD') brackets = bracketsHoH;
+function buildFitBrackets(thresholds) {
+    let base = 0, prev = 0;
+    const rows = thresholds.map((t, i) => {
+        const row = [prev, t, FIT_RATES[i], base];
+        base += (t - prev) * FIT_RATES[i];
+        prev = t;
+        return row;
+    });
+    rows.push([prev, Infinity, FIT_RATES[thresholds.length], base]);
+    return rows;
+}
+
+function calcularFederalIncomeTax(brutoAnualizado, filingStatus, fitCfg, step2) {
+    if (!filingStatus || filingStatus === 'EXEMPT') return 0;
+    const fc = (fitCfg && typeof fitCfg === 'object') ? fitCfg : FIT_DEFAULTS;
+
+    let sd, thresholds;
+    if (filingStatus === 'MARRIED_JOINTLY') {
+        sd = parseFloat(fc.sd_mfj  || FIT_DEFAULTS.sd_mfj);
+        thresholds = fc.brackets_mfj || FIT_DEFAULTS.brackets_mfj;
+    } else if (filingStatus === 'HEAD_OF_HOUSEHOLD') {
+        sd = parseFloat(fc.sd_hoh  || FIT_DEFAULTS.sd_hoh);
+        thresholds = fc.brackets_hoh || FIT_DEFAULTS.brackets_hoh;
+    } else {
+        sd = parseFloat(fc.sd_single || FIT_DEFAULTS.sd_single);
+        thresholds = fc.brackets_single || FIT_DEFAULTS.brackets_single;
+    }
+    if (step2) sd = sd / 2;   // W-4 Step 2: Multiple Jobs → deducción a la mitad
+
+    const taxableIncome = Math.max(0, brutoAnualizado - sd);
+    const brackets = buildFitBrackets(thresholds.map(Number));
 
     let taxAnual = 0;
     for (const [low, high, rate, baseTax] of brackets) {
         if (taxableIncome > low) {
-            const amt = Math.min(taxableIncome, high) - low;
-            taxAnual = baseTax + amt * rate;
+            taxAnual = baseTax + (Math.min(taxableIncome, high) - low) * rate;
             if (taxableIncome <= high) break;
         }
     }
@@ -11068,7 +11066,12 @@ function calcularRetenciones(empleado, totalBruto, ytdBruto, cfg) {
         const adj = annualizado
             + parseFloat(empleado.w4_other_income || 0)
             - parseFloat(empleado.w4_deductions || 0);
-        const taxAnual = calcularFederalIncomeTax(adj, empleado.w4_filing_status || 'SINGLE');
+        const taxAnual = calcularFederalIncomeTax(
+            adj,
+            empleado.w4_filing_status || 'SINGLE',
+            cfg.fit_config || null,
+            !!empleado.w4_multiple_jobs
+        );
         const weekly = taxAnual / 52;
         const creditAnual = parseFloat(empleado.w4_claim_dependents || 0);
         const creditWeekly = creditAnual / 52;
@@ -12407,7 +12410,7 @@ app.get('/api/nomina/config-fiscal', async (req, res) => {
             medicare_rate:0.0145, medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
             futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
             ot_threshold_hours:40, ot_multiplier:1.5, fl_min_wage:13.00, wc_default_rate:0,
-            cuenta_nomina:''
+            cuenta_nomina:'', fit_config: null
         }});
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -12415,21 +12418,22 @@ app.get('/api/nomina/config-fiscal', async (req, res) => {
 app.put('/api/nomina/config-fiscal', async (req, res) => {
     const d = req.body;
     try {
+        const fitJson = d.fit_config ? JSON.stringify(d.fit_config) : null;
         await pool.query(
             `INSERT INTO nom_config_fiscal (empresa,anio,ss_rate,ss_wage_base,medicare_rate,
              medicare_adicional_rate,medicare_adicional_threshold,futa_rate,futa_wage_base,
-             suta_rate,suta_wage_base,ot_threshold_hours,ot_multiplier,fl_min_wage,wc_default_rate,cuenta_nomina)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+             suta_rate,suta_wage_base,ot_threshold_hours,ot_multiplier,fl_min_wage,wc_default_rate,cuenta_nomina,fit_config)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
              ON CONFLICT (empresa,anio) DO UPDATE SET
              ss_rate=$3,ss_wage_base=$4,medicare_rate=$5,medicare_adicional_rate=$6,
              medicare_adicional_threshold=$7,futa_rate=$8,futa_wage_base=$9,
              suta_rate=$10,suta_wage_base=$11,ot_threshold_hours=$12,ot_multiplier=$13,
-             fl_min_wage=$14,wc_default_rate=$15,cuenta_nomina=$16`,
+             fl_min_wage=$14,wc_default_rate=$15,cuenta_nomina=$16,fit_config=$17`,
             [d.empresa,d.anio,d.ss_rate,d.ss_wage_base,d.medicare_rate,
              d.medicare_adicional_rate,d.medicare_adicional_threshold,
              d.futa_rate,d.futa_wage_base,d.suta_rate,d.suta_wage_base,
              d.ot_threshold_hours,d.ot_multiplier,d.fl_min_wage,d.wc_default_rate,
-             d.cuenta_nomina||'']
+             d.cuenta_nomina||'', fitJson]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }

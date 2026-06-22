@@ -133,6 +133,70 @@
             </div>
           </div>
 
+          <!-- FIT TABLES -->
+          <div class="cfg-section">
+            <div class="cfg-section-title">FIT — TABLAS DE RETENCIÓN FEDERAL (IRS PUB. 15-T)</div>
+            <div class="cfg-info"><v-icon size="13" color="#6366f1">mdi-information-outline</v-icon>
+              Actualiza estos valores cada enero cuando el IRS publique las tablas del nuevo año.
+              Las tasas (10%, 12%, 22%…) son fijas en la ley; solo cambian los límites y las deducciones estándar.
+            </div>
+
+            <div class="fit-sub-title">DEDUCCIONES ESTÁNDAR</div>
+            <div class="cfg-row" style="margin-bottom:20px">
+              <div class="cfg-item">
+                <label>Single / Married Filing Sep. ($)</label>
+                <div class="cfg-hint">2025: $15,000</div>
+                <input v-model.number="fitCfg.sd_single" type="number" class="drw-input" />
+              </div>
+              <div class="cfg-item">
+                <label>Married Filing Jointly ($)</label>
+                <div class="cfg-hint">2025: $30,000</div>
+                <input v-model.number="fitCfg.sd_mfj" type="number" class="drw-input" />
+              </div>
+              <div class="cfg-item">
+                <label>Head of Household ($)</label>
+                <div class="cfg-hint">2025: $22,500</div>
+                <input v-model.number="fitCfg.sd_hoh" type="number" class="drw-input" />
+              </div>
+            </div>
+
+            <div class="fit-brackets-grid">
+              <div class="fit-bracket-col">
+                <div class="fit-sub-title">TRAMOS — SINGLE &amp; MARRIED FILING SEP.</div>
+                <div class="fit-br-table">
+                  <div class="fit-br-head"><span>Tasa</span><span>Hasta ($)</span></div>
+                  <div v-for="(_, i) in fitCfg.brackets_single" :key="'s'+i" class="fit-br-row">
+                    <span class="fit-rate">{{ fitRateLabels[i] }}</span>
+                    <input v-model.number="fitCfg.brackets_single[i]" type="number" class="drw-input fit-br-input" />
+                  </div>
+                  <div class="fit-br-row fit-br-last"><span class="fit-rate">37%</span><span class="fit-br-inf">sin límite</span></div>
+                </div>
+              </div>
+              <div class="fit-bracket-col">
+                <div class="fit-sub-title">TRAMOS — MARRIED FILING JOINTLY</div>
+                <div class="fit-br-table">
+                  <div class="fit-br-head"><span>Tasa</span><span>Hasta ($)</span></div>
+                  <div v-for="(_, i) in fitCfg.brackets_mfj" :key="'m'+i" class="fit-br-row">
+                    <span class="fit-rate">{{ fitRateLabels[i] }}</span>
+                    <input v-model.number="fitCfg.brackets_mfj[i]" type="number" class="drw-input fit-br-input" />
+                  </div>
+                  <div class="fit-br-row fit-br-last"><span class="fit-rate">37%</span><span class="fit-br-inf">sin límite</span></div>
+                </div>
+              </div>
+              <div class="fit-bracket-col">
+                <div class="fit-sub-title">TRAMOS — HEAD OF HOUSEHOLD</div>
+                <div class="fit-br-table">
+                  <div class="fit-br-head"><span>Tasa</span><span>Hasta ($)</span></div>
+                  <div v-for="(_, i) in fitCfg.brackets_hoh" :key="'h'+i" class="fit-br-row">
+                    <span class="fit-rate">{{ fitRateLabels[i] }}</span>
+                    <input v-model.number="fitCfg.brackets_hoh[i]" type="number" class="drw-input fit-br-input" />
+                  </div>
+                  <div class="fit-br-row fit-br-last"><span class="fit-rate">37%</span><span class="fit-br-inf">sin límite</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Overtime + WC + Min wage -->
           <div class="cfg-section">
             <div class="cfg-section-title">OVERTIME Y PARÁMETROS GENERALES</div>
@@ -194,6 +258,15 @@ const cfg = ref({
   ot_threshold_hours: 40, ot_multiplier: 1.5, fl_min_wage: 13.00, wc_default_rate: 0,
   cuenta_nomina: ''
 })
+
+const FIT_DEFAULTS = {
+  sd_single: 15000, sd_mfj: 30000, sd_hoh: 22500,
+  brackets_single: [11925, 48475, 103350, 197300, 250525, 626350],
+  brackets_mfj:    [23850, 96950, 206700, 394600, 501050, 751600],
+  brackets_hoh:    [17000, 64850, 103350, 197300, 250500, 626350]
+}
+const fitRateLabels = ['10%', '12%', '22%', '24%', '32%', '35%']
+const fitCfg = ref({ ...FIT_DEFAULTS, brackets_single:[...FIT_DEFAULTS.brackets_single], brackets_mfj:[...FIT_DEFAULTS.brackets_mfj], brackets_hoh:[...FIT_DEFAULTS.brackets_hoh] })
 async function cargar() {
   cargando.value = true
   try {
@@ -201,14 +274,27 @@ async function cargar() {
       api.get('/nomina/config-fiscal', { params: { empresa: empresa.value, anio: anio.value } }),
       api.get('/gastos/cuentas-contables', { params: { empresa: empresa.value } })
     ])
-    if (cfgR.data?.data) cfg.value = { ...cfg.value, ...cfgR.data.data }
+    if (cfgR.data?.data) {
+      cfg.value = { ...cfg.value, ...cfgR.data.data }
+      const fc = cfgR.data.data.fit_config
+      if (fc && typeof fc === 'object') {
+        fitCfg.value = {
+          sd_single: fc.sd_single ?? FIT_DEFAULTS.sd_single,
+          sd_mfj:    fc.sd_mfj    ?? FIT_DEFAULTS.sd_mfj,
+          sd_hoh:    fc.sd_hoh    ?? FIT_DEFAULTS.sd_hoh,
+          brackets_single: fc.brackets_single ? [...fc.brackets_single] : [...FIT_DEFAULTS.brackets_single],
+          brackets_mfj:    fc.brackets_mfj    ? [...fc.brackets_mfj]    : [...FIT_DEFAULTS.brackets_mfj],
+          brackets_hoh:    fc.brackets_hoh    ? [...fc.brackets_hoh]    : [...FIT_DEFAULTS.brackets_hoh]
+        }
+      }
+    }
     cuentasContables.value = cuentasR.data?.cuentas || []
   } finally { cargando.value = false }
 }
 async function guardar() {
   guardando.value = true
   try {
-    await api.put('/nomina/config-fiscal', { ...cfg.value, empresa: empresa.value, anio: anio.value })
+    await api.put('/nomina/config-fiscal', { ...cfg.value, fit_config: fitCfg.value, empresa: empresa.value, anio: anio.value })
     saved.value = true; setTimeout(() => saved.value = false, 3000)
   } finally { guardando.value = false }
 }
@@ -235,4 +321,14 @@ onMounted(cargar)
 .drw-input { height: 34px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 13px; outline: none; width: 100%; }
 .drw-input:focus { border-color: #06b6d4; }
 .drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 13px; outline: none; }
+.fit-sub-title { font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:rgba(var(--v-theme-on-surface),0.5); margin-bottom:8px; }
+.fit-brackets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:20px; }
+.fit-bracket-col { display:flex; flex-direction:column; }
+.fit-br-table { border:1px solid rgba(var(--v-theme-on-surface),0.1); border-radius:8px; overflow:hidden; }
+.fit-br-head { display:grid; grid-template-columns:56px 1fr; gap:8px; padding:6px 10px; background:rgba(var(--v-theme-on-surface),0.04); font-size:10px; font-weight:700; color:rgba(var(--v-theme-on-surface),0.45); text-transform:uppercase; letter-spacing:.5px; }
+.fit-br-row { display:grid; grid-template-columns:56px 1fr; gap:8px; align-items:center; padding:5px 10px; border-top:1px solid rgba(var(--v-theme-on-surface),0.06); }
+.fit-br-last { background:rgba(var(--v-theme-on-surface),0.02); }
+.fit-rate { font-size:11px; font-weight:800; color:#6366f1; font-family:monospace; }
+.fit-br-input { max-width:130px !important; height:28px !important; font-size:12px !important; }
+.fit-br-inf { font-size:11px; color:rgba(var(--v-theme-on-surface),0.35); font-style:italic; }
 </style>

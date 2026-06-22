@@ -228,6 +228,12 @@
                   </div>
                   <div class="drw-field"><label>CRÉDITO POR DEPENDIENTES ($)</label><input v-model="form.w4_claim_dependents" type="number" step="1" min="0" class="drw-input" placeholder="EJ: 2000 POR HIJO" /></div>
                   <div class="drw-field"><label>RETENCIÓN EXTRA POR PERÍODO ($)</label><input v-model="form.w4_extra_withholding" type="number" step="0.01" min="0" class="drw-input" /></div>
+                  <div class="drw-field" style="grid-column:1/-1">
+                    <label>MÚLTIPLES EMPLEOS — W-4 STEP 2</label>
+                    <div class="drw-check-row"><input type="checkbox" v-model="form.w4_multiple_jobs" class="drw-check" /><span style="font-size:12px;color:rgba(255,255,255,0.6)">EL EMPLEADO TIENE OTRO TRABAJO O EL CÓNYUGE TRABAJA (REDUCE LA DEDUCCIÓN ESTÁNDAR A LA MITAD)</span></div>
+                  </div>
+                  <div class="drw-field"><label>OTROS INGRESOS ANUALES — W-4 STEP 4a ($)</label><input v-model="form.w4_other_income" type="number" step="1" min="0" class="drw-input" placeholder="EJ: 3120" /></div>
+                  <div class="drw-field"><label>DEDUCCIONES ADICIONALES ANUALES — W-4 STEP 4b ($)</label><input v-model="form.w4_deductions" type="number" step="1" min="0" class="drw-input" placeholder="EJ: 1100" /></div>
                 </div>
               </template>
               <div v-else style="text-align:center;padding:32px;color:rgba(255,255,255,0.4);font-size:13px">
@@ -403,6 +409,7 @@ const formDefault = () => ({
   ssn:'', permiso_trabajo:'', fecha_vencimiento_permiso:'',
   w4_filing_status:'SINGLE', w4_claim_dependents:0,
   w4_extra_withholding:0, w4_exempt:false,
+  w4_multiple_jobs:false, w4_other_income:0, w4_deductions:0,
   wc_rate:'', wc_code:'', excluir_wc:false, notas:''
 })
 const form = ref(formDefault())
@@ -456,6 +463,9 @@ function editar(e) {
     w4_claim_dependents: e.w4_claim_dependents||0,
     w4_extra_withholding: e.w4_extra_withholding||0,
     w4_exempt: e.w4_exempt||false,
+    w4_multiple_jobs: e.w4_multiple_jobs||false,
+    w4_other_income: e.w4_other_income||0,
+    w4_deductions: e.w4_deductions||0,
     wc_rate: e.wc_rate||'', wc_code: e.wc_code||'', excluir_wc: e.excluir_wc||false, notas: e.notas||''
   }
   fotoPreview.value = null
