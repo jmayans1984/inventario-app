@@ -588,6 +588,7 @@ async function confirmarDesaprobar() {
     const r = await api.put(`/nomina/liquidaciones/${liqSelId.value}/desaprobar`, { empresa: empresa.value })
     dlgDesaprobar.value = false
     alert(`✅ ${r.data.message}`)
+    await cargar()
     await cargarDetalle()
   } catch(e) { alert('❌ ' + (e?.response?.data?.error || e.message)) }
   finally { desaprobando.value = false }

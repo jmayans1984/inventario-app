@@ -12208,9 +12208,23 @@ app.put('/api/nomina/liquidaciones/:id/desaprobar', async (req, res) => {
             [l.empresa, labelBase + '%']
         );
 
-        // Revertir estado de la liquidación a BORRADOR
+        // Borrar líneas calculadas para que vuelva al paso 1 (sin cálculo)
         await client.query(
-            "UPDATE nom_liquidacion SET estado='BORRADOR', updated_at=NOW() WHERE id=$1",
+            `DELETE FROM nom_liquidacion_ccosto WHERE linea_id IN
+             (SELECT id FROM nom_liquidacion_linea WHERE liquidacion_id=$1)`,
+            [req.params.id]
+        );
+        await client.query(
+            'DELETE FROM nom_liquidacion_linea WHERE liquidacion_id=$1',
+            [req.params.id]
+        );
+
+        // Revertir estado y totales a BORRADOR limpio
+        await client.query(
+            `UPDATE nom_liquidacion
+             SET estado='BORRADOR', total_bruto=0, total_deducciones_emp=0,
+                 total_aportes_er=0, total_neto=0, updated_at=NOW()
+             WHERE id=$1`,
             [req.params.id]
         );
 
@@ -12225,7 +12239,7 @@ app.put('/api/nomina/liquidaciones/:id/desaprobar', async (req, res) => {
         await client.query('COMMIT');
         res.json({
             success: true,
-            message: `Nómina revertida a BORRADOR. ${delGastos.rowCount} gasto(s) eliminado(s), ${delMoviban.rowCount} movimiento(s) bancario(s) eliminado(s).`,
+            message: `Nómina revertida a BORRADOR. ${delGastos.rowCount} gasto(s) eliminado(s), ${delMoviban.rowCount} movimiento(s) bancario(s) eliminado(s). Líneas borradas — puedes recalcular.`,
             gastosEliminados: delGastos.rowCount,
             movibaneliminados: delMoviban.rowCount
         });
