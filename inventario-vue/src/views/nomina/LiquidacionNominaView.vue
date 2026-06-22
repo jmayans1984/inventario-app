@@ -34,6 +34,10 @@
                  @click="$router.push('/nomina/reportes/recibos')">
             <v-icon size="14" class="mr-1">mdi-file-document</v-icon> Ver Recibos
           </v-btn>
+          <v-btn v-if="liqActual?.estado==='APROBADA'" size="small" color="#f59e0b" variant="outlined"
+                 @click="dlgDesaprobar=true">
+            <v-icon size="14" class="mr-1">mdi-undo-variant</v-icon> Desaprobar
+          </v-btn>
           <v-btn v-if="liqActual?.estado==='BORRADOR'" size="small" color="#ef4444" variant="text"
                  :loading="borrando" @click="borrarLiq">
             <v-icon size="14">mdi-trash-can</v-icon>
@@ -345,6 +349,40 @@
       </v-card>
     </v-dialog>
 
+    <!-- ── DIALOG DESAPROBAR NÓMINA ── -->
+    <v-dialog v-model="dlgDesaprobar" max-width="460">
+      <v-card rounded="lg">
+        <v-card-title class="pa-4 pb-2" style="font-size:15px;font-weight:700">
+          <v-icon size="18" color="#f59e0b" class="mr-2">mdi-undo-variant</v-icon>
+          Desaprobar Nómina
+        </v-card-title>
+        <v-card-text class="pa-4 pt-2">
+          <div class="aprobar-resumen">
+            <div class="aprobar-item"><span>Período</span><span>{{ fmtFecha(liqActual?.semana_inicio) }} — {{ fmtFecha(liqActual?.semana_fin) }}</span></div>
+            <div class="aprobar-item"><span>Estado actual</span><span style="color:#10b981;font-weight:700">APROBADA</span></div>
+            <div class="aprobar-item bold"><span>Estado resultante</span><span style="color:#f59e0b">BORRADOR</span></div>
+          </div>
+          <div class="aprobar-advertencia mt-3" style="border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.07)">
+            <v-icon size="14" color="#f59e0b">mdi-alert</v-icon>
+            <span>Esta acción:</span>
+          </div>
+          <ul style="font-size:12px;margin:8px 0 0 18px;line-height:1.8;color:rgba(var(--v-theme-on-surface),.7)">
+            <li>Eliminará los <strong>gastos contables</strong> creados al aprobar</li>
+            <li>Eliminará los <strong>movimientos bancarios</strong> asociados (si los hubo)</li>
+            <li>Reabrirá la semana del horario vinculada</li>
+            <li>La nómina volverá a <strong>BORRADOR</strong> para que puedas recalcularla</li>
+          </ul>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer/>
+          <v-btn variant="text" @click="dlgDesaprobar=false">Cancelar</v-btn>
+          <v-btn color="#f59e0b" variant="flat" :loading="desaprobando" @click="confirmarDesaprobar">
+            <v-icon size="14" class="mr-1">mdi-undo-variant</v-icon> Confirmar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- ── DIALOG NUEVA NÓMINA ── -->
     <v-dialog v-model="dlgNueva" max-width="460">
       <v-card rounded="lg">
@@ -424,6 +462,9 @@ const bancoSelAprobar = ref('')
 const fechaPagoAprobar = ref('')
 const cuentasBancarias = ref([])
 const aprobando       = ref(false)
+
+const dlgDesaprobar   = ref(false)
+const desaprobando    = ref(false)
 
 function toggleExpand(id) {
   if (expandido.value.has(id)) expandido.value.delete(id)
@@ -539,6 +580,17 @@ async function confirmarAprobar() {
     await cargarDetalle()
   } catch(e) { alert('❌ ' + (e?.response?.data?.error || e.message)) }
   finally { aprobando.value = false }
+}
+
+async function confirmarDesaprobar() {
+  desaprobando.value = true
+  try {
+    const r = await api.put(`/nomina/liquidaciones/${liqSelId.value}/desaprobar`, { empresa: empresa.value })
+    dlgDesaprobar.value = false
+    alert(`✅ ${r.data.message}`)
+    await cargarDetalle()
+  } catch(e) { alert('❌ ' + (e?.response?.data?.error || e.message)) }
+  finally { desaprobando.value = false }
 }
 
 async function borrarLiq() {

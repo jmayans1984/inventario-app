@@ -12161,6 +12161,81 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
     } finally { client.release(); }
 });
 
+// PUT /api/nomina/liquidaciones/:id/desaprobar — revierte aprobación: borra gastos/movibanes y vuelve a BORRADOR
+app.put('/api/nomina/liquidaciones/:id/desaprobar', async (req, res) => {
+    const { empresa } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const liq = await client.query('SELECT * FROM nom_liquidacion WHERE id=$1', [req.params.id]);
+        if (!liq.rows.length) return res.status(404).json({ success: false, error: 'No encontrada' });
+        const l = liq.rows[0];
+        if (l.estado !== 'APROBADA')
+            return res.status(400).json({ success: false, error: 'Solo se pueden desaprobar nóminas en estado APROBADA' });
+
+        const toDateStr = (d) => {
+            if (!d) return null;
+            if (d instanceof Date) {
+                const y  = d.getUTCFullYear();
+                const m  = String(d.getUTCMonth()+1).padStart(2,'0');
+                const dd = String(d.getUTCDate()).padStart(2,'0');
+                return `${y}-${m}-${dd}`;
+            }
+            return String(d).split('T')[0];
+        };
+        const fmtLabel = (dateStr) => {
+            const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            const [, m, dd] = dateStr.split('-').map(Number);
+            return `${dd} ${meses[m-1]}`;
+        };
+
+        const inicioStr = toDateStr(l.semana_inicio);
+        const finStr    = toDateStr(l.semana_fin);
+        const fin       = new Date(finStr + 'T12:00:00');
+        const anioLiq   = fin.getFullYear();
+        const labelBase = `NOMINA ${fmtLabel(inicioStr)} - ${fmtLabel(finStr)} ${anioLiq}`;
+
+        // Eliminar gastos contables creados por esta aprobación
+        const delGastos = await client.query(
+            `DELETE FROM gastos WHERE empresa=$1 AND concepto LIKE $2`,
+            [l.empresa, labelBase + '%']
+        );
+
+        // Eliminar movimientos bancarios creados por esta aprobación
+        const delMoviban = await client.query(
+            `DELETE FROM moviban WHERE empresa=$1 AND tipo='EGR' AND concepto LIKE $2`,
+            [l.empresa, labelBase + '%']
+        );
+
+        // Revertir estado de la liquidación a BORRADOR
+        await client.query(
+            "UPDATE nom_liquidacion SET estado='BORRADOR', updated_at=NOW() WHERE id=$1",
+            [req.params.id]
+        );
+
+        // Reabrir la semana del horario vinculada
+        if (l.semana_id) {
+            await client.query(
+                "UPDATE nom_semana SET estado='PUBLICADO' WHERE id=$1",
+                [l.semana_id]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: `Nómina revertida a BORRADOR. ${delGastos.rowCount} gasto(s) eliminado(s), ${delMoviban.rowCount} movimiento(s) bancario(s) eliminado(s).`,
+            gastosEliminados: delGastos.rowCount,
+            movibaneliminados: delMoviban.rowCount
+        });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('Error al desaprobar nómina:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    } finally { client.release(); }
+});
+
 // ── REPORTE DE NÓMINA ────────────────────────────────────────────
 // GET /api/nomina/reporte — resumen analítico por período
 // Parámetros: empresa, fechaInicio, fechaFin, vista (periodo|empleado|ccosto|impuestos)
