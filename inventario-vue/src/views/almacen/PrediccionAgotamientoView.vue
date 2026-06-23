@@ -89,10 +89,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import MainLayout from '../../components/layouts/MainLayout.vue';
-import { useRouter } from 'vue-router';
+import { useAuthStore } from '../../stores/auth';
 
-const router = useRouter();
-const empresa = ref(localStorage.getItem('empresa') || '');
+const auth = useAuthStore();
+const empresa = computed(() => auth.empresa);
 const datos = ref([]);
 const cargando = ref(false);
 

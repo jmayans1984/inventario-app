@@ -112,6 +112,7 @@ export const MODULES = [
         { name: 'Alertas de Stock',        icon: 'mdi-alert-circle-outline',  path: '/almacen/reportes/alertas-stock',        requiredTipo: 'PROVEEDOR' },
         { name: 'Movimiento por Producto', icon: 'mdi-swap-vertical-bold',    path: '/almacen/reportes/movimiento-producto' },
         { name: 'Kardex Consolidado',      icon: 'mdi-table-multiple',         path: '/almacen/reportes/kardex-consolidado' },
+        { name: 'Predicción Agotamiento',  icon: 'mdi-chart-box-outline',      path: '/almacen/reportes/prediccion-agotamiento' },
       ]},
     ],
   },
