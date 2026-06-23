@@ -1003,10 +1003,6 @@ function imprimirDespacho(o) {
     </tr></thead>
     <tbody>${filas}</tbody>
   </table>
-  <div class="firmas">
-    <div class="firma-linea">Firma Despachador</div>
-    <div class="firma-linea">Firma Receptor</div>
-  </div>
   <script>window.onload=()=>{window.print();}<\/script>
   </body></html>`)
   ventana.document.close()
