@@ -679,7 +679,7 @@ async function cargarGrid(ccDestino) {
     const [resProds, resStockBodega, resDespachos] = await Promise.all([
       api.get('/almacen/productos', { params: { empresa: empresa.value } }),
       api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccOrigen } }),
-      api.get('/almacen/despachos', { params: { empresa: empresa.value, estado: 'PENDIENTE', fecha: fechaHoy } }),
+      api.get('/almacen/despachos', { params: { empresa: empresa.value, estado: 'PENDIENTE', fecha: fechaHoy, include_detalle: '1' } }),
     ])
 
     // Productos con control='SI' y sus datos
@@ -830,7 +830,7 @@ async function abrirAnalisisFaltantes() {
   try {
     const ccOrigen = ccostos.value[0]?.codigo
     const [resDespachos, resStock] = await Promise.all([
-      api.get('/almacen/despachos', { params: { empresa: empresa.value, estado: 'PENDIENTE' } }),
+      api.get('/almacen/despachos', { params: { empresa: empresa.value, estado: 'PENDIENTE', include_detalle: '1' } }),
       api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccOrigen } }),
     ])
 

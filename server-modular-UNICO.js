@@ -949,6 +949,23 @@ app.get('/api/almacen/despachos', async (req, res) => {
             WHERE ${conds.join(' AND ')}
             ORDER BY od.fecha DESC, od.id DESC
         `, params);
+
+        // Si se solicita el detalle, agrégalo a cada orden
+        if (req.query.include_detalle === '1' && result.rows.length > 0) {
+            for (const orden of result.rows) {
+                const detRes = await pool.query(`
+                    SELECT odd.*, p.nombre AS producto_nombre, p.und, p.descripcion,
+                           p.grupo AS grupo_codigo, g.nombre AS grupo_nombre
+                    FROM ordenes_despacho_detalle odd
+                    JOIN productos p ON p.codigo=odd.producto_codigo
+                    LEFT JOIN grupo_productos g ON g.codigo=p.grupo
+                    WHERE odd.orden_id=$1
+                    ORDER BY g.codigo NULLS LAST, p.nombre
+                `, [orden.id]);
+                orden.detalle = detRes.rows;
+            }
+        }
+
         res.json({ success: true, data: result.rows });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
