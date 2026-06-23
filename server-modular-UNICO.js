@@ -1672,13 +1672,13 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
     try {
         // 1. Obtener bodega_maestra de esta empresa
         const bodegaRes = await pool.query(
-            `SELECT codigo FROM centros_costos WHERE empresa = $1 AND es_bodega_maestra = true LIMIT 1`,
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`,
             [empresa]
         );
-        if (!bodegaRes.rows[0]) {
-            return res.status(404).json({ error: 'Bodega maestra no encontrada' });
+        if (!bodegaRes.rows[0] || !bodegaRes.rows[0].bodega_maestra) {
+            return res.status(404).json({ error: 'Bodega maestra no configurada para esta empresa' });
         }
-        const bodegaCodigo = bodegaRes.rows[0].codigo;
+        const bodegaCodigo = bodegaRes.rows[0].bodega_maestra;
 
         // 2. Últimos 15 días
         const hace15Dias = new Date();
