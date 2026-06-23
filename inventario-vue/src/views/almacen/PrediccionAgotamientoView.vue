@@ -19,6 +19,17 @@
             <p class="pa-sub">Cuándo se acabará el stock de cada producto en bodega maestra</p>
           </div>
         </div>
+        <div class="pa-header-right">
+          <span class="pa-vent-lbl">Analizar consumo de:</span>
+          <div class="pa-vent-group">
+            <button
+              v-for="opt in opcionesDias"
+              :key="opt"
+              :class="['pa-vent-btn', { active: ventanaDias === opt }]"
+              @click="cambiarVentana(opt)"
+            >{{ opt }} días</button>
+          </div>
+        </div>
       </div>
 
       <!-- KPIs -->
@@ -96,6 +107,14 @@ const auth = useAuthStore();
 const empresa = computed(() => auth.empresa);
 const datos = ref([]);
 const cargando = ref(false);
+const ventanaDias = ref(30);
+const opcionesDias = [15, 30, 60];
+
+function cambiarVentana(d) {
+  if (ventanaDias.value === d) return;
+  ventanaDias.value = d;
+  cargar();
+}
 
 const enPeligro = computed(() => datos.value.filter(d => d.alerta === 'PELIGRO').length);
 const enAlerta = computed(() => datos.value.filter(d => d.alerta === 'ALERTA').length);
@@ -118,7 +137,7 @@ async function cargar() {
 
   cargando.value = true;
   try {
-    const res = await fetch(`${API_BASE}/almacen/prediccion-agotamiento?empresa=${empresa.value}`);
+    const res = await fetch(`${API_BASE}/almacen/prediccion-agotamiento?empresa=${empresa.value}&dias=${ventanaDias.value}`);
     const json = await res.json();
 
     if (json.success === false) {
@@ -157,6 +176,14 @@ onMounted(() => {
 .pa-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #047857, #10b981); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(4, 120, 87, .35); flex-shrink: 0; }
 .pa-title { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .pa-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), .5); margin: 2px 0 0; }
+
+/* Selector de ventana */
+.pa-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.pa-vent-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface), .4); }
+.pa-vent-group { display: inline-flex; background: rgba(var(--v-theme-on-surface), .05); border-radius: 8px; padding: 3px; gap: 2px; }
+.pa-vent-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .6); cursor: pointer; transition: all .15s; }
+.pa-vent-btn:hover { color: rgba(var(--v-theme-on-surface), .9); }
+.pa-vent-btn.active { background: linear-gradient(135deg, #047857, #10b981); color: white; box-shadow: 0 2px 8px rgba(4, 120, 87, .3); }
 
 /* KPIs */
 .pa-kpi-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
