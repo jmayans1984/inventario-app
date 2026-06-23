@@ -1728,13 +1728,12 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
                 p.descripcion,
                 p.und,
                 COALESCE(g.nombre, 'Sin Grupo') as grupo_nombre,
-                COALESCE(SUM(CASE WHEN di.ccosto = $2 THEN di.entrada - di.salida ELSE 0 END), 0) as stock_actual
+                COALESCE(SUM(di.entrada - di.salida), 0) as stock_actual
             FROM productos p
             LEFT JOIN grupo_productos g ON p.grupo = g.codigo
-            LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.empresa = $1
-            WHERE p.empresa = $1
+            LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.empresa = $1 AND di.ccosto = $2
             GROUP BY p.codigo, p.nombre, p.descripcion, p.und, g.nombre
-            HAVING COALESCE(SUM(CASE WHEN di.ccosto = $2 THEN di.entrada - di.salida ELSE 0 END), 0) > 0
+            HAVING COALESCE(SUM(di.entrada - di.salida), 0) > 0
             ORDER BY p.codigo`,
             [empresa, bodegaCodigo]
         );
