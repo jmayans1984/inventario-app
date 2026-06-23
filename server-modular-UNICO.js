@@ -1662,6 +1662,146 @@ app.get('/api/almacen/movimientos-recientes', async (req, res) => {
     }
 });
 
+// GET /api/almacen/prediccion-agotamiento — predicción de agotamiento de inventario
+// Analiza consumo últimos 15 días (ponderado por día de semana) y predice cuándo se agota cada producto
+app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ error: 'empresa requerida' });
+
+    try {
+        // 1. Obtener bodega_maestra de esta empresa
+        const bodegaRes = await pool.query(
+            `SELECT codigo FROM centros_costos WHERE empresa = $1 AND es_bodega_maestra = true LIMIT 1`,
+            [empresa]
+        );
+        if (!bodegaRes.rows[0]) {
+            return res.status(404).json({ error: 'Bodega maestra no encontrada' });
+        }
+        const bodegaCodigo = bodegaRes.rows[0].codigo;
+
+        // 2. Últimos 15 días
+        const hace15Dias = new Date();
+        hace15Dias.setDate(hace15Dias.getDate() - 15);
+        const fecha15Dias = hace15Dias.toISOString().split('T')[0];
+
+        // 3. Obtener movimientos (salidas) de los últimos 15 días
+        const movimientosRes = await pool.query(
+            `SELECT
+                codigo,
+                salida,
+                EXTRACT(DOW FROM fecha)::int AS dia_semana
+            FROM detalle_inventario
+            WHERE empresa = $1 AND ccosto = $2 AND fecha >= $3 AND salida > 0
+            ORDER BY fecha`,
+            [empresa, bodegaCodigo, fecha15Dias]
+        );
+
+        // 4. Calcular consumo promedio por día de semana y consumo por producto
+        const consumoPorDiaSemana = [0, 0, 0, 0, 0, 0, 0]; // 0=domingo, 6=sábado
+        const conteosDia = [0, 0, 0, 0, 0, 0, 0];
+        const consumoPorProducto = {};
+
+        for (const mov of movimientosRes.rows) {
+            const salida = parseFloat(mov.salida);
+            consumoPorDiaSemana[mov.dia_semana] += salida;
+            conteosDia[mov.dia_semana]++;
+
+            if (!consumoPorProducto[mov.codigo]) {
+                consumoPorProducto[mov.codigo] = 0;
+            }
+            consumoPorProducto[mov.codigo] += salida;
+        }
+
+        // Promedio por día de semana (si no hay datos, usar 0)
+        for (let i = 0; i < 7; i++) {
+            if (conteosDia[i] > 0) {
+                consumoPorDiaSemana[i] = consumoPorDiaSemana[i] / conteosDia[i];
+            }
+        }
+
+        // 5. Obtener stock actual de productos en bodega_maestra
+        const stockRes = await pool.query(
+            `SELECT
+                p.codigo,
+                p.nombre,
+                p.descripcion,
+                p.und,
+                COALESCE(pg.nombre, 'Sin Grupo') as grupo_nombre,
+                COALESCE(SUM(CASE WHEN di.ccosto = $2 THEN di.entrada - di.salida ELSE 0 END), 0) as stock_actual
+            FROM productos p
+            LEFT JOIN producto_grupos pg ON p.grupo_codigo = pg.codigo
+            LEFT JOIN detalle_inventario di ON p.codigo = di.codigo AND di.empresa = $1
+            WHERE p.empresa = $1
+            GROUP BY p.codigo, p.nombre, p.descripcion, p.und, pg.nombre
+            HAVING COALESCE(SUM(CASE WHEN di.ccosto = $2 THEN di.entrada - di.salida ELSE 0 END), 0) > 0
+            ORDER BY p.codigo`,
+            [empresa, bodegaCodigo]
+        );
+
+        // 6. Calcular consumo diario estimado y fecha de agotamiento
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const resultados = [];
+
+        for (const prod of stockRes.rows) {
+            const stock = parseFloat(prod.stock_actual);
+            const consumoTotal = consumoPorProducto[prod.codigo] || 0;
+            const consumoDiario = consumoTotal / 15; // Promedio últimos 15 días
+
+            let fechaAgotamiento = null;
+            let diasRestantes = null;
+
+            if (consumoDiario > 0) {
+                // Simular hacia adelante con ponderación por día de semana
+                let stockSimulado = stock;
+                let diaSimulacion = new Date(hoy);
+                let simulacionDias = 0;
+
+                while (stockSimulado > 0 && simulacionDias < 365) {
+                    const diaSemana = diaSimulacion.getDay();
+                    const consumoDiaActual = consumoPorDiaSemana[diaSemana] > 0 ? consumoPorDiaSemana[diaSemana] : consumoDiario;
+
+                    stockSimulado -= consumoDiaActual;
+
+                    if (stockSimulado <= 0) {
+                        fechaAgotamiento = diaSimulacion.toISOString().split('T')[0];
+                        diasRestantes = simulacionDias + 1;
+                        break;
+                    }
+
+                    diaSimulacion.setDate(diaSimulacion.getDate() + 1);
+                    simulacionDias++;
+                }
+            }
+
+            resultados.push({
+                codigo: prod.codigo,
+                nombre: prod.nombre,
+                descripcion: prod.descripcion || '—',
+                und: prod.und,
+                grupo_nombre: prod.grupo_nombre,
+                stock_actual: parseFloat(stock).toFixed(2),
+                consumo_diario_estimado: consumoDiario.toFixed(2),
+                fecha_agotamiento: fechaAgotamiento,
+                dias_restantes: diasRestantes,
+                alerta: diasRestantes && diasRestantes <= 7 ? 'PELIGRO' : (diasRestantes && diasRestantes <= 14 ? 'ALERTA' : 'OK')
+            });
+        }
+
+        // 7. Ordenar por fecha de agotamiento (más próximos primero, sin fecha al final)
+        resultados.sort((a, b) => {
+            if (!a.fecha_agotamiento) return 1;
+            if (!b.fecha_agotamiento) return -1;
+            return new Date(a.fecha_agotamiento) - new Date(b.fecha_agotamiento);
+        });
+
+        res.json({ success: true, data: resultados, consumoPorDiaSemana });
+    } catch (error) {
+        console.error('Error GET /api/almacen/prediccion-agotamiento:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // PUT /api/almacen/gestion-inventario — editar movimiento existente
 // Identifica el lote original por (fecha+ccosto+tipo_db+cc_relacion+observaciones),
 // lo borra y re-inserta con los nuevos valores.

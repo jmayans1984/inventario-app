@@ -166,6 +166,17 @@
           </div>
           <v-icon size="16" color="#10b981" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
+
+        <div class="mod-card" @click="go('/almacen/reportes/prediccion-agotamiento')">
+          <div class="mod-card-icon" style="background:rgba(220,38,38,.12)">
+            <v-icon size="22" color="#dc2626">mdi-chart-line</v-icon>
+          </div>
+          <div class="mod-card-body">
+            <div class="mod-card-title">Predicción Agotamiento</div>
+            <div class="mod-card-desc">Cuándo se acabará el stock según consumo</div>
+          </div>
+          <v-icon size="16" color="#dc2626" class="mod-card-arrow">mdi-arrow-right</v-icon>
+        </div>
       </div>
 
     </div>
