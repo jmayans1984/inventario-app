@@ -1680,55 +1680,47 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
         }
         const bodegaCodigo = bodegaRes.rows[0].bodega_maestra;
 
-        // 2. Últimos 15 días
+        // 2. Últimos 30 días
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
-        const hace15Dias = new Date(hoy);
-        hace15Dias.setDate(hace15Dias.getDate() - 15);
-        const fecha15Dias = hace15Dias.toISOString().split('T')[0];
+        const hace30Dias = new Date(hoy);
+        hace30Dias.setDate(hace30Dias.getDate() - 30);
+        const fecha30Dias = hace30Dias.toISOString().split('T')[0];
 
-        // 3. Obtener movimientos (salidas) de los últimos 15 días
+        // 3. Obtener consumo por producto y día de semana (últimos 30 días, agrupado)
         const movimientosRes = await pool.query(
             `SELECT
                 codigo,
-                salida,
-                EXTRACT(DOW FROM fecha)::int AS dia_semana
+                EXTRACT(DOW FROM fecha)::int AS dia_semana,
+                SUM(salida) as total_salida
             FROM detalle_inventario
             WHERE empresa = $1 AND ccosto = $2 AND fecha >= $3 AND salida > 0
-            ORDER BY fecha`,
-            [empresa, bodegaCodigo, fecha15Dias]
+            GROUP BY codigo, EXTRACT(DOW FROM fecha)::int`,
+            [empresa, bodegaCodigo, fecha30Dias]
         );
 
-        // 4. Calcular consumo total por día de semana y consumo por producto
-        const consumoTotalPorDia = [0, 0, 0, 0, 0, 0, 0]; // total de TODOS los productos por día
-        const consumoPorProducto = {};
-
-        for (const mov of movimientosRes.rows) {
-            const salida = parseFloat(mov.salida);
-            consumoTotalPorDia[mov.dia_semana] += salida;
-            if (!consumoPorProducto[mov.codigo]) consumoPorProducto[mov.codigo] = 0;
-            consumoPorProducto[mov.codigo] += salida;
-        }
-
-        // Contar cuántas veces apareció cada día de semana en los últimos 15 días
+        // 4. Contar cuántas veces apareció cada día de semana en los últimos 30 días
         const ocurrenciasDia = [0, 0, 0, 0, 0, 0, 0];
-        for (let d = new Date(hace15Dias); d <= new Date(hoy); d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(hace30Dias); d <= hoy; d.setDate(d.getDate() + 1)) {
             ocurrenciasDia[d.getDay()]++;
         }
 
-        // Promedio de consumo total por cada día de semana
-        const avgConsumoTotalPorDia = consumoTotalPorDia.map((total, i) =>
-            ocurrenciasDia[i] > 0 ? total / ocurrenciasDia[i] : 0
-        );
+        // Construir mapa: consumoProductoDia[codigo][diaSemana] = promedio consumo ese día
+        const consumoProductoDia = {};
+        const consumoPorProducto = {};
 
-        // Promedio diario general de todos los productos en 15 días
-        const totalConsumoGeneral = consumoTotalPorDia.reduce((a, b) => a + b, 0);
-        const avgDiarioGeneral = totalConsumoGeneral / 15;
+        for (const row of movimientosRes.rows) {
+            const codigo = row.codigo;
+            const dia = row.dia_semana;
+            const total = parseFloat(row.total_salida);
 
-        // Factor de peso por día: cuánto más o menos se consume ese día vs el promedio
-        const factorDia = avgConsumoTotalPorDia.map(avg =>
-            avgDiarioGeneral > 0 ? avg / avgDiarioGeneral : 1
-        );
+            if (!consumoProductoDia[codigo]) consumoProductoDia[codigo] = [0, 0, 0, 0, 0, 0, 0];
+            // Promedio de consumo por cada vez que apareció ese día en el período
+            consumoProductoDia[codigo][dia] = ocurrenciasDia[dia] > 0 ? total / ocurrenciasDia[dia] : 0;
+
+            if (!consumoPorProducto[codigo]) consumoPorProducto[codigo] = 0;
+            consumoPorProducto[codigo] += total;
+        }
 
         // 5. Obtener stock actual de productos en bodega_maestra
         const stockRes = await pool.query(
@@ -1754,21 +1746,24 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
         for (const prod of stockRes.rows) {
             const stock = parseFloat(prod.stock_actual);
             const consumoTotal = consumoPorProducto[prod.codigo] || 0;
-            const consumoDiario = consumoTotal / 15; // Promedio últimos 15 días
+            const consumoDiario = consumoTotal / 30; // Promedio últimos 30 días
+            const diasProducto = consumoProductoDia[prod.codigo] || null;
 
             let fechaAgotamiento = null;
             let diasRestantes = null;
 
             if (consumoDiario > 0) {
-                // Simular hacia adelante con ponderación por día de semana
                 let stockSimulado = stock;
                 let diaSimulacion = new Date(hoy);
                 let simulacionDias = 0;
 
                 while (stockSimulado > 0 && simulacionDias < 365) {
                     const diaSemana = diaSimulacion.getDay();
-                    const factor = factorDia[diaSemana] > 0 ? factorDia[diaSemana] : 1;
-                    stockSimulado -= consumoDiario * factor;
+                    // Usar consumo específico del producto para ese día de semana
+                    const consumoEseDia = diasProducto && diasProducto[diaSemana] > 0
+                        ? diasProducto[diaSemana]
+                        : consumoDiario;
+                    stockSimulado -= consumoEseDia;
 
                     if (stockSimulado <= 0) {
                         fechaAgotamiento = diaSimulacion.toISOString().split('T')[0];
@@ -1802,7 +1797,7 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
             return new Date(a.fecha_agotamiento) - new Date(b.fecha_agotamiento);
         });
 
-        res.json({ success: true, data: resultados, factorDia });
+        res.json({ success: true, data: resultados });
     } catch (error) {
         console.error('Error GET /api/almacen/prediccion-agotamiento:', error);
         res.status(500).json({ success: false, error: error.message });
