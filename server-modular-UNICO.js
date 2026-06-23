@@ -1681,7 +1681,9 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
         const bodegaCodigo = bodegaRes.rows[0].bodega_maestra;
 
         // 2. Últimos 15 días
-        const hace15Dias = new Date();
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const hace15Dias = new Date(hoy);
         hace15Dias.setDate(hace15Dias.getDate() - 15);
         const fecha15Dias = hace15Dias.toISOString().split('T')[0];
 
@@ -1747,8 +1749,6 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
         );
 
         // 6. Calcular consumo diario estimado y fecha de agotamiento
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
         const resultados = [];
 
         for (const prod of stockRes.rows) {
