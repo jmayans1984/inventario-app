@@ -1,1 +1,0 @@
-import{gn as e,in as t,r as n,yn as r}from"./index-DbAMpYar.js";var i={__name:`CuentasBancariasView`,setup(i){let a=n();return e(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(e,n)=>(r(),t(`div`))}};export{i as default};

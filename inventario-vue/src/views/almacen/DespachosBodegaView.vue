@@ -208,6 +208,7 @@
                     <th class="pg-cod">CÓDIGO</th>
                     <th class="pg-nom">PRODUCTO</th>
                     <th class="pg-desc">DESCRIPCIÓN</th>
+                    <th class="pg-stock-bodega">STOCK BODEGA</th>
                     <th class="pg-und">UND</th>
                     <th class="pg-stock">STOCK DESTINO</th>
                     <th class="pg-cant">CANTIDAD A ENVIAR</th>
@@ -235,6 +236,10 @@
                       <td><span class="badge-cod">{{ p.codigo }}</span></td>
                       <td class="pg-td-nom">{{ p.nombre }}</td>
                       <td class="pg-td-desc">{{ p.descripcion || '—' }}</td>
+                      <td class="pg-td-stock-bodega">
+                        <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),.5);margin-bottom:2px">Actual: <strong :class="stockPorCodigo[p.codigo] > 0 ? 'stock-pos' : 'stock-zero'">{{ parseFloat(stockPorCodigo[p.codigo] || 0).toFixed(0) }}</strong></div>
+                        <div style="font-size:10px;color:rgba(var(--v-theme-on-surface),.4)">Disponible: <strong :class="stockDisponiblePorCodigo[p.codigo] > 0 ? 'stock-pos' : 'stock-zero'">{{ parseFloat(stockDisponiblePorCodigo[p.codigo] || 0).toFixed(0) }}</strong></div>
+                      </td>
                       <td><span class="badge-und">{{ p.und }}</span></td>
                       <td class="pg-td-stock">
                         <span :class="p.stock_actual > 0 ? 'stock-pos' : 'stock-zero'">
@@ -411,7 +416,8 @@ const form = ref({ fecha: '', cc_origen: '', cc_destino: '', observaciones: '' }
 
 // Grid de productos
 const todosProductos  = ref([])   // lista completa control='SI' con descripcion
-const stockPorCodigo  = ref({})   // { [codigo]: stock_actual } para cc_destino
+const stockPorCodigo  = ref({})   // { [codigo]: stock_actual } en bodega_maestra
+const stockDisponiblePorCodigo = ref({}) // { [codigo]: disponible } = stock_actual - reservado en PENDIENTE
 const cantidades      = ref({})   // { [codigo]: number }
 const loadingGrid     = ref(false)
 
@@ -573,12 +579,16 @@ async function cargarCcostos() {
 }
 
 async function cargarGrid(ccDestino) {
-  if (!ccDestino) { todosProductos.value = []; stockPorCodigo.value = {}; return }
+  if (!ccDestino) { todosProductos.value = []; stockPorCodigo.value = {}; stockDisponiblePorCodigo.value = {}; return }
   loadingGrid.value = true
   try {
-    const [resProds, resStock] = await Promise.all([
+    const ccOrigen = form.value.cc_origen
+    const fechaHoy = new Date().toISOString().split('T')[0]
+
+    const [resProds, resStockBodega, resDespachos] = await Promise.all([
       api.get('/almacen/productos', { params: { empresa: empresa.value } }),
-      api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccDestino } }),
+      api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccOrigen } }),
+      api.get('/almacen/despachos', { params: { empresa: empresa.value, estado: 'PENDIENTE', fecha: fechaHoy } }),
     ])
 
     // Productos con control='SI' y sus datos
@@ -594,11 +604,29 @@ async function cargarGrid(ccDestino) {
         grupo_nombre: p.grupo_nombre || 'Sin Grupo',
       }))
 
-    // Stock del CC destino
-    const stockRows = resStock.data?.data || []
+    // Stock de bodega_maestra (cc_origen)
+    const stockRows = resStockBodega.data?.data || []
     stockPorCodigo.value = {}
     for (const r of stockRows) {
       stockPorCodigo.value[r.codigo] = parseFloat(r.stock_actual) || 0
+    }
+
+    // Calcular cantidad reservada en órdenes PENDIENTE del mismo día
+    const reservadoPorCodigo = {}
+    const despachosPendientes = resDespachos.data?.data || []
+    for (const despacho of despachosPendientes) {
+      for (const item of despacho.detalle || []) {
+        const cod = item.producto_codigo
+        reservadoPorCodigo[cod] = (reservadoPorCodigo[cod] || 0) + parseFloat(item.cant_requerida || 0)
+      }
+    }
+
+    // Stock disponible = actual - reservado
+    stockDisponiblePorCodigo.value = {}
+    for (const codigo of Object.keys(stockPorCodigo.value)) {
+      const actual = stockPorCodigo.value[codigo]
+      const reservado = reservadoPorCodigo[codigo] || 0
+      stockDisponiblePorCodigo.value[codigo] = Math.max(0, actual - reservado)
     }
   } catch (e) {
     console.error('Error cargando grid:', e)
@@ -622,6 +650,7 @@ function abrirNuevo() {
   cantidades.value = {}
   todosProductos.value  = []
   stockPorCodigo.value  = {}
+  stockDisponiblePorCodigo.value = {}
   const bodega = ccostos.value[0]
   form.value = {
     fecha: new Date().toISOString().split('T')[0],
@@ -641,6 +670,7 @@ async function abrirEditar(d) {
   cantidades.value = {}
   todosProductos.value = []
   stockPorCodigo.value = {}
+  stockDisponiblePorCodigo.value = {}
   try {
     const res = await api.get(`/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
     const orden = res.data?.data
@@ -906,6 +936,7 @@ onMounted(async () => {
 .pg-cod   { width: 90px; }
 .pg-nom   { width: 200px; }
 .pg-desc  { }
+.pg-stock-bodega { width: 140px; }
 .pg-und   { width: 60px; }
 .pg-stock { width: 110px; text-align: center !important; }
 .pg-cant  { width: 130px; text-align: right !important; }
@@ -922,6 +953,7 @@ onMounted(async () => {
 .prod-grid tbody td { padding: 6px 10px; vertical-align: middle; }
 .pg-td-nom   { font-weight: 500; }
 .pg-td-desc  { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); }
+.pg-td-stock-bodega { font-size: 11px; }
 .pg-td-stock { text-align: center; font-family: monospace; font-size: 13px; font-weight: 600; }
 .pg-td-cant  { text-align: right; }
 .stock-pos  { color: #10b981; }
