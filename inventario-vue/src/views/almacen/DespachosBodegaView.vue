@@ -20,9 +20,14 @@
             <p class="db-sub">Órdenes de traslado con doble verificación por scanner</p>
           </div>
         </div>
-        <v-btn color="#047857" variant="flat" rounded="lg" @click="abrirNuevo">
-          <v-icon start>mdi-plus</v-icon>Nueva Orden
-        </v-btn>
+        <div style="display:flex;gap:10px">
+          <v-btn color="#047857" variant="flat" rounded="lg" @click="abrirAnalisisFaltantes">
+            <v-icon start>mdi-chart-line</v-icon>Análisis de Faltantes
+          </v-btn>
+          <v-btn color="#047857" variant="flat" rounded="lg" @click="abrirNuevo">
+            <v-icon start>mdi-plus</v-icon>Nueva Orden
+          </v-btn>
+        </div>
       </div>
 
       <!-- KPIs -->
@@ -363,6 +368,87 @@
         </v-card>
       </v-dialog>
 
+      <!-- ═══════════════ DIALOG ANÁLISIS DE FALTANTES ═══════════════ -->
+      <v-dialog v-model="dlgAnalisis" max-width="900" scrollable>
+        <v-card rounded="lg" class="dlg-card">
+          <div class="dlg-header" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+            <div class="dlg-header-left">
+              <div class="dlg-header-icon"><v-icon color="white" size="20">mdi-chart-line</v-icon></div>
+              <div>
+                <div class="dlg-title">Análisis de Faltantes</div>
+                <div class="dlg-sub">Qué falta para cumplir despachos PENDIENTE</div>
+              </div>
+            </div>
+            <v-btn icon variant="text" color="white" size="small" @click="dlgAnalisis=false"><v-icon>mdi-close</v-icon></v-btn>
+          </div>
+
+          <v-card-text class="pa-5" style="max-height:75vh;overflow-y:auto">
+            <div v-if="cargandoAnalisis" style="text-align:center;padding:40px">
+              <v-progress-circular indeterminate color="#3b82f6" size="36" />
+              <p style="margin-top:12px;color:rgba(var(--v-theme-on-surface),.5)">Analizando despachos pendientes...</p>
+            </div>
+
+            <div v-else-if="analisisFaltantes.length === 0" style="text-align:center;padding:40px;color:rgba(var(--v-theme-on-surface),.4)">
+              <v-icon size="40" style="opacity:.3">mdi-check-circle-outline</v-icon>
+              <p style="margin-top:12px">No hay despachos pendientes</p>
+            </div>
+
+            <div v-else>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
+                <div class="ana-stat" style="--color:#ef4444">
+                  <div class="ana-stat-label">CON FALTANTE</div>
+                  <div class="ana-stat-val">{{ analisisFaltantes.filter(a => !a.ok).length }}</div>
+                </div>
+                <div class="ana-stat" style="--color:#10b981">
+                  <div class="ana-stat-label">CUMPLIBLES</div>
+                  <div class="ana-stat-val">{{ analisisFaltantes.filter(a => a.ok).length }}</div>
+                </div>
+                <div class="ana-stat" style="--color:#f59e0b">
+                  <div class="ana-stat-label">UNIDADES FALTANTES</div>
+                  <div class="ana-stat-val">{{ analisisFaltantes.reduce((s,a) => s + a.faltante, 0).toFixed(0) }}</div>
+                </div>
+              </div>
+
+              <table class="ana-table">
+                <thead>
+                  <tr>
+                    <th style="width:80px">CÓDIGO</th>
+                    <th>PRODUCTO</th>
+                    <th style="width:70px;text-align:center">UND</th>
+                    <th style="width:100px;text-align:center">REQUERIDO</th>
+                    <th style="width:100px;text-align:center">DISPONIBLE</th>
+                    <th style="width:90px;text-align:center">FALTANTE</th>
+                    <th style="width:50px;text-align:center">ESTADO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in analisisFaltantes" :key="item.codigo" :class="item.ok ? 'ana-row-ok' : 'ana-row-falta'">
+                    <td><span class="badge-cod">{{ item.codigo }}</span></td>
+                    <td>
+                      <div style="font-weight:500;font-size:13px">{{ item.nombre }}</div>
+                      <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),.4)">{{ item.grupo_nombre }}</div>
+                    </td>
+                    <td style="text-align:center"><span class="badge-und">{{ item.und }}</span></td>
+                    <td style="text-align:center;font-weight:600">{{ item.requerido.toFixed(0) }}</td>
+                    <td style="text-align:center" :class="item.disponible > 0 ? 'stock-pos' : 'stock-zero'">
+                      {{ item.disponible.toFixed(0) }}
+                    </td>
+                    <td style="text-align:center">
+                      <span v-if="item.faltante > 0" style="font-weight:700;color:#ef4444">{{ item.faltante.toFixed(0) }}</span>
+                      <span v-else style="color:#10b981;font-weight:700">✓</span>
+                    </td>
+                    <td style="text-align:center">
+                      <span v-if="item.ok" style="font-size:11px;background:rgba(16,185,129,.15);color:#10b981;padding:2px 8px;border-radius:12px;font-weight:700">OK</span>
+                      <span v-else style="font-size:11px;background:rgba(239,68,68,.15);color:#ef4444;padding:2px 8px;border-radius:12px;font-weight:700">FALTA</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
+
     </div>
   </MainLayout>
 </template>
@@ -424,6 +510,11 @@ const loadingGrid     = ref(false)
 // Dialog detalle
 const dlgDetalle    = ref(false)
 const detalleActivo = ref(null)
+
+// Dialog análisis de faltantes
+const dlgAnalisis = ref(false)
+const analisisFaltantes = ref([])
+const cargandoAnalisis = ref(false)
 
 // ── Computed ──────────────────────────────────────────────────
 const ccOrigenNombre = computed(() => {
@@ -732,6 +823,67 @@ async function guardar() {
   }
 }
 
+async function abrirAnalisisFaltantes() {
+  dlgAnalisis.value = true
+  cargandoAnalisis.value = true
+  analisisFaltantes.value = []
+  try {
+    const ccOrigen = ccostos.value[0]?.codigo
+    const [resDespachos, resStock] = await Promise.all([
+      api.get('/almacen/despachos', { params: { empresa: empresa.value, estado: 'PENDIENTE' } }),
+      api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccOrigen } }),
+    ])
+
+    const despachosPendientes = resDespachos.data?.data || []
+    const stockBodega = {}
+    const stockRows = resStock.data?.data || []
+    for (const r of stockRows) {
+      stockBodega[r.codigo] = parseFloat(r.stock_actual) || 0
+    }
+
+    // Agrupar por producto: cantidad total requerida en pendientes
+    const requeridoPorCodigo = {}
+    const productoInfo = {}
+    for (const despacho of despachosPendientes) {
+      for (const item of despacho.detalle || []) {
+        const cod = item.producto_codigo
+        requeridoPorCodigo[cod] = (requeridoPorCodigo[cod] || 0) + parseFloat(item.cant_requerida || 0)
+        if (!productoInfo[cod]) {
+          productoInfo[cod] = {
+            codigo: item.producto_codigo,
+            nombre: item.producto_nombre,
+            und: item.und,
+            grupo_nombre: item.grupo_nombre || 'Sin Grupo',
+          }
+        }
+      }
+    }
+
+    // Armar análisis
+    analisisFaltantes.value = Object.keys(requeridoPorCodigo)
+      .map(cod => {
+        const requerido = requeridoPorCodigo[cod]
+        const disponible = stockBodega[cod] || 0
+        const faltante = Math.max(0, requerido - disponible)
+        return {
+          ...productoInfo[cod],
+          requerido,
+          disponible,
+          faltante,
+          ok: faltante === 0,
+        }
+      })
+      .sort((a, b) => {
+        if (a.ok !== b.ok) return a.ok ? 1 : -1
+        return b.faltante - a.faltante
+      })
+  } catch (e) {
+    console.error('Error cargando análisis:', e)
+  } finally {
+    cargandoAnalisis.value = false
+  }
+}
+
 async function abrirDetalle(d) {
   dlgDetalle.value  = true
   detalleActivo.value = null
@@ -997,4 +1149,19 @@ onMounted(async () => {
 .det-acciones  { display: flex; gap: 8px; }
 .det-grupo-row { background: rgba(139,92,246,.07); }
 .det-grupo-cell { padding: 5px 10px !important; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #7c3aed; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
+
+/* Análisis de faltantes */
+.ana-stat { background: rgba(var(--v-theme-on-surface),.03); border-radius: 10px; padding: 14px; border-left: 3px solid var(--color); }
+.ana-stat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.4); }
+.ana-stat-val { font-size: 24px; font-weight: 800; color: var(--color); margin-top: 4px; }
+.ana-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ana-table thead th { padding: 10px; text-align: left; background: rgba(var(--v-theme-on-surface),.05); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.1); }
+.ana-table tbody td { padding: 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
+.ana-row-ok { background: rgba(16,185,129,.04); }
+.ana-row-falta { background: rgba(239,68,68,.04); }
+.ana-table tbody tr:hover { background: rgba(59,130,246,.08); }
+.badge-cod { font-family: monospace; font-size: 11px; font-weight: 700; background: rgba(99,102,241,.1); color: #6366f1; padding: 3px 8px; border-radius: 4px; }
+.badge-und { font-size: 10px; font-weight: 700; background: rgba(59,130,246,.1); color: #3b82f6; padding: 2px 6px; border-radius: 4px; }
+.stock-pos { color: #10b981; font-weight: 600; }
+.stock-zero { color: #6b7280; }
 </style>
