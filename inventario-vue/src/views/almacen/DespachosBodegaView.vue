@@ -234,7 +234,10 @@
                     </tr>
                     <!-- Filas de productos -->
                     <tr v-for="p in grupo.items" :key="p.codigo" class="pg-prod-row"
-                      :class="{ 'pg-highlighted': cantidades[p.codigo] > 0 }"
+                      :class="{
+                        'pg-highlighted': cantidades[p.codigo] > 0 && cantidades[p.codigo] <= (stockDisponiblePorCodigo[p.codigo] || 0),
+                        'pg-insufficient-stock': cantidades[p.codigo] > (stockDisponiblePorCodigo[p.codigo] || 0)
+                      }"
                       :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
                       @focusin="hoveredRow = p.codigo"
                       @focusout="hoveredRow = null">
@@ -1189,6 +1192,8 @@ onMounted(async () => {
 .pg-prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
 .pg-highlighted { background: rgba(4,120,87,.04) !important; }
 .pg-highlighted:hover { background: rgba(4,120,87,.07) !important; }
+.pg-insufficient-stock { background: rgba(239, 68, 68, .08) !important; }
+.pg-insufficient-stock:hover { background: rgba(239, 68, 68, .12) !important; }
 .prod-grid tbody td { padding: 6px 10px; vertical-align: middle; }
 .pg-td-nom   { font-weight: 500; }
 .pg-td-desc  { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); }
