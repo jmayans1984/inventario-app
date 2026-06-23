@@ -11,6 +11,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// v1.10.0 - Predicción de Agotamiento
 
 // ================================================================
 // CONFIGURACIÓN DE BASE DE DATOS
