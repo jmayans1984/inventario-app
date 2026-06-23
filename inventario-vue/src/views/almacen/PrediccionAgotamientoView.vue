@@ -90,6 +90,7 @@
 import { ref, computed, onMounted } from 'vue';
 import MainLayout from '../../components/layouts/MainLayout.vue';
 import { useAuthStore } from '../../stores/auth';
+import { API_BASE } from '../../utils/constants';
 
 const auth = useAuthStore();
 const empresa = computed(() => auth.empresa);
@@ -117,7 +118,7 @@ async function cargar() {
 
   cargando.value = true;
   try {
-    const res = await fetch(`/api/almacen/prediccion-agotamiento?empresa=${empresa.value}`);
+    const res = await fetch(`${API_BASE}/almacen/prediccion-agotamiento?empresa=${empresa.value}`);
     const json = await res.json();
 
     if (json.success === false) {
