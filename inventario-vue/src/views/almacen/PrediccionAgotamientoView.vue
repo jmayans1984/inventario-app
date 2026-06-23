@@ -58,6 +58,7 @@
               <th style="width:60px;text-align:center">UND</th>
               <th style="width:80px;text-align:right">STOCK</th>
               <th style="width:100px;text-align:center">CONSUMO DIARIO</th>
+              <th style="width:160px;text-align:center">CONSUMO POR DÍA SEM.</th>
               <th style="width:120px;text-align:center">FECHA AGOTAMIENTO</th>
               <th style="width:70px;text-align:center">DÍAS</th>
               <th style="width:80px;text-align:center">ESTADO</th>
@@ -70,6 +71,26 @@
               <td class="pa-und">{{ p.und }}</td>
               <td class="pa-stock">{{ parseFloat(p.stock_actual).toFixed(2) }}</td>
               <td class="pa-consumo">{{ p.consumo_diario_estimado }}</td>
+              <td class="pa-semana">
+                <div class="sem-bars" v-if="p.consumo_por_dia">
+                  <div
+                    v-for="(val, i) in p.consumo_por_dia"
+                    :key="i"
+                    class="sem-col"
+                    :title="`${diasSem[i]}: ${val}`"
+                  >
+                    <div class="sem-bar-track">
+                      <div
+                        class="sem-bar-fill"
+                        :class="{ 'sem-fin-semana': i === 5 || i === 6 }"
+                        :style="{ height: barH(val, p.consumo_por_dia) + '%' }"
+                      ></div>
+                    </div>
+                    <span class="sem-lbl">{{ diasSemCorto[i] }}</span>
+                  </div>
+                </div>
+                <span v-else class="sem-vacio">—</span>
+              </td>
               <td class="pa-fecha">
                 <span v-if="p.fecha_agotamiento" class="fecha-badge">{{ fmtFecha(p.fecha_agotamiento) }}</span>
                 <span v-else class="fecha-ok">∞</span>
@@ -83,7 +104,7 @@
               </td>
             </tr>
             <tr v-if="datos.length === 0" class="pa-row-vacio">
-              <td colspan="8" style="text-align:center;padding:20px;color:#999">No hay datos para mostrar</td>
+              <td colspan="9" style="text-align:center;padding:20px;color:#999">No hay datos para mostrar</td>
             </tr>
           </tbody>
         </table>
@@ -109,6 +130,17 @@ const datos = ref([]);
 const cargando = ref(false);
 const ventanaDias = ref(30);
 const opcionesDias = [15, 30, 60];
+
+// consumo_por_dia viene en orden [dom, lun, mar, mié, jue, vie, sáb]
+const diasSem = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const diasSemCorto = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+function barH(val, arr) {
+  const max = Math.max(...arr);
+  if (!max || max <= 0) return 0;
+  const pct = (val / max) * 100;
+  return val > 0 && pct < 8 ? 8 : pct; // mínimo visible si hay consumo
+}
 
 function cambiarVentana(d) {
   if (ventanaDias.value === d) return;
@@ -215,6 +247,16 @@ onMounted(() => {
 .pa-stock { text-align: right; font-family: monospace; font-weight: 600; }
 .pa-consumo { text-align: center; font-family: monospace; }
 .pa-fecha { text-align: center; }
+
+/* Mini-barras consumo por día de semana */
+.pa-semana { text-align: center; }
+.sem-bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 38px; }
+.sem-col { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 15px; }
+.sem-bar-track { height: 26px; width: 100%; display: flex; align-items: flex-end; background: rgba(var(--v-theme-on-surface), .05); border-radius: 2px; overflow: hidden; }
+.sem-bar-fill { width: 100%; background: #10b981; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
+.sem-bar-fill.sem-fin-semana { background: #f59e0b; }
+.sem-lbl { font-size: 8px; font-weight: 700; color: rgba(var(--v-theme-on-surface), .45); }
+.sem-vacio { color: rgba(var(--v-theme-on-surface), .3); }
 .pa-dias { text-align: center; font-weight: 600; }
 .pa-alerta { text-align: center; }
 

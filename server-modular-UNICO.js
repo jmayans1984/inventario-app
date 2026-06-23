@@ -1777,12 +1777,12 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
                 let contador = 0;
 
                 // Arranca HOY: dias_restantes = nº de días desde hoy hasta el agotamiento.
+                // Usa el promedio diario PLANO (total / días calendario del periodo).
+                // La bodega maestra despacha en lotes (una salida cubre 2-3 días), por eso
+                // el consumo se reparte parejo entre todos los días, no solo los de salida.
                 // Ej: stock 27, ~6/día → agota a los 4 días (hoy+4).
                 while (stockSim > 0 && contador < 365) {
-                    const dow = dia.getDay();
-                    // consumo esperado ese día de semana para ESTE producto
-                    const consumoDia = perfilDia[dow]; // si nunca se consumió ese día → 0
-                    stockSim -= consumoDia;
+                    stockSim -= consumoDiarioProm;
 
                     if (stockSim <= 0) {
                         fechaAgotamiento = dia.toISOString().split('T')[0];
