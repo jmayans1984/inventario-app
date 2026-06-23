@@ -1,7 +1,7 @@
 {
   "name": "inventario-vue",
   "private": true,
-  "version": "1.09.0",
+  "version": "1.10.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
