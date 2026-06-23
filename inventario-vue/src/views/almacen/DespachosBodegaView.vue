@@ -1085,10 +1085,6 @@ function imprimirFaltantes() {
     </tr></thead>
     <tbody>${filas}</tbody>
   </table>
-  <div class="firmas">
-    <div class="firma-linea">Responsable Almacén</div>
-    <div class="firma-linea">Supervisor</div>
-  </div>
   <script>window.onload=()=>{window.print();}<\/script>
   </body></html>`)
   ventana.document.close()
