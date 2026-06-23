@@ -379,7 +379,12 @@
                 <div class="dlg-sub">Qué falta para cumplir despachos PENDIENTE</div>
               </div>
             </div>
-            <v-btn icon variant="text" color="white" size="small" @click="dlgAnalisis=false"><v-icon>mdi-close</v-icon></v-btn>
+            <div style="display:flex;gap:8px">
+              <v-btn icon variant="text" color="white" size="small" title="Imprimir reporte de faltantes" @click="imprimirFaltantes">
+                <v-icon>mdi-printer-outline</v-icon>
+              </v-btn>
+              <v-btn icon variant="text" color="white" size="small" @click="dlgAnalisis=false"><v-icon>mdi-close</v-icon></v-btn>
+            </div>
           </div>
 
           <v-card-text class="pa-5" style="max-height:75vh;overflow-y:auto">
@@ -998,6 +1003,88 @@ function imprimirDespacho(o) {
   <div class="firmas">
     <div class="firma-linea">Firma Despachador</div>
     <div class="firma-linea">Firma Receptor</div>
+  </div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`)
+  ventana.document.close()
+}
+
+function imprimirFaltantes() {
+  const faltantesFilt = analisisFaltantes.value.filter(a => a.faltante > 0)
+  if (faltantesFilt.length === 0) {
+    alert('No hay productos con faltante para imprimir')
+    return
+  }
+
+  // Agrupar por grupo_nombre
+  const gruposMap = new Map()
+  for (const item of faltantesFilt) {
+    const key = item.grupo_nombre || 'Sin Grupo'
+    if (!gruposMap.has(key)) gruposMap.set(key, [])
+    gruposMap.get(key).push(item)
+  }
+
+  let filas = ''
+  for (const [, items] of gruposMap) {
+    filas += `<tr>
+      <td colspan="5" style="padding:3px 8px;background:#f3f0ff;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;border-bottom:1px solid #e5e7eb">
+        ${items[0].grupo_nombre || 'Sin Grupo'}
+      </td>
+    </tr>`
+    for (const item of items) {
+      filas += `<tr>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:10px">${item.codigo}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:10px">${item.nombre}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:10px">${item.und}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:10px">${item.faltante.toFixed(0)}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#dc2626;font-weight:700;font-size:10px">FALTA</td>
+      </tr>`
+    }
+  }
+
+  const ventana = window.open('', '_blank')
+  ventana.document.write(`<!DOCTYPE html><html><head>
+  <meta charset="UTF-8">
+  <title>Reporte Faltantes</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 30px; }
+    .encabezado { border-left: 5px solid #3b82f6; padding: 0 0 0 14px; margin-bottom: 24px; }
+    .encabezado h1 { font-size: 20px; font-weight: 800; }
+    .encabezado p  { font-size: 12px; color: #555; margin-top: 3px; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #3b82f622; color: #3b82f6; }
+    .meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin-bottom: 20px; }
+    .meta-item label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; display: block; }
+    .meta-item span  { font-size: 13px; font-weight: 600; margin-top: 2px; display: block; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { padding: 5px 8px; background: #f3f4f6; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 2px solid #d1d5db; }
+    tbody td { padding: 5px 8px; }
+    .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 50px; }
+    .firma-linea { border-top: 1px solid #000; padding-top: 8px; text-align: center; font-size: 12px; color: #555; }
+    @media print { body { padding: 15px; } }
+  </style>
+  </head><body>
+  <div class="encabezado">
+    <h1>REPORTE DE FALTANTES</h1>
+    <p>Productos necesarios para cumplir despachos pendientes &nbsp;·&nbsp; <span class="badge">Análisis</span></p>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-item"><label>Productos Faltantes</label><span>${faltantesFilt.length}</span></div>
+    <div class="meta-item"><label>Unidades Faltantes</label><span>${faltantesFilt.reduce((s,a) => s + a.faltante, 0).toFixed(0)}</span></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:90px">CÓDIGO</th>
+      <th>PRODUCTO</th>
+      <th style="width:55px;text-align:center">UND</th>
+      <th style="width:80px;text-align:center">FALTANTE</th>
+      <th style="width:70px;text-align:center">ESTADO</th>
+    </tr></thead>
+    <tbody>${filas}</tbody>
+  </table>
+  <div class="firmas">
+    <div class="firma-linea">Responsable Almacén</div>
+    <div class="firma-linea">Supervisor</div>
   </div>
   <script>window.onload=()=>{window.print();}<\/script>
   </body></html>`)
