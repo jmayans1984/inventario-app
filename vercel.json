@@ -1,0 +1,14 @@
+{
+  "buildCommand": "npm run build --prefix inventario-vue && mkdir -p public && cp index.html public/ && cp .nojekyll public/ && cp -r assets public/ && cp -r light public/ && cp -r completa public/",
+  "outputDirectory": "public",
+  "framework": "vue",
+  "env": {
+    "VITE_API_URL": "@vite_api_url"
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}
