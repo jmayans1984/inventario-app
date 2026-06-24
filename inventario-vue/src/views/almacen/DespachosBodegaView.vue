@@ -250,8 +250,8 @@
                       </td>
                       <td><span class="badge-und">{{ p.und }}</span></td>
                       <td class="pg-td-stock">
-                        <span :class="p.stock_actual > 0 ? 'stock-pos' : 'stock-zero'">
-                          {{ parseFloat(p.stock_actual || 0).toFixed(0) }}
+                        <span :class="(stockDestinoPorCodigo[p.codigo] || 0) > 0 ? 'stock-pos' : 'stock-zero'">
+                          {{ parseFloat(stockDestinoPorCodigo[p.codigo] || 0).toFixed(0) }}
                         </span>
                       </td>
                       <td class="pg-td-cant">
@@ -510,8 +510,9 @@ const form = ref({ fecha: '', cc_origen: '', cc_destino: '', observaciones: '' }
 
 // Grid de productos
 const todosProductos  = ref([])   // lista completa control='SI' con descripcion
-const stockPorCodigo  = ref({})   // { [codigo]: stock_actual } en bodega_maestra
+const stockPorCodigo  = ref({})   // { [codigo]: stock_actual } en bodega_maestra (cc_origen)
 const stockDisponiblePorCodigo = ref({}) // { [codigo]: disponible } = stock_actual - reservado en PENDIENTE
+const stockDestinoPorCodigo = ref({})   // { [codigo]: stock_actual } en cc_destino
 const cantidades      = ref({})   // { [codigo]: number }
 const loadingGrid     = ref(false)
 
@@ -678,16 +679,17 @@ async function cargarCcostos() {
 }
 
 async function cargarGrid(ccDestino) {
-  if (!ccDestino) { todosProductos.value = []; stockPorCodigo.value = {}; stockDisponiblePorCodigo.value = {}; return }
+  if (!ccDestino) { todosProductos.value = []; stockPorCodigo.value = {}; stockDisponiblePorCodigo.value = {}; stockDestinoPorCodigo.value = {}; return }
   loadingGrid.value = true
   try {
     const ccOrigen = form.value.cc_origen
     const fechaHoy = new Date().toISOString().split('T')[0]
 
-    const [resProds, resStockBodega, resDespachos] = await Promise.all([
+    const [resProds, resStockBodega, resDespachos, resStockDestino] = await Promise.all([
       api.get('/almacen/productos', { params: { empresa: empresa.value } }),
       api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccOrigen } }),
       api.get('/almacen/despachos', { params: { empresa: empresa.value, estado: 'PENDIENTE', fecha: fechaHoy, include_detalle: '1' } }),
+      api.get('/almacen/ajuste-inventario/stock', { params: { empresa: empresa.value, ccosto: ccDestino } }),
     ])
 
     // Productos con control='SI' y sus datos
@@ -727,6 +729,12 @@ async function cargarGrid(ccDestino) {
       const reservado = reservadoPorCodigo[codigo] || 0
       stockDisponiblePorCodigo.value[codigo] = Math.max(0, actual - reservado)
     }
+
+    // Stock del cc_destino
+    stockDestinoPorCodigo.value = {}
+    for (const r of (resStockDestino.data?.data || [])) {
+      stockDestinoPorCodigo.value[r.codigo] = parseFloat(r.stock_actual) || 0
+    }
   } catch (e) {
     console.error('Error cargando grid:', e)
   } finally {
@@ -750,6 +758,7 @@ function abrirNuevo() {
   todosProductos.value  = []
   stockPorCodigo.value  = {}
   stockDisponiblePorCodigo.value = {}
+  stockDestinoPorCodigo.value = {}
   const bodega = ccostos.value[0]
   form.value = {
     fecha: new Date().toISOString().split('T')[0],
