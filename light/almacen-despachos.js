@@ -2,6 +2,7 @@
 // DESPACHOS DE BODEGA — Scanner · Picking · Packing · Confirmación
 // ================================================================
 
+const APP_VERSION = '2.5.0'; // Versión actual de la app
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
@@ -18,6 +19,11 @@ let mostrandoOcultos = false;  // toggle para ver ocultos (FIX 6)
 let barcodeCache     = {};     // cache de barcodes registrados con sus factores
 let mostrarCompletadas = false; // mostrar órdenes completadas en lista
 let modoVisualizacion  = 'categoria'; // 'ubicacion' | 'categoria'
+
+// ── Buffer/cola de escaneos (evita perder códigos si se escanea rápido) ──
+let scanQueue          = [];      // cola de códigos pendientes de procesar
+let procesandoCola     = false;   // flag para procesar secuencialmente
+const DELAY_ENTRE_SCANS = 600;   // ms entre cada escaneo procesado
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -508,13 +514,107 @@ async function guardarObservacionesDetalle() {
 }
 
 // ── Captura del scanner ───────────────────────────────────────
-function onScanKeydown(e) {
+// Buffer de escaneos: acumula códigos rápidos y los procesa uno por uno
+let scanQueueTimer = null;
+const SCAN_QUEUE_WAIT = 500; // esperar 500ms sin nuevos escaneos antes de procesar la cola
+
+function onScanInput(e) {
+    // Si presiona Enter, procesa inmediatamente
     if (e.key === 'Enter') {
         e.preventDefault();
-        ejecutarScanManual();
+        clearTimeout(scanQueueTimer);
+        const codigo = document.getElementById('scannerInput').value.trim();
+        if (codigo) {
+            document.getElementById('scannerInput').value = '';
+            if (scanQueue.length === 0) {
+                // Si la cola estaba vacía, procesa directamente
+                procesarScan(codigo);
+            } else {
+                // Si hay elementos en cola, agrega a la cola y la procesa
+                scanQueue.push(codigo);
+                mostrarEstadoCola();
+                procesarColaEscaneos();
+            }
+        }
         return;
     }
+
     hideFeedback();
+
+    // Acumular código en la cola
+    const inp = document.getElementById('scannerInput');
+    if (!inp.value.trim()) return;
+
+    // Reiniciar timeout — si dejan de escribir 500ms, procesar la cola
+    clearTimeout(scanQueueTimer);
+    scanQueueTimer = setTimeout(() => {
+        const codigo = inp.value.trim();
+        if (codigo) {
+            scanQueue.push(codigo);
+            inp.value = '';
+            mostrarEstadoCola();
+            procesarColaEscaneos();
+        }
+    }, SCAN_QUEUE_WAIT);
+}
+
+function onScanKeydown(e) {
+    // Manejo de Enter — acumular el código actual
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(scanQueueTimer);
+        const codigo = document.getElementById('scannerInput').value.trim();
+        if (codigo) {
+            scanQueue.push(codigo);
+            document.getElementById('scannerInput').value = '';
+            mostrarEstadoCola();
+            procesarColaEscaneos();
+        }
+    }
+}
+
+function mostrarEstadoCola() {
+    const feedback = document.getElementById('scanFeedback');
+    if (scanQueue.length > 0) {
+        showFeedback('ok', `📦 Cola: ${scanQueue.length} código(s) en espera`);
+    }
+}
+
+async function procesarColaEscaneos() {
+    // Si ya está procesando o la cola está vacía, salir
+    if (procesandoCola || scanQueue.length === 0) return;
+
+    procesandoCola = true;
+
+    // 1. Agrupar códigos iguales: {código: cantidad}
+    const codigosAgrupados = {};
+    for (const codigo of scanQueue) {
+        codigosAgrupados[codigo] = (codigosAgrupados[codigo] || 0) + 1;
+    }
+    const codigosUnicos = Object.keys(codigosAgrupados).length;
+    const totalScans = scanQueue.length;
+
+    // 2. Mostrar resumen de lo que se va a procesar
+    showFeedback('ok', `📦 Procesando ${totalScans} escaneo(s) (${codigosUnicos} producto(s) único(s))...`);
+
+    // 3. Procesar cada código único con su cantidad agrupada
+    let procesados = 0;
+    for (const [codigo, cantidad] of Object.entries(codigosAgrupados)) {
+        procesados++;
+        showFeedback('ok', `⏳ [${procesados}/${codigosUnicos}] Procesando: ${codigo} × ${cantidad}`);
+
+        // Procesar el código con la cantidad agrupada
+        await procesarScanAgrupado(codigo, cantidad);
+
+        // Si hay más, esperar un poco antes del siguiente
+        if (procesados < codigosUnicos) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_ENTRE_SCANS));
+        }
+    }
+
+    scanQueue = []; // limpiar la cola
+    procesandoCola = false;
+    refocusInput();
 }
 
 // FIX 3: botón manual de búsqueda
@@ -522,8 +622,98 @@ function ejecutarScanManual() {
     const inp    = document.getElementById('scannerInput');
     const codigo = inp.value.trim();
     if (!codigo) { inp.focus(); return; }
+
+    clearTimeout(scanQueueTimer);
     inp.value = '';
-    procesarScan(codigo);
+
+    // Agregar a la cola y procesar
+    scanQueue.push(codigo);
+    mostrarEstadoCola();
+    procesarColaEscaneos();
+}
+
+// Procesar un código con cantidad agrupada (múltiples escaneos del mismo producto)
+async function procesarScanAgrupado(barcode, cantidadEscaneos) {
+    if (scanEnProceso) return;
+    scanEnProceso = true;
+    ultimoBarcode = barcode;
+    let completado = false;
+
+    try {
+        // 1. Lookup del barcode → producto
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/barcode-lookup?barcode=${encodeURIComponent(barcode)}&empresa=${getEmpresa()}`);
+        const data = await res.json();
+
+        const codigo   = data.found ? data.data.producto_codigo : (barcodeCache[barcode]?.productoCodigo || null);
+        const nombre   = data.found ? data.data.nombre : (barcodeCache[barcode]?.nombre || barcode);
+        const factor   = data.found ? (parseFloat(data.data.factor) || 1) : (barcodeCache[barcode]?.factor || 1);
+        const esCodigo = data.found ? (data.data.barcode_desc === undefined) : true;
+
+        if (!codigo) {
+            scanEnProceso = false;
+            mostrarAsociadorBarcode(barcode);
+            return;
+        }
+
+        // 2. ¿Está en esta orden?
+        let item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+        if (!item) {
+            item = {
+                producto_codigo: codigo,
+                producto_nombre: nombre,
+                cant_requerida: 0,
+                cant_picking: 0,
+                cant_packing: 0
+            };
+            ordenActiva.detalle.push(item);
+        }
+
+        // 3. Calcular delta: factor × cantidad de escaneos agrupados
+        const delta = factor * cantidadEscaneos;
+        const sufijo = cantidadEscaneos > 1 ? ` (×${cantidadEscaneos} escaneos)` : '';
+
+        // 4. Cambiar estado al primer scan real
+        if (!estadoCambiado) {
+            const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
+            try {
+                await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
+                });
+                ordenActiva.estado = nuevoEst;
+                estadoCambiado = true;
+            } catch(e) { /* continuar */ }
+        }
+
+        // 5. Registrar el scan agrupado en backend
+        const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+        const resS  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo: modoEscaneo, delta })
+        });
+        const dataS = await resS.json();
+        if (dataS.success) {
+            item[campo] = parseFloat(dataS.data[campo]) || 0;
+            const nuevo = parseFloat(item[campo]);
+            const req   = parseFloat(item.cant_requerida);
+            const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`
+                        : nuevo === req ? `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`
+                        :                 `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`;
+            showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
+            actualizarFilaScan(item, campo);
+            if (nuevo === req) {
+                completado = true;
+                await verificarCompletoYOcultar(item, campo);
+            }
+        }
+    } catch(e) {
+        console.error('[SCAN AGRUPADO] Error:', e);
+        showFeedback('error', `❌ Error procesando ${barcode}: ${e.message}`);
+    } finally {
+        scanEnProceso = false;
+    }
 }
 
 async function procesarScan(barcode) {

@@ -594,6 +594,7 @@
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                     inputmode="numeric"
                     onkeydown="onScanKeydown(event)"
+                    oninput="onScanInput(event)"
                     onclick="this.select()" />
                 <button class="btn-camara" onclick="abrirCamara()" title="Usar cámara">📷</button>
                 <button class="btn-buscar-scan" onclick="ejecutarScanManual()" title="Buscar código">🔍</button>
@@ -696,9 +697,16 @@
         </div>
     </div>
 
+    <!-- Version badge -->
+    <div id="versionBadge" style="position: fixed; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 700; z-index: 9999; font-family: monospace;">v2.5.0</div>
+
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script src="almacen-despachos.js"></script>
+    <script>
+        // Mostrar versión en el badge
+        document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
+    </script>
 </body>
 </html>
