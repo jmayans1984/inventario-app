@@ -2,7 +2,7 @@
 // DESPACHOS DE BODEGA — Scanner · Picking · Packing · Confirmación
 // ================================================================
 
-const APP_VERSION = '2.5.0'; // Versión actual de la app
+const APP_VERSION = '2.5.1'; // Versión actual de la app
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
@@ -514,60 +514,54 @@ async function guardarObservacionesDetalle() {
 }
 
 // ── Captura del scanner ───────────────────────────────────────
-// Buffer de escaneos: acumula códigos rápidos y los procesa uno por uno
+// Buffer de escaneos: acumula códigos y los procesa en lote
 let scanQueueTimer = null;
-const SCAN_QUEUE_WAIT = 500; // esperar 500ms sin nuevos escaneos antes de procesar la cola
+let ultimoCaracterTiempo = 0;
+const SCAN_TIMEOUT_MS = 250; // muy corto para detectar rápido fin de escaneo
 
 function onScanInput(e) {
-    // Si presiona Enter, procesa inmediatamente
+    const inp = document.getElementById('scannerInput');
+    const ahora = Date.now();
+
+    // Si presiona Enter, acumula inmediatamente y procesa
     if (e.key === 'Enter') {
         e.preventDefault();
         clearTimeout(scanQueueTimer);
-        const codigo = document.getElementById('scannerInput').value.trim();
+        const codigo = inp.value.trim();
         if (codigo) {
-            document.getElementById('scannerInput').value = '';
-            if (scanQueue.length === 0) {
-                // Si la cola estaba vacía, procesa directamente
-                procesarScan(codigo);
-            } else {
-                // Si hay elementos en cola, agrega a la cola y la procesa
-                scanQueue.push(codigo);
-                mostrarEstadoCola();
-                procesarColaEscaneos();
-            }
+            scanQueue.push(codigo);
+            inp.value = '';
+            procesarColaEscaneos();
         }
         return;
     }
 
+    // Si está escribiendo, actualizar timestamp del último carácter
+    ultimoCaracterTiempo = ahora;
     hideFeedback();
 
-    // Acumular código en la cola
-    const inp = document.getElementById('scannerInput');
-    if (!inp.value.trim()) return;
-
-    // Reiniciar timeout — si dejan de escribir 500ms, procesar la cola
+    // Reiniciar timer: si pasan 250ms sin caracteres nuevos, acumular y procesar
     clearTimeout(scanQueueTimer);
     scanQueueTimer = setTimeout(() => {
         const codigo = inp.value.trim();
         if (codigo) {
             scanQueue.push(codigo);
             inp.value = '';
-            mostrarEstadoCola();
             procesarColaEscaneos();
         }
-    }, SCAN_QUEUE_WAIT);
+    }, SCAN_TIMEOUT_MS);
 }
 
 function onScanKeydown(e) {
-    // Manejo de Enter — acumular el código actual
+    // Enter acumula inmediatamente
     if (e.key === 'Enter') {
         e.preventDefault();
         clearTimeout(scanQueueTimer);
-        const codigo = document.getElementById('scannerInput').value.trim();
+        const inp = document.getElementById('scannerInput');
+        const codigo = inp.value.trim();
         if (codigo) {
             scanQueue.push(codigo);
-            document.getElementById('scannerInput').value = '';
-            mostrarEstadoCola();
+            inp.value = '';
             procesarColaEscaneos();
         }
     }
