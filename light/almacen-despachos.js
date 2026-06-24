@@ -2,7 +2,7 @@
 // DESPACHOS DE BODEGA — Scanner · Picking · Packing · Confirmación
 // ================================================================
 
-const APP_VERSION = '2.5.3'; // Versión actual de la app
+const APP_VERSION = '2.5.4'; // Versión actual de la app
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
@@ -1281,6 +1281,15 @@ function mostrarConfirmacion() {
 }
 
 async function confirmarDespacho() {
+    // Mostrar diálogo de confirmación
+    const confirm = await mostrarDialogoConfirmacion(
+        `¿Registrar despacho #${ordenActiva.id}?`,
+        `${ordenActiva.cc_origen_nombre} → ${ordenActiva.cc_destino_nombre}`
+    );
+
+    if (!confirm) return; // Usuario canceló
+
+    // Si confirmó, proceder a guardar
     const btn = document.getElementById('btnConfirmarFinal');
     const overlay = document.getElementById('loadingOverlay');
 
@@ -1305,6 +1314,51 @@ async function confirmarDespacho() {
         overlay.classList.remove('active');
         alert('Error: ' + e.message);
     }
+}
+
+// Diálogo de confirmación reutilizable
+function mostrarDialogoConfirmacion(titulo, mensaje) {
+    return new Promise(resolve => {
+        const html = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+                <div style="background: white; border-radius: 12px; padding: 24px; max-width: 300px; box-shadow: 0 20px 25px rgba(0,0,0,0.15); animation: slideUp 0.3s ease-out;">
+                    <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #1f2937;">${titulo}</div>
+                    <div style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">${mensaje}</div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="this.closest('[data-dialog]').remove(); window._dialogResult = false;"
+                                style="flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; background: white; color: #374151; font-weight: 600; cursor: pointer;">
+                            Cancelar
+                        </button>
+                        <button onclick="this.closest('[data-dialog]').remove(); window._dialogResult = true;"
+                                style="flex: 1; padding: 10px; border-radius: 8px; background: #047857; color: white; font-weight: 600; cursor: pointer;">
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <style>
+                @keyframes slideUp {
+                    from { transform: translateY(20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            </style>
+        `;
+
+        const div = document.createElement('div');
+        div.setAttribute('data-dialog', 'true');
+        div.innerHTML = html;
+        document.body.appendChild(div);
+
+        // Esperar a que el usuario clickee
+        const checkInterval = setInterval(() => {
+            if (window._dialogResult !== undefined) {
+                clearInterval(checkInterval);
+                const result = window._dialogResult;
+                window._dialogResult = undefined;
+                resolve(result);
+            }
+        }, 50);
+    });
 }
 
 function mostrarExitoPopup() {
