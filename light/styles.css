@@ -15,9 +15,9 @@
     --border: rgba(0,0,0,0.06);
     --border-mid: rgba(0,0,0,0.10);
 
-    --accent: #1d4ed8;
-    --accent-hover: #1e40af;
-    --accent-light: rgba(29,78,216,0.10);
+    --accent: #F5A623;
+    --accent-hover: #E09217;
+    --accent-light: rgba(245,166,35,0.12);
 
     --success:       #16a34a;
     --success-light: rgba(22,163,74,0.12);
@@ -69,9 +69,9 @@
     --border: rgba(84,84,88,0.32);
     --border-mid: rgba(84,84,88,0.50);
 
-    --accent: #3b82f6;
-    --accent-hover: #60a5fa;
-    --accent-light: rgba(59,130,246,0.18);
+    --accent: #F5A623;
+    --accent-hover: #E09217;
+    --accent-light: rgba(245,166,35,0.15);
 
     --success:       #22c55e;
     --success-light: rgba(34,197,94,0.15);
@@ -386,10 +386,10 @@ body {
 
 /* Hero card in home */
 .home-hero {
-    background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%);
+    background: linear-gradient(135deg, #F5A623 0%, #E09217 100%);
     border-radius: var(--radius-card);
     padding: 24px 20px;
-    color: white;
+    color: #111111;
     margin-bottom: 24px;
     position: relative;
     overflow: hidden;
@@ -468,7 +468,7 @@ body {
 
 .module-icon-contabilidad { background: linear-gradient(135deg, #16a34a, #15803d); }
 .module-icon-tesoreria    { background: linear-gradient(135deg, #d97706, #b45309); }
-.module-icon-almacen      { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
+.module-icon-almacen      { background: linear-gradient(135deg, #F5A623, #E09217); }
 .module-icon-nomina       { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
 .module-icon-inventario   { background: linear-gradient(135deg, #e11d48, #be123c); }
 .module-icon-facturacion  { background: linear-gradient(135deg, #0891b2, #0e7490); }
