@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>RestManager Pro - Iniciar Sesión</title>
+    <title>Inventario App - Iniciar Sesión</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,22 +38,13 @@
             margin-bottom: 36px;
         }
 
-        .login-logo-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .login-logo-img {
+            width: 88px;
+            height: 88px;
+            object-fit: contain;
             margin: 0 auto 18px;
-            box-shadow: 0 12px 32px rgba(37, 99, 235, 0.3);
-        }
-
-        .login-logo-icon svg {
-            width: 40px;
-            height: 40px;
-            color: white;
+            display: block;
+            filter: drop-shadow(0 8px 20px rgba(245,166,35,0.25));
         }
 
         .login-title {
@@ -110,9 +101,9 @@
 
         .form-input:focus {
             outline: none;
-            border-color: #2563eb;
+            border-color: #F5A623;
             background: white;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+            box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.12);
         }
 
         .login-options {
@@ -153,7 +144,7 @@
         }
 
         .theme-switch input:checked + .theme-slider {
-            background: #2563eb;
+            background: #F5A623;
         }
 
         .theme-slider::after {
@@ -172,8 +163,8 @@
 
         .btn-login {
             height: 48px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
+            background: linear-gradient(135deg, #F5A623, #E09217);
+            color: #111;
             border: none;
             border-radius: 12px;
             font-size: 15px;
@@ -183,11 +174,11 @@
             letter-spacing: 0.3px;
             transition: all 0.2s ease;
             -webkit-appearance: none;
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 8px 20px rgba(245, 166, 35, 0.35);
         }
 
         .btn-login:active {
-            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            background: linear-gradient(135deg, #E09217, #c97e0f);
             transform: scale(0.98);
         }
 
@@ -232,8 +223,8 @@
         }
 
         .empresa-option:active {
-            background: #e0e7ff;
-            border-color: #2563eb;
+            background: #fef3c7;
+            border-color: #F5A623;
         }
 
         .empresa-option-name {
@@ -271,15 +262,8 @@
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <div class="login-logo-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="7" width="4" height="12" rx="1"/>
-                        <rect x="9" y="4" width="4" height="15" rx="1"/>
-                        <rect x="16" y="1" width="4" height="18" rx="1"/>
-                        <path d="M4 5 L11 2 L18 3" stroke-width="1.5" opacity="0.6"/>
-                    </svg>
-                </div>
-                <div class="login-title">RestManager Pro</div>
+                <img src="../assets/logo.png" class="login-logo-img" alt="Logo">
+                <div class="login-title">Inventario App</div>
                 <div class="login-subtitle">Sistema de Gestión</div>
             </div>
 
@@ -309,7 +293,7 @@
                 <div id="empresaSelector"></div>
             </form>
 
-            <div class="login-footer">Sistema de Gestión v1.09.0</div>
+            <div class="login-footer">Sistema de Gestión v1.11.0</div>
         </div>
     </div>
 
