@@ -46,6 +46,7 @@ pool.on('error', (err) => {
 app.use(cors({
     origin: [
         'https://jmayans1984.github.io',
+        'https://heartfelt-moxie-a79307.netlify.app',
         'http://localhost:5500',
         'http://127.0.0.1:5500',
         'http://localhost:5173',
