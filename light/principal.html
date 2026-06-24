@@ -10,27 +10,83 @@
             padding-top: env(safe-area-inset-top, 0px);
         }
 
-        .home-theme-btn {
-            width: 34px;
-            height: 34px;
-            border: none;
-            background: rgba(255,255,255,0.15);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
+        .home-content {
+            padding: 12px 16px 24px;
+        }
+
+        /* ── NUEVO HEADER MINIMALISTA ── */
+        .home-hero {
+            background: #111111 !important;
+            border: 1px solid rgba(245,166,35,0.15) !important;
+            border-radius: 16px !important;
+            padding: 14px 16px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            color: #ffffff !important;
+            position: relative !important;
+            overflow: hidden !important;
+        }
+
+        .home-hero::before {
+            display: none !important;
+        }
+
+        .home-hero-logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            object-fit: contain;
             flex-shrink: 0;
         }
-        .home-theme-btn:active { background: rgba(255,255,255,0.25); }
+
+        .home-hero-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .home-hero-greeting {
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            color: rgba(255,255,255,0.4) !important;
+            opacity: 1 !important;
+            margin-bottom: 1px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+        }
+
+        .home-hero-name {
+            font-size: 17px !important;
+            font-weight: 700 !important;
+            color: #ffffff !important;
+            letter-spacing: -0.3px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        .home-hero-empresa {
+            font-size: 11px !important;
+            color: #F5A623 !important;
+            opacity: 1 !important;
+            margin-top: 2px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+
+        .home-hero-actions {
+            display: flex;
+            gap: 8px;
+            position: static !important;
+            flex-shrink: 0;
+        }
 
         .home-logout-btn {
-            width: 34px;
-            height: 34px;
+            width: 32px;
+            height: 32px;
             border: none;
-            background: #ef4444;
+            background: rgba(239,68,68,0.15);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -40,44 +96,32 @@
             flex-shrink: 0;
         }
         .home-logout-btn svg { display: block; }
-        .home-logout-btn:active { background: #dc2626; }
+        .home-logout-btn:active { background: rgba(239,68,68,0.3); }
 
-        .home-hero-actions {
-            display: flex;
-            gap: 8px;
-            position: absolute;
-            top: 14px;
-            right: 16px;
-            z-index: 1;
-        }
-
-        .home-content {
-            padding: 16px 16px 24px;
-        }
+        .home-theme-btn { display: none; }
     </style>
 </head>
 <body>
     <div class="home-content">
         <!-- Hero card -->
         <div class="home-hero" id="homeHero">
+            <img src="../assets/logo.png" class="home-hero-logo" alt="Logo">
+            <div class="home-hero-info">
+                <div class="home-hero-greeting">Bienvenido</div>
+                <div class="home-hero-name" id="greetingName">Usuario</div>
+                <div class="home-hero-empresa">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+                    <span id="empresaNombre">—</span>
+                </div>
+            </div>
             <div class="home-hero-actions">
-                <button class="home-theme-btn" onclick="cambiarTema()" aria-label="Cambiar tema">
-                    <span class="theme-icon-light">☀️</span>
-                    <span class="theme-icon-dark">🌙</span>
-                </button>
                 <button class="home-logout-btn" onclick="cerrarSesion()" aria-label="Salir">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
                         <polyline points="16 17 21 12 16 7"/>
                         <line x1="21" y1="12" x2="9" y2="12"/>
                     </svg>
                 </button>
-            </div>
-            <div class="home-hero-greeting">Bienvenido</div>
-            <div class="home-hero-name" id="greetingName">Usuario</div>
-            <div class="home-hero-empresa">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
-                <span id="empresaNombre">—</span>
             </div>
         </div>
 
