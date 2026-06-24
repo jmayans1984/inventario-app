@@ -1203,12 +1203,12 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
         const nombreDestino = (orden.nom_destino || orden.cc_destino).toUpperCase();
 
         for (const item of rDetalle.rows) {
-            // Usar cant_packing si > 0, sino cant_picking, sino cant_requerida
+            // Usar cant_packing si > 0, sino cant_picking, sino 0 (no registrar si no se despachó nada)
             const cant = parseFloat(item.cant_packing) > 0
                 ? parseFloat(item.cant_packing)
                 : parseFloat(item.cant_picking) > 0
                     ? parseFloat(item.cant_picking)
-                    : parseFloat(item.cant_requerida);
+                    : 0;
             if (!cant || cant <= 0) continue;
 
             // SALIDA POR TRASLADO en cc_origen
