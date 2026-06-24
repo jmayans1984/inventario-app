@@ -1958,6 +1958,27 @@ app.put('/api/almacen/gestion-inventario', async (req, res) => {
 
 // ── FIN GESTIÓN DE INVENTARIO ─────────────────────────────────────
 
+// GET /api/almacen/verificar-inventario?empresa=&ccosto=&fecha=
+// Verifica si existen movimientos 'SALIDA POR VENTA' para el ccosto y fecha dados
+app.get('/api/almacen/verificar-inventario', async (req, res) => {
+    const { empresa, ccosto, fecha } = req.query;
+    if (!empresa || !ccosto || !fecha) {
+        return res.status(400).json({ success: false, error: 'empresa, ccosto y fecha son requeridos' });
+    }
+    try {
+        const result = await pool.query(
+            `SELECT COUNT(*) AS cnt FROM detalle_inventario
+             WHERE fecha = $1 AND ccosto = $2 AND empresa = $3 AND tipo = 'SALIDA POR VENTA'`,
+            [fecha, ccosto, parseInt(empresa)]
+        );
+        const existe = parseInt(result.rows[0].cnt) > 0;
+        res.json({ success: true, existe });
+    } catch (error) {
+        console.error('Error en GET /api/almacen/verificar-inventario:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ── AJUSTE DE INVENTARIO (TOMA FÍSICA) ──────────────────────────
 
 // GET /api/almacen/ajuste-inventario/stock

@@ -182,6 +182,20 @@
               </v-row>
             </div>
 
+            <!-- Verificación de inventario -->
+            <div v-if="verificandoInventario" class="inv-check inv-check--loading">
+              <v-progress-circular indeterminate size="14" width="2" color="#6b7280" />
+              <span>Verificando inventario del día anterior...</span>
+            </div>
+            <div v-else-if="inventarioStatus === 'ok'" class="inv-check inv-check--ok">
+              <v-icon size="16" color="#10b981">mdi-check-circle</v-icon>
+              <span>Inventario verificado — ventas del día anterior registradas</span>
+            </div>
+            <div v-else-if="inventarioStatus === 'warning'" class="inv-check inv-check--warn">
+              <v-icon size="16" color="#ef4444">mdi-alert-circle</v-icon>
+              <span>El inventario se encuentra desactualizado — no se encontraron ventas del día anterior</span>
+            </div>
+
             <!-- Grid de productos -->
             <div class="form-sheet">
               <div class="sheet-hdr mb-3">
@@ -525,6 +539,10 @@ const dlgAnalisis = ref(false)
 const analisisFaltantes = ref([])
 const cargandoAnalisis = ref(false)
 
+// Verificación de inventario
+const inventarioStatus = ref(null) // null | 'ok' | 'warning'
+const verificandoInventario = ref(false)
+
 // ── Computed ──────────────────────────────────────────────────
 const ccOrigenNombre = computed(() => {
   const cc = ccostos.value.find(c => String(c.codigo) === String(form.value.cc_origen))
@@ -742,10 +760,28 @@ async function cargarGrid(ccDestino) {
   }
 }
 
+async function verificarInventario(ccDestino) {
+  if (!ccDestino || !form.value.fecha) { inventarioStatus.value = null; return }
+  // Calcular fecha anterior (fecha del formulario - 1 día)
+  const d = new Date(form.value.fecha + 'T12:00:00')
+  d.setDate(d.getDate() - 1)
+  const fechaAnterior = d.toISOString().split('T')[0]
+  verificandoInventario.value = true
+  inventarioStatus.value = null
+  try {
+    const res = await api.get('/almacen/verificar-inventario', {
+      params: { empresa: empresa.value, ccosto: ccDestino, fecha: fechaAnterior }
+    })
+    inventarioStatus.value = res.data?.existe ? 'ok' : 'warning'
+  } catch { inventarioStatus.value = null }
+  finally { verificandoInventario.value = false }
+}
+
 // Recargar grid cuando cambia cc_destino
 watch(() => form.value.cc_destino, (val) => {
   cantidades.value = {}
   cargarGrid(val)
+  verificarInventario(val)
 })
 
 // ── CRUD ──────────────────────────────────────────────────────
@@ -759,6 +795,7 @@ function abrirNuevo() {
   stockPorCodigo.value  = {}
   stockDisponiblePorCodigo.value = {}
   stockDestinoPorCodigo.value = {}
+  inventarioStatus.value = null
   const bodega = ccostos.value[0]
   form.value = {
     fecha: new Date().toISOString().split('T')[0],
@@ -1247,6 +1284,12 @@ onMounted(async () => {
 .det-acciones  { display: flex; gap: 8px; }
 .det-grupo-row { background: rgba(139,92,246,.07); }
 .det-grupo-cell { padding: 5px 10px !important; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #7c3aed; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
+
+/* Verificación de inventario */
+.inv-check { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+.inv-check--loading { background: rgba(var(--v-theme-on-surface),.04); color: rgba(var(--v-theme-on-surface),.5); }
+.inv-check--ok   { background: rgba(16,185,129,.1); color: #047857; border: 1px solid rgba(16,185,129,.25); }
+.inv-check--warn { background: rgba(239,68,68,.08); color: #dc2626; border: 1px solid rgba(239,68,68,.2); }
 
 /* Análisis de faltantes */
 .ana-stat { background: rgba(var(--v-theme-on-surface),.03); border-radius: 10px; padding: 14px; border-left: 3px solid var(--color); }
