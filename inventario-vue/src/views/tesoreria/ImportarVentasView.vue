@@ -50,6 +50,7 @@
                 class="imp-cfg-date"
               />
               <v-icon v-if="fechaMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Fecha coincide con el archivo">mdi-check-circle</v-icon>
+              <v-icon v-else-if="fechaMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="La fecha no coincide con el archivo">mdi-close-circle</v-icon>
             </div>
           </div>
 
@@ -79,6 +80,7 @@
                 </template>
               </v-select>
               <v-icon v-if="ccostoMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Centro de costo coincide con el archivo">mdi-check-circle</v-icon>
+              <v-icon v-else-if="ubicacionMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="El centro de costo no coincide con el archivo">mdi-close-circle</v-icon>
             </div>
           </div>
 
@@ -1248,12 +1250,19 @@ function extractEndDateFromFilename(filename) {
   return matches?.length ? matches[0] : null
 }
 
-// ✓ La fecha del DTP coincide con la última fecha del nombre del archivo
+// ✓ La fecha del DTP coincide con la primera fecha del nombre del archivo
 const fechaMatch = computed(() => {
   if (!configFecha.value) return false
   const file = articulosFileName.value || resumenFileName.value
   if (!file) return false
   return extractEndDateFromFilename(file) === configFecha.value
+})
+
+// ✗ Hay archivo cargado pero la fecha no coincide
+const fechaMismatch = computed(() => {
+  const file = articulosFileName.value || resumenFileName.value
+  if (!file || !configFecha.value) return false
+  return extractEndDateFromFilename(file) !== configFecha.value
 })
 
 // ✓ El centro de costo seleccionado coincide con la ubicación del CSV
