@@ -2,7 +2,7 @@
 // DESPACHOS DE BODEGA — Scanner · Picking · Packing · Confirmación
 // ================================================================
 
-const APP_VERSION = '2.5.2'; // Versión actual de la app
+const APP_VERSION = '2.5.3'; // Versión actual de la app
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
@@ -562,36 +562,42 @@ async function procesarColaEscaneos() {
     if (procesandoCola || scanQueue.length === 0) return;
 
     procesandoCola = true;
+    const inp = document.getElementById('scannerInput');
+    inp.disabled = true; // 🔒 Deshabilitar input mientras procesa
 
-    // 1. Agrupar códigos iguales: {código: cantidad}
-    const codigosAgrupados = {};
-    for (const codigo of scanQueue) {
-        codigosAgrupados[codigo] = (codigosAgrupados[codigo] || 0) + 1;
-    }
-    const codigosUnicos = Object.keys(codigosAgrupados).length;
-    const totalScans = scanQueue.length;
-
-    // 2. Mostrar resumen de lo que se va a procesar
-    showFeedback('ok', `📦 Procesando ${totalScans} escaneo(s) (${codigosUnicos} producto(s) único(s))...`);
-
-    // 3. Procesar cada código único con su cantidad agrupada
-    let procesados = 0;
-    for (const [codigo, cantidad] of Object.entries(codigosAgrupados)) {
-        procesados++;
-        showFeedback('ok', `⏳ [${procesados}/${codigosUnicos}] Procesando: ${codigo} × ${cantidad}`);
-
-        // Procesar el código con la cantidad agrupada
-        await procesarScanAgrupado(codigo, cantidad);
-
-        // Si hay más, esperar un poco antes del siguiente
-        if (procesados < codigosUnicos) {
-            await new Promise(resolve => setTimeout(resolve, DELAY_ENTRE_SCANS));
+    try {
+        // 1. Agrupar códigos iguales: {código: cantidad}
+        const codigosAgrupados = {};
+        for (const codigo of scanQueue) {
+            codigosAgrupados[codigo] = (codigosAgrupados[codigo] || 0) + 1;
         }
-    }
+        const codigosUnicos = Object.keys(codigosAgrupados).length;
+        const totalScans = scanQueue.length;
 
-    scanQueue = []; // limpiar la cola
-    procesandoCola = false;
-    refocusInput();
+        // 2. Mostrar resumen de lo que se va a procesar
+        showFeedback('ok', `📦 Procesando ${totalScans} escaneo(s) (${codigosUnicos} producto(s) único(s))...`);
+
+        // 3. Procesar cada código único con su cantidad agrupada
+        let procesados = 0;
+        for (const [codigo, cantidad] of Object.entries(codigosAgrupados)) {
+            procesados++;
+            showFeedback('ok', `⏳ [${procesados}/${codigosUnicos}] Procesando: ${codigo} × ${cantidad}`);
+
+            // Procesar el código con la cantidad agrupada
+            await procesarScanAgrupado(codigo, cantidad);
+
+            // Si hay más, esperar un poco antes del siguiente
+            if (procesados < codigosUnicos) {
+                await new Promise(resolve => setTimeout(resolve, DELAY_ENTRE_SCANS));
+            }
+        }
+
+        scanQueue = []; // limpiar la cola
+    } finally {
+        procesandoCola = false;
+        inp.disabled = false; // 🔓 Habilitar input de nuevo
+        refocusInput();
+    }
 }
 
 // FIX 3: botón manual de búsqueda
