@@ -4,7 +4,7 @@ import vuetify from 'vite-plugin-vuetify'
 import pkg from './package.json'
 
 export default defineConfig({
-  base: '/inventario-app/completa/',
+  base: '/completa/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
