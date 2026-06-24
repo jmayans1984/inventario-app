@@ -317,6 +317,40 @@
     <script>
         const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
+        // ── Auto-login: intenta entrar automáticamente si hay credenciales guardadas ──
+        window.addEventListener('load', async () => {
+            const saved = getSavedCredentials();
+            if (saved) {
+                document.getElementById('usuario').value = saved.u;
+                document.getElementById('clave').value   = saved.p;
+                const btn = document.getElementById('btnLogin');
+                btn.textContent = 'Entrando…';
+                btn.disabled = true;
+                const ok = await doLogin(saved.u, saved.p);
+                if (!ok) {
+                    // credenciales ya no son válidas, limpiar y dejar que el usuario reingrese
+                    clearSavedCredentials();
+                    btn.textContent = 'Iniciar Sesión';
+                    btn.disabled = false;
+                }
+            }
+        });
+
+        function getSavedCredentials() {
+            try {
+                const raw = localStorage.getItem('_rm_creds');
+                return raw ? JSON.parse(atob(raw)) : null;
+            } catch { return null; }
+        }
+
+        function saveCredentials(u, p) {
+            localStorage.setItem('_rm_creds', btoa(JSON.stringify({ u, p })));
+        }
+
+        function clearSavedCredentials() {
+            localStorage.removeItem('_rm_creds');
+        }
+
         function mostrarError(msg) {
             const el = document.getElementById('loginError');
             el.textContent = msg;
@@ -327,17 +361,7 @@
             document.getElementById('loginError').style.display = 'none';
         }
 
-        async function iniciarSesion(event) {
-            event.preventDefault();
-            ocultarError();
-
-            const btn      = document.getElementById('btnLogin');
-            const usuario  = document.getElementById('usuario').value.trim();
-            const clave    = document.getElementById('clave').value;
-
-            btn.textContent = 'Iniciando…';
-            btn.disabled = true;
-
+        async function doLogin(usuario, clave) {
             try {
                 const res  = await fetch(`${API_BASE}/auth/login`, {
                     method: 'POST',
@@ -348,6 +372,7 @@
 
                 if (data.success) {
                     localStorage.setItem('usuario', JSON.stringify(data.data));
+                    saveCredentials(usuario, clave);
 
                     if (data.data.requiere_seleccion && data.data.empresas.length > 1) {
                         mostrarSelectorEmpresas(data.data.empresas);
@@ -356,16 +381,33 @@
                         localStorage.setItem('empresaActual', empresa);
                         window.location.href = 'principal.html';
                     }
+                    return true;
                 } else {
                     mostrarError(data.error || 'Usuario o contraseña incorrectos');
+                    return false;
                 }
             } catch (err) {
                 console.error(err);
                 mostrarError('Error de conexión. Verifica tu internet.');
-            } finally {
-                btn.textContent = 'Iniciar Sesión';
-                btn.disabled = false;
+                return false;
             }
+        }
+
+        async function iniciarSesion(event) {
+            event.preventDefault();
+            ocultarError();
+
+            const btn     = document.getElementById('btnLogin');
+            const usuario = document.getElementById('usuario').value.trim();
+            const clave   = document.getElementById('clave').value;
+
+            btn.textContent = 'Iniciando…';
+            btn.disabled = true;
+
+            await doLogin(usuario, clave);
+
+            btn.textContent = 'Iniciar Sesión';
+            btn.disabled = false;
         }
 
         function mostrarSelectorEmpresas(empresas) {
