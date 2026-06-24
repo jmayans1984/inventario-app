@@ -1,0 +1,1 @@
+import{n as e}from"./logo-CngUgOX9.js";var t={async obtenerBodegaMaestra(){return(await e.get(`/empresas/bodega-maestra`)).data},async actualizarBodegaMaestra(t){return(await e.put(`/empresas/bodega-maestra`,{bodega_maestra:t})).data}};export{t};

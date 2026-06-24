@@ -11,8 +11,8 @@
       <!-- Mobile: cabecera del drawer con usuario -->
       <div v-if="isMobile" class="drawer-mobile-header">
         <div class="drawer-mobile-user">
-          <v-avatar color="#667eea" size="40">
-            <span class="text-white" style="font-size:14px;font-weight:700">{{ avatarInitials }}</span>
+          <v-avatar color="#F5A623" size="40">
+            <span style="font-size:14px;font-weight:800;color:#111">{{ avatarInitials }}</span>
           </v-avatar>
           <div class="drawer-mobile-user-info">
             <div class="drawer-mobile-username">{{ authStore.userName }}</div>
@@ -26,9 +26,7 @@
 
       <!-- Desktop: logo -->
       <div v-else class="sidebar-logo">
-        <div class="sidebar-logo-icon">
-          <v-icon size="22" color="white">mdi-chart-donut-variant</v-icon>
-        </div>
+        <img :src="logoSrc" class="sidebar-logo-img" alt="Logo" />
         <div>
           <div class="sidebar-logo-title">RestManager Pro</div>
           <div class="sidebar-logo-sub">Sistema ERP</div>
@@ -131,8 +129,8 @@
         <v-divider color="white" opacity="0.1"></v-divider>
         <!-- Desktop footer con usuario -->
         <div v-if="!isMobile" class="sidebar-footer">
-          <v-avatar color="#667eea" size="32">
-            <span class="text-white" style="font-size:12px;font-weight:700">{{ avatarInitials }}</span>
+          <v-avatar color="#F5A623" size="32">
+            <span style="font-size:12px;font-weight:800;color:#111">{{ avatarInitials }}</span>
           </v-avatar>
           <div class="sidebar-footer-info">
             <div class="sidebar-footer-user">{{ authStore.userName }}</div>
@@ -283,8 +281,8 @@
               <span class="header-username">{{ authStore.userName }}</span>
               <span class="header-empresa">{{ authStore.empresaNombre || 'Sin empresa' }}</span>
             </div>
-            <v-avatar color="primary" size="38">
-              <span class="text-white font-weight-bold" style="font-size:14px">{{ avatarInitials }}</span>
+            <v-avatar color="#F5A623" size="38">
+              <span style="font-size:14px;font-weight:800;color:#111">{{ avatarInitials }}</span>
             </v-avatar>
           </div>
 
@@ -323,6 +321,7 @@ import { MODULES, APP_VERSION } from '../../utils/constants'
 import { formatFechaLarga } from '../../utils/formatters'
 import { notificacionesService } from '../../services/notificaciones.service'
 import { useCalculadora } from '../../composables/useCalculadora'
+import logoSrc from '../../assets/logo.png'
 
 const router = useRouter()
 const route = useRoute()
@@ -473,8 +472,8 @@ const handleLogout = () => {
 <style scoped>
 /* ─── SIDEBAR ─── */
 .sidebar {
-  background: linear-gradient(180deg, #0c1426 0%, #0f1e35 60%, #0a1628 100%) !important;
-  border-right: 1px solid rgba(255,255,255,0.06) !important;
+  background: #0D0D0D !important;
+  border-right: 1px solid rgba(255,255,255,0.05) !important;
 }
 
 /* Mobile: header del drawer */
@@ -521,16 +520,13 @@ const handleLogout = () => {
   gap: 12px;
   padding: 18px 14px 14px;
 }
-.sidebar-logo-icon {
+.sidebar-logo-img {
   width: 38px;
   height: 38px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(245,166,35,0.2), 0 4px 12px rgba(245,166,35,0.15);
 }
 .sidebar-logo-title {
   color: white;
@@ -579,9 +575,9 @@ const handleLogout = () => {
   color: rgba(255,255,255,0.9);
 }
 .menu-item-active {
-  background: linear-gradient(90deg, rgba(102,126,234,0.18) 0%, rgba(102,126,234,0.05) 100%);
+  background: linear-gradient(90deg, rgba(245,166,35,0.15) 0%, rgba(245,166,35,0.03) 100%);
   color: rgba(255,255,255,0.95);
-  border-left-color: var(--mod-color, #818cf8);
+  border-left-color: #F5A623;
   padding-left: 7px;
 }
 .menu-item-open { color: rgba(255,255,255,0.85); border-left-color: var(--mod-color, rgba(255,255,255,0.25)); }
@@ -867,7 +863,7 @@ const handleLogout = () => {
 }
 .header-empresa {
   font-size: 11px;
-  color: #667eea;
+  color: #F5A623;
   font-weight: 600;
   line-height: 1.3;
 }
@@ -875,8 +871,9 @@ const handleLogout = () => {
 
 /* Línea separadora */
 .header-divider {
-  height: 3px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  height: 2px;
+  background: #F5A623;
+  opacity: 0.85;
 }
 
 /* ─── CONTENT ─── */
