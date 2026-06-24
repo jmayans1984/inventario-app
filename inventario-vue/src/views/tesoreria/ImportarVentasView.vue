@@ -1242,10 +1242,10 @@ const ubicacionMismatch = computed(() => {
          !normalize(resumen.value.ubicacion).includes(normalize(ccObj.nombre))
 })
 
-// Extrae la última fecha YYYY-MM-DD del nombre de archivo
+// Extrae la primera fecha YYYY-MM-DD del nombre de archivo
 function extractEndDateFromFilename(filename) {
   const matches = filename.match(/\d{4}-\d{2}-\d{2}/g)
-  return matches?.length ? matches[matches.length - 1] : null
+  return matches?.length ? matches[0] : null
 }
 
 // ✓ La fecha del DTP coincide con la última fecha del nombre del archivo
