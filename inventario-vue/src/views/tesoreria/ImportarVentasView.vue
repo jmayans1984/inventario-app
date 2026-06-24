@@ -43,11 +43,14 @@
               <v-icon size="12" color="#06b6d4" class="mr-1">mdi-calendar-outline</v-icon>
               FECHA
             </label>
-            <input
-              v-model="configFecha"
-              type="date"
-              class="imp-cfg-date"
-            />
+            <div class="imp-cfg-input-wrap">
+              <input
+                v-model="configFecha"
+                type="date"
+                class="imp-cfg-date"
+              />
+              <v-icon v-if="fechaMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Fecha coincide con el archivo">mdi-check-circle</v-icon>
+            </div>
           </div>
 
           <!-- Centro de Costo -->
@@ -56,24 +59,27 @@
               <v-icon size="12" color="#f59e0b" class="mr-1">mdi-map-marker-outline</v-icon>
               CENTRO DE COSTO
             </label>
-            <v-select
-              v-model="configCcosto"
-              :items="ccostos"
-              item-title="nombre"
-              item-value="codigo"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Seleccionar..."
-              :loading="ccostosLoading"
-              class="imp-cfg-select"
-              bg-color="rgb(var(--v-theme-surface))"
-              style="min-width:180px"
-            >
-              <template #prepend-inner>
-                <span v-if="configCcosto" class="imp-cfg-code-chip">{{ configCcosto }}</span>
-              </template>
-            </v-select>
+            <div class="imp-cfg-input-wrap">
+              <v-select
+                v-model="configCcosto"
+                :items="ccostos"
+                item-title="nombre"
+                item-value="codigo"
+                density="compact"
+                variant="outlined"
+                hide-details
+                placeholder="Seleccionar..."
+                :loading="ccostosLoading"
+                class="imp-cfg-select"
+                bg-color="rgb(var(--v-theme-surface))"
+                style="min-width:180px"
+              >
+                <template #prepend-inner>
+                  <span v-if="configCcosto" class="imp-cfg-code-chip">{{ configCcosto }}</span>
+                </template>
+              </v-select>
+              <v-icon v-if="ccostoMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Centro de costo coincide con el archivo">mdi-check-circle</v-icon>
+            </div>
           </div>
 
           <!-- CTA. SQUARE -->
@@ -1234,6 +1240,27 @@ const ubicacionMismatch = computed(() => {
   const normalize = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '')
   return !normalize(ccObj.nombre).includes(normalize(resumen.value.ubicacion)) &&
          !normalize(resumen.value.ubicacion).includes(normalize(ccObj.nombre))
+})
+
+// Extrae la última fecha YYYY-MM-DD del nombre de archivo
+function extractEndDateFromFilename(filename) {
+  const matches = filename.match(/\d{4}-\d{2}-\d{2}/g)
+  return matches?.length ? matches[matches.length - 1] : null
+}
+
+// ✓ La fecha del DTP coincide con la última fecha del nombre del archivo
+const fechaMatch = computed(() => {
+  if (!configFecha.value) return false
+  const file = articulosFileName.value || resumenFileName.value
+  if (!file) return false
+  return extractEndDateFromFilename(file) === configFecha.value
+})
+
+// ✓ El centro de costo seleccionado coincide con la ubicación del CSV
+const ccostoMatch = computed(() => {
+  const ubicacion = resumen.value?.ubicacion || articulos.value?.ubicacion
+  if (!ubicacion || !configCcosto.value) return false
+  return !ubicacionMismatch.value
 })
 
 // ─── Config importación ───────────────────────────────────────
@@ -2701,6 +2728,12 @@ function limpiar(type) {
 
 .imp-cfg-field { display: flex; flex-direction: column; gap: 5px; }
 .imp-cfg-field--wide { /* already wide via grid */ }
+.imp-cfg-input-wrap { display: flex; align-items: center; gap: 6px; }
+.cfg-ok-icon { flex-shrink: 0; animation: cfg-ok-pop 0.25s ease; }
+@keyframes cfg-ok-pop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
 
 .imp-cfg-label {
   font-size: 9.5px; font-weight: 700; text-transform: uppercase;
