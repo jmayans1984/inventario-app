@@ -249,13 +249,17 @@ const toggleTema     = () => {
   padding: 48px 44px;
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .brand-logo {
   width: 88px;
   height: 88px;
   border-radius: 22px;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
   box-shadow: 0 0 0 1px rgba(245,166,35,0.2),
               0 8px 32px rgba(245,166,35,0.15);
 }
