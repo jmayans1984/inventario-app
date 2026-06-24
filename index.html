@@ -9,7 +9,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #09090b;
+            background: #111111;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -20,44 +20,39 @@
             display: flex;
             align-items: center;
             padding: 0 32px;
-            height: 60px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            height: 64px;
+            border-bottom: 1px solid rgba(255,193,7,0.12);
             flex-shrink: 0;
         }
 
         .navbar-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
-        .navbar-icon {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, #7c3aed, #a78bfa);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .navbar-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            object-fit: cover;
         }
-
-        .navbar-icon svg { width: 18px; height: 18px; }
 
         .navbar-name {
-            font-size: 15px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
             color: white;
-            letter-spacing: -0.2px;
+            letter-spacing: -0.3px;
         }
 
         .navbar-badge {
             margin-left: 10px;
-            background: rgba(255,255,255,0.07);
-            color: rgba(255,255,255,0.45);
+            background: rgba(255,193,7,0.1);
+            color: rgba(255,193,7,0.7);
             font-size: 11px;
             padding: 3px 10px;
             border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,193,7,0.2);
         }
 
         /* MAIN */
@@ -70,58 +65,75 @@
             padding: 40px 24px;
         }
 
+        /* LOGO HERO */
+        .hero-logo-wrap {
+            margin-bottom: 32px;
+            animation: fadeUp 0.5s ease both;
+        }
+
+        .hero-logo {
+            width: 110px;
+            height: 110px;
+            border-radius: 28px;
+            box-shadow: 0 0 0 1px rgba(255,193,7,0.2),
+                        0 8px 32px rgba(255,193,7,0.18),
+                        0 2px 8px rgba(0,0,0,0.5);
+        }
+
         .hero {
             text-align: center;
-            margin-bottom: 48px;
-            animation: fadeUp 0.6s ease both;
+            margin-bottom: 52px;
+            animation: fadeUp 0.5s ease 0.05s both;
         }
 
         .hero-tag {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(167,139,250,0.1);
-            border: 1px solid rgba(167,139,250,0.2);
-            color: #c4b5fd;
+            gap: 7px;
+            background: rgba(255,193,7,0.08);
+            border: 1px solid rgba(255,193,7,0.18);
+            color: #FFC107;
             font-size: 12px;
             font-weight: 500;
             padding: 5px 14px;
             border-radius: 20px;
-            margin-bottom: 24px;
-            letter-spacing: 0.3px;
+            margin-bottom: 22px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
         }
 
         .hero-tag span {
             width: 6px;
             height: 6px;
-            background: #a78bfa;
+            background: #FFC107;
             border-radius: 50%;
             display: inline-block;
+            box-shadow: 0 0 6px #FFC107;
+            animation: pulse 2s ease infinite;
         }
 
         .hero h1 {
-            font-size: 48px;
-            font-weight: 700;
+            font-size: 46px;
+            font-weight: 800;
             color: white;
             letter-spacing: -1.5px;
             line-height: 1.1;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         .hero h1 em {
             font-style: normal;
-            background: linear-gradient(135deg, #a78bfa, #818cf8);
+            background: linear-gradient(135deg, #FFC107, #FF8F00);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
         .hero p {
-            font-size: 17px;
-            color: rgba(255,255,255,0.45);
-            font-weight: 400;
-            line-height: 1.6;
-            max-width: 400px;
+            font-size: 16px;
+            color: rgba(255,255,255,0.42);
+            line-height: 1.65;
+            max-width: 380px;
             margin: 0 auto;
         }
 
@@ -131,15 +143,15 @@
             grid-template-columns: 1fr 1fr;
             gap: 16px;
             width: 100%;
-            max-width: 580px;
-            animation: fadeUp 0.6s ease 0.1s both;
+            max-width: 560px;
+            animation: fadeUp 0.5s ease 0.12s both;
         }
 
         .card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 28px 24px;
+            background: #1A1A1A;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 18px;
+            padding: 30px 22px;
             text-decoration: none;
             display: flex;
             flex-direction: column;
@@ -155,24 +167,25 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at 50% 0%, rgba(167,139,250,0.08) 0%, transparent 60%);
+            background: radial-gradient(circle at 50% 0%, rgba(255,193,7,0.07) 0%, transparent 65%);
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
         .card:hover {
-            border-color: rgba(167,139,250,0.35);
-            background: rgba(167,139,250,0.06);
-            transform: translateY(-3px);
+            border-color: rgba(255,193,7,0.35);
+            background: #1E1A0E;
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(255,193,7,0.1);
         }
 
         .card:hover::before { opacity: 1; }
 
         .card-icon-wrap {
-            width: 56px;
-            height: 56px;
-            background: rgba(167,139,250,0.12);
-            border: 1px solid rgba(167,139,250,0.2);
+            width: 58px;
+            height: 58px;
+            background: rgba(255,193,7,0.1);
+            border: 1px solid rgba(255,193,7,0.18);
             border-radius: 16px;
             display: flex;
             align-items: center;
@@ -182,38 +195,38 @@
         }
 
         .card:hover .card-icon-wrap {
-            background: rgba(167,139,250,0.2);
-            border-color: rgba(167,139,250,0.4);
+            background: rgba(255,193,7,0.18);
+            border-color: rgba(255,193,7,0.4);
         }
 
         .card-icon-wrap svg {
             width: 28px;
             height: 28px;
-            color: #a78bfa;
+            color: #FFC107;
         }
 
         .card-title {
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             color: white;
-            margin-bottom: 6px;
+            margin-bottom: 7px;
             letter-spacing: -0.2px;
         }
 
         .card-desc {
             font-size: 13px;
-            color: rgba(255,255,255,0.4);
-            margin-bottom: 22px;
-            line-height: 1.5;
+            color: rgba(255,255,255,0.38);
+            margin-bottom: 24px;
+            line-height: 1.55;
         }
 
         .card-btn {
             width: 100%;
-            padding: 10px;
+            padding: 11px;
             border-radius: 10px;
-            border: 1px solid rgba(167,139,250,0.3);
+            border: 1px solid rgba(255,193,7,0.3);
             background: transparent;
-            color: #c4b5fd;
+            color: #FFC107;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
@@ -222,31 +235,66 @@
         }
 
         .card:hover .card-btn {
-            background: rgba(167,139,250,0.15);
-            border-color: rgba(167,139,250,0.5);
-            color: #ddd6fe;
+            background: rgba(255,193,7,0.12);
+            border-color: rgba(255,193,7,0.55);
+            color: #FFD54F;
+        }
+
+        /* DIVIDER */
+        .divider {
+            width: 100%;
+            max-width: 560px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 36px 0 0;
+            animation: fadeUp 0.5s ease 0.18s both;
+        }
+
+        .divider-line {
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .divider-text {
+            font-size: 11px;
+            color: rgba(255,255,255,0.2);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         /* FOOTER */
         .footer {
             text-align: center;
             padding: 20px;
-            color: rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.18);
             font-size: 12px;
             flex-shrink: 0;
             border-top: 1px solid rgba(255,255,255,0.04);
         }
 
+        .footer strong {
+            color: rgba(255,193,7,0.5);
+            font-weight: 600;
+        }
+
         @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
+            from { opacity: 0; transform: translateY(18px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        @media (max-width: 600px) {
-            .hero h1 { font-size: 32px; }
-            .cards { grid-template-columns: 1fr; max-width: 320px; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        @media (max-width: 560px) {
+            .hero h1 { font-size: 30px; }
+            .cards { grid-template-columns: 1fr; max-width: 300px; }
             .navbar { padding: 0 20px; }
             .navbar-badge { display: none; }
+            .hero-logo { width: 90px; height: 90px; border-radius: 22px; }
         }
     </style>
 </head>
@@ -255,14 +303,7 @@
     <!-- NAVBAR -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <div class="navbar-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="7" width="4" height="12" rx="1"/>
-                    <rect x="9" y="4" width="4" height="15" rx="1"/>
-                    <rect x="16" y="1" width="4" height="18" rx="1"/>
-                    <path d="M4 5 L11 2 L18 3" stroke-width="1.5" opacity="0.6"/>
-                </svg>
-            </div>
+            <img src="assets/logo.png" class="navbar-logo" alt="Logo">
             <span class="navbar-name">RestManager Pro</span>
             <span class="navbar-badge">v1.09.0</span>
         </div>
@@ -270,6 +311,11 @@
 
     <!-- MAIN -->
     <main class="main">
+
+        <div class="hero-logo-wrap">
+            <img src="assets/logo.png" class="hero-logo" alt="Logo">
+        </div>
+
         <div class="hero">
             <div class="hero-tag">
                 <span></span>
@@ -306,11 +352,18 @@
                 <div class="card-btn">Entrar →</div>
             </a>
         </div>
+
+        <div class="divider">
+            <div class="divider-line"></div>
+            <div class="divider-text">RestManager Pro · 2026</div>
+            <div class="divider-line"></div>
+        </div>
+
     </main>
 
     <!-- FOOTER -->
     <footer class="footer">
-        © 2026 RestManager Pro · Todos los derechos reservados
+        © 2026 <strong>RestManager Pro</strong> · Todos los derechos reservados
     </footer>
 
 </body>
