@@ -1,50 +1,54 @@
 <template>
-  <div :class="['login-page', { 'dark-mode': isDarkMode }]">
+  <div :class="['login-page', isDarkMode ? 'dark' : 'light']">
 
-    <!-- Panel izquierdo - Branding -->
-    <div class="login-brand">
-      <div class="brand-content">
-        <div class="brand-logo">
-          <v-icon size="48" color="white">mdi-chart-donut-variant</v-icon>
-        </div>
-        <h1 class="brand-title">RestManager Pro</h1>
-        <p class="brand-subtitle">Sistema de Gestión Empresarial</p>
+    <!-- Panel izquierdo — Branding -->
+    <div class="panel-brand">
+      <div class="brand-inner">
+        <img :src="logoSrc" class="brand-logo" alt="Logo" />
+        <h1 class="brand-name">RestManager Pro</h1>
+        <p class="brand-tagline">Sistema de Gestión Empresarial</p>
 
-        <div class="brand-features">
-          <div class="brand-feature" v-for="f in features" :key="f.text">
-            <v-icon size="16" color="rgba(255,255,255,0.7)">{{ f.icon }}</v-icon>
+        <div class="brand-pills">
+          <div class="pill" v-for="f in features" :key="f.text">
+            <v-icon size="14" color="rgba(255,255,255,0.55)">{{ f.icon }}</v-icon>
             <span>{{ f.text }}</span>
           </div>
         </div>
 
-        <div class="brand-footer">
-          <span>Sistema ERP v2.0</span>
-        </div>
+        <div class="brand-ver">v2.0</div>
       </div>
     </div>
 
-    <!-- Panel derecho - Formulario -->
-    <div class="login-form-panel">
-      <div class="login-form-wrapper">
+    <!-- Panel derecho — Formulario -->
+    <div class="panel-form">
 
-        <!-- Cabecera -->
-        <div class="form-header">
-          <h2 class="form-title">Iniciar Sesión</h2>
-          <p class="form-subtitle">Ingresa tus credenciales para continuar</p>
+      <div class="form-box">
+
+        <!-- Toggle tema -->
+        <button class="theme-btn" type="button" @click="toggleTema" :title="isDarkMode ? 'Modo claro' : 'Modo oscuro'">
+          <v-icon size="17">{{ isDarkMode ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+        </button>
+
+        <!-- Header -->
+        <div class="form-head">
+          <div class="form-head-logo">
+            <img :src="logoSrc" alt="Logo" />
+          </div>
+          <h2 class="form-title">Iniciar sesión</h2>
+          <p class="form-sub">Ingresa tus credenciales para continuar</p>
         </div>
 
         <!-- Formulario -->
-        <form @submit.prevent="handleLogin" class="login-form">
+        <form @submit.prevent="handleLogin">
 
-          <!-- Usuario -->
-          <div class="field-group">
-            <label class="field-label">USUARIO</label>
-            <div class="field-input-wrap">
-              <v-icon class="field-icon" size="18">mdi-account-outline</v-icon>
+          <div class="field">
+            <label class="field-lbl">USUARIO</label>
+            <div class="field-wrap">
+              <v-icon class="f-icon" size="17">mdi-account-outline</v-icon>
               <input
                 v-model="formData.usuario"
                 type="text"
-                class="field-input"
+                class="f-input"
                 placeholder="Nombre de usuario"
                 autocomplete="username"
                 required
@@ -52,79 +56,61 @@
             </div>
           </div>
 
-          <!-- Contraseña -->
-          <div class="field-group">
-            <label class="field-label">CONTRASEÑA</label>
-            <div class="field-input-wrap">
-              <v-icon class="field-icon" size="18">mdi-lock-outline</v-icon>
+          <div class="field">
+            <label class="field-lbl">CONTRASEÑA</label>
+            <div class="field-wrap">
+              <v-icon class="f-icon" size="17">mdi-lock-outline</v-icon>
               <input
                 v-model="formData.clave"
                 :type="showPassword ? 'text' : 'password'"
-                class="field-input"
+                class="f-input"
                 placeholder="Contraseña"
                 autocomplete="current-password"
                 required
               />
-              <v-icon
-                class="field-icon-right"
-                size="18"
-                @click="showPassword = !showPassword"
-              >
+              <v-icon class="f-icon-r" size="17" @click="showPassword = !showPassword">
                 {{ showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
               </v-icon>
             </div>
           </div>
 
-          <!-- Recordar usuario -->
-          <div class="form-options">
-            <label class="remember-label">
-              <input v-model="rememberUser" type="checkbox" class="remember-check" />
-              <span>Recordar usuario</span>
-            </label>
+          <label class="remember">
+            <input v-model="rememberUser" type="checkbox" />
+            <span>Recordar usuario</span>
+          </label>
+
+          <div v-if="errorMessage" class="error-msg">
+            <v-icon size="15">mdi-alert-circle-outline</v-icon>
+            {{ errorMessage }}
           </div>
 
-          <!-- Error -->
-          <div v-if="errorMessage" class="error-box">
-            <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
-            <span>{{ errorMessage }}</span>
-          </div>
-
-          <!-- Botón -->
-          <button type="submit" class="btn-login" :disabled="isLoading">
-            <span v-if="isLoading" class="loading-dots">
+          <button type="submit" class="btn-submit" :disabled="isLoading">
+            <span v-if="isLoading" class="dots">
               <span></span><span></span><span></span>
             </span>
-            <span v-else>Iniciar Sesión</span>
+            <span v-else>Entrar</span>
           </button>
 
         </form>
 
         <!-- Selector de empresas -->
-        <div v-if="showEmpresaSelector" class="empresa-selector">
-          <p class="empresa-title">Selecciona tu empresa</p>
+        <div v-if="showEmpresaSelector" class="emp-list">
+          <p class="emp-title">Selecciona tu empresa</p>
           <div
             v-for="emp in empresas"
             :key="emp.empresa"
-            class="empresa-option"
+            class="emp-item"
             @click="selectEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)"
           >
-            <div class="empresa-icon">
-              <v-icon size="20" color="#667eea">mdi-building</v-icon>
+            <div class="emp-icon">
+              <v-icon size="18">mdi-domain</v-icon>
             </div>
             <div>
-              <p class="empresa-name">{{ emp.empresa_nombre }}</p>
-              <p class="empresa-nit">NIT: {{ emp.empresa }}</p>
+              <p class="emp-name">{{ emp.empresa_nombre }}</p>
+              <p class="emp-nit">NIT: {{ emp.empresa }}</p>
             </div>
-            <v-icon size="16" color="#667eea">mdi-chevron-right</v-icon>
+            <v-icon size="16" class="emp-arrow">mdi-chevron-right</v-icon>
           </div>
-        </div>
-
-        <!-- Tema -->
-        <div class="theme-row">
-          <v-icon size="15" color="#94a3b8">{{ isDarkMode ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
-          <span class="theme-text" @click="toggleTema">
-            {{ isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro' }}
-          </span>
         </div>
 
       </div>
@@ -139,108 +125,105 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useAppStore } from '../stores/app'
 import authService from '../services/auth.service'
+import logoSrc from '../assets/logo.png'
 
-const router = useRouter()
+const router    = useRouter()
 const authStore = useAuthStore()
-const appStore = useAppStore()
+const appStore  = useAppStore()
 
-const formData = ref({ usuario: '', clave: '' })
-const isDarkMode = ref(appStore.tema === 'dark')
-const isLoading = ref(false)
-const errorMessage = ref('')
-const showEmpresaSelector = ref(false)
-const empresas = ref([])
-const showPassword = ref(false)
-const rememberUser = ref(false)
+const formData           = ref({ usuario: '', clave: '' })
+const isDarkMode         = ref(appStore.tema === 'dark')
+const isLoading          = ref(false)
+const errorMessage       = ref('')
+const showEmpresaSelector= ref(false)
+const empresas           = ref([])
+const showPassword       = ref(false)
+const rememberUser       = ref(false)
 
 const features = [
-  { icon: 'mdi-shield-check-outline', text: 'Acceso seguro y encriptado' },
-  { icon: 'mdi-domain', text: 'Soporte multi-empresa' },
-  { icon: 'mdi-chart-line', text: 'Reportes y análisis en tiempo real' },
-  { icon: 'mdi-cloud-sync-outline', text: 'Datos sincronizados en la nube' },
+  { icon: 'mdi-shield-check-outline',  text: 'Acceso seguro y encriptado'       },
+  { icon: 'mdi-domain',                text: 'Soporte multi-empresa'             },
+  { icon: 'mdi-chart-line',            text: 'Reportes en tiempo real'           },
+  { icon: 'mdi-cloud-sync-outline',    text: 'Datos sincronizados en la nube'    },
 ]
 
 onMounted(() => {
-  // Cargar usuario guardado
   const saved = localStorage.getItem('savedUsuario')
-  if (saved) {
-    formData.value.usuario = saved
-    rememberUser.value = true
-  }
+  if (saved) { formData.value.usuario = saved; rememberUser.value = true }
 })
 
-// Guardar/borrar usuario al cambiar el checkbox
-watch(rememberUser, (val) => {
-  if (val && formData.value.usuario) {
-    localStorage.setItem('savedUsuario', formData.value.usuario)
-  } else if (!val) {
-    localStorage.removeItem('savedUsuario')
-  }
+watch(rememberUser, val => {
+  if (val && formData.value.usuario) localStorage.setItem('savedUsuario', formData.value.usuario)
+  else if (!val) localStorage.removeItem('savedUsuario')
 })
 
 const handleLogin = async () => {
-  isLoading.value = true
+  isLoading.value    = true
   errorMessage.value = ''
-
-  // Guardar usuario si está marcado
-  if (rememberUser.value) {
-    localStorage.setItem('savedUsuario', formData.value.usuario)
-  }
-
+  if (rememberUser.value) localStorage.setItem('savedUsuario', formData.value.usuario)
   try {
     const result = await authService.login(formData.value.usuario, formData.value.clave)
-
     if (result.success) {
       authStore.setUsuario(result.data)
       if (result.data.requiere_seleccion && result.data.empresas.length > 1) {
-        empresas.value = result.data.empresas
-        showEmpresaSelector.value = true
+        empresas.value = result.data.empresas; showEmpresaSelector.value = true
       } else {
         const emp = result.data.empresas[0]
-        if (emp) {
-          authStore.setEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)
-          redirectToMain()
-        }
+        if (emp) { authStore.setEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo); redirectToMain() }
       }
     } else {
       errorMessage.value = result.error || 'Usuario o contraseña incorrectos'
     }
-  } catch (e) {
-    errorMessage.value = 'Error al conectar con el servidor'
-  } finally {
-    isLoading.value = false
-  }
+  } catch { errorMessage.value = 'Error al conectar con el servidor' }
+  finally  { isLoading.value = false }
 }
 
-const selectEmpresa = (cod, nombre, tipo = null) => {
-  authStore.setEmpresa(cod, nombre, tipo)
-  redirectToMain()
-}
-
-const redirectToMain = () => {
-  router.push('/')
-}
-
-const toggleTema = () => {
+const selectEmpresa  = (cod, nombre, tipo = null) => { authStore.setEmpresa(cod, nombre, tipo); redirectToMain() }
+const redirectToMain = () => router.push('/')
+const toggleTema     = () => {
   isDarkMode.value = !isDarkMode.value
-  const t = isDarkMode.value ? 'dark' : 'light'
-  appStore.setTema(t)
+  appStore.setTema(isDarkMode.value ? 'dark' : 'light')
 }
 </script>
 
 <style scoped>
-/* ─── LAYOUT ─── */
+/* ── Variables ─────────────────────────────────────────────── */
 .login-page {
+  --accent:      #F5A623;
+  --accent-text: #111111;
+
   display: flex;
   min-height: 100vh;
-  background: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* ─── PANEL IZQUIERDO ─── */
-.login-brand {
-  width: 420px;
+/* Light */
+.login-page.light {
+  --bg:         #FFFFFF;
+  --bg2:        #F5F5F5;
+  --text:       #111111;
+  --text-muted: #888888;
+  --border:     #E5E5E5;
+  --input-bg:   #FAFAFA;
+  --card-shadow:0 2px 24px rgba(0,0,0,0.08);
+}
+
+/* Dark */
+.login-page.dark {
+  --bg:         #111111;
+  --bg2:        #1A1A1A;
+  --text:       #F0F0F0;
+  --text-muted: #666666;
+  --border:     rgba(255,255,255,0.08);
+  --input-bg:   #1E1E1E;
+  --card-shadow:0 2px 32px rgba(0,0,0,0.5);
+}
+
+/* ── Panel izquierdo (siempre oscuro) ──────────────────────── */
+.panel-brand {
+  width: 400px;
   flex-shrink: 0;
-  background: linear-gradient(145deg, #1e3a5f 0%, #0f172a 60%, #1a1040 100%);
+  background: #0D0D0D;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,313 +231,296 @@ const toggleTema = () => {
   overflow: hidden;
 }
 
-.login-brand::before {
+/* Halo amarillo de fondo */
+.panel-brand::before {
   content: '';
   position: absolute;
-  width: 500px;
-  height: 500px;
+  width: 560px;
+  height: 560px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(102,126,234,0.15) 0%, transparent 70%);
-  top: -100px;
-  left: -100px;
+  background: radial-gradient(circle, rgba(245,166,35,0.07) 0%, transparent 65%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
-.login-brand::after {
-  content: '';
-  position: absolute;
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(118,75,162,0.12) 0%, transparent 70%);
-  bottom: -50px;
-  right: -50px;
-}
-
-.brand-content {
-  padding: 40px;
+.brand-inner {
+  padding: 48px 44px;
   position: relative;
   z-index: 1;
 }
 
 .brand-logo {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 22px;
   margin-bottom: 28px;
-  box-shadow: 0 20px 40px rgba(102,126,234,0.3);
+  box-shadow: 0 0 0 1px rgba(245,166,35,0.2),
+              0 8px 32px rgba(245,166,35,0.15);
 }
 
-.brand-title {
-  font-size: 28px;
+.brand-name {
+  font-size: 26px;
   font-weight: 800;
-  color: white;
-  margin-bottom: 8px;
+  color: #FFFFFF;
   letter-spacing: -0.5px;
+  margin-bottom: 6px;
 }
 
-.brand-subtitle {
-  font-size: 14px;
-  color: rgba(255,255,255,0.5);
-  margin-bottom: 48px;
+.brand-tagline {
+  font-size: 13px;
+  color: rgba(255,255,255,0.38);
+  margin-bottom: 44px;
+  letter-spacing: 0.2px;
 }
 
-.brand-features {
+.brand-pills {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 60px;
+  gap: 14px;
+  margin-bottom: 52px;
 }
 
-.brand-feature {
+.pill {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: rgba(255,255,255,0.65);
+  gap: 11px;
   font-size: 13px;
+  color: rgba(255,255,255,0.5);
 }
 
-.brand-footer {
-  color: rgba(255,255,255,0.25);
-  font-size: 11px;
-  letter-spacing: 1px;
+.brand-ver {
+  font-size: 10px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
+  color: rgba(255,255,255,0.18);
 }
 
-/* ─── PANEL DERECHO ─── */
-.login-form-panel {
+/* ── Panel derecho ─────────────────────────────────────────── */
+.panel-form {
   flex: 1;
-  background: #f8fafc;
+  background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 40px 24px;
+  transition: background 0.25s;
 }
 
-.login-form-wrapper {
+.form-box {
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
+  position: relative;
 }
 
-.form-header {
+/* ── Toggle tema ───────────────────────────────────────────── */
+.theme-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg2);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Cabecera del form ─────────────────────────────────────── */
+.form-head {
   margin-bottom: 36px;
+}
+
+.form-head-logo {
+  display: none; /* solo visible en móvil */
 }
 
 .form-title {
   font-size: 26px;
   font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 6px;
+  color: var(--text);
   letter-spacing: -0.5px;
+  margin-bottom: 6px;
 }
 
-.form-subtitle {
+.form-sub {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
-/* ─── CAMPOS ─── */
-.login-form { display: flex; flex-direction: column; gap: 20px; }
+/* ── Campos ────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
 
-.field-group { display: flex; flex-direction: column; gap: 6px; }
-
-.field-label {
+.field-lbl {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1.2px;
-  color: #64748b;
+  letter-spacing: 1.3px;
+  color: var(--text-muted);
 }
 
-.field-input-wrap {
+.field-wrap {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: white;
-  border: 1.5px solid #e2e8f0;
+  background: var(--input-bg);
+  border: 1.5px solid var(--border);
   border-radius: 10px;
   padding: 0 14px;
   height: 50px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.field-input-wrap:focus-within {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+.field-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245,166,35,0.12);
 }
 
-.field-icon { color: #94a3b8; flex-shrink: 0; }
-.field-icon-right { color: #94a3b8; flex-shrink: 0; cursor: pointer; }
-.field-icon-right:hover { color: #667eea; }
+.f-icon   { color: var(--text-muted); flex-shrink: 0; }
+.f-icon-r { color: var(--text-muted); flex-shrink: 0; cursor: pointer; }
+.f-icon-r:hover { color: var(--accent); }
 
-.field-input {
+.f-input {
   flex: 1;
   border: none;
   outline: none;
   background: transparent;
   font-size: 14px;
-  color: #0f172a;
-  font-family: 'Inter', sans-serif;
+  color: var(--text);
+  font-family: inherit;
 }
+.f-input::placeholder { color: var(--text-muted); opacity: 0.6; }
 
-.field-input::placeholder { color: #cbd5e1; }
-
-/* ─── OPCIONES ─── */
-.form-options {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.remember-label {
+/* ── Remember ──────────────────────────────────────────────── */
+.remember {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
+  margin-bottom: 22px;
   user-select: none;
 }
+.remember input { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
 
-.remember-check {
-  width: 15px;
-  height: 15px;
-  accent-color: #667eea;
-  cursor: pointer;
-}
-
-/* ─── ERROR ─── */
-.error-box {
+/* ── Error ─────────────────────────────────────────────────── */
+.error-msg {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  gap: 7px;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 10px 13px;
   font-size: 12px;
   color: #ef4444;
+  margin-bottom: 18px;
 }
 
-/* ─── BOTÓN ─── */
-.btn-login {
+/* ── Botón ─────────────────────────────────────────────────── */
+.btn-submit {
+  width: 100%;
   height: 52px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--accent);
+  color: var(--accent-text);
   border: none;
   border-radius: 10px;
   font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   cursor: pointer;
-  width: 100%;
-  transition: all 0.3s;
-  font-family: 'Inter', sans-serif;
-  box-shadow: 0 8px 24px rgba(102,126,234,0.35);
+  font-family: inherit;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(245,166,35,0.3);
 }
-
-.btn-login:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(102,126,234,0.45); }
-.btn-login:active { transform: translateY(0); }
-.btn-login:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+.btn-submit:hover   { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(245,166,35,0.4); }
+.btn-submit:active  { transform: translateY(0); }
+.btn-submit:disabled{ opacity: 0.65; cursor: not-allowed; transform: none; }
 
 /* Loading dots */
-.loading-dots { display: flex; gap: 4px; justify-content: center; align-items: center; height: 100%; }
-.loading-dots span {
-  width: 6px; height: 6px; background: white; border-radius: 50%;
-  animation: bounce 1.2s infinite;
+.dots { display: flex; gap: 4px; justify-content: center; align-items: center; }
+.dots span {
+  width: 6px; height: 6px; background: var(--accent-text);
+  border-radius: 50%; animation: bounce 1.2s infinite;
 }
-.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
-.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+.dots span:nth-child(2) { animation-delay: 0.2s; }
+.dots span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes bounce {
-  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-  40% { transform: scale(1.2); opacity: 1; }
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+  40%           { transform: scale(1.2); opacity: 1; }
 }
 
-/* ─── SELECTOR EMPRESA ─── */
-.empresa-selector {
+/* ── Selector empresas ─────────────────────────────────────── */
+.emp-list {
   margin-top: 24px;
-  border-top: 1px solid #e2e8f0;
   padding-top: 20px;
+  border-top: 1px solid var(--border);
 }
-.empresa-title {
-  font-size: 11px;
+.emp-title {
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1px;
-  color: #94a3b8;
+  letter-spacing: 1.3px;
   text-transform: uppercase;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
-.empresa-option {
+.emp-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--border);
   border-radius: 10px;
   cursor: pointer;
   margin-bottom: 8px;
   transition: all 0.2s;
+  background: var(--bg2);
 }
-.empresa-option:hover { border-color: #667eea; background: #f0f4ff; }
-.empresa-icon { width: 36px; height: 36px; background: #eef2ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.empresa-name { font-size: 13px; font-weight: 600; color: #0f172a; }
-.empresa-nit { font-size: 11px; color: #94a3b8; }
-
-/* ─── TEMA ─── */
-.theme-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 28px;
-  justify-content: center;
-  cursor: pointer;
+.emp-item:hover { border-color: var(--accent); background: rgba(245,166,35,0.05); }
+.emp-icon {
+  width: 36px; height: 36px;
+  background: rgba(245,166,35,0.1);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
 }
-.theme-text { font-size: 12px; color: #94a3b8; }
-.theme-text:hover { color: #667eea; }
+.emp-name  { font-size: 13px; font-weight: 600; color: var(--text); }
+.emp-nit   { font-size: 11px; color: var(--text-muted); }
+.emp-arrow { color: var(--text-muted); margin-left: auto; }
 
-/* ─── DARK MODE (desktop toggle) ─── */
-.login-page.dark-mode .login-form-panel { background: #1e293b; }
-.login-page.dark-mode .form-title       { color: #f1f5f9; }
-.login-page.dark-mode .form-subtitle    { color: #94a3b8; }
-.login-page.dark-mode .field-label      { color: #94a3b8; }
-.login-page.dark-mode .field-input-wrap { background: #0f172a; border-color: rgba(255,255,255,0.1); }
-.login-page.dark-mode .field-input      { color: #f1f5f9; }
-.login-page.dark-mode .field-input::placeholder { color: #475569; }
-.login-page.dark-mode .remember-label   { color: #94a3b8; }
-.login-page.dark-mode .error-box        { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); }
-.login-page.dark-mode .empresa-selector { border-top-color: rgba(255,255,255,0.1); }
-.login-page.dark-mode .empresa-title    { color: rgba(255,255,255,0.4); }
-.login-page.dark-mode .empresa-option   { border-color: rgba(255,255,255,0.1); }
-.login-page.dark-mode .empresa-option:hover { background: rgba(102,126,234,0.12); border-color: #667eea; }
-.login-page.dark-mode .empresa-icon     { background: rgba(102,126,234,0.2); }
-.login-page.dark-mode .empresa-name     { color: #f1f5f9; }
-.login-page.dark-mode .empresa-nit      { color: #94a3b8; }
-.login-page.dark-mode .theme-text       { color: #64748b; }
-
-/* ─── RESPONSIVE (móvil: siempre fondo oscuro) ─── */
+/* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .login-brand { display: none; }
-  .login-form-panel { background: #0f172a; }
-  .form-title       { color: white; }
-  .form-subtitle    { color: rgba(255,255,255,0.5); }
-  .field-label      { color: rgba(255,255,255,0.6); }
-  .field-input-wrap { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); }
-  .field-input      { color: white; }
-  .field-input::placeholder { color: rgba(255,255,255,0.3); }
-  .remember-label   { color: rgba(255,255,255,0.5); }
-  /* selector de empresas en fondo oscuro */
-  .empresa-selector { border-top-color: rgba(255,255,255,0.1); }
-  .empresa-title    { color: rgba(255,255,255,0.4); }
-  .empresa-option   { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); }
-  .empresa-option:hover { border-color: #667eea; background: rgba(102,126,234,0.15); }
-  .empresa-icon     { background: rgba(102,126,234,0.2); }
-  .empresa-name     { color: white; }
-  .empresa-nit      { color: rgba(255,255,255,0.5); }
-  .theme-text       { color: rgba(255,255,255,0.4); }
-  .error-box        { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
+  .panel-brand { display: none; }
+
+  .panel-form { background: var(--bg); }
+
+  .form-head-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .form-head-logo img {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    box-shadow: 0 4px 20px rgba(245,166,35,0.2);
+  }
+  .form-title { text-align: center; }
+  .form-sub   { text-align: center; }
 }
 </style>
