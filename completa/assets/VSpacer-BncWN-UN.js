@@ -1,1 +1,0 @@
-import{t as e}from"./createSimpleFunctional-Dp8XT-rm.js";var t=e(`v-spacer`,`div`,`VSpacer`);export{t};

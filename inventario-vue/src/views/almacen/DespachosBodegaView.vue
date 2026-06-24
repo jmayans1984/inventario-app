@@ -945,17 +945,21 @@ function imprimirDespacho(o) {
   let filas = ''
   for (const [, grupo] of gruposMap) {
     filas += `<tr>
-      <td colspan="5" style="padding:3px 8px;background:#f3f0ff;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;border-bottom:1px solid #e5e7eb">
+      <td colspan="6" style="padding:3px 8px;background:#f3f0ff;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;border-bottom:1px solid #e5e7eb">
         ${grupo.nombre}
       </td>
     </tr>`
     for (const item of grupo.items) {
+      const despachado = parseFloat(item.cant_packing) > 0
+        ? parseFloat(item.cant_packing)
+        : parseFloat(item.cant_picking || 0)
       filas += `<tr>
         <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:10px">${item.producto_codigo}</td>
         <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:10px">${item.producto_nombre}</td>
         <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;color:#555;font-size:9px">${item.descripcion || '—'}</td>
         <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:10px">${item.und}</td>
         <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:10px">${parseFloat(item.cant_requerida)}</td>
+        <td style="padding:3px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:10px;color:#047857">${despachado}</td>
       </tr>`
     }
   }
@@ -1000,6 +1004,7 @@ function imprimirDespacho(o) {
       <th>DESCRIPCIÓN</th>
       <th style="width:55px;text-align:center">UND</th>
       <th style="width:80px;text-align:center">REQUERIDO</th>
+      <th style="width:80px;text-align:center">DESPACHADO</th>
     </tr></thead>
     <tbody>${filas}</tbody>
   </table>
