@@ -98,7 +98,21 @@
         .home-logout-btn svg { display: block; }
         .home-logout-btn:active { background: rgba(239,68,68,0.3); }
 
-        .home-theme-btn { display: none; }
+        .home-theme-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            flex-shrink: 0;
+        }
+        .home-theme-btn:active { background: rgba(255,255,255,0.15); }
     </style>
 </head>
 <body>
@@ -115,6 +129,10 @@
                 </div>
             </div>
             <div class="home-hero-actions">
+                <button class="home-theme-btn" onclick="cambiarTema()" aria-label="Cambiar tema">
+                    <span class="theme-icon-light">☀️</span>
+                    <span class="theme-icon-dark">🌙</span>
+                </button>
                 <button class="home-logout-btn" onclick="cerrarSesion()" aria-label="Salir">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
