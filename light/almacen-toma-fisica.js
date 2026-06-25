@@ -159,13 +159,23 @@ function renderProductos() {
         });
     }
 
-    let html = '<div style="display:flex;flex-direction:column;gap:12px">';
+    let html = '<table class="grid-table">';
+    html += '<thead><tr>'
+          + '<th style="width:70px">CÓDIGO</th>'
+          + '<th>NOMBRE</th>'
+          + '<th style="width:50px">UND</th>'
+          + '<th style="width:90px">STOCK</th>'
+          + '<th style="width:90px">FÍSICO</th>'
+          + '<th style="width:80px">DIF</th>'
+          + '</tr></thead><tbody>';
 
     const gruposOrdenados = Object.entries(grupos).sort(([ka], [kb]) => ka.localeCompare(kb));
     gruposOrdenados.forEach(([, grupo]) => {
-        html += `<div style="background:var(--bg-secondary);padding:10px;font-weight:600;font-size:12px;border-radius:8px;margin-bottom:4px">
-            📁 ${grupo.nombre}
-        </div>`;
+        html += `<tr>
+            <td colspan="6" style="background:var(--bg-secondary);padding:10px;font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">
+                📁 ${grupo.nombre}
+            </td>
+        </tr>`;
 
         grupo.items.forEach(p => {
             const stock = parseFloat(p.stock_actual ?? 0);
@@ -178,35 +188,31 @@ function renderProductos() {
             const diffText  = diff === null ? '—'
                             : (diff > 0 ? '+' : '') + diff.toFixed(2);
 
-            html += `<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
-                <div style="font-weight:700;font-size:15px;color:var(--text-primary)">${p.nombre}</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
-                    <div>
-                        <span style="color:var(--text-secondary);font-size:10px;text-transform:uppercase;font-weight:600">Stock</span>
-                        <div style="font-weight:600;font-size:13px;color:var(--text-primary)">${stock.toFixed(2)} ${p.und}</div>
-                    </div>
-                    <div>
-                        <span style="color:var(--text-secondary);font-size:10px;text-transform:uppercase;font-weight:600">Físico</span>
-                        <input type="number"
-                            class="fisico-input"
-                            data-codigo="${p.codigo}"
-                            data-stock="${stock}"
-                            value="${fis}"
-                            placeholder="0"
-                            step="0.01"
-                            min="0"
-                            oninput="actualizarDiferencia(this)"
-                            style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600">
-                    </div>
-                </div>
-                <div style="text-align:right;padding:8px 0;border-top:1px solid var(--border);font-family:monospace;font-weight:700;color:${diffColor};font-size:13px">
-                    Dif: ${diffText}
-                </div>
-            </div>`;
+            html += `<tr>
+                <td><span style="background:var(--bg-tertiary);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">${p.codigo}</span></td>
+                <td style="padding:8px">${p.nombre}</td>
+                <td style="text-align:center;font-size:12px;font-weight:600;padding:8px">${p.und}</td>
+                <td style="text-align:right;padding:8px;font-family:monospace;font-weight:600;color:var(--text-secondary)">${stock.toFixed(2)}</td>
+                <td style="padding:8px">
+                    <input type="number"
+                        class="fisico-input"
+                        data-codigo="${p.codigo}"
+                        data-stock="${stock}"
+                        value="${fis}"
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        oninput="actualizarDiferencia(this)"
+                        style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+                </td>
+                <td id="diff-${p.codigo}" style="text-align:right;padding:8px;font-family:monospace;font-weight:600;color:${diffColor}">
+                    ${diffText}
+                </td>
+            </tr>`;
         });
     });
 
-    html += '</div>';
+    html += '</tbody></table>';
     document.getElementById('gridProductos').innerHTML = html;
     actualizarFooter();
 }
