@@ -43,6 +43,15 @@
         return location.pathname.split('/').pop() || 'principal.html';
     }
 
+    const MODULE_COLORS = {
+        almacen:      { color: '#F5A623', bg: 'rgba(245,166,35,0.12)' },
+        tesoreria:    { color: '#d97706', bg: 'rgba(217,119,6,0.12)'  },
+        contabilidad: { color: '#16a34a', bg: 'rgba(22,163,74,0.12)'  },
+        nomina:       { color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
+        inventario:   { color: '#e11d48', bg: 'rgba(225,29,72,0.12)'  },
+        facturacion:  { color: '#0891b2', bg: 'rgba(8,145,178,0.12)'  },
+    };
+
     // ── Inject top bar (back button + title) for internal pages ───
     function renderTopBar() {
         const page = getCurrentPage();
@@ -54,18 +63,92 @@
         const legacyHeader = document.querySelector('header.header');
         if (legacyHeader) legacyHeader.style.display = 'none';
 
+        const mod    = info.module ? MODULE_COLORS[info.module] : null;
+        const accent = mod ? mod.color : '#F5A623';
+        const accentBg = mod ? mod.bg : 'rgba(245,166,35,0.12)';
+
         const topBar = document.createElement('header');
         topBar.className = 'top-bar';
+        topBar.style.cssText = `
+            background: #111111;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding-top: env(safe-area-inset-top, 0px);
+        `;
         topBar.innerHTML = `
-            <div class="top-bar-inner">
-                <a href="${info.back}" class="top-bar-back">
-                    <svg width="10" height="17" viewBox="0 0 10 17" fill="none">
-                        <path d="M8.5 1L1.5 8.5L8.5 16" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <div style="
+                display: flex;
+                align-items: center;
+                height: 54px;
+                padding: 0 14px;
+                gap: 10px;
+            ">
+                <a href="${info.back}" style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.07);
+                    border: none;
+                    text-decoration: none;
+                    flex-shrink: 0;
+                    color: #ffffff;
+                " aria-label="Volver">
+                    <svg width="9" height="15" viewBox="0 0 9 15" fill="none">
+                        <path d="M7.5 1L1.5 7.5L7.5 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    Inicio
                 </a>
-                <span class="top-bar-title">${info.title}</span>
-                <button class="top-bar-theme-btn" onclick="cambiarTema()" aria-label="Cambiar tema">
+
+                <img src="../assets/logo.png" style="
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 7px;
+                    object-fit: contain;
+                    flex-shrink: 0;
+                " alt="Logo">
+
+                <div style="flex: 1; min-width: 0;">
+                    <div style="
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        letter-spacing: -0.2px;
+                    ">${info.title}</div>
+                    ${info.module ? `<div style="
+                        display: inline-block;
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: ${accent};
+                        background: ${accentBg};
+                        border-radius: 4px;
+                        padding: 1px 6px;
+                        margin-top: 2px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.4px;
+                    ">${info.module}</div>` : ''}
+                </div>
+
+                <button onclick="cambiarTema()" aria-label="Cambiar tema" style="
+                    width: 32px;
+                    height: 32px;
+                    border: none;
+                    background: rgba(255,255,255,0.07);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                    -webkit-tap-highlight-color: transparent;
+                ">
                     <span class="theme-icon-light">☀️</span>
                     <span class="theme-icon-dark">🌙</span>
                 </button>
