@@ -896,6 +896,25 @@ app.delete('/api/almacen/barcodes/:id', async (req, res) => {
     }
 });
 
+// GET /api/almacen/barcodes-all?empresa=xxx
+// Devuelve TODOS los barcodes de la empresa para precargar en el scanner (local-first)
+app.get('/api/almacen/barcodes-all', async (req, res) => {
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const r = await pool.query(
+            `SELECT pb.barcode, pb.producto_codigo, p.nombre, pb.factor
+             FROM producto_barcodes pb
+             JOIN productos p ON p.codigo = pb.producto_codigo
+             WHERE pb.empresa=$1`,
+            [empresa]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // GET /api/almacen/barcode-lookup?barcode=xxx&empresa=xxx
 // Busca el producto asociado a un código de barra (usado por el scanner)
 app.get('/api/almacen/barcode-lookup', async (req, res) => {

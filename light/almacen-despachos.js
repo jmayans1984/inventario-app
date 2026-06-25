@@ -2,7 +2,7 @@
 // DESPACHOS DE BODEGA — Scanner · Picking · Packing · Confirmación
 // ================================================================
 
-const APP_VERSION = '2.5.7'; // Versión actual de la app
+const APP_VERSION = '2.6.0'; // Versión actual de la app
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
@@ -24,6 +24,15 @@ let modoVisualizacion  = 'categoria'; // 'ubicacion' | 'categoria'
 let scanQueue          = [];      // cola de códigos pendientes de procesar
 let procesandoCola     = false;   // flag para procesar secuencialmente
 const DELAY_ENTRE_SCANS = 600;   // ms entre cada escaneo procesado
+
+// ── LOCAL-FIRST: sincronización en segundo plano ──────────────
+// Cada escaneo incrementa localmente al instante y se sincroniza con el
+// servidor en lote (debounce). El input NUNCA se bloquea.
+let barcodesPrecargados = false;  // ya se cargaron los barcodes en memoria
+let pendingDeltas       = {};     // codigo -> delta acumulado sin enviar al server
+let syncTimer           = null;   // debounce del flush
+let syncEnVuelo         = false;  // evita flushes concurrentes
+const SYNC_DEBOUNCE      = 500;   // ms de espera antes de enviar el lote
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -272,6 +281,11 @@ async function confirmarIniciarEscaneo(modoViz) {
     scanEnProceso  = false;
     itemsOcultos   = new Set();
     mostrandoOcultos = false;
+    pendingDeltas  = {};
+    syncEnVuelo    = false;
+
+    // LOCAL-FIRST: precargar todos los barcodes en memoria (una sola consulta)
+    await precargarBarcodes();
 
     // Cargar productos ya completados en packing desde la BD
     if (ordenActiva && ordenActiva.detalle) {
@@ -513,106 +527,183 @@ async function guardarObservacionesDetalle() {
     }
 }
 
-// ── Captura del scanner ───────────────────────────────────────
-// Buffer de escaneos: acumula códigos cuando detecta Enter (fin de escaneo)
-let scanQueueTimer = null;
+// ══════════════════════════════════════════════════════════════
+// CAPTURA DEL SCANNER — LOCAL-FIRST (instantáneo, sin bloqueos)
+// ══════════════════════════════════════════════════════════════
+
+// Precargar TODOS los barcodes de la empresa en memoria (una sola consulta).
+// Así cada escaneo se resuelve localmente al instante, sin esperar a la red.
+async function precargarBarcodes() {
+    try {
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/barcodes-all?empresa=${getEmpresa()}`);
+        const data = await res.json();
+        barcodeCache = {};
+        (data.data || []).forEach(b => {
+            barcodeCache[String(b.barcode).trim()] = {
+                productoCodigo: b.producto_codigo,
+                nombre:         b.nombre,
+                factor:         parseFloat(b.factor) || 1
+            };
+        });
+        barcodesPrecargados = true;
+    } catch (e) {
+        console.error('[PRECARGA BARCODES] Error:', e);
+        barcodesPrecargados = false;
+    }
+    // Además: mapear el código interno de cada producto de la orden (factor 1)
+    // para que escanear el código del producto también funcione al instante.
+    if (ordenActiva && ordenActiva.detalle) {
+        ordenActiva.detalle.forEach(item => {
+            const cod = String(item.producto_codigo).trim();
+            if (!barcodeCache[cod]) {
+                barcodeCache[cod] = { productoCodigo: item.producto_codigo, nombre: item.producto_nombre, factor: 1 };
+            }
+        });
+    }
+}
 
 function onScanInput(e) {
     hideFeedback();
 }
 
 function onScanKeydown(e) {
-    // SOLO procesar cuando presiona Enter (que es lo que envía el escáner al final)
+    // El scanner envía Enter al final de cada código
     if (e.key === 'Enter') {
         e.preventDefault();
-        clearTimeout(scanQueueTimer);
-
         const inp = document.getElementById('scannerInput');
         const codigo = inp.value.trim();
-
-        if (codigo) {
-            // Agregar a la cola
-            scanQueue.push(codigo);
-            inp.value = '';
-
-            // Mostrar que se acumuló
-            const pendientes = scanQueue.length;
-            showFeedback('ok', `📦 Acumulado: ${pendientes} código(s) en cola`);
-
-            // Esperar 800ms para permitir más escaneos rápidos antes de procesar
-            clearTimeout(scanQueueTimer);
-            scanQueueTimer = setTimeout(() => {
-                if (scanQueue.length > 0) {
-                    procesarColaEscaneos();
-                }
-            }, 800);
-        }
+        inp.value = '';                 // limpiar de inmediato para el siguiente
+        if (codigo) registrarScanLocal(codigo);
     }
 }
 
-function mostrarEstadoCola() {
-    const feedback = document.getElementById('scanFeedback');
-    if (scanQueue.length > 0) {
-        showFeedback('ok', `📦 Cola: ${scanQueue.length} código(s) en espera`);
-    }
-}
-
-async function procesarColaEscaneos() {
-    // Si ya está procesando o la cola está vacía, salir
-    if (procesandoCola || scanQueue.length === 0) return;
-
-    procesandoCola = true;
-    const inp = document.getElementById('scannerInput');
-    inp.disabled = true; // 🔒 Deshabilitar input mientras procesa
-
-    try {
-        // 1. Agrupar códigos iguales: {código: cantidad}
-        const codigosAgrupados = {};
-        for (const codigo of scanQueue) {
-            codigosAgrupados[codigo] = (codigosAgrupados[codigo] || 0) + 1;
-        }
-        const codigosUnicos = Object.keys(codigosAgrupados).length;
-        const totalScans = scanQueue.length;
-
-        // 2. Mostrar resumen de lo que se va a procesar
-        showFeedback('ok', `📦 Procesando ${totalScans} escaneo(s) (${codigosUnicos} producto(s) único(s))...`);
-
-        // 3. Procesar cada código único con su cantidad agrupada
-        let procesados = 0;
-        for (const [codigo, cantidad] of Object.entries(codigosAgrupados)) {
-            procesados++;
-            showFeedback('ok', `⏳ [${procesados}/${codigosUnicos}] Procesando: ${codigo} × ${cantidad}`);
-
-            // Procesar el código con la cantidad agrupada
-            await procesarScanAgrupado(codigo, cantidad);
-
-            // Si hay más, esperar un poco antes del siguiente
-            if (procesados < codigosUnicos) {
-                await new Promise(resolve => setTimeout(resolve, DELAY_ENTRE_SCANS));
-            }
-        }
-
-        scanQueue = []; // limpiar la cola
-    } finally {
-        procesandoCola = false;
-        inp.disabled = false; // 🔓 Habilitar input de nuevo
-        refocusInput();
-    }
-}
-
-// FIX 3: botón manual de búsqueda
+// FIX 3: botón manual de búsqueda — mismo camino local-first
 function ejecutarScanManual() {
     const inp    = document.getElementById('scannerInput');
     const codigo = inp.value.trim();
     if (!codigo) { inp.focus(); return; }
-
-    clearTimeout(scanQueueTimer);
     inp.value = '';
+    registrarScanLocal(codigo);
+}
 
-    // Agregar a la cola y procesar
-    scanQueue.push(codigo);
-    mostrarEstadoCola();
-    procesarColaEscaneos();
+// Procesa un escaneo de forma LOCAL e INSTANTÁNEA. Nunca bloquea el input.
+function registrarScanLocal(barcode) {
+    barcode = String(barcode).trim();
+    const info = barcodeCache[barcode];
+
+    // Código no reconocido → popup para asociarlo a un producto (preservado)
+    if (!info) {
+        mostrarAsociadorBarcode(barcode);
+        return;
+    }
+
+    const codigo = info.productoCodigo;
+    const nombre = info.nombre;
+    const factor = info.factor || 1;
+    const campo  = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+
+    // ¿Está en la orden? Si no, agregarlo localmente
+    let item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+    if (!item) {
+        item = { producto_codigo: codigo, producto_nombre: nombre, cant_requerida: 0, cant_picking: 0, cant_packing: 0 };
+        ordenActiva.detalle.push(item);
+        renderScanList(campo);
+    }
+
+    // Si estaba oculto (ya completado), mostrarlo de nuevo para que se vea el cambio
+    if (itemsOcultos.has(codigo)) {
+        itemsOcultos.delete(codigo);
+        renderScanList(campo);
+    }
+
+    // INCREMENTO OPTIMISTA INMEDIATO
+    item[campo] = (parseFloat(item[campo]) || 0) + factor;
+    const nuevo = parseFloat(item[campo]);
+    const req   = parseFloat(item.cant_requerida) || 0;
+    const sufijo = factor > 1 ? ` (×${factor})` : '';
+
+    if (req === 0)          showFeedback('ok',   `✅ ${nombre}${sufijo} — agregado (${nuevo})`);
+    else if (nuevo < req)   showFeedback('warn', `⚠️ ${nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`);
+    else if (nuevo === req)  showFeedback('ok',   `✅ ${nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`);
+    else                    showFeedback('warn', `🔴 ${nombre}${sufijo} — Sobrante: ${nuevo}/${req}`);
+
+    actualizarFilaScan(item, campo);
+
+    // Si completó exactamente, ocultar (igual que antes)
+    if (req > 0 && nuevo === req) {
+        verificarCompletoYOcultar(item, campo);
+    }
+
+    // Acumular delta para sincronizar con el servidor en segundo plano
+    pendingDeltas[codigo] = (pendingDeltas[codigo] || 0) + factor;
+    programarSync();
+
+    // Cambiar estado de la orden al primer scan (fire-and-forget, una sola vez)
+    cambiarEstadoPrimerScan();
+}
+
+// Cambia el estado de la orden a EN_PACKING en el primer escaneo (una vez)
+function cambiarEstadoPrimerScan() {
+    if (estadoCambiado) return;
+    estadoCambiado = true;
+    const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
+    fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
+    }).then(() => { ordenActiva.estado = nuevoEst; })
+      .catch(() => { estadoCambiado = false; }); // reintentar en el próximo scan
+}
+
+// Debounce: agrupa los escaneos rápidos en un solo envío por producto
+function programarSync() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(flushSync, SYNC_DEBOUNCE);
+}
+
+// Envía al servidor los deltas acumulados (en lote) y reconcilia con la respuesta
+async function flushSync() {
+    if (syncEnVuelo) { programarSync(); return; }
+    const lote = pendingDeltas;
+    pendingDeltas = {};
+    const codigos = Object.keys(lote);
+    if (codigos.length === 0) return;
+
+    syncEnVuelo = true;
+    const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+
+    try {
+        for (const codigo of codigos) {
+            const delta = lote[codigo];
+            if (!delta) continue;
+            try {
+                const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo: modoEscaneo, delta })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Reconciliar SOLO si no llegaron más escaneos de este producto
+                    const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+                    if (item && !pendingDeltas[codigo]) {
+                        item[campo] = parseFloat(data.data[campo]) || 0;
+                        if (data.data.cant_requerida != null) item.cant_requerida = parseFloat(data.data.cant_requerida) || 0;
+                    }
+                } else {
+                    // Falló: devolver el delta a la cola para reintentar
+                    pendingDeltas[codigo] = (pendingDeltas[codigo] || 0) + delta;
+                }
+            } catch (e) {
+                console.error('[SYNC] Error con', codigo, e);
+                pendingDeltas[codigo] = (pendingDeltas[codigo] || 0) + delta;
+            }
+        }
+    } finally {
+        syncEnVuelo = false;
+        // Si quedaron deltas pendientes (nuevos scans o reintentos), reprogramar
+        if (Object.keys(pendingDeltas).length > 0) programarSync();
+    }
 }
 
 // Procesar un código con cantidad agrupada (múltiples escaneos del mismo producto)
@@ -856,10 +947,10 @@ async function procesarScan(barcode) {
     }
 }
 
-// FIX 2: reintentar último scan
+// FIX 2: reintentar — fuerza el envío de pendientes al servidor
 function reintentarScan() {
     hideFeedback();
-    if (ultimoBarcode) procesarScan(ultimoBarcode);
+    programarSync();
 }
 
 // ── FIX 4 + 5: ajustar cantidad manualmente ──────────────────
@@ -1195,12 +1286,27 @@ function refocusInput() {
     }, 120);
 }
 
-function finalizarEscaneo() {
-    abrirOrden(ordenActiva.id).then(() => mostrarScreen('detalle'));
+// Asegura que todos los escaneos pendientes lleguen al servidor antes de salir
+async function sincronizarPendientesAntesDeSalir() {
+    clearTimeout(syncTimer);
+    let intentos = 0;
+    while ((Object.keys(pendingDeltas).length > 0 || syncEnVuelo) && intentos < 20) {
+        if (!syncEnVuelo) await flushSync();
+        else await new Promise(r => setTimeout(r, 150));
+        intentos++;
+    }
 }
 
-function volverAlDetalle() {
-    abrirOrden(ordenActiva.id).then(() => mostrarScreen('detalle'));
+async function finalizarEscaneo() {
+    await sincronizarPendientesAntesDeSalir();
+    await abrirOrden(ordenActiva.id);
+    mostrarScreen('detalle');
+}
+
+async function volverAlDetalle() {
+    await sincronizarPendientesAntesDeSalir();
+    await abrirOrden(ordenActiva.id);
+    mostrarScreen('detalle');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1754,7 +1860,12 @@ async function confirmarFactorBarcode(productoCodigo, barcode, factorDirecto) {
             body: JSON.stringify({ empresa: getEmpresa(), barcode, es_principal: false, factor })
         });
         // 409 = ya existía ese barcode; no es un error fatal
-        barcodeCache[barcode] = { factor, productoCodigo };
+        // Guardar también el nombre para que los escaneos locales posteriores lo muestren
+        barcodeCache[String(barcode).trim()] = {
+            factor,
+            productoCodigo,
+            nombre: window._nombreProductoBarcode || productoCodigo
+        };
     } catch(e) { /* continuar igualmente */ }
 
     const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
@@ -1974,8 +2085,7 @@ async function abrirCamara() {
                 if (result) {
                     const codigo = result.getText();
                     cerrarCamara();
-                    document.getElementById('scannerInput').value = codigo;
-                    procesarScan(codigo);
+                    registrarScanLocal(codigo);
                 }
             }
         );
