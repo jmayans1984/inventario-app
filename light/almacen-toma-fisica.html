@@ -100,6 +100,20 @@
             from { opacity: 1; transform: translateX(-50%) translateY(0); }
             to { opacity: 0; transform: translateX(-50%) translateY(-20px); }
         }
+
+        /* ── Ocultar columna CÓDIGO y reducir NOMBRE ─────── */
+        #gestionContent table th:nth-child(1),
+        #gestionContent table td:nth-child(1) {
+            display: none;
+        }
+
+        #gestionContent table th:nth-child(2),
+        #gestionContent table td:nth-child(2) {
+            max-width: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
