@@ -164,9 +164,9 @@ function renderProductos() {
           + '<th style="width:70px">CÓDIGO</th>'
           + '<th>NOMBRE</th>'
           + '<th style="width:50px">UND</th>'
-          + '<th style="width:90px">STOCK SISTEMA</th>'
+          + '<th style="width:90px">STOCK</th>'
           + '<th style="width:90px">FÍSICO</th>'
-          + '<th style="width:80px">DIFERENCIA</th>'
+          + '<th style="width:80px">DIF</th>'
           + '</tr></thead><tbody>';
 
     const gruposOrdenados = Object.entries(grupos).sort(([ka], [kb]) => ka.localeCompare(kb));
