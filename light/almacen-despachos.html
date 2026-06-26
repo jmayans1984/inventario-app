@@ -645,10 +645,14 @@
         <!-- ══════════════════════════════════════════════════ -->
         <div id="screen-lista" class="screen active">
             <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
-                <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer">
-                    <input type="checkbox" id="mostrarCompletadas" onchange="toggleCompletadas()" style="cursor:pointer;width:18px;height:18px">
-                    Mostrar completadas
-                </label>
+                <div style="display:flex;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;background:var(--bg-input)">
+                    <button id="btnOrdenesSoloActivas" onclick="filtrarOrdenes(false)" style="padding:10px 16px;border:none;background:var(--accent);color:white;font-size:13px;font-weight:700;cursor:pointer;flex:1">
+                        📋 Solo activas
+                    </button>
+                    <button id="btnOrdenesAll" onclick="filtrarOrdenes(true)" style="padding:10px 16px;border:none;background:transparent;color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;flex:1;border-left:1px solid var(--border-color)">
+                        ✓ Todas
+                    </button>
+                </div>
             </div>
             <div id="listaOrdenes">
                 <div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div>

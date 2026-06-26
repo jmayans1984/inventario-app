@@ -91,12 +91,38 @@ async function cargarOrdenes() {
     }
 }
 
+// Cambiar filtro de órdenes (solo activas / todas)
+function filtrarOrdenes(mostrarAll) {
+    mostrarCompletadas = mostrarAll;
+
+    // Actualizar estilos de botones
+    const btnActivas = document.getElementById('btnOrdenesSoloActivas');
+    const btnAll = document.getElementById('btnOrdenesAll');
+    if (mostrarAll) {
+        btnActivas.style.background = 'transparent';
+        btnActivas.style.color = 'var(--text-secondary)';
+        btnAll.style.background = 'var(--accent)';
+        btnAll.style.color = 'white';
+    } else {
+        btnActivas.style.background = 'var(--accent)';
+        btnActivas.style.color = 'white';
+        btnAll.style.background = 'transparent';
+        btnAll.style.color = 'var(--text-secondary)';
+    }
+
+    // Recargar ordenes
+    cargarOrdenes();
+}
+
 function renderLista(ordenes) {
     const el = document.getElementById('listaOrdenes');
 
-    // Solo mostrar órdenes activas (excluir completadas y canceladas)
-    const ACTIVAS = ['PENDIENTE','EN_PICKING','EN_PACKING'];
-    ordenes = ordenes.filter(o => ACTIVAS.includes(o.estado));
+    // Filtrar según preferencia del usuario
+    if (!mostrarCompletadas) {
+        // Solo mostrar órdenes activas (excluir completadas y canceladas)
+        const ACTIVAS = ['PENDIENTE','EN_PICKING','EN_PACKING'];
+        ordenes = ordenes.filter(o => ACTIVAS.includes(o.estado));
+    }
 
     if (!ordenes.length) {
         el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No hay órdenes activas</p></div>`;
