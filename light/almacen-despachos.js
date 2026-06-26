@@ -1053,61 +1053,53 @@ async function ajustarCantidad(codigo, campo, delta) {
     }
 }
 
-// FIX 5: entrada manual por producto (bottom sheet)
+// Entrada manual: popup modal flotante centrado
 function mostrarEntradaManual(codigo, campo) {
     const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
     if (!item) return;
 
     const esc = parseFloat(item[campo]) || 0;
     const req = parseFloat(item.cant_requerida) || 0;
+    const popup = document.getElementById('popupEntradaManual');
 
-    const overlay = document.getElementById('bsOverlay');
-    const panel   = overlay.querySelector('.bs-panel');
+    // Llenar datos
+    document.getElementById('popupEntradaNombre').textContent = item.producto_nombre;
+    document.getElementById('popupEntradaEsc').textContent = esc;
+    document.getElementById('popupEntradaReq').textContent = req;
+    const input = document.getElementById('popupEntradaInput');
+    input.value = '';
 
-    panel.innerHTML = `
-      <div style="padding:20px 16px 20px">
-        <div class="bs-drag" style="width:40px;height:4px;background:var(--border-color);border-radius:2px;margin:0 auto 16px"></div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px">✏️ Entrada manual</div>
-        <div style="font-size:17px;font-weight:800;margin-bottom:4px;line-height:1.2">${item.producto_nombre}</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">
-          Registrado: <strong style="color:var(--text-primary)">${esc}</strong> / Requerido: <strong>${req}</strong>
-        </div>
-        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Cantidad a agregar (usa número negativo para quitar):</div>
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
-          <button onclick="ajustarCantidadManual('${codigo}','${campo}',-1)" style="width:52px;height:52px;border-radius:12px;border:2px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0">−</button>
-          <input id="manualCantInput" type="text" inputmode="decimal" autocomplete="off"
-            value=""
-            placeholder="Ej: 5"
-            style="flex:1;padding:14px;border-radius:12px;border:2px solid var(--border-color);
-                   background:var(--bg-input);color:var(--text-primary);font-size:22px;
-                   font-weight:700;text-align:center;outline:none;box-sizing:border-box;
-                   -webkit-appearance:none;-moz-appearance:textfield" />
-          <button onclick="ajustarCantidadManual('${codigo}','${campo}',+1)" style="width:52px;height:52px;border-radius:12px;border:2px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:24px;font-weight:700;cursor:pointer;flex-shrink:0">+</button>
-        </div>
-        <button id="btnConfirmarManual"
-          style="width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
-                 background:#047857;color:white;font-size:15px;font-weight:700;margin-bottom:8px">
-          ✅ Registrar cantidad
-        </button>
-        <button onclick="cancelarManual()"
-          style="width:100%;padding:10px;border-radius:12px;border:1px solid rgba(239,68,68,.3);cursor:pointer;
-                 background:rgba(239,68,68,.1);color:#ef4444;font-size:13px">
-          Cancelar
-        </button>
-      </div>
-    `;
+    // Mostrar popup
+    popup.style.display = 'flex';
+    setTimeout(() => input.focus(), 100);
 
-    overlay.classList.add('open');
-    setTimeout(() => document.getElementById('manualCantInput')?.focus(), 100);
+    // Botones +/-
+    document.getElementById('popupEntradaMenos').onclick = () => {
+        input.value = (parseFloat(input.value) || 0) - 1;
+        input.focus();
+    };
+    document.getElementById('popupEntradaMas').onclick = () => {
+        input.value = (parseFloat(input.value) || 0) + 1;
+        input.focus();
+    };
 
-    document.getElementById('btnConfirmarManual').onclick = async () => {
-        const val = parseFloat(document.getElementById('manualCantInput').value);
-        if (!val || isNaN(val)) { document.getElementById('manualCantInput').focus(); return; }
-        overlay.classList.remove('open');
+    // Confirmar
+    document.getElementById('popupEntradaConfirmar').onclick = async () => {
+        const val = parseFloat(input.value);
+        if (isNaN(val)) { input.focus(); return; }
+        popup.style.display = 'none';
         await ajustarCantidad(codigo, campo, val);
     };
-    document.getElementById('manualCantInput').onkeydown = (e) => {
-        if (e.key === 'Enter') document.getElementById('btnConfirmarManual').click();
+
+    // Cancelar
+    document.getElementById('popupEntradaCancelar').onclick = () => {
+        popup.style.display = 'none';
+        refocusInput();
+    };
+
+    // Tecla Enter
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') document.getElementById('popupEntradaConfirmar').click();
     };
 }
 
