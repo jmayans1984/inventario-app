@@ -1683,6 +1683,8 @@ function imprimirReporte() {
         </div>
     `;
 
+    // Mostrar en ambos lados: confirmContenido para ver en pantalla, printArea para imprimir
+    document.getElementById('confirmContenido').innerHTML = html;
     document.getElementById('printArea').innerHTML = html;
     document.querySelector('header').style.display = 'none';
     mostrarScreen('confirmacion');
