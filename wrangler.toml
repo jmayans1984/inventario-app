@@ -1,9 +1,0 @@
-name = "inventario-app"
-type = "javascript"
-
-[build]
-command = "bash build.sh"
-cwd = "./"
-
-[site]
-bucket = "./public"
