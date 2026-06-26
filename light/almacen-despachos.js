@@ -2,7 +2,7 @@
 // DESPACHOS DE BODEGA — Scanner · Picking · Packing · Confirmación
 // ================================================================
 
-const APP_VERSION = '2.7.0'; // Versión actual de la app
+const APP_VERSION = '2.8.0'; // Versión actual de la app
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
@@ -2210,6 +2210,225 @@ function fmtFecha(f) {
 function estadoLabel(e) {
     return { PENDIENTE:'Pendiente', EN_PICKING:'En Picking', EN_PACKING:'En Packing',
              COMPLETADO:'Completado', CANCELADO:'Cancelado' }[e] || e;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANÁLISIS DE FALTANTES
+// ══════════════════════════════════════════════════════════════
+async function abrirAnalisisFaltantes() {
+    const overlay = document.getElementById('analisisFaltantesOverlay');
+    overlay.style.display = 'flex';
+
+    const content = document.getElementById('analisisContenido');
+    content.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-spinner" style="margin:0 auto 16px;border-top-color:#3b82f6"></div><p style="color:var(--text-secondary);font-size:14px">Analizando despachos pendientes...</p></div>';
+
+    try {
+        const empresa = getEmpresa();
+
+        const [resDespachos, resCcostos] = await Promise.all([
+            fetchConTimeout(`${API_BASE}/almacen/despachos?empresa=${empresa}&estado=PENDIENTE&include_detalle=1`),
+            fetchConTimeout(`${API_BASE}/ccostos?empresa=${empresa}`)
+        ]);
+        const dataDespachos = await resDespachos.json();
+        const dataCcostos   = await resCcostos.json();
+
+        const despachosPendientes = dataDespachos.data || [];
+
+        if (despachosPendientes.length === 0) {
+            content.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No hay despachos pendientes</p></div>';
+            return;
+        }
+
+        // cc_origen = bodega maestra (primer CC de la lista o del primer despacho)
+        const ccostos = dataCcostos.data || dataCcostos.ccostos || [];
+        const ccOrigen = despachosPendientes[0].cc_origen || ccostos[0]?.codigo;
+
+        const resStock = await fetchConTimeout(`${API_BASE}/almacen/ajuste-inventario/stock?empresa=${empresa}&ccosto=${ccOrigen}`);
+        const dataStock = await resStock.json();
+
+        const stockBodega = {};
+        for (const r of (dataStock.data || [])) {
+            stockBodega[r.codigo] = parseFloat(r.stock_actual) || 0;
+        }
+
+        // Agrupar requerido por producto
+        const requeridoPorCodigo = {};
+        const productoInfo = {};
+        for (const despacho of despachosPendientes) {
+            for (const item of despacho.detalle || []) {
+                const cod = item.producto_codigo;
+                requeridoPorCodigo[cod] = (requeridoPorCodigo[cod] || 0) + parseFloat(item.cant_requerida || 0);
+                if (!productoInfo[cod]) {
+                    productoInfo[cod] = {
+                        codigo: cod,
+                        nombre: item.producto_nombre,
+                        und: item.und || '—',
+                        grupo_nombre: item.grupo_nombre || 'Sin Grupo',
+                    };
+                }
+            }
+        }
+
+        const analisis = Object.keys(requeridoPorCodigo).map(cod => {
+            const requerido  = requeridoPorCodigo[cod];
+            const disponible = stockBodega[cod] || 0;
+            const faltante   = Math.max(0, requerido - disponible);
+            return { ...productoInfo[cod], requerido, disponible, faltante, ok: faltante === 0 };
+        }).sort((a, b) => {
+            if (a.ok !== b.ok) return a.ok ? 1 : -1;
+            return b.faltante - a.faltante;
+        });
+
+        // Guardar para imprimir
+        window._analisisFaltantesData = analisis;
+
+        const conFaltante   = analisis.filter(a => !a.ok).length;
+        const cumplibles    = analisis.filter(a => a.ok).length;
+        const totalFaltante = analisis.reduce((s, a) => s + a.faltante, 0);
+
+        const filas = analisis.map(item => `
+            <tr style="${item.ok ? 'background:rgba(16,185,129,.04)' : 'background:rgba(239,68,68,.04)'}">
+                <td style="padding:10px 8px;font-family:monospace;font-size:11px;color:#6366f1;white-space:nowrap">${item.codigo}</td>
+                <td style="padding:10px 8px">
+                    <div style="font-weight:600;font-size:13px">${item.nombre}</div>
+                    <div style="font-size:11px;color:var(--text-tertiary)">${item.grupo_nombre}</div>
+                </td>
+                <td style="padding:10px 8px;text-align:center;font-size:10px;font-weight:700;color:#3b82f6">${item.und}</td>
+                <td style="padding:10px 8px;text-align:center;font-weight:700;font-size:13px">${item.requerido.toFixed(0)}</td>
+                <td style="padding:10px 8px;text-align:center;font-weight:600;font-size:13px;color:${item.disponible > 0 ? '#10b981' : 'var(--text-tertiary)'}">${item.disponible.toFixed(0)}</td>
+                <td style="padding:10px 8px;text-align:center">
+                    ${item.faltante > 0
+                        ? `<span style="font-weight:800;color:#ef4444;font-size:13px">${item.faltante.toFixed(0)}</span>`
+                        : `<span style="color:#10b981;font-weight:700;font-size:16px">✓</span>`}
+                </td>
+                <td style="padding:10px 8px;text-align:center">
+                    <span style="font-size:11px;padding:3px 8px;border-radius:12px;font-weight:700;${item.ok ? 'background:rgba(16,185,129,.15);color:#10b981' : 'background:rgba(239,68,68,.15);color:#ef4444'}">
+                        ${item.ok ? 'OK' : 'FALTA'}
+                    </span>
+                </td>
+            </tr>
+        `).join('');
+
+        content.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+                <div style="background:var(--bg-card);border-radius:10px;padding:14px;border-left:3px solid #ef4444">
+                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-tertiary)">Con Faltante</div>
+                    <div style="font-size:26px;font-weight:800;color:#ef4444;margin-top:4px">${conFaltante}</div>
+                </div>
+                <div style="background:var(--bg-card);border-radius:10px;padding:14px;border-left:3px solid #10b981">
+                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-tertiary)">Cumplibles</div>
+                    <div style="font-size:26px;font-weight:800;color:#10b981;margin-top:4px">${cumplibles}</div>
+                </div>
+                <div style="background:var(--bg-card);border-radius:10px;padding:14px;border-left:3px solid #f59e0b">
+                    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-tertiary)">Uds. Faltantes</div>
+                    <div style="font-size:26px;font-weight:800;color:#f59e0b;margin-top:4px">${totalFaltante.toFixed(0)}</div>
+                </div>
+            </div>
+            <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border-color)">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px">
+                    <thead>
+                        <tr style="background:var(--bg-card)">
+                            <th style="padding:10px 8px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:1px solid var(--border-color)">CÓDIGO</th>
+                            <th style="padding:10px 8px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:1px solid var(--border-color)">PRODUCTO</th>
+                            <th style="padding:10px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:1px solid var(--border-color)">UND</th>
+                            <th style="padding:10px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:1px solid var(--border-color)">REQUERIDO</th>
+                            <th style="padding:10px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:1px solid var(--border-color)">DISPONIBLE</th>
+                            <th style="padding:10px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:1px solid var(--border-color)">FALTANTE</th>
+                            <th style="padding:10px 8px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:1px solid var(--border-color)">ESTADO</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filas}</tbody>
+                </table>
+            </div>
+        `;
+    } catch (e) {
+        console.error('[ANÁLISIS FALTANTES]', e);
+        content.innerHTML = '<div class="empty-state"><div class="empty-icon">❌</div><p>Error cargando análisis</p><p style="font-size:12px;color:var(--text-secondary);margin-top:8px">' + e.message + '</p></div>';
+    }
+}
+
+function cerrarAnalisisFaltantes() {
+    document.getElementById('analisisFaltantesOverlay').style.display = 'none';
+}
+
+function imprimirFaltantes() {
+    const analisis = window._analisisFaltantesData;
+    if (!analisis) return;
+
+    const faltantesFilt = analisis.filter(a => a.faltante > 0);
+    if (faltantesFilt.length === 0) {
+        alert('No hay productos con faltante para imprimir');
+        return;
+    }
+
+    // Agrupar por grupo_nombre
+    const gruposMap = new Map();
+    for (const item of faltantesFilt) {
+        const key = item.grupo_nombre || 'Sin Grupo';
+        if (!gruposMap.has(key)) gruposMap.set(key, []);
+        gruposMap.get(key).push(item);
+    }
+
+    let filas = '';
+    for (const [, items] of gruposMap) {
+        filas += `<tr>
+            <td colspan="5" style="padding:3px 8px;background:#f3f0ff;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed;border-bottom:1px solid #e5e7eb">
+                ${items[0].grupo_nombre || 'Sin Grupo'}
+            </td>
+        </tr>`;
+        for (const item of items) {
+            filas += `<tr>
+                <td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:10px">${item.codigo}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:10px">${item.nombre}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:10px">${item.und}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;font-size:10px">${item.faltante.toFixed(0)}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#dc2626;font-weight:700;font-size:10px">FALTA</td>
+            </tr>`;
+        }
+    }
+
+    const totalFaltante = faltantesFilt.reduce((s, a) => s + a.faltante, 0).toFixed(0);
+    const ventana = window.open('', '_blank');
+    ventana.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>Reporte Faltantes</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 30px; }
+        .encabezado { border-left: 5px solid #3b82f6; padding: 0 0 0 14px; margin-bottom: 24px; }
+        .encabezado h1 { font-size: 20px; font-weight: 800; }
+        .encabezado p  { font-size: 12px; color: #555; margin-top: 3px; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #3b82f622; color: #3b82f6; }
+        .meta-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin-bottom: 20px; }
+        .meta-item label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6b7280; display: block; }
+        .meta-item span  { font-size: 13px; font-weight: 600; margin-top: 2px; display: block; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { padding: 5px 8px; background: #f3f4f6; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 2px solid #d1d5db; }
+        tbody td { padding: 5px 8px; }
+        @media print { body { padding: 15px; } }
+    </style>
+    </head><body>
+    <div class="encabezado">
+        <h1>REPORTE DE FALTANTES</h1>
+        <p>Productos necesarios para cumplir despachos pendientes &nbsp;·&nbsp; <span class="badge">Análisis</span></p>
+    </div>
+    <div class="meta-grid">
+        <div class="meta-item"><label>Productos Faltantes</label><span>${faltantesFilt.length}</span></div>
+        <div class="meta-item"><label>Unidades Faltantes</label><span>${totalFaltante}</span></div>
+    </div>
+    <table>
+        <thead><tr>
+            <th style="width:90px">CÓDIGO</th>
+            <th>PRODUCTO</th>
+            <th style="width:55px;text-align:center">UND</th>
+            <th style="width:80px;text-align:center">FALTANTE</th>
+            <th style="width:70px;text-align:center">ESTADO</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+    </table>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>`);
+    ventana.document.close();
 }
 
 function mostrarPopupCompletado(item, onClose) {
