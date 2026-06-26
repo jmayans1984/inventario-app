@@ -554,6 +554,78 @@
             100% { transform: scale(1); }
         }
 
+        .popup-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
+        /* ── REDISEÑO escaneo: header sticky + progreso + último scan ── */
+        .scan-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg-primary);
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .scan-hero {
+            background: linear-gradient(135deg, #F5A623, #c97f0a);
+            border-radius: 14px;
+            padding: 10px 14px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .scan-hero-icon { font-size: 1.6rem; flex-shrink: 0; line-height: 1; }
+        .scan-hero-info { flex: 1; min-width: 0; }
+        .scan-hero-title { font-size: 14px; font-weight: 800; line-height: 1.2; }
+        .scan-hero-sub { font-size: 12px; opacity: .92; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .scan-hero-stats { text-align: right; flex-shrink: 0; }
+        .scan-hero-count { font-size: 18px; font-weight: 800; line-height: 1; }
+        .scan-hero-pct { font-size: 11px; opacity: .92; margin-top: 3px; }
+
+        .scan-progress-track {
+            height: 5px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .scan-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #10b981;
+            border-radius: 3px;
+            transition: width .4s ease;
+        }
+
+        .scan-last-card {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin: 0 0 12px;
+            border: 1.5px solid var(--border-color);
+        }
+        .scan-last-card.show { display: flex; animation: lastCardPop .25s ease; }
+        .scan-last-card.ok   { background: rgba(16,185,129,.10); border-color: rgba(16,185,129,.45); }
+        .scan-last-card.warn { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.45); }
+        .scan-last-card.over { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.45); }
+        .scan-last-icon { font-size: 30px; flex-shrink: 0; line-height: 1; }
+        .scan-last-body { flex: 1; min-width: 0; }
+        .scan-last-name { font-size: 14px; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .scan-last-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .scan-last-count { font-size: 26px; font-weight: 800; flex-shrink: 0; line-height: 1; }
+        .scan-last-count small { font-size: 13px; color: var(--text-tertiary); font-weight: 600; }
+        @keyframes lastCardPop { from { transform: scale(.96); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+
+        .scan-item { scroll-margin-top: 210px; }
+
         /* ── Padding extra para despachos ────────────────────────── */
         #screen-escaneo {
             padding-bottom: 120px;
@@ -594,24 +666,28 @@
         <!-- PANTALLA 3: ESCANEO (PICKING O PACKING)            -->
         <!-- ══════════════════════════════════════════════════ -->
         <div id="screen-escaneo" class="screen">
-            <div id="scanHeader"></div>
-
-            <!-- Input principal del scanner -->
-            <div class="scan-input-wrap">
-                <input type="text" id="scannerInput"
-                    placeholder="📡 Escanea o toca aquí para escribir el código..."
-                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                    inputmode="numeric"
-                    onkeydown="onScanKeydown(event)"
-                    oninput="onScanInput(event)" />
-                <button class="btn-camara" onclick="abrirCamara()" title="Usar cámara">📷</button>
-                <button class="btn-buscar-scan" onclick="ejecutarScanManual()" title="Buscar código">🔍</button>
+            <!-- STICKY: header compacto + progreso + input -->
+            <div class="scan-sticky">
+                <div class="scan-hero" id="scanHero"></div>
+                <div class="scan-progress-track"><div class="scan-progress-fill" id="scanProgressFill"></div></div>
+                <div class="scan-input-wrap">
+                    <input type="text" id="scannerInput"
+                        placeholder="📡 Escanea o escribe el código…"
+                        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                        inputmode="numeric"
+                        onkeydown="onScanKeydown(event)"
+                        oninput="onScanInput(event)" />
+                    <button class="btn-camara" onclick="abrirCamara()" title="Usar cámara">📷</button>
+                    <button class="btn-buscar-scan" onclick="ejecutarScanManual()" title="Buscar código">🔍</button>
+                </div>
+                <!-- Indicador foco scanner -->
+                <div id="scannerFocusHint" class="scanner-focus-hint activo" onclick="document.getElementById('scannerInput').focus()" style="padding:4px 0 2px">📡 Scanner activo — listo para escanear</div>
             </div>
 
-            <!-- Indicador foco scanner -->
-            <div id="scannerFocusHint" class="scanner-focus-hint activo" onclick="document.getElementById('scannerInput').focus()">📡 Scanner activo — listo para escanear</div>
+            <!-- Tarjeta grande del último escaneo -->
+            <div id="scanLastCard" class="scan-last-card"></div>
 
-            <!-- Feedback del último scan -->
+            <!-- Feedback del último scan (errores/avisos) -->
             <div id="scanFeedback" class="scan-feedback"></div>
 
             <!-- Lista de productos con contadores -->
@@ -684,7 +760,8 @@
     <div id="popupPedidoCompletado" class="popup-pedido-completado">
         <div class="popup-inner">
             <div class="popup-icon">✅</div>
-            <div class="popup-text">¡Pedido completado!</div>
+            <div class="popup-text">¡Producto completado!</div>
+            <div class="popup-sub" id="popupCompletadoSub"></div>
         </div>
     </div>
 

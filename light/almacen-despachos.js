@@ -2,7 +2,7 @@
 // DESPACHOS DE BODEGA — Scanner · Picking · Packing · Confirmación
 // ================================================================
 
-const APP_VERSION = '2.6.0'; // Versión actual de la app
+const APP_VERSION = '2.7.0'; // Versión actual de la app
 const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
 // ── Estado global ─────────────────────────────────────────────
@@ -303,25 +303,30 @@ async function confirmarIniciarEscaneo(modoViz) {
 }
 
 function renderEscaneo() {
-    const isPacking = modoEscaneo === 'packing';
-    const campo     = isPacking ? 'cant_packing' : 'cant_picking';
-    const color     = isPacking ? 'packing' : '';
+    const campo = 'cant_packing';
 
-    document.getElementById('scanHeader').innerHTML = `
-        <div class="scan-header ${color}">
-            <div class="scan-icon">${isPacking ? '📦' : '🔍'}</div>
-            <div style="flex:1">
-                <h2>📦 PACKING — Despacho</h2>
-                <p>${ordenActiva.cc_destino_nombre || ordenActiva.cc_destino} · #${ordenActiva.id}</p>
-            </div>
+    document.getElementById('scanHero').innerHTML = `
+        <div class="scan-hero-icon">📦</div>
+        <div class="scan-hero-info">
+            <div class="scan-hero-title">📦 PACKING — Despacho</div>
+            <div class="scan-hero-sub">${ordenActiva.cc_destino_nombre || ordenActiva.cc_destino} · #${ordenActiva.id}</div>
+        </div>
+        <div class="scan-hero-stats">
+            <div class="scan-hero-count" id="scanHeroCount">0/0</div>
+            <div class="scan-hero-pct" id="scanHeroPct">0%</div>
         </div>
     `;
 
     const inp = document.getElementById('scannerInput');
     inp.value = '';
-    inp.className = isPacking ? 'packing-mode' : '';
+    inp.className = 'packing-mode';
+
+    // Ocultar tarjeta de último escaneo al (re)entrar
+    const lastCard = document.getElementById('scanLastCard');
+    if (lastCard) { lastCard.className = 'scan-last-card'; lastCard.innerHTML = ''; }
 
     renderScanList(campo);
+    actualizarStatsBanner(campo); // pinta contador + barra de progreso iniciales
     setupScannerAutoFocus();
 
     const obsField = document.getElementById('observacionesField');
@@ -371,7 +376,7 @@ function renderScanList(campo) {
             ${mostrandoOcultos ? '— toca para ocultar' : '— toca para ver'}
         </div>` : '';
 
-    let html = renderScanStats(campo) + ocBanner;
+    let html = ocBanner;
     gruposOrdenados.forEach(grupoKey => {
         let grupoLabel;
         if (modoVisualizacion === 'ubicacion') {
@@ -387,6 +392,7 @@ function renderScanList(campo) {
     });
 
     el.innerHTML = html;
+    actualizarStatsBanner(campo); // mantener contador + progreso sincronizados
 }
 
 function renderScanStats(campo) {
@@ -415,22 +421,48 @@ function renderScanStats(campo) {
 }
 
 function actualizarStatsBanner(campo) {
-    const banner = document.getElementById('scanStatsBanner');
-    if (!banner) return;
     const totalAll    = ordenActiva.detalle.length;
     const completados = itemsOcultos.size;
-    const enProgreso  = ordenActiva.detalle.filter(i => {
-        const esc = parseFloat(i[campo]) || 0;
-        const req = parseFloat(i.cant_requerida) || 0;
-        return esc > 0 && esc < req && !itemsOcultos.has(i.producto_codigo);
-    }).length;
     const pct = totalAll > 0 ? Math.round((completados / totalAll) * 100) : 0;
-    const sc = banner.querySelector('.stat-completados');
-    const sp = banner.querySelector('.stat-pct');
-    const sr = banner.querySelector('.stat-progreso');
-    if (sc) sc.textContent = `${completados}/${totalAll}`;
-    if (sp) sp.textContent = `${pct}%`;
-    if (sr) sr.textContent = enProgreso;
+    const c = document.getElementById('scanHeroCount');
+    const p = document.getElementById('scanHeroPct');
+    const f = document.getElementById('scanProgressFill');
+    if (c) c.textContent = `${completados}/${totalAll}`;
+    if (p) p.textContent = `${pct}%`;
+    if (f) f.style.width = pct + '%';
+}
+
+// Tarjeta grande de confirmación del último producto escaneado/ajustado
+function mostrarUltimoEscaneo(item, campo, delta) {
+    const card = document.getElementById('scanLastCard');
+    if (!card) return;
+    const req = parseFloat(item.cant_requerida) || 0;
+    const esc = parseFloat(item[campo]) || 0;
+    const dif = esc - req;
+    let cls, icon, color;
+    if (req === 0)      { cls = 'ok';   icon = '✅'; color = '#10b981'; }
+    else if (dif < 0)   { cls = 'warn'; icon = '⚠️'; color = '#d97706'; }
+    else if (dif === 0) { cls = 'ok';   icon = '✅'; color = '#10b981'; }
+    else                { cls = 'over'; icon = '🔴'; color = '#d97706'; }
+
+    const signo = delta > 0 ? `+${delta}` : `${delta}`;
+    const meta  = req === 0 ? `Último escaneo · ${signo}`
+                : dif  < 0  ? `Último escaneo · ${signo} · faltan ${req - esc}`
+                : dif === 0 ? `Último escaneo · ${signo} · ¡Completo!`
+                :             `Último escaneo · ${signo} · sobran ${dif}`;
+
+    card.innerHTML = `
+        <div class="scan-last-icon">${icon}</div>
+        <div class="scan-last-body">
+            <div class="scan-last-name">${item.producto_nombre}</div>
+            <div class="scan-last-meta">${meta}</div>
+        </div>
+        <div class="scan-last-count" style="color:${color}">${esc}${req > 0 ? `<small>/${req}</small>` : ''}</div>
+    `;
+    // Reiniciar animación de aparición en cada escaneo
+    card.className = 'scan-last-card';
+    void card.offsetWidth;
+    card.className = `scan-last-card show ${cls}`;
 }
 
 function renderScanItem(item, campo) {
@@ -620,18 +652,16 @@ function registrarScanLocal(barcode) {
     item[campo] = (parseFloat(item[campo]) || 0) + factor;
     const nuevo = parseFloat(item[campo]);
     const req   = parseFloat(item.cant_requerida) || 0;
-    const sufijo = factor > 1 ? ` (×${factor})` : '';
 
-    if (req === 0)          showFeedback('ok',   `✅ ${nombre}${sufijo} — agregado (${nuevo})`);
-    else if (nuevo < req)   showFeedback('warn', `⚠️ ${nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`);
-    else if (nuevo === req)  showFeedback('ok',   `✅ ${nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`);
-    else                    showFeedback('warn', `🔴 ${nombre}${sufijo} — Sobrante: ${nuevo}/${req}`);
-
+    // Confirmación visual en la tarjeta grande de "último escaneo"
+    hideFeedback();
+    mostrarUltimoEscaneo(item, campo, factor);
     actualizarFilaScan(item, campo);
 
-    // Si completó exactamente, ocultar (igual que antes)
+    // Si completó exactamente, ocultar + popup "Producto completado"
     if (req > 0 && nuevo === req) {
         verificarCompletoYOcultar(item, campo);
+        mostrarPopupCompletado(item);
     }
 
     // Acumular delta para sincronizar con el servidor en segundo plano
@@ -832,7 +862,7 @@ async function procesarScan(barcode) {
                             if (nuevo === req) {
                                 completado = true;
                                 await verificarCompletoYOcultar(item, campo);
-                                mostrarPopupCompletado(() => { scanEnProceso = false; refocusInput(); });
+                                mostrarPopupCompletado(item, () => { scanEnProceso = false; refocusInput(); });
                                 return;
                             }
                         }
@@ -924,7 +954,7 @@ async function procesarScan(barcode) {
         if (nuevo === req) {
             completado = true;
             await verificarCompletoYOcultar(item, campo);
-            mostrarPopupCompletado(() => { scanEnProceso = false; refocusInput(); });
+            mostrarPopupCompletado(item, () => { scanEnProceso = false; refocusInput(); });
             return;
         }
 
@@ -990,14 +1020,13 @@ async function ajustarCantidad(codigo, campo, delta) {
 
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
-        if (nuevo < req)       showFeedback('warn', `⚠️ ${item.producto_nombre} — ${nuevo}/${req} (falta ${req-nuevo})`);
-        else if (nuevo === req) showFeedback('ok',   `✅ ${item.producto_nombre} — ¡Completo!`);
-        else                   showFeedback('warn',  `🔴 ${item.producto_nombre} — Sobrante: ${nuevo-req} de más`);
+        hideFeedback();
+        mostrarUltimoEscaneo(item, campo, delta);
 
         if (nuevo === req) {
             completado = true;
             await verificarCompletoYOcultar(item, campo);
-            mostrarPopupCompletado(() => { scanEnProceso = false; refocusInput(); });
+            mostrarPopupCompletado(item, () => { scanEnProceso = false; refocusInput(); });
             return;
         }
     } catch(e) {
@@ -1908,17 +1937,13 @@ async function confirmarFactorBarcode(productoCodigo, barcode, factorDirecto) {
         if (data.data.cant_requerida != null) item.cant_requerida = parseFloat(data.data.cant_requerida) || 0;
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
-        const sufijo = factor > 1 ? ` (×${factor})` : '';
-        let tipo, msg;
-        if (req === 0)        { tipo = 'ok';   msg = `✅ ${item.producto_nombre}${sufijo} — agregado (${nuevo})`; }
-        else if (nuevo < req) { tipo = 'warn'; msg = `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`; }
-        else if (nuevo === req){ tipo = 'ok';   msg = `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`; }
-        else                  { tipo = 'warn'; msg = `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`; }
-        showFeedback(tipo, msg);
+        hideFeedback();
+        mostrarUltimoEscaneo(item, campo, factor);
         actualizarFilaScan(item, campo);
 
-        if (nuevo === req) {
+        if (req > 0 && nuevo === req) {
             await verificarCompletoYOcultar(item, campo);
+            mostrarPopupCompletado(item);
             return;
         }
     } catch(e) {
@@ -2119,12 +2144,22 @@ function estadoLabel(e) {
              COMPLETADO:'Completado', CANCELADO:'Cancelado' }[e] || e;
 }
 
-function mostrarPopupCompletado(onClose) {
+function mostrarPopupCompletado(item, onClose) {
     const popup = document.getElementById('popupPedidoCompletado');
     if (!popup) { if (onClose) onClose(); return; }
+    const sub = document.getElementById('popupCompletadoSub');
+    if (sub) {
+        if (item) {
+            const req = parseFloat(item.cant_requerida) || 0;
+            sub.textContent = `${item.producto_nombre} · ${req}/${req}`;
+        } else {
+            sub.textContent = '';
+        }
+    }
     popup.classList.add('mostrar');
-    setTimeout(() => {
+    clearTimeout(window._popCompTimer);
+    window._popCompTimer = setTimeout(() => {
         popup.classList.remove('mostrar');
         if (onClose) onClose();
-    }, 2000);
+    }, 1600);
 }

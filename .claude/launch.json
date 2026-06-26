@@ -11,6 +11,19 @@
                                                    "--prefix",
                                                    "inventario-vue"
                                                ]
+                           },
+                           {
+                               "port":  8099,
+                               "runtimeExecutable":  "npx",
+                               "name":  "light-static",
+                               "runtimeArgs":  [
+                                                   "-y",
+                                                   "http-server",
+                                                   "light",
+                                                   "-p",
+                                                   "8099",
+                                                   "-c-1"
+                                               ]
                            }
                        ]
 }
