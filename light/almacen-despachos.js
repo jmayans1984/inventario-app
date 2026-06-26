@@ -30,9 +30,12 @@ const DELAY_ENTRE_SCANS = 600;   // ms entre cada escaneo procesado
 // servidor en lote (debounce). El input NUNCA se bloquea.
 let barcodesPrecargados = false;  // ya se cargaron los barcodes en memoria
 let pendingDeltas       = {};     // codigo -> delta acumulado sin enviar al server
+let sessionSentDeltas   = {};     // deltas confirmados por el server en esta sesión (para cancelar)
+let recentlyCompleted   = new Set(); // codigos completados en los últimos POPUP_BLOCK_MS ms
 let syncTimer           = null;   // debounce del flush
 let syncEnVuelo         = false;  // evita flushes concurrentes
 const SYNC_DEBOUNCE      = 500;   // ms de espera antes de enviar el lote
+const POPUP_BLOCK_MS     = 1600;  // ms que se ignoran re-escaneos del mismo producto al completar
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -275,14 +278,16 @@ async function confirmarIniciarEscaneo(modoViz) {
     document.getElementById('bsOverlay').classList.remove('open');
     modoVisualizacion = modoViz;
 
-    modoEscaneo    = 'packing';
-    scanBuffer     = '';
-    estadoCambiado = false;
-    scanEnProceso  = false;
-    itemsOcultos   = new Set();
-    mostrandoOcultos = false;
-    pendingDeltas  = {};
-    syncEnVuelo    = false;
+    modoEscaneo        = 'packing';
+    scanBuffer         = '';
+    estadoCambiado     = false;
+    scanEnProceso      = false;
+    itemsOcultos       = new Set();
+    mostrandoOcultos   = false;
+    pendingDeltas      = {};
+    sessionSentDeltas  = {};
+    recentlyCompleted  = new Set();
+    syncEnVuelo        = false;
 
     // LOCAL-FIRST: precargar todos los barcodes en memoria (una sola consulta)
     await precargarBarcodes();
@@ -634,6 +639,9 @@ function registrarScanLocal(barcode) {
     const factor = info.factor || 1;
     const campo  = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
 
+    // FIX 1: si el producto se acaba de completar (popup visible), ignorar re-escaneos
+    if (recentlyCompleted.has(codigo)) return;
+
     // ¿Está en la orden? Si no, agregarlo localmente
     let item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
     if (!item) {
@@ -658,8 +666,10 @@ function registrarScanLocal(barcode) {
     mostrarUltimoEscaneo(item, campo, factor);
     actualizarFilaScan(item, campo);
 
-    // Si completó exactamente, ocultar + popup "Producto completado"
+    // Si completó exactamente, bloquear re-escaneos del mismo producto durante el popup
     if (req > 0 && nuevo === req) {
+        recentlyCompleted.add(codigo);
+        setTimeout(() => recentlyCompleted.delete(codigo), POPUP_BLOCK_MS);
         verificarCompletoYOcultar(item, campo);
         mostrarPopupCompletado(item);
     }
@@ -720,6 +730,8 @@ async function flushSync() {
                         item[campo] = parseFloat(data.data[campo]) || 0;
                         if (data.data.cant_requerida != null) item.cant_requerida = parseFloat(data.data.cant_requerida) || 0;
                     }
+                    // FIX 3: registrar lo confirmado para poder deshacer en cancel
+                    sessionSentDeltas[codigo] = (sessionSentDeltas[codigo] || 0) + delta;
                 } else {
                     // Falló: devolver el delta a la cola para reintentar
                     pendingDeltas[codigo] = (pendingDeltas[codigo] || 0) + delta;
@@ -1017,6 +1029,8 @@ async function ajustarCantidad(codigo, campo, delta) {
 
         item[campo] = parseFloat(data.data[campo]) || 0;
         actualizarFilaScan(item, campo);
+        // FIX 3: trackear lo confirmado por el server para poder deshacer en cancel
+        sessionSentDeltas[codigo] = (sessionSentDeltas[codigo] || 0) + delta;
 
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
@@ -1324,6 +1338,33 @@ async function sincronizarPendientesAntesDeSalir() {
         else await new Promise(r => setTimeout(r, 150));
         intentos++;
     }
+}
+
+// Cancelar sesión de escaneo: deshace TODO lo escaneado en esta sesión
+async function cancelarEscaneo() {
+    clearTimeout(syncTimer);
+    // Capturar y limpiar antes de cualquier await para evitar condiciones de carrera
+    const toUndo = { ...sessionSentDeltas };
+    const stillPending = { ...pendingDeltas };
+    pendingDeltas = {};
+    sessionSentDeltas = {};
+    recentlyCompleted = new Set();
+
+    // Deshacer lo que ya llegó al servidor esta sesión
+    const entries = Object.entries(toUndo).filter(([, d]) => d !== 0);
+    if (entries.length > 0) {
+        await Promise.allSettled(entries.map(([cod, delta]) =>
+            fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: cod, tipo: 'packing', delta: -delta })
+            })
+        ));
+    }
+
+    // Los pendingDeltas que no llegaron al server se descartan (no se envían)
+    await abrirOrden(ordenActiva.id);
+    mostrarScreen('detalle');
 }
 
 async function finalizarEscaneo() {
@@ -1771,17 +1812,19 @@ async function seleccionarProductoParaBarcode(productoCodigo) {
         <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">
           ¿Cuántas <strong>unidades</strong> representa este código de barras?
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',1)"  class="btn-factor" id="bf1">× 1</button>
-          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',6)"  class="btn-factor" id="bf6">× 6</button>
-          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',12)" class="btn-factor" id="bf12">× 12</button>
-          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',24)" class="btn-factor" id="bf24">× 24</button>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',40)"  class="btn-factor" id="bf40">× 40</button>
-          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',48)"  class="btn-factor" id="bf48">× 48</button>
-          <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',120)" class="btn-factor" id="bf120">× 120</button>
-          <button onclick="setFactor(0)"   class="btn-factor" id="bf0" style="background:var(--bg-input)">Otro</button>
+        <div id="factorPresetsWrap">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',1)"  class="btn-factor" id="bf1">× 1</button>
+            <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',6)"  class="btn-factor" id="bf6">× 6</button>
+            <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',12)" class="btn-factor" id="bf12">× 12</button>
+            <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',24)" class="btn-factor" id="bf24">× 24</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',40)"  class="btn-factor" id="bf40">× 40</button>
+            <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',48)"  class="btn-factor" id="bf48">× 48</button>
+            <button onclick="confirmarFactorBarcode('${productoCodigo}','${barcode}',120)" class="btn-factor" id="bf120">× 120</button>
+            <button onclick="setFactor(0)" class="btn-factor" id="bf0" style="background:var(--bg-input)">Otro</button>
+          </div>
         </div>
         <div id="factorOtroWrap" style="display:none;margin-bottom:12px">
           <div style="background:var(--bg-input);border-radius:14px;padding:18px 20px;
@@ -1829,12 +1872,13 @@ function setFactor(val) {
     });
     const otroWrap = document.getElementById('factorOtroWrap');
     if (val === 0) {
+        // FIX 2: ocultar botones predefinidos, mostrar solo numpad
+        const presetsWrap = document.getElementById('factorPresetsWrap');
+        if (presetsWrap) presetsWrap.style.display = 'none';
         otroWrap.style.display = 'block';
         _factorOtroVal = '';
         _actualizarFactorOtroDisplay();
         window._factorSeleccionado = 0;
-        document.getElementById('bf0').style.background = '#047857';
-        document.getElementById('bf0').style.color = 'white';
     } else {
         otroWrap.style.display = 'none';
         window._factorSeleccionado = val;
@@ -1935,6 +1979,8 @@ async function confirmarFactorBarcode(productoCodigo, barcode, factorDirecto) {
 
         item[campo] = parseFloat(data.data[campo]) || 0;
         if (data.data.cant_requerida != null) item.cant_requerida = parseFloat(data.data.cant_requerida) || 0;
+        // FIX 3: trackear lo confirmado por el server
+        sessionSentDeltas[productoCodigo] = (sessionSentDeltas[productoCodigo] || 0) + factor;
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
         hideFeedback();
@@ -1942,6 +1988,8 @@ async function confirmarFactorBarcode(productoCodigo, barcode, factorDirecto) {
         actualizarFilaScan(item, campo);
 
         if (req > 0 && nuevo === req) {
+            recentlyCompleted.add(productoCodigo);
+            setTimeout(() => recentlyCompleted.delete(productoCodigo), POPUP_BLOCK_MS);
             await verificarCompletoYOcultar(item, campo);
             mostrarPopupCompletado(item);
             return;
