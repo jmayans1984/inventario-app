@@ -1,0 +1,20 @@
+name = "inventario-app"
+type = "javascript"
+main = "public/index.html"
+
+[build]
+command = "bash build.sh"
+cwd = "./"
+
+[env.production]
+routes = [
+  { pattern = "inventario-app.juan-donado84.workers.dev", zone_name = "workers.dev" }
+]
+
+[[build.upload]]
+format = "service-worker"
+
+[[build.upload.rules]]
+type = "CompiledContentType"
+globs = ["**/*"]
+fallthrough = true
