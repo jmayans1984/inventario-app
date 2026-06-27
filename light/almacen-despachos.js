@@ -1201,13 +1201,15 @@ function setupScannerAutoFocus() {
         const escaneoActivo = document.getElementById('screen-escaneo').classList.contains('active');
         const bsOpen        = document.getElementById('bsOverlay').classList.contains('open');
         const camaraOpen    = document.getElementById('camaraOverlay').classList.contains('activo');
-        if (escaneoActivo && !bsOpen && !camaraOpen) {
+        const popupOpen     = document.getElementById('popupEntradaManual')?.style.display === 'flex';
+        if (escaneoActivo && !bsOpen && !camaraOpen && !popupOpen) {
             setTimeout(() => {
-                const i    = document.getElementById('scannerInput');
-                const aun  = document.getElementById('screen-escaneo').classList.contains('active');
-                const bs2  = document.getElementById('bsOverlay').classList.contains('open');
-                const cam2 = document.getElementById('camaraOverlay').classList.contains('activo');
-                if (i && aun && !bs2 && !cam2) i.focus();
+                const i       = document.getElementById('scannerInput');
+                const aun     = document.getElementById('screen-escaneo').classList.contains('active');
+                const bs2     = document.getElementById('bsOverlay').classList.contains('open');
+                const cam2    = document.getElementById('camaraOverlay').classList.contains('activo');
+                const popup2  = document.getElementById('popupEntradaManual')?.style.display === 'flex';
+                if (i && aun && !bs2 && !cam2 && !popup2) i.focus();
             }, 150);
         }
     });
@@ -1342,6 +1344,7 @@ function hideFeedback() {
 
 function refocusInput() {
     setTimeout(() => {
+        if (document.getElementById('popupEntradaManual')?.style.display === 'flex') return;
         const i = document.getElementById('scannerInput');
         if (i) { i.focus(); i.select(); }
     }, 120);
