@@ -188,7 +188,7 @@ function renderProductos() {
             const diffText  = diff === null ? '—'
                             : (diff > 0 ? '+' : '') + diff.toFixed(2);
 
-            html += `<tr>
+            html += `<tr onfocusin="this.style.background='rgba(245,158,11,.18)'" onfocusout="this.style.background=''">
                 <td><span style="background:var(--bg-tertiary);padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600">${p.codigo}</span></td>
                 <td style="padding:8px">${p.nombre}</td>
                 <td style="text-align:center;font-size:12px;font-weight:600;padding:8px">${p.und}</td>
