@@ -63,39 +63,18 @@
     </style>
 </head>
 <body>
-    <!-- HEADER UNIVERSAL -->
-    <header class="header">
-        <div class="header-info">
-            <div class="user-info">
-                <span class="user-name" id="userName">👤 Usuario</span>
-                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
-            </div>
-            <div class="theme-switch-container">
-                <span class="theme-label">🌙</span>
-                <label class="theme-switch">
-                    <input type="checkbox" onchange="cambiarTema()">
-                    <span class="theme-slider"></span>
-                </label>
-                <span class="theme-label">☀️</span>
-            </div>
-        </div>
-        <div class="header-actions">
-            <button class="btn-header" onclick="window.location.href='principal.html'">
-                🏠 Inicio
-            </button>
-            <button class="btn-header" onclick="cerrarSesion()">
-                🚪 Salir
-            </button>
-        </div>
-    </header>
+    <header class="header"></header>
 
-    <!-- CONTENIDO -->
-    <div style="max-width: 800px; margin: 0 auto; padding: 2rem 1rem;">
-        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">💰 Gestión de gastos</h1>
+    <div class="mod-hero" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">
+        <span class="mod-hero-icon">💰</span>
+        <div class="mod-hero-title">Gestión de Gastos</div>
+        <div class="mod-hero-sub">Registro de egresos contables</div>
+    </div>
 
+    <div class="page-wrapper-sm">
         <div class="table-container">
-            <form id="formGasto" style="padding: 2rem;">
-                <div style="display: grid; gap: 1.5rem;">
+            <form id="formGasto" style="padding:16px">
+                <div style="display:grid;gap:1rem;">
                     <!-- Código (automático) -->
                     <div class="form-group">
                         <label class="filter-label">Código *</label>
@@ -180,7 +159,7 @@
                 </div>
 
                 <!-- Botones -->
-                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <div style="display:flex;gap:1rem;margin-top:1.5rem;">
                     <button type="button" class="btn btn-secondary" onclick="window.location.href='contabilidad.html'" style="flex: 1;">
                         ❌ Cancelar
                     </button>

@@ -89,36 +89,15 @@
     </style>
 </head>
 <body>
-    <!-- HEADER UNIVERSAL -->
-    <header class="header">
-        <div class="header-info">
-            <div class="user-info">
-                <span class="user-name" id="userName">👤 Usuario</span>
-                <span class="empresa-info">| 🏢 <span id="empresaCode">-</span></span>
-            </div>
-            <div class="theme-switch-container">
-                <span class="theme-label">🌙</span>
-                <label class="theme-switch">
-                    <input type="checkbox" onchange="cambiarTema()">
-                    <span class="theme-slider"></span>
-                </label>
-                <span class="theme-label">☀️</span>
-            </div>
-        </div>
-        <div class="header-actions">
-            <button class="btn-header" onclick="window.location.href='principal.html'">
-                🏠 Inicio
-            </button>
-            <button class="btn-header" onclick="cerrarSesion()">
-                🚪 Salir
-            </button>
-        </div>
-    </header>
+    <header class="header"></header>
 
-    <!-- CONTENIDO -->
-    <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
-        <h1 style="margin-bottom: 2rem; color: var(--text-primary);">📝 Gestión de inventario</h1>
+    <div class="mod-hero" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+        <span class="mod-hero-icon">📝</span>
+        <div class="mod-hero-title">Gestión de Inventario</div>
+        <div class="mod-hero-sub">Entradas · Salidas · Bajas · Traslados</div>
+    </div>
 
+    <div class="page-wrapper">
         <div class="table-container">
             <div id="gestionContent"></div>
         </div>
