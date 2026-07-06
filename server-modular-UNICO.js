@@ -13076,9 +13076,6 @@ app.get('/api/alertas/stock-test', async (req, res) => {
     const diag = {
         smtp_configurado: !!(process.env.SMTP_USER && process.env.SMTP_PASS),
         smtp_user: process.env.SMTP_USER || '(no configurado)',
-        empresas: [],
-        emails_enviados: 0,
-        errores: [],
     };
 
     if (!diag.smtp_configurado) {
@@ -13086,40 +13083,20 @@ app.get('/api/alertas/stock-test', async (req, res) => {
     }
 
     try {
-        const empresasRes = await pool.query(`SELECT codigo, nombre FROM empresas ORDER BY nombre`);
+        const empresasRes = await pool.query(`SELECT codigo, nombre FROM empresas`);
+        diag.empresas_totales = empresasRes.rows.length;
 
-        for (const empresa of empresasRes.rows) {
-            const productosRes = await pool.query(`
-                SELECT COUNT(*) AS cnt
-                FROM productos p
-                INNER JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
-                WHERE p.control = 'SI' AND COALESCE(p.stock_minimo, 0) > 0
-                GROUP BY p.codigo, p.stock_minimo
-                HAVING ROUND((COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))::numeric, 2)
-                       < COALESCE(p.stock_minimo, 0)
-            `, [empresa.codigo]);
-
-            const usuariosRes = await pool.query(`
-                SELECT DISTINCT ON (email) email, nombre
-                FROM usuarios
-                WHERE empresa = $1 AND email IS NOT NULL AND TRIM(email) != ''
-                ORDER BY email, codigo
-            `, [empresa.codigo]);
-
-            diag.empresas.push({
-                empresa: empresa.codigo,
-                nombre: empresa.nombre,
-                productos_bajo_minimo: productosRes.rowCount,
-                usuarios_con_email: usuariosRes.rows.map(u => u.email),
-            });
-        }
+        const usuariosEmailRes = await pool.query(
+            `SELECT COUNT(DISTINCT email) AS cnt FROM usuarios WHERE email IS NOT NULL AND TRIM(email) != ''`
+        );
+        diag.usuarios_con_email = parseInt(usuariosEmailRes.rows[0]?.cnt || 0);
 
         // Ejecutar envío real
+        console.log('🧪 Test disparo de alertas...');
         await enviarAlertasStockDiarias();
 
-        res.json({ success: true, diag });
+        res.json({ success: true, diag, mensaje: 'Función ejecutada. Ver logs en Railway.' });
     } catch (e) {
-        diag.errores.push(e.message);
         res.status(500).json({ success: false, diag, error: e.message });
     }
 });
