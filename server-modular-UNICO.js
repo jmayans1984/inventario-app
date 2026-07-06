@@ -7,6 +7,8 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const cron = require('node-cron');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -13017,6 +13019,230 @@ app.listen(PORT, async () => {
         console.error('⚠️  Error al crear tabla producto_barcodes:', err.message);
     }
 });
+
+// ================================================================
+// MÓDULO: ALERTAS DE STOCK POR EMAIL
+// Cron diario 8 PM Bogotá — nodemailer (Gmail SMTP o cualquier SMTP)
+// Vars de entorno: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
+// ================================================================
+
+// ── Migración: columna email en usuarios ─────────────────────────
+pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email VARCHAR(200)`).catch(() => {});
+
+// ── Transporter SMTP ─────────────────────────────────────────────
+function crearTransporter() {
+    return nodemailer.createTransport({
+        host:   process.env.SMTP_HOST || 'smtp.gmail.com',
+        port:   parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_PORT === '465',
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+        },
+    });
+}
+
+// ── GET /api/usuarios/email?usuario=XX ───────────────────────────
+app.get('/api/usuarios/email', async (req, res) => {
+    const { usuario } = req.query;
+    if (!usuario) return res.status(400).json({ success: false, error: 'usuario requerido' });
+    try {
+        const r = await pool.query(
+            `SELECT email FROM usuarios WHERE UPPER(usuario) = UPPER($1) LIMIT 1`, [usuario]
+        );
+        res.json({ success: true, email: r.rows[0]?.email || '' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ── PUT /api/usuarios/email ──────────────────────────────────────
+app.put('/api/usuarios/email', async (req, res) => {
+    const { usuario, email } = req.body;
+    if (!usuario) return res.status(400).json({ success: false, error: 'usuario requerido' });
+    try {
+        await pool.query(
+            `UPDATE usuarios SET email = $1 WHERE UPPER(usuario) = UPPER($2)`,
+            [email || null, usuario]
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ── GET /api/alertas/stock-test (disparo manual para pruebas) ────
+app.get('/api/alertas/stock-test', async (req, res) => {
+    try {
+        await enviarAlertasStockDiarias();
+        res.json({ success: true, mensaje: 'Alertas enviadas (o no había productos bajos / no hay emails registrados)' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ── Función principal ─────────────────────────────────────────────
+async function enviarAlertasStockDiarias() {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.log('⚠️  Alertas email: SMTP_USER / SMTP_PASS no configurados. Omitiendo.');
+        return;
+    }
+
+    console.log('📧 Ejecutando alertas de stock diarias...');
+
+    // Obtener todas las empresas activas
+    const empresasRes = await pool.query(`SELECT codigo, nombre FROM empresas ORDER BY nombre`);
+
+    for (const empresa of empresasRes.rows) {
+        try {
+            // Productos con stock < stock_minimo (suma total de todas las bodegas)
+            const productosRes = await pool.query(`
+                SELECT p.codigo, p.nombre, p.und,
+                       COALESCE(g.nombre, 'Sin Grupo') AS grupo_nombre,
+                       COALESCE(p.stock_minimo, 0)                                                          AS stock_minimo,
+                       ROUND((COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))::numeric, 2)     AS stock_actual
+                FROM productos p
+                INNER JOIN detalle_inventario di ON di.codigo = p.codigo AND di.empresa = $1
+                LEFT JOIN grupo_productos g ON g.codigo = p.grupo
+                WHERE p.control = 'SI' AND COALESCE(p.stock_minimo, 0) > 0
+                GROUP BY p.codigo, p.nombre, p.und, p.stock_minimo, g.nombre
+                HAVING ROUND((COALESCE(SUM(di.entrada), 0) - COALESCE(SUM(di.salida), 0))::numeric, 2)
+                       < COALESCE(p.stock_minimo, 0)
+                ORDER BY g.nombre, p.nombre
+            `, [empresa.codigo]);
+
+            if (productosRes.rows.length === 0) continue;
+
+            // Usuarios con email registrado para esta empresa
+            const usuariosRes = await pool.query(`
+                SELECT DISTINCT ON (email) email, nombre
+                FROM usuarios
+                WHERE empresa = $1 AND email IS NOT NULL AND TRIM(email) != ''
+                ORDER BY email, codigo
+            `, [empresa.codigo]);
+
+            if (usuariosRes.rows.length === 0) continue;
+
+            const transporter = crearTransporter();
+            const emailHtml = generarHtmlAlerta(empresa.nombre, productosRes.rows);
+            const fecha = new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: 'long', year: 'numeric' });
+            const sinStock = productosRes.rows.filter(p => parseFloat(p.stock_actual) <= 0).length;
+            const bajStock = productosRes.rows.length - sinStock;
+
+            for (const usr of usuariosRes.rows) {
+                try {
+                    await transporter.sendMail({
+                        from: process.env.EMAIL_FROM || `"Alertas Stock" <${process.env.SMTP_USER}>`,
+                        to:   usr.email,
+                        subject: `⚠️ Alerta de Stock ${empresa.nombre} — ${fecha} (${productosRes.rows.length} productos)`,
+                        html: emailHtml,
+                    });
+                    console.log(`✅ Email enviado a ${usr.email} | ${empresa.nombre} | ${productosRes.rows.length} productos`);
+                } catch (mailErr) {
+                    console.error(`❌ Error enviando email a ${usr.email}:`, mailErr.message);
+                }
+            }
+        } catch (empErr) {
+            console.error(`❌ Error procesando empresa ${empresa.codigo}:`, empErr.message);
+        }
+    }
+}
+
+// ── Plantilla HTML del email ──────────────────────────────────────
+function generarHtmlAlerta(empresaNombre, productos) {
+    const fecha = new Date().toLocaleDateString('es-CO', {
+        timeZone: 'America/Bogota', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    const sinStock = productos.filter(p => parseFloat(p.stock_actual) <= 0);
+    const bajMinimo = productos.filter(p => parseFloat(p.stock_actual) > 0);
+
+    const filas = (lista, color) => lista.map(p => {
+        const actual   = parseFloat(p.stock_actual);
+        const minimo   = parseFloat(p.stock_minimo);
+        const pct      = minimo > 0 ? Math.round((actual / minimo) * 100) : 0;
+        const barColor = actual <= 0 ? '#ef4444' : '#f59e0b';
+        const barW     = Math.min(pct, 100);
+        return `
+        <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#1e293b">${p.nombre}</td>
+            <td style="padding:10px 8px;font-size:11px;color:#64748b;text-align:center">${p.und}</td>
+            <td style="padding:10px 8px;font-size:13px;font-weight:700;color:${barColor};text-align:right">${actual}</td>
+            <td style="padding:10px 8px;font-size:12px;color:#64748b;text-align:right">${minimo}</td>
+            <td style="padding:10px 14px;width:80px">
+                <div style="background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden">
+                    <div style="background:${barColor};width:${barW}%;height:6px;border-radius:4px"></div>
+                </div>
+                <div style="font-size:9px;color:${barColor};text-align:center;margin-top:2px">${pct}%</div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    const seccion = (titulo, color, icono, lista) => lista.length === 0 ? '' : `
+        <div style="margin-top:24px">
+            <div style="background:${color};padding:10px 14px;border-radius:8px 8px 0 0">
+                <span style="font-size:13px;font-weight:700;color:white">${icono} ${titulo} (${lista.length})</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;background:white;border-radius:0 0 8px 8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <thead>
+                    <tr style="background:#f8fafc">
+                        <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Producto</th>
+                        <th style="padding:8px 8px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;text-align:center">Und</th>
+                        <th style="padding:8px 8px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;text-align:right">Stock actual</th>
+                        <th style="padding:8px 8px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;text-align:right">Mínimo</th>
+                        <th style="padding:8px 14px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase">Nivel</th>
+                    </tr>
+                </thead>
+                <tbody>${filas(lista, color)}</tbody>
+            </table>
+        </div>`;
+
+    return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<div style="max-width:620px;margin:24px auto;background:#f1f5f9">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1e40af,#1d4ed8);padding:28px 24px;border-radius:12px 12px 0 0;text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">⚠️</div>
+        <h1 style="color:white;margin:0;font-size:20px;font-weight:800;letter-spacing:-0.5px">Alerta de Stock</h1>
+        <p style="color:rgba(255,255,255,0.75);margin:6px 0 0;font-size:13px">${empresaNombre} · ${fecha}</p>
+    </div>
+
+    <!-- Summary -->
+    <div style="background:white;padding:20px 24px;display:flex;gap:16px;justify-content:center">
+        <div style="text-align:center;flex:1;border-right:1px solid #e2e8f0">
+            <div style="font-size:28px;font-weight:800;color:#ef4444">${sinStock.length}</div>
+            <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-top:2px">Sin stock</div>
+        </div>
+        <div style="text-align:center;flex:1">
+            <div style="font-size:28px;font-weight:800;color:#f59e0b">${bajMinimo.length}</div>
+            <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-top:2px">Bajo mínimo</div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div style="padding:0 16px 24px">
+        ${seccion('Fuera de Stock', '#ef4444', '🔴', sinStock)}
+        ${seccion('Bajo el Mínimo', '#f59e0b', '🟡', bajMinimo)}
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#1e293b;padding:16px 24px;border-radius:0 0 12px 12px;text-align:center">
+        <p style="color:#94a3b8;font-size:11px;margin:0">Alerta automática generada a las 8:00 PM hora Colombia</p>
+        <p style="color:#64748b;font-size:10px;margin:4px 0 0">Sistema de Inventario — No responder a este correo</p>
+    </div>
+</div>
+</body></html>`;
+}
+
+// ── Cron: 8:00 PM hora Colombia todos los días ────────────────────
+cron.schedule('0 20 * * *', () => {
+    console.log('🕗 Cron 8 PM Bogotá: iniciando alertas de stock...');
+    enviarAlertasStockDiarias().catch(err => console.error('Error cron alertas:', err));
+}, { timezone: 'America/Bogota' });
+
+console.log('✅ Cron de alertas de stock programado (8:00 PM Bogotá)');
 
 process.on('unhandledRejection', (err) => {
     console.error('❌ Error no manejado:', err);
