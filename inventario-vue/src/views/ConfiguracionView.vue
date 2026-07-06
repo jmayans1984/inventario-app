@@ -204,75 +204,6 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
-           SECCIÓN 3: CORREOS DE ALERTAS DE STOCK
-      ══════════════════════════════════════════════ -->
-      <div class="cfg-card">
-        <div class="cfg-section-hdr">
-          <div class="cfg-section-icon" style="background:rgba(59,130,246,0.12)">
-            <v-icon size="16" color="#3b82f6">mdi-email-alert-outline</v-icon>
-          </div>
-          <span class="cfg-section-title">CORREOS DE ALERTAS DE STOCK</span>
-        </div>
-
-        <p class="cfg-alert-desc">
-          Configura el correo de cada usuario. Cada día a las <strong>8:00 PM (hora Colombia)</strong>
-          el sistema enviará automáticamente un reporte de productos con stock bajo o agotado.
-        </p>
-
-        <div v-if="loadingEmailUsr" class="cfg-loading">
-          <v-progress-circular indeterminate color="#3b82f6" size="22" />
-        </div>
-
-        <div v-else class="cfg-email-table-wrap">
-          <table class="cfg-usr-table">
-            <thead>
-              <tr>
-                <th>USUARIO</th>
-                <th>NOMBRE</th>
-                <th>CORREO DE ALERTAS</th>
-                <th style="width:90px;text-align:center">ACCIÓN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="!emailUsuarios.length">
-                <td colspan="4" class="cfg-empty">Sin usuarios registrados</td>
-              </tr>
-              <tr v-for="u in emailUsuarios" :key="u.codigo" class="cfg-usr-row">
-                <td style="font-family:monospace;font-size:12px;font-weight:700;color:#3b82f6">{{ u.usuario }}</td>
-                <td style="font-size:13px">{{ u.nombre }}</td>
-                <td>
-                  <input
-                    v-model="u.emailDraft"
-                    type="email"
-                    class="cfg-input cfg-email-input"
-                    placeholder="correo@gmail.com"
-                    @keyup.enter="guardarEmailUsuario(u)"
-                  />
-                </td>
-                <td style="text-align:center">
-                  <v-btn
-                    size="x-small"
-                    :color="u.emailSaved ? '#10b981' : '#3b82f6'"
-                    variant="flat"
-                    :loading="u.emailSaving"
-                    @click="guardarEmailUsuario(u)"
-                  >
-                    <v-icon size="13">{{ u.emailSaved ? 'mdi-check' : 'mdi-content-save-outline' }}</v-icon>
-                  </v-btn>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p class="cfg-alert-hint">
-          <v-icon size="13" color="#f59e0b">mdi-information-outline</v-icon>
-          Para enviar desde Gmail necesitas configurar las variables <code>SMTP_USER</code> y <code>SMTP_PASS</code> (App Password) en Railway.
-          Puedes probar el envío en: <code>/api/alertas/stock-test</code>
-        </p>
-      </div>
-
-      <!-- ══════════════════════════════════════════════
            SECCIÓN 4: LOGO DE LA EMPRESA
       ══════════════════════════════════════════════ -->
       <div class="cfg-card">
@@ -573,54 +504,10 @@ function quitarLogo() {
   logoUrl.value = null
 }
 
-// ── Estado correos de alertas ──────────────────────────────────
-const emailUsuarios   = ref([])
-const loadingEmailUsr = ref(false)
-
-async function cargarEmailUsuarios() {
-  loadingEmailUsr.value = true
-  try {
-    const res = await api.get('/configuracion/usuarios', { params: { empresa: empresa.value } })
-    emailUsuarios.value = (res.data?.data || []).map(u => ({
-      ...u,
-      emailDraft: u.email || '',
-      emailSaving: false,
-      emailSaved: false,
-    }))
-    // Cargar email actual de cada usuario
-    await Promise.all(emailUsuarios.value.map(async u => {
-      try {
-        const r = await api.get('/usuarios/email', { params: { usuario: u.usuario } })
-        if (r.data?.success) u.emailDraft = r.data.email || ''
-      } catch {}
-    }))
-  } catch (e) {
-    console.error('cargarEmailUsuarios:', e)
-  } finally {
-    loadingEmailUsr.value = false
-  }
-}
-
-async function guardarEmailUsuario(u) {
-  if (u.emailDraft && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.emailDraft)) return
-  u.emailSaving = true
-  u.emailSaved  = false
-  try {
-    await api.put('/usuarios/email', { usuario: u.usuario, email: u.emailDraft || null })
-    u.emailSaved = true
-    setTimeout(() => { u.emailSaved = false }, 2500)
-  } catch (e) {
-    console.error('guardarEmailUsuario:', e)
-  } finally {
-    u.emailSaving = false
-  }
-}
-
 // ── Inicialización ─────────────────────────────────────────────
 onMounted(() => {
   cargarConfigContable()
   cargarUsuarios()
-  cargarEmailUsuarios()
   cargarLogo()
 })
 </script>
@@ -782,23 +669,6 @@ onMounted(() => {
 /* Mensajes */
 .cfg-ok-msg  { font-size: 12px; font-weight: 600; color: #10b981; display: flex; align-items: center; gap: 4px; }
 .cfg-err-msg { font-size: 12px; font-weight: 600; color: #ef4444; }
-
-/* ═══ CORREOS ALERTAS ═══ */
-.cfg-alert-desc {
-  font-size: 13px; color: rgba(var(--v-theme-on-surface),0.6);
-  margin: 0 0 16px; line-height: 1.5;
-}
-.cfg-alert-hint {
-  font-size: 11px; color: rgba(var(--v-theme-on-surface),0.4);
-  margin: 12px 0 0; display: flex; align-items: flex-start; gap: 4px; line-height: 1.5;
-}
-.cfg-alert-hint code {
-  font-family: monospace; font-size: 10px;
-  background: rgba(var(--v-theme-on-surface),0.06);
-  padding: 1px 5px; border-radius: 4px;
-}
-.cfg-email-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid rgba(var(--v-theme-on-surface),0.08); }
-.cfg-email-input { width: 100%; min-width: 220px; }
 
 /* ═══ ACTUALIZACIONES ═══ */
 .cfg-update-section {

@@ -133,9 +133,6 @@
                     <span class="theme-icon-light">☀️</span>
                     <span class="theme-icon-dark">🌙</span>
                 </button>
-                <button class="home-theme-btn" onclick="abrirPerfilEmail()" aria-label="Mi correo" title="Configurar correo de alertas">
-                    ✉️
-                </button>
                 <button class="home-logout-btn" onclick="cerrarSesion()" aria-label="Salir">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -175,26 +172,6 @@
         </div>
     </div>
 
-    <!-- Modal: configurar correo de alertas -->
-    <div id="perfilEmailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;align-items:flex-end;justify-content:center">
-        <div style="background:var(--bg-primary);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px calc(24px + env(safe-area-inset-bottom, 0px))">
-            <div style="font-size:16px;font-weight:800;color:var(--text-primary);margin-bottom:4px">✉️ Mi correo de alertas</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:20px">Recibirás un email a las 8 PM con los productos bajo stock mínimo</div>
-
-            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary);display:block;margin-bottom:6px">Correo electrónico</label>
-            <input type="email" id="perfilEmailInput"
-                placeholder="tucorreo@gmail.com"
-                style="width:100%;height:46px;padding:0 14px;border:1.5px solid var(--border);border-radius:12px;font-size:16px;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;outline:none">
-
-            <div id="perfilEmailMsg" style="display:none;font-size:12px;margin-top:8px;padding:8px 12px;border-radius:8px"></div>
-
-            <div style="display:flex;gap:10px;margin-top:18px">
-                <button onclick="cerrarPerfilEmail()" style="flex:1;height:44px;border:1.5px solid var(--border);border-radius:12px;background:transparent;color:var(--text-secondary);font-size:14px;font-weight:600;cursor:pointer">Cancelar</button>
-                <button onclick="guardarPerfilEmail()" style="flex:2;height:44px;border:none;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-size:14px;font-weight:700;cursor:pointer">Guardar correo</button>
-            </div>
-        </div>
-    </div>
-
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script>
@@ -218,72 +195,6 @@
             }, 150);
         });
 
-        async function abrirPerfilEmail() {
-            const modal = document.getElementById('perfilEmailModal');
-            const input = document.getElementById('perfilEmailInput');
-            const msg   = document.getElementById('perfilEmailMsg');
-            msg.style.display = 'none';
-            input.value = '';
-            modal.style.display = 'flex';
-
-            // Cargar email actual
-            try {
-                const usuario = window.sesion?.usuario || JSON.parse(localStorage.getItem('usuario') || '{}').usuario;
-                if (!usuario) return;
-                const r = await fetch(`${API_BASE}/usuarios/email?usuario=${encodeURIComponent(usuario)}`);
-                const d = await r.json();
-                if (d.success && d.email) input.value = d.email;
-            } catch (e) { /* silencioso */ }
-        }
-
-        function cerrarPerfilEmail() {
-            document.getElementById('perfilEmailModal').style.display = 'none';
-        }
-
-        async function guardarPerfilEmail() {
-            const input = document.getElementById('perfilEmailInput');
-            const msg   = document.getElementById('perfilEmailMsg');
-            const email = input.value.trim();
-            const usuario = window.sesion?.usuario || JSON.parse(localStorage.getItem('usuario') || '{}').usuario;
-
-            if (!usuario) return;
-
-            // Validación básica
-            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                mostrarMsg('error', 'Ingresa un correo válido');
-                return;
-            }
-
-            try {
-                const r = await fetch(`${API_BASE}/usuarios/email`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ usuario, email: email || null }),
-                });
-                const d = await r.json();
-                if (d.success) {
-                    mostrarMsg('ok', email ? `✅ Correo guardado: ${email}` : '✅ Correo eliminado');
-                    setTimeout(cerrarPerfilEmail, 1500);
-                } else {
-                    mostrarMsg('error', d.error || 'Error al guardar');
-                }
-            } catch (e) {
-                mostrarMsg('error', 'Error de conexión');
-            }
-        }
-
-        function mostrarMsg(tipo, texto) {
-            const msg = document.getElementById('perfilEmailMsg');
-            msg.style.display = 'block';
-            msg.style.background = tipo === 'ok' ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.1)';
-            msg.style.color = tipo === 'ok' ? '#10b981' : '#ef4444';
-            msg.textContent = texto;
-        }
-
-        // Cerrar modal al tocar fondo
-        document.getElementById('perfilEmailModal').addEventListener('click', function(e) {
-            if (e.target === this) cerrarPerfilEmail();
-        });
     </script>
 </body>
 </html>
