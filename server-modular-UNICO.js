@@ -13071,13 +13071,33 @@ app.put('/api/usuarios/email', async (req, res) => {
     }
 });
 
-// ── GET /api/alertas/stock-test (disparo manual para pruebas) ────
+// ── GET /api/alertas/stock-test (diagnóstico + disparo manual) ───
 app.get('/api/alertas/stock-test', async (req, res) => {
+    const diag = {
+        smtp_configurado: !!(process.env.SMTP_USER && process.env.SMTP_PASS),
+        smtp_user: process.env.SMTP_USER || '(no configurado)',
+    };
+
+    if (!diag.smtp_configurado) {
+        return res.json({ success: false, diag, mensaje: 'SMTP_USER o SMTP_PASS no están configurados en Railway' });
+    }
+
     try {
+        const empresasRes = await pool.query(`SELECT codigo, nombre FROM empresas`);
+        diag.empresas_totales = empresasRes.rows.length;
+
+        const usuariosEmailRes = await pool.query(
+            `SELECT COUNT(DISTINCT email) AS cnt FROM usuarios WHERE email IS NOT NULL AND TRIM(email) != ''`
+        );
+        diag.usuarios_con_email = parseInt(usuariosEmailRes.rows[0]?.cnt || 0);
+
+        // Ejecutar envío real
+        console.log('🧪 Test disparo de alertas...');
         await enviarAlertasStockDiarias();
-        res.json({ success: true, mensaje: 'Alertas enviadas (o no había productos bajos / no hay emails registrados)' });
+
+        res.json({ success: true, diag, mensaje: 'Función ejecutada. Ver logs en Railway.' });
     } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
+        res.status(500).json({ success: false, diag, error: e.message });
     }
 });
 
