@@ -7,9 +7,11 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
-const cron = require('node-cron');
-const nodemailer = require('nodemailer');
 require('dotenv').config();
+
+let cron, nodemailer;
+try { cron = require('node-cron'); } catch(e) { console.warn('⚠️  node-cron no instalado:', e.message); }
+try { nodemailer = require('nodemailer'); } catch(e) { console.warn('⚠️  nodemailer no instalado:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13031,6 +13033,7 @@ pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email VARCHAR(200)`).c
 
 // ── Transporter SMTP ─────────────────────────────────────────────
 function crearTransporter() {
+    if (!nodemailer) throw new Error('nodemailer no está instalado');
     return nodemailer.createTransport({
         host:   process.env.SMTP_HOST || 'smtp.gmail.com',
         port:   parseInt(process.env.SMTP_PORT || '587'),
@@ -13257,10 +13260,15 @@ function generarHtmlAlerta(empresaNombre, productos) {
 }
 
 // ── Cron: 8:00 PM hora Colombia todos los días ────────────────────
-cron.schedule('0 20 * * *', () => {
-    console.log('🕗 Cron 8 PM Bogotá: iniciando alertas de stock...');
-    enviarAlertasStockDiarias().catch(err => console.error('Error cron alertas:', err));
-}, { timezone: 'America/Bogota' });
+if (cron) {
+    cron.schedule('0 20 * * *', () => {
+        console.log('🕗 Cron 8 PM Bogotá: iniciando alertas de stock...');
+        enviarAlertasStockDiarias().catch(err => console.error('Error cron alertas:', err));
+    }, { timezone: 'America/Bogota' });
+    console.log('✅ Cron de alertas de stock programado (8:00 PM Bogotá)');
+} else {
+    console.warn('⚠️  Cron no disponible — instalar node-cron');
+}
 
 console.log('✅ Cron de alertas de stock programado (8:00 PM Bogotá)');
 
