@@ -2506,7 +2506,14 @@ app.post('/api/almacen/lotes-fabricacion', async (req, res) => {
             [codigo, etiqueta, fecha_fab, fecha_vence||null, responsable||null, observaciones||null]
         );
         const r = await pool.query(
-            `SELECT lf.*, ep.producto AS etiqueta_nombre FROM lotes_fabricacion lf LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta WHERE lf.codigo = $1`,
+            `SELECT lf.*,
+                    ep.producto AS etiqueta_nombre,
+                    ep.ingredientes, ep.alergenos, ep.instrucciones,
+                    ep.peso_neto_oz, ep.peso_neto_g, ep.porciones, ep.tamano_porcion,
+                    ep.barcode
+             FROM lotes_fabricacion lf
+             LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta
+             WHERE lf.codigo = $1`,
             [codigo]
         );
         res.json({ success: true, data: r.rows[0] });
@@ -2526,7 +2533,14 @@ app.put('/api/almacen/lotes-fabricacion/:codigo', async (req, res) => {
             [etiqueta, fecha_fab, fecha_vence||null, responsable||null, observaciones||null, codigo]
         );
         const r = await pool.query(
-            `SELECT lf.*, ep.producto AS etiqueta_nombre FROM lotes_fabricacion lf LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta WHERE lf.codigo = $1`,
+            `SELECT lf.*,
+                    ep.producto AS etiqueta_nombre,
+                    ep.ingredientes, ep.alergenos, ep.instrucciones,
+                    ep.peso_neto_oz, ep.peso_neto_g, ep.porciones, ep.tamano_porcion,
+                    ep.barcode
+             FROM lotes_fabricacion lf
+             LEFT JOIN etiquetas_producto ep ON ep.codigo = lf.etiqueta
+             WHERE lf.codigo = $1`,
             [codigo]
         );
         res.json({ success: true, data: r.rows[0] });
