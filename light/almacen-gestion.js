@@ -184,17 +184,21 @@ function renderFormulario() {
             </div>
             <div class="filter-group">
                 <label class="filter-label">Tipo de Operación *</label>
-                <select id="tipoOp" class="filter-select">
+                <select id="tipoOp" class="filter-select" onchange="onTipoOpChange()">
                     <option value="">— Selecciona —</option>
                     ${TIPOS_OP.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                 </select>
             </div>
             <div class="filter-group">
-                <label class="filter-label">Centro de Costo *</label>
-                <select id="ccOrigen" class="filter-select" onchange="cargarProductos()">
+                <label class="filter-label" id="lblCcOrigen">Centro de Costo *</label>
+                <select id="ccOrigen" class="filter-select" onchange="cargarProductos(); renderCcDestinoOptions();">
                     <option value="">— Selecciona —</option>
                     ${centrosCosto.map(cc => `<option value="${cc.codigo}">${cc.nombre}</option>`).join('')}
                 </select>
+            </div>
+            <div class="filter-group" id="wrapCcDestino" style="display:none">
+                <label class="filter-label">CC Destino *</label>
+                <select id="ccDestino" class="filter-select"></select>
             </div>
             <div class="filter-group">
                 <label class="filter-label">Observaciones</label>
@@ -226,6 +230,32 @@ function renderFormulario() {
     actualizarFooter();
 }
 
+function onTipoOpChange() {
+    const tipoOp = document.getElementById('tipoOp').value;
+    const wrap = document.getElementById('wrapCcDestino');
+    const lblCcOrigen = document.getElementById('lblCcOrigen');
+    if (tipoOp === 'TRASLADO') {
+        wrap.style.display = '';
+        lblCcOrigen.textContent = 'CC Origen *';
+        renderCcDestinoOptions();
+    } else {
+        wrap.style.display = 'none';
+        lblCcOrigen.textContent = 'Centro de Costo *';
+        document.getElementById('ccDestino').value = '';
+    }
+}
+
+function renderCcDestinoOptions() {
+    const ccDestinoSel = document.getElementById('ccDestino');
+    if (!ccDestinoSel) return;
+    const ccOrigen = document.getElementById('ccOrigen').value;
+    const valorPrevio = ccDestinoSel.value;
+    ccDestinoSel.innerHTML = '<option value="">— Selecciona —</option>' +
+        centrosCosto.filter(cc => cc.codigo !== ccOrigen)
+            .map(cc => `<option value="${cc.codigo}">${cc.nombre}</option>`).join('');
+    if (valorPrevio && valorPrevio !== ccOrigen) ccDestinoSel.value = valorPrevio;
+}
+
 function limpiarCantidades() {
     cantidades = {};
     document.querySelectorAll('.cant-input').forEach(inp => inp.value = '');
@@ -236,10 +266,16 @@ async function guardarMovimiento() {
     const fecha = document.getElementById('fecha').value;
     const tipoOp = document.getElementById('tipoOp').value;
     const ccOrigen = document.getElementById('ccOrigen').value;
+    const ccDestino = tipoOp === 'TRASLADO' ? document.getElementById('ccDestino').value : '';
     const observaciones = document.getElementById('observaciones').value;
 
     if (!fecha || !tipoOp || !ccOrigen) {
         alert('❌ Completa los campos obligatorios');
+        return;
+    }
+
+    if (tipoOp === 'TRASLADO' && !ccDestino) {
+        alert('❌ Selecciona el Centro de Costo Destino');
         return;
     }
 
@@ -249,6 +285,7 @@ async function guardarMovimiento() {
     }
 
     const ccOrigenNombre = centrosCosto.find(c => c.codigo === ccOrigen)?.nombre || ccOrigen;
+    const ccDestinoNombre = ccDestino ? (centrosCosto.find(c => c.codigo === ccDestino)?.nombre || ccDestino) : null;
 
     const payload = {
         empresa: localStorage.getItem('empresaActual'),
@@ -256,8 +293,8 @@ async function guardarMovimiento() {
         tipo: tipoOp,
         ccOrigen: ccOrigen,
         ccOrigenNombre: ccOrigenNombre,
-        ccDestino: null,
-        ccDestinoNombre: null,
+        ccDestino: ccDestino || null,
+        ccDestinoNombre: ccDestinoNombre,
         observaciones,
         productos: Object.entries(cantidades).map(([codigo, cantidad]) => ({
             codigo,
@@ -288,6 +325,7 @@ async function guardarMovimiento() {
             document.getElementById('tipoOp').value = '';
             document.getElementById('ccOrigen').value = '';
             document.getElementById('observaciones').value = '';
+            onTipoOpChange();
             cantidades = {};
             document.getElementById('gridProductos').innerHTML = '';
             actualizarFooter();
