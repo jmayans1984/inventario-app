@@ -46,7 +46,7 @@
           <div>
             <v-icon size="16" class="mr-1">mdi-pencil-circle</v-icon>
             <strong>Editando movimiento:</strong>
-            {{ editKey.orig_fecha }} · {{ editKey.orig_tipo_fe }} · {{ editKey.orig_ccosto_nombre }}
+            {{ formatFecha(editKey.orig_fecha) }} · {{ editKey.orig_tipo_fe }} · {{ editKey.orig_ccosto_nombre }}
             <span v-if="editKey.orig_cc_relacion"> → {{ editKey.orig_cc_relacion_nombre }}</span>
           </div>
           <v-btn size="x-small" variant="text" @click="cancelarEdicion">Cancelar edición</v-btn>
@@ -1060,7 +1060,7 @@ async function cargarParaEditar(mov) {
 
   // Guardar llave original
   editKey.value = {
-    orig_fecha:              mov.fecha,
+    orig_fecha:              String(mov.fecha).substring(0, 10),
     orig_ccosto:             mov.ccosto,
     orig_ccosto_nombre:      mov.ccosto_nombre || mov.ccosto,
     orig_tipo_db:            mov.tipo_db,
@@ -1071,7 +1071,8 @@ async function cargarParaEditar(mov) {
   }
 
   // Pre-llenar el formulario
-  fecha.value         = mov.fecha
+  // mov.fecha llega como ISO ("YYYY-MM-DDT00:00:00.000Z"); el input type="date" solo acepta "YYYY-MM-DD"
+  fecha.value         = String(mov.fecha).substring(0, 10)
   tipoOp.value        = mov.tipo_fe === 'TRASLADO' ? 'TRASLADO'
                       : mov.tipo_fe === 'ENTRADA'  ? 'ENTRADA'
                       : mov.tipo_fe === 'BAJA'     ? 'BAJA'
