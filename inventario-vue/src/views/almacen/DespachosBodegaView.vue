@@ -206,6 +206,17 @@
                   prepend-icon="mdi-eraser" @click="cantidades={}">
                   Limpiar
                 </v-btn>
+                <v-spacer />
+                <v-text-field
+                  v-model="busquedaProducto"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  clearable
+                  placeholder="Buscar producto..."
+                  prepend-inner-icon="mdi-magnify"
+                  style="max-width:260px"
+                />
               </div>
 
               <!-- Sin CC destino -->
@@ -235,7 +246,7 @@
                 </thead>
                 <tbody>
                   <template v-if="productosAgrupados.length === 0">
-                    <tr><td colspan="6" class="grid-empty">No hay productos con control de inventario</td></tr>
+                    <tr><td colspan="6" class="grid-empty">{{ busquedaProducto ? 'Sin resultados para la búsqueda' : 'No hay productos con control de inventario' }}</td></tr>
                   </template>
                   <template v-for="grupo in productosAgrupados" :key="grupo.key">
                     <!-- Cabecera de grupo -->
@@ -529,6 +540,7 @@ const stockDisponiblePorCodigo = ref({}) // { [codigo]: disponible } = stock_act
 const stockDestinoPorCodigo = ref({})   // { [codigo]: stock_actual } en cc_destino
 const cantidades      = ref({})   // { [codigo]: number }
 const loadingGrid     = ref(false)
+const busquedaProducto = ref('')
 
 // Dialog detalle
 const dlgDetalle    = ref(false)
@@ -560,9 +572,17 @@ const productosGrid = computed(() =>
   }))
 )
 
+const productosFiltrados = computed(() => {
+  const q = busquedaProducto.value?.trim().toLowerCase()
+  if (!q) return productosGrid.value
+  return productosGrid.value.filter(p =>
+    p.nombre?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q)
+  )
+})
+
 const productosAgrupados = computed(() => {
   const mapa = new Map()
-  for (const p of productosGrid.value) {
+  for (const p of productosFiltrados.value) {
     const key    = p.grupo_codigo || '__sin_grupo__'
     const nombre = p.grupo_nombre || 'Sin Grupo'
     if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
@@ -791,6 +811,7 @@ function abrirNuevo() {
   errFecha.value   = ''
   errDestino.value = ''
   cantidades.value = {}
+  busquedaProducto.value = ''
   todosProductos.value  = []
   stockPorCodigo.value  = {}
   stockDisponiblePorCodigo.value = {}
@@ -813,6 +834,7 @@ async function abrirEditar(d) {
   errFecha.value   = ''
   errDestino.value = ''
   cantidades.value = {}
+  busquedaProducto.value = ''
   todosProductos.value = []
   stockPorCodigo.value = {}
   stockDisponiblePorCodigo.value = {}
