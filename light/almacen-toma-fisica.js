@@ -17,6 +17,7 @@ let centrosCosto = [];
 let fisico = {};
 let bodegaMaestre    = null;   // código CC de la bodega principal de la empresa
 let modoVisualizacion = 'categoria'; // 'ubicacion' | 'categoria'
+let busquedaProducto = '';
 
 function getEmpresa() {
     return localStorage.getItem('empresaActual') || (window.sesion && window.sesion.empresa) || '';
@@ -62,6 +63,7 @@ async function cargarProductos() {
         const data = await res.json();
         productos = data.data || [];
         fisico = {};
+        busquedaProducto = '';
 
         // Solo mostrar popup de visualización si es la bodega principal
         if (bodegaMaestre && ccSel === bodegaMaestre) {
@@ -132,6 +134,11 @@ function cerrarBsOverlay(event) {
     document.getElementById('bsOverlay').classList.remove('open');
 }
 
+function filtrarProductos(valor) {
+    busquedaProducto = valor;
+    renderProductos();
+}
+
 // ── Render tabla ──────────────────────────────────────────────────
 function renderProductos() {
     if (productos.length === 0) {
@@ -140,9 +147,20 @@ function renderProductos() {
         return;
     }
 
+    const q = busquedaProducto.trim().toLowerCase();
+    const productosFiltrados = q
+        ? productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q))
+        : productos;
+
+    if (productosFiltrados.length === 0) {
+        document.getElementById('gridProductos').innerHTML =
+            '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Sin resultados para la búsqueda</div>';
+        return;
+    }
+
     const grupos = {};
     if (modoVisualizacion === 'ubicacion') {
-        productos.forEach(p => {
+        productosFiltrados.forEach(p => {
             const ub  = (p.ubicacion || '').trim();
             const key = ub || '~~~sin_ubicacion';
             if (!grupos[key]) grupos[key] = { nombre: ub ? `📍 ${ub}` : '📦 Sin ubicación específica', items: [] };
@@ -151,7 +169,7 @@ function renderProductos() {
         // Ordenar alfabéticamente, sin ubicación al final
         Object.values(grupos).forEach(g => g.items.sort((a, b) => a.nombre.localeCompare(b.nombre)));
     } else {
-        productos.forEach(p => {
+        productosFiltrados.forEach(p => {
             const key    = p.grupo_codigo || '__sin_grupo__';
             const nombre = p.grupo_nombre || 'Sin Categoría';
             if (!grupos[key]) grupos[key] = { nombre, items: [] };
@@ -290,9 +308,14 @@ function renderFormulario() {
         </div>
 
         <div class="table-container" style="margin-top:20px">
-            <div style="padding:16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center">
+            <div style="padding:16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                 <span>📦 Productos</span>
-                <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="limpiarProductos()">Limpiar</button>
+                <div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;flex-wrap:wrap">
+                    <input type="text" id="buscarProducto" placeholder="🔍 Buscar producto..."
+                        oninput="filtrarProductos(this.value)"
+                        style="flex:1;max-width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-primary);color:var(--text-primary)">
+                    <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="limpiarProductos()">Limpiar</button>
+                </div>
             </div>
             <div id="gridProductos" style="overflow-x:auto">
                 <div style="padding:20px;text-align:center;color:var(--text-tertiary)">Selecciona un Centro de Costo</div>

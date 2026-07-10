@@ -143,7 +143,17 @@
             Productos de Inventario
             <span class="gi-grid-sub">— ingresa las cantidades del movimiento</span>
           </div>
-          <div class="d-flex gap-2">
+          <div class="d-flex gap-2 align-center">
+            <v-text-field
+              v-model="busquedaProducto"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              placeholder="Buscar producto..."
+              prepend-inner-icon="mdi-magnify"
+              style="max-width:240px"
+            />
             <v-btn variant="tonal" size="small" color="#8b5cf6" prepend-icon="mdi-camera-outline" @click="abrirOcr">
               Leer foto
             </v-btn>
@@ -362,7 +372,7 @@
                 <td colspan="5" class="gi-empty">
                   <v-icon size="32" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
                   <p style="color:rgba(var(--v-theme-on-surface),.4);margin:6px 0 0;font-size:13px">
-                    No hay productos con control de inventario registrados
+                    {{ busquedaProducto ? 'Sin resultados para la búsqueda' : 'No hay productos con control de inventario registrados' }}
                   </p>
                 </td>
               </tr>
@@ -749,10 +759,20 @@ const productosConControl = computed(() =>
   productos.value.filter(p => p.control === 'SI')
 )
 
+const busquedaProducto = ref('')
+
+const productosFiltrados = computed(() => {
+  const q = busquedaProducto.value?.trim().toLowerCase()
+  if (!q) return productos.value
+  return productos.value.filter(p =>
+    p.nombre?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q)
+  )
+})
+
 const productosAgrupados = computed(() => {
   const mapa = new Map()
-  // Usar productos.value directamente — el filtro (control/visible) ya se aplicó en cargarProductos()
-  for (const p of productos.value) {
+  // Usar productosFiltrados.value — el filtro (control/visible) ya se aplicó en cargarProductos()
+  for (const p of productosFiltrados.value) {
     const key    = p.grupo || '__sin_grupo__'
     const nombre = p.grupo_nombre || 'Sin Grupo'
     if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
@@ -926,6 +946,7 @@ function cancelarEdicion() {
 
 function resetTodo() {
   limpiarCantidades()
+  busquedaProducto.value = ''
   tipoOp.value        = null
   ccOrigen.value      = null
   ccDestino.value     = null

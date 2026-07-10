@@ -19,6 +19,7 @@ let productos = [];
 let bodegaMaestraCC = null;
 let centrosCosto = [];
 let cantidades = {};
+let busquedaProducto = '';
 
 function getEmpresa() {
     return localStorage.getItem('empresaActual') || (window.sesion && getEmpresa()) || '';
@@ -96,12 +97,18 @@ async function cargarProductos() {
         }
 
         cantidades = {};
+        busquedaProducto = '';
         renderProductos();
     } catch (e) {
         console.error('Error cargando productos:', e);
         document.getElementById('gridProductos').innerHTML =
             '<div style="padding:20px;text-align:center;color:#ef4444">❌ Error cargando productos</div>';
     }
+}
+
+function filtrarProductos(valor) {
+    busquedaProducto = valor;
+    renderProductos();
 }
 
 function renderProductos() {
@@ -111,9 +118,20 @@ function renderProductos() {
         return;
     }
 
+    const q = busquedaProducto.trim().toLowerCase();
+    const productosFiltrados = q
+        ? productos.filter(p => p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q))
+        : productos;
+
+    if (productosFiltrados.length === 0) {
+        document.getElementById('gridProductos').innerHTML =
+            '<div style="padding:20px;text-align:center;color:var(--text-tertiary)">Sin resultados para la búsqueda</div>';
+        return;
+    }
+
     // Agrupar por grupo de productos
     const grupos = {};
-    productos.forEach(p => {
+    productosFiltrados.forEach(p => {
         const key = p.grupo || '__sin_grupo__';
         const nombre = p.grupo_nombre || 'Sin Categoría';
         if (!grupos[key]) grupos[key] = { nombre, items: [] };
@@ -208,9 +226,14 @@ function renderFormulario() {
         </div>
 
         <div class="table-container" style="margin-top:20px">
-            <div style="padding:16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center">
+            <div style="padding:16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                 <span>📦 Productos de Inventario</span>
-                <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="limpiarCantidades()">Limpiar</button>
+                <div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;flex-wrap:wrap">
+                    <input type="text" id="buscarProducto" placeholder="🔍 Buscar producto..."
+                        oninput="filtrarProductos(this.value)"
+                        style="flex:1;max-width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-primary);color:var(--text-primary)">
+                    <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="limpiarCantidades()">Limpiar</button>
+                </div>
             </div>
             <div id="gridProductos" style="overflow-x:auto"></div>
         </div>

@@ -576,6 +576,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
+import api from '../../services/api'
 
 // ── Estado ────────────────────────────────────────────────────
 const productos     = ref([])
@@ -795,7 +796,6 @@ async function toggleVisibleOperacional(p) {
 // Los 3 controles son independientes — no hay cascada
 
 // ── Barcodes ──────────────────────────────────────────────────
-const empresa       = computed(() => localStorage.getItem('empresaCodigo') || '')
 const dlgBarcodes   = ref(false)
 const bcProducto    = ref(null)
 const barcodes      = ref([])
@@ -817,11 +817,8 @@ async function abrirBarcodes(p) {
 async function cargarBarcodes() {
   bcLoading.value = true
   try {
-    const res = await fetch(
-      `/api/almacen/productos/${bcProducto.value.codigo}/barcodes?empresa=${empresa.value}`
-    )
-    const data = await res.json()
-    barcodes.value = data.data || []
+    const res = await api.get(`/almacen/productos/${bcProducto.value.codigo}/barcodes`)
+    barcodes.value = res.data?.data || []
   } catch { /* silencioso */ } finally {
     bcLoading.value = false
   }
@@ -832,17 +829,12 @@ async function agregarBarcode() {
   bcGuardando.value = true
   bcError.value = ''
   try {
-    const res = await fetch(`/api/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...bcNuevo.value, empresa: empresa.value })
-    })
-    const data = await res.json()
-    if (!data.success) { bcError.value = data.error || 'Error al guardar'; return }
+    const res = await api.post(`/almacen/productos/${bcProducto.value.codigo}/barcodes`, bcNuevo.value)
+    if (!res.data?.success) { bcError.value = res.data?.error || 'Error al guardar'; return }
     await cargarBarcodes()
     bcNuevo.value = { barcode: '', descripcion: '', es_principal: false, factor: 1 }
   } catch (e) {
-    bcError.value = e.message
+    bcError.value = e.response?.data?.error || e.message
   } finally {
     bcGuardando.value = false
   }
@@ -851,7 +843,7 @@ async function agregarBarcode() {
 async function eliminarBarcode(bc) {
   bcDeleting.value = bc.id
   try {
-    await fetch(`/api/almacen/barcodes/${bc.id}?empresa=${empresa.value}`, { method: 'DELETE' })
+    await api.delete(`/almacen/barcodes/${bc.id}`)
     await cargarBarcodes()
   } catch { /* silencioso */ } finally {
     bcDeleting.value = null
@@ -863,11 +855,9 @@ async function marcarPrincipal(bc) {
   bcToggling.value = bc.id
   try {
     // Eliminar y re-crear con es_principal=true — más simple que un PATCH específico
-    await fetch(`/api/almacen/barcodes/${bc.id}?empresa=${empresa.value}`, { method: 'DELETE' })
-    await fetch(`/api/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ barcode: bc.barcode, descripcion: bc.descripcion, es_principal: true, empresa: empresa.value })
+    await api.delete(`/almacen/barcodes/${bc.id}`)
+    await api.post(`/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
+      barcode: bc.barcode, descripcion: bc.descripcion, es_principal: true
     })
     await cargarBarcodes()
   } catch { /* silencioso */ } finally {

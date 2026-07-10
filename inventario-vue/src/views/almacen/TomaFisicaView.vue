@@ -154,7 +154,7 @@
       <v-alert v-if="exitoMsg" type="success" variant="tonal" class="mb-4" closable @click:close="exitoMsg=''">{{ exitoMsg }}</v-alert>
 
       <!-- GRID -->
-      <div v-if="productosAgrupados.length > 0" class="tf-grid-card">
+      <div v-if="totalProductos > 0" class="tf-grid-card">
 
         <!-- KPIs rápidos -->
         <div class="tf-kpis">
@@ -174,6 +174,17 @@
             <span class="tf-kpi-val">{{ productosSinDiferencia }}</span>
             <span class="tf-kpi-lbl">Sin diferencia</span>
           </div>
+          <v-spacer />
+          <v-text-field
+            v-model="busquedaProducto"
+            density="compact"
+            variant="outlined"
+            hide-details
+            clearable
+            placeholder="Buscar producto..."
+            prepend-inner-icon="mdi-magnify"
+            style="max-width:240px"
+          />
         </div>
 
         <div class="tf-table-wrap">
@@ -189,6 +200,11 @@
               </tr>
             </thead>
             <tbody>
+              <tr v-if="productosAgrupados.length === 0">
+                <td colspan="6" style="text-align:center;padding:24px;color:rgba(var(--v-theme-on-surface),.4)">
+                  Sin resultados para la búsqueda
+                </td>
+              </tr>
               <template v-for="grupo in productosAgrupados" :key="grupo.key">
                 <!-- Fila de grupo -->
                 <tr class="tf-grupo-row">
@@ -381,6 +397,7 @@ async function cargarStock() {
 
   loadingStock.value = true
   fisico.value       = {}
+  busquedaProducto.value = ''
   exitoMsg.value     = ''
   errorMsg.value     = ''
   try {
@@ -436,9 +453,19 @@ function siguienteInput(event) {
 }
 
 // ── Agrupación ───────────────────────────────────────────────
+const busquedaProducto = ref('')
+
+const productosFiltrados = computed(() => {
+  const q = busquedaProducto.value?.trim().toLowerCase()
+  if (!q) return productos.value
+  return productos.value.filter(p =>
+    p.nombre?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q)
+  )
+})
+
 const productosAgrupados = computed(() => {
   const mapa = new Map()
-  for (const p of productos.value) {
+  for (const p of productosFiltrados.value) {
     const key    = p.grupo_codigo || '__sin_grupo__'
     const nombre = p.grupo_nombre || 'Sin Grupo'
     if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
@@ -546,7 +573,8 @@ async function guardar(mode = 'new') {
 
 .tf-grid-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; overflow: hidden; }
 
-.tf-kpis { display: flex; gap: 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.07); }
+.tf-kpis { display: flex; align-items: center; gap: 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.07); }
+.tf-kpis .v-text-field { margin: 0 16px; }
 .tf-kpi  { flex: 1; padding: 12px 16px; text-align: center; border-right: 1px solid rgba(var(--v-theme-on-surface),.07); }
 .tf-kpi:last-child { border-right: none; }
 .tf-kpi-val { display: block; font-size: 22px; font-weight: 800; color: #0891b2; }
