@@ -2425,6 +2425,7 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
             `SELECT
                 di.codigo,
                 p.nombre,
+                COALESCE(p.descripcion, '') AS descripcion,
                 p.und,
                 COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
                 COALESCE(gp.codigo, '999')        AS grupo_codigo,
@@ -2439,7 +2440,7 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
                AND di.fecha  >= $${n + 2}
                AND di.fecha  <= $${n + 3}
                AND di.tipo    = 'TOMA FISICA'
-             GROUP BY di.codigo, p.nombre, p.und, gp.nombre, gp.codigo
+             GROUP BY di.codigo, p.nombre, p.descripcion, p.und, gp.nombre, gp.codigo
              ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
             [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
         );

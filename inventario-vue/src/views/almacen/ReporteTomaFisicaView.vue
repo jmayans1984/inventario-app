@@ -132,17 +132,10 @@
             </div>
           </div>
           <div class="rc-kpi">
-            <v-icon size="18" color="#f59e0b" class="mr-2">mdi-arrow-down-bold</v-icon>
+            <v-icon size="18" :color="totalVariacion < 0 ? '#f59e0b' : '#10b981'" class="mr-2">{{ totalVariacion < 0 ? 'mdi-arrow-down-bold' : 'mdi-arrow-up-bold' }}</v-icon>
             <div>
-              <div class="rc-kpi-val">{{ formatNum(totalFaltante) }}</div>
-              <div class="rc-kpi-lbl">Total Faltante</div>
-            </div>
-          </div>
-          <div class="rc-kpi">
-            <v-icon size="18" color="#10b981" class="mr-2">mdi-arrow-up-bold</v-icon>
-            <div>
-              <div class="rc-kpi-val">{{ formatNum(totalSobrante) }}</div>
-              <div class="rc-kpi-lbl">Total Sobrante</div>
+              <div class="rc-kpi-val" :class="totalVariacion < 0 ? 'num-faltante' : (totalVariacion > 0 ? 'num-sobrante' : '')">{{ formatNum(totalVariacion) }}</div>
+              <div class="rc-kpi-lbl">Variación Total</div>
             </div>
           </div>
           <div class="rc-kpi rc-kpi--periodo">
@@ -161,17 +154,15 @@
               <tr>
                 <th>CÓD</th>
                 <th class="th-nom">PRODUCTO</th>
+                <th class="th-desc">DESCRIPCIÓN</th>
                 <th>UND</th>
-                <th class="th-num">FALTANTE</th>
-                <th class="th-num">SOBRANTE</th>
-                <th class="th-num">NETO</th>
-                <th class="th-num">TOMAS</th>
+                <th class="th-num">VARIACIÓN</th>
               </tr>
             </thead>
             <tbody>
               <template v-for="grupo in productosAgrupados" :key="grupo.key">
                 <tr class="rc-grupo-row">
-                  <td colspan="7">
+                  <td colspan="5">
                     <v-icon size="13" class="mr-1" style="opacity:.6">mdi-folder-outline</v-icon>
                     {{ grupo.nombre }}
                   </td>
@@ -179,25 +170,18 @@
                 <tr v-for="p in grupo.items" :key="p.codigo" class="rc-prod-row">
                   <td><span class="badge-cod">{{ p.codigo }}</span></td>
                   <td class="td-nom">{{ p.nombre }}</td>
+                  <td class="td-desc">{{ p.descripcion }}</td>
                   <td><span class="badge-und">{{ p.und }}</span></td>
-                  <td class="td-num num-faltante">{{ p.total_faltante > 0 ? formatNum(p.total_faltante) : '—' }}</td>
-                  <td class="td-num num-sobrante">{{ p.total_sobrante > 0 ? formatNum(p.total_sobrante) : '—' }}</td>
                   <td class="td-num">
                     <strong :class="netoClass(p)">{{ formatNum(p.total_sobrante - p.total_faltante) }}</strong>
-                  </td>
-                  <td class="td-num">
-                    <span class="badge-mov">{{ p.num_tomas }}</span>
                   </td>
                 </tr>
               </template>
 
               <!-- TOTAL -->
               <tr class="rc-total-row">
-                <td colspan="3"><strong>TOTALES</strong></td>
-                <td class="td-num num-faltante"><strong>{{ formatNum(totalFaltante) }}</strong></td>
-                <td class="td-num num-sobrante"><strong>{{ formatNum(totalSobrante) }}</strong></td>
-                <td class="td-num"><strong>{{ formatNum(totalSobrante - totalFaltante) }}</strong></td>
-                <td class="td-num"></td>
+                <td colspan="4"><strong>TOTALES</strong></td>
+                <td class="td-num"><strong :class="totalVariacion < 0 ? 'num-faltante' : (totalVariacion > 0 ? 'num-sobrante' : '')">{{ formatNum(totalVariacion) }}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -306,8 +290,7 @@ const productosAgrupados = computed(() => {
 })
 
 // ── Totales ───────────────────────────────────────────────────────
-const totalFaltante = computed(() => filas.value.reduce((s, p) => s + parseFloat(p.total_faltante), 0))
-const totalSobrante = computed(() => filas.value.reduce((s, p) => s + parseFloat(p.total_sobrante), 0))
+const totalVariacion = computed(() => filas.value.reduce((s, p) => s + (parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)), 0))
 
 // ── Generar ───────────────────────────────────────────────────────
 async function generar() {
@@ -398,18 +381,10 @@ function exportarPDF() {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(6.5)
     doc.setTextColor(100, 116, 139)
-    doc.text('FALTANTE:', 59, 21)
+    doc.text('VARIACIÓN:', 59, 21)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(26, 26, 46)
-    doc.text(formatNum(totalFaltante.value), 59 + doc.getTextWidth('FALTANTE:') + 2, 21)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('SOBRANTE:', 130, 21)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.text(formatNum(totalSobrante.value), 130 + doc.getTextWidth('SOBRANTE:') + 2, 21)
+    doc.text(formatNum(totalVariacion.value), 59 + doc.getTextWidth('VARIACIÓN:') + 2, 21)
 
     if (totalPages) {
       doc.setFontSize(7)
@@ -434,7 +409,7 @@ function exportarPDF() {
   for (const grupo of productosAgrupados.value) {
     body.push([{
       content: grupo.nombre.toUpperCase(),
-      colSpan: 7,
+      colSpan: 5,
       styles: {
         fontStyle: 'bold', fontSize: 7, textColor: [8, 100, 140],
         fillColor: [240, 249, 255], halign: 'left',
@@ -442,39 +417,32 @@ function exportarPDF() {
       }
     }])
     for (const p of grupo.items) {
-      const neto = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)
+      const variacion = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)
       body.push([
         p.codigo,
         p.nombre,
+        p.descripcion || '',
         p.und,
-        p.total_faltante > 0 ? formatNum(p.total_faltante) : '—',
-        p.total_sobrante > 0 ? formatNum(p.total_sobrante) : '—',
-        { content: formatNum(neto), styles: { textColor: neto < 0 ? [245,158,11] : (neto > 0 ? [16,185,129] : [0,0,0]) } },
-        String(p.num_tomas),
+        { content: formatNum(variacion), styles: { textColor: variacion < 0 ? [245,158,11] : (variacion > 0 ? [16,185,129] : [0,0,0]) } },
       ])
     }
   }
 
   // Fila total
   body.push([
-    { content: 'TOTALES', colSpan: 3, styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'left', cellPadding: CP } },
-    { content: formatNum(totalFaltante.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [252,211,77], halign: 'right', cellPadding: CP } },
-    { content: formatNum(totalSobrante.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [110,231,183], halign: 'right', cellPadding: CP } },
-    { content: formatNum(totalSobrante.value - totalFaltante.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } },
-    { content: '', styles: { fillColor: [26,26,46] } },
+    { content: 'TOTALES', colSpan: 4, styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'left', cellPadding: CP } },
+    { content: formatNum(totalVariacion.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } },
   ])
 
   autoTable(doc, {
     startY: HEADER_H + 3,
     showHead: 'everyPage',
     head: [[
-      { content: 'CÓD',        styles: { halign: 'center' } },
+      { content: 'CÓD',          styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
-      { content: 'UNIDAD',     styles: { halign: 'center' } },
-      { content: 'FALTANTE',   styles: { halign: 'right' } },
-      { content: 'SOBRANTE',   styles: { halign: 'right' } },
-      { content: 'NETO',       styles: { halign: 'right' } },
-      { content: 'TOMAS',      styles: { halign: 'center' } },
+      { content: 'DESCRIPCIÓN' },
+      { content: 'UNIDAD',       styles: { halign: 'center' } },
+      { content: 'VARIACIÓN',   styles: { halign: 'right' } },
     ]],
     body,
     theme: 'plain',
@@ -489,11 +457,9 @@ function exportarPDF() {
     columnStyles: {
       0: { cellWidth: 14,   halign: 'center' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 16,   halign: 'center' },
-      3: { cellWidth: 22,   halign: 'right',  textColor: [217, 119, 6] },
-      4: { cellWidth: 22,   halign: 'right',  textColor: [5, 150, 105] },
-      5: { cellWidth: 20,   halign: 'right' },
-      6: { cellWidth: 16,   halign: 'center' },
+      2: { cellWidth: 'auto', textColor: [80, 80, 80] },
+      3: { cellWidth: 16,   halign: 'center' },
+      4: { cellWidth: 24,   halign: 'right' },
     },
     margin: { left: ML, right: MR, bottom: 16, top: HEADER_H + 2 },
     didDrawPage: (data) => { drawHeader(data.pageNumber, null) },
@@ -547,6 +513,8 @@ function exportarPDF() {
 .rc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rc-table thead th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.45); background: rgba(var(--v-theme-on-surface),.03); border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1); white-space: nowrap; }
 .th-nom { min-width: 200px; }
+.th-desc { min-width: 160px; }
+.td-desc { color: rgba(var(--v-theme-on-surface),.55); font-size: 12px; }
 .th-num { text-align: right !important; }
 
 .rc-grupo-row td { padding: 8px 12px 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(8,100,140,1); background: rgba(240,249,255,.7); }

@@ -150,8 +150,7 @@ function productosAgrupados() {
     return Array.from(mapa.values());
 }
 
-function totalFaltante() { return filas.reduce((s, p) => s + parseFloat(p.total_faltante), 0); }
-function totalSobrante() { return filas.reduce((s, p) => s + parseFloat(p.total_sobrante), 0); }
+function totalVariacion() { return filas.reduce((s, p) => s + (parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)), 0); }
 
 // ── Render ────────────────────────────────────────────────────────
 function renderReporte(fechaIni, fechaFin) {
@@ -164,19 +163,17 @@ function renderReporte(fechaIni, fechaFin) {
     }
 
     // KPIs
+    const varTotal = totalVariacion();
+    const varColor = varTotal < 0 ? '#d97706' : (varTotal > 0 ? '#059669' : 'inherit');
     let html = `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px">
             <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
                 <div style="font-size:18px;font-weight:800">${filas.length}</div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Productos</div>
             </div>
             <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
-                <div style="font-size:18px;font-weight:800;color:#d97706">${formatNum(totalFaltante())}</div>
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Faltante</div>
-            </div>
-            <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
-                <div style="font-size:18px;font-weight:800;color:#059669">${formatNum(totalSobrante())}</div>
-                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Sobrante</div>
+                <div style="font-size:18px;font-weight:800;color:${varColor}">${formatNum(varTotal)}</div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-tertiary)">Variación</div>
             </div>
         </div>
         <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:12px;text-align:center">
@@ -185,31 +182,29 @@ function renderReporte(fechaIni, fechaFin) {
 
     html += '<div class="table-container"><table class="grid-table" style="width:100%">';
     html += `<thead><tr>
+        <th style="text-align:left">CÓD</th>
         <th style="text-align:left">PRODUCTO</th>
-        <th style="text-align:right">FALTA</th>
-        <th style="text-align:right">SOBRA</th>
-        <th style="text-align:right">NETO</th>
+        <th style="text-align:center">UND</th>
+        <th style="text-align:right">VARIACIÓN</th>
     </tr></thead><tbody>`;
 
     productosAgrupados().forEach(grupo => {
         html += `<tr><td colspan="4" style="background:rgba(8,145,178,.06);padding:8px 10px;font-weight:700;font-size:11px;text-transform:uppercase;color:#0891b2">📁 ${grupo.nombre}</td></tr>`;
         grupo.items.forEach(p => {
-            const neto = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante);
-            const netoColor = neto > 0 ? '#059669' : (neto < 0 ? '#d97706' : 'inherit');
+            const variacion = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante);
+            const color = variacion > 0 ? '#059669' : (variacion < 0 ? '#d97706' : 'inherit');
             html += `<tr>
-                <td style="padding:6px 10px;font-size:13px;font-weight:500">${p.nombre}<span style="display:block;font-size:10px;color:var(--text-tertiary)">${p.codigo} · ${p.und} · ${p.num_tomas} toma(s)</span></td>
-                <td style="padding:6px 10px;text-align:right;font-family:monospace;font-weight:700;color:#d97706">${parseFloat(p.total_faltante) > 0 ? formatNum(p.total_faltante) : '—'}</td>
-                <td style="padding:6px 10px;text-align:right;font-family:monospace;font-weight:700;color:#059669">${parseFloat(p.total_sobrante) > 0 ? formatNum(p.total_sobrante) : '—'}</td>
-                <td style="padding:6px 10px;text-align:right;font-family:monospace;font-weight:700;color:${netoColor}">${formatNum(neto)}</td>
+                <td style="padding:6px 10px;font-size:12px;font-family:monospace">${p.codigo}</td>
+                <td style="padding:6px 10px;font-size:13px;font-weight:500">${p.nombre}${p.descripcion ? `<span style="display:block;font-size:10px;color:var(--text-tertiary)">${p.descripcion}</span>` : ''}</td>
+                <td style="padding:6px 10px;text-align:center;font-size:12px">${p.und}</td>
+                <td style="padding:6px 10px;text-align:right;font-family:monospace;font-weight:700;color:${color}">${formatNum(variacion)}</td>
             </tr>`;
         });
     });
 
     html += `<tr style="border-top:2px solid var(--border);background:var(--bg-secondary)">
-        <td style="padding:10px;font-weight:800">TOTALES</td>
-        <td style="padding:10px;text-align:right;font-family:monospace;font-weight:800;color:#d97706">${formatNum(totalFaltante())}</td>
-        <td style="padding:10px;text-align:right;font-family:monospace;font-weight:800;color:#059669">${formatNum(totalSobrante())}</td>
-        <td style="padding:10px;text-align:right;font-family:monospace;font-weight:800">${formatNum(totalSobrante() - totalFaltante())}</td>
+        <td colspan="3" style="padding:10px;font-weight:800">TOTALES</td>
+        <td style="padding:10px;text-align:right;font-family:monospace;font-weight:800;color:${varColor}">${formatNum(varTotal)}</td>
     </tr>`;
     html += '</tbody></table></div>';
     document.getElementById('tfReporte').innerHTML = html;
@@ -274,18 +269,10 @@ function exportarPDF() {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6.5);
         doc.setTextColor(100, 116, 139);
-        doc.text('FALTANTE:', 59, 21);
+        doc.text('VARIACIÓN:', 59, 21);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(26, 26, 46);
-        doc.text(formatNum(totalFaltante()), 59 + doc.getTextWidth('FALTANTE:') + 2, 21);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text('SOBRANTE:', 130, 21);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(26, 26, 46);
-        doc.text(formatNum(totalSobrante()), 130 + doc.getTextWidth('SOBRANTE:') + 2, 21);
+        doc.text(formatNum(totalVariacion()), 59 + doc.getTextWidth('VARIACIÓN:') + 2, 21);
 
         doc.setTextColor(0, 0, 0);
     }
@@ -297,7 +284,7 @@ function exportarPDF() {
     for (const grupo of productosAgrupados()) {
         body.push([{
             content: grupo.nombre.toUpperCase(),
-            colSpan: 7,
+            colSpan: 5,
             styles: {
                 fontStyle: 'bold', fontSize: 7, textColor: [8, 100, 140],
                 fillColor: [240, 249, 255], halign: 'left',
@@ -305,38 +292,31 @@ function exportarPDF() {
             }
         }]);
         for (const p of grupo.items) {
-            const neto = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante);
+            const variacion = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante);
             body.push([
                 p.codigo,
                 p.nombre,
+                p.descripcion || '',
                 p.und,
-                parseFloat(p.total_faltante) > 0 ? formatNum(p.total_faltante) : '—',
-                parseFloat(p.total_sobrante) > 0 ? formatNum(p.total_sobrante) : '—',
-                { content: formatNum(neto), styles: { textColor: neto < 0 ? [217,119,6] : (neto > 0 ? [5,150,105] : [0,0,0]) } },
-                String(p.num_tomas),
+                { content: formatNum(variacion), styles: { textColor: variacion < 0 ? [217,119,6] : (variacion > 0 ? [5,150,105] : [0,0,0]) } },
             ]);
         }
     }
 
     body.push([
-        { content: 'TOTALES', colSpan: 3, styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'left', cellPadding: CP } },
-        { content: formatNum(totalFaltante()), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [252,211,77], halign: 'right', cellPadding: CP } },
-        { content: formatNum(totalSobrante()), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [110,231,183], halign: 'right', cellPadding: CP } },
-        { content: formatNum(totalSobrante() - totalFaltante()), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } },
-        { content: '', styles: { fillColor: [26,26,46] } },
+        { content: 'TOTALES', colSpan: 4, styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'left', cellPadding: CP } },
+        { content: formatNum(totalVariacion()), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } },
     ]);
 
     doc.autoTable({
         startY: HEADER_H + 3,
         showHead: 'everyPage',
         head: [[
-            { content: 'CÓD',        styles: { halign: 'center' } },
+            { content: 'CÓD',          styles: { halign: 'center' } },
             { content: 'PRODUCTO' },
-            { content: 'UNIDAD',     styles: { halign: 'center' } },
-            { content: 'FALTANTE',   styles: { halign: 'right' } },
-            { content: 'SOBRANTE',   styles: { halign: 'right' } },
-            { content: 'NETO',       styles: { halign: 'right' } },
-            { content: 'TOMAS',      styles: { halign: 'center' } },
+            { content: 'DESCRIPCIÓN' },
+            { content: 'UNIDAD',       styles: { halign: 'center' } },
+            { content: 'VARIACIÓN',   styles: { halign: 'right' } },
         ]],
         body,
         theme: 'plain',
@@ -351,11 +331,9 @@ function exportarPDF() {
         columnStyles: {
             0: { cellWidth: 14,   halign: 'center' },
             1: { cellWidth: 'auto' },
-            2: { cellWidth: 16,   halign: 'center' },
-            3: { cellWidth: 22,   halign: 'right',  textColor: [217, 119, 6] },
-            4: { cellWidth: 22,   halign: 'right',  textColor: [5, 150, 105] },
-            5: { cellWidth: 20,   halign: 'right' },
-            6: { cellWidth: 16,   halign: 'center' },
+            2: { cellWidth: 'auto', textColor: [80, 80, 80] },
+            3: { cellWidth: 16,   halign: 'center' },
+            4: { cellWidth: 24,   halign: 'right' },
         },
         margin: { left: ML, right: MR, bottom: 16, top: HEADER_H + 2 },
         didDrawPage: () => { drawHeader(); },
