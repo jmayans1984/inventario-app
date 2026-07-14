@@ -113,6 +113,7 @@ export const MODULES = [
         { name: 'Movimiento por Producto', icon: 'mdi-swap-vertical-bold',    path: '/almacen/reportes/movimiento-producto' },
         { name: 'Kardex Consolidado',      icon: 'mdi-table-multiple',         path: '/almacen/reportes/kardex-consolidado' },
         { name: 'Predicción Agotamiento',  icon: 'mdi-chart-box-outline',      path: '/almacen/reportes/prediccion-agotamiento' },
+        { name: 'Faltantes y Sobrantes (Toma Física)', icon: 'mdi-clipboard-check-outline', path: '/almacen/reportes/toma-fisica' },
       ]},
     ],
   },

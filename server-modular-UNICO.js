@@ -2406,6 +2406,52 @@ app.get('/api/almacen/reporte-consumos', async (req, res) => {
 });
 // ── FIN REPORTE CONSUMOS ──────────────────────────────────────────
 
+// ── REPORTE FALTANTES Y SOBRANTES (TOMA FÍSICA) ───────────────────
+// Parámetros: empresa, ccostos ("CC1,CC2,..."), fecha_ini, fecha_fin
+// Suma por producto entradas (sobrante) y salidas (faltante) de todos
+// los ajustes de tipo 'TOMA FISICA' en el rango, sin importar cuántas
+// tomas físicas se hayan hecho.
+app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
+    try {
+        const { empresa, ccostos, fecha_ini, fecha_fin } = req.query;
+        if (!empresa || !ccostos || !fecha_ini || !fecha_fin)
+            return res.status(400).json({ success: false, error: 'Faltan parámetros' });
+
+        const listaCcostos = ccostos.split(',').map(s => s.trim()).filter(Boolean);
+        const n = listaCcostos.length;
+        const placeholders = listaCcostos.map((_, i) => `$${i + 2}`).join(', ');
+
+        const result = await pool.query(
+            `SELECT
+                di.codigo,
+                p.nombre,
+                p.und,
+                COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
+                COALESCE(gp.codigo, '999')        AS grupo_codigo,
+                ROUND(COALESCE(SUM(di.entrada), 0)::numeric, 4) AS total_sobrante,
+                ROUND(COALESCE(SUM(di.salida),  0)::numeric, 4) AS total_faltante,
+                COUNT(DISTINCT (di.fecha, di.ccosto))            AS num_tomas
+             FROM detalle_inventario di
+             JOIN productos p ON p.codigo = di.codigo
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             WHERE di.empresa::text = $1
+               AND di.ccosto  IN (${placeholders})
+               AND di.fecha  >= $${n + 2}
+               AND di.fecha  <= $${n + 3}
+               AND di.tipo    = 'TOMA FISICA'
+             GROUP BY di.codigo, p.nombre, p.und, gp.nombre, gp.codigo
+             ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
+            [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
+        );
+
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/reporte-toma-fisica:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// ── FIN REPORTE FALTANTES Y SOBRANTES ─────────────────────────────
+
 // ── REPORTE CONSUMO INSUMOS (SALIDA POR TRASLADO, BODEGA MAESTRA) ─
 app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
     try {

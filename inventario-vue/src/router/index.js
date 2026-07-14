@@ -53,6 +53,7 @@ const routes = [
   { path: '/almacen/reportes/movimiento-producto',      component: () => import('../views/almacen/ReporteMovimientoProductoView.vue'),   meta: { requiresAuth: true } },
   { path: '/almacen/reportes/kardex-consolidado',       component: () => import('../views/almacen/KardexConsolidadoView.vue'),            meta: { requiresAuth: true } },
   { path: '/almacen/reportes/prediccion-agotamiento',   component: () => import('../views/almacen/PrediccionAgotamientoView.vue'),       meta: { requiresAuth: true } },
+  { path: '/almacen/reportes/toma-fisica',              component: () => import('../views/almacen/ReporteTomaFisicaView.vue'),           meta: { requiresAuth: true } },
 
   // ALMACÉN — patrón general
   { path: '/almacen/:section?/:item?', component: () => import('../views/AlmacenView.vue'), meta: { requiresAuth: true } },
