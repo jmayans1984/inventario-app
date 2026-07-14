@@ -111,6 +111,47 @@
                 </div>
               </div>
 
+              <div class="bodega-section">
+                <div class="section-title">
+                  <v-icon size="20" color="#0891b2">mdi-percent-outline</v-icon>
+                  <span>% Imprevisto para Despachos</span>
+                </div>
+
+                <div class="bodega-description">
+                  <p>
+                    Porcentaje adicional que se suma al <strong>promedio de ventas</strong> calculado en
+                    "Nueva Orden" de Despachos de Bodega, para cubrir picos de demanda imprevistos.
+                  </p>
+                </div>
+
+                <div class="bodega-selector-section">
+                  <div class="selector-wrapper">
+                    <v-text-field
+                      v-model.number="pctImprevistoSelected"
+                      type="number"
+                      min="0"
+                      max="999"
+                      step="1"
+                      suffix="%"
+                      label="Porcentaje de imprevisto"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    />
+                    <v-btn
+                      color="#0891b2"
+                      variant="flat"
+                      size="small"
+                      @click="guardarPctImprevisto"
+                      :loading="actualizandoPct"
+                      class="ml-2"
+                    >
+                      Guardar
+                    </v-btn>
+                  </div>
+                </div>
+              </div>
+
               <div class="warning-box" v-if="bodegaMaestraActivo">
                 <v-icon size="18" color="#0891b2">mdi-information-outline</v-icon>
                 <div>
@@ -160,6 +201,8 @@ const empresaNombre = ref('')
 const bodegaMaestraSelected = ref(null) // Código del centro de costo o null
 const centrosCosto = ref([])
 const cargandoCentros = ref(false)
+const pctImprevistoSelected = ref(0)
+const actualizandoPct = ref(false)
 
 const snack = ref({ show: false, msg: '', color: 'success' })
 
@@ -179,6 +222,7 @@ async function cargar() {
     // Cargar bodega maestra actual
     const res = await bodegaMaestraService.obtenerBodegaMaestra()
     bodegaMaestraSelected.value = res.data.bodega_maestra || null
+    pctImprevistoSelected.value = parseFloat(res.data.pct_imprevisto_despachos) || 0
   } catch (e) {
     console.error('Error cargando:', e)
     error.value = 'Error al cargar información de bodega maestra'
@@ -242,6 +286,25 @@ async function desactivarBodegaMaestra() {
     mostrarSnack(error.value, 'error')
   } finally {
     actualizando.value = false
+  }
+}
+
+async function guardarPctImprevisto() {
+  const pct = parseFloat(pctImprevistoSelected.value)
+  if (isNaN(pct) || pct < 0) {
+    mostrarSnack('Ingresa un porcentaje válido', 'warning')
+    return
+  }
+
+  actualizandoPct.value = true
+  try {
+    await bodegaMaestraService.actualizarPctImprevisto(pct)
+    mostrarSnack('✓ Porcentaje de imprevisto actualizado', 'success')
+  } catch (e) {
+    console.error('Error actualizando pct imprevisto:', e)
+    mostrarSnack(e.response?.data?.error || 'Error al actualizar el porcentaje', 'error')
+  } finally {
+    actualizandoPct.value = false
   }
 }
 

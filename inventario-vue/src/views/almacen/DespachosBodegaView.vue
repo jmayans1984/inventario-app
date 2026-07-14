@@ -241,17 +241,22 @@
                     <th class="pg-stock-bodega">STOCK BODEGA</th>
                     <th class="pg-und">UND</th>
                     <th class="pg-stock">STOCK DESTINO</th>
+                    <th class="pg-promedio">
+                      PROMEDIO VENTAS
+                      <span v-if="pctImprevistoActual > 0" class="pg-th-hint">(+{{ pctImprevistoActual }}% imprev.)</span>
+                    </th>
+                    <th class="pg-faltante">FALTANTE</th>
                     <th class="pg-cant">CANTIDAD A ENVIAR</th>
                   </tr>
                 </thead>
                 <tbody>
                   <template v-if="productosAgrupados.length === 0">
-                    <tr><td colspan="6" class="grid-empty">{{ busquedaProducto ? 'Sin resultados para la búsqueda' : 'No hay productos con control de inventario' }}</td></tr>
+                    <tr><td colspan="8" class="grid-empty">{{ busquedaProducto ? 'Sin resultados para la búsqueda' : 'No hay productos con control de inventario' }}</td></tr>
                   </template>
                   <template v-for="grupo in productosAgrupados" :key="grupo.key">
                     <!-- Cabecera de grupo -->
                     <tr class="pg-grupo-row">
-                      <td colspan="6" class="pg-grupo-cell">
+                      <td colspan="8" class="pg-grupo-cell">
                         <v-icon size="13" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
                         <span class="pg-grupo-name">{{ grupo.nombre }}</span>
                         <span class="pg-grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
@@ -278,6 +283,24 @@
                         <span :class="(stockDestinoPorCodigo[p.codigo] || 0) > 0 ? 'stock-pos' : 'stock-zero'">
                           {{ parseFloat(stockDestinoPorCodigo[p.codigo] || 0).toFixed(0) }}
                         </span>
+                      </td>
+                      <td class="pg-td-promedio">
+                        <template v-if="loadingPromedioVentas">
+                          <v-progress-circular indeterminate size="14" width="2" color="#8b5cf6" />
+                        </template>
+                        <template v-else-if="promedioVentas(p.codigo) !== null">
+                          <span class="pg-promedio-val">{{ promedioVentas(p.codigo).toFixed(1) }}</span>
+                          <v-btn icon size="x-small" variant="text" color="#8b5cf6"
+                            @click="abrirVentasDetalle(p)" title="Ver ventas usadas en el cálculo">
+                            <v-icon size="15">mdi-eye-outline</v-icon>
+                          </v-btn>
+                        </template>
+                        <span v-else class="pg-promedio-sin-datos">—</span>
+                      </td>
+                      <td class="pg-td-faltante">
+                        <span v-if="faltante(p.codigo) === null" class="pg-promedio-sin-datos">—</span>
+                        <span v-else-if="faltante(p.codigo) > 0" class="pg-faltante-val">{{ faltante(p.codigo).toFixed(1) }}</span>
+                        <span v-else class="pg-faltante-ok">0</span>
                       </td>
                       <td class="pg-td-cant">
                         <input
@@ -309,6 +332,50 @@
               {{ editandoId ? 'Guardar Cambios' : 'Crear Orden' }}
             </v-btn>
           </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- ═══════════════ DIALOG DETALLE PROMEDIO DE VENTAS ═══════════════ -->
+      <v-dialog v-model="dlgVentasDetalle" max-width="420">
+        <v-card rounded="lg">
+          <div class="ventas-dlg-header">
+            <v-icon color="white" size="18" class="mr-2">mdi-chart-line</v-icon>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:white">{{ ventasDetalleActivo?.nombre }}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.8)">{{ ventasDetalleActivo?.codigo }}</div>
+            </div>
+            <v-spacer />
+            <v-btn icon variant="text" color="white" size="small" @click="dlgVentasDetalle=false"><v-icon>mdi-close</v-icon></v-btn>
+          </div>
+          <v-card-text class="pa-4">
+            <template v-if="ventasDetalleActivo && promedioVentasPorCodigo[ventasDetalleActivo.codigo]">
+              <div class="ventas-dlg-sub">Ventas de los últimos {{ diasVentasUsados.length }} días con el mismo día de la semana</div>
+              <table class="ventas-dlg-table">
+                <thead>
+                  <tr><th>FECHA</th><th class="col-r">CANTIDAD</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="d in promedioVentasPorCodigo[ventasDetalleActivo.codigo].detalle" :key="d.fecha">
+                    <td>{{ new Date(d.fecha).toLocaleDateString('es', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC' }) }}</td>
+                    <td class="col-r mono">{{ parseFloat(d.cantidad).toFixed(1) }}</td>
+                  </tr>
+                  <tr v-if="!promedioVentasPorCodigo[ventasDetalleActivo.codigo].detalle.length">
+                    <td colspan="2" style="text-align:center;padding:16px;color:rgba(var(--v-theme-on-surface),.4)">Sin ventas en esos días</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="ventas-dlg-resumen">
+                <div class="ventas-dlg-resumen-row">
+                  <span>Promedio base</span>
+                  <strong>{{ promedioVentasPorCodigo[ventasDetalleActivo.codigo].promedio_base.toFixed(2) }}</strong>
+                </div>
+                <div class="ventas-dlg-resumen-row" v-if="pctImprevistoActual > 0">
+                  <span>+ {{ pctImprevistoActual }}% imprevisto</span>
+                  <strong>{{ promedioVentasPorCodigo[ventasDetalleActivo.codigo].promedio.toFixed(2) }}</strong>
+                </div>
+              </div>
+            </template>
+          </v-card-text>
         </v-card>
       </v-dialog>
 
@@ -542,6 +609,14 @@ const cantidades      = ref({})   // { [codigo]: number }
 const loadingGrid     = ref(false)
 const busquedaProducto = ref('')
 
+// Promedio de ventas (mismo día de la semana, últimos 5 con venta) + % imprevisto
+const promedioVentasPorCodigo = ref({}) // { [codigo]: { promedio, promedio_base, detalle: [{fecha,cantidad}] } }
+const diasVentasUsados        = ref([]) // fechas usadas para el cálculo
+const pctImprevistoActual     = ref(0)
+const loadingPromedioVentas   = ref(false)
+const dlgVentasDetalle        = ref(false)
+const ventasDetalleActivo     = ref(null) // { codigo, nombre }
+
 // Dialog detalle
 const dlgDetalle    = ref(false)
 const detalleActivo = ref(null)
@@ -598,6 +673,23 @@ const productosAgrupados = computed(() => {
 const productosConCantidad = computed(() =>
   Object.values(cantidades.value).filter(v => parseFloat(v) > 0).length
 )
+
+function promedioVentas(codigo) {
+  return promedioVentasPorCodigo.value[codigo]?.promedio ?? null
+}
+
+function faltante(codigo) {
+  const promedio = promedioVentas(codigo)
+  if (promedio === null) return null
+  const stockDestino = stockDestinoPorCodigo.value[codigo] || 0
+  const diff = promedio - stockDestino
+  return diff > 0 ? diff : 0
+}
+
+function abrirVentasDetalle(p) {
+  ventasDetalleActivo.value = { codigo: p.codigo, nombre: p.nombre }
+  dlgVentasDetalle.value = true
+}
 
 const detalleAgrupado = computed(() => {
   if (!detalleActivo.value?.detalle) return []
@@ -797,11 +889,41 @@ async function verificarInventario(ccDestino) {
   finally { verificandoInventario.value = false }
 }
 
+async function cargarPromedioVentas(ccDestino, fecha) {
+  if (!ccDestino || !fecha) {
+    promedioVentasPorCodigo.value = {}
+    diasVentasUsados.value = []
+    return
+  }
+  loadingPromedioVentas.value = true
+  try {
+    const res = await api.get('/almacen/promedio-ventas-dia-semana', {
+      params: { empresa: empresa.value, ccosto: ccDestino, fecha }
+    })
+    const data = res.data?.data || {}
+    promedioVentasPorCodigo.value = data.productos || {}
+    diasVentasUsados.value = data.dias || []
+    pctImprevistoActual.value = parseFloat(data.pct_imprevisto) || 0
+  } catch (e) {
+    console.error('Error cargando promedio de ventas:', e)
+    promedioVentasPorCodigo.value = {}
+    diasVentasUsados.value = []
+  } finally {
+    loadingPromedioVentas.value = false
+  }
+}
+
 // Recargar grid cuando cambia cc_destino
 watch(() => form.value.cc_destino, (val) => {
   cantidades.value = {}
   cargarGrid(val)
   verificarInventario(val)
+  cargarPromedioVentas(val, form.value.fecha)
+})
+
+// Recalcular promedio de ventas cuando cambia la fecha (el día de la semana cambia)
+watch(() => form.value.fecha, (val) => {
+  if (form.value.cc_destino) cargarPromedioVentas(form.value.cc_destino, val)
 })
 
 // ── CRUD ──────────────────────────────────────────────────────
@@ -816,6 +938,8 @@ function abrirNuevo() {
   stockPorCodigo.value  = {}
   stockDisponiblePorCodigo.value = {}
   stockDestinoPorCodigo.value = {}
+  promedioVentasPorCodigo.value = {}
+  diasVentasUsados.value = []
   inventarioStatus.value = null
   const bodega = ccostos.value[0]
   form.value = {
@@ -855,6 +979,7 @@ async function abrirEditar(d) {
     // Cargar grid del cc_destino y luego restaurar cantidades
     await cargarGrid(orden.cc_destino)
     cantidades.value = prevCant
+    cargarPromedioVentas(orden.cc_destino, form.value.fecha)
     dlgForm.value = true
   } catch (e) {
     console.error(e)
@@ -1222,6 +1347,17 @@ onMounted(async () => {
 /* Dialog */
 .dlg-card { overflow: visible !important; }
 .dlg-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; background: linear-gradient(135deg,#047857,#10b981); }
+
+.ventas-dlg-header { display: flex; align-items: center; padding: 14px 16px; background: linear-gradient(135deg,#7c3aed,#8b5cf6); }
+.ventas-dlg-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 10px; }
+.ventas-dlg-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ventas-dlg-table th { text-align: left; padding: 6px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.ventas-dlg-table td { padding: 6px 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); }
+.ventas-dlg-table .col-r { text-align: right; }
+.ventas-dlg-table .mono { font-family: monospace; }
+.ventas-dlg-resumen { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.ventas-dlg-resumen-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: rgba(var(--v-theme-on-surface),.65); }
+.ventas-dlg-resumen-row strong { color: #8b5cf6; font-family: monospace; }
 .dlg-header-left { display: flex; align-items: center; gap: 12px; }
 .dlg-header-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; }
 .dlg-title { font-size: 16px; font-weight: 700; color: white; }
@@ -1246,7 +1382,10 @@ onMounted(async () => {
 .pg-stock-bodega { width: 140px; }
 .pg-und   { width: 60px; }
 .pg-stock { width: 110px; text-align: center !important; }
+.pg-promedio { width: 130px; text-align: center !important; }
+.pg-faltante { width: 90px; text-align: center !important; }
 .pg-cant  { width: 130px; text-align: right !important; }
+.pg-th-hint { display: block; font-size: 9px; font-weight: 600; color: #8b5cf6; text-transform: none; letter-spacing: 0; margin-top: 1px; }
 
 .pg-grupo-row  { background: rgba(139,92,246,.06); }
 .pg-grupo-cell { padding: 6px 10px !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
@@ -1264,9 +1403,15 @@ onMounted(async () => {
 .pg-td-desc  { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); }
 .pg-td-stock-bodega { font-size: 11px; }
 .pg-td-stock { text-align: center; font-family: monospace; font-size: 13px; font-weight: 600; }
+.pg-td-promedio { text-align: center; white-space: nowrap; }
+.pg-td-faltante { text-align: center; font-family: monospace; font-size: 13px; font-weight: 700; }
 .pg-td-cant  { text-align: right; }
 .stock-pos  { color: #10b981; }
 .stock-zero { color: rgba(var(--v-theme-on-surface),.35); }
+.pg-promedio-val { font-family: monospace; font-size: 13px; font-weight: 600; color: #8b5cf6; }
+.pg-promedio-sin-datos { color: rgba(var(--v-theme-on-surface),.3); font-size: 12px; }
+.pg-faltante-val { color: #ef4444; }
+.pg-faltante-ok  { color: rgba(var(--v-theme-on-surface),.35); }
 
 .grid-empty { text-align: center !important; padding: 30px !important; color: rgba(var(--v-theme-on-surface),.4); }
 

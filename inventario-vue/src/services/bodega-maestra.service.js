@@ -11,6 +11,11 @@ export const bodegaMaestraService = {
     const res = await api.put('/empresas/bodega-maestra', { bodega_maestra })
     return res.data
   },
+
+  async actualizarPctImprevisto(pct_imprevisto_despachos) {
+    const res = await api.put('/empresas/pct-imprevisto-despachos', { pct_imprevisto_despachos })
+    return res.data
+  },
 }
 
 export default bodegaMaestraService

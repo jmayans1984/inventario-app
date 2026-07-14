@@ -951,6 +951,66 @@ app.get('/api/almacen/barcode-lookup', async (req, res) => {
 // ── DESPACHOS DE BODEGA ───────────────────────────────────────────────────────
 
 // GET /api/almacen/despachos?empresa=&fecha=&estado=&cc_destino=
+// GET /api/almacen/promedio-ventas-dia-semana — promedio de ventas del mismo día de la semana
+// (últimos 5 días con venta, mismo weekday que `fecha`, en el cc_destino) + % imprevisto configurado
+app.get('/api/almacen/promedio-ventas-dia-semana', async (req, res) => {
+    const { empresa, ccosto, fecha } = req.query;
+    if (!empresa || !ccosto || !fecha) {
+        return res.status(400).json({ success: false, error: 'empresa, ccosto y fecha son requeridos' });
+    }
+    try {
+        // % de imprevisto configurado por la empresa
+        const empRes = await pool.query(
+            `SELECT COALESCE(pct_imprevisto_despachos, 0) AS pct FROM empresas WHERE codigo = $1`,
+            [parseInt(empresa)]
+        );
+        const pctImprevisto = parseFloat(empRes.rows[0]?.pct || 0);
+
+        // Últimos 5 días (mismo día de la semana que `fecha`, estrictamente anteriores) con al menos una venta
+        const diasRes = await pool.query(
+            `SELECT DISTINCT fecha FROM detalle_inventario
+             WHERE empresa::text = $1 AND ccosto = $2 AND tipo LIKE 'SALIDA POR VENTA%'
+               AND fecha < $3::date
+               AND EXTRACT(DOW FROM fecha) = EXTRACT(DOW FROM $3::date)
+             ORDER BY fecha DESC
+             LIMIT 5`,
+            [String(empresa), ccosto, fecha]
+        );
+        const dias = diasRes.rows.map(r => r.fecha);
+
+        let porProducto = {};
+        if (dias.length > 0) {
+            const ventasRes = await pool.query(
+                `SELECT codigo, fecha, SUM(salida) AS cantidad
+                 FROM detalle_inventario
+                 WHERE empresa::text = $1 AND ccosto = $2 AND tipo LIKE 'SALIDA POR VENTA%'
+                   AND fecha = ANY($3::date[])
+                 GROUP BY codigo, fecha`,
+                [String(empresa), ccosto, dias]
+            );
+            for (const r of ventasRes.rows) {
+                if (!porProducto[r.codigo]) porProducto[r.codigo] = { total: 0, detalle: [] };
+                const cant = parseFloat(r.cantidad) || 0;
+                porProducto[r.codigo].total += cant;
+                porProducto[r.codigo].detalle.push({ fecha: r.fecha, cantidad: cant });
+            }
+            for (const codigo of Object.keys(porProducto)) {
+                const p = porProducto[codigo];
+                p.detalle.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                const promedioBase = p.total / dias.length;
+                p.promedio_base = promedioBase;
+                p.promedio = promedioBase * (1 + pctImprevisto / 100);
+                delete p.total;
+            }
+        }
+
+        res.json({ success: true, data: { dias, pct_imprevisto: pctImprevisto, productos: porProducto } });
+    } catch (e) {
+        console.error('Error GET /api/almacen/promedio-ventas-dia-semana:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.get('/api/almacen/despachos', async (req, res) => {
     const { empresa, fecha, estado, cc_destino } = req.query;
     try {
@@ -10818,6 +10878,7 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
     try {
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS lista_precio_id INTEGER DEFAULT NULL`);
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(2) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS pct_imprevisto_despachos NUMERIC(5,2) DEFAULT 0`);
         console.log('✅ Columnas empresas listas');
     } catch (e) { console.error('Error migrando empresas ADD:', e.message); }
 })();
@@ -10875,6 +10936,7 @@ app.get('/api/empresas/bodega-maestra', async (req, res) => {
 
         const result = await pool.query(
             `SELECT e.codigo, e.nombre, e.bodega_maestra,
+                    COALESCE(e.pct_imprevisto_despachos, 0) AS pct_imprevisto_despachos,
                     cc.codigo AS centro_costo_codigo, cc.nombre AS centro_costo_nombre
              FROM empresas e
              LEFT JOIN ccostos cc ON cc.codigo = e.bodega_maestra
@@ -10923,6 +10985,36 @@ app.put('/api/empresas/bodega-maestra', async (req, res) => {
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Error PUT /api/empresas/bodega-maestra:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/empresas/pct-imprevisto-despachos — % de imprevisto adicional para el promedio de ventas
+app.put('/api/empresas/pct-imprevisto-despachos', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        const { pct_imprevisto_despachos } = req.body;
+
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        const pct = parseFloat(pct_imprevisto_despachos);
+        if (isNaN(pct) || pct < 0 || pct > 999) {
+            return res.status(400).json({ success: false, error: 'Porcentaje inválido' });
+        }
+
+        const result = await pool.query(
+            `UPDATE empresas SET pct_imprevisto_despachos = $1 WHERE codigo = $2
+             RETURNING codigo, nombre, pct_imprevisto_despachos`,
+            [pct, empresaCod]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        }
+
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/empresas/pct-imprevisto-despachos:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
