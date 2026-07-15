@@ -2162,6 +2162,211 @@ function _npBtnStyle(bg) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// AGREGAR PRODUCTO MANUAL — catálogo completo de Bodega Maestra
+// (reemplaza el botón de cámara; permite agregar al despacho un
+// producto que no aparece en el listado de la orden)
+// ══════════════════════════════════════════════════════════════
+let catalogoBodegaMaestra   = null; // cache de productos control=SI
+let _manualProductoCodigo   = null;
+let _manualCantVal          = '';
+
+async function abrirCatalogoManual() {
+    if (scanEnProceso) return;
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+    panel.innerHTML = `
+        <div class="bs-header">
+            <div class="bs-drag"></div>
+            <div class="bs-title">📋 Agregar producto manualmente</div>
+            <div class="bs-subtitle">Selecciona un producto de la Bodega Maestra para agregarlo al despacho</div>
+        </div>
+        <div class="bs-list" id="bsListManual">
+            <div style="padding:20px;text-align:center">⏳ Cargando productos...</div>
+        </div>
+        <div class="bs-footer">
+            <button class="bs-cancel" onclick="cerrarCatalogoManual()">Cancelar</button>
+        </div>
+    `;
+    overlay.classList.add('open');
+    await cargarCatalogoManual();
+}
+
+async function cargarCatalogoManual() {
+    const lista = document.getElementById('bsListManual');
+    try {
+        if (!catalogoBodegaMaestra) {
+            const res  = await fetchConTimeout(`${API_BASE}/almacen/productos`, { headers: { 'x-empresa': getEmpresa() } });
+            const data = await res.json();
+            catalogoBodegaMaestra = (data.data || []).filter(p => p.control === 'SI');
+        }
+        if (catalogoBodegaMaestra.length === 0) {
+            lista.innerHTML = '<div style="padding:20px;text-align:center">❌ No hay productos activos en la Bodega Maestra</div>';
+            return;
+        }
+
+        window._catalogoManualInfo = {};
+        catalogoBodegaMaestra.forEach(p => { window._catalogoManualInfo[p.codigo] = { nombre: p.nombre, und: p.und }; });
+
+        const buscador = `
+            <input id="bsBuscarManual" type="text" placeholder="🔍 Buscar producto..." autocomplete="off"
+                   oninput="filtrarCatalogoManual()"
+                   style="width:100%;padding:12px;margin-bottom:12px;border-radius:12px;border:1px solid var(--border-color);
+                          background:var(--bg-input);color:var(--text-primary);font-size:14px;box-sizing:border-box">
+        `;
+        const items = catalogoBodegaMaestra.map(p => `
+            <div class="bs-item bs-prod-item-manual" data-nombre="${(p.nombre||'').toLowerCase()}" data-cod="${p.codigo}"
+                 onclick="seleccionarProductoManual('${p.codigo}')">
+                <div class="bs-item-icon">📦</div>
+                <div>
+                    <div class="bs-item-name">${p.nombre}</div>
+                    <div class="bs-item-cod">${p.codigo}${p.und ? ' · ' + p.und : ''}</div>
+                </div>
+            </div>
+        `).join('');
+        lista.innerHTML = buscador + `<div id="bsProdContainerManual">${items}</div>`;
+    } catch(e) {
+        lista.innerHTML = '<div style="padding:20px;text-align:center">❌ Error cargando productos: ' + e.message + '</div>';
+    }
+}
+
+function filtrarCatalogoManual() {
+    const q = (document.getElementById('bsBuscarManual')?.value || '').toLowerCase().trim();
+    document.querySelectorAll('.bs-prod-item-manual').forEach(el => {
+        const nom = el.getAttribute('data-nombre') || '';
+        const cod = (el.getAttribute('data-cod') || '').toLowerCase();
+        el.style.display = (!q || nom.includes(q) || cod.includes(q)) ? '' : 'none';
+    });
+}
+
+function cerrarCatalogoManual() {
+    document.getElementById('bsOverlay').classList.remove('open');
+    refocusInput();
+}
+
+function seleccionarProductoManual(codigo) {
+    _manualProductoCodigo = codigo;
+    _manualCantVal = '';
+    const info = (window._catalogoManualInfo && window._catalogoManualInfo[codigo]) || { nombre: codigo, und: '' };
+
+    const overlay = document.getElementById('bsOverlay');
+    const panel   = overlay.querySelector('.bs-panel');
+    panel.innerHTML = `
+        <div style="padding:20px 16px 16px">
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Producto</div>
+            <div style="font-size:15px;font-weight:700;margin-bottom:16px">${info.nombre}</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">¿Cuántas unidades vas a despachar?</div>
+            <div style="background:var(--bg-input);border-radius:14px;padding:18px 20px;text-align:center;margin-bottom:16px;border:2px solid var(--border-color)">
+                <div id="manualCantDisplay" style="font-size:48px;font-weight:900;color:var(--text-primary);min-height:60px;line-height:1">—</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+                ${[1,2,3,4,5,6,7,8,9].map(n =>
+                  `<button onclick="manualCantDigit(${n})" style="padding:0;height:72px;border-radius:14px;border:1.5px solid var(--border-color);
+                          background:var(--bg-card);color:var(--text-primary);font-size:28px;font-weight:700;
+                          cursor:pointer;touch-action:manipulation;user-select:none">${n}</button>`
+                ).join('')}
+                <button onclick="manualCantBorrar()" style="padding:0;height:72px;border-radius:14px;border:none;
+                        background:#7c3aed;color:white;font-size:28px;font-weight:700;
+                        cursor:pointer;touch-action:manipulation;user-select:none">⌫</button>
+                <button onclick="manualCantDigit(0)" style="padding:0;height:72px;border-radius:14px;border:1.5px solid var(--border-color);
+                        background:var(--bg-card);color:var(--text-primary);font-size:28px;font-weight:700;
+                        cursor:pointer;touch-action:manipulation;user-select:none">0</button>
+                <button id="btnManualCantOk" onclick="confirmarAgregarManual()" disabled style="padding:0;height:72px;border-radius:14px;border:none;
+                        background:#10b981;color:white;font-size:22px;font-weight:800;cursor:pointer;opacity:.4;
+                        touch-action:manipulation;user-select:none">✓</button>
+            </div>
+            <button onclick="abrirCatalogoManual()" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border-color);
+                    cursor:pointer;background:transparent;color:var(--text-secondary);font-size:13px;font-weight:700">
+                ← Volver a la lista
+            </button>
+        </div>
+    `;
+}
+
+function manualCantDigit(n) {
+    if (_manualCantVal.length >= 6) return;
+    _manualCantVal += String(n);
+    actualizarManualCantDisplay();
+}
+
+function manualCantBorrar() {
+    _manualCantVal = _manualCantVal.slice(0, -1);
+    actualizarManualCantDisplay();
+}
+
+function actualizarManualCantDisplay() {
+    const disp = document.getElementById('manualCantDisplay');
+    const btn  = document.getElementById('btnManualCantOk');
+    if (disp) disp.textContent = _manualCantVal === '' ? '—' : _manualCantVal;
+    const val = parseInt(_manualCantVal) || 0;
+    if (btn) { btn.disabled = val <= 0; btn.style.opacity = val > 0 ? '1' : '.4'; }
+}
+
+async function confirmarAgregarManual() {
+    const cantidad = parseInt(_manualCantVal) || 0;
+    if (cantidad <= 0 || !_manualProductoCodigo) return;
+    const codigo = _manualProductoCodigo;
+    const info   = (window._catalogoManualInfo && window._catalogoManualInfo[codigo]) || { nombre: codigo, und: '' };
+
+    document.getElementById('bsOverlay').classList.remove('open');
+
+    if (!estadoCambiado) {
+        const nuevoEst = modoEscaneo === 'picking' ? 'EN_PICKING' : 'EN_PACKING';
+        try {
+            await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/estado`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empresa: getEmpresa(), estado: nuevoEst })
+            });
+            ordenActiva.estado = nuevoEst;
+            estadoCambiado = true;
+        } catch(e) { /* continuar */ }
+    }
+
+    const campo = modoEscaneo === 'packing' ? 'cant_packing' : 'cant_picking';
+    let item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+    if (!item) {
+        item = {
+            producto_codigo: codigo,
+            producto_nombre: info.nombre,
+            und: info.und || '',
+            cant_requerida: 0,
+            cant_picking: 0,
+            cant_packing: 0
+        };
+        ordenActiva.detalle.push(item);
+    }
+
+    try {
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos/${ordenActiva.id}/scan`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresa: getEmpresa(), producto_codigo: codigo, tipo: modoEscaneo, delta: cantidad })
+        });
+        const data = await res.json();
+        if (!data.success) { showFeedback('error', '❌ Error al agregar producto'); return; }
+
+        item[campo] = parseFloat(data.data[campo]) || 0;
+        if (data.data.cant_requerida != null) item.cant_requerida = parseFloat(data.data.cant_requerida) || 0;
+        sessionSentDeltas[codigo] = (sessionSentDeltas[codigo] || 0) + cantidad;
+
+        hideFeedback();
+        mostrarUltimoEscaneo(item, campo, cantidad);
+        actualizarFilaScan(item, campo);
+
+        const nuevo = parseFloat(item[campo]);
+        const req   = parseFloat(item.cant_requerida);
+        if (req > 0 && nuevo === req) {
+            await verificarCompletoYOcultar(item, campo);
+            mostrarPopupCompletado(item);
+        }
+    } catch(e) {
+        showFeedback('error', '❌ Error de conexión');
+    } finally {
+        refocusInput();
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
 // CÁMARA — Escáner de barcode con cámara del celular
 // ══════════════════════════════════════════════════════════════
 let codeReader = null;
