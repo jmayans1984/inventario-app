@@ -841,14 +841,15 @@ const productosAgrupados = computed(() => {
 })
 
 // ── Popup "Productos de Bodega Maestra" ────────────────────────
-const dlgProductosBodega  = ref(false)
-const buscarProductoPopup = ref('')
+const dlgProductosBodega        = ref(false)
+const buscarProductoPopup       = ref('')
+const productosBodegaMaestraCache = ref([])  // Cache separado: TODOS los control=SI
 
 const productosBodegaAgrupados = computed(() => {
   const q = buscarProductoPopup.value?.trim().toLowerCase()
   const lista = !q
-    ? productos.value
-    : productos.value.filter(p =>
+    ? productosBodegaMaestraCache.value
+    : productosBodegaMaestraCache.value.filter(p =>
         p.nombre?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q)
       )
   const mapa = new Map()
@@ -900,6 +901,9 @@ async function cargarProductos() {
   try {
     const res = await api.get('/almacen/productos')
     const todos = res.data?.data || []
+
+    // Cache todos los productos control=SI para el popup (independiente del CC)
+    productosBodegaMaestraCache.value = todos.filter(p => p.control === 'SI')
 
     const esBodegaMaestra = bodegaMaestraCC.value && (String(bodegaMaestraCC.value) === String(ccOrigen.value))
     filtroActivo.value = esBodegaMaestra ? 'bodega' : 'punto_venta'
