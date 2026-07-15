@@ -158,7 +158,7 @@
               Leer foto
             </v-btn>
             <v-btn
-              v-if="filtroActivo === 'bodega'"
+              v-if="filtroActivo === 'punto_venta'"
               variant="tonal"
               size="small"
               color="#0891b2"
