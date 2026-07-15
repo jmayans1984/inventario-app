@@ -2207,22 +2207,39 @@ async function cargarCatalogoManual() {
         window._catalogoManualInfo = {};
         catalogoBodegaMaestra.forEach(p => { window._catalogoManualInfo[p.codigo] = { nombre: p.nombre, und: p.und }; });
 
+        // Agrupar por grupo/categoría de producto
+        const grupos = {};
+        catalogoBodegaMaestra.forEach(p => {
+            const grupoNombre = p.grupo_nombre || 'Sin grupo';
+            const grupoCodigo = p.grupo || '';
+            const key = `${grupoCodigo}|${grupoNombre}`;
+            if (!grupos[key]) grupos[key] = { nombre: grupoNombre, items: [] };
+            grupos[key].items.push(p);
+        });
+        Object.values(grupos).forEach(g => g.items.sort((a, b) => (a.nombre||'').localeCompare(b.nombre||'')));
+        const gruposOrdenados = Object.keys(grupos).sort();
+
         const buscador = `
             <input id="bsBuscarManual" type="text" placeholder="🔍 Buscar producto..." autocomplete="off"
                    oninput="filtrarCatalogoManual()"
                    style="width:100%;padding:12px;margin-bottom:12px;border-radius:12px;border:1px solid var(--border-color);
                           background:var(--bg-input);color:var(--text-primary);font-size:14px;box-sizing:border-box">
         `;
-        const items = catalogoBodegaMaestra.map(p => `
-            <div class="bs-item bs-prod-item-manual" data-nombre="${(p.nombre||'').toLowerCase()}" data-cod="${p.codigo}"
-                 onclick="seleccionarProductoManual('${p.codigo}')">
-                <div class="bs-item-icon">📦</div>
-                <div>
-                    <div class="bs-item-name">${p.nombre}</div>
-                    <div class="bs-item-cod">${p.codigo}${p.und ? ' · ' + p.und : ''}</div>
+        const items = gruposOrdenados.map(key => {
+            const grupo = grupos[key];
+            const header = `<div class="scan-grupo-header bs-grupo-header-manual">${grupo.nombre}</div>`;
+            const filas = grupo.items.map(p => `
+                <div class="bs-item bs-prod-item-manual" data-nombre="${(p.nombre||'').toLowerCase()}" data-cod="${p.codigo}"
+                     onclick="seleccionarProductoManual('${p.codigo}')">
+                    <div class="bs-item-icon">📦</div>
+                    <div>
+                        <div class="bs-item-name">${p.nombre}</div>
+                        <div class="bs-item-cod">${p.codigo}${p.und ? ' · ' + p.und : ''}</div>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+            return header + filas;
+        }).join('');
         lista.innerHTML = buscador + `<div id="bsProdContainerManual">${items}</div>`;
     } catch(e) {
         lista.innerHTML = '<div style="padding:20px;text-align:center">❌ Error cargando productos: ' + e.message + '</div>';
@@ -2231,10 +2248,25 @@ async function cargarCatalogoManual() {
 
 function filtrarCatalogoManual() {
     const q = (document.getElementById('bsBuscarManual')?.value || '').toLowerCase().trim();
-    document.querySelectorAll('.bs-prod-item-manual').forEach(el => {
+    const contenedor = document.getElementById('bsProdContainerManual');
+    if (!contenedor) return;
+
+    // Mostrar/ocultar cada producto según el texto buscado
+    contenedor.querySelectorAll('.bs-prod-item-manual').forEach(el => {
         const nom = el.getAttribute('data-nombre') || '';
         const cod = (el.getAttribute('data-cod') || '').toLowerCase();
         el.style.display = (!q || nom.includes(q) || cod.includes(q)) ? '' : 'none';
+    });
+
+    // Ocultar encabezados de grupo cuyos productos quedaron todos ocultos
+    contenedor.querySelectorAll('.bs-grupo-header-manual').forEach(header => {
+        let visibles = 0;
+        let sib = header.nextElementSibling;
+        while (sib && !sib.classList.contains('bs-grupo-header-manual')) {
+            if (sib.style.display !== 'none') visibles++;
+            sib = sib.nextElementSibling;
+        }
+        header.style.display = visibles > 0 ? '' : 'none';
     });
 }
 
