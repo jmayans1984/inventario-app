@@ -154,8 +154,18 @@
               prepend-inner-icon="mdi-magnify"
               style="max-width:240px"
             />
-            <v-btn variant="tonal" size="small" color="#8b5cf6" prepend-icon="mdi-camera-outline" @click="abrirOcr">
+            <v-btn variant="tonal" size="small" color="#8b5cf6" prepend-icon="mdi-camera-outline" @click="abrirOcr" style="display:none">
               Leer foto
+            </v-btn>
+            <v-btn
+              v-if="filtroActivo === 'bodega'"
+              variant="tonal"
+              size="small"
+              color="#0891b2"
+              prepend-icon="mdi-warehouse"
+              @click="abrirProductosBodega"
+            >
+              Bodega Maestra
             </v-btn>
             <v-btn variant="text" size="small" prepend-icon="mdi-eraser" @click="limpiarCantidades">
               Limpiar
@@ -336,6 +346,54 @@
         </v-card>
       </v-dialog>
 
+      <!-- ═══════════ DIALOG PRODUCTOS BODEGA MAESTRA ═══════════ -->
+      <v-dialog v-model="dlgProductosBodega" max-width="620" scrollable>
+        <v-card rounded="xl">
+          <div class="ocr-dlg-header" style="background:linear-gradient(135deg,#0891b2,#0e7490)">
+            <div class="d-flex align-center gap-3">
+              <div class="ocr-icon-wrap"><v-icon size="20" color="white">mdi-warehouse</v-icon></div>
+              <div>
+                <div class="ocr-dlg-title">PRODUCTOS DE BODEGA MAESTRA</div>
+                <div class="ocr-dlg-sub">Toca un producto para ubicarlo en el grid</div>
+              </div>
+            </div>
+            <v-btn icon size="small" variant="text" @click="dlgProductosBodega=false"><v-icon color="white">mdi-close</v-icon></v-btn>
+          </div>
+          <v-card-text class="pa-4">
+            <v-text-field
+              v-model="buscarProductoPopup"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              autofocus
+              placeholder="Buscar producto..."
+              prepend-inner-icon="mdi-magnify"
+              class="mb-3"
+            />
+            <div v-if="productosBodegaAgrupados.length === 0" class="text-center pa-6" style="color:rgba(var(--v-theme-on-surface),.4)">
+              <v-icon size="32">mdi-package-variant-closed</v-icon>
+              <p style="margin:6px 0 0;font-size:13px">Sin resultados</p>
+            </div>
+            <div v-else style="max-height:55vh;overflow-y:auto">
+              <div v-for="grupo in productosBodegaAgrupados" :key="grupo.key" class="mb-2">
+                <div class="popup-grupo-header">{{ grupo.nombre }}</div>
+                <div
+                  v-for="p in grupo.items"
+                  :key="p.codigo"
+                  class="popup-prod-item"
+                  @click="seleccionarProductoPopup(p)"
+                >
+                  <span class="badge-cod">{{ p.codigo }}</span>
+                  <span class="popup-prod-nombre">{{ p.nombre }}</span>
+                  <span class="badge-und">{{ p.und }}</span>
+                </div>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
+
         <!-- Sin CC seleccionado -->
         <div v-if="!ccOrigen" class="gi-loading">
           <v-icon size="36" color="rgba(var(--v-theme-on-surface),.2)">mdi-store-search-outline</v-icon>
@@ -392,6 +450,7 @@
               <tr
                 v-for="p in grupo.items"
                 :key="p.codigo"
+                :data-codigo="p.codigo"
                 class="gi-prod-row"
                 :class="{ 'gi-prod-highlighted': getCantidad(p.codigo) !== 0 }"
                 :style="hoveredRow === p.codigo ? { background: rowHoverBg } : {}"
@@ -639,7 +698,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
@@ -780,6 +839,44 @@ const productosAgrupados = computed(() => {
   }
   return Array.from(mapa.values())
 })
+
+// ── Popup "Productos de Bodega Maestra" ────────────────────────
+const dlgProductosBodega  = ref(false)
+const buscarProductoPopup = ref('')
+
+const productosBodegaAgrupados = computed(() => {
+  const q = buscarProductoPopup.value?.trim().toLowerCase()
+  const lista = !q
+    ? productos.value
+    : productos.value.filter(p =>
+        p.nombre?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q)
+      )
+  const mapa = new Map()
+  for (const p of lista) {
+    const key    = p.grupo || '__sin_grupo__'
+    const nombre = p.grupo_nombre || 'Sin Grupo'
+    if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
+    mapa.get(key).items.push(p)
+  }
+  return Array.from(mapa.values())
+})
+
+function abrirProductosBodega() {
+  buscarProductoPopup.value = ''
+  dlgProductosBodega.value  = true
+}
+
+function seleccionarProductoPopup(p) {
+  dlgProductosBodega.value = false
+  busquedaProducto.value   = ''
+  nextTick(() => {
+    const el = document.querySelector(`[data-codigo="${p.codigo}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.querySelector('.gi-cant-input')?.focus()
+    }
+  })
+}
 
 const productosConCantidad = computed(() =>
   Object.values(cantidades.value).filter(v => { const n = parseFloat(v); return !isNaN(n) && n !== 0 }).length
@@ -1379,6 +1476,12 @@ function aplicarOcr() {
 /* Badges */
 .badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
 .badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
+
+/* Popup Productos Bodega Maestra */
+.popup-grupo-header { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #0891b2; padding: 8px 4px 4px; }
+.popup-prod-item { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; cursor: pointer; }
+.popup-prod-item:hover { background: rgba(var(--v-theme-on-surface),.05); }
+.popup-prod-nombre { flex: 1; font-size: 13px; }
 
 /* Dialog */
 .dlg-title    { font-size: 16px; font-weight: 700; padding: 16px 20px; display: flex; align-items: center; }
