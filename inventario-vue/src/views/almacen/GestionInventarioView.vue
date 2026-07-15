@@ -870,6 +870,12 @@ function abrirProductosBodega() {
 function seleccionarProductoPopup(p) {
   dlgProductosBodega.value = false
   busquedaProducto.value   = ''
+
+  // Agregar el producto al grid si no está ya
+  if (!productos.value.find(prod => prod.codigo === p.codigo)) {
+    productos.value = [...productos.value, p]
+  }
+
   nextTick(() => {
     const el = document.querySelector(`[data-codigo="${p.codigo}"]`)
     if (el) {
