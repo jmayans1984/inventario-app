@@ -121,14 +121,14 @@
       </div>
     </div>
 
-    <!-- POPUP: DETALLE DE SALIDAS DIARIAS -->
+    <!-- POPUP: GRÁFICOS DE CONSUMO -->
     <v-dialog v-model="dlgDetalle" max-width="640" scrollable>
       <v-card v-if="productoDetalle" class="dt-card">
         <div class="dt-header">
           <div class="dt-icon-wrap"><v-icon size="18" color="white">mdi-chart-bar</v-icon></div>
           <div class="dt-title-wrap">
             <div class="dt-title">{{ productoDetalle.nombre }}</div>
-            <div class="dt-sub">{{ productoDetalle.codigo }} · Salidas de los últimos {{ ventanaDias }} días</div>
+            <div class="dt-sub">{{ productoDetalle.codigo }}</div>
           </div>
           <v-btn icon variant="text" size="small" @click="dlgDetalle = false">
             <v-icon size="18" color="white">mdi-close</v-icon>
@@ -142,7 +142,14 @@
           </div>
 
           <template v-else>
-            <!-- Gráfico de barras: eje Y = cantidad, eje X = número de día -->
+            <!-- ── GRÁFICO 1: consumo diario de los últimos X días ── -->
+            <div class="dt-section-header">
+              <span class="dt-section-title">CONSUMO DIARIO DE LOS ÚLTIMOS {{ ventanaDias }} DÍAS</span>
+              <v-btn size="x-small" variant="tonal" color="#047857" @click="dlgGridDetalle = true">
+                <v-icon size="13" class="mr-1">mdi-table</v-icon>
+                Ver detalle
+              </v-btn>
+            </div>
             <div class="dt-chart-wrap">
               <div class="dt-chart-row">
                 <!-- Eje Y: escala de cantidades -->
@@ -170,30 +177,76 @@
               </div>
             </div>
 
-            <!-- Tabla detalle -->
-            <table class="dt-tabla">
-              <thead>
-                <tr>
-                  <th>FECHA</th>
-                  <th style="text-align:center">DÍA</th>
-                  <th style="text-align:right">SALIDA</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(d, i) in [...detalleDias].reverse()" :key="i" :class="{ 'dt-fila-vacia': d.salida === 0 }">
-                  <td>{{ fmtFechaLarga(d.fecha) }}</td>
-                  <td style="text-align:center">{{ nombreDiaSemana(d.fecha) }}</td>
-                  <td style="text-align:right" class="dt-val">{{ d.salida.toFixed(2) }}</td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colspan="2" class="dt-total-lbl">TOTAL</td>
-                  <td style="text-align:right" class="dt-total-val">{{ totalDetalle.toFixed(2) }}</td>
-                </tr>
-              </tfoot>
-            </table>
+            <!-- ── GRÁFICO 2: promedio de consumo por día de semana ── -->
+            <div class="dt-section-header dt-section-header-2">
+              <span class="dt-section-title">PROMEDIO DE CONSUMO POR DÍA DE SEMANA</span>
+            </div>
+            <div class="dt-chart-wrap">
+              <div class="dt-chart-row">
+                <div class="dt-y-axis">
+                  <span v-for="(lbl, i) in yAxisLabelsSemana" :key="i">{{ lbl }}</span>
+                </div>
+                <div class="dt-chart dt-chart-semana">
+                  <div
+                    v-for="(val, i) in (productoDetalle.consumo_por_dia || [0,0,0,0,0,0,0])"
+                    :key="i"
+                    class="dt-bar-col"
+                    :title="`${diasSem[i]}: ${val.toFixed(2)}`"
+                  >
+                    <div class="dt-bar-track">
+                      <div
+                        class="dt-bar-fill"
+                        :class="{ 'dt-bar-finde': i === 0 || i === 6 }"
+                        :style="{ height: barHSemana(val) + '%' }"
+                      ></div>
+                    </div>
+                    <span class="dt-bar-lbl">{{ diasSemCorto[i] }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </template>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- POPUP: GRID DE DETALLE (consumo día a día) -->
+    <v-dialog v-model="dlgGridDetalle" max-width="560" scrollable>
+      <v-card v-if="productoDetalle" class="dt-card">
+        <div class="dt-header">
+          <div class="dt-icon-wrap"><v-icon size="18" color="white">mdi-table</v-icon></div>
+          <div class="dt-title-wrap">
+            <div class="dt-title">{{ productoDetalle.nombre }}</div>
+            <div class="dt-sub">{{ productoDetalle.codigo }} · Salidas de los últimos {{ ventanaDias }} días</div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="dlgGridDetalle = false">
+            <v-icon size="18" color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <div class="dt-body">
+          <table class="dt-tabla">
+            <thead>
+              <tr>
+                <th>FECHA</th>
+                <th style="text-align:center">DÍA</th>
+                <th style="text-align:right">SALIDA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(d, i) in [...detalleDias].reverse()" :key="i" :class="{ 'dt-fila-vacia': d.salida === 0 }">
+                <td>{{ fmtFechaLarga(d.fecha) }}</td>
+                <td style="text-align:center">{{ nombreDiaSemana(d.fecha) }}</td>
+                <td style="text-align:right" class="dt-val">{{ d.salida.toFixed(2) }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="dt-total-lbl">TOTAL</td>
+                <td style="text-align:right" class="dt-total-val">{{ totalDetalle.toFixed(2) }}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </v-card>
     </v-dialog>
@@ -275,6 +328,7 @@ onMounted(() => {
 
 // ─── Popup: detalle de salidas diarias ────────────────────────
 const dlgDetalle = ref(false);
+const dlgGridDetalle = ref(false);
 const productoDetalle = ref(null);
 const detalleDias = ref([]);
 const cargandoDetalle = ref(false);
@@ -314,6 +368,30 @@ function barHDetalle(val) {
   const pct = (val / max) * 100;
   return val > 0 && pct < 6 ? 6 : pct;
 }
+
+// ── Gráfico 2: promedio de consumo por día de semana ──
+function maxSemana() {
+  const arr = productoDetalle.value?.consumo_por_dia || [];
+  const max = Math.max(...arr);
+  return !max || max <= 0 ? 0 : max;
+}
+
+function barHSemana(val) {
+  const max = maxSemana();
+  if (!max) return 0;
+  const pct = (val / max) * 100;
+  return val > 0 && pct < 6 ? 6 : pct;
+}
+
+const yAxisLabelsSemana = computed(() => {
+  const max = maxSemana();
+  const pasos = 4;
+  const labels = [];
+  for (let i = pasos; i >= 0; i--) {
+    labels.push((max * i / pasos).toFixed(1));
+  }
+  return labels;
+});
 
 // Etiquetas del eje Y: 5 escalones de 0 al máximo, de arriba (mayor) a abajo (0)
 const yAxisLabels = computed(() => {
@@ -440,6 +518,11 @@ function nombreDiaSemana(f) {
 .dt-body { padding: 18px; }
 .dt-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: rgba(var(--v-theme-on-surface), .5); }
 
+/* Encabezados de sección dentro del popup de gráficos */
+.dt-section-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.dt-section-header-2 { margin-top: 8px; }
+.dt-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface), .6); }
+
 /* Gráfico de barras: eje Y (cantidad) + eje X (número de día) */
 .dt-chart-wrap { margin-bottom: 20px; }
 .dt-chart-row { display: flex; gap: 8px; }
@@ -454,7 +537,9 @@ function nombreDiaSemana(f) {
 .dt-bar-track { height: 110px; width: 100%; max-width: 16px; display: flex; align-items: flex-end; background: rgba(var(--v-theme-on-surface), .05); border-radius: 2px; overflow: hidden; }
 .dt-bar-fill { width: 100%; background: #10b981; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
 .dt-bar-fill.dt-bar-hoy { background: #047857; }
+.dt-bar-fill.dt-bar-finde { background: #f59e0b; }
 .dt-bar-lbl { font-size: 9px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .5); white-space: nowrap; }
+.dt-chart-semana .dt-bar-col { flex: none; width: 13%; }
 
 /* Tabla detalle */
 .dt-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
