@@ -65,7 +65,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in datos" :key="p.codigo" :class="`pa-row pa-row-${p.alerta.toLowerCase()}`">
+            <tr
+              v-for="p in datos"
+              :key="p.codigo"
+              :class="`pa-row pa-row-${p.alerta.toLowerCase()} pa-row-click`"
+              @click="abrirDetalle(p)"
+            >
               <td class="pa-codigo">{{ p.codigo }}</td>
               <td class="pa-nombre">{{ p.nombre }}</td>
               <td class="pa-und">{{ p.und }}</td>
@@ -115,6 +120,76 @@
         <p>Analizando consumo y calculando predicciones...</p>
       </div>
     </div>
+
+    <!-- POPUP: DETALLE DE SALIDAS DIARIAS -->
+    <v-dialog v-model="dlgDetalle" max-width="640" scrollable>
+      <v-card v-if="productoDetalle" class="dt-card">
+        <div class="dt-header">
+          <div class="dt-icon-wrap"><v-icon size="18" color="white">mdi-chart-bar</v-icon></div>
+          <div class="dt-title-wrap">
+            <div class="dt-title">{{ productoDetalle.nombre }}</div>
+            <div class="dt-sub">{{ productoDetalle.codigo }} · Salidas de los últimos {{ ventanaDias }} días</div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="dlgDetalle = false">
+            <v-icon size="18" color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <div class="dt-body">
+          <div v-if="cargandoDetalle" class="dt-loading">
+            <v-progress-circular indeterminate color="#047857" size="28"></v-progress-circular>
+            <span>Cargando detalle...</span>
+          </div>
+
+          <template v-else>
+            <!-- Gráfico de barras -->
+            <div class="dt-chart-wrap">
+              <div class="dt-chart">
+                <div
+                  v-for="(d, i) in detalleDias"
+                  :key="i"
+                  class="dt-bar-col"
+                  :title="`${fmtFechaCorta(d.fecha)}: ${d.salida.toFixed(2)}`"
+                >
+                  <div class="dt-bar-track">
+                    <div
+                      class="dt-bar-fill"
+                      :class="{ 'dt-bar-hoy': i === detalleDias.length - 1 }"
+                      :style="{ height: barHDetalle(d.salida) + '%' }"
+                    ></div>
+                  </div>
+                  <span v-if="mostrarEtiquetaDia(i)" class="dt-bar-lbl">{{ fmtFechaCorta(d.fecha) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabla detalle -->
+            <table class="dt-tabla">
+              <thead>
+                <tr>
+                  <th>FECHA</th>
+                  <th style="text-align:center">DÍA</th>
+                  <th style="text-align:right">SALIDA</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(d, i) in [...detalleDias].reverse()" :key="i" :class="{ 'dt-fila-vacia': d.salida === 0 }">
+                  <td>{{ fmtFechaLarga(d.fecha) }}</td>
+                  <td style="text-align:center">{{ nombreDiaSemana(d.fecha) }}</td>
+                  <td style="text-align:right" class="dt-val">{{ d.salida.toFixed(2) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" class="dt-total-lbl">TOTAL</td>
+                  <td style="text-align:right" class="dt-total-val">{{ totalDetalle.toFixed(2) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </template>
+        </div>
+      </v-card>
+    </v-dialog>
   </MainLayout>
 </template>
 
@@ -190,6 +265,63 @@ async function cargar() {
 onMounted(() => {
   cargar();
 });
+
+// ─── Popup: detalle de salidas diarias ────────────────────────
+const dlgDetalle = ref(false);
+const productoDetalle = ref(null);
+const detalleDias = ref([]);
+const cargandoDetalle = ref(false);
+
+const totalDetalle = computed(() => detalleDias.value.reduce((s, d) => s + d.salida, 0));
+
+async function abrirDetalle(p) {
+  productoDetalle.value = p;
+  dlgDetalle.value = true;
+  cargandoDetalle.value = true;
+  detalleDias.value = [];
+  try {
+    const res = await fetch(`${API_BASE}/almacen/prediccion-agotamiento/detalle?empresa=${empresa.value}&codigo=${encodeURIComponent(p.codigo)}&dias=${ventanaDias.value}`);
+    const json = await res.json();
+    if (json.success === false) {
+      console.error('Error:', json.error);
+      alert('Error al cargar detalle: ' + json.error);
+      return;
+    }
+    detalleDias.value = json.data || [];
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error: ' + error.message);
+  } finally {
+    cargandoDetalle.value = false;
+  }
+}
+
+function barHDetalle(val) {
+  const max = Math.max(...detalleDias.value.map(d => d.salida));
+  if (!max || max <= 0) return 0;
+  const pct = (val / max) * 100;
+  return val > 0 && pct < 6 ? 6 : pct;
+}
+
+function mostrarEtiquetaDia(i) {
+  // Muestra etiqueta cada ~5 días para no saturar el eje
+  return i % 5 === 0 || i === detalleDias.value.length - 1;
+}
+
+function fmtFechaCorta(f) {
+  const d = new Date(f + 'T12:00:00');
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function fmtFechaLarga(f) {
+  const d = new Date(f + 'T12:00:00');
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function nombreDiaSemana(f) {
+  const d = new Date(f + 'T12:00:00');
+  return diasSemCorto[d.getDay()];
+}
 </script>
 
 <style scoped>
@@ -232,6 +364,7 @@ onMounted(() => {
 .pa-table tbody td { padding: 10px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), .04); }
 
 .pa-row { transition: background .15s; }
+.pa-row-click { cursor: pointer; }
 .pa-row:hover { background: rgba(var(--v-theme-on-surface), .02); }
 .pa-row-peligro { background: rgba(220, 38, 38, .03); }
 .pa-row-peligro:hover { background: rgba(220, 38, 38, .06); }
@@ -271,4 +404,40 @@ onMounted(() => {
 .badge-peligro { display: inline-block; padding: 4px 12px; background: #fecaca; color: #dc2626; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
 .badge-alerta { display: inline-block; padding: 4px 12px; background: #fde047; color: #92400e; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
 .badge-ok { display: inline-block; padding: 4px 12px; background: #d1fae5; color: #047857; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+
+/* ── Popup: detalle de salidas diarias ──────────────────────── */
+.dt-card { border-radius: 14px; overflow: hidden; }
+.dt-header {
+  display: flex; align-items: center; gap: 12px; padding: 16px 18px;
+  background: linear-gradient(135deg, #047857, #10b981);
+}
+.dt-icon-wrap {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.dt-title-wrap { flex: 1; min-width: 0; }
+.dt-title { font-size: 15px; font-weight: 700; color: white; }
+.dt-sub { font-size: 11px; color: rgba(255,255,255,.8); margin-top: 2px; }
+
+.dt-body { padding: 18px; }
+.dt-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: rgba(var(--v-theme-on-surface), .5); }
+
+/* Gráfico de barras */
+.dt-chart-wrap { margin-bottom: 20px; }
+.dt-chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; overflow-x: auto; padding-bottom: 4px; }
+.dt-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 8px; height: 100%; justify-content: flex-end; }
+.dt-bar-track { height: 100px; width: 100%; max-width: 14px; display: flex; align-items: flex-end; background: rgba(var(--v-theme-on-surface), .05); border-radius: 2px; overflow: hidden; }
+.dt-bar-fill { width: 100%; background: #10b981; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
+.dt-bar-fill.dt-bar-hoy { background: #047857; }
+.dt-bar-lbl { font-size: 8px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .45); white-space: nowrap; }
+
+/* Tabla detalle */
+.dt-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dt-tabla thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; border-bottom: 2px solid rgba(var(--v-theme-on-surface), .1); color: rgba(var(--v-theme-on-surface), .5); }
+.dt-tabla tbody td { padding: 7px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), .04); }
+.dt-fila-vacia { color: rgba(var(--v-theme-on-surface), .35); }
+.dt-val { font-family: monospace; font-weight: 600; }
+.dt-tabla tfoot td { padding: 10px; border-top: 2px solid rgba(var(--v-theme-on-surface), .1); font-weight: 700; }
+.dt-total-lbl { text-transform: uppercase; font-size: 11px; letter-spacing: .3px; }
+.dt-total-val { font-family: monospace; color: #047857; font-size: 13px; }
 </style>

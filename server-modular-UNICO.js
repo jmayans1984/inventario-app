@@ -1917,6 +1917,58 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
     }
 });
 
+// GET /api/almacen/prediccion-agotamiento/detalle — salidas diarias de un producto
+// en la bodega maestra durante la ventana solicitada (default 30 días), para
+// mostrar el detalle día a día + gráfico de barras en el popup del reporte.
+app.get('/api/almacen/prediccion-agotamiento/detalle', async (req, res) => {
+    const { empresa, codigo } = req.query;
+    if (!empresa || !codigo) return res.status(400).json({ error: 'empresa y codigo requeridos' });
+
+    try {
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`,
+            [empresa]
+        );
+        if (!bodegaRes.rows[0] || !bodegaRes.rows[0].bodega_maestra) {
+            return res.status(404).json({ error: 'Bodega maestra no configurada para esta empresa' });
+        }
+        const bodegaCodigo = bodegaRes.rows[0].bodega_maestra;
+
+        const ventanaDias = Math.min(Math.max(parseInt(req.query.dias) || 30, 7), 90);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const desde = new Date(hoy);
+        desde.setDate(desde.getDate() - ventanaDias);
+        const fechaDesde = desde.toISOString().split('T')[0];
+        const fechaHoy   = hoy.toISOString().split('T')[0];
+
+        const salidasRes = await pool.query(
+            `SELECT fecha::date AS fecha, SUM(salida) AS salida
+             FROM detalle_inventario
+             WHERE empresa = $1 AND ccosto = $2 AND codigo = $3 AND fecha >= $4 AND fecha < $5 AND salida > 0
+             GROUP BY fecha::date
+             ORDER BY fecha::date`,
+            [empresa, bodegaCodigo, codigo, fechaDesde, fechaHoy]
+        );
+
+        // Rellenar todos los días de la ventana (incluso los de salida 0) para el gráfico
+        const mapaSalidas = {};
+        for (const row of salidasRes.rows) {
+            mapaSalidas[row.fecha.toISOString().split('T')[0]] = parseFloat(row.salida);
+        }
+        const dias = [];
+        for (let d = new Date(desde); d < hoy; d.setDate(d.getDate() + 1)) {
+            const f = d.toISOString().split('T')[0];
+            dias.push({ fecha: f, salida: mapaSalidas[f] || 0 });
+        }
+
+        res.json({ success: true, data: dias, meta: { ventana_dias: ventanaDias } });
+    } catch (error) {
+        console.error('Error GET /api/almacen/prediccion-agotamiento/detalle:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // PUT /api/almacen/gestion-inventario — editar movimiento existente
 // Identifica el lote original por (fecha+ccosto+tipo_db+cc_relacion+observaciones),
 // lo borra y re-inserta con los nuevos valores.
