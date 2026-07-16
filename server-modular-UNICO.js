@@ -11839,6 +11839,59 @@ app.get('/api/nomina/semanas', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// GET /api/nomina/horas-semana — horas de la semana actual agrupadas por
+// centro de costo (usa real_horas si existen, si no las programadas).
+// Si no hay semana que contenga hoy, usa la más reciente. Para el dashboard.
+app.get('/api/nomina/horas-semana', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+    try {
+        let semana = await pool.query(
+            `SELECT id, TO_CHAR(semana_inicio,'YYYY-MM-DD') AS inicio, TO_CHAR(semana_fin,'YYYY-MM-DD') AS fin
+             FROM nom_semana
+             WHERE empresa = $1 AND CURRENT_DATE BETWEEN semana_inicio AND semana_fin
+             ORDER BY semana_inicio DESC LIMIT 1`,
+            [empresa]
+        );
+        if (!semana.rows.length) {
+            semana = await pool.query(
+                `SELECT id, TO_CHAR(semana_inicio,'YYYY-MM-DD') AS inicio, TO_CHAR(semana_fin,'YYYY-MM-DD') AS fin
+                 FROM nom_semana WHERE empresa = $1 ORDER BY semana_inicio DESC LIMIT 1`,
+                [empresa]
+            );
+        }
+        if (!semana.rows.length) return res.json({ success: true, semana: null, data: [] });
+        const s = semana.rows[0];
+
+        const horas = await pool.query(
+            `SELECT
+                sd.ccosto,
+                COALESCE(cc.nombre, sd.ccosto, 'SIN CC') AS ccosto_nombre,
+                SUM(COALESCE(sd.real_horas, sd.prog_horas, 0)) AS horas,
+                COUNT(DISTINCT sd.empleado_id) AS empleados
+             FROM nom_semana_detalle sd
+             LEFT JOIN ccostos cc ON cc.codigo = sd.ccosto AND cc.empresa::text = $2::text
+             WHERE sd.semana_id = $1 AND COALESCE(sd.es_dia_libre, false) = false
+             GROUP BY sd.ccosto, cc.nombre
+             ORDER BY horas DESC`,
+            [s.id, empresa]
+        );
+
+        res.json({
+            success: true,
+            semana: s,
+            data: horas.rows.map(r => ({
+                ...r,
+                horas: parseFloat(r.horas) || 0,
+                empleados: parseInt(r.empleados) || 0,
+            })),
+        });
+    } catch(e) {
+        console.error('Error GET /api/nomina/horas-semana:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.post('/api/nomina/semanas', async (req, res) => {
     const { empresa, semana_inicio, semana_fin, notas } = req.body;
     try {
