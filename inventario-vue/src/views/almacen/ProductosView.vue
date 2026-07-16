@@ -296,7 +296,7 @@
               <v-divider class="my-3" />
 
               <v-row dense>
-                <v-col cols="3">
+                <v-col cols="12" sm="3">
                   <v-text-field
                     :model-value="editando ? form.codigo : 'AUTO'"
                     label="Código"
@@ -306,7 +306,7 @@
                     hide-details
                   />
                 </v-col>
-                <v-col cols="9">
+                <v-col cols="12" sm="9">
                   <v-text-field
                     v-model="form.nombre"
                     label="Nombre del Producto *"
