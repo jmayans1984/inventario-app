@@ -1764,12 +1764,18 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
         const bodegaCodigo = bodegaRes.rows[0].bodega_maestra;
 
         // 2. Ventana de análisis configurable (default 30 días, soporta 15/30/60)
+        //    La ventana son los N días COMPLETOS anteriores a hoy (hoy se excluye
+        //    porque es un día parcial y distorsionaría los promedios).
+        //    Ej: hoy 1-jul con 30 días → analiza del 1-jun al 30-jun.
         const ventanaDias = Math.min(Math.max(parseInt(req.query.dias) || 30, 7), 90);
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
+        const hastaAyer = new Date(hoy);
+        hastaAyer.setDate(hastaAyer.getDate() - 1);
         const desde = new Date(hoy);
-        desde.setDate(desde.getDate() - (ventanaDias - 1)); // ventana inclusiva de hoy hacia atrás
+        desde.setDate(desde.getDate() - ventanaDias);
         const fechaDesde = desde.toISOString().split('T')[0];
+        const fechaHoy   = hoy.toISOString().split('T')[0];
 
         // 3. Consumo por producto y día de semana en la ventana (agrupado en SQL)
         //    EXTRACT(DOW): 0=domingo ... 5=viernes, 6=sábado
@@ -1779,30 +1785,30 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
                 EXTRACT(DOW FROM fecha)::int AS dow,
                 SUM(salida)               AS total_salida
             FROM detalle_inventario
-            WHERE empresa = $1 AND ccosto = $2 AND fecha >= $3 AND salida > 0
+            WHERE empresa = $1 AND ccosto = $2 AND fecha >= $3 AND fecha < $4 AND salida > 0
             GROUP BY codigo, EXTRACT(DOW FROM fecha)::int`,
-            [empresa, bodegaCodigo, fechaDesde]
+            [empresa, bodegaCodigo, fechaDesde, fechaHoy]
         );
 
         // 3b. Primera fecha real con datos (para no subestimar el consumo si hay menos historia)
         const primeraRes = await pool.query(
             `SELECT MIN(fecha)::date AS primera
              FROM detalle_inventario
-             WHERE empresa = $1 AND ccosto = $2 AND fecha >= $3 AND salida > 0`,
-            [empresa, bodegaCodigo, fechaDesde]
+             WHERE empresa = $1 AND ccosto = $2 AND fecha >= $3 AND fecha < $4 AND salida > 0`,
+            [empresa, bodegaCodigo, fechaDesde, fechaHoy]
         );
-        // Span real analizado: desde la primera fecha con datos (o el inicio de la ventana) hasta hoy
+        // Span real analizado: desde la primera fecha con datos (o el inicio de la ventana) hasta ayer
         let inicioReal = desde;
         if (primeraRes.rows[0] && primeraRes.rows[0].primera) {
             const pr = new Date(primeraRes.rows[0].primera);
             pr.setHours(0, 0, 0, 0);
             if (pr > desde) inicioReal = pr;
         }
-        const spanDias = Math.max(1, Math.round((hoy - inicioReal) / 86400000) + 1);
+        const spanDias = Math.max(1, Math.round((hastaAyer - inicioReal) / 86400000) + 1);
 
-        // 4. Ocurrencias de cada día de semana dentro del span real
+        // 4. Ocurrencias de cada día de semana dentro del span real (hasta ayer)
         const ocurrenciasDia = [0, 0, 0, 0, 0, 0, 0];
-        for (let d = new Date(inicioReal); d <= hoy; d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(inicioReal); d <= hastaAyer; d.setDate(d.getDate() + 1)) {
             ocurrenciasDia[d.getDay()]++;
         }
 
@@ -1853,18 +1859,18 @@ app.get('/api/almacen/prediccion-agotamiento', async (req, res) => {
             let fechaAgotamiento = null;
             let diasRestantes = null;
 
-            if (consumoDiarioProm > 0) {
+            if (totalProd > 0) {
                 let stockSim = stock;
                 let dia = new Date(hoy);
                 let contador = 0;
 
-                // Arranca HOY: dias_restantes = nº de días desde hoy hasta el agotamiento.
-                // Usa el promedio diario PLANO (total / días calendario del periodo).
-                // La bodega maestra despacha en lotes (una salida cubre 2-3 días), por eso
-                // el consumo se reparte parejo entre todos los días, no solo los de salida.
-                // Ej: stock 27, ~6/día → agota a los 4 días (hoy+4).
+                // Arranca HOY y simula día a día con ESTACIONALIDAD SEMANAL:
+                // a cada fecha le resta el consumo promedio de SU día de semana
+                // (si hoy es miércoles: resta el promedio de los miércoles, luego
+                // el de los jueves, viernes, etc.) hasta que el stock llega a 0.
+                // dias_restantes = nº de días desde hoy hasta el agotamiento.
                 while (stockSim > 0 && contador < 365) {
-                    stockSim -= consumoDiarioProm;
+                    stockSim -= perfilDia[dia.getDay()];
 
                     if (stockSim <= 0) {
                         fechaAgotamiento = dia.toISOString().split('T')[0];
