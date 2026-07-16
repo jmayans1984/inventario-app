@@ -87,7 +87,7 @@
           </div>
         </div>
 
-        <div class="dx-kpi" style="--kc:#ef4444" @click="irA('/contabilidad/procesos/gestion-gastos')">
+        <div class="dx-kpi" style="--kc:#ef4444" @click="irA('/contabilidad/procesos/gastos')">
           <div class="dx-kpi-head">
             <span class="dx-kpi-lbl">GASTOS DEL MES</span>
             <div class="dx-kpi-ic" style="background:rgba(239,68,68,.1)">
@@ -241,7 +241,7 @@
                 </div>
                 ÚLTIMOS GASTOS
               </div>
-              <button class="dx-panel-link" @click="irA('/contabilidad/procesos/gestion-gastos')">Ver todos</button>
+              <button class="dx-panel-link" @click="irA('/contabilidad/procesos/gastos')">Ver todos</button>
             </div>
             <div v-if="cargando" class="dx-panel-loading">
               <v-progress-circular indeterminate size="20" width="2" color="#8b5cf6" />

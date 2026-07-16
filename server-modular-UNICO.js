@@ -7158,6 +7158,64 @@ app.get('/api/contabilidad/grupos-gastos', async (req, res) => {
     }
 });
 
+// GET /api/contabilidad/dashboard — datos para el panel principal del módulo:
+// P&G del mes actual (gastos agrupados por grupo_gastos de la cuenta contable)
+// y últimos gastos registrados con proveedor válido.
+app.get('/api/contabilidad/dashboard', async (req, res) => {
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    try {
+        const [pygRes, ultimosRes] = await Promise.all([
+            // Gastos del mes actual agrupados por grupo de la cuenta contable
+            pool.query(
+                `SELECT
+                    COALESCE(gg.nombre, 'SIN GRUPO') AS grupo,
+                    SUM(g.total)  AS total,
+                    COUNT(*)      AS cantidad
+                 FROM gastos g
+                 LEFT JOIN cuentas c       ON g.cuenta = c.codigo AND c.empresa = g.empresa
+                 LEFT JOIN grupo_gastos gg ON c.grupo = gg.codigo
+                 WHERE g.empresa = $1
+                   AND DATE_TRUNC('month', g.fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
+                 GROUP BY gg.nombre
+                 ORDER BY total DESC`,
+                [empresa]
+            ),
+            // Últimos gastos con proveedor válido (no null / no vacío)
+            pool.query(
+                `SELECT g.codigo, g.fecha::text, g.concepto, g.total, g.estado,
+                        COALESCE(p.nombre, g.proveedor) AS proveedor_nombre
+                 FROM gastos g
+                 LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
+                 WHERE g.empresa = $1 AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> ''
+                 ORDER BY g.fecha DESC, g.codigo DESC
+                 LIMIT 8`,
+                [empresa]
+            ),
+        ]);
+
+        const pyg = pygRes.rows.map(r => ({
+            grupo:    r.grupo,
+            total:    parseFloat(r.total) || 0,
+            cantidad: parseInt(r.cantidad) || 0,
+        }));
+
+        res.json({
+            success: true,
+            data: {
+                pyg,
+                totalMes: pyg.reduce((s, r) => s + r.total, 0),
+                cantidadMes: pyg.reduce((s, r) => s + r.cantidad, 0),
+                ultimosGastos: ultimosRes.rows,
+            },
+        });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/dashboard:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/contabilidad/cuentas-contables/proximo-codigo
 app.get('/api/contabilidad/cuentas-contables/proximo-codigo', async (req, res) => {
     try {
