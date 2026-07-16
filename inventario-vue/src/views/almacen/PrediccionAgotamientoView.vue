@@ -142,23 +142,30 @@
           </div>
 
           <template v-else>
-            <!-- Gráfico de barras -->
+            <!-- Gráfico de barras: eje Y = cantidad, eje X = número de día -->
             <div class="dt-chart-wrap">
-              <div class="dt-chart">
-                <div
-                  v-for="(d, i) in detalleDias"
-                  :key="i"
-                  class="dt-bar-col"
-                  :title="`${fmtFechaCorta(d.fecha)}: ${d.salida.toFixed(2)}`"
-                >
-                  <div class="dt-bar-track">
-                    <div
-                      class="dt-bar-fill"
-                      :class="{ 'dt-bar-hoy': i === detalleDias.length - 1 }"
-                      :style="{ height: barHDetalle(d.salida) + '%' }"
-                    ></div>
+              <div class="dt-chart-row">
+                <!-- Eje Y: escala de cantidades -->
+                <div class="dt-y-axis">
+                  <span v-for="(lbl, i) in yAxisLabels" :key="i">{{ lbl }}</span>
+                </div>
+                <!-- Barras -->
+                <div class="dt-chart">
+                  <div
+                    v-for="(d, i) in detalleDias"
+                    :key="i"
+                    class="dt-bar-col"
+                    :title="`${fmtFechaLarga(d.fecha)}: ${d.salida.toFixed(2)}`"
+                  >
+                    <div class="dt-bar-track">
+                      <div
+                        class="dt-bar-fill"
+                        :class="{ 'dt-bar-hoy': i === detalleDias.length - 1 }"
+                        :style="{ height: barHDetalle(d.salida) + '%' }"
+                      ></div>
+                    </div>
+                    <span class="dt-bar-lbl">{{ numeroDia(d.fecha) }}</span>
                   </div>
-                  <span v-if="mostrarEtiquetaDia(i)" class="dt-bar-lbl">{{ fmtFechaCorta(d.fecha) }}</span>
                 </div>
               </div>
             </div>
@@ -296,21 +303,32 @@ async function abrirDetalle(p) {
   }
 }
 
-function barHDetalle(val) {
+function maxSalidaDetalle() {
   const max = Math.max(...detalleDias.value.map(d => d.salida));
-  if (!max || max <= 0) return 0;
+  return !max || max <= 0 ? 0 : max;
+}
+
+function barHDetalle(val) {
+  const max = maxSalidaDetalle();
+  if (!max) return 0;
   const pct = (val / max) * 100;
   return val > 0 && pct < 6 ? 6 : pct;
 }
 
-function mostrarEtiquetaDia(i) {
-  // Muestra etiqueta cada ~5 días para no saturar el eje
-  return i % 5 === 0 || i === detalleDias.value.length - 1;
-}
+// Etiquetas del eje Y: 5 escalones de 0 al máximo, de arriba (mayor) a abajo (0)
+const yAxisLabels = computed(() => {
+  const max = maxSalidaDetalle();
+  const pasos = 4;
+  const labels = [];
+  for (let i = pasos; i >= 0; i--) {
+    labels.push((max * i / pasos).toFixed(0));
+  }
+  return labels;
+});
 
-function fmtFechaCorta(f) {
+function numeroDia(f) {
   const d = new Date(f + 'T12:00:00');
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return d.getDate();
 }
 
 function fmtFechaLarga(f) {
@@ -320,7 +338,7 @@ function fmtFechaLarga(f) {
 
 function nombreDiaSemana(f) {
   const d = new Date(f + 'T12:00:00');
-  return diasSemCorto[d.getDay()];
+  return diasSem[d.getDay()];
 }
 </script>
 
@@ -422,14 +440,21 @@ function nombreDiaSemana(f) {
 .dt-body { padding: 18px; }
 .dt-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: rgba(var(--v-theme-on-surface), .5); }
 
-/* Gráfico de barras */
+/* Gráfico de barras: eje Y (cantidad) + eje X (número de día) */
 .dt-chart-wrap { margin-bottom: 20px; }
-.dt-chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; overflow-x: auto; padding-bottom: 4px; }
-.dt-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 8px; height: 100%; justify-content: flex-end; }
-.dt-bar-track { height: 100px; width: 100%; max-width: 14px; display: flex; align-items: flex-end; background: rgba(var(--v-theme-on-surface), .05); border-radius: 2px; overflow: hidden; }
+.dt-chart-row { display: flex; gap: 8px; }
+.dt-y-axis {
+  display: flex; flex-direction: column; justify-content: space-between;
+  height: 110px; padding-bottom: 18px;
+  font-size: 9px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .4);
+  text-align: right; flex-shrink: 0; min-width: 24px;
+}
+.dt-chart { display: flex; align-items: flex-end; gap: 3px; height: 128px; overflow-x: auto; padding-bottom: 4px; flex: 1; border-left: 1px solid rgba(var(--v-theme-on-surface), .1); padding-left: 6px; }
+.dt-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 14px; height: 100%; justify-content: flex-end; }
+.dt-bar-track { height: 110px; width: 100%; max-width: 16px; display: flex; align-items: flex-end; background: rgba(var(--v-theme-on-surface), .05); border-radius: 2px; overflow: hidden; }
 .dt-bar-fill { width: 100%; background: #10b981; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
 .dt-bar-fill.dt-bar-hoy { background: #047857; }
-.dt-bar-lbl { font-size: 8px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .45); white-space: nowrap; }
+.dt-bar-lbl { font-size: 9px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .5); white-space: nowrap; }
 
 /* Tabla detalle */
 .dt-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
