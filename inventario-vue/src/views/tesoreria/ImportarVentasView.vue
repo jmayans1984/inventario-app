@@ -1369,11 +1369,13 @@ function fmtDec(val) {
 const dlgUbicDiferente = ref(false)
 
 function verificarUbicaciones() {
-  if (!resumen.value?.ubicacion || !articulos.value?.ubicacion) return
+  if (!resumen.value?.ubicacion || !articulos.value?.ubicacion) return false
   const norm = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '')
   if (norm(resumen.value.ubicacion) !== norm(articulos.value.ubicacion)) {
     dlgUbicDiferente.value = true
+    return true
   }
+  return false
 }
 
 // ─── Guardar Resumen en Contabilidad ─────────────────────────
@@ -1439,6 +1441,10 @@ async function guardarCfg() {
 
 async function abrirGuardarResumen() {
   if (!resumen.value) return
+
+  // 1º paso: verificar que ambos archivos correspondan al mismo centro de costo
+  if (verificarUbicaciones()) return
+
   saveResumenError.value   = ''
   saveResumenSuccess.value = false
   saveResumenResult.value  = null
@@ -1514,6 +1520,7 @@ async function confirmarGuardarResumen(force = false) {
     saveResumenSuccess.value = true
     showSaveResumenDlg.value = false
     snackbarSuccess.value    = true
+    limpiarFormularioImportacion()
   } catch (e) {
     saveResumenError.value = e?.response?.data?.error || e.message || 'Error al guardar'
   } finally {
@@ -2159,17 +2166,15 @@ async function processFile(file, forcedType) {
     if (type === 'resumen') {
       resumenFileName.value = file.name
       resumen.value = parseResumen(buffer, file.name)
-      activeTab.value = 'resumen'
-      verificarUbicaciones()
     } else {
       articulosFileName.value = file.name
       articulos.value = parseArticulos(buffer, file.name)
-      activeTab.value = 'articulos'
-      verificarUbicaciones()
       await enrichWithRecetas()
       await fetchMappings()
       await calcularConsumo()
     }
+    // El grid siempre se queda en la pestaña "Resumen" al cargar un CSV
+    activeTab.value = resumen.value ? 'resumen' : 'articulos'
   } catch (e) {
     parseError.value = `Error al parsear "${file.name}": ${e.message}`
     console.error(e)
@@ -2204,6 +2209,15 @@ function limpiar(type) {
     }
   }
   parseError.value = ''
+}
+
+// Tras guardar exitosamente: limpiar los CSV cargados y los selects
+// de Centro de Costo / Cta. Square para el siguiente día a importar
+function limpiarFormularioImportacion() {
+  limpiar('resumen')
+  limpiar('articulos')
+  configCcosto.value    = null
+  configCtaSquare.value = null
 }
 </script>
 
