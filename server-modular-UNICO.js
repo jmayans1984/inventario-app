@@ -3419,6 +3419,38 @@ app.get('/api/tesoreria/movimientos/resumen', async (req, res) => {
     }
 });
 
+// GET /api/tesoreria/saldos-cuentas — saldo actual de todas las cuentas
+// bancarias ACTIVAS de la empresa (ingresos - egresos de moviban por banco).
+// Usado por el dashboard del módulo Tesorería.
+app.get('/api/tesoreria/saldos-cuentas', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+
+    try {
+        const result = await pool.query(`
+            SELECT
+                cb.codigo,
+                cb.nombre_cta,
+                cb.nombre_banco,
+                cb.tipo_cuenta,
+                COALESCE(SUM(m.ingreso), 0) - COALESCE(SUM(m.egreso), 0) AS saldo
+            FROM cuentas_bancarias cb
+            LEFT JOIN moviban m ON m.banco = cb.codigo AND m.empresa = $1
+            WHERE cb.empresa = $1 AND cb.estado = 'ACTIVA'
+            GROUP BY cb.codigo, cb.nombre_cta, cb.nombre_banco, cb.tipo_cuenta
+            ORDER BY cb.nombre_cta
+        `, [empresa]);
+
+        const data = result.rows.map(r => ({ ...r, saldo: parseFloat(r.saldo) || 0 }));
+        const total = data.reduce((s, r) => s + r.saldo, 0);
+
+        res.json({ success: true, data, total });
+    } catch (error) {
+        console.error('Error GET /api/tesoreria/saldos-cuentas:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/tesoreria/movimientos/next-numero - Obtener próximo número de movimiento
 app.get('/api/tesoreria/movimientos/next-numero', async (req, res) => {
     const { empresa } = req.query;

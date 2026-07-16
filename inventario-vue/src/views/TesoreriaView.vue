@@ -2,136 +2,191 @@
   <MainLayout>
     <div class="mod-container">
 
-      <!-- HERO -->
-      <div class="mod-hero" style="background: linear-gradient(135deg,#0369a1,#075985)">
-        <div class="mod-hero-left">
-          <div class="mod-hero-icon"><v-icon size="28" color="white">mdi-bank-transfer</v-icon></div>
-          <div>
-            <div class="mod-hero-title">TESORERÍA</div>
-            <div class="mod-hero-sub">Movimientos bancarios, conciliación, ventas y facturas</div>
+      <!-- ═══════════ HERO CON KPIs EN VIVO ═══════════ -->
+      <div class="tes-hero">
+        <div class="tes-hero-glow"></div>
+        <div class="tes-hero-top">
+          <div class="tes-hero-left">
+            <div class="tes-hero-icon"><v-icon size="30" color="white">mdi-bank-transfer</v-icon></div>
+            <div>
+              <div class="tes-hero-title">TESORERÍA</div>
+              <div class="tes-hero-sub">Movimientos bancarios, conciliación, ventas y facturas</div>
+            </div>
+          </div>
+          <div class="tes-hero-fecha">
+            <v-icon size="13" color="rgba(255,255,255,.55)">mdi-calendar-outline</v-icon>
+            {{ fechaHoy }}
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="tes-kpi-row">
+          <div class="tes-kpi" @click="go('/tesoreria/procesos/movimientos-bancarios')">
+            <div class="tes-kpi-icon"><v-icon size="18" color="#7dd3fc">mdi-bank-outline</v-icon></div>
+            <div>
+              <div class="tes-kpi-val">
+                <span v-if="!saldosLoading">{{ fmt(saldoTotal) }}</span>
+                <span v-else class="tes-kpi-skel"></span>
+              </div>
+              <div class="tes-kpi-lbl">Saldo en bancos</div>
+            </div>
+          </div>
+          <div class="tes-kpi" @click="go('/tesoreria/reportes/ventas-periodo')">
+            <div class="tes-kpi-icon"><v-icon size="18" color="#6ee7b7">mdi-cash-register</v-icon></div>
+            <div>
+              <div class="tes-kpi-val">
+                <span v-if="!ventasLoading">{{ fmt(ventasMes.ventas_netas) }}</span>
+                <span v-else class="tes-kpi-skel"></span>
+              </div>
+              <div class="tes-kpi-lbl">Ventas netas del mes</div>
+            </div>
+          </div>
+          <div class="tes-kpi" @click="go('/tesoreria/reportes/ventas-periodo')">
+            <div class="tes-kpi-icon"><v-icon size="18" color="#c4b5fd">mdi-credit-card-outline</v-icon></div>
+            <div>
+              <div class="tes-kpi-val">
+                <span v-if="!ventasLoading">{{ fmt(ventasMes.tarjetas) }}</span>
+                <span v-else class="tes-kpi-skel"></span>
+              </div>
+              <div class="tes-kpi-lbl">Recibido por tarjeta</div>
+            </div>
+          </div>
+          <div class="tes-kpi tes-kpi-warn" @click="go('/tesoreria/reportes/ventas-periodo')">
+            <div class="tes-kpi-icon"><v-icon size="18" color="#fcd34d">mdi-percent-outline</v-icon></div>
+            <div>
+              <div class="tes-kpi-val">
+                <span v-if="!ventasLoading">{{ fmt(ventasMes.comisiones) }}</span>
+                <span v-else class="tes-kpi-skel"></span>
+              </div>
+              <div class="tes-kpi-lbl">Comisiones del mes</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- CONFIGURACIÓN -->
-      <div class="mod-section-label">CONFIGURACIÓN</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/tesoreria/configuracion/cuentas-bancarias')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-bank-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Cuentas Bancarias</div>
-            <div class="mod-card-desc">Gestiona las cuentas bancarias de la empresa</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-      </div>
+      <!-- ═══════════ CUERPO: NAVEGACIÓN + PANELES ═══════════ -->
+      <div class="tes-body">
 
-      <!-- PROCESOS -->
-      <div class="mod-section-label">PROCESOS</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/tesoreria/procesos/movimientos-bancarios')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-swap-horizontal</v-icon>
+        <!-- ── Columna izquierda: navegación ── -->
+        <div class="tes-nav">
+          <div v-for="sec in secciones" :key="sec.label" class="tes-sec">
+            <div class="tes-sec-label">
+              <v-icon size="13" :color="sec.color">{{ sec.icon }}</v-icon>
+              {{ sec.label }}
+            </div>
+            <div class="tes-grid">
+              <div
+                v-for="item in sec.items"
+                :key="item.path"
+                class="tes-card"
+                :style="{ '--ac': sec.color }"
+                @click="go(item.path)"
+              >
+                <div class="tes-card-icon" :style="{ background: sec.iconBg }">
+                  <v-icon size="20" color="white">{{ item.icon }}</v-icon>
+                </div>
+                <div class="tes-card-body">
+                  <div class="tes-card-title">{{ item.title }}</div>
+                  <div class="tes-card-desc">{{ item.desc }}</div>
+                </div>
+                <v-icon size="15" :color="sec.color" class="tes-card-arrow">mdi-arrow-right</v-icon>
+              </div>
+            </div>
           </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Movimientos Bancarios</div>
-            <div class="mod-card-desc">Registro de ingresos y egresos bancarios</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/tesoreria/procesos/conciliacion-cuentas')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-check-all</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Conciliación Bancaria</div>
-            <div class="mod-card-desc">Concilia movimientos con extractos bancarios</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
 
-        <div class="mod-card" @click="go('/tesoreria/procesos/importar-ventas')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-file-import-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Importar Ventas</div>
-            <div class="mod-card-desc">Importa ventas desde archivos CSV o Excel</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
+        <!-- ── Columna derecha: paneles en vivo ── -->
+        <div class="tes-side">
 
-        <div class="mod-card" @click="go('/tesoreria/procesos/facturas-compra')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-file-document-outline</v-icon>
+          <!-- Saldos de cuentas bancarias -->
+          <div class="tes-panel">
+            <div class="tes-panel-header">
+              <div class="tes-panel-title">
+                <v-icon size="14" color="#0ea5e9">mdi-bank-outline</v-icon>
+                SALDOS EN BANCOS
+              </div>
+              <button class="tes-panel-link" @click="go('/tesoreria/procesos/movimientos-bancarios')">Ver movimientos</button>
+            </div>
+            <div v-if="saldosLoading" class="tes-panel-loading">
+              <v-progress-circular indeterminate size="20" width="2" color="#0ea5e9" />
+            </div>
+            <template v-else>
+              <div v-if="saldos.length === 0" class="tes-panel-empty">
+                <v-icon size="22" color="rgba(var(--v-theme-on-surface),.3)">mdi-bank-off-outline</v-icon>
+                <span>Sin cuentas bancarias activas</span>
+              </div>
+              <div v-for="c in saldos" :key="c.codigo" class="tes-cta-row">
+                <div class="tes-cta-info">
+                  <div class="tes-cta-nombre">{{ c.nombre_cta }}</div>
+                  <div class="tes-cta-meta">{{ c.nombre_banco }}<template v-if="c.tipo_cuenta"> · {{ c.tipo_cuenta }}</template></div>
+                </div>
+                <span class="tes-cta-saldo" :class="{ 'tes-neg': c.saldo < 0 }">{{ fmt(c.saldo) }}</span>
+              </div>
+              <div v-if="saldos.length" class="tes-cta-total">
+                <span>TOTAL</span>
+                <span :class="{ 'tes-neg': saldoTotal < 0 }">{{ fmt(saldoTotal) }}</span>
+              </div>
+            </template>
           </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Facturas de Compra</div>
-            <div class="mod-card-desc">Gestiona facturas recibidas de proveedores</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
 
-        <div class="mod-card" @click="go('/tesoreria/procesos/facturas-venta')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-file-send-outline</v-icon>
+          <!-- Ventas del mes -->
+          <div class="tes-panel">
+            <div class="tes-panel-header">
+              <div class="tes-panel-title">
+                <v-icon size="14" color="#10b981">mdi-cash-register</v-icon>
+                VENTAS DE {{ mesActual }}
+              </div>
+              <button class="tes-panel-link" @click="go('/tesoreria/reportes/ventas-periodo')">Ver reporte</button>
+            </div>
+            <div v-if="ventasLoading" class="tes-panel-loading">
+              <v-progress-circular indeterminate size="20" width="2" color="#10b981" />
+            </div>
+            <template v-else>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl">Ventas Brutas</span>
+                <span class="tes-vta-val tes-pos">{{ fmt(ventasMes.ventas_brutas) }}</span>
+              </div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl">Devoluciones</span>
+                <span class="tes-vta-val tes-neg">{{ fmt(ventasMes.devoluciones) }}</span>
+              </div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl">Descuentos</span>
+                <span class="tes-vta-val tes-neg">{{ fmt(ventasMes.descuentos) }}</span>
+              </div>
+              <div class="tes-vta-row tes-vta-destacada">
+                <span class="tes-vta-lbl">Ventas Netas</span>
+                <span class="tes-vta-val tes-pos">{{ fmt(ventasMes.ventas_netas) }}</span>
+              </div>
+              <div class="tes-vta-sep"></div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl">Impuestos</span>
+                <span class="tes-vta-val">{{ fmt(ventasMes.impuestos) }}</span>
+              </div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl">Propinas</span>
+                <span class="tes-vta-val">{{ fmt(ventasMes.propinas) }}</span>
+              </div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl">Comisiones</span>
+                <span class="tes-vta-val tes-neg">{{ fmt(ventasMes.comisiones) }}</span>
+              </div>
+              <div class="tes-vta-sep"></div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl"><v-icon size="12" color="#8b5cf6" class="mr-1">mdi-credit-card-outline</v-icon>Tarjetas</span>
+                <span class="tes-vta-val">{{ fmt(ventasMes.tarjetas) }}</span>
+              </div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl"><v-icon size="12" color="#10b981" class="mr-1">mdi-cash</v-icon>Efectivo</span>
+                <span class="tes-vta-val">{{ fmt(ventasMes.efectivo) }}</span>
+              </div>
+              <div class="tes-vta-row">
+                <span class="tes-vta-lbl"><v-icon size="12" color="#06b6d4" class="mr-1">mdi-bank-transfer-out</v-icon>Otros</span>
+                <span class="tes-vta-val">{{ fmt(ventasMes.otros) }}</span>
+              </div>
+            </template>
           </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Facturas de Venta</div>
-            <div class="mod-card-desc">Gestiona facturas emitidas a clientes</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-      </div>
 
-      <!-- REPORTES -->
-      <div class="mod-section-label">REPORTES</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/tesoreria/reportes/conciliacion-bancaria')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-file-chart-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Reporte Conciliación</div>
-            <div class="mod-card-desc">Estado de conciliación por cuenta bancaria</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/tesoreria/reportes/movimiento-cuentas')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-chart-timeline-variant</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Movimiento de Cuentas</div>
-            <div class="mod-card-desc">Historial de movimientos por cuenta y período</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/tesoreria/reportes/ventas-periodo')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-calendar-month-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Ventas por Período</div>
-            <div class="mod-card-desc">Resumen de ventas agrupadas por período</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/tesoreria/reportes/ventas-productos-periodo')">
-          <div class="mod-card-icon" style="background:rgba(14,165,233,.12)">
-            <v-icon size="22" color="#0ea5e9">mdi-package-variant-closed</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Ventas por Producto</div>
-            <div class="mod-card-desc">Ranking de productos más vendidos por período</div>
-          </div>
-          <v-icon size="16" color="#0ea5e9" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
       </div>
 
@@ -140,27 +195,265 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import { useAuthStore } from '../stores/auth'
+import { API_BASE } from '../utils/constants'
+
 const router = useRouter()
 const go = (path) => router.push(path)
+
+const auth = useAuthStore()
+const empresa = computed(() => auth.empresa)
+
+// ─── Fecha / mes actual ──────────────────────────────────────
+const fechaHoy = computed(() => {
+  const opts = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
+  const s = new Date().toLocaleDateString('es-CO', opts)
+  return s.charAt(0).toUpperCase() + s.slice(1)
+})
+
+const mesActual = computed(() => {
+  return new Date().toLocaleDateString('es-CO', { month: 'long' }).toUpperCase()
+})
+
+// ─── Formato moneda ──────────────────────────────────────────
+function fmt(val) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: 'USD',
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  }).format(parseFloat(val || 0))
+}
+
+// ─── Navegación (mismas rutas de siempre) ────────────────────
+const secciones = [
+  {
+    label: 'CONFIGURACIÓN',
+    icon: 'mdi-cog-outline',
+    color: '#0ea5e9',
+    iconBg: 'linear-gradient(135deg,#0ea5e9,#0369a1)',
+    items: [
+      { path: '/tesoreria/configuracion/cuentas-bancarias', icon: 'mdi-bank-outline', title: 'Cuentas Bancarias', desc: 'Gestiona las cuentas bancarias de la empresa' },
+    ],
+  },
+  {
+    label: 'PROCESOS',
+    icon: 'mdi-lightning-bolt-outline',
+    color: '#6366f1',
+    iconBg: 'linear-gradient(135deg,#6366f1,#4338ca)',
+    items: [
+      { path: '/tesoreria/procesos/movimientos-bancarios', icon: 'mdi-swap-horizontal',       title: 'Movimientos Bancarios', desc: 'Registro de ingresos y egresos bancarios' },
+      { path: '/tesoreria/procesos/conciliacion-cuentas',  icon: 'mdi-check-all',             title: 'Conciliación Bancaria', desc: 'Concilia movimientos con extractos' },
+      { path: '/tesoreria/procesos/importar-ventas',       icon: 'mdi-file-import-outline',   title: 'Importar Ventas',       desc: 'Importa ventas desde archivos CSV' },
+      { path: '/tesoreria/procesos/facturas-compra',       icon: 'mdi-file-document-outline', title: 'Facturas de Compra',    desc: 'Facturas recibidas de proveedores' },
+      { path: '/tesoreria/procesos/facturas-venta',        icon: 'mdi-file-send-outline',     title: 'Facturas de Venta',     desc: 'Facturas emitidas a clientes' },
+    ],
+  },
+  {
+    label: 'REPORTES',
+    icon: 'mdi-chart-box-outline',
+    color: '#14b8a6',
+    iconBg: 'linear-gradient(135deg,#14b8a6,#0f766e)',
+    items: [
+      { path: '/tesoreria/reportes/conciliacion-bancaria',    icon: 'mdi-file-chart-outline',       title: 'Reporte Conciliación',  desc: 'Estado de conciliación por cuenta' },
+      { path: '/tesoreria/reportes/movimiento-cuentas',       icon: 'mdi-chart-timeline-variant',   title: 'Movimiento de Cuentas', desc: 'Historial por cuenta y período' },
+      { path: '/tesoreria/reportes/ventas-periodo',           icon: 'mdi-calendar-month-outline',   title: 'Ventas por Período',    desc: 'Resumen de ventas por período' },
+      { path: '/tesoreria/reportes/ventas-productos-periodo', icon: 'mdi-package-variant-closed',   title: 'Ventas por Producto',   desc: 'Ranking de productos más vendidos' },
+    ],
+  },
+]
+
+// ─── Saldos de cuentas bancarias activas ─────────────────────
+const saldosLoading = ref(true)
+const saldos = ref([])
+const saldoTotal = computed(() => saldos.value.reduce((s, c) => s + c.saldo, 0))
+
+async function cargarSaldos() {
+  if (!empresa.value) { saldosLoading.value = false; return }
+  try {
+    const res = await fetch(`${API_BASE}/tesoreria/saldos-cuentas?empresa=${empresa.value}`)
+    const json = await res.json()
+    if (json.success) saldos.value = json.data || []
+  } catch (e) {
+    console.error('cargarSaldos:', e)
+  } finally {
+    saldosLoading.value = false
+  }
+}
+
+// ─── Ventas del mes (consolidado toda la empresa) ────────────
+const ventasLoading = ref(true)
+const ventasMes = ref({
+  ventas_brutas: 0, devoluciones: 0, descuentos: 0, ventas_netas: 0,
+  impuestos: 0, propinas: 0, comisiones: 0, tarjetas: 0, efectivo: 0, otros: 0,
+})
+
+async function cargarVentasMes() {
+  if (!empresa.value) { ventasLoading.value = false; return }
+  try {
+    const hoy = new Date()
+    const y = hoy.getFullYear()
+    const m = String(hoy.getMonth() + 1).padStart(2, '0')
+    const fechaInicio = `${y}-${m}-01`
+    const fechaFin = `${y}-${m}-${String(hoy.getDate()).padStart(2, '0')}`
+    const res = await fetch(`${API_BASE}/tesoreria/ventas-periodo?empresa=${empresa.value}&fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`)
+    const json = await res.json()
+    if (json.success && json.totals) ventasMes.value = json.totals
+  } catch (e) {
+    console.error('cargarVentasMes:', e)
+  } finally {
+    ventasLoading.value = false
+  }
+}
+
+onMounted(() => {
+  cargarSaldos()
+  cargarVentasMes()
+})
 </script>
 
 <style scoped>
-.mod-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
-.mod-hero { border-radius: 16px; padding: 24px 28px; margin-bottom: 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.mod-hero-left { display: flex; align-items: center; gap: 16px; }
-.mod-hero-icon { width: 52px; height: 52px; border-radius: 13px; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.mod-hero-title { font-size: 22px; font-weight: 900; color: white; letter-spacing: .5px; }
-.mod-hero-sub { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 3px; }
-.mod-section-label { font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.35); margin: 20px 0 10px; }
-.mod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 4px; }
-.mod-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.07); cursor: pointer; transition: all .15s; }
-.mod-card:hover { border-color: #0ea5e9; background: rgba(14,165,233,.03); transform: translateX(3px); }
-.mod-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.mod-card-body { flex: 1; min-width: 0; }
-.mod-card-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
-.mod-card-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); line-height: 1.4; }
-.mod-card-arrow { flex-shrink: 0; opacity: .5; transition: opacity .15s; }
-.mod-card:hover .mod-card-arrow { opacity: 1; }
+.mod-container { padding: 24px; max-width: 1280px; margin: 0 auto; }
+
+/* ═══ HERO ═══ */
+.tes-hero {
+  position: relative; overflow: hidden;
+  border-radius: 18px; padding: 26px 28px 22px;
+  background: linear-gradient(135deg, #0c4a6e 0%, #0369a1 55%, #0284c7 100%);
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(3, 105, 161, .25);
+}
+.tes-hero-glow {
+  position: absolute; top: -60px; right: -40px;
+  width: 260px; height: 260px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(125,211,252,.25), transparent 70%);
+  pointer-events: none;
+}
+.tes-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.tes-hero-left { display: flex; align-items: center; gap: 16px; }
+.tes-hero-icon {
+  width: 56px; height: 56px; border-radius: 15px;
+  background: rgba(255,255,255,.14); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,.18);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tes-hero-title { font-size: 24px; font-weight: 900; color: white; letter-spacing: 1px; }
+.tes-hero-sub { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 3px; }
+.tes-hero-fecha {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: rgba(255,255,255,.6); font-weight: 500;
+  background: rgba(255,255,255,.08); padding: 6px 12px; border-radius: 20px;
+}
+
+/* KPIs dentro del hero */
+.tes-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; position: relative; }
+.tes-kpi {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,.09); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px; padding: 12px 14px;
+  cursor: pointer; transition: all .18s;
+}
+.tes-kpi:hover { background: rgba(255,255,255,.16); transform: translateY(-2px); }
+.tes-kpi-warn { border-color: rgba(252,211,77,.3); }
+.tes-kpi-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tes-kpi-val { font-size: 17px; font-weight: 800; color: white; line-height: 1.1; white-space: nowrap; }
+.tes-kpi-lbl { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .4px; margin-top: 1px; }
+.tes-kpi-skel { display: inline-block; width: 60px; height: 16px; border-radius: 4px; background: rgba(255,255,255,.2); animation: tesPulse 1.2s ease-in-out infinite; }
+@keyframes tesPulse { 0%,100% { opacity: .4 } 50% { opacity: .9 } }
+
+/* ═══ CUERPO ═══ */
+.tes-body { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .tes-body { grid-template-columns: 1fr; } }
+
+/* Navegación */
+.tes-sec { margin-bottom: 22px; }
+.tes-sec-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .45);
+  margin-bottom: 10px;
+}
+.tes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.tes-card {
+  display: flex; align-items: center; gap: 13px;
+  padding: 14px 15px; border-radius: 13px;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), .07);
+  cursor: pointer; transition: all .18s;
+}
+.tes-card:hover {
+  border-color: var(--ac);
+  box-shadow: 0 6px 18px rgba(0,0,0,.07);
+  transform: translateY(-2px);
+}
+.tes-card-icon {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0,0,0,.15);
+}
+.tes-card-body { flex: 1; min-width: 0; }
+.tes-card-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.tes-card-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface), .5); line-height: 1.35; }
+.tes-card-arrow { flex-shrink: 0; opacity: 0; transform: translateX(-4px); transition: all .18s; }
+.tes-card:hover .tes-card-arrow { opacity: 1; transform: translateX(0); }
+
+/* ═══ Paneles laterales ═══ */
+.tes-side { display: flex; flex-direction: column; gap: 16px; }
+.tes-panel {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), .07);
+  border-radius: 14px; padding: 16px;
+}
+.tes-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.tes-panel-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .8px; color: rgba(var(--v-theme-on-surface), .6); }
+.tes-panel-link {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 11px; font-weight: 700; color: #0ea5e9;
+  padding: 2px 6px; border-radius: 6px; transition: background .15s;
+}
+.tes-panel-link:hover { background: rgba(14,165,233,.08); }
+.tes-panel-loading { display: flex; justify-content: center; padding: 20px; }
+.tes-panel-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 18px 0; font-size: 12px; color: rgba(var(--v-theme-on-surface), .45);
+}
+
+/* Filas: saldos de cuentas */
+.tes-cta-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 9px; transition: background .15s;
+}
+.tes-cta-row:hover { background: rgba(var(--v-theme-on-surface), .04); }
+.tes-cta-info { min-width: 0; }
+.tes-cta-nombre { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tes-cta-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); margin-top: 1px; }
+.tes-cta-saldo { flex-shrink: 0; font-family: monospace; font-size: 12px; font-weight: 700; color: #059669; }
+.tes-cta-total {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 8px; padding: 10px 10px 2px;
+  border-top: 2px solid rgba(var(--v-theme-on-surface), .08);
+  font-size: 11px; font-weight: 800; letter-spacing: .4px;
+}
+.tes-cta-total span:last-child { font-family: monospace; font-size: 13px; color: #059669; }
+.tes-neg { color: #ef4444 !important; }
+
+/* Filas: ventas del mes */
+.tes-vta-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; border-radius: 8px; transition: background .15s;
+}
+.tes-vta-row:hover { background: rgba(var(--v-theme-on-surface), .03); }
+.tes-vta-lbl { display: flex; align-items: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), .65); }
+.tes-vta-val { font-family: monospace; font-size: 12px; font-weight: 700; }
+.tes-vta-destacada { background: rgba(16,185,129,.06); }
+.tes-vta-destacada .tes-vta-lbl { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
+.tes-vta-destacada .tes-vta-val { font-size: 13px; }
+.tes-pos { color: #059669; }
+.tes-vta-sep { height: 1px; background: rgba(var(--v-theme-on-surface), .07); margin: 6px 4px; }
 </style>
