@@ -2006,6 +2006,27 @@ app.get('/api/almacen/entradas-almacen', async (req, res) => {
     }
 });
 
+// GET /api/almacen/gastos-con-entradas — lista de códigos de gastos que tienen al menos una entrada de almacén
+app.get('/api/almacen/gastos-con-entradas', async (req, res) => {
+    try {
+        const { empresa } = req.query;
+        if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        const r = await pool.query(
+            `SELECT DISTINCT TRIM(SUBSTRING(observaciones FROM 'COMPRA GASTO ([^\s]+)')) AS codigo
+             FROM detalle_inventario
+             WHERE empresa::text = $1
+               AND tipo = 'ENTRADA DE ALMACEN'
+               AND observaciones LIKE 'COMPRA GASTO %'`,
+            [String(empresa)]
+        );
+        const codigos = r.rows.map(row => row.codigo).filter(Boolean);
+        res.json({ success: true, data: codigos });
+    } catch (error) {
+        console.error('Error GET /api/almacen/gastos-con-entradas:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/almacen/entradas-por-gasto/:codigo — entradas vinculadas a un gasto específico
 app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
     try {

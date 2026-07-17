@@ -103,7 +103,15 @@
             <td class="td-acciones">
               <div class="action-buttons">
                 <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" @click="$emit('edit', gasto)" title="Editar" />
-                <v-btn icon="mdi-package-down" size="x-small" variant="text" color="#0891b2" @click="verEntradas(gasto)" title="Ver entradas de almacén" />
+                <v-btn
+                  icon="mdi-package-down"
+                  size="x-small"
+                  variant="text"
+                  :color="gastosConEntradas.has(gasto.codigo) ? '#0891b2' : undefined"
+                  :style="gastosConEntradas.has(gasto.codigo) ? '' : 'opacity:0.25;cursor:default'"
+                  @click="gastosConEntradas.has(gasto.codigo) && verEntradas(gasto)"
+                  :title="gastosConEntradas.has(gasto.codigo) ? 'Ver entradas de almacén' : 'Sin entradas de almacén'"
+                />
                 <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="eliminar(gasto.codigo)" :loading="store.loading" title="Eliminar" />
               </div>
             </td>
@@ -203,7 +211,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useGestionGastosStore } from '../../../stores/gestiongastos'
 import { useAuthStore } from '../../../stores/auth'
 import { gestionGastosService } from '../../../services/gestiongastos.service'
@@ -213,6 +221,21 @@ import api from '../../../services/api'
 const emit = defineEmits(['edit'])
 const store = useGestionGastosStore()
 const auth = useAuthStore()
+
+// ── Set de gastos con entradas de almacén ──
+const gastosConEntradas = ref(new Set())
+
+async function cargarGastosConEntradas() {
+  try {
+    const r = await api.get('/almacen/gastos-con-entradas', { params: { empresa: auth.empresa } })
+    gastosConEntradas.value = new Set(r.data?.data || [])
+  } catch {}
+}
+
+onMounted(cargarGastosConEntradas)
+
+// Recargar cuando el store actualice los gastos (ej. después de guardar uno nuevo)
+watch(() => store.gastos.length, cargarGastosConEntradas)
 
 // ── Popup entradas de almacén ──
 const dlgEntradas = ref(false)
