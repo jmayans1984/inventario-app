@@ -57,6 +57,18 @@ export const gestionGastosService = {
     }
   },
 
+  // Una factura distribuida en varias líneas (ccosto+cuenta) → N gastos + 1 moviban
+  async crearGastoMultiple(data) {
+    try {
+      const empresa = getEmpresaActiva()
+      const response = await api.post(`${ENDPOINT}/multiple`, { ...data, empresa })
+      return response.data
+    } catch (error) {
+      console.error('Error creando gasto múltiple:', error)
+      throw error
+    }
+  },
+
   async actualizarGasto(codigo, data) {
     try {
       const empresa = getEmpresaActiva()

@@ -87,6 +87,18 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
     }
   }
 
+  async function crearGastoMultiple(data) {
+    error.value = null
+    try {
+      const res = await gestionGastosService.crearGastoMultiple(data)
+      await fetchGastos()
+      return res.data || res
+    } catch (err) {
+      error.value = err.response?.data?.error || 'Error al crear el gasto'
+      throw err
+    }
+  }
+
   async function actualizarGasto(codigo, data) {
     error.value = null
     try {
@@ -188,6 +200,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
     // Actions
     fetchGastos,
     crearGasto,
+    crearGastoMultiple,
     actualizarGasto,
     eliminarGasto,
     getProximoCodigo,

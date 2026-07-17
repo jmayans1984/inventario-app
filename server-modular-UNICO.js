@@ -8061,6 +8061,138 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
     }
 });
 
+// POST /api/contabilidad/gastos/multiple — registra UNA factura de compra
+// distribuida en varias líneas (ccosto + cuenta contable + montos).
+// Crea N registros en gastos (uno por línea) pero UN SOLO asiento en moviban
+// por el total de la factura. Las líneas de materia prima pueden incluir
+// entrada de almacén a la bodega maestra y actualización del precio de costo.
+// Body: { empresa, fecha, factura, proveedor, forma_pago, lineas: [
+//   { ccosto, cuenta, concepto, subtotal, impuestos, total,
+//     materiaPrima?: { afectaInventario, actualizaCosto,
+//                      items: [{ codigo, cantidad, costoUnit }] } } ] }
+app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { empresa, fecha, factura, proveedor, forma_pago, lineas } = req.body;
+
+        if (!empresa || !fecha || !proveedor || !forma_pago) {
+            return res.status(400).json({ success: false, error: 'Campos requeridos faltantes (fecha, proveedor, forma de pago)' });
+        }
+        if (!Array.isArray(lineas) || lineas.length === 0) {
+            return res.status(400).json({ success: false, error: 'Debe incluir al menos una línea de distribución' });
+        }
+        for (const [i, ln] of lineas.entries()) {
+            if (!ln.ccosto || !ln.cuenta) {
+                return res.status(400).json({ success: false, error: `Línea ${i + 1}: centro de costo y cuenta contable son requeridos` });
+            }
+            if (!(parseFloat(ln.subtotal) > 0)) {
+                return res.status(400).json({ success: false, error: `Línea ${i + 1}: el subtotal debe ser mayor a 0` });
+            }
+        }
+
+        const totalFactura = lineas.reduce((s, ln) => s + (parseFloat(ln.total) || 0), 0);
+
+        await client.query('BEGIN');
+
+        // 1. Códigos consecutivos para las N líneas
+        await client.query('LOCK TABLE gastos IN SHARE ROW EXCLUSIVE MODE');
+        const codigoRes = await client.query(
+            `SELECT MAX(CASE WHEN codigo ~ '^[0-9]+$' THEN CAST(codigo AS BIGINT) ELSE 0 END) as max_codigo
+             FROM gastos WHERE empresa = $1`,
+            [empresa]
+        );
+        let seq = (parseInt(codigoRes.rows[0].max_codigo) || 0) + 1;
+
+        // 2. Insertar un gasto por línea
+        const codigos = [];
+        for (const ln of lineas) {
+            const codigo = String(seq).padStart(10, '0');
+            const tieneEntrada = !!(ln.materiaPrima && Array.isArray(ln.materiaPrima.items) && ln.materiaPrima.items.length);
+            await client.query(
+                `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
+                                    forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado, entrada_almacen)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDIENTE', $13)`,
+                [codigo, fecha, factura || null, proveedor, ln.ccosto,
+                 forma_pago, ln.cuenta, (ln.concepto || '').toUpperCase(),
+                 parseFloat(ln.subtotal) || 0, parseFloat(ln.impuestos) || 0, parseFloat(ln.total) || 0,
+                 empresa, tieneEntrada ? 'SI' : null]
+            );
+            codigos.push(codigo);
+            seq++;
+        }
+
+        // 3. UN SOLO movimiento bancario por el total de la factura
+        await client.query('LOCK TABLE moviban IN SHARE ROW EXCLUSIVE MODE');
+        const movibanNumRes = await client.query(
+            `SELECT MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END) as max_numero
+             FROM moviban WHERE empresa = $1`,
+            [empresa]
+        );
+        const proximoNumMoviban = String((parseInt(movibanNumRes.rows[0].max_numero) || 0) + 1).padStart(10, '0');
+
+        const conceptoMoviban = (codigos.length > 1
+            ? `GASTO DE COMPRA: ${codigos[0]} A ${codigos[codigos.length - 1]}`
+            : `GASTO DE COMPRA: ${codigos[0]}`).substring(0, 60);
+
+        await client.query(
+            `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
+                                  banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            ['GTO', proximoNumMoviban, fecha, conceptoMoviban, null, 0, totalFactura,
+             forma_pago, 'NO', empresa, codigos[0], proveedor, null, lineas[0].ccosto]
+        );
+
+        // 4. Materia prima: entrada de almacén a bodega maestra + precio de costo
+        let bodegaMaestra = null;
+        for (let i = 0; i < lineas.length; i++) {
+            const mp = lineas[i].materiaPrima;
+            if (!mp || !Array.isArray(mp.items) || !mp.items.length) continue;
+
+            // 4a. Entrada de inventario en la bodega maestra (opcional)
+            if (mp.afectaInventario) {
+                if (!bodegaMaestra) {
+                    const bmRes = await client.query(
+                        `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [empresa]
+                    );
+                    bodegaMaestra = bmRes.rows[0]?.bodega_maestra;
+                    if (!bodegaMaestra) throw new Error('Bodega maestra no configurada para esta empresa');
+                }
+                for (const item of mp.items) {
+                    const cant = parseFloat(item.cantidad) || 0;
+                    if (!item.codigo || cant <= 0) continue;
+                    await client.query(
+                        `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                         VALUES ($1, $2, $3, $4, 0, 'ENTRADA DE ALMACEN', $5, $6)`,
+                        [fecha, bodegaMaestra, item.codigo, cant, empresa,
+                         `COMPRA GASTO ${codigos[i]}${factura ? ' FACT ' + factura : ''}`.substring(0, 100)]
+                    );
+                }
+            }
+
+            // 4b. Actualizar precio de costo del producto (opcional)
+            if (mp.actualizaCosto) {
+                for (const item of mp.items) {
+                    const costo = parseFloat(item.costoUnit) || 0;
+                    if (!item.codigo || costo <= 0) continue;
+                    await client.query(
+                        `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
+                        [costo, item.codigo]
+                    );
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ success: true, data: { codigos, moviban: proximoNumMoviban, total: totalFactura } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/contabilidad/gastos/multiple:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // PUT /api/contabilidad/gastos/:codigo - Actualizar gasto + moviban
 app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
     const client = await pool.connect();
@@ -8371,6 +8503,10 @@ app.get('/api/contabilidad/gastos/proximo-codigo', async (req, res) => {
 // SQUARE: CONFIG GENERAL + IMPORTACIÓN
 // ================================================================
 
+// Asegurar columna cta_materia_prima en config_general (cuenta contable que
+// dispara el flujo de entrada de almacén en Gestión de Gastos)
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_materia_prima VARCHAR(10)`).catch(() => {});
+
 // GET /api/config-general
 app.get('/api/config-general', async (req, res) => {
     const { empresa } = req.query;
@@ -8398,7 +8534,8 @@ app.put('/api/config-general', async (req, res) => {
     const allowed = [
         'cta_ventas', 'cta_comisiones', 'cta_descuentos_ventas',
         'cta_propinas', 'cta_impuestos', 'cta_egresos_impuestos',
-        'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo'
+        'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo',
+        'cta_materia_prima'
     ];
 
     const sets = [];
