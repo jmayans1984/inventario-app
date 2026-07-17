@@ -63,6 +63,7 @@
               <div class="field-col-3">
                 <v-text-field
                   v-model="form.fecha"
+                  autocomplete="off"
                   label="Fecha *"
                   type="date"
                   variant="outlined"
@@ -74,6 +75,7 @@
               <div class="field-col-3">
                 <v-text-field
                   v-model="form.factura"
+                  autocomplete="off"
                   label="N° Factura"
                   variant="outlined"
                   density="comfortable"
@@ -90,6 +92,7 @@
               <div class="field-col-full">
                 <v-autocomplete
                   v-model="form.proveedor"
+                  autocomplete="off"
                   label="Proveedor *"
                   variant="outlined"
                   density="comfortable"
@@ -109,6 +112,7 @@
               <div class="field-col-full">
                 <v-autocomplete
                   v-model="form.forma_pago"
+                  autocomplete="off"
                   label="Forma de Pago *"
                   variant="outlined"
                   density="comfortable"
@@ -151,6 +155,7 @@
                 <div class="field-col-half">
                   <v-autocomplete
                     v-model="ln.ccosto"
+                    autocomplete="off"
                     label="Centro de Costos *"
                     variant="outlined"
                     density="comfortable"
@@ -165,6 +170,7 @@
                 <div class="field-col-half">
                   <v-autocomplete
                     v-model="ln.cuenta"
+                    autocomplete="off"
                     label="Cuenta Contable *"
                     variant="outlined"
                     density="comfortable"
@@ -182,6 +188,7 @@
                 <div class="field-col-full">
                   <v-text-field
                     v-model="ln.concepto"
+                    autocomplete="off"
                     label="Concepto / Descripción"
                     variant="outlined"
                     density="comfortable"
@@ -198,6 +205,7 @@
                 <div class="field-col-amt">
                   <v-text-field
                     v-model.number="ln.subtotal"
+                    autocomplete="off"
                     label="Subtotal *"
                     variant="outlined"
                     density="comfortable"
@@ -211,6 +219,7 @@
                 <div class="field-col-amt">
                   <v-text-field
                     v-model.number="ln.impuestos"
+                    autocomplete="off"
                     label="Impuestos / Tax"
                     variant="outlined"
                     density="comfortable"
@@ -218,7 +227,7 @@
                     type="number"
                     step="0.01"
                     min="0"
-                    prepend-inner-icon="mdi-percent-outline"
+                    prepend-inner-icon="mdi-currency-usd"
                   />
                 </div>
               </div>
@@ -445,6 +454,7 @@
                 variant="outlined"
                 density="comfortable"
                 hide-details
+                autocomplete="off"
                 class="mp-item-prod"
                 no-data-text="Sin productos"
                 @update:model-value="onProductoSeleccionado(item)"
@@ -466,6 +476,7 @@
                 type="number"
                 step="0.01"
                 min="0"
+                autocomplete="off"
                 class="mp-item-cant"
                 :suffix="undProducto(item.codigo)"
               />
@@ -478,6 +489,7 @@
                 type="number"
                 step="0.0001"
                 min="0"
+                autocomplete="off"
                 class="mp-item-costo"
                 prefix="$"
               />
