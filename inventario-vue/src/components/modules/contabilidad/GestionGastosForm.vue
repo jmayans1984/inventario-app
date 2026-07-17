@@ -50,7 +50,7 @@
         </div>
 
         <!-- ── CONTENIDO DEL PASO ── -->
-        <div class="wiz-content">
+        <div class="wiz-content" ref="contentRef" @keydown.enter="onEnterMain">
 
           <!-- ═══ PASO 1: COMPROBANTE ═══ -->
           <div v-show="step === 0" class="wiz-pane">
@@ -400,7 +400,7 @@
           <v-btn icon="mdi-close" variant="text" size="small" color="white" @click="mpDialogOpen = false" />
         </div>
 
-        <v-card-text class="wiz-content-simple">
+        <v-card-text class="wiz-content-simple" ref="mpContentRef" @keydown.enter="onEnterMp">
 
           <!-- Opciones -->
           <div class="mp-opts">
@@ -544,6 +544,45 @@ const empresa = computed(() => authStore.empresa || authStore.user?.empresa || '
 const errorMsg = ref('')
 const guardando = ref(false)
 const step = ref(0)
+
+// ─── Navegación con Enter: salta al siguiente campo visible ──
+const contentRef = ref(null)     // panel principal (pasos 1 y 2)
+const mpContentRef = ref(null)   // sub-diálogo de materia prima
+
+function focusableEls(containerRef) {
+  const raw = containerRef?.value
+  const el = raw?.$el || raw   // v-card-text expone el DOM en $el; un <div ref> ya es el DOM
+  if (!el) return []
+  return Array.from(el.querySelectorAll('input:not([type=hidden]):not([disabled]), textarea:not([disabled])'))
+    .filter(node => node.offsetParent !== null)
+}
+
+function onEnterNav(e, containerRef, onLast) {
+  const target = e.target
+  // Si el autocomplete/select tiene el menú abierto, dejar que Vuetify seleccione el ítem
+  if (target?.getAttribute && target.getAttribute('aria-expanded') === 'true') return
+  e.preventDefault()
+  const els = focusableEls(containerRef)
+  const idx = els.indexOf(target)
+  if (idx === -1) return
+  if (idx < els.length - 1) {
+    els[idx + 1].focus()
+    els[idx + 1].select?.()
+  } else {
+    onLast?.()
+  }
+}
+
+function onEnterMain(e) {
+  onEnterNav(e, contentRef, () => {
+    if (step.value < 2) siguientePaso()
+    else handleSubmit()
+  })
+}
+
+function onEnterMp(e) {
+  onEnterNav(e, mpContentRef, () => confirmarMateriaPrima())
+}
 
 const proveedoresOptions = ref([])
 const centrosCostosOptions = ref([])
