@@ -1,20 +1,20 @@
 <template>
   <v-dialog
     :model-value="open"
-    max-width="1080"
+    max-width="1180"
     scrollable
     @update:model-value="$emit('update:open', $event)"
   >
-    <v-card rounded="xl" elevation="0" class="form-card">
+    <v-card rounded="xl" elevation="0" class="wiz-card">
 
       <!-- ══ HEADER ══════════════════════════════════════════════════════ -->
-      <div class="form-header">
-        <div class="form-header-icon">
+      <div class="wiz-header">
+        <div class="wiz-header-icon">
           <v-icon size="24" color="white">mdi-receipt-text-outline</v-icon>
         </div>
-        <div class="form-header-text">
-          <p class="form-header-title">{{ esEdicion ? 'Editar Gasto' : 'Nuevo Gasto' }}</p>
-          <p class="form-header-sub">
+        <div class="wiz-header-text">
+          <p class="wiz-header-title">{{ esEdicion ? 'Editar Gasto' : 'Nuevo Gasto' }}</p>
+          <p class="wiz-header-sub">
             {{ esEdicion
               ? `Modificando comprobante #${form.codigo}`
               : 'Una factura de compra · distribuida en uno o varios centros de costo y cuentas' }}
@@ -26,246 +26,360 @@
         <v-btn icon="mdi-close" variant="text" size="small" color="white" @click="cerrar" class="ml-2" />
       </div>
 
-      <!-- ══ BODY ═════════════════════════════════════════════════════════ -->
-      <v-card-text class="form-body">
+      <!-- ══ BODY: SIDEBAR + CONTENIDO ══════════════════════════════════ -->
+      <div class="wiz-body">
 
-        <!-- ── SECCIÓN 1: Comprobante (datos de la factura, compartidos) ── -->
-        <div class="form-section">
-          <div class="section-label">
-            <v-icon size="15" color="#667eea">mdi-file-document-outline</v-icon>
-            <span>Comprobante · Factura de Compra</span>
-          </div>
-          <v-row dense class="mt-1">
-            <v-col cols="12" sm="3">
-              <v-text-field
-                v-model="form.fecha"
-                label="Fecha *"
-                type="date"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                prepend-inner-icon="mdi-calendar"
-              />
-            </v-col>
-            <v-col cols="12" sm="3">
-              <v-text-field
-                v-model="form.factura"
-                label="N° Factura"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                placeholder="FAC-2026-001"
-                maxlength="50"
-                prepend-inner-icon="mdi-pound"
-                @input="form.factura = form.factura.toUpperCase()"
-              />
-            </v-col>
-            <v-col cols="12" sm="3">
-              <v-autocomplete
-                v-model="form.proveedor"
-                label="Proveedor *"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                :items="proveedoresOptions"
-                item-title="nombre"
-                item-value="codigo"
-                placeholder="Buscar..."
-                prepend-inner-icon="mdi-account-tie-outline"
-                no-data-text="No hay proveedores"
-                clearable
-              />
-            </v-col>
-            <v-col cols="12" sm="3">
-              <v-autocomplete
-                v-model="form.forma_pago"
-                label="Forma de Pago *"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                :items="formasPagoOptions"
-                item-title="nombre_cta"
-                item-value="codigo"
-                placeholder="Cuenta bancaria..."
-                prepend-inner-icon="mdi-credit-card-outline"
-                no-data-text="No hay formas de pago"
-                clearable
-              />
-            </v-col>
-          </v-row>
-        </div>
-
-        <!-- ── SECCIÓN 2: Distribución del gasto ─────────────────────── -->
-        <div class="form-section dist-section">
-          <div class="section-label" style="color:#0ea5e9">
-            <v-icon size="15" color="#0ea5e9">mdi-call-split</v-icon>
-            <span>Distribución del Gasto</span>
-            <span class="dist-hint">divide la factura entre centros de costo y cuentas contables</span>
-          </div>
-
-          <div v-for="(ln, idx) in form.lineas" :key="ln.uid" class="dist-linea">
-            <div class="dist-linea-num">{{ idx + 1 }}</div>
-            <v-row dense class="dist-linea-fields">
-              <v-col cols="12" sm="3">
-                <v-autocomplete
-                  v-model="ln.ccosto"
-                  label="Centro de Costos *"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  :items="centrosCostosOptions"
-                  item-title="nombre"
-                  item-value="codigo"
-                  no-data-text="Sin centros"
-                  clearable
-                />
-              </v-col>
-              <v-col cols="12" sm="3">
-                <v-autocomplete
-                  v-model="ln.cuenta"
-                  label="Cuenta Contable *"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  :items="cuentasContablesOptions"
-                  item-title="nombre"
-                  item-value="codigo"
-                  no-data-text="Sin cuentas"
-                  clearable
-                />
-              </v-col>
-              <v-col cols="12" sm="2">
-                <v-text-field
-                  v-model="ln.concepto"
-                  label="Concepto"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  maxlength="100"
-                  @input="ln.concepto = ln.concepto.toUpperCase()"
-                />
-              </v-col>
-              <v-col cols="6" sm="1.5" style="min-width:110px">
-                <v-text-field
-                  v-model.number="ln.subtotal"
-                  label="Subtotal *"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  type="number"
-                  step="0.01"
-                  min="0"
-                />
-              </v-col>
-              <v-col cols="6" sm="1.5" style="min-width:100px">
-                <v-text-field
-                  v-model.number="ln.impuestos"
-                  label="Imp/Tax"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  type="number"
-                  step="0.01"
-                  min="0"
-                />
-              </v-col>
-              <v-col cols="12" sm="1" class="dist-linea-total-col">
-                <div class="dist-linea-total">{{ formatMoneda(totalLinea(ln)) }}</div>
-              </v-col>
-            </v-row>
-            <v-btn
-              v-if="!esEdicion && form.lineas.length > 1"
-              icon variant="text" size="x-small" color="#ef4444"
-              class="dist-linea-del"
-              title="Quitar línea"
-              @click="quitarLinea(idx)"
-            >
-              <v-icon size="16">mdi-delete-outline</v-icon>
-            </v-btn>
-
-            <!-- Chip de materia prima cuando la cuenta coincide -->
-            <div v-if="esMateriaPrima(ln)" class="mp-chip-row">
-              <button class="mp-chip" :class="{ 'mp-chip-ok': ln.materiaPrima?.items?.length }" @click="abrirMateriaPrima(idx)">
-                <v-icon size="13">{{ ln.materiaPrima?.items?.length ? 'mdi-check-circle' : 'mdi-package-variant-plus' }}</v-icon>
-                <template v-if="ln.materiaPrima?.items?.length">
-                  {{ ln.materiaPrima.items.length }} producto{{ ln.materiaPrima.items.length !== 1 ? 's' : '' }} · {{ formatMoneda(totalItemsMp(ln.materiaPrima)) }}
-                  <span v-if="ln.materiaPrima.afectaInventario" class="mp-chip-tag">+INVENTARIO</span>
-                  <span v-if="ln.materiaPrima.actualizaCosto" class="mp-chip-tag">+COSTO</span>
-                </template>
-                <template v-else>
-                  Registrar entrada de almacén (materia prima)
-                </template>
-              </button>
-            </div>
-          </div>
-
-          <v-btn
-            v-if="!esEdicion"
-            variant="tonal"
-            color="#0ea5e9"
-            size="small"
-            class="mt-2"
-            prepend-icon="mdi-plus"
-            @click="agregarLinea"
+        <!-- ── SIDEBAR DE PASOS ── -->
+        <div class="wiz-sidebar">
+          <button
+            v-for="(st, i) in stepsInfo"
+            :key="i"
+            class="wiz-step"
+            :class="{ 'wiz-step-active': step === i, 'wiz-step-done': step > i }"
+            @click="irAPaso(i)"
           >
-            Agregar línea
-          </v-btn>
+            <div class="wiz-step-num">
+              <v-icon v-if="step > i" size="14">mdi-check</v-icon>
+              <span v-else>{{ i + 1 }}</span>
+            </div>
+            <div class="wiz-step-text">
+              <div class="wiz-step-title">{{ st.title }}</div>
+              <div class="wiz-step-sub">{{ st.sub }}</div>
+            </div>
+          </button>
         </div>
 
-        <!-- ── SECCIÓN 3: Totales de la factura ──────────────────────── -->
-        <div class="form-section totales-section">
-          <div class="tot-grid">
-            <div class="tot-item">
-              <span class="tot-lbl">SUBTOTAL</span>
-              <span class="tot-val">{{ formatMoneda(sumSubtotal) }}</span>
+        <!-- ── CONTENIDO DEL PASO ── -->
+        <div class="wiz-content">
+
+          <!-- ═══ PASO 1: COMPROBANTE ═══ -->
+          <div v-show="step === 0" class="wiz-pane">
+            <div class="wiz-pane-title">
+              <v-icon size="17" color="#667eea">mdi-file-document-outline</v-icon>
+              Datos de la Factura
             </div>
-            <div class="tot-item">
-              <span class="tot-lbl">IMPUESTOS</span>
-              <span class="tot-val">{{ formatMoneda(sumImpuestos) }}</span>
+
+            <div class="field-row">
+              <div class="field-col-3">
+                <v-text-field
+                  v-model="form.fecha"
+                  label="Fecha *"
+                  type="date"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  prepend-inner-icon="mdi-calendar"
+                />
+              </div>
+              <div class="field-col-3">
+                <v-text-field
+                  v-model="form.factura"
+                  label="N° Factura"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  placeholder="FAC-2026-001"
+                  maxlength="50"
+                  prepend-inner-icon="mdi-pound"
+                  @input="form.factura = form.factura.toUpperCase()"
+                />
+              </div>
             </div>
-            <div class="tot-item tot-item-final">
-              <span class="tot-lbl">TOTAL PAGADO</span>
-              <span class="tot-val tot-val-final">{{ formatMoneda(sumTotal) }}</span>
+
+            <div class="field-row">
+              <div class="field-col-full">
+                <v-autocomplete
+                  v-model="form.proveedor"
+                  label="Proveedor *"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  :items="proveedoresOptions"
+                  item-title="nombre"
+                  item-value="codigo"
+                  placeholder="Escribe para buscar un proveedor..."
+                  prepend-inner-icon="mdi-account-tie-outline"
+                  no-data-text="No hay proveedores"
+                  clearable
+                />
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-col-full">
+                <v-autocomplete
+                  v-model="form.forma_pago"
+                  label="Forma de Pago *"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  :items="formasPagoOptions"
+                  item-title="nombre_cta"
+                  item-value="codigo"
+                  placeholder="Cuenta bancaria con la que se pagó..."
+                  prepend-inner-icon="mdi-credit-card-outline"
+                  no-data-text="No hay formas de pago"
+                  clearable
+                />
+              </div>
             </div>
           </div>
-          <div v-if="!esEdicion" class="tot-nota">
-            <v-icon size="13" color="#0ea5e9">mdi-information-outline</v-icon>
-            Se registrará{{ form.lineas.length > 1 ? `n ${form.lineas.length} gastos` : ' 1 gasto' }} y
-            <strong>un solo movimiento bancario</strong> por {{ formatMoneda(sumTotal) }}
+
+          <!-- ═══ PASO 2: DISTRIBUCIÓN ═══ -->
+          <div v-show="step === 1" class="wiz-pane">
+            <div class="wiz-pane-title">
+              <v-icon size="17" color="#0ea5e9">mdi-call-split</v-icon>
+              Distribución del Gasto
+              <span class="wiz-pane-hint">divide la factura entre centros de costo y cuentas contables</span>
+            </div>
+
+            <div v-for="(ln, idx) in form.lineas" :key="ln.uid" class="dist-card">
+              <div class="dist-card-head">
+                <div class="dist-card-num">{{ idx + 1 }}</div>
+                <span class="dist-card-total">{{ formatMoneda(totalLinea(ln)) }}</span>
+                <v-btn
+                  v-if="!esEdicion && form.lineas.length > 1"
+                  icon variant="text" size="x-small" color="#ef4444"
+                  title="Quitar línea"
+                  @click="quitarLinea(idx)"
+                >
+                  <v-icon size="16">mdi-delete-outline</v-icon>
+                </v-btn>
+              </div>
+
+              <div class="field-row">
+                <div class="field-col-half">
+                  <v-autocomplete
+                    v-model="ln.ccosto"
+                    label="Centro de Costos *"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    :items="centrosCostosOptions"
+                    item-title="nombre"
+                    item-value="codigo"
+                    no-data-text="Sin centros"
+                    clearable
+                  />
+                </div>
+                <div class="field-col-half">
+                  <v-autocomplete
+                    v-model="ln.cuenta"
+                    label="Cuenta Contable *"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    :items="cuentasContablesOptions"
+                    item-title="nombre"
+                    item-value="codigo"
+                    no-data-text="Sin cuentas"
+                    clearable
+                  />
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-col-full">
+                  <v-text-field
+                    v-model="ln.concepto"
+                    label="Concepto / Descripción"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    placeholder="Opcional"
+                    maxlength="100"
+                    prepend-inner-icon="mdi-text-short"
+                    @input="ln.concepto = ln.concepto.toUpperCase()"
+                  />
+                </div>
+              </div>
+
+              <div class="field-row montos-row">
+                <div class="field-col-amt">
+                  <v-text-field
+                    v-model.number="ln.subtotal"
+                    label="Subtotal *"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    prepend-inner-icon="mdi-currency-usd"
+                  />
+                </div>
+                <div class="field-col-amt">
+                  <v-text-field
+                    v-model.number="ln.impuestos"
+                    label="Impuestos / Tax"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    prepend-inner-icon="mdi-percent-outline"
+                  />
+                </div>
+              </div>
+
+              <!-- Chip de materia prima cuando la cuenta coincide -->
+              <div v-if="esMateriaPrima(ln)" class="mp-chip-row">
+                <button class="mp-chip" :class="{ 'mp-chip-ok': ln.materiaPrima?.items?.length }" @click="abrirMateriaPrima(idx)">
+                  <v-icon size="13">{{ ln.materiaPrima?.items?.length ? 'mdi-check-circle' : 'mdi-package-variant-plus' }}</v-icon>
+                  <template v-if="ln.materiaPrima?.items?.length">
+                    {{ ln.materiaPrima.items.length }} producto{{ ln.materiaPrima.items.length !== 1 ? 's' : '' }} · {{ formatMoneda(totalItemsMp(ln.materiaPrima)) }}
+                    <span v-if="ln.materiaPrima.afectaInventario" class="mp-chip-tag">+INVENTARIO</span>
+                    <span v-if="ln.materiaPrima.actualizaCosto" class="mp-chip-tag">+COSTO</span>
+                  </template>
+                  <template v-else>
+                    Registrar entrada de almacén (materia prima)
+                  </template>
+                </button>
+              </div>
+            </div>
+
+            <v-btn
+              v-if="!esEdicion"
+              variant="tonal"
+              color="#0ea5e9"
+              size="small"
+              class="mt-1"
+              prepend-icon="mdi-plus"
+              @click="agregarLinea"
+            >
+              Agregar línea
+            </v-btn>
           </div>
+
+          <!-- ═══ PASO 3: CONFIRMAR ═══ -->
+          <div v-show="step === 2" class="wiz-pane">
+            <div class="wiz-pane-title">
+              <v-icon size="17" color="#764ba2" />
+              <v-icon size="17" color="#764ba2">mdi-clipboard-check-outline</v-icon>
+              Revisar y Confirmar
+            </div>
+
+            <!-- Resumen comprobante -->
+            <div class="resumen-card">
+              <div class="resumen-row">
+                <span class="resumen-lbl">Fecha</span>
+                <span class="resumen-val">{{ form.fecha }}</span>
+              </div>
+              <div class="resumen-row">
+                <span class="resumen-lbl">Factura</span>
+                <span class="resumen-val">{{ form.factura || '—' }}</span>
+              </div>
+              <div class="resumen-row">
+                <span class="resumen-lbl">Proveedor</span>
+                <span class="resumen-val">{{ nombreProveedor }}</span>
+              </div>
+              <div class="resumen-row">
+                <span class="resumen-lbl">Forma de Pago</span>
+                <span class="resumen-val">{{ nombreFormaPago }}</span>
+              </div>
+            </div>
+
+            <!-- Tabla de líneas -->
+            <table class="lineas-tabla">
+              <thead>
+                <tr>
+                  <th>CENTRO DE COSTOS</th>
+                  <th>CUENTA CONTABLE</th>
+                  <th>CONCEPTO</th>
+                  <th class="col-right">SUBTOTAL</th>
+                  <th class="col-right">IMPUESTOS</th>
+                  <th class="col-right">TOTAL</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="ln in form.lineas" :key="ln.uid">
+                  <td>{{ nombreCcosto(ln.ccosto) }}</td>
+                  <td>{{ nombreCuenta(ln.cuenta) }}</td>
+                  <td>{{ ln.concepto || '—' }}</td>
+                  <td class="col-right">{{ formatMoneda(ln.subtotal) }}</td>
+                  <td class="col-right">{{ formatMoneda(ln.impuestos) }}</td>
+                  <td class="col-right font-weight-bold">{{ formatMoneda(totalLinea(ln)) }}</td>
+                  <td class="col-center">
+                    <v-icon v-if="ln.materiaPrima?.items?.length" size="16" color="#f59e0b" title="Incluye entrada de almacén">
+                      mdi-package-variant-plus
+                    </v-icon>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Totales -->
+            <div class="tot-grid">
+              <div class="tot-item">
+                <span class="tot-lbl">SUBTOTAL</span>
+                <span class="tot-val">{{ formatMoneda(sumSubtotal) }}</span>
+              </div>
+              <div class="tot-item">
+                <span class="tot-lbl">IMPUESTOS</span>
+                <span class="tot-val">{{ formatMoneda(sumImpuestos) }}</span>
+              </div>
+              <div class="tot-item tot-item-final">
+                <span class="tot-lbl">TOTAL PAGADO</span>
+                <span class="tot-val tot-val-final">{{ formatMoneda(sumTotal) }}</span>
+              </div>
+            </div>
+            <div v-if="!esEdicion" class="tot-nota">
+              <v-icon size="13" color="#0ea5e9">mdi-information-outline</v-icon>
+              Se registrará{{ form.lineas.length > 1 ? `n ${form.lineas.length} gastos` : ' 1 gasto' }} y
+              <strong>un solo movimiento bancario</strong> por {{ formatMoneda(sumTotal) }}
+            </div>
+          </div>
+
+          <!-- ERROR -->
+          <v-alert
+            v-if="errorMsg"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+            closable
+            @click:close="errorMsg = ''"
+          >
+            {{ errorMsg }}
+          </v-alert>
+
         </div>
-
-        <!-- ERROR -->
-        <v-alert
-          v-if="errorMsg"
-          type="error"
-          variant="tonal"
-          density="compact"
-          class="mt-2"
-          closable
-          @click:close="errorMsg = ''"
-        >
-          {{ errorMsg }}
-        </v-alert>
-
-      </v-card-text>
+      </div>
 
       <!-- ══ FOOTER ═══════════════════════════════════════════════════════ -->
-      <div class="form-footer">
+      <div class="wiz-footer">
         <v-btn variant="text" color="error" size="large" @click="cerrar" prepend-icon="mdi-close">
           Cancelar
         </v-btn>
-        <v-btn
-          color="primary"
-          variant="elevated"
-          size="large"
-          :loading="store.loading || guardando"
-          prepend-icon="mdi-content-save-outline"
-          @click="handleSubmit"
-          class="btn-save"
-        >
-          {{ esEdicion ? 'Actualizar Gasto' : 'Guardar Gasto' }}
-        </v-btn>
+        <div class="wiz-footer-right">
+          <v-btn v-if="step > 0" variant="outlined" size="large" prepend-icon="mdi-arrow-left" @click="step--">
+            Atrás
+          </v-btn>
+          <v-btn
+            v-if="step < 2"
+            color="primary"
+            variant="elevated"
+            size="large"
+            append-icon="mdi-arrow-right"
+            @click="siguientePaso"
+          >
+            Siguiente
+          </v-btn>
+          <v-btn
+            v-else
+            color="primary"
+            variant="elevated"
+            size="large"
+            :loading="store.loading || guardando"
+            prepend-icon="mdi-content-save-outline"
+            @click="handleSubmit"
+            class="btn-save"
+          >
+            {{ esEdicion ? 'Actualizar Gasto' : 'Guardar Gasto' }}
+          </v-btn>
+        </div>
       </div>
 
     </v-card>
@@ -273,20 +387,20 @@
     <!-- ═══════════════════════════════════════════════════════════════════
          SUB-DIALOG: ENTRADA DE ALMACÉN — MATERIA PRIMA
     ═══════════════════════════════════════════════════════════════════ -->
-    <v-dialog v-model="mpDialogOpen" max-width="760" scrollable>
-      <v-card rounded="xl" class="form-card">
-        <div class="form-header" style="background: linear-gradient(135deg,#f59e0b,#d97706)">
-          <div class="form-header-icon">
+    <v-dialog v-model="mpDialogOpen" max-width="800" scrollable>
+      <v-card rounded="xl" class="wiz-card">
+        <div class="wiz-header" style="background: linear-gradient(135deg,#f59e0b,#d97706)">
+          <div class="wiz-header-icon">
             <v-icon size="22" color="white">mdi-package-variant-plus</v-icon>
           </div>
-          <div class="form-header-text">
-            <p class="form-header-title">Entrada de Almacén — Materia Prima</p>
-            <p class="form-header-sub">Detalla los productos comprados en esta línea de la factura</p>
+          <div class="wiz-header-text">
+            <p class="wiz-header-title">Entrada de Almacén — Materia Prima</p>
+            <p class="wiz-header-sub">Detalla los productos comprados en esta línea de la factura</p>
           </div>
           <v-btn icon="mdi-close" variant="text" size="small" color="white" @click="mpDialogOpen = false" />
         </div>
 
-        <v-card-text class="form-body">
+        <v-card-text class="wiz-content-simple">
 
           <!-- Opciones -->
           <div class="mp-opts">
@@ -329,7 +443,7 @@
                 item-value="codigo"
                 label="Producto *"
                 variant="outlined"
-                density="compact"
+                density="comfortable"
                 hide-details
                 class="mp-item-prod"
                 no-data-text="Sin productos"
@@ -347,7 +461,7 @@
                 v-model.number="item.cantidad"
                 label="Cantidad *"
                 variant="outlined"
-                density="compact"
+                density="comfortable"
                 hide-details
                 type="number"
                 step="0.01"
@@ -359,7 +473,7 @@
                 v-model.number="item.costoUnit"
                 label="Costo Unit. *"
                 variant="outlined"
-                density="compact"
+                density="comfortable"
                 hide-details
                 type="number"
                 step="0.0001"
@@ -393,7 +507,7 @@
 
         </v-card-text>
 
-        <div class="form-footer">
+        <div class="wiz-footer">
           <v-btn variant="text" @click="mpDialogOpen = false">Cancelar</v-btn>
           <v-btn color="#f59e0b" variant="elevated" prepend-icon="mdi-check" @click="confirmarMateriaPrima">
             Aceptar
@@ -429,6 +543,7 @@ const empresa = computed(() => authStore.empresa || authStore.user?.empresa || '
 
 const errorMsg = ref('')
 const guardando = ref(false)
+const step = ref(0)
 
 const proveedoresOptions = ref([])
 const centrosCostosOptions = ref([])
@@ -472,6 +587,53 @@ const totalLinea = (ln) => (parseFloat(ln.subtotal) || 0) + (parseFloat(ln.impue
 const sumSubtotal  = computed(() => form.value.lineas.reduce((s, l) => s + (parseFloat(l.subtotal) || 0), 0))
 const sumImpuestos = computed(() => form.value.lineas.reduce((s, l) => s + (parseFloat(l.impuestos) || 0), 0))
 const sumTotal     = computed(() => sumSubtotal.value + sumImpuestos.value)
+
+// ─── Nombres para el resumen (paso 3) ────────────────
+const nombreProveedor = computed(() => proveedoresOptions.value.find(p => p.codigo === form.value.proveedor)?.nombre || '—')
+const nombreFormaPago = computed(() => formasPagoOptions.value.find(c => c.codigo === form.value.forma_pago)?.nombre_cta || '—')
+function nombreCcosto(codigo) { return centrosCostosOptions.value.find(c => c.codigo === codigo)?.nombre || codigo || '—' }
+function nombreCuenta(codigo) { return cuentasContablesOptions.value.find(c => c.codigo === codigo)?.nombre || codigo || '—' }
+
+// ─── Pasos del wizard ────────────────────────────────
+const stepsInfo = computed(() => [
+  { title: 'Comprobante', sub: form.value.proveedor ? nombreProveedor.value : 'Fecha, factura y proveedor' },
+  { title: 'Distribución', sub: `${form.value.lineas.length} línea${form.value.lineas.length !== 1 ? 's' : ''} · ${formatMoneda(sumTotal.value)}` },
+  { title: 'Confirmar', sub: 'Revisar y guardar' },
+])
+
+function validarPaso(n) {
+  if (n === 0) {
+    if (!form.value.fecha)      return 'La fecha es requerida'
+    if (!form.value.proveedor)  return 'Debe seleccionar un proveedor'
+    if (!form.value.forma_pago) return 'Debe seleccionar una forma de pago'
+  }
+  if (n === 1) {
+    for (const [i, ln] of form.value.lineas.entries()) {
+      if (!ln.ccosto) return `Línea ${i + 1}: selecciona el centro de costos`
+      if (!ln.cuenta) return `Línea ${i + 1}: selecciona la cuenta contable`
+      if (!(parseFloat(ln.subtotal) > 0)) return `Línea ${i + 1}: el subtotal debe ser mayor a 0`
+    }
+  }
+  return null
+}
+
+function siguientePaso() {
+  const err = validarPaso(step.value)
+  if (err) { errorMsg.value = err; return }
+  errorMsg.value = ''
+  step.value++
+}
+
+function irAPaso(i) {
+  if (i <= step.value) { step.value = i; return }
+  // Avanzar directo requiere validar los pasos intermedios
+  for (let s = step.value; s < i; s++) {
+    const err = validarPaso(s)
+    if (err) { errorMsg.value = err; return }
+  }
+  errorMsg.value = ''
+  step.value = i
+}
 
 // ─── Líneas ──────────────────────────────────────────
 function agregarLinea() {
@@ -576,6 +738,7 @@ onMounted(async () => {
 watch(() => props.open, async (val) => {
   if (!val) return
   errorMsg.value = ''
+  step.value = 0
   if (props.gasto?.codigo) {
     try {
       const gastoFresco = await gestionGastosService.getGasto(props.gasto.codigo)
@@ -606,20 +769,8 @@ watch(() => props.open, async (val) => {
 })
 
 // ─── Guardar ─────────────────────────────────────────
-function validar() {
-  if (!form.value.fecha)      return 'La fecha es requerida'
-  if (!form.value.proveedor)  return 'Debe seleccionar un proveedor'
-  if (!form.value.forma_pago) return 'Debe seleccionar una forma de pago'
-  for (const [i, ln] of form.value.lineas.entries()) {
-    if (!ln.ccosto) return `Línea ${i + 1}: selecciona el centro de costos`
-    if (!ln.cuenta) return `Línea ${i + 1}: selecciona la cuenta contable`
-    if (!(parseFloat(ln.subtotal) > 0)) return `Línea ${i + 1}: el subtotal debe ser mayor a 0`
-  }
-  return null
-}
-
 async function handleSubmit() {
-  const err = validar()
+  const err = validarPaso(0) || validarPaso(1)
   if (err) { errorMsg.value = err; return }
   errorMsg.value = ''
   guardando.value = true
@@ -670,6 +821,7 @@ async function handleSubmit() {
 function cerrar() {
   form.value = formVacio()
   errorMsg.value = ''
+  step.value = 0
   mpDialogOpen.value = false
   emit('update:open', false)
   emit('close')
@@ -678,20 +830,20 @@ function cerrar() {
 
 <style scoped>
 /* ═══ CARD ═══════════════════════════════════════════════════════════ */
-.form-card {
+.wiz-card {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   overflow: hidden;
 }
 
 /* ═══ HEADER ═════════════════════════════════════════════════════════ */
-.form-header {
+.wiz-header {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 18px 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
-.form-header-icon {
+.wiz-header-icon {
   width: 46px;
   height: 46px;
   background: rgba(255, 255, 255, 0.18);
@@ -701,15 +853,15 @@ function cerrar() {
   justify-content: center;
   flex-shrink: 0;
 }
-.form-header-text { flex: 1; }
-.form-header-title {
+.wiz-header-text { flex: 1; }
+.wiz-header-title {
   color: white;
   font-size: 17px;
   font-weight: 700;
   letter-spacing: 0.3px;
   margin: 0;
 }
-.form-header-sub {
+.wiz-header-sub {
   color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
   margin: 3px 0 0;
@@ -732,86 +884,113 @@ function cerrar() {
   letter-spacing: 1px;
 }
 
-/* ═══ BODY ════════════════════════════════════════════════════════════ */
-.form-body {
-  padding: 16px 24px !important;
+/* ═══ BODY: SIDEBAR + CONTENIDO ══════════════════════════════════════ */
+.wiz-body {
+  display: flex;
+  min-height: 460px;
+  max-height: 62vh;
+}
+
+/* Sidebar */
+.wiz-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  background: rgba(var(--v-theme-on-surface), 0.015);
+  padding: 16px 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 4px;
 }
-
-/* ═══ SECCIONES ══════════════════════════════════════════════════════ */
-.form-section {
-  background: rgba(var(--v-theme-on-surface), 0.02);
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.07);
-  border-left: 3px solid #667eea;
-  border-radius: 10px;
-  padding: 10px 14px 12px;
-}
-.section-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: #667eea;
-  margin-bottom: 4px;
-}
-.dist-section { border-left-color: #0ea5e9; }
-.dist-hint {
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-}
-
-/* ═══ LÍNEAS DE DISTRIBUCIÓN ═════════════════════════════════════════ */
-.dist-linea {
-  position: relative;
+.wiz-step {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  padding: 12px 10px;
   border-radius: 10px;
-  padding: 12px 40px 10px 10px;
-  margin-top: 8px;
-  flex-wrap: wrap;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
 }
-.dist-linea-num {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(14,165,233,0.12);
-  color: #0ea5e9;
-  font-size: 11px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.wiz-step:hover { background: rgba(var(--v-theme-on-surface), 0.05); }
+.wiz-step-active { background: rgba(102,126,234,0.1); }
+.wiz-step-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  margin-top: 8px;
 }
-.dist-linea-fields { flex: 1; min-width: 0; }
-.dist-linea-total-col { display: flex; align-items: center; }
-.dist-linea-total {
-  font-family: monospace;
-  font-size: 13px;
-  font-weight: 800;
-  color: #0ea5e9;
-  white-space: nowrap;
-  padding-top: 6px;
+.wiz-step-active .wiz-step-num { background: #667eea; color: white; }
+.wiz-step-done .wiz-step-num { background: #10b981; color: white; }
+.wiz-step-title { font-size: 12.5px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
+.wiz-step-active .wiz-step-title { color: #667eea; }
+.wiz-step-sub {
+  font-size: 10.5px; color: rgba(var(--v-theme-on-surface), 0.45);
+  margin-top: 2px; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 168px;
 }
-.dist-linea-del {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+
+/* Contenido */
+.wiz-content {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 28px;
+  overflow-y: auto;
+}
+.wiz-content-simple {
+  padding: 18px 24px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wiz-pane { display: flex; flex-direction: column; gap: 18px; }
+.wiz-pane-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 800; color: rgb(var(--v-theme-on-surface));
+}
+.wiz-pane-hint {
+  font-size: 12px; font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  margin-left: 4px;
+}
+
+/* ═══ CAMPOS ══════════════════════════════════════════════════════════ */
+.field-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.field-col-full { flex: 1 1 100%; min-width: 0; }
+.field-col-half { flex: 1 1 260px; min-width: 220px; }
+.field-col-3 { flex: 1 1 200px; min-width: 180px; }
+.field-col-amt { width: 220px; flex-shrink: 0; }
+.montos-row { gap: 20px; }
+
+/* ═══ LÍNEAS DE DISTRIBUCIÓN ═════════════════════════════════════════ */
+.dist-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.09);
+  border-left: 3px solid #0ea5e9;
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.dist-card-head { display: flex; align-items: center; gap: 10px; }
+.dist-card-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(14,165,233,0.12); color: #0ea5e9;
+  font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.dist-card-total {
+  margin-left: auto;
+  font-family: monospace; font-size: 15px; font-weight: 800; color: #0ea5e9;
 }
 
 /* Chip materia prima */
-.mp-chip-row { width: 100%; padding-left: 34px; }
+.mp-chip-row { width: 100%; }
 .mp-chip {
   display: inline-flex;
   align-items: center;
@@ -820,12 +999,11 @@ function cerrar() {
   background: rgba(245,158,11,0.06);
   color: #d97706;
   border-radius: 18px;
-  padding: 4px 12px;
-  font-size: 11px;
+  padding: 6px 14px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all .15s;
-  margin-top: 6px;
 }
 .mp-chip:hover { background: rgba(245,158,11,0.14); }
 .mp-chip-ok {
@@ -842,13 +1020,34 @@ function cerrar() {
   font-weight: 800;
 }
 
-/* ═══ TOTALES ════════════════════════════════════════════════════════ */
-.totales-section { border-left-color: #764ba2; }
-.tot-grid {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+/* ═══ RESUMEN (paso 3) ═══════════════════════════════════════════════ */
+.resumen-card {
+  background: rgba(var(--v-theme-on-surface), 0.025);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 20px;
 }
+.resumen-row { display: flex; flex-direction: column; gap: 2px; }
+.resumen-lbl { font-size: 10px; font-weight: 800; letter-spacing: 0.6px; color: rgba(var(--v-theme-on-surface), 0.45); text-transform: uppercase; }
+.resumen-val { font-size: 13.5px; font-weight: 600; }
+
+/* Tabla de líneas */
+.lineas-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.lineas-tabla thead th {
+  text-align: left; padding: 8px 10px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  border-bottom: 2px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.lineas-tabla tbody td { padding: 9px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
+.col-right { text-align: right; font-family: monospace; }
+.col-center { text-align: center; }
+
+/* ═══ TOTALES ════════════════════════════════════════════════════════ */
+.tot-grid { display: flex; gap: 12px; flex-wrap: wrap; }
 .tot-item {
   flex: 1;
   min-width: 140px;
@@ -879,7 +1078,6 @@ function cerrar() {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
   font-size: 12px;
   color: rgba(var(--v-theme-on-surface), 0.55);
 }
@@ -889,28 +1087,28 @@ function cerrar() {
   background: rgba(245,158,11,0.05);
   border: 1px solid rgba(245,158,11,0.2);
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .mp-opt-lbl { font-size: 12.5px; line-height: 1.4; }
-.mp-items { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.mp-items { display: flex; flex-direction: column; gap: 10px; }
 .mp-item-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
-.mp-item-prod { flex: 1; min-width: 220px; }
-.mp-item-cant { width: 130px; flex-shrink: 0; }
-.mp-item-costo { width: 130px; flex-shrink: 0; }
+.mp-item-prod { flex: 1; min-width: 240px; }
+.mp-item-cant { width: 150px; flex-shrink: 0; }
+.mp-item-costo { width: 150px; flex-shrink: 0; }
 .mp-item-subtotal {
   font-family: monospace;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
   color: #d97706;
-  min-width: 80px;
+  min-width: 90px;
   text-align: right;
 }
 .mp-prod-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), 0.4); }
@@ -918,7 +1116,6 @@ function cerrar() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
   padding: 10px 12px;
   border-top: 2px solid rgba(var(--v-theme-on-surface), 0.08);
   font-size: 11px;
@@ -934,11 +1131,11 @@ function cerrar() {
   color: #d97706;
   background: rgba(245,158,11,0.07);
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 8px 12px;
 }
 
 /* ═══ FOOTER ═════════════════════════════════════════════════════════ */
-.form-footer {
+.wiz-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -946,10 +1143,17 @@ function cerrar() {
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   background: rgba(var(--v-theme-on-surface), 0.01);
 }
+.wiz-footer-right { display: flex; gap: 10px; }
 .btn-save {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   font-weight: 600;
   letter-spacing: 0.3px;
   min-width: 160px;
+}
+
+@media (max-width: 700px) {
+  .wiz-body { flex-direction: column; max-height: none; }
+  .wiz-sidebar { width: 100%; flex-direction: row; overflow-x: auto; }
+  .wiz-step-sub { display: none; }
 }
 </style>
