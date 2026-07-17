@@ -103,6 +103,7 @@
             <td class="td-acciones">
               <div class="action-buttons">
                 <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" @click="$emit('edit', gasto)" title="Editar" />
+                <v-btn icon="mdi-package-down" size="x-small" variant="text" color="#0891b2" @click="verEntradas(gasto)" title="Ver entradas de almacén" />
                 <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="eliminar(gasto.codigo)" :loading="store.loading" title="Eliminar" />
               </div>
             </td>
@@ -135,16 +136,148 @@
       </div>
     </div>
   </div>
+
+  <!-- POPUP ENTRADAS DE ALMACÉN -->
+  <v-dialog v-model="dlgEntradas" max-width="780" scrollable>
+    <v-card class="dlg-card">
+      <div class="dlg-header">
+        <div class="dlg-header-icon">
+          <v-icon size="22" color="white">mdi-package-down</v-icon>
+        </div>
+        <div class="dlg-header-text">
+          <div class="dlg-title">Entradas de Almacén</div>
+          <div class="dlg-sub">
+            Gasto {{ gastoDlg?.codigo }}
+            <span v-if="gastoDlg?.factura"> · Fact. {{ gastoDlg.factura }}</span>
+            <span v-if="gastoDlg?.proveedor_nombre"> · {{ gastoDlg.proveedor_nombre }}</span>
+          </div>
+        </div>
+        <v-spacer />
+        <v-btn icon="mdi-printer" size="small" variant="text" @click="imprimirEntradas" title="Imprimir" />
+        <v-btn icon="mdi-close" size="small" variant="text" @click="dlgEntradas = false" />
+      </div>
+
+      <v-divider />
+
+      <v-card-text class="dlg-body" ref="dlgPrintRef">
+        <!-- Print header -->
+        <div class="dlg-print-head">
+          <strong>Entradas de Almacén</strong> — Gasto {{ gastoDlg?.codigo }}
+          <span v-if="gastoDlg?.factura"> · Factura {{ gastoDlg.factura }}</span>
+          <span v-if="gastoDlg?.proveedor_nombre"> · {{ gastoDlg.proveedor_nombre }}</span>
+        </div>
+
+        <div v-if="loadingEntradas" class="dlg-loading">
+          <v-progress-circular indeterminate color="#0891b2" size="32" />
+          <span>Cargando...</span>
+        </div>
+        <div v-else-if="entradasDlg.length === 0" class="dlg-empty">
+          <v-icon size="36" color="rgba(0,0,0,0.2)">mdi-inbox-outline</v-icon>
+          <p>Este gasto no tiene entradas de almacén registradas</p>
+        </div>
+        <table v-else class="dlg-table">
+          <thead>
+            <tr>
+              <th>FECHA</th>
+              <th>BODEGA</th>
+              <th>CÓDIGO</th>
+              <th>PRODUCTO</th>
+              <th>UND</th>
+              <th>CANTIDAD</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(e, i) in entradasDlg" :key="i">
+              <td class="tc">{{ formatFecha(e.fecha) }}</td>
+              <td class="tc"><span class="badge-cc-dlg">{{ e.ccosto_nombre || e.ccosto }}</span></td>
+              <td class="tc text-muted-sm">{{ e.producto_codigo }}</td>
+              <td>{{ e.producto_nombre }}</td>
+              <td class="tc text-muted-sm">{{ e.und || '-' }}</td>
+              <td class="tr fw">{{ formatNum(e.cantidad) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useGestionGastosStore } from '../../../stores/gestiongastos'
+import { useAuthStore } from '../../../stores/auth'
 import { gestionGastosService } from '../../../services/gestiongastos.service'
 import { formatMoneda, formatFecha } from '../../../utils/formatters'
+import api from '../../../services/api'
 
 const emit = defineEmits(['edit'])
 const store = useGestionGastosStore()
+const auth = useAuthStore()
+
+// ── Popup entradas de almacén ──
+const dlgEntradas = ref(false)
+const gastoDlg = ref(null)
+const entradasDlg = ref([])
+const loadingEntradas = ref(false)
+const dlgPrintRef = ref(null)
+
+async function verEntradas(gasto) {
+  gastoDlg.value = gasto
+  entradasDlg.value = []
+  dlgEntradas.value = true
+  loadingEntradas.value = true
+  try {
+    const r = await api.get(`/almacen/entradas-por-gasto/${gasto.codigo}`, { params: { empresa: auth.empresa } })
+    entradasDlg.value = r.data?.data || []
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loadingEntradas.value = false
+  }
+}
+
+function formatNum(v) {
+  const n = parseFloat(v) || 0
+  return n % 1 === 0 ? n.toLocaleString('es-US') : n.toLocaleString('es-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+}
+
+function imprimirEntradas() {
+  const el = dlgPrintRef.value?.$el || dlgPrintRef.value
+  if (!el) return window.print()
+  const win = window.open('', '_blank', 'width=800,height=600')
+  win.document.write(`<!DOCTYPE html><html><head><title>Entradas de Almacén</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; margin: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th { background: #f1f5f9; padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #cbd5e1; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+  .tc { text-align: center; }
+  .tr { text-align: right; }
+  .fw { font-weight: bold; }
+  .print-head { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+  .print-sub { font-size: 12px; color: #64748b; }
+</style></head><body>`)
+  win.document.write(`<div class="print-head">Entradas de Almacén</div>`)
+  win.document.write(`<div class="print-sub">Gasto: ${gastoDlg.value?.codigo || ''}`)
+  if (gastoDlg.value?.factura) win.document.write(` · Factura: ${gastoDlg.value.factura}`)
+  if (gastoDlg.value?.proveedor_nombre) win.document.write(` · ${gastoDlg.value.proveedor_nombre}`)
+  win.document.write(`</div>`)
+  win.document.write(`<table><thead><tr><th>Fecha</th><th>Bodega</th><th>Código</th><th>Producto</th><th>Und</th><th>Cantidad</th></tr></thead><tbody>`)
+  for (const e of entradasDlg.value) {
+    win.document.write(`<tr>
+      <td class="tc">${formatFecha(e.fecha)}</td>
+      <td class="tc">${e.ccosto_nombre || e.ccosto}</td>
+      <td class="tc">${e.producto_codigo}</td>
+      <td>${e.producto_nombre}</td>
+      <td class="tc">${e.und || '-'}</td>
+      <td class="tr fw">${formatNum(e.cantidad)}</td>
+    </tr>`)
+  }
+  win.document.write(`</tbody></table></body></html>`)
+  win.document.close()
+  win.focus()
+  setTimeout(() => { win.print(); win.close() }, 400)
+}
 
 const searchQuery = ref('')
 const currentPage = ref(1)
@@ -477,4 +610,35 @@ async function exportarExcel() {
   border-color: #0891b2;
   color: #fff;
 }
+
+/* ── POPUP ENTRADAS ── */
+.dlg-card { border-radius: 14px !important; overflow: hidden; }
+.dlg-header {
+  display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+  background: linear-gradient(135deg, #0c4a6e 0%, #0891b2 100%);
+}
+.dlg-header-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.dlg-title { font-size: 15px; font-weight: 700; color: #fff; }
+.dlg-sub { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 1px; }
+.dlg-body { padding: 20px !important; min-height: 120px; }
+.dlg-loading { display: flex; align-items: center; gap: 12px; padding: 32px 0; color: rgba(var(--v-theme-on-surface), 0.5); }
+.dlg-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 0; color: rgba(var(--v-theme-on-surface), 0.4); font-size: 14px; }
+.dlg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dlg-table thead { background: rgba(var(--v-theme-on-surface), 0.04); }
+.dlg-table th {
+  padding: 9px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.5);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); text-align: center;
+}
+.dlg-table td { padding: 9px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); color: rgb(var(--v-theme-on-surface)); }
+.badge-cc-dlg { background: rgba(8,145,178,0.12); color: #0891b2; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+.tc { text-align: center !important; }
+.tr { text-align: right !important; }
+.fw { font-weight: 700; font-family: 'Courier New', monospace; }
+.text-muted-sm { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.dlg-print-head { display: none; }
 </style>

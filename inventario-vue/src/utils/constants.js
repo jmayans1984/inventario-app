@@ -114,6 +114,7 @@ export const MODULES = [
         { name: 'Kardex Consolidado',      icon: 'mdi-table-multiple',         path: '/almacen/reportes/kardex-consolidado' },
         { name: 'Predicción Agotamiento',  icon: 'mdi-chart-box-outline',      path: '/almacen/reportes/prediccion-agotamiento' },
         { name: 'Faltantes y Sobrantes (Toma Física)', icon: 'mdi-clipboard-check-outline', path: '/almacen/reportes/toma-fisica' },
+        { name: 'Entradas de Almacén',                 icon: 'mdi-package-down',             path: '/almacen/reportes/entradas-almacen' },
       ]},
     ],
   },

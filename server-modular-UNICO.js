@@ -1969,6 +1969,75 @@ app.get('/api/almacen/prediccion-agotamiento/detalle', async (req, res) => {
     }
 });
 
+// GET /api/almacen/entradas-almacen — reporte de todas las entradas de almacén
+app.get('/api/almacen/entradas-almacen', async (req, res) => {
+    try {
+        const { empresa, desde, hasta, ccosto } = req.query;
+        if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        let conditions = [`di.empresa::text = $1`, `di.tipo = 'ENTRADA DE ALMACEN'`];
+        let params = [String(empresa)];
+        let idx = 2;
+
+        if (desde) { conditions.push(`di.fecha >= $${idx}::date`); params.push(desde); idx++; }
+        if (hasta) { conditions.push(`di.fecha <= $${idx}::date`); params.push(hasta); idx++; }
+        if (ccosto) { conditions.push(`di.ccosto = $${idx}`); params.push(ccosto); idx++; }
+
+        const rows = await pool.query(
+            `SELECT di.fecha::date AS fecha,
+                    di.ccosto,
+                    COALESCE(c.nombre, di.ccosto) AS ccosto_nombre,
+                    di.codigo,
+                    COALESCE(p.nombre, di.codigo) AS producto_nombre,
+                    p.und,
+                    di.entrada AS cantidad,
+                    di.observaciones
+             FROM detalle_inventario di
+             LEFT JOIN ccostos c ON c.codigo = di.ccosto AND c.empresa::text = $1
+             LEFT JOIN productos p ON p.codigo = di.codigo
+             WHERE ${conditions.join(' AND ')}
+             ORDER BY di.fecha DESC, di.ccosto, p.nombre`,
+            params
+        );
+        res.json({ success: true, data: rows.rows, total: rows.rowCount });
+    } catch (error) {
+        console.error('Error GET /api/almacen/entradas-almacen:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/almacen/entradas-por-gasto/:codigo — entradas vinculadas a un gasto específico
+app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
+    try {
+        const { empresa } = req.query;
+        const { codigo } = req.params;
+        if (!empresa || !codigo) return res.status(400).json({ success: false, error: 'Empresa y código requeridos' });
+
+        const rows = await pool.query(
+            `SELECT di.fecha::date AS fecha,
+                    di.ccosto,
+                    COALESCE(c.nombre, di.ccosto) AS ccosto_nombre,
+                    di.codigo AS producto_codigo,
+                    COALESCE(p.nombre, di.codigo) AS producto_nombre,
+                    p.und,
+                    di.entrada AS cantidad,
+                    di.observaciones
+             FROM detalle_inventario di
+             LEFT JOIN ccostos c ON c.codigo = di.ccosto AND c.empresa::text = $1
+             LEFT JOIN productos p ON p.codigo = di.codigo
+             WHERE di.empresa::text = $1
+               AND di.tipo = 'ENTRADA DE ALMACEN'
+               AND di.observaciones LIKE $2
+             ORDER BY di.fecha DESC, p.nombre`,
+            [String(empresa), `COMPRA GASTO ${codigo}%`]
+        );
+        res.json({ success: true, data: rows.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/entradas-por-gasto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // PUT /api/almacen/gestion-inventario — editar movimiento existente
 // Identifica el lote original por (fecha+ccosto+tipo_db+cc_relacion+observaciones),
 // lo borra y re-inserta con los nuevos valores.
