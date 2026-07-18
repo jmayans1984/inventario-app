@@ -64,9 +64,7 @@
                 <th class="col-nom">NOMBRE</th>
                 <th class="col-desc">DESCRIPCIÓN</th>
                 <th class="col-und">UND</th>
-                <th class="col-mov">ENTRADA</th>
-                <th class="col-mov">BAJA</th>
-                <th v-for="cc in centrosCosto" :key="cc.codigo" class="col-cc">{{ cc.nombre }}</th>
+                <th class="col-bodega">BODEGA / CC</th>
               </tr>
             </thead>
             <tbody>
@@ -75,9 +73,7 @@
                 <td class="col-nom">{{ p.nombre }}</td>
                 <td class="col-desc">{{ p.descripcion || '' }}</td>
                 <td class="col-und">{{ p.und }}</td>
-                <td class="col-mov"></td>
-                <td class="col-mov"></td>
-                <td v-for="cc in centrosCosto" :key="cc.codigo" class="col-cc"></td>
+                <td class="col-bodega"></td>
               </tr>
             </tbody>
           </table>
@@ -178,15 +174,14 @@ function imprimir() {
   drawHeader()
 
   // ── Construir tabla ────────────────────────────────────────
-  const ccHeaders = centrosCosto.value.map(cc => cc.nombre)
-  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', 'ENTRADA', 'BAJA', ...ccHeaders]]
+  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', 'BODEGA / CC']]
 
   const body = []
   for (const grupo of productosAgrupados.value) {
     // Fila de grupo
     body.push([{
       content: `${grupo.nombre.toUpperCase()}   (${grupo.items.length} productos)`,
-      colSpan: 6 + centrosCosto.value.length,
+      colSpan: 5,
       styles: {
         fontStyle: 'bold',
         fontSize: 7,
@@ -202,27 +197,19 @@ function imprimir() {
         p.nombre,
         p.descripcion || '',
         p.und,
-        '', // ENTRADA
-        '', // BAJA
-        ...centrosCosto.value.map(() => '') // CC
+        '' // BODEGA/CC
       ])
     }
   }
 
-  // Calcular ancho dinámico de columnas CC
-  const totalCcWidth = centrosCosto.value.length > 0 ? centrosCosto.value.length * 18 : 0
+  // Estilos de columnas
   const colStyles = {
     0: { cellWidth: 12, halign: 'center' },                          // CÓD
     1: { cellWidth: 38 },                                             // NOMBRE
     2: { cellWidth: 30, textColor: [80, 80, 80] },                   // DESCRIPCIÓN
     3: { cellWidth: 10, halign: 'center' },                           // UND
-    4: { cellWidth: 16, halign: 'center' },                           // ENTRADA
-    5: { cellWidth: 14, halign: 'center' },                           // BAJA
+    4: { cellWidth: 40, halign: 'center' },                           // BODEGA/CC
   }
-  // Añadir estilos para CCs
-  centrosCosto.value.forEach((_, i) => {
-    colStyles[6 + i] = { cellWidth: 18, halign: 'center' }
-  })
 
   // Rastrear grupo activo para redibujarlo en saltos de página
   autoTable(doc, {
@@ -345,10 +332,9 @@ onMounted(cargar)
 }
 
 .col-cod  { width: 40px; }
-.col-nom  { width: 130px; font-weight: 500; }
-.col-desc { width: 110px; font-size: 8px; color: #444; }
-.col-und  { width: 30px; text-align: center; }
-.col-mov  { width: 55px; }
-.col-cc   { width: 70px; }
+.col-nom    { width: 130px; font-weight: 500; }
+.col-desc   { width: 110px; font-size: 8px; color: #444; }
+.col-und    { width: 30px; text-align: center; }
+.col-bodega { width: 150px; text-align: center; }
 </style>
 
