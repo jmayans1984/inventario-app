@@ -465,12 +465,15 @@ async function eliminarAlerta(idx) {
 
 // ── Accesos directos a módulos ────────────────────────────────
 const modulos = [
-  { nombre: 'Almacén',      path: '/almacen',      icono: 'mdi-warehouse',              color: '#10b981', bg: 'linear-gradient(135deg,#10b981,#047857)' },
-  { nombre: 'Tesorería',    path: '/tesoreria',    icono: 'mdi-bank-transfer',          color: '#0ea5e9', bg: 'linear-gradient(135deg,#0ea5e9,#0369a1)' },
-  { nombre: 'Nómina',       path: '/nomina',       icono: 'mdi-account-group-outline',  color: '#ec4899', bg: 'linear-gradient(135deg,#ec4899,#be185d)' },
-  { nombre: 'Producción',   path: '/produccion',   icono: 'mdi-chef-hat',               color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b,#d97706)' },
-  { nombre: 'Contabilidad', path: '/contabilidad', icono: 'mdi-calculator-variant',     color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)' },
-  { nombre: 'Gerencia',     path: '/gerencia',     icono: 'mdi-chart-areaspline',       color: '#06b6d4', bg: 'linear-gradient(135deg,#06b6d4,#0e7490)' },
+  { nombre: 'Contabilidad',  path: '/contabilidad', icono: 'mdi-calculator-variant',     color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)' },
+  { nombre: 'Tesorería',     path: '/tesoreria',    icono: 'mdi-bank-transfer',          color: '#0ea5e9', bg: 'linear-gradient(135deg,#0ea5e9,#0369a1)' },
+  { nombre: 'Almacén',       path: '/almacen',      icono: 'mdi-warehouse',              color: '#10b981', bg: 'linear-gradient(135deg,#10b981,#047857)' },
+  { nombre: 'Proveeduría',   path: '/produccion',   icono: 'mdi-factory',                color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b,#d97706)' },
+  { nombre: 'Recetas',       path: '/recetas',      icono: 'mdi-chef-hat',               color: '#ec4899', bg: 'linear-gradient(135deg,#ec4899,#be185d)' },
+  { nombre: 'Nómina',        path: '/nomina',       icono: 'mdi-account-group-outline',  color: '#06b6d4', bg: 'linear-gradient(135deg,#06b6d4,#0e7490)' },
+  { nombre: 'Gerencia',      path: '/gerencia',     icono: 'mdi-chart-areaspline',       color: '#14b8a6', bg: 'linear-gradient(135deg,#14b8a6,#0d9488)' },
+  { nombre: 'Formatos/Docs', path: '/formatos',     icono: 'mdi-file-document-outline',  color: '#a78bfa', bg: 'linear-gradient(135deg,#a78bfa,#8b5cf6)' },
+  { nombre: 'Configuración', path: '/configuracion',icono: 'mdi-cog-outline',            color: '#64748b', bg: 'linear-gradient(135deg,#64748b,#475569)' },
 ]
 
 onMounted(() => {
