@@ -64,7 +64,8 @@
                 <th class="col-nom">NOMBRE</th>
                 <th class="col-desc">DESCRIPCIÓN</th>
                 <th class="col-und">UND</th>
-                <th class="col-bodega">BODEGA / CC</th>
+                <th class="col-cc">BODEGA MAESTRA</th>
+                <th v-for="cc in centrosCosto" :key="cc.codigo" class="col-cc">{{ cc.nombre }}</th>
               </tr>
             </thead>
             <tbody>
@@ -73,7 +74,8 @@
                 <td class="col-nom">{{ p.nombre }}</td>
                 <td class="col-desc">{{ p.descripcion || '' }}</td>
                 <td class="col-und">{{ p.und }}</td>
-                <td class="col-bodega"></td>
+                <td class="col-cc"></td>
+                <td v-for="cc in centrosCosto" :key="cc.codigo" class="col-cc"></td>
               </tr>
             </tbody>
           </table>
@@ -128,10 +130,10 @@ async function cargar() {
     productos.value = (resProds.data?.data || []).filter(p => p.control === 'SI')
 
     const resCc = await api.get('/contabilidad/centrocostos', {
-      params: { empresa: authStore.empresa, limit: 100 }
+      params: { empresa: authStore.empresa, limit: 100, activo: 'SI' }
     })
     centrosCosto.value = (resCc.data?.data || [])
-      .filter(cc => cc.codigo !== bodegaMaestraCC.value)
+      .filter(cc => cc.codigo !== bodegaMaestraCC.value && cc.activo === 'SI')
   } catch (e) {
     console.error('Error cargando planilla:', e)
   } finally {
@@ -174,14 +176,15 @@ function imprimir() {
   drawHeader()
 
   // ── Construir tabla ────────────────────────────────────────
-  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', 'BODEGA / CC']]
+  const ccHeaders = centrosCosto.value.map(cc => cc.nombre)
+  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', 'BODEGA MAESTRA', ...ccHeaders]]
 
   const body = []
   for (const grupo of productosAgrupados.value) {
     // Fila de grupo
     body.push([{
       content: `${grupo.nombre.toUpperCase()}   (${grupo.items.length} productos)`,
-      colSpan: 5,
+      colSpan: 5 + centrosCosto.value.length,
       styles: {
         fontStyle: 'bold',
         fontSize: 7,
@@ -197,7 +200,8 @@ function imprimir() {
         p.nombre,
         p.descripcion || '',
         p.und,
-        '' // BODEGA/CC
+        '', // BODEGA MAESTRA
+        ...centrosCosto.value.map(() => '') // CCs
       ])
     }
   }
@@ -208,8 +212,12 @@ function imprimir() {
     1: { cellWidth: 38 },                                             // NOMBRE
     2: { cellWidth: 30, textColor: [80, 80, 80] },                   // DESCRIPCIÓN
     3: { cellWidth: 10, halign: 'center' },                           // UND
-    4: { cellWidth: 40, halign: 'center' },                           // BODEGA/CC
+    4: { cellWidth: 18, halign: 'center' },                           // BODEGA MAESTRA
   }
+  // Añadir estilos para CCs
+  centrosCosto.value.forEach((_, i) => {
+    colStyles[5 + i] = { cellWidth: 18, halign: 'center' }
+  })
 
   // Rastrear grupo activo para redibujarlo en saltos de página
   autoTable(doc, {
@@ -332,9 +340,9 @@ onMounted(cargar)
 }
 
 .col-cod  { width: 40px; }
-.col-nom    { width: 130px; font-weight: 500; }
-.col-desc   { width: 110px; font-size: 8px; color: #444; }
-.col-und    { width: 30px; text-align: center; }
-.col-bodega { width: 150px; text-align: center; }
+.col-nom  { width: 130px; font-weight: 500; }
+.col-desc { width: 110px; font-size: 8px; color: #444; }
+.col-und  { width: 30px; text-align: center; }
+.col-cc   { width: 70px; text-align: center; }
 </style>
 
