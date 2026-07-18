@@ -8266,14 +8266,13 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
             );
 
             // 4b. SIEMPRE: crear detalles_entrada_almacen
-            let detSeq = 1;
             for (const item of itemsValidos) {
                 const cant  = parseFloat(item.cantidad) || 0;
                 const costo = parseFloat(item.costoUnit) || 0;
                 await client.query(
-                    `INSERT INTO detalles_entrada_almacen (articulo, cantidad, entrada, id, precio_unitario, subtotal, empresa)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                    [item.codigo, cant, eaCodigo, detSeq++, costo, cant * costo, empresa]
+                    `INSERT INTO detalles_entrada_almacen (articulo, cantidad, entrada, precio_unitario, subtotal, empresa)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [item.codigo, cant, eaCodigo, costo, cant * costo, empresa]
                 );
             }
 
