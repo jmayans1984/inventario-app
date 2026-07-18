@@ -187,21 +187,25 @@
           <thead>
             <tr>
               <th>FECHA</th>
-              <th>BODEGA</th>
+              <th># ENTRADA</th>
               <th>CÓDIGO</th>
               <th>PRODUCTO</th>
               <th>UND</th>
               <th>CANTIDAD</th>
+              <th>P. UNIT</th>
+              <th>SUBTOTAL</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(e, i) in entradasDlg" :key="i">
               <td class="tc">{{ formatFecha(e.fecha) }}</td>
-              <td class="tc"><span class="badge-cc-dlg">{{ e.ccosto_nombre || e.ccosto }}</span></td>
+              <td class="tc"><span class="badge-cc-dlg">{{ e.entrada_codigo }}</span></td>
               <td class="tc text-muted-sm">{{ e.producto_codigo }}</td>
               <td>{{ e.producto_nombre }}</td>
               <td class="tc text-muted-sm">{{ e.und || '-' }}</td>
               <td class="tr fw">{{ formatNum(e.cantidad) }}</td>
+              <td class="tr text-muted-sm">{{ formatMoneda(e.precio_unitario) }}</td>
+              <td class="tr fw" style="color:#0891b2">{{ formatMoneda(e.subtotal) }}</td>
             </tr>
           </tbody>
         </table>
@@ -285,15 +289,17 @@ function imprimirEntradas() {
   if (gastoDlg.value?.factura) win.document.write(` · Factura: ${gastoDlg.value.factura}`)
   if (gastoDlg.value?.proveedor_nombre) win.document.write(` · ${gastoDlg.value.proveedor_nombre}`)
   win.document.write(`</div>`)
-  win.document.write(`<table><thead><tr><th>Fecha</th><th>Bodega</th><th>Código</th><th>Producto</th><th>Und</th><th>Cantidad</th></tr></thead><tbody>`)
+  win.document.write(`<table><thead><tr><th>Fecha</th><th># Entrada</th><th>Código</th><th>Producto</th><th>Und</th><th>Cantidad</th><th>P. Unit</th><th>Subtotal</th></tr></thead><tbody>`)
   for (const e of entradasDlg.value) {
     win.document.write(`<tr>
       <td class="tc">${formatFecha(e.fecha)}</td>
-      <td class="tc">${e.ccosto_nombre || e.ccosto}</td>
+      <td class="tc">${e.entrada_codigo}</td>
       <td class="tc">${e.producto_codigo}</td>
       <td>${e.producto_nombre}</td>
       <td class="tc">${e.und || '-'}</td>
       <td class="tr fw">${formatNum(e.cantidad)}</td>
+      <td class="tr">${formatMoneda(e.precio_unitario)}</td>
+      <td class="tr fw">${formatMoneda(e.subtotal)}</td>
     </tr>`)
   }
   win.document.write(`</tbody></table></body></html>`)

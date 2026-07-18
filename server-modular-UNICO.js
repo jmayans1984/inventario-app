@@ -1972,31 +1972,35 @@ app.get('/api/almacen/prediccion-agotamiento/detalle', async (req, res) => {
 // GET /api/almacen/entradas-almacen — reporte de todas las entradas de almacén
 app.get('/api/almacen/entradas-almacen', async (req, res) => {
     try {
-        const { empresa, desde, hasta, ccosto } = req.query;
+        const { empresa, desde, hasta } = req.query;
         if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
 
-        let conditions = [`di.empresa::text = $1`, `di.tipo = 'ENTRADA DE ALMACEN'`];
+        let conditions = [`ea.empresa::text = $1`];
         let params = [String(empresa)];
         let idx = 2;
 
-        if (desde) { conditions.push(`di.fecha >= $${idx}::date`); params.push(desde); idx++; }
-        if (hasta) { conditions.push(`di.fecha <= $${idx}::date`); params.push(hasta); idx++; }
-        if (ccosto) { conditions.push(`di.ccosto = $${idx}`); params.push(ccosto); idx++; }
+        if (desde) { conditions.push(`ea.fecha >= $${idx}::date`); params.push(desde); idx++; }
+        if (hasta) { conditions.push(`ea.fecha <= $${idx}::date`); params.push(hasta); idx++; }
 
         const rows = await pool.query(
-            `SELECT di.fecha::date AS fecha,
-                    di.ccosto,
-                    COALESCE(c.nombre, di.ccosto) AS ccosto_nombre,
-                    di.codigo,
-                    COALESCE(p.nombre, di.codigo) AS producto_nombre,
+            `SELECT ea.codigo AS entrada_codigo,
+                    ea.fecha::date AS fecha,
+                    ea.gasto,
+                    ea.proveedor,
+                    COALESCE(prov.nombre, ea.proveedor) AS proveedor_nombre,
+                    ea.total AS total_entrada,
+                    dea.articulo AS producto_codigo,
+                    COALESCE(p.nombre, dea.articulo) AS producto_nombre,
                     p.und,
-                    di.entrada AS cantidad,
-                    di.observaciones
-             FROM detalle_inventario di
-             LEFT JOIN ccostos c ON c.codigo = di.ccosto AND c.empresa::text = $1
-             LEFT JOIN productos p ON p.codigo = di.codigo
+                    dea.cantidad,
+                    dea.precio_unitario,
+                    dea.subtotal
+             FROM entrada_almacen ea
+             JOIN detalles_entrada_almacen dea ON dea.entrada = ea.codigo
+             LEFT JOIN productos p ON p.codigo = dea.articulo
+             LEFT JOIN proveedores prov ON prov.codigo = ea.proveedor AND prov.empresa::text = $1
              WHERE ${conditions.join(' AND ')}
-             ORDER BY di.fecha DESC, di.ccosto, p.nombre`,
+             ORDER BY ea.fecha DESC, ea.codigo, p.nombre`,
             params
         );
         res.json({ success: true, data: rows.rows, total: rows.rowCount });
@@ -2012,11 +2016,7 @@ app.get('/api/almacen/gastos-con-entradas', async (req, res) => {
         const { empresa } = req.query;
         if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
         const r = await pool.query(
-            `SELECT DISTINCT TRIM(SUBSTRING(observaciones FROM 'COMPRA GASTO ([^\s]+)')) AS codigo
-             FROM detalle_inventario
-             WHERE empresa::text = $1
-               AND tipo = 'ENTRADA DE ALMACEN'
-               AND observaciones LIKE 'COMPRA GASTO %'`,
+            `SELECT DISTINCT gasto AS codigo FROM entrada_almacen WHERE empresa::text = $1 AND gasto IS NOT NULL`,
             [String(empresa)]
         );
         const codigos = r.rows.map(row => row.codigo).filter(Boolean);
@@ -2035,22 +2035,22 @@ app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
         if (!empresa || !codigo) return res.status(400).json({ success: false, error: 'Empresa y código requeridos' });
 
         const rows = await pool.query(
-            `SELECT di.fecha::date AS fecha,
-                    di.ccosto,
-                    COALESCE(c.nombre, di.ccosto) AS ccosto_nombre,
-                    di.codigo AS producto_codigo,
-                    COALESCE(p.nombre, di.codigo) AS producto_nombre,
+            `SELECT ea.codigo AS entrada_codigo,
+                    ea.fecha::date AS fecha,
+                    ea.total AS total_entrada,
+                    dea.articulo AS producto_codigo,
+                    COALESCE(p.nombre, dea.articulo) AS producto_nombre,
                     p.und,
-                    di.entrada AS cantidad,
-                    di.observaciones
-             FROM detalle_inventario di
-             LEFT JOIN ccostos c ON c.codigo = di.ccosto AND c.empresa::text = $1
-             LEFT JOIN productos p ON p.codigo = di.codigo
-             WHERE di.empresa::text = $1
-               AND di.tipo = 'ENTRADA DE ALMACEN'
-               AND di.observaciones LIKE $2
-             ORDER BY di.fecha DESC, p.nombre`,
-            [String(empresa), `COMPRA GASTO ${codigo}%`]
+                    dea.cantidad,
+                    dea.precio_unitario,
+                    dea.subtotal
+             FROM entrada_almacen ea
+             JOIN detalles_entrada_almacen dea ON dea.entrada = ea.codigo
+             LEFT JOIN productos p ON p.codigo = dea.articulo
+             WHERE ea.empresa::text = $1
+               AND ea.gasto = $2
+             ORDER BY ea.fecha DESC, p.nombre`,
+            [String(empresa), codigo]
         );
         res.json({ success: true, data: rows.rows });
     } catch (error) {
@@ -8232,13 +8232,52 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
              forma_pago, 'NO', empresa, codigos[0], proveedor, null, lineas[0].ccosto]
         );
 
-        // 4. Materia prima: entrada de almacén a bodega maestra + precio de costo
+        // 4. Materia prima: siempre guardar en entrada_almacen/detalles_entrada_almacen;
+        //    condicionalmente afectar detalle_inventario y/o precio_costo
+        await client.query(
+            `ALTER TABLE detalles_entrada_almacen ADD COLUMN IF NOT EXISTS empresa VARCHAR(20)`
+        );
+
         let bodegaMaestra = null;
+        await client.query('LOCK TABLE entrada_almacen IN SHARE ROW EXCLUSIVE MODE');
+        const eaMaxRes = await client.query(
+            `SELECT COALESCE(MAX(CASE WHEN codigo ~ '^[0-9]+$' THEN CAST(codigo AS BIGINT) ELSE 0 END), 0) AS max_cod
+             FROM entrada_almacen WHERE empresa::text = $1`,
+            [String(empresa)]
+        );
+        let eaSeq = (parseInt(eaMaxRes.rows[0].max_cod) || 0) + 1;
+
         for (let i = 0; i < lineas.length; i++) {
             const mp = lineas[i].materiaPrima;
             if (!mp || !Array.isArray(mp.items) || !mp.items.length) continue;
 
-            // 4a. Entrada de inventario en la bodega maestra (opcional)
+            const itemsValidos = mp.items.filter(it => it.codigo && (parseFloat(it.cantidad) || 0) > 0);
+            if (!itemsValidos.length) continue;
+
+            // 4a. SIEMPRE: crear registro en entrada_almacen
+            const eaCodigo = String(eaSeq++).padStart(10, '0');
+            const totalEa = itemsValidos.reduce(
+                (s, it) => s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.costoUnit) || 0), 0
+            );
+            await client.query(
+                `INSERT INTO entrada_almacen (codigo, empresa, fecha, gasto, proveedor, total)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [eaCodigo, empresa, fecha, codigos[i], proveedor, totalEa]
+            );
+
+            // 4b. SIEMPRE: crear detalles_entrada_almacen
+            let detSeq = 1;
+            for (const item of itemsValidos) {
+                const cant  = parseFloat(item.cantidad) || 0;
+                const costo = parseFloat(item.costoUnit) || 0;
+                await client.query(
+                    `INSERT INTO detalles_entrada_almacen (articulo, cantidad, entrada, id, precio_unitario, subtotal, empresa)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [item.codigo, cant, eaCodigo, detSeq++, costo, cant * costo, empresa]
+                );
+            }
+
+            // 4c. OPCIONAL: afectar inventario (detalle_inventario)
             if (mp.afectaInventario) {
                 if (!bodegaMaestra) {
                     const bmRes = await client.query(
@@ -8247,23 +8286,21 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
                     bodegaMaestra = bmRes.rows[0]?.bodega_maestra;
                     if (!bodegaMaestra) throw new Error('Bodega maestra no configurada para esta empresa');
                 }
-                for (const item of mp.items) {
-                    const cant = parseFloat(item.cantidad) || 0;
-                    if (!item.codigo || cant <= 0) continue;
+                for (const item of itemsValidos) {
                     await client.query(
                         `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
                          VALUES ($1, $2, $3, $4, 0, 'ENTRADA DE ALMACEN', $5, $6)`,
-                        [fecha, bodegaMaestra, item.codigo, cant, empresa,
+                        [fecha, bodegaMaestra, item.codigo, parseFloat(item.cantidad), empresa,
                          `COMPRA GASTO ${codigos[i]}${factura ? ' FACT ' + factura : ''}`.substring(0, 100)]
                     );
                 }
             }
 
-            // 4b. Actualizar precio de costo del producto (opcional)
+            // 4d. OPCIONAL: actualizar precio de costo
             if (mp.actualizaCosto) {
-                for (const item of mp.items) {
+                for (const item of itemsValidos) {
                     const costo = parseFloat(item.costoUnit) || 0;
-                    if (!item.codigo || costo <= 0) continue;
+                    if (costo <= 0) continue;
                     await client.query(
                         `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
                         [costo, item.codigo]

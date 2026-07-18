@@ -45,19 +45,6 @@
               hide-details
             />
           </div>
-          <div class="ea-field">
-            <v-select
-              v-model="filtros.ccosto"
-              :items="ccostos"
-              item-title="nombre"
-              item-value="codigo"
-              label="Centro de Costo"
-              variant="outlined"
-              density="compact"
-              hide-details
-              clearable
-            />
-          </div>
           <div class="ea-field ea-field--btn">
             <v-btn
               color="#0891b2"
@@ -83,16 +70,16 @@
       <!-- KPIs -->
       <div v-if="rows.length" class="ea-kpis">
         <div class="ea-kpi">
-          <span class="ea-kpi-label">REGISTROS</span>
-          <span class="ea-kpi-value">{{ rows.length }}</span>
+          <span class="ea-kpi-label">ENTRADAS</span>
+          <span class="ea-kpi-value">{{ entradasDistintas }}</span>
         </div>
         <div class="ea-kpi">
           <span class="ea-kpi-label">PRODUCTOS DISTINTOS</span>
           <span class="ea-kpi-value">{{ productosDistintos }}</span>
         </div>
         <div class="ea-kpi">
-          <span class="ea-kpi-label">CENTROS DE COSTO</span>
-          <span class="ea-kpi-value">{{ ccostosDistintos }}</span>
+          <span class="ea-kpi-label">TOTAL VALOR</span>
+          <span class="ea-kpi-value ea-kpi-value--money">{{ formatMoneda(totalValor) }}</span>
         </div>
         <div class="ea-kpi">
           <span class="ea-kpi-label">PERÍODO</span>
@@ -133,25 +120,29 @@
               <thead>
                 <tr>
                   <th class="col-fecha">FECHA</th>
-                  <th class="col-ccosto">CENTRO DE COSTO</th>
-                  <th class="col-codigo">CÓDIGO</th>
+                  <th class="col-entrada"># ENTRADA</th>
+                  <th class="col-gasto">GASTO</th>
+                  <th class="col-proveedor">PROVEEDOR</th>
                   <th class="col-producto">PRODUCTO</th>
                   <th class="col-und">UND</th>
                   <th class="col-cantidad">CANTIDAD</th>
-                  <th class="col-obs">REFERENCIA</th>
+                  <th class="col-precio">P. UNIT</th>
+                  <th class="col-subtotal">SUBTOTAL</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(row, i) in rows" :key="i" class="ea-row">
                   <td class="td-fecha">{{ formatFecha(row.fecha) }}</td>
-                  <td class="td-ccosto">
-                    <span class="badge-cc">{{ row.ccosto_nombre || row.ccosto }}</span>
+                  <td class="td-entrada">
+                    <span class="badge-entrada">{{ row.entrada_codigo }}</span>
                   </td>
-                  <td class="td-codigo">{{ row.codigo }}</td>
+                  <td class="td-gasto">{{ row.gasto || '-' }}</td>
+                  <td class="td-proveedor">{{ row.proveedor_nombre || row.proveedor || '-' }}</td>
                   <td class="td-producto">{{ row.producto_nombre }}</td>
                   <td class="td-und">{{ row.und || '-' }}</td>
                   <td class="td-cantidad">{{ formatNum(row.cantidad) }}</td>
-                  <td class="td-obs">{{ row.observaciones || '-' }}</td>
+                  <td class="td-precio">{{ formatMoneda(row.precio_unitario) }}</td>
+                  <td class="td-subtotal">{{ formatMoneda(row.subtotal) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -170,6 +161,7 @@
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useAuthStore } from '../../stores/auth'
+import { formatMoneda } from '../../utils/formatters'
 import api from '../../services/api'
 
 const auth = useAuthStore()
@@ -177,15 +169,15 @@ const auth = useAuthStore()
 const loading = ref(false)
 const buscado = ref(false)
 const rows = ref([])
-const ccostos = ref([])
 
 const hoy = new Date().toISOString().split('T')[0]
 const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
 
-const filtros = ref({ desde: primerDiaMes, hasta: hoy, ccosto: null })
+const filtros = ref({ desde: primerDiaMes, hasta: hoy })
 
-const productosDistintos = computed(() => new Set(rows.value.map(r => r.codigo)).size)
-const ccostosDistintos   = computed(() => new Set(rows.value.map(r => r.ccosto)).size)
+const entradasDistintas = computed(() => new Set(rows.value.map(r => r.entrada_codigo)).size)
+const productosDistintos = computed(() => new Set(rows.value.map(r => r.producto_codigo)).size)
+const totalValor = computed(() => rows.value.reduce((s, r) => s + (parseFloat(r.subtotal) || 0), 0))
 
 const periodoLabel = computed(() => {
   if (!filtros.value.desde && !filtros.value.hasta) return 'Todos los períodos'
@@ -194,16 +186,7 @@ const periodoLabel = computed(() => {
   return `${d} — ${h}`
 })
 
-onMounted(async () => {
-  const emp = auth.empresa
-  if (!emp) return
-  try {
-    const r = await api.get('/ccostos', { params: { empresa: emp, activo: 'SI' } })
-    ccostos.value = (Array.isArray(r.data) ? r.data : r.data?.data || [])
-      .sort((a, b) => a.nombre.localeCompare(b.nombre))
-  } catch {}
-  await buscar()
-})
+onMounted(() => buscar())
 
 async function buscar() {
   loading.value = true
@@ -212,7 +195,6 @@ async function buscar() {
     const params = { empresa: auth.empresa }
     if (filtros.value.desde) params.desde = filtros.value.desde
     if (filtros.value.hasta) params.hasta = filtros.value.hasta
-    if (filtros.value.ccosto) params.ccosto = filtros.value.ccosto
     const r = await api.get('/almacen/entradas-almacen', { params })
     rows.value = r.data?.data || []
   } catch (e) {
@@ -315,29 +297,34 @@ function imprimir() {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   white-space: nowrap; text-align: center;
 }
-.col-fecha    { width: 100px; }
-.col-ccosto   { width: 18%; }
-.col-codigo   { width: 90px; }
-.col-producto { width: 25%; }
-.col-und      { width: 60px; }
-.col-cantidad { width: 90px; }
-.col-obs      { width: auto; }
+.col-fecha     { width: 90px; }
+.col-entrada   { width: 110px; }
+.col-gasto     { width: 110px; }
+.col-proveedor { width: 16%; }
+.col-producto  { width: auto; }
+.col-und       { width: 55px; }
+.col-cantidad  { width: 80px; }
+.col-precio    { width: 90px; }
+.col-subtotal  { width: 95px; }
 
 .ea-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); transition: background 0.15s; }
 .ea-row:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
 .ea-table tbody td { padding: 10px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgb(var(--v-theme-on-surface)); }
 
 .td-fecha     { text-align: center; }
-.td-ccosto    { text-align: center; }
-.badge-cc {
+.td-entrada   { text-align: center; }
+.badge-entrada {
   background: rgba(8, 145, 178, 0.12); color: #0891b2;
   padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700;
 }
-.td-codigo    { text-align: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
+.td-gasto     { text-align: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
+.td-proveedor { text-align: left; }
 .td-producto  { text-align: left; }
-.td-und       { text-align: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
+.td-und       { text-align: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
 .td-cantidad  { text-align: right; font-weight: 700; font-family: 'Courier New', monospace; }
-.td-obs       { text-align: left; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.55); }
+.td-precio    { text-align: right; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
+.td-subtotal  { text-align: right; font-weight: 700; color: #0891b2; font-family: 'Courier New', monospace; }
+.ea-kpi-value--money { font-size: 16px; font-weight: 800; color: #0891b2; }
 
 .ea-table-footer {
   padding: 12px 16px;
