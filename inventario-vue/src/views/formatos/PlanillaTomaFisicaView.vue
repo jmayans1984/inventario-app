@@ -64,7 +64,7 @@
                 <th class="col-nom">NOMBRE</th>
                 <th class="col-desc">DESCRIPCIÓN</th>
                 <th class="col-und">UND</th>
-                <th class="col-cc">BODEGA MAESTRA</th>
+                <th class="col-cc">{{ bodegaMaestraNombre }}</th>
                 <th v-for="cc in centrosCosto" :key="cc.codigo" class="col-cc">{{ cc.nombre }}</th>
               </tr>
             </thead>
@@ -106,6 +106,7 @@ const loading       = ref(false)
 const productos     = ref([])
 const centrosCosto  = ref([])
 const bodegaMaestraCC = ref(null)
+const bodegaMaestraNombre = ref('BODEGA MAESTRA')
 
 const empresaNombre = computed(() => authStore.empresaNombre || '')
 
@@ -123,17 +124,20 @@ const productosAgrupados = computed(() => {
 async function cargar() {
   loading.value = true
   try {
-    const resBodega = await api.get('/empresas/bodega-maestra')
+    const resBodega = await api.get('/empresas/bodega-maestra', {
+      params: { empresa: authStore.empresa }
+    })
     bodegaMaestraCC.value = resBodega.data?.data?.bodega_maestra || null
+    bodegaMaestraNombre.value = resBodega.data?.data?.centro_costo_nombre || 'BODEGA MAESTRA'
 
     const resProds = await api.get('/almacen/productos')
     productos.value = (resProds.data?.data || []).filter(p => p.control === 'SI')
 
     const resCc = await api.get('/contabilidad/centrocostos', {
-      params: { empresa: authStore.empresa, limit: 100, activo: 'SI' }
+      params: { empresa: authStore.empresa, limit: 100 }
     })
     centrosCosto.value = (resCc.data?.data || [])
-      .filter(cc => cc.codigo !== bodegaMaestraCC.value && cc.activo === 'SI')
+      .filter(cc => cc.codigo !== bodegaMaestraCC.value)
   } catch (e) {
     console.error('Error cargando planilla:', e)
   } finally {
@@ -177,7 +181,7 @@ function imprimir() {
 
   // ── Construir tabla ────────────────────────────────────────
   const ccHeaders = centrosCosto.value.map(cc => cc.nombre)
-  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', 'BODEGA MAESTRA', ...ccHeaders]]
+  const head = [['CÓD.', 'NOMBRE', 'DESCRIPCIÓN', 'UND', bodegaMaestraNombre.value, ...ccHeaders]]
 
   const body = []
   for (const grupo of productosAgrupados.value) {
