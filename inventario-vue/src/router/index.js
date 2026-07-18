@@ -98,8 +98,8 @@ const routes = [
 
   // GERENCIA ESPECÍFICAS
   { path: '/gerencia/reportes/ejecutivo',       component: () => import('../views/gerencia/DashboardEjecutivoView.vue'),    meta: { requiresAuth: true } },
-  { path: '/gerencia/reportes/kpis',            component: () => import('../views/gerencia/KPIsView.vue'),                  meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/analisis-ventas', component: () => import('../views/gerencia/GerenciaAnalisisVentasView.vue'), meta: { requiresAuth: true } },
+  { path: '/gerencia/reportes/reviews',         component: () => import('../views/gerencia/PuntuacionReviewsView.vue'),      meta: { requiresAuth: true } },
 
   // GERENCIA — patrón general
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },

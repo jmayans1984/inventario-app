@@ -195,16 +195,10 @@ export const MODULES = [
     color: '#06b6d4',
     path: '/gerencia',
     children: [
-      { name: 'Configuración', icon: 'mdi-cog-outline', items: [
-        { name: 'Parámetros', icon: 'mdi-tune', path: '/gerencia/configuracion/parametros' },
-      ]},
-      { name: 'Procesos', icon: 'mdi-cogs', items: [
-        { name: 'Análisis de Datos', icon: 'mdi-magnify-scan', path: '/gerencia/procesos/analisis' },
-      ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
-        { name: 'Dashboard Ejecutivo', icon: 'mdi-view-dashboard-outline', path: '/gerencia/reportes/ejecutivo' },
-        { name: 'KPIs',                icon: 'mdi-gauge',                  path: '/gerencia/reportes/kpis' },
-        { name: 'Análisis de Ventas',  icon: 'mdi-chart-areaspline',       path: '/gerencia/reportes/analisis-ventas' },
+        { name: 'Dashboard Franquicias', icon: 'mdi-view-dashboard-outline', path: '/gerencia/reportes/ejecutivo' },
+        { name: 'Análisis de Ventas',   icon: 'mdi-chart-areaspline',       path: '/gerencia/reportes/analisis-ventas' },
+        { name: 'Puntuación/Reviews',   icon: 'mdi-star-outline',           path: '/gerencia/reportes/reviews' },
       ]},
     ],
   },
