@@ -176,6 +176,7 @@ export const MODULES = [
         { name: 'Cargos',             icon: 'mdi-briefcase-outline',       path: '/nomina/configuracion/cargos' },
         { name: 'Plantilla Horario',  icon: 'mdi-clock-outline',           path: '/nomina/configuracion/horario-config' },
         { name: 'Config. Fiscal',     icon: 'mdi-bank-outline',            path: '/nomina/configuracion/fiscal' },
+        { name: 'Control de Asistencia', icon: 'mdi-qrcode-scan',          path: '/nomina/configuracion/control-asistencia' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Horario Semanal',    icon: 'mdi-calendar-week',           path: '/nomina/procesos/horario' },

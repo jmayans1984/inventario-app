@@ -89,6 +89,7 @@ const routes = [
   { path: '/nomina/configuracion/cargos',         component: () => import('../views/nomina/CargosView.vue'),            meta: { requiresAuth: true } },
   { path: '/nomina/configuracion/fiscal',         component: () => import('../views/nomina/ConfigFiscalNominaView.vue'), meta: { requiresAuth: true } },
   { path: '/nomina/configuracion/horario-config', component: () => import('../views/nomina/HorarioConfigView.vue'),     meta: { requiresAuth: true } },
+  { path: '/nomina/configuracion/control-asistencia', component: () => import('../views/nomina/ControlAsistenciaView.vue'), meta: { requiresAuth: true } },
   { path: '/nomina/procesos/horario',             component: () => import('../views/nomina/HorarioSemanalView.vue'),    meta: { requiresAuth: true } },
   { path: '/nomina/procesos/liquidacion',         component: () => import('../views/nomina/LiquidacionNominaView.vue'), meta: { requiresAuth: true } },
   { path: '/nomina/reportes/horario',             component: () => import('../views/nomina/ReporteHorarioView.vue'),    meta: { requiresAuth: true } },
