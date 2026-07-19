@@ -19,10 +19,30 @@
           </div>
           <div>
             <h1 class="fc-title">CONSUMO MATERIA PRIMA — FOOD COST %</h1>
-            <p class="fc-sub">Consumo valorizado (salidas por venta a precio costo) vs ventas netas · Global y por local</p>
+            <p class="fc-sub">Platos/recetas vendidos valorizados al costo de receta vs ventas netas · Global y por local</p>
           </div>
         </div>
         <div class="fc-header-right">
+          <div class="ccosto-filter" ref="filterRef">
+            <button class="ccosto-trigger" @click="menuCcosto = !menuCcosto">
+              <v-icon size="16" color="#10b981">mdi-store-outline</v-icon>
+              <span>{{ labelCcostos }}</span>
+              <v-icon size="14">{{ menuCcosto ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </button>
+            <div v-if="menuCcosto" class="ccosto-dropdown">
+              <label class="cc-item cc-todos" @click.stop>
+                <input type="checkbox"
+                  :checked="selCcostos.length === 0 || selCcostos.length === ccostosDisponibles.length"
+                  @change="toggleTodos" />
+                <span class="cc-label">Toda la empresa</span>
+              </label>
+              <div class="cc-divider"></div>
+              <label v-for="cc in ccostosDisponibles" :key="cc.codigo" class="cc-item" @click.stop>
+                <input type="checkbox" :value="cc.codigo" v-model="selCcostos" @change="cargar" />
+                <span class="cc-label">{{ cc.nombre }}</span>
+              </label>
+            </div>
+          </div>
           <div class="umbral-box">
             <span class="umbral-lbl">Umbral</span>
             <input type="number" v-model.number="umbral" min="5" max="90" class="umbral-input" />
@@ -68,9 +88,20 @@
               <v-icon size="20" color="#10b981">mdi-food-variant</v-icon>
             </div>
             <div class="fc-kpi-body">
-              <div class="fc-kpi-lbl">Consumo Valorizado</div>
+              <div class="fc-kpi-lbl">Costo Materia Prima</div>
               <div class="fc-kpi-val" style="color:#10b981">{{ fmt(data.kpis.totConsumo) }}</div>
-              <div class="fc-kpi-sub">salidas por venta × precio costo</div>
+              <div class="fc-kpi-sub">platos vendidos × costo receta</div>
+            </div>
+          </div>
+          <div class="fc-kpi">
+            <div class="fc-kpi-accent" :style="{ background: coberturaColor }"></div>
+            <div class="fc-kpi-icon" :style="{ background: coberturaBgc }">
+              <v-icon size="20" :color="coberturaColor">mdi-clipboard-check-outline</v-icon>
+            </div>
+            <div class="fc-kpi-body">
+              <div class="fc-kpi-lbl">Cobertura de Costeo</div>
+              <div class="fc-kpi-val" :style="{ color: coberturaColor }">{{ fmtPct(data.kpis.cobertura) }}</div>
+              <div class="fc-kpi-sub">{{ data.kpis.itemsSinCosto }} ítems sin receta costeada</div>
             </div>
           </div>
           <div class="fc-kpi">
@@ -141,14 +172,14 @@
           <div class="fc-card">
             <div class="fc-card-header">
               <v-icon size="18" color="#f59e0b">mdi-tag-multiple-outline</v-icon>
-              <span class="fc-card-title">Consumo por Grupo de Productos</span>
+              <span class="fc-card-title">Costo MP por Grupo de Recetas</span>
             </div>
             <div ref="chartGrupoRef" class="chart-area chart-area--sm"></div>
           </div>
           <div class="fc-card">
             <div class="fc-card-header">
               <v-icon size="18" color="#0ea5e9">mdi-food-drumstick-outline</v-icon>
-              <span class="fc-card-title">Top 15 Productos por Valor Consumido</span>
+              <span class="fc-card-title">Top 15 Recetas por Costo de Materia Prima</span>
             </div>
             <div ref="chartTopRef" class="chart-area chart-area--top"></div>
           </div>
@@ -230,7 +261,7 @@
 
       <div v-else-if="!loading" class="fc-empty">
         <v-icon size="56" color="#94a3b8">mdi-food-variant</v-icon>
-        <p>No hay consumos de materia prima registrados en el período seleccionado.</p>
+        <p>No hay ventas importadas ni recetas costeadas en el período seleccionado.</p>
       </div>
 
     </div>
@@ -255,14 +286,53 @@ const data       = ref(null)
 const agrupacion = ref('semana')
 const umbral     = ref(parseFloat(localStorage.getItem('foodCostUmbral')) || 30)
 
+const ccostosDisponibles = ref([])
+const selCcostos         = ref([])
+const menuCcosto         = ref(false)
+const filterRef          = ref(null)
+
 const AGRUPACIONES = [
   { value: 'semana', label: 'Semana' },
   { value: 'mes',    label: 'Mes' },
+  { value: 'anio',   label: 'Año' },
 ]
 
-const nombrePeriodo     = computed(() => agrupacion.value === 'mes' ? 'meses' : 'semanas')
-const nombrePeriodoSing = computed(() => agrupacion.value === 'mes' ? 'Mes' : 'Semana')
+const nombrePeriodo = computed(() =>
+  agrupacion.value === 'mes' ? 'meses' : agrupacion.value === 'anio' ? 'años' : 'semanas')
+const nombrePeriodoSing = computed(() =>
+  agrupacion.value === 'mes' ? 'Mes' : agrupacion.value === 'anio' ? 'Año' : 'Semana')
 const serieDesc = computed(() => data.value ? [...data.value.serie].reverse() : [])
+
+const labelCcostos = computed(() => {
+  if (selCcostos.value.length === 0 || selCcostos.value.length === ccostosDisponibles.value.length)
+    return 'Toda la empresa'
+  if (selCcostos.value.length === 1) {
+    const found = ccostosDisponibles.value.find(c => c.codigo === selCcostos.value[0])
+    return found ? found.nombre : String(selCcostos.value[0])
+  }
+  return `${selCcostos.value.length} locales seleccionados`
+})
+
+function toggleTodos() {
+  selCcostos.value = []
+  cargar()
+}
+
+function onDocClick(e) {
+  if (filterRef.value && !filterRef.value.contains(e.target))
+    menuCcosto.value = false
+}
+
+const coberturaColor = computed(() => {
+  const c = data.value?.kpis?.cobertura
+  if (c === null || c === undefined) return '#94a3b8'
+  return c >= 90 ? '#22c55e' : c >= 70 ? '#f59e0b' : '#ef4444'
+})
+const coberturaBgc = computed(() => {
+  const c = data.value?.kpis?.cobertura
+  if (c === null || c === undefined) return 'rgba(148,163,184,0.12)'
+  return c >= 90 ? 'rgba(34,197,94,0.12)' : c >= 70 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)'
+})
 
 watch(umbral, () => {
   localStorage.setItem('foodCostUmbral', String(umbral.value))
@@ -311,12 +381,20 @@ function cambiarAgrupacion(a) {
 
 async function cargar() {
   if (!empresa.value) return
+  menuCcosto.value = false
   loading.value = true
   try {
     const params = new URLSearchParams({ empresa: empresa.value, agrupacion: agrupacion.value })
+    if (selCcostos.value.length > 0 && selCcostos.value.length < ccostosDisponibles.value.length)
+      params.set('ccostos', selCcostos.value.join(','))
+
     const res = await fetch(`${API_BASE}/gerencia/consumo-mp?${params}`)
     const j   = await res.json()
     if (!j.success) throw new Error(j.error)
+
+    if (ccostosDisponibles.value.length === 0)
+      ccostosDisponibles.value = j.ccostosDisponibles || []
+
     data.value = j
     loading.value = false
     await nextTick()
@@ -493,19 +571,22 @@ function renderGrupos() {
   chartGrupo.render()
 }
 
-// 5 — Top productos por valor consumido (barras horizontales)
+// 5 — Top recetas por costo de MP (barras horizontales: costo vs vendido)
 function renderTop() {
   if (!chartTopRef.value || !data.value) return
   const { fg, grid } = themeColors()
-  const top = data.value.topProductos || []
+  const top = data.value.topRecetas || []
   if (!top.length) return
 
   chartTop = new ApexCharts(chartTopRef.value, {
     chart: { type: 'bar', height: 390, toolbar: { show: false }, fontFamily: 'Inter,sans-serif', background: 'transparent', animations: { enabled: true, speed: 600, animateGradually: { enabled: true, delay: 40 } } },
     theme: { mode: isDark() ? 'dark' : 'light' },
-    series: [{ name: 'Valor Consumido', data: top.map(r => Math.round(parseFloat(r.valor))) }],
-    colors: ['#0ea5e9'],
-    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '55%' } },
+    series: [
+      { name: 'Costo MP', data: top.map(r => Math.round(parseFloat(r.costo_mp))) },
+      { name: 'Vendido',  data: top.map(r => Math.round(parseFloat(r.vendido))) },
+    ],
+    colors: ['#10b981', '#0ea5e9'],
+    plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '65%' } },
     dataLabels: { enabled: false },
     xaxis: {
       categories: top.map(r => String(r.nombre || r.codigo || '').substring(0, 28)),
@@ -513,18 +594,31 @@ function renderTop() {
     },
     yaxis: { labels: { style: { colors: fg, fontSize: '11px' } } },
     grid:  { borderColor: grid, strokeDashArray: 4 },
+    legend: { position: 'top', horizontalAlign: 'left', labels: { colors: fg }, markers: { size: 7 } },
     tooltip: {
-      y: { formatter: (v, { dataPointIndex }) => {
+      shared: true, intersect: false,
+      y: { formatter: (v, { seriesIndex, dataPointIndex }) => {
         const r = top[dataPointIndex]
-        return `${fmt(v)} · ${fmtNum(r?.cantidad)} ${r?.und || ''}`
+        if (seriesIndex === 0) {
+          const vend = parseFloat(r?.vendido) || 0
+          const pct  = vend > 0 ? ((parseFloat(r?.costo_mp) / vend) * 100).toFixed(1) + '% food' : ''
+          return `${fmt(v)} · ${fmtNum(r?.cantidad)} und · ${pct}`
+        }
+        return fmt(v)
       } },
     },
   })
   chartTop.render()
 }
 
-onMounted(cargar)
-onBeforeUnmount(destroyAll)
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+  cargar()
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick)
+  destroyAll()
+})
 </script>
 
 <style scoped>
@@ -548,6 +642,28 @@ onBeforeUnmount(destroyAll)
 .fc-title { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: rgb(var(--v-theme-on-surface)); }
 .fc-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 0; }
 .fc-header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* FILTRO CCOSTO */
+.ccosto-filter { position: relative; }
+.ccosto-trigger {
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid rgba(16,185,129,.35); background: rgba(16,185,129,.08); cursor: pointer;
+  font-size: 12px; font-weight: 600; color: #10b981; white-space: nowrap;
+  transition: background .15s;
+}
+.ccosto-trigger:hover { background: rgba(16,185,129,.16); }
+.ccosto-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 300;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface),.1);
+  border-radius: 12px; padding: 8px; min-width: 210px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16);
+}
+.cc-item   { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; cursor: pointer; font-size: 13px; user-select: none; }
+.cc-item:hover { background: rgba(var(--v-theme-on-surface),.05); }
+.cc-todos  { font-weight: 700; }
+.cc-label  { flex: 1; }
+.cc-divider { height: 1px; background: rgba(var(--v-theme-on-surface),.07); margin: 4px 0; }
 
 /* UMBRAL */
 .umbral-box {

@@ -10744,91 +10744,127 @@ app.get('/api/gerencia/labor-cost', async (req, res) => {
 });
 
 // ── GERENCIA: CONSUMO MATERIA PRIMA / FOOD COST % ────────────────
-// Consumo = detalle_inventario tipo 'SALIDA POR VENTA%' valorizado a precio_costo
+// Consumo = platos/recetas vendidos (detalle_ventas, importación de ventas)
+// valorizados al COSTO DE RECETA (recetas.valor). Ventas = ventas netas.
 app.get('/api/gerencia/consumo-mp', async (req, res) => {
-    const { empresa, agrupacion = 'semana' } = req.query;
+    const { empresa, agrupacion = 'semana', ccostos } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
-    const esMes = agrupacion === 'mes';
-    const rangoDi = esMes
-        ? `AND di.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`
-        : `AND di.fecha::date >= DATE_TRUNC('week', NOW())::date - INTERVAL '25 weeks'`;
-    const rangoV = esMes
-        ? `AND v.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`
-        : `AND v.fecha::date >= DATE_TRUNC('week', NOW())::date - INTERVAL '25 weeks'`;
+    const emp = parseInt(empresa);
+    const ccostoList = ccostos ? ccostos.split(',').map(c => c.trim()).filter(Boolean) : [];
+    const ccFilterD = ccostoList.length
+        ? `AND d.ccosto IN (${ccostoList.map((_, i) => `$${i + 2}`).join(',')})`
+        : '';
+    const ccFilterV = ccostoList.length
+        ? `AND v.ccosto IN (${ccostoList.map((_, i) => `$${i + 2}`).join(',')})`
+        : '';
+    const params = ccostoList.length ? [emp, ...ccostoList] : [emp];
 
-    const keyDi = esMes
-        ? `TO_CHAR(DATE_TRUNC('month', di.fecha::date),'YYYY-MM')`
-        : `TO_CHAR(DATE_TRUNC('week', di.fecha::date),'YYYY-MM-DD')`;
-    const labelDi = esMes
-        ? `TO_CHAR(DATE_TRUNC('month', di.fecha::date),'Mon YYYY')`
-        : `TO_CHAR(DATE_TRUNC('week', di.fecha::date),'DD Mon') || ' - ' || TO_CHAR(DATE_TRUNC('week', di.fecha::date) + INTERVAL '6 days','DD Mon YY')`;
-    const keyV = esMes
-        ? `TO_CHAR(DATE_TRUNC('month', v.fecha::date),'YYYY-MM')`
-        : `TO_CHAR(DATE_TRUNC('week', v.fecha::date),'YYYY-MM-DD')`;
-    const labelV = esMes
-        ? `TO_CHAR(DATE_TRUNC('month', v.fecha::date),'Mon YYYY')`
-        : `TO_CHAR(DATE_TRUNC('week', v.fecha::date),'DD Mon') || ' - ' || TO_CHAR(DATE_TRUNC('week', v.fecha::date) + INTERVAL '6 days','DD Mon YY')`;
+    // Expresiones de período según agrupación (para detalle_ventas d y ventas v)
+    let rangoD, rangoV, keyD, labelD, keyV, labelV;
+    if (agrupacion === 'mes') {
+        rangoD = `AND d.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`;
+        rangoV = `AND v.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`;
+        keyD   = `TO_CHAR(DATE_TRUNC('month', d.fecha::date),'YYYY-MM')`;
+        labelD = `TO_CHAR(DATE_TRUNC('month', d.fecha::date),'Mon YYYY')`;
+        keyV   = `TO_CHAR(DATE_TRUNC('month', v.fecha::date),'YYYY-MM')`;
+        labelV = `TO_CHAR(DATE_TRUNC('month', v.fecha::date),'Mon YYYY')`;
+    } else if (agrupacion === 'anio') {
+        rangoD = '';
+        rangoV = '';
+        keyD   = `TO_CHAR(d.fecha::date,'YYYY')`;
+        labelD = `TO_CHAR(d.fecha::date,'YYYY')`;
+        keyV   = `TO_CHAR(v.fecha::date,'YYYY')`;
+        labelV = `TO_CHAR(v.fecha::date,'YYYY')`;
+    } else { // semana
+        rangoD = `AND d.fecha::date >= DATE_TRUNC('week', NOW())::date - INTERVAL '25 weeks'`;
+        rangoV = `AND v.fecha::date >= DATE_TRUNC('week', NOW())::date - INTERVAL '25 weeks'`;
+        keyD   = `TO_CHAR(DATE_TRUNC('week', d.fecha::date),'YYYY-MM-DD')`;
+        labelD = `TO_CHAR(DATE_TRUNC('week', d.fecha::date),'DD Mon') || ' - ' || TO_CHAR(DATE_TRUNC('week', d.fecha::date) + INTERVAL '6 days','DD Mon YY')`;
+        keyV   = `TO_CHAR(DATE_TRUNC('week', v.fecha::date),'YYYY-MM-DD')`;
+        labelV = `TO_CHAR(DATE_TRUNC('week', v.fecha::date),'DD Mon') || ' - ' || TO_CHAR(DATE_TRUNC('week', v.fecha::date) + INTERVAL '6 days','DD Mon YY')`;
+    }
 
     try {
-        const [consumoRes, ventasRes, consumoCcRes, ventasCcRes, grupoRes, topProdRes] = await Promise.all([
+        const [consumoRes, ventasRes, consumoCcRes, ventasCcRes, grupoRes, topRecRes, coberturaRes, ccDispRes] = await Promise.all([
 
-            // 1. Consumo valorizado por período
+            // 1. Consumo por período: platos vendidos × costo de receta
             pool.query(`
-                SELECT ${keyDi} AS key, ${labelDi} AS label,
-                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS consumo
-                FROM detalle_inventario di
-                JOIN productos p ON p.codigo = di.codigo
-                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
-                GROUP BY 1, 2 ORDER BY 1`, [String(empresa)]),
+                SELECT ${keyD} AS key, ${labelD} AS label,
+                       COALESCE(SUM(d.cant * COALESCE(r.valor,0)),0) AS consumo
+                FROM detalle_ventas d
+                LEFT JOIN recetas r ON r.codigo::text = d.codigo::text
+                WHERE d.empresa = $1 ${ccFilterD} ${rangoD}
+                GROUP BY 1, 2 ORDER BY 1`, params),
 
             // 2. Ventas netas por período
             pool.query(`
                 SELECT ${keyV} AS key, ${labelV} AS label,
                        COALESCE(SUM(v.ventas_netas),0) AS ventas
                 FROM ventas v
-                WHERE v.empresa::text = $1 ${rangoV}
-                GROUP BY 1, 2 ORDER BY 1`, [String(empresa)]),
+                WHERE v.empresa = $1 ${ccFilterV} ${rangoV}
+                GROUP BY 1, 2 ORDER BY 1`, params),
 
             // 3. Consumo por período x centro de costo
             pool.query(`
-                SELECT ${keyDi} AS key, di.ccosto,
-                       COALESCE(cc.nombre, di.ccosto) AS ccosto_nombre,
-                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS consumo
-                FROM detalle_inventario di
-                JOIN productos p ON p.codigo = di.codigo
-                LEFT JOIN ccostos cc ON cc.codigo = di.ccosto AND cc.empresa::text = di.empresa::text
-                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
-                GROUP BY 1, di.ccosto, cc.nombre`, [String(empresa)]),
+                SELECT ${keyD} AS key, d.ccosto,
+                       COALESCE(cc.nombre, d.ccosto) AS ccosto_nombre,
+                       COALESCE(SUM(d.cant * COALESCE(r.valor,0)),0) AS consumo
+                FROM detalle_ventas d
+                LEFT JOIN recetas r ON r.codigo::text = d.codigo::text
+                LEFT JOIN ccostos cc ON cc.codigo = d.ccosto AND cc.empresa = $1
+                WHERE d.empresa = $1 ${ccFilterD} ${rangoD}
+                GROUP BY 1, d.ccosto, cc.nombre`, params),
 
             // 4. Ventas por período x centro de costo
             pool.query(`
                 SELECT ${keyV} AS key, v.ccosto, COALESCE(SUM(v.ventas_netas),0) AS ventas
                 FROM ventas v
-                WHERE v.empresa::text = $1 ${rangoV}
-                GROUP BY 1, v.ccosto`, [String(empresa)]),
+                WHERE v.empresa = $1 ${ccFilterV} ${rangoV}
+                GROUP BY 1, v.ccosto`, params),
 
-            // 5. Consumo por grupo de productos (rango completo)
+            // 5. Consumo por grupo de recetas (rango completo)
             pool.query(`
-                SELECT COALESCE(gp.nombre,'Sin Grupo') AS grupo,
-                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS consumo
-                FROM detalle_inventario di
-                JOIN productos p ON p.codigo = di.codigo
-                LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
-                GROUP BY 1 ORDER BY 2 DESC`, [String(empresa)]),
+                SELECT COALESCE(gr.nombre,'Sin Grupo') AS grupo,
+                       COALESCE(SUM(d.cant * COALESCE(r.valor,0)),0) AS consumo
+                FROM detalle_ventas d
+                LEFT JOIN recetas r ON r.codigo::text = d.codigo::text
+                LEFT JOIN grupo_recetas gr ON gr.codigo = r.grupo_receta
+                WHERE d.empresa = $1 ${ccFilterD} ${rangoD}
+                GROUP BY 1 ORDER BY 2 DESC`, params),
 
-            // 6. Top 15 productos por valor consumido (rango completo)
+            // 6. Top 15 recetas por costo de MP consumido (rango completo)
+            //    incluye margen: vendido - costo
             pool.query(`
-                SELECT di.codigo, p.nombre, p.und,
-                       COALESCE(SUM(di.salida),0) AS cantidad,
-                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS valor
-                FROM detalle_inventario di
-                JOIN productos p ON p.codigo = di.codigo
-                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
-                GROUP BY di.codigo, p.nombre, p.und
-                ORDER BY valor DESC
-                LIMIT 15`, [String(empresa)]),
+                SELECT d.codigo,
+                       COALESCE(MAX(r.nombre), MAX(d.nombre)) AS nombre,
+                       COALESCE(SUM(d.cant),0)                    AS cantidad,
+                       COALESCE(SUM(d.subtotal),0)                AS vendido,
+                       COALESCE(SUM(d.cant * COALESCE(r.valor,0)),0) AS costo_mp
+                FROM detalle_ventas d
+                LEFT JOIN recetas r ON r.codigo::text = d.codigo::text
+                WHERE d.empresa = $1 ${ccFilterD} ${rangoD}
+                GROUP BY d.codigo
+                ORDER BY costo_mp DESC
+                LIMIT 15`, params),
+
+            // 7. Cobertura de costeo: cuánto de lo vendido tiene receta con costo > 0
+            pool.query(`
+                SELECT
+                    COALESCE(SUM(d.subtotal),0) AS vendido_total,
+                    COALESCE(SUM(CASE WHEN COALESCE(r.valor,0) > 0 THEN d.subtotal ELSE 0 END),0) AS vendido_costeado,
+                    COUNT(DISTINCT CASE WHEN r.codigo IS NULL OR COALESCE(r.valor,0) = 0 THEN d.codigo END) AS items_sin_costo
+                FROM detalle_ventas d
+                LEFT JOIN recetas r ON r.codigo::text = d.codigo::text
+                WHERE d.empresa = $1 ${ccFilterD} ${rangoD}`, params),
+
+            // 8. Centros de costo disponibles (con ventas registradas)
+            pool.query(`
+                SELECT cc.codigo, cc.nombre
+                FROM ccostos cc
+                WHERE cc.empresa = $1
+                  AND cc.codigo IN (SELECT DISTINCT ccosto FROM ventas WHERE empresa = $1)
+                ORDER BY cc.nombre`, [emp]),
         ]);
 
         // Merge serie global: base = unión de períodos (ordenada por key)
@@ -10880,6 +10916,12 @@ app.get('/api/gerencia/consumo-mp', async (req, res) => {
         const mejorCC = conPct.length ? conPct[conPct.length - 1] : null;
         const peorCC  = conPct.length ? conPct[0] : null;
 
+        // Cobertura de costeo (recetas con costo vs total vendido)
+        const cob = coberturaRes.rows[0] || {};
+        const vendidoTotal    = parseFloat(cob.vendido_total || 0);
+        const vendidoCosteado = parseFloat(cob.vendido_costeado || 0);
+        const cobertura = vendidoTotal > 0 ? (vendidoCosteado / vendidoTotal) * 100 : null;
+
         res.json({
             success: true, agrupacion,
             kpis: {
@@ -10887,11 +10929,14 @@ app.get('/api/gerencia/consumo-mp', async (req, res) => {
                 periodos: serie.length,
                 mejorCC: mejorCC ? { nombre: mejorCC.nombre, pct: mejorCC.food_pct } : null,
                 peorCC:  peorCC  ? { nombre: peorCC.nombre,  pct: peorCC.food_pct }  : null,
+                cobertura,
+                itemsSinCosto: parseInt(cob.items_sin_costo || 0),
             },
             serie,
             centros,
             porGrupo: grupoRes.rows,
-            topProductos: topProdRes.rows,
+            topRecetas: topRecRes.rows,
+            ccostosDisponibles: ccDispRes.rows,
         });
     } catch (error) {
         console.error('Error en /api/gerencia/consumo-mp:', error);
