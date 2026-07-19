@@ -101,6 +101,7 @@ const routes = [
   { path: '/gerencia/reportes/ejecutivo',       component: () => import('../views/gerencia/DashboardEjecutivoView.vue'),    meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/analisis-ventas', component: () => import('../views/gerencia/GerenciaAnalisisVentasView.vue'), meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/reviews',         component: () => import('../views/gerencia/PuntuacionReviewsView.vue'),      meta: { requiresAuth: true } },
+  { path: '/gerencia/reportes/analisis-nomina', component: () => import('../views/gerencia/GerenciaAnalisisNominaView.vue'), meta: { requiresAuth: true } },
 
   // GERENCIA — patrón general
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },

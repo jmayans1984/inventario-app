@@ -10481,6 +10481,132 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
     }
 });
 
+// ── GERENCIA: ANÁLISIS DE NÓMINA (evolución semana/mes/año) ──────
+app.get('/api/gerencia/analisis-nomina', async (req, res) => {
+    const { empresa, agrupacion = 'semana' } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    // Rango según agrupación
+    let rangoFiltro, groupExpr, labelExpr, orderExpr;
+    if (agrupacion === 'mes') {
+        rangoFiltro = `AND l.semana_inicio >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`;
+        groupExpr   = `DATE_TRUNC('month', l.semana_inicio)`;
+        labelExpr   = `TO_CHAR(DATE_TRUNC('month', l.semana_inicio), 'Mon YYYY')`;
+        orderExpr   = groupExpr;
+    } else if (agrupacion === 'anio') {
+        rangoFiltro = '';
+        groupExpr   = `EXTRACT(YEAR FROM l.semana_inicio)`;
+        labelExpr   = `EXTRACT(YEAR FROM l.semana_inicio)::text`;
+        orderExpr   = groupExpr;
+    } else { // semana
+        rangoFiltro = `AND l.semana_inicio >= NOW()::date - INTERVAL '26 weeks'`;
+        groupExpr   = `l.id, l.semana_inicio, l.semana_fin`;
+        labelExpr   = `TO_CHAR(l.semana_inicio,'DD Mon') || ' - ' || TO_CHAR(l.semana_fin,'DD Mon YY')`;
+        orderExpr   = `l.semana_inicio`;
+    }
+
+    try {
+        const [serieRes, ccRes, topEmpRes] = await Promise.all([
+
+            // 1. Serie temporal (bruto, deducciones, aportes ER, neto, costo empresa, horas, empleados)
+            pool.query(`
+                SELECT
+                    ${labelExpr}                                          AS label,
+                    MIN(l.semana_inicio)::date                            AS periodo_inicio,
+                    MAX(l.semana_fin)::date                               AS periodo_fin,
+                    COUNT(DISTINCT l.id)                                  AS nominas,
+                    COUNT(DISTINCT ll.empleado_id)                        AS empleados,
+                    COALESCE(SUM(ll.horas_regulares),0)                   AS horas_regulares,
+                    COALESCE(SUM(ll.horas_overtime),0)                    AS horas_overtime,
+                    COALESCE(SUM(ll.total_bruto),0)                       AS total_bruto,
+                    COALESCE(SUM(ll.total_deducciones),0)                 AS total_deducciones,
+                    COALESCE(SUM(ll.total_aportes_er),0)                  AS total_aportes_er,
+                    COALESCE(SUM(ll.total_neto),0)                        AS total_neto,
+                    COALESCE(SUM(ll.total_bruto + ll.total_aportes_er),0) AS costo_empresa
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                WHERE l.empresa = $1
+                  AND l.estado IN ('APROBADA','PAGADA')
+                  ${rangoFiltro}
+                GROUP BY ${groupExpr}
+                ORDER BY ${orderExpr}`, [empresa]),
+
+            // 2. Distribución por centro de costo (mismo rango)
+            pool.query(`
+                SELECT
+                    lc.ccosto,
+                    COALESCE(cc.nombre, lc.ccosto)  AS ccosto_nombre,
+                    COUNT(DISTINCT ll.empleado_id)  AS empleados,
+                    COALESCE(SUM(lc.horas),0)       AS horas,
+                    COALESCE(SUM(lc.costo_total),0) AS costo_total
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll  ON ll.liquidacion_id = l.id
+                JOIN nom_liquidacion_ccosto lc ON lc.linea_id = ll.id
+                LEFT JOIN ccostos cc ON cc.codigo = lc.ccosto AND cc.empresa::text = l.empresa::text
+                WHERE l.empresa = $1
+                  AND l.estado IN ('APROBADA','PAGADA')
+                  ${rangoFiltro}
+                GROUP BY lc.ccosto, cc.nombre
+                ORDER BY costo_total DESC`, [empresa]),
+
+            // 3. Top 10 empleados por costo empresa (mismo rango)
+            pool.query(`
+                SELECT
+                    ll.empleado_id,
+                    COALESCE(e.nombre||' '||e.apellido, 'Empleado '||ll.empleado_id) AS nombre,
+                    COALESCE(e.tipo_empleado, ll.tipo_empleado)                      AS tipo_empleado,
+                    COALESCE(SUM(ll.horas_regulares),0)                              AS horas_regulares,
+                    COALESCE(SUM(ll.horas_overtime),0)                               AS horas_overtime,
+                    COALESCE(SUM(ll.total_bruto),0)                                  AS total_bruto,
+                    COALESCE(SUM(ll.total_bruto + ll.total_aportes_er),0)            AS costo_empresa
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                LEFT JOIN nom_empleados e ON e.id = ll.empleado_id
+                WHERE l.empresa = $1
+                  AND l.estado IN ('APROBADA','PAGADA')
+                  ${rangoFiltro}
+                GROUP BY ll.empleado_id, e.nombre, e.apellido, e.tipo_empleado, ll.tipo_empleado
+                ORDER BY costo_empresa DESC
+                LIMIT 10`, [empresa]),
+        ]);
+
+        const serie = serieRes.rows;
+        const totalCosto = serie.reduce((s, r) => s + parseFloat(r.costo_empresa), 0);
+        const totalBruto = serie.reduce((s, r) => s + parseFloat(r.total_bruto), 0);
+        const promedio   = serie.length ? totalCosto / serie.length : 0;
+        let mejor = null, peor = null;
+        for (const r of serie) {
+            const v = parseFloat(r.costo_empresa);
+            if (!mejor || v > parseFloat(mejor.costo_empresa)) mejor = r;
+            if (!peor  || v < parseFloat(peor.costo_empresa))  peor  = r;
+        }
+        // Variación último período vs anterior
+        let variacion = null;
+        if (serie.length >= 2) {
+            const ult = parseFloat(serie[serie.length - 1].costo_empresa);
+            const ant = parseFloat(serie[serie.length - 2].costo_empresa);
+            if (ant > 0) variacion = ((ult - ant) / ant) * 100;
+        }
+
+        res.json({
+            success: true,
+            agrupacion,
+            kpis: {
+                totalCosto, totalBruto, promedio, variacion,
+                periodos: serie.length,
+                mayor: mejor ? { label: mejor.label, valor: parseFloat(mejor.costo_empresa) } : null,
+                menor: peor  ? { label: peor.label,  valor: parseFloat(peor.costo_empresa) }  : null,
+            },
+            serie,
+            distribucionCcosto: ccRes.rows,
+            topEmpleados: topEmpRes.rows,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/analisis-nomina:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
