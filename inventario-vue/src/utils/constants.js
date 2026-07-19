@@ -200,6 +200,7 @@ export const MODULES = [
         { name: 'Dashboard Franquicias', icon: 'mdi-view-dashboard-outline', path: '/gerencia/reportes/ejecutivo' },
         { name: 'Análisis de Ventas',   icon: 'mdi-chart-areaspline',       path: '/gerencia/reportes/analisis-ventas' },
         { name: 'Análisis de Nómina',   icon: 'mdi-account-cash-outline',   path: '/gerencia/reportes/analisis-nomina' },
+        { name: 'Labor Cost %',         icon: 'mdi-percent-outline',        path: '/gerencia/reportes/labor-cost' },
         { name: 'Puntuación/Reviews',   icon: 'mdi-star-outline',           path: '/gerencia/reportes/reviews' },
       ]},
     ],

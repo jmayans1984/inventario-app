@@ -10607,6 +10607,142 @@ app.get('/api/gerencia/analisis-nomina', async (req, res) => {
     }
 });
 
+// ── GERENCIA: LABOR COST % (nómina vs ventas por local) ──────────
+app.get('/api/gerencia/labor-cost', async (req, res) => {
+    const { empresa, agrupacion = 'semana' } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const esMes = agrupacion === 'mes';
+    // Filtro de rango sobre liquidaciones aprobadas
+    const rangoFiltro = esMes
+        ? `AND l.semana_inicio >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`
+        : `AND l.semana_inicio >= NOW()::date - INTERVAL '26 weeks'`;
+    // Clave y etiqueta del período
+    const keyExpr = esMes
+        ? `TO_CHAR(DATE_TRUNC('month', l.semana_inicio),'YYYY-MM')`
+        : `l.id::text`;
+    const labelExpr = esMes
+        ? `TO_CHAR(DATE_TRUNC('month', l.semana_inicio),'Mon YYYY')`
+        : `TO_CHAR(l.semana_inicio,'DD Mon') || ' - ' || TO_CHAR(l.semana_fin,'DD Mon YY')`;
+    const groupExpr = esMes ? `DATE_TRUNC('month', l.semana_inicio)` : `l.id, l.semana_inicio, l.semana_fin`;
+
+    try {
+        const [nomRes, ventasRes, nomCcRes, ventasCcRes] = await Promise.all([
+
+            // 1. Nómina por período (costo empresa = bruto + aportes ER)
+            pool.query(`
+                SELECT ${keyExpr} AS key, ${labelExpr} AS label,
+                       MIN(l.semana_inicio)::date AS inicio, MAX(l.semana_fin)::date AS fin,
+                       COALESCE(SUM(ll.total_bruto + ll.total_aportes_er),0) AS costo_nomina
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                WHERE l.empresa = $1 AND l.estado IN ('APROBADA','PAGADA') ${rangoFiltro}
+                GROUP BY ${groupExpr}
+                ORDER BY MIN(l.semana_inicio)`, [empresa]),
+
+            // 2. Ventas netas por período (mismas semanas de las liquidaciones)
+            pool.query(`
+                SELECT ${keyExpr} AS key, COALESCE(SUM(sub.ventas),0) AS ventas
+                FROM nom_liquidacion l
+                JOIN LATERAL (
+                    SELECT SUM(v.ventas_netas) AS ventas
+                    FROM ventas v
+                    WHERE v.empresa::text = l.empresa::text
+                      AND v.fecha::date BETWEEN l.semana_inicio AND l.semana_fin
+                ) sub ON TRUE
+                WHERE l.empresa = $1 AND l.estado IN ('APROBADA','PAGADA') ${rangoFiltro}
+                GROUP BY ${esMes ? `DATE_TRUNC('month', l.semana_inicio)` : `l.id`}`, [empresa]),
+
+            // 3. Nómina por período x centro de costo
+            pool.query(`
+                SELECT ${keyExpr} AS key, lc.ccosto,
+                       COALESCE(cc.nombre, lc.ccosto) AS ccosto_nombre,
+                       COALESCE(SUM(lc.costo_total),0) AS costo_nomina
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll  ON ll.liquidacion_id = l.id
+                JOIN nom_liquidacion_ccosto lc ON lc.linea_id = ll.id
+                LEFT JOIN ccostos cc ON cc.codigo = lc.ccosto AND cc.empresa::text = l.empresa::text
+                WHERE l.empresa = $1 AND l.estado IN ('APROBADA','PAGADA') ${rangoFiltro}
+                GROUP BY ${esMes ? `DATE_TRUNC('month', l.semana_inicio)` : `l.id, l.semana_inicio, l.semana_fin`}, lc.ccosto, cc.nombre`, [empresa]),
+
+            // 4. Ventas por período x centro de costo
+            pool.query(`
+                SELECT ${keyExpr} AS key, v.ccosto, COALESCE(SUM(v.ventas_netas),0) AS ventas
+                FROM nom_liquidacion l
+                JOIN ventas v ON v.empresa::text = l.empresa::text
+                            AND v.fecha::date BETWEEN l.semana_inicio AND l.semana_fin
+                WHERE l.empresa = $1 AND l.estado IN ('APROBADA','PAGADA') ${rangoFiltro}
+                GROUP BY ${esMes ? `DATE_TRUNC('month', l.semana_inicio)` : `l.id, l.semana_inicio, l.semana_fin`}, v.ccosto`, [empresa]),
+        ]);
+
+        // Merge serie global
+        const ventasMap = {};
+        for (const r of ventasRes.rows) ventasMap[r.key] = parseFloat(r.ventas) || 0;
+        const serie = nomRes.rows.map(r => {
+            const costo  = parseFloat(r.costo_nomina) || 0;
+            const ventas = ventasMap[r.key] || 0;
+            return {
+                key: r.key, label: r.label, inicio: r.inicio, fin: r.fin,
+                ventas, costo_nomina: costo,
+                labor_pct: ventas > 0 ? (costo / ventas) * 100 : null,
+            };
+        });
+
+        // Merge por CC: totales del rango + serie por período
+        const ccMap = {};   // ccosto -> { nombre, nomina, ventas, porPeriodo: { key: {nomina, ventas} } }
+        for (const r of nomCcRes.rows) {
+            const cc = String(r.ccosto);
+            if (!ccMap[cc]) ccMap[cc] = { ccosto: cc, nombre: r.ccosto_nombre, nomina: 0, ventas: 0, porPeriodo: {} };
+            ccMap[cc].nomina += parseFloat(r.costo_nomina) || 0;
+            if (!ccMap[cc].porPeriodo[r.key]) ccMap[cc].porPeriodo[r.key] = { nomina: 0, ventas: 0 };
+            ccMap[cc].porPeriodo[r.key].nomina += parseFloat(r.costo_nomina) || 0;
+        }
+        for (const r of ventasCcRes.rows) {
+            const cc = String(r.ccosto);
+            if (!ccMap[cc]) ccMap[cc] = { ccosto: cc, nombre: cc, nomina: 0, ventas: 0, porPeriodo: {} };
+            ccMap[cc].ventas += parseFloat(r.ventas) || 0;
+            if (!ccMap[cc].porPeriodo[r.key]) ccMap[cc].porPeriodo[r.key] = { nomina: 0, ventas: 0 };
+            ccMap[cc].porPeriodo[r.key].ventas += parseFloat(r.ventas) || 0;
+        }
+
+        const centros = Object.values(ccMap).map(c => ({
+            ccosto: c.ccosto,
+            nombre: c.nombre,
+            nomina: c.nomina,
+            ventas: c.ventas,
+            labor_pct: c.ventas > 0 ? (c.nomina / c.ventas) * 100 : null,
+            // % por período alineado con la serie global (null si no hay ventas)
+            seriePct: serie.map(p => {
+                const d = c.porPeriodo[p.key];
+                return d && d.ventas > 0 ? (d.nomina / d.ventas) * 100 : null;
+            }),
+        })).sort((a, b) => (b.labor_pct ?? -1) - (a.labor_pct ?? -1));
+
+        // KPIs
+        const totVentas = serie.reduce((s, r) => s + r.ventas, 0);
+        const totNomina = serie.reduce((s, r) => s + r.costo_nomina, 0);
+        const pctGlobal = totVentas > 0 ? (totNomina / totVentas) * 100 : null;
+        const conPct = centros.filter(c => c.labor_pct !== null);
+        const mejorCC = conPct.length ? conPct[conPct.length - 1] : null;
+        const peorCC  = conPct.length ? conPct[0] : null;
+
+        res.json({
+            success: true, agrupacion,
+            kpis: {
+                totVentas, totNomina, pctGlobal,
+                periodos: serie.length,
+                mejorCC: mejorCC ? { nombre: mejorCC.nombre, pct: mejorCC.labor_pct } : null,
+                peorCC:  peorCC  ? { nombre: peorCC.nombre,  pct: peorCC.labor_pct }  : null,
+            },
+            serie,
+            centros,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/labor-cost:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
