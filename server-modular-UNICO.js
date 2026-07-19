@@ -2646,6 +2646,228 @@ app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
 });
 // ── FIN REPORTE CONSUMO INSUMOS ───────────────────────────────────
 
+// ══════════════════════════════════════════════════════════════════
+// ÓRDENES DE PRODUCCIÓN (subproductos de recetas)
+// Sugerencia de producción basada en consumo de los últimos N días
+// (ventas directas + uso como ingrediente en platos vendidos),
+// con explosión de materia prima desde detalle_recetas.
+// ══════════════════════════════════════════════════════════════════
+
+let ordenProdTablesReady = false;
+async function ensureOrdenProduccionTables() {
+    if (ordenProdTablesReady) return;
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS orden_produccion (
+            id              SERIAL PRIMARY KEY,
+            empresa         VARCHAR(20),
+            fecha           DATE DEFAULT CURRENT_DATE,
+            receta          VARCHAR(50),
+            receta_nombre   VARCHAR(200),
+            und             VARCHAR(30),
+            cantidad        NUMERIC DEFAULT 0,
+            dias_ventana    INT DEFAULT 15,
+            consumo_periodo NUMERIC DEFAULT 0,
+            costo_total     NUMERIC DEFAULT 0,
+            estado          VARCHAR(20) DEFAULT 'PENDIENTE',
+            notas           TEXT,
+            created_at      TIMESTAMP DEFAULT NOW()
+        )`);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS orden_produccion_detalle (
+            id            SERIAL PRIMARY KEY,
+            orden_id      INT REFERENCES orden_produccion(id) ON DELETE CASCADE,
+            articulo      VARCHAR(50),
+            nombre        VARCHAR(200),
+            und           VARCHAR(30),
+            es_subreceta  BOOLEAN DEFAULT FALSE,
+            cant_unitaria NUMERIC DEFAULT 0,
+            cant_total    NUMERIC DEFAULT 0,
+            costo_unit    NUMERIC DEFAULT 0,
+            costo_total   NUMERIC DEFAULT 0
+        )`);
+    ordenProdTablesReady = true;
+}
+
+// GET listado de órdenes
+app.get('/api/almacen/ordenes-produccion', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        await ensureOrdenProduccionTables();
+        const r = await pool.query(
+            `SELECT * FROM orden_produccion WHERE empresa::text = $1 ORDER BY fecha DESC, id DESC LIMIT 200`,
+            [String(empresa)]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (e) {
+        console.error('Error GET /api/almacen/ordenes-produccion:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET sugerencia: consumo del subproducto en los últimos N días + explosión de MP
+app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
+    const { empresa, receta, dias = 15 } = req.query;
+    if (!empresa || !receta)
+        return res.status(400).json({ success: false, error: 'empresa y receta son requeridos' });
+    const emp = parseInt(empresa);
+    const nDias = Math.max(1, parseInt(dias) || 15);
+    try {
+        const [recRes, directoRes, ingredienteRes, mpRes] = await Promise.all([
+
+            // Datos de la receta
+            pool.query(`
+                SELECT codigo, nombre, COALESCE(und,'UND') AS und, COALESCE(valor,0) AS valor
+                FROM recetas WHERE TRIM(codigo::text) = TRIM($1)`, [String(receta)]),
+
+            // Consumo directo: el subproducto vendido como plato
+            pool.query(`
+                SELECT COALESCE(SUM(d.cant),0) AS cant
+                FROM detalle_ventas d
+                WHERE d.empresa = $1
+                  AND TRIM(d.codigo::text) = TRIM($2)
+                  AND d.fecha::date >= NOW()::date - ($3 || ' days')::interval`,
+                [emp, String(receta), String(nDias)]),
+
+            // Consumo como ingrediente: platos vendidos que llevan este subproducto
+            pool.query(`
+                SELECT COALESCE(SUM(d.cant * dr.cantidad),0) AS cant
+                FROM detalle_ventas d
+                JOIN detalle_recetas dr ON TRIM(dr.receta::text) = TRIM(d.codigo::text)
+                WHERE d.empresa = $1
+                  AND TRIM(dr.articulo::text) = TRIM($2)
+                  AND d.fecha::date >= NOW()::date - ($3 || ' days')::interval`,
+                [emp, String(receta), String(nDias)]),
+
+            // Materia prima de la receta (1 unidad de producción)
+            pool.query(`
+                SELECT dr.articulo,
+                       COALESCE(r2.nombre, a.nombre, dr.articulo) AS nombre,
+                       COALESCE(r2.und, a.und, '')                 AS und,
+                       dr.cantidad                                  AS cant_unitaria,
+                       COALESCE(r2.valor, a.valor, 0)               AS costo_unit,
+                       CASE WHEN r2.codigo IS NOT NULL THEN TRUE ELSE FALSE END AS es_subreceta
+                FROM detalle_recetas dr
+                LEFT JOIN recetas r2 ON TRIM(r2.codigo::text) = TRIM(dr.articulo::text) AND r2.subproducto = 'SI'
+                LEFT JOIN articulos a ON TRIM(a.codigo::text) = TRIM(dr.articulo::text) AND r2.codigo IS NULL
+                WHERE TRIM(dr.receta::text) = TRIM($1)
+                ORDER BY dr.codigo`, [String(receta)]),
+        ]);
+
+        if (!recRes.rows.length)
+            return res.status(404).json({ success: false, error: 'Receta no encontrada' });
+
+        const consumoDirecto     = parseFloat(directoRes.rows[0].cant) || 0;
+        const consumoIngrediente = parseFloat(ingredienteRes.rows[0].cant) || 0;
+        const consumoTotal       = consumoDirecto + consumoIngrediente;
+
+        res.json({
+            success: true,
+            receta: recRes.rows[0],
+            dias: nDias,
+            consumo: {
+                directo: consumoDirecto,
+                como_ingrediente: consumoIngrediente,
+                total: consumoTotal,
+                promedio_diario: consumoTotal / nDias,
+            },
+            ingredientes: mpRes.rows,
+        });
+    } catch (e) {
+        console.error('Error GET /api/almacen/ordenes-produccion/sugerencia:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET detalle de una orden
+app.get('/api/almacen/ordenes-produccion/:id', async (req, res) => {
+    try {
+        await ensureOrdenProduccionTables();
+        const orden = await pool.query('SELECT * FROM orden_produccion WHERE id = $1', [req.params.id]);
+        if (!orden.rows.length) return res.status(404).json({ success: false, error: 'Orden no encontrada' });
+        const det = await pool.query(
+            'SELECT * FROM orden_produccion_detalle WHERE orden_id = $1 ORDER BY id', [req.params.id]
+        );
+        res.json({ success: true, orden: orden.rows[0], detalles: det.rows });
+    } catch (e) {
+        console.error('Error GET /api/almacen/ordenes-produccion/:id:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST crear orden
+app.post('/api/almacen/ordenes-produccion', async (req, res) => {
+    const { empresa, fecha, receta, receta_nombre, und, cantidad,
+            dias_ventana, consumo_periodo, notas, detalles = [] } = req.body;
+    if (!empresa || !receta || !cantidad)
+        return res.status(400).json({ success: false, error: 'empresa, receta y cantidad son requeridos' });
+    const client = await pool.connect();
+    try {
+        await ensureOrdenProduccionTables();
+        await client.query('BEGIN');
+
+        const costoTotal = detalles.reduce((s, d) => s + (parseFloat(d.costo_total) || 0), 0);
+        const ordenR = await client.query(
+            `INSERT INTO orden_produccion
+                (empresa, fecha, receta, receta_nombre, und, cantidad, dias_ventana, consumo_periodo, costo_total, notas)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+             RETURNING id`,
+            [String(empresa), fecha || new Date(), receta, receta_nombre || '', und || '',
+             parseFloat(cantidad) || 0, parseInt(dias_ventana) || 15,
+             parseFloat(consumo_periodo) || 0, costoTotal, notas || null]
+        );
+        const ordenId = ordenR.rows[0].id;
+
+        for (const d of detalles) {
+            await client.query(
+                `INSERT INTO orden_produccion_detalle
+                    (orden_id, articulo, nombre, und, es_subreceta, cant_unitaria, cant_total, costo_unit, costo_total)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                [ordenId, d.articulo, d.nombre || '', d.und || '', !!d.es_subreceta,
+                 parseFloat(d.cant_unitaria) || 0, parseFloat(d.cant_total) || 0,
+                 parseFloat(d.costo_unit) || 0, parseFloat(d.costo_total) || 0]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, id: ordenId });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/almacen/ordenes-produccion:', e);
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PUT cambiar estado (PENDIENTE ↔ COMPLETADA)
+app.put('/api/almacen/ordenes-produccion/:id/estado', async (req, res) => {
+    const { estado } = req.body;
+    if (!['PENDIENTE', 'COMPLETADA'].includes(estado))
+        return res.status(400).json({ success: false, error: 'estado inválido' });
+    try {
+        const r = await pool.query(
+            'UPDATE orden_produccion SET estado = $1 WHERE id = $2 RETURNING id', [estado, req.params.id]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'Orden no encontrada' });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// DELETE eliminar orden
+app.delete('/api/almacen/ordenes-produccion/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM orden_produccion WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ── FIN ÓRDENES DE PRODUCCIÓN ─────────────────────────────────────
+
 // ═══════════════════════════════════════════════════════════════════
 // ETIQUETAS PRODUCTO
 // ═══════════════════════════════════════════════════════════════════

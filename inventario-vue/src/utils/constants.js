@@ -104,6 +104,7 @@ export const MODULES = [
         { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/almacen/procesos/ordenes-compra' },
         { name: 'Despachos de Bodega', icon: 'mdi-truck-delivery-outline', path: '/almacen/procesos/despachos' },
         { name: 'Órdenes de Producción', icon: 'mdi-factory', path: '/almacen/procesos/ordenes-produccion' },
+        { name: 'Lotes de Fabricación', icon: 'mdi-barcode', path: '/almacen/procesos/lotes-fabricacion' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Kardex por Período', icon: 'mdi-file-chart-outline', path: '/almacen/reportes/kardex' },
