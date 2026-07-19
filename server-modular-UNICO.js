@@ -10743,6 +10743,162 @@ app.get('/api/gerencia/labor-cost', async (req, res) => {
     }
 });
 
+// ── GERENCIA: CONSUMO MATERIA PRIMA / FOOD COST % ────────────────
+// Consumo = detalle_inventario tipo 'SALIDA POR VENTA%' valorizado a precio_costo
+app.get('/api/gerencia/consumo-mp', async (req, res) => {
+    const { empresa, agrupacion = 'semana' } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const esMes = agrupacion === 'mes';
+    const rangoDi = esMes
+        ? `AND di.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`
+        : `AND di.fecha::date >= DATE_TRUNC('week', NOW())::date - INTERVAL '25 weeks'`;
+    const rangoV = esMes
+        ? `AND v.fecha::date >= DATE_TRUNC('month', NOW() - INTERVAL '11 months')`
+        : `AND v.fecha::date >= DATE_TRUNC('week', NOW())::date - INTERVAL '25 weeks'`;
+
+    const keyDi = esMes
+        ? `TO_CHAR(DATE_TRUNC('month', di.fecha::date),'YYYY-MM')`
+        : `TO_CHAR(DATE_TRUNC('week', di.fecha::date),'YYYY-MM-DD')`;
+    const labelDi = esMes
+        ? `TO_CHAR(DATE_TRUNC('month', di.fecha::date),'Mon YYYY')`
+        : `TO_CHAR(DATE_TRUNC('week', di.fecha::date),'DD Mon') || ' - ' || TO_CHAR(DATE_TRUNC('week', di.fecha::date) + INTERVAL '6 days','DD Mon YY')`;
+    const keyV = esMes
+        ? `TO_CHAR(DATE_TRUNC('month', v.fecha::date),'YYYY-MM')`
+        : `TO_CHAR(DATE_TRUNC('week', v.fecha::date),'YYYY-MM-DD')`;
+    const labelV = esMes
+        ? `TO_CHAR(DATE_TRUNC('month', v.fecha::date),'Mon YYYY')`
+        : `TO_CHAR(DATE_TRUNC('week', v.fecha::date),'DD Mon') || ' - ' || TO_CHAR(DATE_TRUNC('week', v.fecha::date) + INTERVAL '6 days','DD Mon YY')`;
+
+    try {
+        const [consumoRes, ventasRes, consumoCcRes, ventasCcRes, grupoRes, topProdRes] = await Promise.all([
+
+            // 1. Consumo valorizado por período
+            pool.query(`
+                SELECT ${keyDi} AS key, ${labelDi} AS label,
+                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS consumo
+                FROM detalle_inventario di
+                JOIN productos p ON p.codigo = di.codigo
+                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
+                GROUP BY 1, 2 ORDER BY 1`, [String(empresa)]),
+
+            // 2. Ventas netas por período
+            pool.query(`
+                SELECT ${keyV} AS key, ${labelV} AS label,
+                       COALESCE(SUM(v.ventas_netas),0) AS ventas
+                FROM ventas v
+                WHERE v.empresa::text = $1 ${rangoV}
+                GROUP BY 1, 2 ORDER BY 1`, [String(empresa)]),
+
+            // 3. Consumo por período x centro de costo
+            pool.query(`
+                SELECT ${keyDi} AS key, di.ccosto,
+                       COALESCE(cc.nombre, di.ccosto) AS ccosto_nombre,
+                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS consumo
+                FROM detalle_inventario di
+                JOIN productos p ON p.codigo = di.codigo
+                LEFT JOIN ccostos cc ON cc.codigo = di.ccosto AND cc.empresa::text = di.empresa::text
+                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
+                GROUP BY 1, di.ccosto, cc.nombre`, [String(empresa)]),
+
+            // 4. Ventas por período x centro de costo
+            pool.query(`
+                SELECT ${keyV} AS key, v.ccosto, COALESCE(SUM(v.ventas_netas),0) AS ventas
+                FROM ventas v
+                WHERE v.empresa::text = $1 ${rangoV}
+                GROUP BY 1, v.ccosto`, [String(empresa)]),
+
+            // 5. Consumo por grupo de productos (rango completo)
+            pool.query(`
+                SELECT COALESCE(gp.nombre,'Sin Grupo') AS grupo,
+                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS consumo
+                FROM detalle_inventario di
+                JOIN productos p ON p.codigo = di.codigo
+                LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
+                GROUP BY 1 ORDER BY 2 DESC`, [String(empresa)]),
+
+            // 6. Top 15 productos por valor consumido (rango completo)
+            pool.query(`
+                SELECT di.codigo, p.nombre, p.und,
+                       COALESCE(SUM(di.salida),0) AS cantidad,
+                       COALESCE(SUM(di.salida * COALESCE(p.precio_costo,0)),0) AS valor
+                FROM detalle_inventario di
+                JOIN productos p ON p.codigo = di.codigo
+                WHERE di.empresa::text = $1 AND di.tipo LIKE 'SALIDA POR VENTA%' ${rangoDi}
+                GROUP BY di.codigo, p.nombre, p.und
+                ORDER BY valor DESC
+                LIMIT 15`, [String(empresa)]),
+        ]);
+
+        // Merge serie global: base = unión de períodos (ordenada por key)
+        const perMap = {};
+        for (const r of consumoRes.rows) {
+            perMap[r.key] = { key: r.key, label: r.label, consumo: parseFloat(r.consumo) || 0, ventas: 0 };
+        }
+        for (const r of ventasRes.rows) {
+            if (!perMap[r.key]) perMap[r.key] = { key: r.key, label: r.label, consumo: 0, ventas: 0 };
+            perMap[r.key].ventas = parseFloat(r.ventas) || 0;
+        }
+        const serie = Object.values(perMap)
+            .sort((a, b) => a.key.localeCompare(b.key))
+            .map(r => ({ ...r, food_pct: r.ventas > 0 ? (r.consumo / r.ventas) * 100 : null }));
+
+        // Merge por CC
+        const ccMap = {};
+        for (const r of consumoCcRes.rows) {
+            const cc = String(r.ccosto);
+            if (!ccMap[cc]) ccMap[cc] = { ccosto: cc, nombre: r.ccosto_nombre, consumo: 0, ventas: 0, porPeriodo: {} };
+            ccMap[cc].consumo += parseFloat(r.consumo) || 0;
+            if (!ccMap[cc].porPeriodo[r.key]) ccMap[cc].porPeriodo[r.key] = { consumo: 0, ventas: 0 };
+            ccMap[cc].porPeriodo[r.key].consumo += parseFloat(r.consumo) || 0;
+        }
+        for (const r of ventasCcRes.rows) {
+            const cc = String(r.ccosto);
+            if (!ccMap[cc]) ccMap[cc] = { ccosto: cc, nombre: cc, consumo: 0, ventas: 0, porPeriodo: {} };
+            ccMap[cc].ventas += parseFloat(r.ventas) || 0;
+            if (!ccMap[cc].porPeriodo[r.key]) ccMap[cc].porPeriodo[r.key] = { consumo: 0, ventas: 0 };
+            ccMap[cc].porPeriodo[r.key].ventas += parseFloat(r.ventas) || 0;
+        }
+        const centros = Object.values(ccMap).map(c => ({
+            ccosto: c.ccosto,
+            nombre: c.nombre,
+            consumo: c.consumo,
+            ventas: c.ventas,
+            food_pct: c.ventas > 0 ? (c.consumo / c.ventas) * 100 : null,
+            seriePct: serie.map(p => {
+                const d = c.porPeriodo[p.key];
+                return d && d.ventas > 0 ? (d.consumo / d.ventas) * 100 : null;
+            }),
+        })).sort((a, b) => (b.food_pct ?? -1) - (a.food_pct ?? -1));
+
+        // KPIs
+        const totConsumo = serie.reduce((s, r) => s + r.consumo, 0);
+        const totVentas  = serie.reduce((s, r) => s + r.ventas, 0);
+        const pctGlobal  = totVentas > 0 ? (totConsumo / totVentas) * 100 : null;
+        const conPct = centros.filter(c => c.food_pct !== null && c.consumo > 0);
+        const mejorCC = conPct.length ? conPct[conPct.length - 1] : null;
+        const peorCC  = conPct.length ? conPct[0] : null;
+
+        res.json({
+            success: true, agrupacion,
+            kpis: {
+                totConsumo, totVentas, pctGlobal,
+                periodos: serie.length,
+                mejorCC: mejorCC ? { nombre: mejorCC.nombre, pct: mejorCC.food_pct } : null,
+                peorCC:  peorCC  ? { nombre: peorCC.nombre,  pct: peorCC.food_pct }  : null,
+            },
+            serie,
+            centros,
+            porGrupo: grupoRes.rows,
+            topProductos: topProdRes.rows,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/consumo-mp:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta

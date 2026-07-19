@@ -201,6 +201,7 @@ export const MODULES = [
         { name: 'Análisis de Ventas',   icon: 'mdi-chart-areaspline',       path: '/gerencia/reportes/analisis-ventas' },
         { name: 'Análisis de Nómina',   icon: 'mdi-account-cash-outline',   path: '/gerencia/reportes/analisis-nomina' },
         { name: 'Labor Cost %',         icon: 'mdi-percent-outline',        path: '/gerencia/reportes/labor-cost' },
+        { name: 'Consumo Materia Prima', icon: 'mdi-food-variant',          path: '/gerencia/reportes/consumo-mp' },
         { name: 'Puntuación/Reviews',   icon: 'mdi-star-outline',           path: '/gerencia/reportes/reviews' },
       ]},
     ],
