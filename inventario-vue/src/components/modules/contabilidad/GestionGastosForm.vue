@@ -100,6 +100,7 @@
                   :items="proveedoresOptions"
                   item-title="nombre"
                   item-value="codigo"
+                  :custom-filter="filtroProveedor"
                   placeholder="Escribe para buscar un proveedor..."
                   prepend-inner-icon="mdi-account-tie-outline"
                   no-data-text="No hay proveedores"
@@ -601,6 +602,22 @@ const centrosCostosOptions = ref([])
 const cuentasContablesOptions = ref([])
 const formasPagoOptions = ref([])
 
+// Filtro de proveedor: ignora acentos/mayúsculas y busca por nombre o código,
+// sin importar el orden de las palabras (ej: "TEPUI F" encuentra "FERRETERIA TEPUI")
+function normalizarTexto(s) {
+  return (s ?? '').toString()
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .toLowerCase().trim()
+}
+function filtroProveedor(_value, query, item) {
+  const q = normalizarTexto(query)
+  if (!q) return true
+  const nombre = normalizarTexto(item?.raw?.nombre)
+  const codigo = normalizarTexto(item?.raw?.codigo)
+  const palabras = q.split(/\s+/).filter(Boolean)
+  return palabras.every(p => nombre.includes(p) || codigo.includes(p))
+}
+
 // Cuenta contable configurada como "materia prima" (config_general.cta_materia_prima)
 const ctaMateriaPrima = ref(null)
 
@@ -775,7 +792,13 @@ onMounted(async () => {
       cuentasBancariasService.getCuentas({ limit: 500 }),
       api.get('/config-general', { params: { empresa: empresa.value } }).catch(() => null),
     ])
-    proveedoresOptions.value      = prov?.data || (Array.isArray(prov) ? prov : [])
+    const proveedoresCrudos = prov?.data || (Array.isArray(prov) ? prov : [])
+    const codigosVistos = new Set()
+    proveedoresOptions.value = proveedoresCrudos.filter(p => {
+      if (codigosVistos.has(p.codigo)) return false
+      codigosVistos.add(p.codigo)
+      return true
+    })
     centrosCostosOptions.value    = centros?.data || (Array.isArray(centros) ? centros : [])
     cuentasContablesOptions.value = cuentas?.data || (Array.isArray(cuentas) ? cuentas : [])
     formasPagoOptions.value       = cuentasBank?.data || (Array.isArray(cuentasBank) ? cuentasBank : (cuentasBank || []))
