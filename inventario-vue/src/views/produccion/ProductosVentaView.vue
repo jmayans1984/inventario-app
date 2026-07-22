@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <MainLayout>
     <div class="pg-container">
 
@@ -19,11 +19,11 @@
           </div>
           <div>
             <h1 class="page-title">PRODUCTOS PARA VENTA</h1>
-            <p class="page-sub">Catálogo de productos disponibles para ofrecer a los clientes</p>
+            <p class="page-sub">Catálogo de precios de costo y venta — productos.para_venta = 'SI'</p>
           </div>
         </div>
-        <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
-          Nuevo Producto
+        <v-btn color="#8b5cf6" variant="flat" prepend-icon="mdi-cog-outline" @click="abrirMargenes">
+          Márgenes de Venta
         </v-btn>
       </div>
 
@@ -39,21 +39,21 @@
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon" style="background:rgba(16,185,129,.13)">
-            <v-icon size="20" color="#10b981">mdi-check-circle-outline</v-icon>
+          <div class="kpi-icon" style="background:rgba(245,158,11,.13)">
+            <v-icon size="20" color="#f59e0b">mdi-alert-outline</v-icon>
           </div>
           <div class="kpi-info">
-            <span class="kpi-val">{{ activos }}</span>
-            <span class="kpi-lbl">Activos</span>
+            <span class="kpi-val">{{ sinCosto }}</span>
+            <span class="kpi-lbl">Sin Precio de Costo</span>
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-icon" style="background:rgba(245,158,11,.13)">
-            <v-icon size="20" color="#f59e0b">mdi-folder-multiple-outline</v-icon>
+          <div class="kpi-icon" style="background:rgba(139,92,246,.13)">
+            <v-icon size="20" color="#8b5cf6" >mdi-percent-outline</v-icon>
           </div>
           <div class="kpi-info">
-            <span class="kpi-val">{{ grupos.length }}</span>
-            <span class="kpi-lbl">Grupos</span>
+            <span class="kpi-val">{{ margenesTxt }}</span>
+            <span class="kpi-lbl">Márgenes 1 / 2 / 3</span>
           </div>
         </div>
       </div>
@@ -68,15 +68,25 @@
           <option value="">Todos los grupos</option>
           <option v-for="g in grupos" :key="g.codigo" :value="g.codigo">{{ g.nombre }}</option>
         </select>
-        <select v-model="filtroControl" class="fil-select">
-          <option value="">Todos</option>
-          <option value="SI">Activos</option>
-          <option value="NO">Inactivos</option>
-        </select>
         <span class="count-badge">{{ filasFiltradas.length }} productos</span>
+        <v-spacer />
+        <v-btn
+          color="#10b981"
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-refresh"
+          :loading="recalculando"
+          @click="recalcularPrecios"
+        >
+          Recalcular Precios de Venta
+        </v-btn>
       </div>
 
-      <!-- TABLA AGRUPADA -->
+      <v-alert v-if="msgRecalculo" :type="msgRecalculo.tipo" variant="tonal" density="compact" class="mb-3" closable @click:close="msgRecalculo=null">
+        {{ msgRecalculo.texto }}
+      </v-alert>
+
+      <!-- TABLA AGRUPADA (solo lectura) -->
       <div class="tabla-card">
         <div v-if="loading" class="loading-wrap">
           <v-progress-circular indeterminate color="#06b6d4" size="36" />
@@ -87,18 +97,17 @@
               <th>CÓDIGO</th>
               <th>NOMBRE</th>
               <th>UND</th>
+              <th class="col-num">P. COSTO</th>
               <th class="col-num">P. VENTA 1</th>
               <th class="col-num">P. VENTA 2</th>
               <th class="col-num">P. VENTA 3</th>
-              <th class="col-center">ESTADO</th>
-              <th class="col-acc">ACCIONES</th>
             </tr>
           </thead>
           <tbody v-if="filasFiltradas.length === 0">
             <tr>
-              <td colspan="8" class="empty-row">
+              <td colspan="7" class="empty-row">
                 <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)">mdi-package-variant-closed</v-icon>
-                <p>No hay productos registrados</p>
+                <p>No hay productos marcados como "para venta" (productos.para_venta = 'SI')</p>
               </td>
             </tr>
           </tbody>
@@ -106,136 +115,62 @@
             <tbody>
               <!-- Fila cabecera de grupo -->
               <tr class="group-header-row">
-                <td colspan="8">
+                <td colspan="7">
                   <v-icon size="14" color="#06b6d4" class="mr-1">mdi-folder-outline</v-icon>
                   <span>{{ grupoNombre }}</span>
                   <span class="group-count">{{ items.length }} producto{{ items.length !== 1 ? 's' : '' }}</span>
                 </td>
               </tr>
               <!-- Filas de productos del grupo -->
-              <tr v-for="p in items" :key="p.codigo" class="data-row">
+              <tr v-for="p in items" :key="p.codigo" class="data-row" :class="{ 'row-warn': !p.precio_costo }">
                 <td><span class="cod-badge">{{ p.codigo }}</span></td>
                 <td class="nombre-cell">{{ p.nombre }}</td>
-                <td class="dim-cell">{{ p.unidad }}</td>
-                <td class="col-num">{{ fmt(p.precio_venta1) }}</td>
+                <td class="dim-cell">{{ p.und }}</td>
+                <td class="col-num">{{ fmt(p.precio_costo) }}</td>
+                <td class="col-num dim-cell">{{ fmt(p.precio_venta1) }}</td>
                 <td class="col-num dim-cell">{{ fmt(p.precio_venta2) }}</td>
                 <td class="col-num dim-cell">{{ fmt(p.precio_venta3) }}</td>
-                <td class="col-center">
-                  <span class="estado-chip" :class="p.control === 'SI' ? 'activo' : 'inactivo'">
-                    {{ p.control === 'SI' ? 'SI' : 'NO' }}
-                  </span>
-                </td>
-                <td class="col-acc">
-                  <!-- Ojito: toggle activo -->
-                  <v-btn
-                    :icon="p.control === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
-                    size="x-small" variant="text"
-                    :color="p.control === 'SI' ? '#10b981' : 'rgba(var(--v-theme-on-surface),.35)'"
-                    :loading="toggling === p.codigo"
-                    @click="toggleActivo(p)"
-                  />
-                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(p)" />
-                  <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmarEliminar(p)" />
-                </td>
               </tr>
             </tbody>
           </template>
         </table>
       </div>
 
-      <!-- MODAL CREAR / EDITAR -->
-      <v-dialog v-model="modal" max-width="540" persistent>
+      <!-- MODAL MÁRGENES DE VENTA -->
+      <v-dialog v-model="modalMargenes" max-width="440" persistent>
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#06b6d4" class="mr-2">mdi-package-variant</v-icon>
-            <span>{{ editando ? 'Editar Producto' : 'Nuevo Producto' }}</span>
+            <v-icon color="#8b5cf6" class="mr-2">mdi-percent-outline</v-icon>
+            <span>Márgenes de Venta</span>
             <v-spacer />
-            <v-btn icon="mdi-close" size="small" variant="text" @click="modal = false" />
+            <v-btn icon="mdi-close" size="small" variant="text" @click="modalMargenes = false" />
           </div>
           <div class="modal-body">
-            <!-- Código AUTO + Nombre -->
-            <div class="form-row">
-              <div class="field-group" style="flex:0 0 100px">
-                <label class="field-label">Código</label>
-                <input
-                  v-model="form.codigo"
-                  :disabled="editando"
-                  type="text"
-                  maxlength="3"
-                  class="field-input cod-input"
-                  :class="{'field-error':errores.codigo}"
-                  @input="form.codigo = form.codigo.toUpperCase()"
-                />
-                <span v-if="errores.codigo" class="error-txt">{{ errores.codigo }}</span>
+            <p class="margenes-hint">
+              Porcentaje de margen sobre el precio de costo para cada nivel de precio de venta.
+              Ej: 30 significa que precio_venta = precio_costo / (1 − 0.30).
+            </p>
+            <div class="form-row three">
+              <div class="field-group">
+                <label class="field-label">Margen Venta 1 (%)</label>
+                <input v-model.number="formMargenes.margen_venta1" type="number" min="0" max="99" step="0.01" class="field-input" />
               </div>
-              <div class="field-group" style="flex:1">
-                <label class="field-label">Nombre *</label>
-                <input
-                  v-model="form.nombre"
-                  type="text"
-                  maxlength="100"
-                  placeholder="Nombre del producto"
-                  class="field-input"
-                  :class="{'field-error':errores.nombre}"
-                  @input="form.nombre = form.nombre.toUpperCase()"
-                />
-                <span v-if="errores.nombre" class="error-txt">{{ errores.nombre }}</span>
+              <div class="field-group">
+                <label class="field-label">Margen Venta 2 (%)</label>
+                <input v-model.number="formMargenes.margen_venta2" type="number" min="0" max="99" step="0.01" class="field-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label">Margen Venta 3 (%)</label>
+                <input v-model.number="formMargenes.margen_venta3" type="number" min="0" max="99" step="0.01" class="field-input" />
               </div>
             </div>
-
-            <!-- Grupo + Unidad -->
-            <div class="form-row">
-              <div class="field-group" style="flex:1">
-                <label class="field-label">Grupo</label>
-                <v-select
-                  v-model="form.grupo"
-                  :items="gruposItems"
-                  item-title="nombre"
-                  item-value="codigo"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  color="#06b6d4"
-                  class="grupo-vselect"
-                />
-              </div>
-              <div class="field-group" style="flex:0 0 110px">
-                <label class="field-label">Unidad</label>
-                <input
-                  v-model="form.unidad"
-                  type="text"
-                  maxlength="10"
-                  placeholder="UND"
-                  class="field-input"
-                  @input="form.unidad = form.unidad.toUpperCase()"
-                />
-              </div>
-            </div>
-
-            <div v-if="msgError" class="api-error">{{ msgError }}</div>
+            <div v-if="msgErrorMargenes" class="api-error">{{ msgErrorMargenes }}</div>
           </div>
           <div class="modal-footer">
-            <v-btn variant="text" @click="modal = false">Cancelar</v-btn>
-            <v-btn color="#06b6d4" variant="flat" :loading="guardando" @click="guardar">
-              {{ editando ? 'Guardar Cambios' : 'Crear Producto' }}
+            <v-btn variant="text" @click="modalMargenes = false">Cancelar</v-btn>
+            <v-btn color="#8b5cf6" variant="flat" :loading="guardandoMargenes" @click="guardarMargenes">
+              Guardar Márgenes
             </v-btn>
-          </div>
-        </v-card>
-      </v-dialog>
-
-      <!-- CONFIRM ELIMINAR -->
-      <v-dialog v-model="confirmModal" max-width="360">
-        <v-card class="modal-card">
-          <div class="modal-header">
-            <v-icon color="#ef4444" class="mr-2">mdi-alert-circle-outline</v-icon>
-            <span>Eliminar Producto</span>
-          </div>
-          <div class="modal-body">
-            <p>¿Eliminar el producto <strong>{{ eliminando?.nombre }}</strong>? Esta acción no se puede deshacer.</p>
-          </div>
-          <div class="modal-footer">
-            <v-btn variant="text" @click="confirmModal = false">Cancelar</v-btn>
-            <v-btn color="error" variant="flat" :loading="guardando" @click="eliminar">Eliminar</v-btn>
           </div>
         </v-card>
       </v-dialog>
@@ -248,44 +183,34 @@
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
-import { useAuthStore } from '../../stores/auth'
-
-const authStore = useAuthStore()
 
 const productos    = ref([])
 const grupos       = ref([])
 const busqueda     = ref('')
 const filtroGrupo  = ref('')
-const filtroControl = ref('')
 const loading      = ref(false)
-const guardando    = ref(false)
-const toggling     = ref(null)
-const modal        = ref(false)
-const confirmModal = ref(false)
-const editando     = ref(false)
-const eliminando   = ref(null)
-const msgError     = ref('')
-const errores      = ref({})
-const form = ref({
-  codigo: '', nombre: '', unidad: 'UND', grupo: '',
-  precio_costo: 0, precio_venta1: 0, precio_venta2: 0, precio_venta3: 0, control: 'SI'
+const recalculando = ref(false)
+const msgRecalculo = ref(null)
+
+const margenes = ref({ margen_venta1: 0, margen_venta2: 0, margen_venta3: 0 })
+const modalMargenes     = ref(false)
+const guardandoMargenes = ref(false)
+const msgErrorMargenes  = ref('')
+const formMargenes = ref({ margen_venta1: 0, margen_venta2: 0, margen_venta3: 0 })
+
+const sinCosto = computed(() => productos.value.filter(p => !parseFloat(p.precio_costo)).length)
+
+const margenesTxt = computed(() => {
+  const pct = (v) => `${(parseFloat(v) * 100).toFixed(0)}%`
+  return `${pct(margenes.value.margen_venta1)} / ${pct(margenes.value.margen_venta2)} / ${pct(margenes.value.margen_venta3)}`
 })
-
-const activos = computed(() => productos.value.filter(p => p.control === 'SI').length)
-
-const gruposItems = computed(() => [
-  { codigo: '', nombre: 'Sin grupo' },
-  ...grupos.value
-])
-
 
 const filasFiltradas = computed(() => {
   const q = busqueda.value.toLowerCase()
   return productos.value.filter(p => {
     const matchQ = !q || p.codigo.toLowerCase().includes(q) || p.nombre.toLowerCase().includes(q)
     const matchG = !filtroGrupo.value || p.grupo === filtroGrupo.value
-    const matchC = !filtroControl.value || p.control === filtroControl.value
-    return matchQ && matchG && matchC
+    return matchQ && matchG
   })
 })
 
@@ -304,101 +229,68 @@ function fmt(n) {
   return (parseFloat(n) || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-// Genera el próximo código de 3 dígitos
-function generarCodigo() {
-  const nums = productos.value
-    .map(p => parseInt(p.codigo))
-    .filter(n => !isNaN(n) && n > 0)
-  const max = nums.length ? Math.max(...nums) : 0
-  return String(max + 1).padStart(3, '0')
-}
-
 async function cargar() {
   loading.value = true
   try {
     const [rp, rg] = await Promise.all([
       api.get('/produccion/productos-venta'),
-      api.get('/produccion/grupo-productos')
+      api.get('/almacen/grupo-productos')
     ])
     productos.value = rp.data?.data || []
     grupos.value    = rg.data?.data || []
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
-function abrirModal(p = null) {
-  errores.value = {}
-  msgError.value = ''
-  editando.value = !!p
-  if (p) {
-    form.value = {
-      codigo: p.codigo, nombre: p.nombre, unidad: p.unidad || 'UND',
-      grupo: p.grupo || '', precio_costo: p.precio_costo || 0,
-      precio_venta1: p.precio_venta1 || 0, precio_venta2: p.precio_venta2 || 0,
-      precio_venta3: p.precio_venta3 || 0, control: p.control || 'SI'
-    }
-  } else {
-    form.value = {
-      codigo: generarCodigo(), nombre: '', unidad: 'UND', grupo: '',
-      precio_costo: 0, precio_venta1: 0, precio_venta2: 0, precio_venta3: 0, control: 'SI'
-    }
+async function cargarMargenes() {
+  try {
+    const r = await api.get('/produccion/margenes-venta')
+    if (r.data?.data) margenes.value = r.data.data
+  } catch (e) { console.error(e) }
+}
+
+function abrirMargenes() {
+  msgErrorMargenes.value = ''
+  formMargenes.value = {
+    margen_venta1: Math.round((parseFloat(margenes.value.margen_venta1) || 0) * 10000) / 100,
+    margen_venta2: Math.round((parseFloat(margenes.value.margen_venta2) || 0) * 10000) / 100,
+    margen_venta3: Math.round((parseFloat(margenes.value.margen_venta3) || 0) * 10000) / 100,
   }
-  modal.value = true
+  modalMargenes.value = true
 }
 
-function validar() {
-  const e = {}
-  if (!form.value.codigo.trim()) e.codigo = 'Requerido'
-  if (!form.value.nombre.trim()) e.nombre = 'Requerido'
-  errores.value = e
-  return Object.keys(e).length === 0
-}
-
-async function guardar() {
-  if (!validar()) return
-  guardando.value = true
-  msgError.value = ''
+async function guardarMargenes() {
+  guardandoMargenes.value = true
+  msgErrorMargenes.value = ''
   try {
-    if (editando.value) {
-      await api.put(`/produccion/productos-venta/${form.value.codigo}`, { ...form.value })
-    } else {
-      await api.post('/produccion/productos-venta', { ...form.value })
-    }
-    await cargar()
-    modal.value = false
-  } catch (e) {
-    msgError.value = e?.response?.data?.error || e.message
-  } finally { guardando.value = false }
-}
-
-// Toggle activo: ojito
-async function toggleActivo(p) {
-  toggling.value = p.codigo
-  const nuevoControl = p.control === 'SI' ? 'NO' : 'SI'
-  try {
-    await api.put(`/produccion/productos-venta/${p.codigo}`, {
-      nombre: p.nombre, descripcion: p.descripcion || '', unidad: p.unidad,
-      grupo: p.grupo || null, precio_costo: p.precio_costo || 0,
-      precio_venta1: p.precio_venta1 || 0, precio_venta2: p.precio_venta2 || 0,
-      precio_venta3: p.precio_venta3 || 0, control: nuevoControl
+    await api.put('/produccion/margenes-venta', {
+      margen_venta1: (parseFloat(formMargenes.value.margen_venta1) || 0) / 100,
+      margen_venta2: (parseFloat(formMargenes.value.margen_venta2) || 0) / 100,
+      margen_venta3: (parseFloat(formMargenes.value.margen_venta3) || 0) / 100,
     })
-    // Actualizar local sin recargar
-    const idx = productos.value.findIndex(x => x.codigo === p.codigo)
-    if (idx >= 0) productos.value[idx] = { ...productos.value[idx], control: nuevoControl }
-  } catch (e) { console.error(e) } finally { toggling.value = null }
+    await cargarMargenes()
+    modalMargenes.value = false
+  } catch (e) {
+    msgErrorMargenes.value = e?.response?.data?.error || e.message
+  } finally { guardandoMargenes.value = false }
 }
 
-function confirmarEliminar(p) { eliminando.value = p; confirmModal.value = true }
-
-async function eliminar() {
-  guardando.value = true
+async function recalcularPrecios() {
+  recalculando.value = true
+  msgRecalculo.value  = null
   try {
-    await api.delete(`/produccion/productos-venta/${eliminando.value.codigo}`)
-    productos.value = productos.value.filter(p => p.codigo !== eliminando.value.codigo)
-    confirmModal.value = false
-  } catch (e) { console.error(e) } finally { guardando.value = false }
+    const r = await api.post('/produccion/productos-venta/recalcular-precios')
+    if (!r.data?.success) throw new Error(r.data?.error || 'No se pudo recalcular')
+    msgRecalculo.value = { tipo: 'success', texto: `Precios recalculados en ${r.data.actualizados} producto(s)` }
+    await cargar()
+  } catch (e) {
+    msgRecalculo.value = { tipo: 'error', texto: e?.response?.data?.error || e.message }
+  } finally { recalculando.value = false }
 }
 
-onMounted(cargar)
+onMounted(async () => {
+  await cargarMargenes()
+  await cargar()
+})
 </script>
 
 <style scoped>
@@ -438,19 +330,14 @@ onMounted(cargar)
 .group-header-row td { padding: 8px 12px 6px; background: rgba(6,182,212,.05); border-top: 1px solid rgba(6,182,212,.12); border-bottom: 1px solid rgba(6,182,212,.08); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #06b6d4; }
 .group-count { margin-left: 8px; font-weight: 500; color: rgba(var(--v-theme-on-surface),.4); font-size: 10px; text-transform: none; letter-spacing: 0; }
 
-.col-num { text-align: right !important; }
-.col-center { text-align: center !important; }
-.col-acc { width: 96px; text-align: center !important; }
+.col-num { text-align: right !important; font-family: 'Courier New', monospace; }
 .data-row td { padding: 9px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); white-space: nowrap; }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
+.row-warn td:nth-child(4) { color: #f59e0b; font-weight: 700; }
 .cod-badge { background: rgba(6,182,212,.12); color: #06b6d4; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-family: monospace; }
 .nombre-cell { font-weight: 500; }
 .dim-cell { color: rgba(var(--v-theme-on-surface),.55); font-size: 12px; }
-.col-num { font-family: 'Courier New', monospace; }
-.estado-chip { padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .4px; }
-.activo   { background: rgba(16,185,129,.12); color: #10b981; }
-.inactivo { background: rgba(var(--v-theme-on-surface),.07); color: rgba(var(--v-theme-on-surface),.45); }
 .empty-row { text-align: center !important; padding: 48px !important; color: rgba(var(--v-theme-on-surface),.35); }
 .empty-row p { margin: 10px 0 0; font-size: 13px; }
 
@@ -459,22 +346,12 @@ onMounted(cargar)
 .modal-header { display: flex; align-items: center; padding: 16px 20px; background: rgba(var(--v-theme-on-surface),.03); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); font-weight: 700; font-size: 15px; }
 .modal-body { padding: 20px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid rgba(var(--v-theme-on-surface),.07); }
-.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #06b6d4; margin: 14px 0 10px; padding-bottom: 6px; border-bottom: 1px solid rgba(6,182,212,.2); }
+.margenes-hint { font-size: 12px; color: rgba(var(--v-theme-on-surface),.55); margin: 0 0 16px; line-height: 1.5; }
 .form-row { display: flex; gap: 12px; }
 .form-row.three > * { flex: 1; }
 .field-group { margin-bottom: 14px; }
 .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 5px; }
 .field-input { width: 100%; padding: 9px 12px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; font-size: 13px; background: rgba(var(--v-theme-on-surface),.03); color: rgb(var(--v-theme-on-surface)); outline: none; transition: border-color .2s; box-sizing: border-box; }
-.field-input:focus { border-color: #06b6d4; }
-.field-input.field-error { border-color: #ef4444; }
-.field-input:disabled { opacity: .55; cursor: not-allowed; background: rgba(var(--v-theme-on-surface),.06); }
-.cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
-
-/* v-select grupo */
-.grupo-vselect { font-size: 13px; }
-.grupo-vselect :deep(.v-field) { border-radius: 8px; font-size: 13px; }
-.grupo-vselect :deep(.v-field__input) { font-size: 13px; min-height: 38px; padding-top: 6px; padding-bottom: 6px; }
-.grupo-vselect :deep(.v-field--variant-outlined) { --v-field-border-opacity: 0.15; }
-.error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
+.field-input:focus { border-color: #8b5cf6; }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
 </style>
