@@ -14635,6 +14635,46 @@ app.put('/api/nomina/propinas/:id/pagar', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// GET /api/nomina/propinas/reporte — propinas pagadas a empleados en un rango de fechas (por mes)
+// Parámetros: empresa, fechaInicio, fechaFin (YYYY-MM-DD), empleadoId (opcional)
+app.get('/api/nomina/propinas/reporte', async (req, res) => {
+    const { empresa, fechaInicio, fechaFin, empleadoId } = req.query;
+    if (!empresa || !fechaInicio || !fechaFin)
+        return res.status(400).json({ success: false, error: 'empresa, fechaInicio y fechaFin son requeridos' });
+    try {
+        const [yIni, mIni] = fechaInicio.split('-').map(Number);
+        const [yFin, mFin] = fechaFin.split('-').map(Number);
+        const claveIni = yIni * 100 + mIni;
+        const claveFin = yFin * 100 + mFin;
+
+        const params = [empresa, claveIni, claveFin];
+        let filtroEmpleado = '';
+        if (empleadoId) {
+            params.push(empleadoId);
+            filtroEmpleado = ` AND d.empleado_id = $${params.length}`;
+        }
+
+        const r = await pool.query(
+            `SELECT p.anio, p.mes, p.estado, p.fecha_pago,
+                    d.empleado_id, d.empleado_nombre, d.ccosto, d.ccosto_nombre,
+                    d.horas, d.valor_asignado
+             FROM nom_propinas_detalle d
+             JOIN nom_propinas p ON p.id = d.propina_id
+             WHERE p.empresa = $1
+               AND (p.anio*100 + p.mes) BETWEEN $2 AND $3
+               AND d.empleado_id IS NOT NULL
+               ${filtroEmpleado}
+             ORDER BY p.anio, p.mes, d.empleado_nombre`,
+            params
+        );
+
+        res.json({ success: true, data: r.rows });
+    } catch(e) {
+        console.error('Error GET /api/nomina/propinas/reporte:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // DELETE /api/nomina/propinas/:id — solo permite borrar borradores (para poder regenerar limpio)
 app.delete('/api/nomina/propinas/:id', async (req, res) => {
     try {

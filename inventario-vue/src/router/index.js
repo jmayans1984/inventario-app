@@ -99,6 +99,7 @@ const routes = [
   { path: '/nomina/reportes/horario',             component: () => import('../views/nomina/ReporteHorarioView.vue'),    meta: { requiresAuth: true } },
   { path: '/nomina/reportes/recibos',             component: () => import('../views/nomina/RecibosNominaView.vue'),     meta: { requiresAuth: true } },
   { path: '/nomina/reportes/nomina',              component: () => import('../views/nomina/ReporteNominaView.vue'),     meta: { requiresAuth: true } },
+  { path: '/nomina/reportes/propinas',            component: () => import('../views/nomina/ReportePropinasView.vue'),   meta: { requiresAuth: true } },
   { path: '/nomina/:section?/:item?',             component: () => import('../views/NominaView.vue'),                   meta: { requiresAuth: true } },
 
   // GERENCIA ESPECÍFICAS

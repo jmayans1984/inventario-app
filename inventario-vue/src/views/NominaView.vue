@@ -243,6 +243,7 @@ const secciones = [
       { path: '/nomina/reportes/nomina',  icon: 'mdi-chart-bar',              title: 'Reporte de Nómina',  desc: 'Costos por período, empleado y CC' },
       { path: '/nomina/reportes/horario', icon: 'mdi-calendar-clock-outline', title: 'Reporte de Horario', desc: 'Horas trabajadas por empleado' },
       { path: '/nomina/reportes/recibos', icon: 'mdi-file-document-outline',  title: 'Recibos de Pago',    desc: 'Visualiza e imprime los recibos' },
+      { path: '/nomina/reportes/propinas', icon: 'mdi-cash-fast',             title: 'Reporte de Propinas', desc: 'Propinas pagadas por empleado y período' },
     ],
   },
 ]
