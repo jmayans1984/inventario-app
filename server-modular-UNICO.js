@@ -7864,6 +7864,15 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                 : 0;
         }
 
+        // ── Traer TODAS las cuentas ACTIVAS (incluso sin movimientos en el período) ─
+        const cuentasActivasRes = await pool.query(`
+            SELECT c.codigo, c.nombre, gg.codigo as grupo_codigo
+            FROM cuentas c
+            LEFT JOIN grupos_gastos gg ON c.grupo_gastos_codigo = gg.codigo
+            WHERE c.empresa = $1 AND c.activo = true
+            ORDER BY c.codigo
+        `, [empresa]);
+
         // ── Ventas netas por período (denominador de % sobre venta) ───────
         const ventasNetasPorPeriodo = periodos.map(p => {
             const ventasCCPeriodo = ventasPorPeriodoCC[p.key] || {};
@@ -7873,8 +7882,16 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         const ventasNetasTotal = ventasNetasPorPeriodo.reduce((s, v) => s + v, 0);
         function pct(valor, base) { return base > 0 ? (valor / base) * 100 : null; }
 
-        // ── Armar cuentas por grupo, con valores por período ─────────────
+        // ── Inicializar cuentas por grupo con TODAS las cuentas ACTIVAS ───
         const cuentasPorGrupo = {}; // grupo_codigo -> Map(cuenta_codigo -> {codigo,nombre,valores:{}})
+        for (const row of cuentasActivasRes.rows) {
+            const gc = row.grupo_codigo || 'SIN_GRUPO';
+            if (!cuentasPorGrupo[gc]) cuentasPorGrupo[gc] = new Map();
+            // Inicializar todas con valores vacíos (luego se sobrescriben si hay gastos)
+            cuentasPorGrupo[gc].set(row.codigo, { codigo: row.codigo, nombre: row.nombre, valores: {} });
+        }
+
+        // ── Sobrescribir con valores reales de gastos si los hay ──────────
         for (const row of gastosRes.rows) {
             const gc = row.grupo_codigo || 'SIN_GRUPO';
             if (!cuentasPorGrupo[gc]) cuentasPorGrupo[gc] = new Map();

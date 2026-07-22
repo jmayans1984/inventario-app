@@ -129,10 +129,7 @@
                     <td :colspan="colCount">{{ g.nombre }}</td>
                   </tr>
                   <tr v-for="c in g.cuentas" :key="c.codigo" class="er-row-cuenta">
-                    <td class="td-cuenta td-indent">
-                      {{ c.nombre }}
-                      <span v-if="c.esConsumoCalculado" class="badge-info">JUEGO DE INVENTARIOS</span>
-                    </td>
+                    <td class="td-cuenta td-indent">{{ c.nombre }}</td>
                     <td v-for="(v, i) in c.valores" :key="i" class="tr">{{ v === 0 ? '—' : fmt(v) }}</td>
                     <td v-if="modo === 'anual'" class="tr font-weight-bold">{{ fmt(c.total) }}</td>
                     <td class="tr td-pct"></td>
