@@ -778,6 +778,10 @@ function confirmarMateriaPrima() {
     form.value.lineas[mpLineaIdx.value].materiaPrima = items.length
       ? { afectaInventario: mpDraft.value.afectaInventario, actualizaCosto: mpDraft.value.actualizaCosto, items }
       : null
+    // Refleja el total de la entrada de almacén como subtotal de la línea de distribución
+    if (items.length) {
+      form.value.lineas[mpLineaIdx.value].subtotal = Math.round(totalItemsMp({ items }) * 100) / 100
+    }
   }
   mpDialogOpen.value = false
 }
@@ -789,7 +793,7 @@ onMounted(async () => {
       proveedoresService.getProveedores({ limit: 2000 }),
       centroCostosService.getCentrosCostos({ limit: 2000 }),
       cuentasContablesService.getCuentasContables({ limit: 500 }),
-      cuentasBancariasService.getCuentas({ limit: 500 }),
+      cuentasBancariasService.getCuentas({ limit: 500, estado: 'ACTIVA' }),
       api.get('/config-general', { params: { empresa: empresa.value } }).catch(() => null),
     ])
     const proveedoresCrudos = prov?.data || (Array.isArray(prov) ? prov : [])
@@ -832,6 +836,14 @@ watch(() => props.open, async (val) => {
           impuestos: Math.round(parseFloat(gasto.impuestos || 0) * 100) / 100,
           materiaPrima: null,
         }],
+      }
+      // Si la forma de pago del gasto ya no está activa, se agrega igual a las
+      // opciones (solo para esta edición) para que el campo no quede en blanco.
+      if (gasto.forma_pago && !formasPagoOptions.value.some(c => c.codigo === gasto.forma_pago)) {
+        formasPagoOptions.value = [
+          ...formasPagoOptions.value,
+          { codigo: gasto.forma_pago, nombre_cta: gasto.forma_pago_nombre || gasto.forma_pago },
+        ]
       }
     } catch (err) {
       console.error('Error cargando gasto:', err)
