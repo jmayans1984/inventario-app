@@ -114,6 +114,20 @@ export const gestionGastosService = {
     }
   },
 
+  // Verifica si ya existe un gasto con la misma empresa + proveedor + factura
+  async verificarFactura({ proveedor, factura, excluirCodigo } = {}) {
+    try {
+      const empresa = getEmpresaActiva()
+      const params = { empresa, proveedor, factura }
+      if (excluirCodigo) params.excluir_codigo = excluirCodigo
+      const response = await api.get(`${ENDPOINT}/verificar-factura`, { params })
+      return response.data
+    } catch (error) {
+      console.error('Error verificando factura duplicada:', error)
+      throw error
+    }
+  },
+
   async getReporte(params = {}) {
     try {
       const response = await api.get('/gastos/reporte', { params })

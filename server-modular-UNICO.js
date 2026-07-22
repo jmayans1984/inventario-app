@@ -8829,6 +8829,35 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
     }
 });
 
+// GET /api/contabilidad/gastos/verificar-factura — detecta si ya existe un
+// gasto registrado para la misma empresa + proveedor + número de factura.
+// Se usa para advertir antes de guardar (posible factura duplicada).
+app.get('/api/contabilidad/gastos/verificar-factura', async (req, res) => {
+    try {
+        const { empresa, proveedor, factura, excluir_codigo } = req.query;
+        if (!empresa || !proveedor || !factura || !factura.trim()) {
+            return res.json({ success: true, existe: false, data: [] });
+        }
+        const params = [empresa, proveedor, factura.trim()];
+        let where = 'WHERE g.empresa = $1 AND g.proveedor = $2 AND UPPER(g.factura) = UPPER($3)';
+        if (excluir_codigo) {
+            params.push(excluir_codigo);
+            where += ` AND g.codigo <> $${params.length}`;
+        }
+        const r = await pool.query(
+            `SELECT g.codigo, g.fecha, g.total, g.concepto
+             FROM gastos g
+             ${where}
+             ORDER BY g.fecha DESC, g.codigo`,
+            params
+        );
+        res.json({ success: true, existe: r.rows.length > 0, data: r.rows });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/gastos/verificar-factura:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/contabilidad/gastos/multiple — registra UNA factura de compra
 // distribuida en varias líneas (ccosto + cuenta contable + montos).
 // Crea N registros en gastos (uno por línea) pero UN SOLO asiento en moviban

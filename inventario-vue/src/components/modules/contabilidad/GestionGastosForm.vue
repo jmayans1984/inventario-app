@@ -395,6 +395,43 @@
     </v-card>
 
     <!-- ═══════════════════════════════════════════════════════════════════
+         SUB-DIALOG: FACTURA DUPLICADA
+    ═══════════════════════════════════════════════════════════════════ -->
+    <v-dialog v-model="dlgFacturaDuplicada" max-width="480" persistent>
+      <v-card rounded="lg">
+        <div class="dlg-dup-header">
+          <v-icon size="22" color="#f59e0b" class="mr-2">mdi-alert-circle-outline</v-icon>
+          Posible Factura Duplicada
+        </div>
+        <v-card-text class="pa-5">
+          <p style="font-size:14px;margin-bottom:12px">
+            Ya existe{{ facturasDuplicadas.length > 1 ? 'n' : '' }} <strong>{{ facturasDuplicadas.length }}</strong>
+            gasto{{ facturasDuplicadas.length > 1 ? 's' : '' }} registrado{{ facturasDuplicadas.length > 1 ? 's' : '' }}
+            para el proveedor <strong>{{ nombreProveedor }}</strong> con la factura
+            <strong>{{ form.factura }}</strong>:
+          </p>
+          <div class="dup-list">
+            <div v-for="d in facturasDuplicadas" :key="d.codigo" class="dup-item">
+              <span class="dup-cod">{{ d.codigo }}</span>
+              <span class="dup-fecha">{{ (d.fecha || '').split('T')[0] }}</span>
+              <span class="dup-total">{{ formatMoneda(d.total) }}</span>
+            </div>
+          </div>
+          <p style="font-size:13px;margin-top:14px;color:rgba(var(--v-theme-on-surface),.7)">
+            ¿Deseas continuar de todos modos y guardar este gasto?
+          </p>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4" style="flex-direction:column;gap:8px;align-items:stretch">
+          <v-btn color="#f59e0b" variant="elevated" prepend-icon="mdi-content-save-outline" :loading="guardando" @click="continuarGuardarDeTodosModos">
+            Guardar Igualmente
+          </v-btn>
+          <v-btn variant="text" :disabled="guardando" @click="dlgFacturaDuplicada = false">Cancelar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
          SUB-DIALOG: ENTRADA DE ALMACÉN — MATERIA PRIMA
     ═══════════════════════════════════════════════════════════════════ -->
     <v-dialog v-model="mpDialogOpen" max-width="800" scrollable>
@@ -854,11 +891,43 @@ watch(() => props.open, async (val) => {
   }
 })
 
-// ─── Guardar ─────────────────────────────────────────
+// ─── Verificación de factura duplicada ────────────────
+const dlgFacturaDuplicada = ref(false)
+const facturasDuplicadas  = ref([])
+
 async function handleSubmit() {
   const err = validarPaso(0) || validarPaso(1)
   if (err) { errorMsg.value = err; return }
   errorMsg.value = ''
+
+  const factura = form.value.factura.trim()
+  if (factura && form.value.proveedor) {
+    try {
+      const chk = await gestionGastosService.verificarFactura({
+        proveedor: form.value.proveedor,
+        factura,
+        excluirCodigo: esEdicion.value ? props.gasto.codigo : null,
+      })
+      if (chk?.existe) {
+        facturasDuplicadas.value = chk.data || []
+        dlgFacturaDuplicada.value = true
+        return
+      }
+    } catch (e) {
+      console.error('Error verificando factura duplicada:', e)
+    }
+  }
+
+  await guardarGasto()
+}
+
+async function continuarGuardarDeTodosModos() {
+  dlgFacturaDuplicada.value = false
+  await guardarGasto()
+}
+
+// ─── Guardar ─────────────────────────────────────────
+async function guardarGasto() {
   guardando.value = true
   try {
     let resultado
@@ -1219,6 +1288,39 @@ function cerrar() {
   border-radius: 8px;
   padding: 8px 12px;
 }
+
+/* ═══ DIALOG FACTURA DUPLICADA ══════════════════════════════════════ */
+.dlg-dup-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  font-weight: 700;
+  font-size: 15px;
+  background: rgba(245,158,11,0.08);
+  border-bottom: 1px solid rgba(245,158,11,0.2);
+}
+.dup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(var(--v-theme-on-surface),.03);
+  border-radius: 8px;
+  padding: 8px 12px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.dup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06);
+}
+.dup-item:last-child { border-bottom: none; }
+.dup-cod { font-family: monospace; font-weight: 700; color: #f59e0b; }
+.dup-fecha { color: rgba(var(--v-theme-on-surface),.6); }
+.dup-total { margin-left: auto; font-family: monospace; font-weight: 600; }
 
 /* ═══ FOOTER ═════════════════════════════════════════════════════════ */
 .wiz-footer {
