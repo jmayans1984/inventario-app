@@ -9724,8 +9724,21 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
 // ================================================================
 
 // ── GRUPO DE PRODUCTOS DE VENTA ────────────────────────────────
-// Asegurar columna activo en grupo_productos_venta
-pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
+// Crear tabla si no existe y asegurar columna activo en grupo_productos_venta
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS grupo_productos_venta (
+                codigo VARCHAR(10) PRIMARY KEY,
+                nombre VARCHAR(100) NOT NULL,
+                activo VARCHAR(2) DEFAULT 'SI'
+            )
+        `);
+        await pool.query(`ALTER TABLE grupo_productos_venta ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`);
+    } catch (e) {
+        console.error('Error creando/migrando grupo_productos_venta:', e.message);
+    }
+})();
 
 // ── GRUPO DE PRODUCTOS (ALMACÉN) ────────────────────────────────
 // Asegurar columna activo en grupo_productos
