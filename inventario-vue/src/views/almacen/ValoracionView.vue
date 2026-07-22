@@ -38,6 +38,12 @@
 
       <template v-else-if="data">
 
+        <!-- AVISO: cuenta de materia prima no configurada -->
+        <div v-if="!data.ctaMateriaPrima" class="vm-warning">
+          <v-icon size="20" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <span>No hay configurada la <b>Cuenta Contable Materia Prima (Entrada de Almacén)</b> en Configuración General. Las compras del período se calcularán en $0 hasta que la configures.</span>
+        </div>
+
         <!-- KPI CARDS -->
         <div class="vm-kpis">
           <div class="vm-kpi">
@@ -48,7 +54,7 @@
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Inventario Inicial</div>
               <div class="vm-kpi-val" style="color:#8b5cf6">{{ fmt(data.kpis.valorInicial) }}</div>
-              <div class="vm-kpi-sub">al corte de {{ fechaCorteInicialTxt }}</div>
+              <div class="vm-kpi-sub">toma física al {{ fechaCorteInicialTxt }}</div>
             </div>
           </div>
           <div class="vm-kpi">
@@ -59,7 +65,7 @@
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Compras del Mes</div>
               <div class="vm-kpi-val" style="color:#0ea5e9">{{ fmt(data.kpis.compras) }}</div>
-              <div class="vm-kpi-sub">costo real de factura</div>
+              <div class="vm-kpi-sub">cuenta materia prima · {{ data.gastosMP.length }} gastos</div>
             </div>
           </div>
           <div class="vm-kpi">
@@ -70,7 +76,7 @@
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Inventario Final</div>
               <div class="vm-kpi-val" style="color:#8b5cf6">{{ fmt(data.kpis.valorFinal) }}</div>
-              <div class="vm-kpi-sub">al corte de {{ data.periodo.hasta }}</div>
+              <div class="vm-kpi-sub">toma física al {{ data.periodo.hasta }}</div>
             </div>
           </div>
           <div class="vm-kpi">
@@ -97,7 +103,7 @@
           </div>
         </div>
 
-        <!-- FILA 1: Fórmula visual + gráfica waterfall -->
+        <!-- FILA 1: Fórmula visual + gráfica -->
         <div class="vm-card vm-card-full">
           <div class="vm-card-header">
             <v-icon size="18" color="#06b6d4">mdi-scale-balance</v-icon>
@@ -106,11 +112,62 @@
           <div ref="chartWaterfallRef" class="chart-area"></div>
         </div>
 
-        <!-- FILA 2: Por centro de costo -->
+        <!-- FILA 2: Asignación de consumo MP por centro de costo -->
         <div class="vm-card vm-card-full">
           <div class="vm-card-header">
             <v-icon size="18" color="#8b5cf6">mdi-store-outline</v-icon>
-            <span class="vm-card-title">Valorización por Centro de Costo / Bodega</span>
+            <span class="vm-card-title">Consumo de Materia Prima por Centro de Costo</span>
+            <span class="vm-card-badge">asignado proporcional a % de ventas</span>
+          </div>
+          <p class="vm-card-note">
+            El consumo real total (<b>{{ fmt(data.kpis.consumoReal) }}</b>) se distribuye entre los centros de costo
+            que tuvieron ventas en el período, en proporción a su participación sobre el total de ventas netas
+            (<b>{{ fmt(data.kpis.totalVentasBase) }}</b>). La bodega maestra y los centros sin ventas (p.ej. administración) no reciben asignación.
+          </p>
+          <div class="vm-table-wrap">
+            <table class="vm-table">
+              <thead>
+                <tr>
+                  <th>CENTRO DE COSTO</th>
+                  <th class="tr">VENTAS NETAS</th>
+                  <th class="tr">% VENTAS</th>
+                  <th class="tr">CONSUMO MP ASIGNADO</th>
+                  <th class="tr">FOOD COST %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in data.centros" :key="c.ccosto" class="vm-tr">
+                  <td class="font-weight-medium">
+                    {{ c.nombre }}
+                    <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
+                    <span v-else-if="!c.incluidoEnAsignacion" class="badge-dim-tag">SIN VENTAS</span>
+                  </td>
+                  <td class="tr">{{ fmt(c.ventas) }}</td>
+                  <td class="tr">{{ c.incluidoEnAsignacion ? c.pctVentas.toFixed(1) + '%' : '—' }}</td>
+                  <td class="tr font-weight-bold" style="color:#f97316">{{ c.incluidoEnAsignacion ? fmt(c.consumoMP) : '—' }}</td>
+                  <td class="tr font-weight-bold" :style="{ color: foodCostColor(c.foodCostPct) }">
+                    {{ c.foodCostPct === null ? '—' : c.foodCostPct.toFixed(1) + '%' }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="vm-tr-total">
+                  <td class="font-weight-bold">TOTAL ASIGNADO</td>
+                  <td class="tr font-weight-bold">{{ fmt(data.kpis.totalVentasBase) }}</td>
+                  <td class="tr font-weight-bold">100%</td>
+                  <td class="tr font-weight-bold" style="color:#f97316">{{ fmt(data.kpis.consumoReal) }}</td>
+                  <td class="tr"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- FILA 3: Valorización de inventario por CC (toma física) -->
+        <div class="vm-card vm-card-full">
+          <div class="vm-card-header">
+            <v-icon size="18" color="#8b5cf6">mdi-clipboard-check-outline</v-icon>
+            <span class="vm-card-title">Valorización de Toma Física por Centro de Costo / Bodega</span>
           </div>
           <div class="vm-table-wrap">
             <table class="vm-table">
@@ -123,7 +180,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="c in data.centros" :key="c.ccosto" class="vm-tr">
+                <tr v-for="c in data.centros" :key="'inv-' + c.ccosto" class="vm-tr">
                   <td class="font-weight-medium">
                     {{ c.nombre }}
                     <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
@@ -149,11 +206,11 @@
           </div>
         </div>
 
-        <!-- FILA 3: Detalle por producto -->
+        <!-- FILA 4: Detalle por producto (informativo) -->
         <div class="vm-card vm-card-full">
           <div class="vm-card-header">
             <v-icon size="18" color="#f97316">mdi-table</v-icon>
-            <span class="vm-card-title">Detalle por Producto — Ordenado por Consumo Real</span>
+            <span class="vm-card-title">Valorización por Producto — Toma Física</span>
             <input v-model="filtroProducto" placeholder="Buscar producto..." class="vm-search" />
           </div>
           <div class="vm-table-wrap">
@@ -166,10 +223,8 @@
                   <th class="tr">COSTO UNIT.</th>
                   <th class="tr">STOCK INICIAL</th>
                   <th class="tr">VALOR INICIAL</th>
-                  <th class="tr">COMPRAS</th>
                   <th class="tr">STOCK FINAL</th>
                   <th class="tr">VALOR FINAL</th>
-                  <th class="tr">CONSUMO REAL</th>
                 </tr>
               </thead>
               <tbody>
@@ -183,12 +238,49 @@
                   <td class="tr">{{ fmt(p.precio_costo) }}</td>
                   <td class="tr">{{ numFmt(p.stockInicial) }} {{ p.und }}</td>
                   <td class="tr">{{ fmt(p.valorInicial) }}</td>
-                  <td class="tr">{{ fmt(p.compras) }}</td>
                   <td class="tr">{{ numFmt(p.stockFinal) }} {{ p.und }}</td>
                   <td class="tr">{{ fmt(p.valorFinal) }}</td>
-                  <td class="tr font-weight-bold" style="color:#f97316">{{ fmt(p.consumoReal) }}</td>
                 </tr>
               </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FILA 5: Gastos incluidos en la cuenta de materia prima -->
+        <div class="vm-card vm-card-full">
+          <div class="vm-card-header">
+            <v-icon size="18" color="#0ea5e9">mdi-receipt-text-outline</v-icon>
+            <span class="vm-card-title">Gastos del Mes en Cuenta Materia Prima</span>
+          </div>
+          <div v-if="!data.gastosMP.length" class="vm-empty-inline">No hay gastos registrados en esta cuenta para el período seleccionado.</div>
+          <div v-else class="vm-table-wrap">
+            <table class="vm-table">
+              <thead>
+                <tr>
+                  <th>FECHA</th>
+                  <th>CÓDIGO</th>
+                  <th>PROVEEDOR</th>
+                  <th>CONCEPTO</th>
+                  <th>FACTURA</th>
+                  <th class="tr">TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="g in data.gastosMP" :key="g.codigo" class="vm-tr">
+                  <td>{{ g.fecha?.slice(0, 10) }}</td>
+                  <td class="text-dim">{{ g.codigo }}</td>
+                  <td>{{ g.proveedor_nombre }}</td>
+                  <td class="text-dim">{{ g.concepto }}</td>
+                  <td class="text-dim">{{ g.factura || '—' }}</td>
+                  <td class="tr">{{ fmt(g.total) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="vm-tr-total">
+                  <td colspan="5" class="font-weight-bold">TOTAL COMPRAS MP</td>
+                  <td class="tr font-weight-bold">{{ fmt(data.kpis.compras) }}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -257,6 +349,12 @@ function fmt(v) {
 function numFmt(v) {
   return (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
+function foodCostColor(v) {
+  if (v === null || v === undefined) return '#94a3b8'
+  if (v > 40) return '#ef4444'
+  if (v > 30) return '#f97316'
+  return '#22c55e'
+}
 
 // ── Carga ───────────────────────────────────────────────────────────────────
 function rangoMes(mesStr) {
@@ -314,7 +412,6 @@ function renderWaterfall() {
   const k = data.value.kpis
 
   const categorias = ['Inv. Inicial', 'Compras', 'Consumo Real', 'Inv. Final']
-  const valores     = [k.valorInicial, k.compras, -k.consumoReal, k.valorFinal]
   const colores      = ['#8b5cf6', '#0ea5e9', '#f97316', '#8b5cf6']
 
   chartWaterfall = new ApexCharts(chartWaterfallRef.value, {
@@ -372,11 +469,20 @@ onBeforeUnmount(destroyAll)
   color: rgb(var(--v-theme-on-surface));
 }
 
+/* AVISO */
+.vm-warning {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+  color: rgb(var(--v-theme-on-surface)); border-radius: 10px;
+  padding: 12px 16px; font-size: 13px; margin-bottom: 18px;
+}
+
 /* LOADING / EMPTY */
 .vm-loading, .vm-empty {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
   padding: 80px 0; color: rgba(var(--v-theme-on-surface), 0.5); font-size: 14px;
 }
+.vm-empty-inline { padding: 24px 0; color: rgba(var(--v-theme-on-surface), 0.45); font-size: 13px; text-align: center; }
 
 /* KPIs */
 .vm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
@@ -401,6 +507,14 @@ onBeforeUnmount(destroyAll)
 .vm-card-full { width: 100%; }
 .vm-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .vm-card-title { font-size: 13.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: rgb(var(--v-theme-on-surface)); flex: 1; }
+.vm-card-badge {
+  font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px;
+  background: rgba(139,92,246,0.1); color: #8b5cf6; white-space: nowrap;
+}
+.vm-card-note {
+  font-size: 12.5px; color: rgba(var(--v-theme-on-surface), 0.55);
+  margin: -4px 0 14px; line-height: 1.5;
+}
 
 .vm-search {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
@@ -432,6 +546,10 @@ onBeforeUnmount(destroyAll)
 }
 .badge-warn {
   background: rgba(239,68,68,0.12); color: #ef4444;
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
+}
+.badge-dim-tag {
+  background: rgba(148,163,184,0.12); color: #94a3b8;
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
 }
 </style>

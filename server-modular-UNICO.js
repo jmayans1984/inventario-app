@@ -2648,10 +2648,19 @@ app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════
 // VALORACIÓN MENSUAL DE INVENTARIO (juego de inventarios / COGS real)
-// Consumo real de materia prima = Inv. Inicial + Compras - Inv. Final,
-// valorizando TODOS los centros de costo + bodega maestra al precio_costo
-// actual de cada producto (costo promedio). Las compras se toman de
-// detalles_entrada_almacen (costo real de factura), no de detalle_inventario.
+//
+// Inventario inicial/final = toma física mensual (capturada en detalle_inventario
+// vía ajuste tipo 'TOMA FISICA'), valorizada al precio_costo actual, sumando
+// TODOS los centros de costo + bodega maestra de la empresa.
+//
+// Compras = SUM(gastos.total) del mes en la cuenta contable configurada como
+// "Cuenta Materia Prima (Entrada de Almacén)" (config_general.cta_materia_prima).
+//
+// Consumo real MP (empresa) = Inv. Inicial + Compras - Inv. Final.
+//
+// Ese consumo total se distribuye entre los centros de costo que SÍ tuvieron
+// ventas en el período (excluyendo la bodega maestra y los CC administrativos
+// sin ventas), en proporción a su participación % en las ventas netas totales.
 // ══════════════════════════════════════════════════════════════════
 
 app.get('/api/almacen/valoracion-mensual', async (req, res) => {
@@ -2660,13 +2669,13 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         return res.status(400).json({ success: false, error: 'empresa, desde y hasta son requeridos' });
     const emp = parseInt(empresa);
     try {
-        const ccRes = await pool.query(
-            `SELECT codigo, nombre FROM ccostos WHERE empresa = $1 ORDER BY nombre`, [emp]
-        );
-        const bodegaRes = await pool.query(
-            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]
-        );
-        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+        const [ccRes, bodegaRes, cfgRes] = await Promise.all([
+            pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 ORDER BY nombre`, [emp]),
+            pool.query(`SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]),
+            pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [emp]),
+        ]);
+        const bodegaMaestra   = bodegaRes.rows[0]?.bodega_maestra || null;
+        const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
 
         // Stock valorizado por producto x ccosto, a un corte de fecha dado
         async function stockValorizado(fechaCorte) {
@@ -2687,22 +2696,33 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         }
 
         const fechaCorteInicial = new Date(new Date(desde).getTime() - 86400000).toISOString().slice(0, 10);
-        const [inicialRows, finalRows, comprasRes] = await Promise.all([
+
+        const gastosMPQuery = ctaMateriaPrima
+            ? pool.query(
+                `SELECT g.codigo, g.fecha, g.proveedor, COALESCE(pr.nombre, g.proveedor) AS proveedor_nombre,
+                        g.concepto, g.factura, g.total
+                 FROM gastos g
+                 LEFT JOIN proveedores pr ON pr.codigo = g.proveedor AND pr.empresa = g.empresa
+                 WHERE g.empresa = $1 AND g.cuenta = $2 AND g.fecha >= $3 AND g.fecha <= $4
+                 ORDER BY g.fecha`,
+                [emp, ctaMateriaPrima, desde, hasta]
+              )
+            : Promise.resolve({ rows: [] });
+
+        const [inicialRows, finalRows, gastosMPRes, ventasRes] = await Promise.all([
             stockValorizado(fechaCorteInicial),
             stockValorizado(hasta),
+            gastosMPQuery,
             pool.query(
-                `SELECT dea.articulo AS codigo,
-                        SUM(dea.cantidad)  AS cantidad,
-                        SUM(dea.subtotal)  AS subtotal
-                 FROM detalles_entrada_almacen dea
-                 JOIN entrada_almacen ea ON ea.codigo = dea.entrada AND ea.empresa::text = $1
-                 WHERE ea.fecha >= $2 AND ea.fecha <= $3
-                 GROUP BY dea.articulo`,
-                [String(empresa), desde, hasta]
+                `SELECT ccosto, COALESCE(SUM(ventas_netas), 0) AS ventas
+                 FROM ventas
+                 WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3
+                 GROUP BY ccosto`,
+                [emp, desde, hasta]
             )
         ]);
 
-        // Agregación por CC y por producto
+        // ── Valorización de inventario por CC (toma física) ──────────────
         const porCC = {};
         const porProducto = {};
         function acumular(rows, campo) {
@@ -2716,7 +2736,7 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
                     porProducto[row.codigo] = {
                         codigo: row.codigo, nombre: row.nombre, und: row.und,
                         grupo_nombre: row.grupo_nombre, precio_costo: parseFloat(row.precio_costo),
-                        valorInicial: 0, valorFinal: 0, compras: 0, stockInicial: 0, stockFinal: 0
+                        valorInicial: 0, valorFinal: 0, stockInicial: 0, stockFinal: 0
                     };
                 }
                 porProducto[row.codigo][campo] += valor;
@@ -2726,50 +2746,79 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         acumular(inicialRows, 'valorInicial');
         acumular(finalRows, 'valorFinal');
 
-        let totalCompras = 0;
         const itemsSinCosto = new Set();
-        for (const row of comprasRes.rows) {
-            const subtotal = parseFloat(row.subtotal) || 0;
-            totalCompras += subtotal;
-            if (porProducto[row.codigo]) porProducto[row.codigo].compras += subtotal;
-        }
-
         for (const p of Object.values(porProducto)) {
             if (p.precio_costo <= 0 && (p.stockInicial > 0 || p.stockFinal > 0)) itemsSinCosto.add(p.codigo);
-            p.consumoReal = p.valorInicial + p.compras - p.valorFinal;
         }
 
         const ccNombres = {};
         ccRes.rows.forEach(cc => { ccNombres[cc.codigo] = cc.nombre; });
 
-        const centros = Object.values(porCC).map(c => ({
-            ...c,
-            nombre: ccNombres[c.ccosto] || c.ccosto,
-            esBodegaMaestra: bodegaMaestra && String(c.ccosto) === String(bodegaMaestra),
-            diferencia: c.valorFinal - c.valorInicial
-        })).sort((a, b) => (b.valorFinal) - (a.valorFinal));
-
         const valorInicialTotal = Object.values(porCC).reduce((s, c) => s + c.valorInicial, 0);
-        const valorFinalTotal = Object.values(porCC).reduce((s, c) => s + c.valorFinal, 0);
+        const valorFinalTotal   = Object.values(porCC).reduce((s, c) => s + c.valorFinal, 0);
+
+        // ── Compras de materia prima (cuenta contable configurada) ────────
+        const totalCompras = gastosMPRes.rows.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
+
+        // ── Consumo real MP (empresa) ─────────────────────────────────────
         const consumoReal = valorInicialTotal + totalCompras - valorFinalTotal;
 
+        // ── Ventas netas por CC en el período ──────────────────────────────
+        const ventasPorCC = {};
+        ventasRes.rows.forEach(v => { ventasPorCC[v.ccosto] = parseFloat(v.ventas) || 0; });
+
+        // ── Asignación proporcional del consumo por CC según % de ventas ───
+        // Se excluyen: la bodega maestra y cualquier CC sin ventas en el período
+        // (p.ej. centros administrativos).
+        const ccostosParaAsignar = ccRes.rows.filter(cc => {
+            const esBodega = bodegaMaestra && String(cc.codigo) === String(bodegaMaestra);
+            const ventas = ventasPorCC[cc.codigo] || 0;
+            return !esBodega && ventas > 0;
+        });
+        const totalVentasBase = ccostosParaAsignar.reduce((s, cc) => s + (ventasPorCC[cc.codigo] || 0), 0);
+
+        const centros = ccRes.rows.map(cc => {
+            const esBodegaMaestra = bodegaMaestra && String(cc.codigo) === String(bodegaMaestra);
+            const ventas = ventasPorCC[cc.codigo] || 0;
+            const v = porCC[cc.codigo] || { valorInicial: 0, valorFinal: 0 };
+            const incluidoEnAsignacion = !esBodegaMaestra && ventas > 0;
+            const pctVentas   = incluidoEnAsignacion && totalVentasBase > 0 ? (ventas / totalVentasBase) * 100 : 0;
+            const consumoAsig = incluidoEnAsignacion && totalVentasBase > 0 ? consumoReal * (ventas / totalVentasBase) : 0;
+            return {
+                ccosto: cc.codigo,
+                nombre: cc.nombre,
+                esBodegaMaestra,
+                valorInicial: v.valorInicial,
+                valorFinal: v.valorFinal,
+                diferencia: v.valorFinal - v.valorInicial,
+                ventas,
+                incluidoEnAsignacion,
+                pctVentas,
+                consumoMP: consumoAsig,
+                foodCostPct: incluidoEnAsignacion && ventas > 0 ? (consumoAsig / ventas) * 100 : null
+            };
+        }).sort((a, b) => b.consumoMP - a.consumoMP);
+
         const productos = Object.values(porProducto)
-            .filter(p => p.valorInicial > 0.0001 || p.valorFinal > 0.0001 || p.compras > 0.0001)
-            .sort((a, b) => b.consumoReal - a.consumoReal);
+            .filter(p => p.valorInicial > 0.0001 || p.valorFinal > 0.0001)
+            .sort((a, b) => (b.valorInicial + b.valorFinal) - (a.valorInicial + a.valorFinal));
 
         res.json({
             success: true,
             periodo: { desde, hasta },
             bodegaMaestra,
+            ctaMateriaPrima,
             kpis: {
                 valorInicial: valorInicialTotal,
                 valorFinal: valorFinalTotal,
                 compras: totalCompras,
                 consumoReal,
-                itemsSinCosto: itemsSinCosto.size
+                itemsSinCosto: itemsSinCosto.size,
+                totalVentasBase
             },
             centros,
-            productos
+            productos,
+            gastosMP: gastosMPRes.rows
         });
     } catch (error) {
         console.error('Error GET /api/almacen/valoracion-mensual:', error);
