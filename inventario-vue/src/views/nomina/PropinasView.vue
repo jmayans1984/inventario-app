@@ -263,6 +263,8 @@ const empleadosParaImprimir = computed(() => {
       out.push({
         ...emp,
         ccosto_nombre: cc.ccosto_nombre,
+        total_propinas_ccosto: cc.total_propinas_ccosto,
+        total_horas_ccosto: cc.total_horas_ccosto,
         porcentaje: cc.total_horas_ccosto > 0 ? (emp.horas / cc.total_horas_ccosto) * 100 : 0
       })
     }
@@ -341,13 +343,17 @@ const ESTILOS_VOLANTE = `
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
   td { padding: 5px 14px; border-bottom: 1px solid #f0f0f0; }
   td.ta-r { text-align: right; }
+  .vol-origen { padding: 8px 0 4px; background: #fafafa; border-bottom: 1px solid #eee; }
+  .vol-origen-titulo { font-size: 8px; font-weight: 800; letter-spacing: 0.6px; color: #999; text-transform: uppercase; padding: 2px 14px 4px; }
+  .vol-formula { font-size: 11px; font-weight: 700; color: #059669; text-align: right; padding: 6px 14px 8px; }
   .vol-footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #ecfdf5; border-top: 1px solid #a7f3d0; }
   .vol-label { font-size: 9px; color: #888; text-transform: uppercase; }
   .vol-monto { font-size: 20px; font-weight: 800; color: #059669; }
-  @media print { .vol-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .vol-footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  @media print { .vol-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .vol-footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .vol-origen { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 `
 
-function htmlVolante(emp, ccNombre, porcentaje, periodo) {
+function htmlVolante(emp, cc, periodo) {
+  const porcentaje = cc.total_horas_ccosto > 0 ? (emp.horas / cc.total_horas_ccosto) * 100 : 0
   return `
     <div class="volante">
       <div class="vol-header">
@@ -357,14 +363,20 @@ function htmlVolante(emp, ccNombre, porcentaje, periodo) {
       </div>
       <div class="vol-emp-row">
         <div class="vol-emp-nombre">${emp.empleado_nombre}</div>
-        <div class="vol-emp-cc">Centro de costo: ${ccNombre}</div>
+        <div class="vol-emp-cc">Centro de costo: ${cc.ccosto_nombre}</div>
       </div>
-      <table>
-        <tbody>
-          <tr><td>Horas trabajadas</td><td class="ta-r">${fmtNum(emp.horas)}h</td></tr>
-          <tr><td>% del total de horas del centro de costo</td><td class="ta-r">${porcentaje.toFixed(1)}%</td></tr>
-        </tbody>
-      </table>
+      <div class="vol-origen">
+        <div class="vol-origen-titulo">¿DE DÓNDE SALE ESTE VALOR?</div>
+        <table>
+          <tbody>
+            <tr><td>Total propinas recaudadas — ${cc.ccosto_nombre}</td><td class="ta-r">${fmtMoney(cc.total_propinas_ccosto)}</td></tr>
+            <tr><td>Total horas trabajadas — ${cc.ccosto_nombre}</td><td class="ta-r">${fmtNum(cc.total_horas_ccosto)}h</td></tr>
+            <tr><td>Horas trabajadas por el empleado</td><td class="ta-r">${fmtNum(emp.horas)}h</td></tr>
+            <tr><td>% que le corresponde (horas empleado ÷ horas totales)</td><td class="ta-r">${porcentaje.toFixed(1)}%</td></tr>
+          </tbody>
+        </table>
+        <div class="vol-formula">${fmtMoney(cc.total_propinas_ccosto)} × ${porcentaje.toFixed(1)}% = ${fmtMoney(emp.valor_asignado)}</div>
+      </div>
       <div class="vol-footer">
         <div><div class="vol-label">Propina asignada</div></div>
         <div class="vol-monto">${fmtMoney(emp.valor_asignado)}</div>
@@ -376,11 +388,10 @@ function imprimirVolante(emp, cc) {
   const ventana = window.open('', '_blank')
   if (!ventana) { alert('Activa los pop-ups para imprimir el volante'); return }
   const periodo = `${nombreMes(mesSel.value)} ${anioSel.value}`
-  const porcentaje = cc.total_horas_ccosto > 0 ? (emp.horas / cc.total_horas_ccosto) * 100 : 0
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>Volante de Propinas — ${emp.empleado_nombre}</title>
     <style>${ESTILOS_VOLANTE}</style></head>
-    <body><div class="pagina">${htmlVolante(emp, cc.ccosto_nombre, porcentaje, periodo)}</div></body></html>`
+    <body><div class="pagina">${htmlVolante(emp, cc, periodo)}</div></body></html>`
   ventana.document.write(html)
   ventana.document.close()
   ventana.focus()
@@ -392,7 +403,7 @@ function imprimirTodos() {
   if (!ventana) { alert('Activa los pop-ups para imprimir los volantes'); return }
   const periodo = `${nombreMes(mesSel.value)} ${anioSel.value}`
   const cuerpo = empleadosParaImprimir.value
-    .map(emp => htmlVolante(emp, emp.ccosto_nombre, emp.porcentaje, periodo))
+    .map(emp => htmlVolante(emp, { ccosto_nombre: emp.ccosto_nombre, total_propinas_ccosto: emp.total_propinas_ccosto, total_horas_ccosto: emp.total_horas_ccosto }, periodo))
     .join('')
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>Volantes de Propinas — ${periodo}</title>
