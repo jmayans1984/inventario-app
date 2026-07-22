@@ -120,6 +120,7 @@
                   <th class="th-cuenta">CUENTA</th>
                   <th v-for="p in data.periodos" :key="p.key" class="tr">{{ p.label }}</th>
                   <th v-if="modo === 'anual'" class="tr th-total">TOTAL</th>
+                  <th class="tr th-pct">% VTA</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,19 +135,19 @@
                     </td>
                     <td v-for="(v, i) in c.valores" :key="i" class="tr">{{ v === 0 ? '—' : fmt(v) }}</td>
                     <td v-if="modo === 'anual'" class="tr font-weight-bold">{{ fmt(c.total) }}</td>
+                    <td class="tr td-pct"></td>
                   </tr>
                   <tr v-if="!g.cuentas.length" class="er-row-cuenta">
                     <td class="td-cuenta td-indent text-dim">Sin movimientos</td>
                     <td v-for="i in data.periodos.length" :key="i" class="tr">—</td>
                     <td v-if="modo === 'anual'" class="tr">—</td>
+                    <td class="tr td-pct"></td>
                   </tr>
                   <tr class="er-row-subtotal">
-                    <td class="td-cuenta td-subtotal-label">SUBTOTAL {{ g.nombre }}</td>
-                    <td v-for="(v, i) in g.subtotales" :key="i" class="tr">
-                      {{ fmt(v) }}
-                      <span v-if="modo === 'mensual'" class="pct-tag">{{ fmtPct(g.subtotalesPct[i]) }}</span>
-                    </td>
-                    <td v-if="modo === 'anual'" class="tr">{{ fmt(g.total) }} <span class="pct-tag">{{ fmtPct(g.totalPct) }}</span></td>
+                    <td class="td-cuenta"></td>
+                    <td v-for="(v, i) in g.subtotales" :key="i" class="tr">{{ fmt(v) }}</td>
+                    <td v-if="modo === 'anual'" class="tr">{{ fmt(g.total) }}</td>
+                    <td class="tr td-pct">{{ fmtPct(modo === 'anual' ? g.totalPct : g.subtotalesPct[0]) }}</td>
                   </tr>
                 </template>
 
@@ -154,6 +155,7 @@
                   <td class="td-cuenta">UTILIDAD NETA</td>
                   <td v-for="(v, i) in data.utilidadPorPeriodo" :key="i" class="tr">{{ fmt(v) }}</td>
                   <td v-if="modo === 'anual'" class="tr">{{ fmt(data.kpis.utilidadNeta) }}</td>
+                  <td class="tr td-pct">{{ fmtPct(utilidadPct) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -214,7 +216,14 @@ const ccostoNombre = computed(() => {
   return cc ? cc.nombre : ccostoSel.value
 })
 
-const colCount = computed(() => (data.value?.periodos?.length || 1) + 1 + (modo.value === 'anual' ? 1 : 0))
+// columnas: CUENTA + períodos + (TOTAL si anual) + % VTA
+const colCount = computed(() => (data.value?.periodos?.length || 1) + 1 + (modo.value === 'anual' ? 1 : 0) + 1)
+
+const utilidadPct = computed(() => {
+  if (!data.value) return null
+  const vn = data.value.kpis?.ventasNetas || 0
+  return vn > 0 ? (data.value.kpis.utilidadNeta / vn) * 100 : null
+})
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 function fmt(v) {
@@ -222,7 +231,7 @@ function fmt(v) {
 }
 function fmtPct(v) {
   if (v === null || v === undefined) return ''
-  return `(${v.toFixed(2)}%)`
+  return `${v.toFixed(2)}%`
 }
 
 // ── Carga ───────────────────────────────────────────────────────────────────
@@ -349,17 +358,23 @@ async function generarPDF() {
 
     const d = data.value
     const nPeriodos = d.periodos.length
-    const nCols = 1 + nPeriodos + (anual ? 1 : 0)
+    const nValCols = nPeriodos + (anual ? 1 : 0)   // columnas de valores
+    const nCols = 1 + nValCols + 1                  // CUENTA + valores + % VTA
+    const pctColIdx = nCols - 1
     const colCuenta = TW * 0.34
-    const colValor = (TW - colCuenta) / (nPeriodos + (anual ? 1 : 0))
+    const colPct = 13
+    const colValor = (TW - colCuenta - colPct) / nValCols
+    const PCT_FONT = 4.5                            // 2 pts menor que la fuente de los valores (6.5)
 
     const columnStyles = { 0: { cellWidth: colCuenta } }
-    for (let i = 1; i < nCols; i++) columnStyles[i] = { cellWidth: colValor, halign: 'right' }
+    for (let i = 1; i < pctColIdx; i++) columnStyles[i] = { cellWidth: colValor, halign: 'right' }
+    columnStyles[pctColIdx] = { cellWidth: colPct, halign: 'right', fontSize: PCT_FONT, textColor: C_MID }
 
-    const head = [['CUENTA', ...d.periodos.map(p => p.label), ...(anual ? ['TOTAL'] : [])]]
+    const head = [['CUENTA', ...d.periodos.map(p => p.label), ...(anual ? ['TOTAL'] : []), '% VTA']]
     const body = []
     const subtotalRows = new Set()
     const indentPad = { top: 0.9, right: 2, bottom: 0.9, left: 9 }
+    const subLine = { top: 0.25, bottom: 0.1, left: 0, right: 0 }
 
     for (const g of d.grupos) {
       body.push([{
@@ -372,21 +387,26 @@ async function generarPDF() {
         body.push([
           { content: c.nombre, styles: { fillColor: false, cellPadding: indentPad } },
           ...c.valores.map(v => ({ content: v === 0 ? '—' : fmt(v), styles: { fillColor: false } })),
-          ...(anual ? [{ content: fmt(c.total), styles: { fontStyle: 'bold', fillColor: false } }] : [])
+          ...(anual ? [{ content: fmt(c.total), styles: { fontStyle: 'bold', fillColor: false } }] : []),
+          { content: '', styles: { fillColor: false } }
         ])
       }
       subtotalRows.add(body.length)
+      const pctSub = anual ? g.totalPct : g.subtotalesPct[0]
       body.push([
-        { content: `SUBTOTAL ${g.nombre}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_DARK, halign: 'right', cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } },
-        ...g.subtotales.map((v, i) => ({ content: `${fmt(v)}  ${fmtPct(g.subtotalesPct[i])}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: 6.3, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } })),
-        ...(anual ? [{ content: `${fmt(g.total)}  ${fmtPct(g.totalPct)}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: 6.3, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } }] : [])
+        { content: '', styles: { fillColor: false, lineWidth: subLine, lineColor: C_LGREY } },
+        ...g.subtotales.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: subLine, lineColor: C_LGREY } })),
+        ...(anual ? [{ content: fmt(g.total), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: subLine, lineColor: C_LGREY } }] : []),
+        { content: fmtPct(pctSub), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: PCT_FONT, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: subLine, lineColor: C_LGREY } }
       ])
     }
 
+    const utilPct = d.kpis.ventasNetas > 0 ? (d.kpis.utilidadNeta / d.kpis.ventasNetas) * 100 : null
     body.push([
       { content: 'UTILIDAD NETA', styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: C_WHITE } },
       ...d.utilidadPorPeriodo.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: v >= 0 ? C_EMERALD : [252,165,165] } })),
-      ...(anual ? [{ content: fmt(d.kpis.utilidadNeta), styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: d.kpis.utilidadNeta >= 0 ? C_EMERALD : [252,165,165] } }] : [])
+      ...(anual ? [{ content: fmt(d.kpis.utilidadNeta), styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: d.kpis.utilidadNeta >= 0 ? C_EMERALD : [252,165,165] } }] : []),
+      { content: fmtPct(utilPct), styles: { fontStyle: 'bold', fontSize: 6, fillColor: C_INDIGO, textColor: C_WHITE } }
     ])
 
     autoTable(doc, {
@@ -533,9 +553,11 @@ async function generarPDF() {
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.15);
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
-.er-row-subtotal td:first-child { font-size: 10.5px; }
-.td-subtotal-label { text-align: right !important; }
-.pct-tag { font-size: 9px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.45); margin-left: 4px; }
+/* Columna % sobre venta: fuente 2px más pequeña que los valores, alineada al final */
+.th-pct { color: rgba(var(--v-theme-on-surface), 0.45) !important; }
+.td-pct { font-size: 9.5px; color: rgba(var(--v-theme-on-surface), 0.5); text-align: right; }
+.er-row-subtotal .td-pct { color: #6d28d9; font-weight: 700; }
+.er-row-total .td-pct { color: rgba(255,255,255,0.85); }
 .er-row-total td {
   background: #6d28d9; color: white; font-weight: 800; font-size: 14px;
   padding: 12px 10px;
