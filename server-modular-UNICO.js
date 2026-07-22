@@ -7864,6 +7864,15 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                 : 0;
         }
 
+        // ── Ventas netas por período (denominador de % sobre venta) ───────
+        const ventasNetasPorPeriodo = periodos.map(p => {
+            const ventasCCPeriodo = ventasPorPeriodoCC[p.key] || {};
+            if (ccostoFiltro) return ventasCCPeriodo[ccostoFiltro] || 0;
+            return Object.values(ventasCCPeriodo).reduce((s, v) => s + v, 0);
+        });
+        const ventasNetasTotal = ventasNetasPorPeriodo.reduce((s, v) => s + v, 0);
+        function pct(valor, base) { return base > 0 ? (valor / base) * 100 : null; }
+
         // ── Armar cuentas por grupo, con valores por período ─────────────
         const cuentasPorGrupo = {}; // grupo_codigo -> Map(cuenta_codigo -> {codigo,nombre,valores:{}})
         for (const row of gastosRes.rows) {
@@ -7899,7 +7908,9 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
             const subtotales = periodos.map((_, i) => cuentas.reduce((s, c) => s + c.valores[i], 0));
             const total = subtotales.reduce((s, v) => s + v, 0);
             const signo = g.tipo === 'INGRESO' ? 1 : -1;
-            return { codigo: g.codigo, nombre: g.nombre, tipo: g.tipo, signo, esGrupoMateriaPrima, cuentas, subtotales, total };
+            const subtotalesPct = subtotales.map((v, i) => pct(v, ventasNetasPorPeriodo[i]));
+            const totalPct = pct(total, ventasNetasTotal);
+            return { codigo: g.codigo, nombre: g.nombre, tipo: g.tipo, signo, esGrupoMateriaPrima, cuentas, subtotales, total, subtotalesPct, totalPct };
         });
 
         // Cuentas cuyo grupo no existe en grupo_gastos (huérfanas)
@@ -7911,9 +7922,12 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                 total: periodos.reduce((s, p) => s + (c.valores[p.key] || 0), 0)
             })));
             const subtotales = periodos.map((_, i) => cuentas.reduce((s, c) => s + c.valores[i], 0));
+            const total = subtotales.reduce((s, v) => s + v, 0);
             gruposFinal.push({
                 codigo: null, nombre: 'SIN GRUPO', tipo: 'EGRESO', signo: -1, esGrupoMateriaPrima: false,
-                cuentas, subtotales, total: subtotales.reduce((s, v) => s + v, 0)
+                cuentas, subtotales, total,
+                subtotalesPct: subtotales.map((v, i) => pct(v, ventasNetasPorPeriodo[i])),
+                totalPct: pct(total, ventasNetasTotal)
             });
         }
 
@@ -7940,7 +7954,8 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
             },
             grupos: gruposFinal,
             utilidadPorPeriodo,
-            kpis: { totalIngresos, totalEgresos, consumoMP: consumoMPTotal, utilidadNeta: utilidadTotal }
+            ventasNetasPorPeriodo,
+            kpis: { totalIngresos, totalEgresos, consumoMP: consumoMPTotal, utilidadNeta: utilidadTotal, ventasNetas: ventasNetasTotal }
         });
     } catch (error) {
         console.error('Error GET /api/contabilidad/estado-resultados:', error);

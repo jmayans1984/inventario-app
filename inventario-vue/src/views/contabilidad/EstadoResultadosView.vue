@@ -141,9 +141,12 @@
                     <td v-if="modo === 'anual'" class="tr">—</td>
                   </tr>
                   <tr class="er-row-subtotal">
-                    <td class="td-cuenta">SUBTOTAL {{ g.nombre }}</td>
-                    <td v-for="(v, i) in g.subtotales" :key="i" class="tr">{{ fmt(v) }}</td>
-                    <td v-if="modo === 'anual'" class="tr">{{ fmt(g.total) }}</td>
+                    <td class="td-cuenta td-subtotal-label">SUBTOTAL {{ g.nombre }}</td>
+                    <td v-for="(v, i) in g.subtotales" :key="i" class="tr">
+                      {{ fmt(v) }}
+                      <span v-if="modo === 'mensual'" class="pct-tag">{{ fmtPct(g.subtotalesPct[i]) }}</span>
+                    </td>
+                    <td v-if="modo === 'anual'" class="tr">{{ fmt(g.total) }} <span class="pct-tag">{{ fmtPct(g.totalPct) }}</span></td>
                   </tr>
                 </template>
 
@@ -216,6 +219,10 @@ const colCount = computed(() => (data.value?.periodos?.length || 1) + 1 + (modo.
 // ── Formatters ──────────────────────────────────────────────────────────────
 function fmt(v) {
   return '$' + (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function fmtPct(v) {
+  if (v === null || v === undefined) return ''
+  return `(${v.toFixed(2)}%)`
 }
 
 // ── Carga ───────────────────────────────────────────────────────────────────
@@ -351,13 +358,14 @@ async function generarPDF() {
 
     const head = [['CUENTA', ...d.periodos.map(p => p.label), ...(anual ? ['TOTAL'] : [])]]
     const body = []
-    const indentPad = { top: 1.6, right: 2, bottom: 1.6, left: 9 }
+    const subtotalRows = new Set()
+    const indentPad = { top: 0.9, right: 2, bottom: 0.9, left: 9 }
 
     for (const g of d.grupos) {
       body.push([{
         content: g.nombre, colSpan: nCols,
         styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: 6.8,
-                  cellPadding: { top: 3, right: 2, bottom: 1, left: 2 } }
+                  cellPadding: { top: 4.5, right: 2, bottom: 1, left: 2 } }
       }])
       const cuentasList = g.cuentas.length ? g.cuentas : [{ nombre: 'Sin movimientos', valores: new Array(nPeriodos).fill(0), total: 0 }]
       for (const c of cuentasList) {
@@ -367,10 +375,11 @@ async function generarPDF() {
           ...(anual ? [{ content: fmt(c.total), styles: { fontStyle: 'bold', fillColor: false } }] : [])
         ])
       }
+      subtotalRows.add(body.length)
       body.push([
-        { content: `SUBTOTAL ${g.nombre}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_DARK, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } },
-        ...g.subtotales.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } })),
-        ...(anual ? [{ content: fmt(g.total), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } }] : [])
+        { content: `SUBTOTAL ${g.nombre}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_DARK, halign: 'right', cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } },
+        ...g.subtotales.map((v, i) => ({ content: `${fmt(v)}  ${fmtPct(g.subtotalesPct[i])}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: 6.3, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } })),
+        ...(anual ? [{ content: `${fmt(g.total)}  ${fmtPct(g.totalPct)}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: 6.3, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } }] : [])
       ])
     }
 
@@ -386,11 +395,13 @@ async function generarPDF() {
       head,
       body,
       theme: 'plain',
-      styles: { fontSize: 6.5, cellPadding: { top: 1.6, right: 2, bottom: 1.6, left: 2 }, halign: 'right', lineWidth: 0 },
+      styles: { fontSize: 6.5, cellPadding: { top: 0.9, right: 2, bottom: 0.9, left: 2 }, halign: 'right', lineWidth: 0 },
       headStyles: { fillColor: C_INDIGO, textColor: C_WHITE, fontSize: 6, halign: 'right', lineWidth: { bottom: 0.3 }, lineColor: C_INDIGO },
       columnStyles,
       tableLineWidth: 0,
-      didParseCell: (hd) => { if (hd.column.index === 0) hd.cell.styles.halign = 'left' },
+      didParseCell: (hd) => {
+        if (hd.column.index === 0 && hd.section === 'body' && !subtotalRows.has(hd.row.index)) hd.cell.styles.halign = 'left'
+      },
       didDrawPage: () => { ensureHeader(); drawFooter() },
     })
 
@@ -493,35 +504,38 @@ async function generarPDF() {
   background: rgba(109,40,217,0.1); color: #6d28d9; white-space: nowrap; text-transform: none;
 }
 
-/* TABLA ESTADO DE RESULTADOS (estilo limpio tipo hoja contable) */
+/* TABLA ESTADO DE RESULTADOS (estilo limpio, compacto, tipo hoja contable) */
 .er-table-wrap { overflow-x: auto; }
-.er-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.er-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 .er-table thead th {
-  text-align: right; font-size: 10px; font-weight: 800; letter-spacing: 0.4px;
+  text-align: right; font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px;
   color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase;
-  padding: 8px 10px; border-bottom: 2px solid rgba(var(--v-theme-on-surface), 0.15);
+  padding: 5px 8px; border-bottom: 2px solid rgba(var(--v-theme-on-surface), 0.15);
   white-space: nowrap;
 }
 .th-cuenta { text-align: left !important; }
 .th-total { color: #6d28d9 !important; }
-.er-table td { padding: 6px 10px; white-space: nowrap; }
+.er-table td { padding: 2.5px 8px; white-space: nowrap; line-height: 1.3; }
 .er-table .tr { text-align: right; }
 .td-cuenta { color: rgb(var(--v-theme-on-surface)); text-align: left; white-space: normal; }
-.td-indent { padding-left: 26px !important; }
+.td-indent { padding-left: 24px !important; }
 .text-dim { color: rgba(var(--v-theme-on-surface), 0.4); font-style: italic; }
 
 .er-row-grupo-header td {
-  font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
-  color: #6d28d9; padding: 14px 10px 5px;
+  font-weight: 800; font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase;
+  color: #6d28d9; padding: 16px 8px 4px;
   border-bottom: 1px solid rgba(109,40,217,0.2);
 }
 .er-row-cuenta td { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04); }
 .er-row-subtotal td {
   font-weight: 700; background: transparent;
+  padding: 3.5px 8px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.15);
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
-.er-row-subtotal td:first-child { font-size: 11px; }
+.er-row-subtotal td:first-child { font-size: 10.5px; }
+.td-subtotal-label { text-align: right !important; }
+.pct-tag { font-size: 9px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.45); margin-left: 4px; }
 .er-row-total td {
   background: #6d28d9; color: white; font-weight: 800; font-size: 14px;
   padding: 12px 10px;
