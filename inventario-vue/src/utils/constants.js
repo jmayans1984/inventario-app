@@ -100,7 +100,7 @@ export const MODULES = [
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },
         { name: 'Toma Física', icon: 'mdi-counter', path: '/almacen/procesos/toma-fisica' },
-        { name: 'Valoración Mensual', icon: 'mdi-calculator-variant', path: '/almacen/procesos/valoracion' },
+        { name: 'Valoración Mensual de Inventario', icon: 'mdi-calculator-variant', path: '/almacen/procesos/valoracion' },
         { name: 'Órdenes de Compra', icon: 'mdi-clipboard-list-outline', path: '/almacen/procesos/ordenes-compra' },
         { name: 'Despachos de Bodega', icon: 'mdi-truck-delivery-outline', path: '/almacen/procesos/despachos' },
         { name: 'Órdenes de Producción', icon: 'mdi-factory', path: '/almacen/procesos/ordenes-produccion' },

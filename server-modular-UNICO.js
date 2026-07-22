@@ -2647,6 +2647,138 @@ app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
 // ── FIN REPORTE CONSUMO INSUMOS ───────────────────────────────────
 
 // ══════════════════════════════════════════════════════════════════
+// VALORACIÓN MENSUAL DE INVENTARIO (juego de inventarios / COGS real)
+// Consumo real de materia prima = Inv. Inicial + Compras - Inv. Final,
+// valorizando TODOS los centros de costo + bodega maestra al precio_costo
+// actual de cada producto (costo promedio). Las compras se toman de
+// detalles_entrada_almacen (costo real de factura), no de detalle_inventario.
+// ══════════════════════════════════════════════════════════════════
+
+app.get('/api/almacen/valoracion-mensual', async (req, res) => {
+    const { empresa, desde, hasta } = req.query;
+    if (!empresa || !desde || !hasta)
+        return res.status(400).json({ success: false, error: 'empresa, desde y hasta son requeridos' });
+    const emp = parseInt(empresa);
+    try {
+        const ccRes = await pool.query(
+            `SELECT codigo, nombre FROM ccostos WHERE empresa = $1 ORDER BY nombre`, [emp]
+        );
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]
+        );
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+
+        // Stock valorizado por producto x ccosto, a un corte de fecha dado
+        async function stockValorizado(fechaCorte) {
+            const r = await pool.query(
+                `SELECT di.ccosto, di.codigo,
+                        ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
+                        COALESCE(p.precio_costo, 0) AS precio_costo,
+                        p.nombre, p.und,
+                        COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre
+                 FROM detalle_inventario di
+                 JOIN productos p ON p.codigo = di.codigo
+                 LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+                 WHERE di.empresa = $1 AND di.fecha <= $2 AND p.control = 'SI'
+                 GROUP BY di.ccosto, di.codigo, p.precio_costo, p.nombre, p.und, gp.nombre`,
+                [emp, fechaCorte]
+            );
+            return r.rows;
+        }
+
+        const fechaCorteInicial = new Date(new Date(desde).getTime() - 86400000).toISOString().slice(0, 10);
+        const [inicialRows, finalRows, comprasRes] = await Promise.all([
+            stockValorizado(fechaCorteInicial),
+            stockValorizado(hasta),
+            pool.query(
+                `SELECT dea.articulo AS codigo,
+                        SUM(dea.cantidad)  AS cantidad,
+                        SUM(dea.subtotal)  AS subtotal
+                 FROM detalles_entrada_almacen dea
+                 JOIN entrada_almacen ea ON ea.codigo = dea.entrada AND ea.empresa::text = $1
+                 WHERE ea.fecha >= $2 AND ea.fecha <= $3
+                 GROUP BY dea.articulo`,
+                [String(empresa), desde, hasta]
+            )
+        ]);
+
+        // Agregación por CC y por producto
+        const porCC = {};
+        const porProducto = {};
+        function acumular(rows, campo) {
+            for (const row of rows) {
+                const valor = parseFloat(row.stock) * parseFloat(row.precio_costo);
+                const cc = row.ccosto;
+                if (!porCC[cc]) porCC[cc] = { ccosto: cc, valorInicial: 0, valorFinal: 0 };
+                porCC[cc][campo] += valor;
+
+                if (!porProducto[row.codigo]) {
+                    porProducto[row.codigo] = {
+                        codigo: row.codigo, nombre: row.nombre, und: row.und,
+                        grupo_nombre: row.grupo_nombre, precio_costo: parseFloat(row.precio_costo),
+                        valorInicial: 0, valorFinal: 0, compras: 0, stockInicial: 0, stockFinal: 0
+                    };
+                }
+                porProducto[row.codigo][campo] += valor;
+                porProducto[row.codigo][campo === 'valorInicial' ? 'stockInicial' : 'stockFinal'] += parseFloat(row.stock);
+            }
+        }
+        acumular(inicialRows, 'valorInicial');
+        acumular(finalRows, 'valorFinal');
+
+        let totalCompras = 0;
+        const itemsSinCosto = new Set();
+        for (const row of comprasRes.rows) {
+            const subtotal = parseFloat(row.subtotal) || 0;
+            totalCompras += subtotal;
+            if (porProducto[row.codigo]) porProducto[row.codigo].compras += subtotal;
+        }
+
+        for (const p of Object.values(porProducto)) {
+            if (p.precio_costo <= 0 && (p.stockInicial > 0 || p.stockFinal > 0)) itemsSinCosto.add(p.codigo);
+            p.consumoReal = p.valorInicial + p.compras - p.valorFinal;
+        }
+
+        const ccNombres = {};
+        ccRes.rows.forEach(cc => { ccNombres[cc.codigo] = cc.nombre; });
+
+        const centros = Object.values(porCC).map(c => ({
+            ...c,
+            nombre: ccNombres[c.ccosto] || c.ccosto,
+            esBodegaMaestra: bodegaMaestra && String(c.ccosto) === String(bodegaMaestra),
+            diferencia: c.valorFinal - c.valorInicial
+        })).sort((a, b) => (b.valorFinal) - (a.valorFinal));
+
+        const valorInicialTotal = Object.values(porCC).reduce((s, c) => s + c.valorInicial, 0);
+        const valorFinalTotal = Object.values(porCC).reduce((s, c) => s + c.valorFinal, 0);
+        const consumoReal = valorInicialTotal + totalCompras - valorFinalTotal;
+
+        const productos = Object.values(porProducto)
+            .filter(p => p.valorInicial > 0.0001 || p.valorFinal > 0.0001 || p.compras > 0.0001)
+            .sort((a, b) => b.consumoReal - a.consumoReal);
+
+        res.json({
+            success: true,
+            periodo: { desde, hasta },
+            bodegaMaestra,
+            kpis: {
+                valorInicial: valorInicialTotal,
+                valorFinal: valorFinalTotal,
+                compras: totalCompras,
+                consumoReal,
+                itemsSinCosto: itemsSinCosto.size
+            },
+            centros,
+            productos
+        });
+    } catch (error) {
+        console.error('Error GET /api/almacen/valoracion-mensual:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// ── FIN VALORACIÓN MENSUAL DE INVENTARIO ──────────────────────────
+
+// ══════════════════════════════════════════════════════════════════
 // ÓRDENES DE PRODUCCIÓN (subproductos de recetas)
 // Sugerencia de producción basada en consumo de los últimos N días
 // (ventas directas + uso como ingrediente en platos vendidos),
