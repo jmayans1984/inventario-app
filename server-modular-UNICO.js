@@ -7864,12 +7864,12 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                 : 0;
         }
 
-        // ── Traer TODAS las cuentas ACTIVAS (incluso sin movimientos en el período) ─
+        // ── Traer TODAS las cuentas (incluso sin movimientos en el período) ─
         const cuentasActivasRes = await pool.query(`
             SELECT c.codigo, c.nombre, gg.codigo as grupo_codigo
             FROM cuentas c
             LEFT JOIN grupos_gastos gg ON c.grupo_gastos_codigo = gg.codigo
-            WHERE c.empresa = $1 AND c.activo = true
+            WHERE c.empresa = $1
             ORDER BY c.codigo
         `, [empresa]);
 
