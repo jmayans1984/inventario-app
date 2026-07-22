@@ -657,33 +657,25 @@ async function cargarArticulos() {
 }
 
 async function recalcularTodos() {
-  // Ordenar: subproductos primero (son ingredientes de otras recetas)
-  const lista = [
-    ...recetas.value.filter(r => r.subproducto === 'SI'),
-    ...recetas.value.filter(r => r.subproducto !== 'SI'),
-  ]
-  recalcTotal.value        = lista.length * 2  // 2 pasadas
+  recalcTotal.value        = recetas.value.length
   recalcHecho.value        = 0
   recalcActualNombre.value = ''
   recalcDone.value         = false
   dlgRecalcular.value      = true
   recalculando.value       = true
+  recalcFase.value         = 'Recalculando en orden de dependencias…'
 
-  const calcular = async (receta) => {
-    recalcActualNombre.value = receta.nombre
-    try {
-      await fetch(`${API_BASE}/recetas/${encodeURIComponent(receta.codigo)}/calcular-costo`, { method: 'POST' })
-    } catch { /* continuar con la siguiente */ }
-    recalcHecho.value++
+  try {
+    const r = await fetch(`${API_BASE}/recetas/recalcular-todos`, { method: 'POST' })
+    const j = await r.json()
+    if (!j.success) throw new Error(j.error || 'Error al recalcular')
+    recalcHecho.value = j.recalculadas || recetas.value.length
+    if (Array.isArray(j.ciclos_detectados) && j.ciclos_detectados.length > 0) {
+      err(`Atención: se detectaron ciclos en ${j.ciclos_detectados.length} receta(s). Revisa ingredientes auto-referenciados.`)
+    }
+  } catch (e) {
+    err(e.message || 'Error al recalcular costos')
   }
-
-  // Pasada 1: subproductos → recetas finales
-  recalcFase.value = 'Pasada 1 de 2 — calculando costos base'
-  for (const r of lista) await calcular(r)
-
-  // Pasada 2: recalcular todo con subrecetas ya actualizadas
-  recalcFase.value = 'Pasada 2 de 2 — actualizando recetas con subrecetas'
-  for (const r of lista) await calcular(r)
 
   recalcDone.value   = true
   recalcFase.value   = ''

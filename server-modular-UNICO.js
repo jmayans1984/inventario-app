@@ -12236,56 +12236,56 @@ app.put('/api/recetas/:codigo/ingredientes', async (req, res) => {
     }
 });
 
-// POST /api/recetas/:codigo/calcular-costo - Calcular costo de una receta (RECURSIVO con jerárquico)
+// POST /api/recetas/:codigo/calcular-costo - Calcular costo de una receta
 app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
     const { codigo } = req.params;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // Función recursiva para calcular costo expandiendo subrecetas
-        async function calcularCostoRecursivo(recetaCod) {
-            const detalleRes = await client.query(`
-                SELECT dr.codigo, dr.articulo, dr.cantidad, COALESCE(dr.tipo, 'ARTICULO') AS tipo
-                FROM detalle_recetas dr
-                WHERE dr.receta = $1
-            `, [recetaCod]);
+        const detalleRes = await client.query(`
+            SELECT dr.codigo, dr.articulo, dr.cantidad, COALESCE(dr.tipo, 'ARTICULO') AS tipo
+            FROM detalle_recetas dr
+            WHERE dr.receta = $1
+        `, [codigo]);
 
-            let costoTotal = 0;
-            for (const det of detalleRes.rows) {
-                let precio = 0;
-                if (det.tipo === 'ARTICULO') {
-                    // Obtener precio del artículo
-                    const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
-                    precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
-                } else if (det.tipo === 'RECETA') {
-                    // Obtener costo de la receta (ya calculado)
-                    const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
-                    precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
-                }
-                costoTotal += precio * parseFloat(det.cantidad);
-                // Actualizar vr_unit y vr_total en detalle
-                await client.query(`
-                    UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2
-                    WHERE codigo = $3
-                `, [precio, precio * parseFloat(det.cantidad), det.codigo]);
+        let costoTotal = 0;
+        const ignorados = [];
+        for (const det of detalleRes.rows) {
+            // Protección auto-referencia: ingrediente que apunta a la misma receta
+            if (det.tipo === 'RECETA' && det.articulo === codigo) {
+                ignorados.push(det.articulo);
+                await client.query(
+                    'UPDATE detalle_recetas SET vr_unit = 0, vr_total = 0 WHERE codigo = $1',
+                    [det.codigo]
+                );
+                continue;
             }
-            return costoTotal;
+            let precio = 0;
+            if (det.tipo === 'ARTICULO') {
+                const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
+                precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
+            } else if (det.tipo === 'RECETA') {
+                const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
+                precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
+            }
+            const cant = parseFloat(det.cantidad) || 0;
+            costoTotal += precio * cant;
+            await client.query(
+                'UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2 WHERE codigo = $3',
+                [precio, precio * cant, det.codigo]
+            );
         }
 
-        const costoTotal = await calcularCostoRecursivo(codigo);
-
-        // Guardar costo en recetas.valor
         await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
 
-        // Si es subproducto → actualizar su precio en articulos
         const subpRes = await client.query('SELECT subproducto FROM recetas WHERE codigo = $1', [codigo]);
         if (subpRes.rowCount > 0 && subpRes.rows[0].subproducto === 'SI') {
             await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
         }
 
         await client.query('COMMIT');
-        res.json({ success: true, costo: costoTotal });
+        res.json({ success: true, costo: costoTotal, ignorados_autoref: ignorados });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error POST /api/recetas/:codigo/calcular-costo:', error);
@@ -12295,19 +12295,67 @@ app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
     }
 });
 
-// POST /api/recetas/recalcular-todos - 3 pasadas: directas → subrecetas → finales (jerárquico)
+// POST /api/recetas/recalcular-todos - orden topológico por dependencias + detección auto-referencia y ciclos
 app.post('/api/recetas/recalcular-todos', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+
         const recetasRes = await client.query(
-            `SELECT codigo, subproducto FROM recetas ORDER BY nombre`
+            `SELECT codigo, subproducto, nombre FROM recetas ORDER BY nombre`
         );
         const recetas = recetasRes.rows;
-        const resultados = [];
+        const subprodMap = new Map(recetas.map(r => [r.codigo, r.subproducto]));
 
-        // Función para calcular costo recursivo
-        async function calcularCosto(codigo, subproducto) {
+        // Grafo: receta -> Set(subrecetas usadas como ingrediente)
+        const depsRes = await client.query(`
+            SELECT receta, articulo
+            FROM detalle_recetas
+            WHERE COALESCE(tipo, 'ARTICULO') = 'RECETA'
+        `);
+        const deps = new Map();
+        for (const r of recetas) deps.set(r.codigo, new Set());
+        for (const d of depsRes.rows) {
+            if (d.articulo === d.receta) continue;  // ignorar auto-referencia
+            if (deps.has(d.receta) && deps.has(d.articulo)) {
+                deps.get(d.receta).add(d.articulo);
+            }
+        }
+
+        // Kahn: ordenamos primero las que no dependen de ninguna otra receta
+        const indeg = new Map();
+        const usadoPor = new Map();
+        for (const [cod, set] of deps) {
+            indeg.set(cod, set.size);
+            for (const sub of set) {
+                if (!usadoPor.has(sub)) usadoPor.set(sub, []);
+                usadoPor.get(sub).push(cod);
+            }
+        }
+        const orden = [];
+        const visitados = new Set();
+        const cola = [];
+        for (const [cod, n] of indeg) if (n === 0) cola.push(cod);
+        while (cola.length > 0) {
+            const cod = cola.shift();
+            orden.push(cod);
+            visitados.add(cod);
+            for (const cons of (usadoPor.get(cod) || [])) {
+                indeg.set(cons, indeg.get(cons) - 1);
+                if (indeg.get(cons) === 0) cola.push(cons);
+            }
+        }
+        // Ciclos: agregamos al final para no perderlas del recálculo
+        const ciclos = [];
+        for (const r of recetas) {
+            if (!visitados.has(r.codigo)) {
+                orden.push(r.codigo);
+                ciclos.push(r.codigo);
+            }
+        }
+
+        async function calcularCosto(codigo) {
+            const subproducto = subprodMap.get(codigo);
             const detalleRes = await client.query(`
                 SELECT dr.codigo, dr.articulo, dr.cantidad, COALESCE(dr.tipo, 'ARTICULO') AS tipo
                 FROM detalle_recetas dr
@@ -12316,6 +12364,13 @@ app.post('/api/recetas/recalcular-todos', async (req, res) => {
 
             let costoTotal = 0;
             for (const det of detalleRes.rows) {
+                if (det.tipo === 'RECETA' && det.articulo === codigo) {
+                    await client.query(
+                        'UPDATE detalle_recetas SET vr_unit = 0, vr_total = 0 WHERE codigo = $1',
+                        [det.codigo]
+                    );
+                    continue;
+                }
                 let precio = 0;
                 if (det.tipo === 'ARTICULO') {
                     const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
@@ -12324,10 +12379,11 @@ app.post('/api/recetas/recalcular-todos', async (req, res) => {
                     const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
                     precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
                 }
-                costoTotal += precio * parseFloat(det.cantidad);
+                const cant = parseFloat(det.cantidad) || 0;
+                costoTotal += precio * cant;
                 await client.query(
                     'UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2 WHERE codigo = $3',
-                    [precio, precio * parseFloat(det.cantidad), det.codigo]
+                    [precio, precio * cant, det.codigo]
                 );
             }
 
@@ -12338,33 +12394,16 @@ app.post('/api/recetas/recalcular-todos', async (req, res) => {
             return { codigo, costo: costoTotal };
         }
 
-        // Pasada 1: Recetas que SOLO usan artículos directos (sin subrecetas como ingredientes)
-        for (const r of recetas) {
-            const usaSubrecs = await client.query(
-                `SELECT COUNT(*) AS cnt FROM detalle_recetas WHERE receta = $1 AND tipo = 'RECETA'`,
-                [r.codigo]
-            );
-            if (parseInt(usaSubrecs.rows[0].cnt) === 0) {
-                resultados.push(await calcularCosto(r.codigo, r.subproducto));
-            }
-        }
-
-        // Pasada 2: Subrecetas (pueden usar otras subrecetas pero están marcadas como SI)
-        for (const r of recetas) {
-            if (r.subproducto === 'SI') {
-                const yaCalc = resultados.find(x => x.codigo === r.codigo);
-                if (!yaCalc) resultados.push(await calcularCosto(r.codigo, r.subproducto));
-            }
-        }
-
-        // Pasada 3: El resto (recetas finales que ya ven todos los precios actualizados)
-        for (const r of recetas) {
-            const yaCalc = resultados.find(x => x.codigo === r.codigo);
-            if (!yaCalc) resultados.push(await calcularCosto(r.codigo, r.subproducto));
-        }
+        const resultados = [];
+        for (const cod of orden) resultados.push(await calcularCosto(cod));
 
         await client.query('COMMIT');
-        res.json({ success: true, recalculadas: resultados.length, detalle: resultados });
+        res.json({
+            success: true,
+            recalculadas: resultados.length,
+            ciclos_detectados: ciclos,
+            detalle: resultados
+        });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error POST /api/recetas/recalcular-todos:', error);
