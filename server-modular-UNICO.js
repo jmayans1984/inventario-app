@@ -7709,6 +7709,158 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
     }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// ESTADO DE RESULTADOS (P&G)
+//
+// Agrupa las cuentas contables de "gastos" por grupo_gastos (ordenado
+// por grupo_gastos.codigo). La cuenta configurada como Materia Prima
+// (config_general.cta_materia_prima) NO se suma en crudo: se reemplaza
+// por el consumo real calculado vía juego de inventarios
+// (Inv. Inicial + Compras de esa cuenta - Inv. Final), igual que en
+// Almacén > Valoración Mensual de Inventario.
+// ══════════════════════════════════════════════════════════════════
+
+app.get('/api/contabilidad/estado-resultados', async (req, res) => {
+    const { empresa, desde, hasta } = req.query;
+    if (!empresa || !desde || !hasta)
+        return res.status(400).json({ success: false, error: 'empresa, desde y hasta son requeridos' });
+    const emp = parseInt(empresa);
+    try {
+        const [cfgRes, gruposRes, ventasRes] = await Promise.all([
+            pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [emp]),
+            pool.query(`SELECT TRIM(codigo) AS codigo, TRIM(nombre) AS nombre, TRIM(tipo) AS tipo FROM grupo_gastos ORDER BY codigo ASC`),
+            pool.query(
+                `SELECT COALESCE(SUM(ventas_netas), 0) AS ventas_netas
+                 FROM ventas WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3`,
+                [emp, desde, hasta]
+            ),
+        ]);
+        const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
+        const ventasNetas = parseFloat(ventasRes.rows[0].ventas_netas) || 0;
+
+        // ── Cuenta y grupo de Materia Prima ────────────────────────────────
+        let grupoMateriaPrimaCodigo = null;
+        let ctaMateriaPrimaNombre = null;
+        if (ctaMateriaPrima) {
+            const ctaRes = await pool.query(
+                `SELECT TRIM(grupo) AS grupo, cuenta FROM cuentas WHERE codigo = $1 AND empresa = $2`,
+                [ctaMateriaPrima, emp]
+            );
+            grupoMateriaPrimaCodigo = ctaRes.rows[0]?.grupo || null;
+            ctaMateriaPrimaNombre = ctaRes.rows[0]?.cuenta || null;
+        }
+
+        // ── Consumo real de Materia Prima (juego de inventarios) ──────────
+        async function stockValorizadoTotal(fechaCorte) {
+            const r = await pool.query(
+                `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(p.precio_costo,0)), 0) AS valor
+                 FROM detalle_inventario di
+                 JOIN productos p ON p.codigo = di.codigo
+                 WHERE di.empresa = $1 AND di.fecha <= $2 AND p.control = 'SI'`,
+                [emp, fechaCorte]
+            );
+            return parseFloat(r.rows[0].valor) || 0;
+        }
+        const fechaCorteInicial = new Date(new Date(desde).getTime() - 86400000).toISOString().slice(0, 10);
+        const [valorInicial, valorFinal, comprasMPRes] = await Promise.all([
+            stockValorizadoTotal(fechaCorteInicial),
+            stockValorizadoTotal(hasta),
+            ctaMateriaPrima
+                ? pool.query(
+                    `SELECT COALESCE(SUM(total), 0) AS total FROM gastos
+                     WHERE empresa = $1 AND cuenta = $2 AND fecha >= $3 AND fecha <= $4`,
+                    [emp, ctaMateriaPrima, desde, hasta]
+                  )
+                : Promise.resolve({ rows: [{ total: 0 }] })
+        ]);
+        const comprasMP = parseFloat(comprasMPRes.rows[0].total) || 0;
+        const consumoMP = valorInicial + comprasMP - valorFinal;
+
+        // ── Resto de gastos por cuenta (excluyendo la cuenta de Materia Prima) ──
+        const gastosRes = await pool.query(
+            `SELECT c.codigo, c.cuenta AS nombre, TRIM(c.grupo) AS grupo_codigo,
+                    SUM(g.total) AS total
+             FROM gastos g
+             JOIN cuentas c ON c.codigo = g.cuenta AND c.empresa = g.empresa
+             WHERE g.empresa = $1 AND g.fecha >= $2 AND g.fecha <= $3
+               AND ($4::text IS NULL OR g.cuenta <> $4)
+             GROUP BY c.codigo, c.cuenta, c.grupo`,
+            [emp, desde, hasta, ctaMateriaPrima]
+        );
+
+        const cuentasPorGrupo = {};
+        for (const row of gastosRes.rows) {
+            const gc = row.grupo_codigo || 'SIN_GRUPO';
+            if (!cuentasPorGrupo[gc]) cuentasPorGrupo[gc] = [];
+            cuentasPorGrupo[gc].push({ codigo: row.codigo, nombre: row.nombre, total: parseFloat(row.total) || 0 });
+        }
+
+        // ── Armar grupos (orden por grupo_gastos.codigo), inyectando consumoMP ──
+        const gruposFinal = gruposRes.rows.map(g => {
+            const cuentas = [...(cuentasPorGrupo[g.codigo] || [])];
+            let total = cuentas.reduce((s, c) => s + c.total, 0);
+            const esGrupoMateriaPrima = grupoMateriaPrimaCodigo && g.codigo === grupoMateriaPrimaCodigo;
+            if (esGrupoMateriaPrima) {
+                cuentas.unshift({
+                    codigo: ctaMateriaPrima, nombre: ctaMateriaPrimaNombre || 'MATERIA PRIMA',
+                    total: consumoMP, esConsumoCalculado: true
+                });
+                total += consumoMP;
+            }
+            delete cuentasPorGrupo[g.codigo];
+            return { codigo: g.codigo, nombre: g.nombre, tipo: g.tipo, esGrupoMateriaPrima, cuentas, total };
+        });
+        // Cuentas cuyo grupo no existe en grupo_gastos (huérfanas) → grupo "SIN GRUPO"
+        const huerfanos = Object.values(cuentasPorGrupo).flat();
+        if (huerfanos.length) {
+            gruposFinal.push({
+                codigo: null, nombre: 'SIN GRUPO', tipo: null, esGrupoMateriaPrima: false,
+                cuentas: huerfanos, total: huerfanos.reduce((s, c) => s + c.total, 0)
+            });
+        }
+
+        // ── Secciones por tipo (preservando el orden de aparición por código) ──
+        const secciones = [];
+        const seccionPorTipo = {};
+        for (const g of gruposFinal) {
+            const tipoKey = g.tipo || 'GASTOS';
+            if (!seccionPorTipo[tipoKey]) {
+                seccionPorTipo[tipoKey] = { tipo: tipoKey, grupos: [], subtotal: 0 };
+                secciones.push(seccionPorTipo[tipoKey]);
+            }
+            seccionPorTipo[tipoKey].grupos.push(g);
+            seccionPorTipo[tipoKey].subtotal += g.total;
+        }
+
+        let acumulado = ventasNetas;
+        for (const s of secciones) {
+            acumulado -= s.subtotal;
+            s.utilidadAcumulada = acumulado;
+        }
+
+        const totalGastos = gruposFinal.reduce((s, g) => s + g.total, 0);
+        const utilidadNeta = ventasNetas - totalGastos;
+
+        res.json({
+            success: true,
+            periodo: { desde, hasta },
+            ingresos: { ventasNetas },
+            materiaPrima: {
+                ctaCodigo: ctaMateriaPrima, ctaNombre: ctaMateriaPrimaNombre,
+                grupoCodigo: grupoMateriaPrimaCodigo,
+                valorInicial, compras: comprasMP, valorFinal, consumo: consumoMP
+            },
+            secciones,
+            totalGastos,
+            utilidadNeta
+        });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/estado-resultados:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// ── FIN ESTADO DE RESULTADOS ───────────────────────────────────────
+
 // GET /api/contabilidad/cuentas-contables/proximo-codigo
 app.get('/api/contabilidad/cuentas-contables/proximo-codigo', async (req, res) => {
     try {
