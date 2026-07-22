@@ -128,7 +128,7 @@
                     <td :colspan="colCount">{{ g.nombre }}</td>
                   </tr>
                   <tr v-for="c in g.cuentas" :key="c.codigo" class="er-row-cuenta">
-                    <td class="td-cuenta">
+                    <td class="td-cuenta td-indent">
                       {{ c.nombre }}
                       <span v-if="c.esConsumoCalculado" class="badge-info">JUEGO DE INVENTARIOS</span>
                     </td>
@@ -136,7 +136,7 @@
                     <td v-if="modo === 'anual'" class="tr font-weight-bold">{{ fmt(c.total) }}</td>
                   </tr>
                   <tr v-if="!g.cuentas.length" class="er-row-cuenta">
-                    <td class="td-cuenta text-dim">Sin movimientos</td>
+                    <td class="td-cuenta td-indent text-dim">Sin movimientos</td>
                     <td v-for="i in data.periodos.length" :key="i" class="tr">—</td>
                     <td v-if="modo === 'anual'" class="tr">—</td>
                   </tr>
@@ -351,21 +351,26 @@ async function generarPDF() {
 
     const head = [['CUENTA', ...d.periodos.map(p => p.label), ...(anual ? ['TOTAL'] : [])]]
     const body = []
+    const indentPad = { top: 1.6, right: 2, bottom: 1.6, left: 9 }
 
     for (const g of d.grupos) {
-      body.push([{ content: g.nombre, colSpan: nCols, styles: { fontStyle: 'bold', fillColor: C_IND2, textColor: C_WHITE, fontSize: 6.5 } }])
+      body.push([{
+        content: g.nombre, colSpan: nCols,
+        styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: 6.8,
+                  cellPadding: { top: 3, right: 2, bottom: 1, left: 2 } }
+      }])
       const cuentasList = g.cuentas.length ? g.cuentas : [{ nombre: 'Sin movimientos', valores: new Array(nPeriodos).fill(0), total: 0 }]
       for (const c of cuentasList) {
         body.push([
-          c.nombre,
-          ...c.valores.map(v => v === 0 ? '—' : fmt(v)),
-          ...(anual ? [{ content: fmt(c.total), styles: { fontStyle: 'bold' } }] : [])
+          { content: c.nombre, styles: { fillColor: false, cellPadding: indentPad } },
+          ...c.valores.map(v => ({ content: v === 0 ? '—' : fmt(v), styles: { fillColor: false } })),
+          ...(anual ? [{ content: fmt(c.total), styles: { fontStyle: 'bold', fillColor: false } }] : [])
         ])
       }
       body.push([
-        { content: `SUBTOTAL ${g.nombre}`, styles: { fontStyle: 'bold', fillColor: C_IND_BG, textColor: C_DARK } },
-        ...g.subtotales.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fillColor: C_IND_BG, textColor: C_IND2 } })),
-        ...(anual ? [{ content: fmt(g.total), styles: { fontStyle: 'bold', fillColor: C_IND_BG, textColor: C_IND2 } }] : [])
+        { content: `SUBTOTAL ${g.nombre}`, styles: { fontStyle: 'bold', fillColor: false, textColor: C_DARK, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } },
+        ...g.subtotales.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } })),
+        ...(anual ? [{ content: fmt(g.total), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, lineWidth: { top: 0.25, bottom: 0.1, left: 0, right: 0 }, lineColor: C_LGREY } }] : [])
       ])
     }
 
@@ -381,12 +386,10 @@ async function generarPDF() {
       head,
       body,
       theme: 'plain',
-      styles: { fontSize: 6.5, cellPadding: { top: 1.6, right: 2, bottom: 1.6, left: 2 }, halign: 'right' },
-      headStyles: { fillColor: C_INDIGO, textColor: C_WHITE, fontSize: 6, halign: 'right' },
-      alternateRowStyles: { fillColor: C_ALTROW },
+      styles: { fontSize: 6.5, cellPadding: { top: 1.6, right: 2, bottom: 1.6, left: 2 }, halign: 'right', lineWidth: 0 },
+      headStyles: { fillColor: C_INDIGO, textColor: C_WHITE, fontSize: 6, halign: 'right', lineWidth: { bottom: 0.3 }, lineColor: C_INDIGO },
       columnStyles,
-      tableLineColor: C_LGREY,
-      tableLineWidth: 0.1,
+      tableLineWidth: 0,
       didParseCell: (hd) => { if (hd.column.index === 0) hd.cell.styles.halign = 'left' },
       didDrawPage: () => { ensureHeader(); drawFooter() },
     })
@@ -504,17 +507,19 @@ async function generarPDF() {
 .er-table td { padding: 6px 10px; white-space: nowrap; }
 .er-table .tr { text-align: right; }
 .td-cuenta { color: rgb(var(--v-theme-on-surface)); text-align: left; white-space: normal; }
+.td-indent { padding-left: 26px !important; }
 .text-dim { color: rgba(var(--v-theme-on-surface), 0.4); font-style: italic; }
 
 .er-row-grupo-header td {
-  font-weight: 800; font-size: 11.5px; letter-spacing: 0.4px; text-transform: uppercase;
-  color: #6d28d9; padding: 12px 10px 4px;
-  border-bottom: 1px solid rgba(109,40,217,0.25);
+  font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+  color: #6d28d9; padding: 14px 10px 5px;
+  border-bottom: 1px solid rgba(109,40,217,0.2);
 }
 .er-row-cuenta td { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04); }
 .er-row-subtotal td {
-  font-weight: 700; background: rgba(109,40,217,0.06);
-  border-top: 1px solid rgba(109,40,217,0.2); border-bottom: 1px solid rgba(109,40,217,0.2);
+  font-weight: 700; background: transparent;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.15);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 .er-row-subtotal td:first-child { font-size: 11px; }
 .er-row-total td {
