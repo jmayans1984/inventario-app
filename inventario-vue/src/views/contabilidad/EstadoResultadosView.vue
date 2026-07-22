@@ -533,9 +533,14 @@ async function generarPDF() {
   padding: 5px 8px; border-bottom: 2px solid rgba(var(--v-theme-on-surface), 0.15);
   white-space: nowrap;
 }
-.th-cuenta { text-align: left !important; }
+.th-cuenta { text-align: left !important; width: 100%; }
 .th-total { color: #6d28d9 !important; }
 .er-table td { padding: 2.5px 8px; white-space: nowrap; line-height: 1.3; }
+/* La columna CUENTA absorbe el ancho sobrante; valores y % quedan juntos a la derecha */
+.er-table thead th:not(.th-cuenta),
+.er-table td:not(.td-cuenta) { width: 1px; }
+/* % pegado al valor de la izquierda */
+.th-pct, .td-pct { padding-left: 2px !important; }
 .er-table .tr { text-align: right; }
 .td-cuenta { color: rgb(var(--v-theme-on-surface)); text-align: left; white-space: normal; }
 .td-indent { padding-left: 24px !important; }
