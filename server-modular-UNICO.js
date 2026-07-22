@@ -2214,7 +2214,7 @@ app.get('/api/almacen/verificar-inventario', async (req, res) => {
 // GET /api/almacen/ajuste-inventario/stock
 // Devuelve todos los productos con control='SI' y su stock actual en ese CC
 app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
-    const { empresa, ccosto } = req.query;
+    const { empresa, ccosto, cierre } = req.query;
     if (!empresa || !ccosto) {
         return res.status(400).json({ success: false, error: 'empresa y ccosto son requeridos' });
     }
@@ -2226,9 +2226,11 @@ app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
         );
         const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
         const esBodegaMaestra = bodegaMaestra && bodegaMaestra === ccosto;
+        const esCierre = cierre === 'true' || cierre === '1';
 
         // Bodega maestra → control = 'SI' (activo) | Punto de venta → visible_operacional = 'SI'
-        const filtroProductos = esBodegaMaestra
+        // Modo "cierre de periodo" → siempre control = 'SI', sin importar el CC (conteo completo para valorización mensual)
+        const filtroProductos = (esBodegaMaestra || esCierre)
             ? `p.control = 'SI'`
             : `p.visible_operacional = 'SI'`;
 

@@ -147,6 +147,20 @@
           </div>
 
         </div>
+
+        <div class="tf-cierre-row">
+          <v-switch
+            v-model="modoCierre"
+            color="#8b5cf6"
+            density="compact"
+            hide-details
+            @update:model-value="onCierreChange"
+          />
+          <div class="tf-cierre-text">
+            <strong>Cierre de Inventario Final de Periodo</strong>
+            <span>Muestra TODOS los productos con control de inventario activo, sin importar el centro de costo — úsalo para el conteo global de fin de mes.</span>
+          </div>
+        </div>
       </div>
 
       <!-- MENSAJES -->
@@ -368,6 +382,15 @@ const dlgAyuda       = ref(false)
 const conflictCount  = ref(0)
 const errorMsg       = ref('')
 const exitoMsg       = ref('')
+const modoCierre     = ref(false)
+
+function onCierreChange() {
+  productos.value    = []
+  fisico.value       = {}
+  stockCargado.value = false
+  exitoMsg.value     = ''
+  errorMsg.value     = ''
+}
 
 // ── Cargar centros de costo ───────────────────────────────────
 async function cargarCcostos() {
@@ -402,7 +425,7 @@ async function cargarStock() {
   errorMsg.value     = ''
   try {
     const res = await api.get('/almacen/ajuste-inventario/stock', {
-      params: { empresa: empresa.value, ccosto: ccosto.value }
+      params: { empresa: empresa.value, ccosto: ccosto.value, cierre: modoCierre.value }
     })
     productos.value    = res.data?.data || []
     stockCargado.value = true
@@ -570,6 +593,11 @@ async function guardar(mode = 'new') {
 .tf-field     { min-width: 180px; flex: 1; }
 .tf-field--obs { flex: 2; }
 .tf-field--btn { flex: 0 0 auto; display: flex; align-items: center; padding-top: 2px; }
+
+.tf-cierre-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(var(--v-theme-on-surface),.07); }
+.tf-cierre-text { display: flex; flex-direction: column; font-size: 12px; padding-top: 6px; }
+.tf-cierre-text strong { font-size: 13px; color: #8b5cf6; }
+.tf-cierre-text span { color: rgba(var(--v-theme-on-surface),.55); margin-top: 2px; }
 
 .tf-grid-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; overflow: hidden; }
 
