@@ -56,6 +56,10 @@
               <div class="vm-kpi-val" style="color:#8b5cf6">{{ fmt(data.kpis.valorInicial) }}</div>
               <div class="vm-kpi-sub">toma física al {{ fechaCorteInicialTxt }}</div>
             </div>
+            <button class="vm-kpi-detail-btn" @click="showDetalleInicial = true" title="Ver detalle">
+              <v-icon size="16">mdi-eye-outline</v-icon>
+              <span>Detalles</span>
+            </button>
           </div>
           <div class="vm-kpi">
             <div class="vm-kpi-accent" style="background:#0ea5e9"></div>
@@ -67,6 +71,10 @@
               <div class="vm-kpi-val" style="color:#0ea5e9">{{ fmt(data.kpis.compras) }}</div>
               <div class="vm-kpi-sub">cuenta materia prima · {{ data.gastosMP.length }} gastos</div>
             </div>
+            <button class="vm-kpi-detail-btn" @click="showDetalleCompras = true" title="Ver detalle">
+              <v-icon size="16">mdi-eye-outline</v-icon>
+              <span>Detalles</span>
+            </button>
           </div>
           <div class="vm-kpi">
             <div class="vm-kpi-accent" style="background:#8b5cf6"></div>
@@ -78,6 +86,10 @@
               <div class="vm-kpi-val" style="color:#8b5cf6">{{ fmt(data.kpis.valorFinal) }}</div>
               <div class="vm-kpi-sub">toma física al {{ data.periodo.hasta }}</div>
             </div>
+            <button class="vm-kpi-detail-btn" @click="showDetalleFinal = true" title="Ver detalle">
+              <v-icon size="16">mdi-eye-outline</v-icon>
+              <span>Detalles</span>
+            </button>
           </div>
           <div class="vm-kpi">
             <div class="vm-kpi-accent" style="background:#f97316"></div>
@@ -109,8 +121,175 @@
             <v-icon size="18" color="#06b6d4">mdi-scale-balance</v-icon>
             <span class="vm-card-title">Juego de Inventarios — {{ mesLabel }}</span>
           </div>
+
+          <!-- Fórmula visual: Inv. Inicial + Compras − Inv. Final = Consumo Real -->
+          <div class="vm-formula">
+            <div class="vm-formula-item">
+              <div class="vm-formula-bar" style="background:#8b5cf6">
+                <span class="vm-formula-val">{{ fmt(data.kpis.valorInicial) }}</span>
+              </div>
+              <div class="vm-formula-lbl">Inv. Inicial</div>
+            </div>
+            <div class="vm-formula-op">+</div>
+            <div class="vm-formula-item">
+              <div class="vm-formula-bar" style="background:#0ea5e9">
+                <span class="vm-formula-val">{{ fmt(data.kpis.compras) }}</span>
+              </div>
+              <div class="vm-formula-lbl">Compras</div>
+            </div>
+            <div class="vm-formula-op">−</div>
+            <div class="vm-formula-item">
+              <div class="vm-formula-bar" style="background:#8b5cf6">
+                <span class="vm-formula-val">{{ fmt(data.kpis.valorFinal) }}</span>
+              </div>
+              <div class="vm-formula-lbl">Inv. Final</div>
+            </div>
+            <div class="vm-formula-op">=</div>
+            <div class="vm-formula-item vm-formula-result">
+              <div class="vm-formula-bar" style="background:#f97316">
+                <span class="vm-formula-val">{{ fmt(data.kpis.consumoReal) }}</span>
+              </div>
+              <div class="vm-formula-lbl">Consumo Real</div>
+            </div>
+          </div>
+
           <div ref="chartWaterfallRef" class="chart-area"></div>
         </div>
+
+        <!-- DIALOGS DE DETALLE -->
+        <v-dialog v-model="showDetalleInicial" max-width="700" scrollable>
+          <v-card rounded="lg">
+            <v-card-title class="d-flex align-center ga-2 pa-4" style="background:rgba(139,92,246,0.08)">
+              <v-icon color="#8b5cf6">mdi-archive-outline</v-icon>
+              Detalle — Inventario Inicial
+            </v-card-title>
+            <v-card-text class="pa-4">
+              <p class="text-body-2 mb-3" style="color:rgba(var(--v-theme-on-surface),0.6)">
+                Valor del inventario según la <b>toma física</b> vigente al <b>{{ fechaCorteInicialTxt }}</b> (día anterior al inicio del período).
+                Se suma el valor (stock × precio_costo) de cada producto en cada centro de costo / bodega.
+              </p>
+              <table class="vm-table" v-if="data">
+                <thead>
+                  <tr>
+                    <th>CENTRO DE COSTO</th>
+                    <th class="tr">VALOR INICIAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in data.centros" :key="'di-' + c.ccosto" class="vm-tr">
+                    <td class="font-weight-medium">
+                      {{ c.nombre }}
+                      <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
+                    </td>
+                    <td class="tr">{{ fmt(c.valorInicial) }}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr class="vm-tr-total">
+                    <td class="font-weight-bold">TOTAL</td>
+                    <td class="tr font-weight-bold" style="color:#8b5cf6">{{ fmt(data.kpis.valorInicial) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </v-card-text>
+            <v-card-actions class="pa-4 pt-0">
+              <v-spacer />
+              <v-btn variant="flat" color="#8b5cf6" @click="showDetalleInicial = false">Cerrar</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
+        <v-dialog v-model="showDetalleFinal" max-width="700" scrollable>
+          <v-card rounded="lg">
+            <v-card-title class="d-flex align-center ga-2 pa-4" style="background:rgba(139,92,246,0.08)">
+              <v-icon color="#8b5cf6">mdi-archive-check-outline</v-icon>
+              Detalle — Inventario Final
+            </v-card-title>
+            <v-card-text class="pa-4">
+              <p class="text-body-2 mb-3" style="color:rgba(var(--v-theme-on-surface),0.6)">
+                Valor del inventario según la <b>toma física</b> vigente al <b>{{ data?.periodo?.hasta }}</b> (último día del período).
+                Se suma el valor (stock × precio_costo) de cada producto en cada centro de costo / bodega.
+              </p>
+              <table class="vm-table" v-if="data">
+                <thead>
+                  <tr>
+                    <th>CENTRO DE COSTO</th>
+                    <th class="tr">VALOR FINAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in data.centros" :key="'df-' + c.ccosto" class="vm-tr">
+                    <td class="font-weight-medium">
+                      {{ c.nombre }}
+                      <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
+                    </td>
+                    <td class="tr">{{ fmt(c.valorFinal) }}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr class="vm-tr-total">
+                    <td class="font-weight-bold">TOTAL</td>
+                    <td class="tr font-weight-bold" style="color:#8b5cf6">{{ fmt(data.kpis.valorFinal) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </v-card-text>
+            <v-card-actions class="pa-4 pt-0">
+              <v-spacer />
+              <v-btn variant="flat" color="#8b5cf6" @click="showDetalleFinal = false">Cerrar</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
+        <v-dialog v-model="showDetalleCompras" max-width="850" scrollable>
+          <v-card rounded="lg">
+            <v-card-title class="d-flex align-center ga-2 pa-4" style="background:rgba(14,165,233,0.08)">
+              <v-icon color="#0ea5e9">mdi-truck-fast-outline</v-icon>
+              Detalle — Compras del Mes
+            </v-card-title>
+            <v-card-text class="pa-4">
+              <p class="text-body-2 mb-3" style="color:rgba(var(--v-theme-on-surface),0.6)">
+                Suma de todos los gastos registrados en la <b>cuenta contable de materia prima</b> durante el período.
+                Incluye {{ data?.gastosMP?.length || 0 }} gasto(s).
+              </p>
+              <div class="vm-table-wrap">
+                <table class="vm-table" v-if="data?.gastosMP?.length">
+                  <thead>
+                    <tr>
+                      <th>FECHA</th>
+                      <th>CÓDIGO</th>
+                      <th>PROVEEDOR</th>
+                      <th>CONCEPTO</th>
+                      <th>FACTURA</th>
+                      <th class="tr">TOTAL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="g in data.gastosMP" :key="'dc-' + g.codigo" class="vm-tr">
+                      <td>{{ g.fecha?.slice(0, 10) }}</td>
+                      <td class="text-dim">{{ g.codigo }}</td>
+                      <td>{{ g.proveedor_nombre }}</td>
+                      <td class="text-dim">{{ g.concepto }}</td>
+                      <td class="text-dim">{{ g.factura || '—' }}</td>
+                      <td class="tr">{{ fmt(g.total) }}</td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr class="vm-tr-total">
+                      <td colspan="5" class="font-weight-bold">TOTAL COMPRAS MP</td>
+                      <td class="tr font-weight-bold" style="color:#0ea5e9">{{ fmt(data.kpis.compras) }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <p v-else class="text-body-2" style="color:rgba(var(--v-theme-on-surface),0.45)">No hay gastos registrados en esta cuenta para el período.</p>
+              </div>
+            </v-card-text>
+            <v-card-actions class="pa-4 pt-0">
+              <v-spacer />
+              <v-btn variant="flat" color="#0ea5e9" @click="showDetalleCompras = false">Cerrar</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
 
         <!-- FILA 2: Asignación de consumo MP por centro de costo -->
         <div class="vm-card vm-card-full">
@@ -312,6 +491,9 @@ const empresa = computed(() =>
 const loading = ref(false)
 const data    = ref(null)
 const filtroProducto = ref('')
+const showDetalleInicial = ref(false)
+const showDetalleFinal   = ref(false)
+const showDetalleCompras = ref(false)
 
 function mesActualStr() {
   const d = new Date()
@@ -411,13 +593,13 @@ function renderWaterfall() {
   const { fg, grid } = themeColors()
   const k = data.value.kpis
 
-  const categorias = ['Inv. Inicial', 'Compras', 'Consumo Real', 'Inv. Final']
-  const colores      = ['#8b5cf6', '#0ea5e9', '#f97316', '#8b5cf6']
+  const categorias = ['Inv. Inicial', 'Compras', 'Inv. Final', 'Consumo Real']
+  const colores      = ['#8b5cf6', '#0ea5e9', '#8b5cf6', '#f97316']
 
   chartWaterfall = new ApexCharts(chartWaterfallRef.value, {
     chart: { type: 'bar', height: 340, toolbar: { show: false }, fontFamily: 'Inter,sans-serif', background: 'transparent', animations: { enabled: true, speed: 600, animateGradually: { enabled: true, delay: 80 } } },
     theme: { mode: isDark() ? 'dark' : 'light' },
-    series: [{ name: 'Valor', data: [k.valorInicial, k.compras, k.consumoReal, k.valorFinal] }],
+    series: [{ name: 'Valor', data: [k.valorInicial, k.compras, k.valorFinal, k.consumoReal] }],
     colors: colores,
     plotOptions: { bar: { columnWidth: '45%', borderRadius: 6, distributed: true, borderRadiusApplication: 'end' } },
     dataLabels: { enabled: true, formatter: v => fmt(v), style: { fontSize: '12px', fontWeight: 700 }, offsetY: -22 },
@@ -521,6 +703,48 @@ onBeforeUnmount(destroyAll)
   background: rgba(var(--v-theme-on-surface), 0.03);
   border-radius: 8px; padding: 6px 12px; font-size: 12.5px;
   color: rgb(var(--v-theme-on-surface)); width: 220px;
+}
+
+/* FORMULA VISUAL */
+.vm-formula {
+  display: flex; align-items: center; justify-content: center; gap: 0;
+  padding: 24px 12px 18px; flex-wrap: wrap;
+}
+.vm-formula-item {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 120px; flex: 1; max-width: 200px;
+}
+.vm-formula-bar {
+  width: 100%; border-radius: 10px; padding: 16px 10px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+.vm-formula-val {
+  font-size: 16px; font-weight: 800; color: #fff; white-space: nowrap;
+}
+.vm-formula-lbl {
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+}
+.vm-formula-result .vm-formula-bar {
+  box-shadow: 0 2px 12px rgba(249,115,22,0.3);
+}
+.vm-formula-op {
+  font-size: 36px; font-weight: 900; color: rgba(var(--v-theme-on-surface), 0.3);
+  padding: 0 16px; line-height: 1; margin-bottom: 22px; user-select: none;
+}
+
+/* KPI DETAIL BUTTON */
+.vm-kpi-detail-btn {
+  position: absolute; top: 8px; right: 8px;
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border: none; border-radius: 8px; padding: 4px 10px;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  transition: all 0.15s ease;
+}
+.vm-kpi-detail-btn:hover {
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.8);
 }
 
 .chart-area { min-height: 340px; }
