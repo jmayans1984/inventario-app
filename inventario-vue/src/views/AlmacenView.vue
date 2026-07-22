@@ -224,6 +224,7 @@ const secciones = [
       { path: '/almacen/reportes/movimiento-producto',    icon: 'mdi-swap-vertical-bold',  title: 'Movimiento por Producto', desc: 'Detalle día a día por rango y CC' },
       { path: '/almacen/reportes/kardex-consolidado',     icon: 'mdi-table-multiple',      title: 'Kardex Consolidado',      desc: 'Stock actual por centro de costos' },
       { path: '/almacen/reportes/prediccion-agotamiento', icon: 'mdi-chart-box-outline',   title: 'Predicción Agotamiento',  desc: 'Cuándo se acabará el stock' },
+      { path: '/almacen/reportes/valoracion-mensual',     icon: 'mdi-calculator-variant',  title: 'Valoración Mensual',      desc: 'Consumo de MP y juego de inventarios' },
     ],
   },
 ]
