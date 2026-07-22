@@ -10572,19 +10572,27 @@ app.post('/api/produccion/productos-venta/recalcular-precios', async (req, res) 
             `SELECT COALESCE(margen_venta1,0) AS m1, COALESCE(margen_venta2,0) AS m2, COALESCE(margen_venta3,0) AS m3
              FROM config_listas_precios ORDER BY id LIMIT 1`
         );
-        const { m1 = 0, m2 = 0, m3 = 0 } = cfg.rows[0] || {};
+        if (!cfg.rows.length) {
+            return res.json({ success: false, error: 'No existe configuración de listas de precios' });
+        }
+        const raw = cfg.rows[0];
+        const m1 = parseFloat(raw.m1) || 0;
+        const m2 = parseFloat(raw.m2) || 0;
+        const m3 = parseFloat(raw.m3) || 0;
+        console.log('Recalcular precios — márgenes:', { m1, m2, m3 });
         const sets = [];
         const params = [];
-        if (m1 > 0 && m1 < 1) { params.push(parseFloat(m1)); sets.push(`precio_venta1 = ROUND(precio_costo / (1 - $${params.length}::numeric), 2)`); }
-        if (m2 > 0 && m2 < 1) { params.push(parseFloat(m2)); sets.push(`precio_venta2 = ROUND(precio_costo / (1 - $${params.length}::numeric), 2)`); }
-        if (m3 > 0 && m3 < 1) { params.push(parseFloat(m3)); sets.push(`precio_venta3 = ROUND(precio_costo / (1 - $${params.length}::numeric), 2)`); }
+        if (m1 > 0 && m1 < 1) { params.push(m1); sets.push(`precio_venta1 = ROUND(precio_costo / (1 - $${params.length}::numeric), 2)`); }
+        if (m2 > 0 && m2 < 1) { params.push(m2); sets.push(`precio_venta2 = ROUND(precio_costo / (1 - $${params.length}::numeric), 2)`); }
+        if (m3 > 0 && m3 < 1) { params.push(m3); sets.push(`precio_venta3 = ROUND(precio_costo / (1 - $${params.length}::numeric), 2)`); }
         if (!sets.length) {
-            return res.json({ success: false, error: 'No hay márgenes configurados (deben ser porcentajes entre 0 y 100)' });
+            return res.json({ success: false, error: `No hay márgenes válidos (deben estar entre 0% y 100%). Valores actuales: m1=${m1}, m2=${m2}, m3=${m3}` });
         }
         const r = await pool.query(
             `UPDATE productos SET ${sets.join(', ')} WHERE para_venta = 'SI' AND precio_costo > 0 RETURNING codigo`,
             params
         );
+        console.log('Recalcular precios — actualizados:', r.rowCount);
         res.json({ success: true, actualizados: r.rowCount });
     } catch (e) {
         console.error('Error POST /api/produccion/productos-venta/recalcular-precios:', e);
