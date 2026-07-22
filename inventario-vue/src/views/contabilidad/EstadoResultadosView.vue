@@ -19,19 +19,30 @@
           </div>
           <div>
             <h1 class="er-title">ESTADO DE RESULTADOS</h1>
-            <p class="er-sub">Ventas · Materia Prima (juego de inventarios) · Gastos agrupados por cuenta contable</p>
+            <p class="er-sub">Cuentas contables agrupadas por grupo de gastos · Materia Prima por juego de inventarios</p>
           </div>
         </div>
-        <div class="er-header-right">
-          <input type="month" v-model="mesSel" class="mes-input" />
-          <v-btn color="#6d28d9" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
-            Actualizar
-          </v-btn>
-          <v-btn color="#ef4444" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf"
-                 rounded="lg" :disabled="!data" @click="generarPDF">
-            Imprimir PDF
-          </v-btn>
+      </div>
+
+      <!-- FILTROS -->
+      <div class="er-filtros">
+        <div class="modo-toggle">
+          <button :class="['modo-btn', { active: modo === 'mensual' }]" @click="modo = 'mensual'">Mensual</button>
+          <button :class="['modo-btn', { active: modo === 'anual' }]"   @click="modo = 'anual'">Anual (por mes)</button>
         </div>
+        <input v-if="modo === 'mensual'" type="month" v-model="mesSel" class="fx-input" />
+        <input v-else type="number" v-model.number="anioSel" class="fx-input fx-anio" min="2000" max="2100" />
+        <select v-model="ccostoSel" class="fx-input fx-select">
+          <option value="">Toda la Empresa</option>
+          <option v-for="cc in (data?.ccostosDisponibles || [])" :key="cc.codigo" :value="cc.codigo">{{ cc.nombre }}</option>
+        </select>
+        <v-btn color="#6d28d9" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
+          Actualizar
+        </v-btn>
+        <v-btn color="#ef4444" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf"
+               rounded="lg" :disabled="!data" @click="generarPDF">
+          Imprimir PDF
+        </v-btn>
       </div>
 
       <!-- LOADING -->
@@ -52,11 +63,11 @@
           <div class="er-kpi">
             <div class="er-kpi-accent" style="background:#22c55e"></div>
             <div class="er-kpi-icon" style="background:rgba(34,197,94,0.12)">
-              <v-icon size="20" color="#22c55e">mdi-cash-register</v-icon>
+              <v-icon size="20" color="#22c55e">mdi-trending-up</v-icon>
             </div>
             <div class="er-kpi-body">
-              <div class="er-kpi-lbl">Ventas Netas</div>
-              <div class="er-kpi-val" style="color:#22c55e">{{ fmt(data.ingresos.ventasNetas) }}</div>
+              <div class="er-kpi-lbl">Total Ingresos</div>
+              <div class="er-kpi-val" style="color:#22c55e">{{ fmt(data.kpis.totalIngresos) }}</div>
             </div>
           </div>
           <div class="er-kpi">
@@ -66,7 +77,7 @@
             </div>
             <div class="er-kpi-body">
               <div class="er-kpi-lbl">Consumo Materia Prima</div>
-              <div class="er-kpi-val" style="color:#f97316">{{ fmt(data.materiaPrima.consumo) }}</div>
+              <div class="er-kpi-val" style="color:#f97316">{{ fmt(data.kpis.consumoMP) }}</div>
             </div>
           </div>
           <div class="er-kpi">
@@ -75,18 +86,18 @@
               <v-icon size="20" color="#0ea5e9">mdi-receipt-text-outline</v-icon>
             </div>
             <div class="er-kpi-body">
-              <div class="er-kpi-lbl">Total Gastos</div>
-              <div class="er-kpi-val" style="color:#0ea5e9">{{ fmt(data.totalGastos) }}</div>
+              <div class="er-kpi-lbl">Total Egresos</div>
+              <div class="er-kpi-val" style="color:#0ea5e9">{{ fmt(data.kpis.totalEgresos) }}</div>
             </div>
           </div>
           <div class="er-kpi">
-            <div class="er-kpi-accent" :style="{ background: data.utilidadNeta >= 0 ? '#22c55e' : '#ef4444' }"></div>
-            <div class="er-kpi-icon" :style="{ background: data.utilidadNeta >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)' }">
-              <v-icon size="20" :color="data.utilidadNeta >= 0 ? '#22c55e' : '#ef4444'">mdi-scale-balance</v-icon>
+            <div class="er-kpi-accent" :style="{ background: data.kpis.utilidadNeta >= 0 ? '#22c55e' : '#ef4444' }"></div>
+            <div class="er-kpi-icon" :style="{ background: data.kpis.utilidadNeta >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)' }">
+              <v-icon size="20" :color="data.kpis.utilidadNeta >= 0 ? '#22c55e' : '#ef4444'">mdi-scale-balance</v-icon>
             </div>
             <div class="er-kpi-body">
               <div class="er-kpi-lbl">Utilidad Neta</div>
-              <div class="er-kpi-val" :style="{ color: data.utilidadNeta >= 0 ? '#22c55e' : '#ef4444' }">{{ fmt(data.utilidadNeta) }}</div>
+              <div class="er-kpi-val" :style="{ color: data.kpis.utilidadNeta >= 0 ? '#22c55e' : '#ef4444' }">{{ fmt(data.kpis.utilidadNeta) }}</div>
             </div>
           </div>
         </div>
@@ -95,68 +106,54 @@
         <div class="er-card er-card-full">
           <div class="er-card-header">
             <v-icon size="18" color="#6d28d9">mdi-file-chart-outline</v-icon>
-            <span class="er-card-title">Estado de Resultados — {{ mesLabel }}</span>
+            <span class="er-card-title">
+              {{ modo === 'anual' ? `Estado de Resultados — ${anioSel}` : `Estado de Resultados — ${mesLabel}` }}
+              <span v-if="ccostoSel" class="er-card-badge">{{ ccostoNombre }}</span>
+              <span v-else class="er-card-badge">Toda la Empresa</span>
+            </span>
           </div>
 
-          <table class="er-table">
-            <tbody>
-              <tr class="er-row-ingreso">
-                <td class="er-td-nombre font-weight-bold">VENTAS NETAS</td>
-                <td class="tr font-weight-bold" style="color:#22c55e">{{ fmt(data.ingresos.ventasNetas) }}</td>
-              </tr>
+          <div class="er-table-wrap">
+            <table class="er-table">
+              <thead>
+                <tr>
+                  <th class="th-cuenta">CUENTA</th>
+                  <th v-for="p in data.periodos" :key="p.key" class="tr">{{ p.label }}</th>
+                  <th v-if="modo === 'anual'" class="tr th-total">TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="g in data.grupos" :key="g.codigo || g.nombre">
+                  <tr class="er-row-grupo-header">
+                    <td :colspan="colCount">{{ g.nombre }}</td>
+                  </tr>
+                  <tr v-for="c in g.cuentas" :key="c.codigo" class="er-row-cuenta">
+                    <td class="td-cuenta">
+                      {{ c.nombre }}
+                      <span v-if="c.esConsumoCalculado" class="badge-info">JUEGO DE INVENTARIOS</span>
+                    </td>
+                    <td v-for="(v, i) in c.valores" :key="i" class="tr">{{ v === 0 ? '—' : fmt(v) }}</td>
+                    <td v-if="modo === 'anual'" class="tr font-weight-bold">{{ fmt(c.total) }}</td>
+                  </tr>
+                  <tr v-if="!g.cuentas.length" class="er-row-cuenta">
+                    <td class="td-cuenta text-dim">Sin movimientos</td>
+                    <td v-for="i in data.periodos.length" :key="i" class="tr">—</td>
+                    <td v-if="modo === 'anual'" class="tr">—</td>
+                  </tr>
+                  <tr class="er-row-subtotal">
+                    <td class="td-cuenta">SUBTOTAL {{ g.nombre }}</td>
+                    <td v-for="(v, i) in g.subtotales" :key="i" class="tr">{{ fmt(v) }}</td>
+                    <td v-if="modo === 'anual'" class="tr">{{ fmt(g.total) }}</td>
+                  </tr>
+                </template>
 
-              <template v-for="s in data.secciones" :key="s.tipo">
-                <tr class="er-row-seccion">
-                  <td colspan="2">{{ s.tipo }}</td>
+                <tr class="er-row-total">
+                  <td class="td-cuenta">UTILIDAD NETA</td>
+                  <td v-for="(v, i) in data.utilidadPorPeriodo" :key="i" class="tr">{{ fmt(v) }}</td>
+                  <td v-if="modo === 'anual'" class="tr">{{ fmt(data.kpis.utilidadNeta) }}</td>
                 </tr>
-                <tr v-for="g in s.grupos" :key="g.codigo || g.nombre" class="er-row-grupo">
-                  <td class="er-td-nombre">
-                    <span class="text-dim">{{ g.codigo || '—' }}</span> · {{ g.nombre }}
-                    <span v-if="g.esGrupoMateriaPrima" class="badge-info">JUEGO DE INVENTARIOS</span>
-                  </td>
-                  <td class="tr">{{ fmt(g.total) }}</td>
-                </tr>
-                <tr class="er-row-subtotal">
-                  <td class="er-td-nombre">SUBTOTAL {{ s.tipo }}</td>
-                  <td class="tr">{{ fmt(s.subtotal) }}</td>
-                </tr>
-                <tr class="er-row-utilidad">
-                  <td class="er-td-nombre">UTILIDAD DESPUÉS DE {{ s.tipo }}</td>
-                  <td class="tr" :style="{ color: s.utilidadAcumulada >= 0 ? '#22c55e' : '#ef4444' }">{{ fmt(s.utilidadAcumulada) }}</td>
-                </tr>
-              </template>
-
-              <tr class="er-row-total">
-                <td class="er-td-nombre">UTILIDAD NETA</td>
-                <td class="tr" :style="{ color: data.utilidadNeta >= 0 ? '#22c55e' : '#ef4444' }">{{ fmt(data.utilidadNeta) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- DETALLE MATERIA PRIMA -->
-        <div class="er-card er-card-full">
-          <div class="er-card-header">
-            <v-icon size="18" color="#f97316">mdi-scale-balance</v-icon>
-            <span class="er-card-title">Detalle — Juego de Inventarios Materia Prima</span>
-          </div>
-          <div class="er-mp-grid">
-            <div class="er-mp-item">
-              <div class="er-mp-lbl">Inventario Inicial</div>
-              <div class="er-mp-val" style="color:#8b5cf6">{{ fmt(data.materiaPrima.valorInicial) }}</div>
-            </div>
-            <div class="er-mp-item">
-              <div class="er-mp-lbl">+ Compras (cuenta MP)</div>
-              <div class="er-mp-val" style="color:#0ea5e9">{{ fmt(data.materiaPrima.compras) }}</div>
-            </div>
-            <div class="er-mp-item">
-              <div class="er-mp-lbl">− Inventario Final</div>
-              <div class="er-mp-val" style="color:#8b5cf6">{{ fmt(data.materiaPrima.valorFinal) }}</div>
-            </div>
-            <div class="er-mp-item">
-              <div class="er-mp-lbl">= Consumo Real</div>
-              <div class="er-mp-val" style="color:#f97316">{{ fmt(data.materiaPrima.consumo) }}</div>
-            </div>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -164,7 +161,7 @@
 
       <div v-else-if="!loading" class="er-empty">
         <v-icon size="56" color="#94a3b8">mdi-trending-up</v-icon>
-        <p>Selecciona un mes y presiona Actualizar para calcular el estado de resultados.</p>
+        <p>Selecciona un período y presiona Actualizar para calcular el estado de resultados.</p>
       </div>
 
     </div>
@@ -191,11 +188,15 @@ const generandoPdf = ref(false)
 const data         = ref(null)
 const empresaInfo  = ref({})
 
+const modo = ref('mensual')
+
 function mesActualStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
-const mesSel = ref(mesActualStr())
+const mesSel  = ref(mesActualStr())
+const anioSel = ref(new Date().getFullYear())
+const ccostoSel = ref('')
 
 const mesLabel = computed(() => {
   if (!mesSel.value) return ''
@@ -204,26 +205,29 @@ const mesLabel = computed(() => {
   return `${nombres[m - 1]} ${y}`
 })
 
+const ccostoNombre = computed(() => {
+  if (!ccostoSel.value || !data.value) return ''
+  const cc = (data.value.ccostosDisponibles || []).find(c => c.codigo === ccostoSel.value)
+  return cc ? cc.nombre : ccostoSel.value
+})
+
+const colCount = computed(() => (data.value?.periodos?.length || 1) + 1 + (modo.value === 'anual' ? 1 : 0))
+
 // ── Formatters ──────────────────────────────────────────────────────────────
 function fmt(v) {
   return '$' + (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // ── Carga ───────────────────────────────────────────────────────────────────
-function rangoMes(mesStr) {
-  const [y, m] = mesStr.split('-').map(Number)
-  const desde = `${y}-${String(m).padStart(2, '0')}-01`
-  const ultimoDia = new Date(y, m, 0).getDate()
-  const hasta = `${y}-${String(m).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
-  return { desde, hasta }
-}
-
 async function cargar() {
-  if (!empresa.value || !mesSel.value) return
+  if (!empresa.value) return
   loading.value = true
   try {
-    const { desde, hasta } = rangoMes(mesSel.value)
-    const params = new URLSearchParams({ empresa: empresa.value, desde, hasta })
+    const params = new URLSearchParams({ empresa: empresa.value, modo: modo.value })
+    if (modo.value === 'anual') params.set('anio', String(anioSel.value))
+    else params.set('mes', mesSel.value)
+    if (ccostoSel.value) params.set('ccosto', ccostoSel.value)
+
     const res = await fetch(`${API_BASE}/contabilidad/estado-resultados?${params}`)
     const j   = await res.json()
     if (!j.success) throw new Error(j.error)
@@ -251,14 +255,15 @@ async function generarPDF() {
   if (!data.value) return
   generandoPdf.value = true
   try {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+    const anual = modo.value === 'anual'
+    const doc = new jsPDF({ orientation: anual ? 'landscape' : 'portrait', unit: 'mm', format: 'letter' })
     const PW = doc.internal.pageSize.getWidth()
     const PH = doc.internal.pageSize.getHeight()
-    const ML = 12
-    const MR = 12
+    const ML = 10
+    const MR = 10
     const TW = PW - ML - MR
-    const HDR_H = 24
-    const FTR_H = 10
+    const HDR_H = 22
+    const FTR_H = 9
 
     const C_INDIGO  = [30, 27, 75]
     const C_IND2    = [79, 70, 229]
@@ -266,7 +271,6 @@ async function generarPDF() {
     const C_IND_BG  = [238, 240, 255]
     const C_EMERALD = [16, 185, 129]
     const C_RED     = [239, 68, 68]
-    const C_ORANGE  = [249, 115, 22]
     const C_DARK    = [30, 27, 75]
     const C_BODY    = [55, 65, 81]
     const C_MID     = [107, 114, 128]
@@ -277,10 +281,7 @@ async function generarPDF() {
 
     const emp = empresaInfo.value
     const empNombre = (emp.nombre || authStore.empresaNombre || 'EMPRESA').toUpperCase()
-    const empDir    = emp.direccion || emp.dir || ''
-    const empTel    = emp.telefono1 || emp.telefono || emp.tel || ''
     const usuario   = authStore.userName || authStore.userNombre || 'Usuario'
-
     const ahora = new Date()
     const fechaHoraGen = `${String(ahora.getMonth()+1).padStart(2,'0')}/${String(ahora.getDate()).padStart(2,'0')}/${ahora.getFullYear()} ${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`
     const TOTAL_PGS = '{total_pages_count_string}'
@@ -289,7 +290,7 @@ async function generarPDF() {
     function drawFooter() {
       const pg = doc.internal.getCurrentPageInfo().pageNumber
       const yL = PH - FTR_H + 2
-      const yTx = PH - FTR_H + 6.5
+      const yTx = PH - FTR_H + 6
       doc.setDrawColor(...C_LGREY)
       doc.setLineWidth(0.3)
       doc.line(ML, yL, PW - MR, yL)
@@ -300,7 +301,10 @@ async function generarPDF() {
       doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, PW - MR, yTx, { align: 'right' })
     }
 
-    function drawHeader(isFirstPage = false) {
+    const periodoTitulo = anual ? String(anioSel.value) : mesLabel.value
+    const ccostoTitulo = ccostoSel.value ? ccostoNombre.value : 'TODA LA EMPRESA'
+
+    function drawHeader() {
       const MT = 5
       doc.setFillColor(...C_INDIGO)
       doc.rect(ML, MT, TW, HDR_H - MT, 'F')
@@ -311,14 +315,10 @@ async function generarPDF() {
       doc.setFontSize(12)
       doc.setTextColor(...C_WHITE)
       doc.text(empNombre, ML + 5, MT + 7)
-
-      const contactLine = [empDir, empTel].filter(Boolean).join('   |   ')
-      if (contactLine) {
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(6.5)
-        doc.setTextColor(180, 190, 230)
-        doc.text(contactLine, ML + 5, MT + 12.5)
-      }
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(180, 190, 230)
+      doc.text(ccostoTitulo, ML + 5, MT + 12.5)
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(11)
@@ -327,95 +327,67 @@ async function generarPDF() {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7.5)
       doc.setTextColor(200, 210, 255)
-      doc.text(mesLabel.value, ML + TW - 5, MT + 12.5, { align: 'right' })
+      doc.text(periodoTitulo, ML + TW - 5, MT + 12.5, { align: 'right' })
 
-      y = HDR_H + 6
+      y = HDR_H + 5
     }
 
     const headerPages = new Set()
     function ensureHeader() {
       const pg = doc.internal.getCurrentPageInfo().pageNumber
-      if (!headerPages.has(pg)) { drawHeader(false); headerPages.add(pg) }
+      if (!headerPages.has(pg)) { drawHeader(); headerPages.add(pg) }
     }
-
-    drawHeader(true)
+    drawHeader()
     headerPages.add(1)
 
     const d = data.value
+    const nPeriodos = d.periodos.length
+    const nCols = 1 + nPeriodos + (anual ? 1 : 0)
+    const colCuenta = TW * 0.34
+    const colValor = (TW - colCuenta) / (nPeriodos + (anual ? 1 : 0))
+
+    const columnStyles = { 0: { cellWidth: colCuenta } }
+    for (let i = 1; i < nCols; i++) columnStyles[i] = { cellWidth: colValor, halign: 'right' }
+
+    const head = [['CUENTA', ...d.periodos.map(p => p.label), ...(anual ? ['TOTAL'] : [])]]
     const body = []
 
-    body.push([
-      { content: 'VENTAS NETAS', styles: { fontStyle: 'bold', textColor: C_DARK, fillColor: C_IND_BG } },
-      { content: fmt(d.ingresos.ventasNetas), styles: { halign: 'right', fontStyle: 'bold', textColor: C_EMERALD, fillColor: C_IND_BG } },
-    ])
-
-    for (const s of d.secciones) {
-      body.push([
-        { content: s.tipo, colSpan: 2, styles: { fontStyle: 'bold', textColor: C_WHITE, fillColor: C_IND2, fontSize: 7 } },
-      ])
-      for (const g of s.grupos) {
-        const nombre = `${g.codigo || '—'} · ${g.nombre}${g.esGrupoMateriaPrima ? '  (juego de inventarios)' : ''}`
+    for (const g of d.grupos) {
+      body.push([{ content: g.nombre, colSpan: nCols, styles: { fontStyle: 'bold', fillColor: C_IND2, textColor: C_WHITE, fontSize: 6.5 } }])
+      const cuentasList = g.cuentas.length ? g.cuentas : [{ nombre: 'Sin movimientos', valores: new Array(nPeriodos).fill(0), total: 0 }]
+      for (const c of cuentasList) {
         body.push([
-          { content: nombre, styles: { textColor: C_BODY } },
-          { content: fmt(g.total), styles: { halign: 'right', textColor: C_BODY } },
+          c.nombre,
+          ...c.valores.map(v => v === 0 ? '—' : fmt(v)),
+          ...(anual ? [{ content: fmt(c.total), styles: { fontStyle: 'bold' } }] : [])
         ])
       }
       body.push([
-        { content: `SUBTOTAL ${s.tipo}`, styles: { fontStyle: 'bold', textColor: C_DARK, fillColor: C_IND_BG } },
-        { content: fmt(s.subtotal), styles: { halign: 'right', fontStyle: 'bold', textColor: C_IND2, fillColor: C_IND_BG } },
-      ])
-      body.push([
-        { content: `UTILIDAD DESPUES DE ${s.tipo}`, styles: { fontStyle: 'bold', textColor: C_DARK } },
-        { content: fmt(s.utilidadAcumulada), styles: { halign: 'right', fontStyle: 'bold', textColor: s.utilidadAcumulada >= 0 ? C_EMERALD : C_RED } },
+        { content: `SUBTOTAL ${g.nombre}`, styles: { fontStyle: 'bold', fillColor: C_IND_BG, textColor: C_DARK } },
+        ...g.subtotales.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fillColor: C_IND_BG, textColor: C_IND2 } })),
+        ...(anual ? [{ content: fmt(g.total), styles: { fontStyle: 'bold', fillColor: C_IND_BG, textColor: C_IND2 } }] : [])
       ])
     }
 
     body.push([
-      { content: 'UTILIDAD NETA', styles: { fontStyle: 'bold', fontSize: 9, textColor: C_WHITE, fillColor: C_INDIGO } },
-      { content: fmt(d.utilidadNeta), styles: { halign: 'right', fontStyle: 'bold', fontSize: 9, textColor: d.utilidadNeta >= 0 ? C_EMERALD : [252,165,165], fillColor: C_INDIGO } },
+      { content: 'UTILIDAD NETA', styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: C_WHITE } },
+      ...d.utilidadPorPeriodo.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: v >= 0 ? C_EMERALD : [252,165,165] } })),
+      ...(anual ? [{ content: fmt(d.kpis.utilidadNeta), styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: d.kpis.utilidadNeta >= 0 ? C_EMERALD : [252,165,165] } }] : [])
     ])
 
     autoTable(doc, {
       startY: y,
-      margin: { left: ML, right: MR, top: HDR_H + 4, bottom: FTR_H + 2 },
+      margin: { left: ML, right: MR, top: HDR_H + 3, bottom: FTR_H + 2 },
+      head,
       body,
       theme: 'plain',
-      styles: { fontSize: 7.5, cellPadding: { top: 2, right: 3, bottom: 2, left: 3 } },
-      columnStyles: {
-        0: { cellWidth: TW - 40 },
-        1: { cellWidth: 40, halign: 'right' },
-      },
-      tableLineColor: C_LGREY,
-      tableLineWidth: 0.1,
-      didDrawPage: () => { ensureHeader(); drawFooter() },
-    })
-
-    y = doc.lastAutoTable.finalY + 8
-    if (y > PH - FTR_H - 40) { drawFooter(); doc.addPage(); drawHeader(false); headerPages.add(doc.internal.getCurrentPageInfo().pageNumber) }
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
-    doc.setTextColor(...C_MID)
-    doc.text('DETALLE JUEGO DE INVENTARIOS — MATERIA PRIMA', ML, y)
-    y += 4
-
-    autoTable(doc, {
-      startY: y,
-      margin: { left: ML, right: MR, top: HDR_H + 4, bottom: FTR_H + 2 },
-      head: [['CONCEPTO', 'VALOR']],
-      body: [
-        ['Inventario Inicial', fmt(d.materiaPrima.valorInicial)],
-        ['(+) Compras cuenta Materia Prima', fmt(d.materiaPrima.compras)],
-        ['(−) Inventario Final', fmt(d.materiaPrima.valorFinal)],
-        [{ content: '(=) Consumo Real Materia Prima', styles: { fontStyle: 'bold' } },
-         { content: fmt(d.materiaPrima.consumo), styles: { fontStyle: 'bold', textColor: C_ORANGE } }],
-      ],
-      headStyles: { fillColor: C_INDIGO, textColor: C_WHITE, fontSize: 6.5, cellPadding: { top: 2, right: 3, bottom: 2, left: 3 } },
-      bodyStyles: { fontSize: 7, textColor: C_BODY, cellPadding: { top: 2, right: 3, bottom: 2, left: 3 } },
+      styles: { fontSize: 6.5, cellPadding: { top: 1.6, right: 2, bottom: 1.6, left: 2 }, halign: 'right' },
+      headStyles: { fillColor: C_INDIGO, textColor: C_WHITE, fontSize: 6, halign: 'right' },
       alternateRowStyles: { fillColor: C_ALTROW },
-      columnStyles: { 0: { cellWidth: TW - 40 }, 1: { cellWidth: 40, halign: 'right' } },
+      columnStyles,
       tableLineColor: C_LGREY,
       tableLineWidth: 0.1,
+      didParseCell: (hd) => { if (hd.column.index === 0) hd.cell.styles.halign = 'left' },
       didDrawPage: () => { ensureHeader(); drawFooter() },
     })
 
@@ -443,7 +415,7 @@ async function generarPDF() {
 .bc-current { font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 
 /* HEADER */
-.er-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.er-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .er-header-left { display: flex; align-items: center; gap: 16px; }
 .er-icon-wrap {
   width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
@@ -452,14 +424,30 @@ async function generarPDF() {
 }
 .er-title { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: rgb(var(--v-theme-on-surface)); }
 .er-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 0; }
-.er-header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
-.mes-input {
+/* FILTROS */
+.er-filtros { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.modo-toggle {
+  display: flex; border-radius: 10px; overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgb(var(--v-theme-surface));
+}
+.modo-btn {
+  padding: 8px 16px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.3px;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  background: transparent; border: none; cursor: pointer; transition: all 0.18s ease;
+}
+.modo-btn + .modo-btn { border-left: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
+.modo-btn.active { background: #6d28d9; color: white; }
+
+.fx-input {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   background: rgb(var(--v-theme-surface));
   border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
 }
+.fx-anio { width: 90px; }
+.fx-select { min-width: 180px; }
 
 /* AVISO */
 .er-warning {
@@ -496,37 +484,47 @@ async function generarPDF() {
 }
 .er-card-full { width: 100%; }
 .er-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.er-card-title { font-size: 13.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: rgb(var(--v-theme-on-surface)); flex: 1; }
-
-/* TABLA ESTADO DE RESULTADOS */
-.er-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.er-table td { padding: 9px 12px; }
-.er-table .tr { text-align: right; }
-.er-td-nombre { color: rgb(var(--v-theme-on-surface)); }
-.text-dim { color: rgba(var(--v-theme-on-surface), 0.4); }
-
-.er-row-ingreso td { background: rgba(34,197,94,0.08); border-radius: 8px; font-size: 15px; }
-.er-row-seccion td {
-  background: #6d28d9; color: white; font-weight: 800; font-size: 11.5px;
-  letter-spacing: 0.6px; text-transform: uppercase; padding: 8px 12px;
+.er-card-title { font-size: 13.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: rgb(var(--v-theme-on-surface)); flex: 1; display: flex; align-items: center; gap: 8px; }
+.er-card-badge {
+  font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 10px;
+  background: rgba(109,40,217,0.1); color: #6d28d9; white-space: nowrap; text-transform: none;
 }
-.er-row-grupo td { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06); font-size: 13px; }
-.er-row-subtotal td { background: rgba(109,40,217,0.08); font-weight: 700; }
-.er-row-utilidad td { font-weight: 700; font-style: italic; padding-bottom: 16px; }
-.er-row-total td { background: #6d28d9; color: white; font-weight: 800; font-size: 16px; border-radius: 8px; }
+
+/* TABLA ESTADO DE RESULTADOS (estilo limpio tipo hoja contable) */
+.er-table-wrap { overflow-x: auto; }
+.er-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.er-table thead th {
+  text-align: right; font-size: 10px; font-weight: 800; letter-spacing: 0.4px;
+  color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase;
+  padding: 8px 10px; border-bottom: 2px solid rgba(var(--v-theme-on-surface), 0.15);
+  white-space: nowrap;
+}
+.th-cuenta { text-align: left !important; }
+.th-total { color: #6d28d9 !important; }
+.er-table td { padding: 6px 10px; white-space: nowrap; }
+.er-table .tr { text-align: right; }
+.td-cuenta { color: rgb(var(--v-theme-on-surface)); text-align: left; white-space: normal; }
+.text-dim { color: rgba(var(--v-theme-on-surface), 0.4); font-style: italic; }
+
+.er-row-grupo-header td {
+  font-weight: 800; font-size: 11.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: #6d28d9; padding: 12px 10px 4px;
+  border-bottom: 1px solid rgba(109,40,217,0.25);
+}
+.er-row-cuenta td { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04); }
+.er-row-subtotal td {
+  font-weight: 700; background: rgba(109,40,217,0.06);
+  border-top: 1px solid rgba(109,40,217,0.2); border-bottom: 1px solid rgba(109,40,217,0.2);
+}
+.er-row-subtotal td:first-child { font-size: 11px; }
+.er-row-total td {
+  background: #6d28d9; color: white; font-weight: 800; font-size: 14px;
+  padding: 12px 10px;
+}
 
 .badge-info {
   background: rgba(6,182,212,0.12); color: #06b6d4;
   font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
   text-transform: uppercase;
 }
-
-/* MATERIA PRIMA GRID */
-.er-mp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
-.er-mp-item {
-  background: rgba(var(--v-theme-on-surface), 0.03);
-  border-radius: 10px; padding: 14px 16px; text-align: center;
-}
-.er-mp-lbl { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; margin-bottom: 4px; }
-.er-mp-val { font-size: 17px; font-weight: 800; }
 </style>
