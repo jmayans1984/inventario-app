@@ -152,11 +152,6 @@
 
       <!-- MOBILE HEADER -->
       <div v-if="isMobile" class="mobile-header">
-        <button class="mobile-menu-btn" @click="drawer = !drawer">
-          <v-icon size="22">mdi-menu</v-icon>
-          <span v-if="notificacionesSinLeer > 0" class="menu-btn-badge"></span>
-        </button>
-
         <span class="mobile-page-title">{{ currentModuleTitle }}</span>
 
         <div class="mobile-header-actions">
@@ -303,11 +298,81 @@
       <div class="header-divider"></div>
 
       <!-- CONTENIDO -->
-      <div class="page-body">
+      <div class="page-body" :class="{ 'has-bottom-nav': isMobile }">
         <slot />
       </div>
 
     </v-main>
+
+    <!-- ═══════════════════════════════════ BOTTOM NAVIGATION (mobile) -->
+    <div v-if="isMobile" class="bottom-nav">
+      <button
+        v-for="b in bottomNavButtons"
+        :key="b.id"
+        class="bn-btn"
+        :class="{ 'bn-btn-active': bottomNavActiveId === b.id }"
+        :style="{ '--bn-color': b.color }"
+        @click="onBottomNavClick(b)"
+      >
+        <v-icon size="21">{{ b.icon }}</v-icon>
+        <span class="bn-label">{{ bottomNavLabel(b) }}</span>
+      </button>
+      <button class="bn-btn" :class="{ 'bn-btn-active': moreSheet || (activeModuleForSheet && !bottomNavPriority.includes(activeModuleForSheet.id)) }" @click="moreSheet = true">
+        <v-icon size="21">mdi-dots-horizontal</v-icon>
+        <span class="bn-label">Más</span>
+      </button>
+    </div>
+
+    <!-- Sheet: grid de módulos restantes -->
+    <v-bottom-sheet v-model="moreSheet">
+      <div class="sheet-card">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">Más Módulos</div>
+        <div class="more-grid">
+          <button
+            v-for="mod in moreModules"
+            :key="mod.id"
+            class="more-tile"
+            :style="{ '--mod-color': mod.color }"
+            @click="onMoreTileClick(mod)"
+          >
+            <div class="more-tile-icon"><v-icon size="22" color="white">{{ mod.icon }}</v-icon></div>
+            <span class="more-tile-label">{{ mod.name }}</span>
+          </button>
+        </div>
+      </div>
+    </v-bottom-sheet>
+
+    <!-- Sheet: contenido (categorías/ítems) del módulo seleccionado -->
+    <v-bottom-sheet v-model="moduleSheet">
+      <div class="sheet-card sheet-card--module" v-if="activeModuleForSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-module-header" :style="{ '--mod-color': activeModuleForSheet.color }">
+          <div class="sheet-module-icon"><v-icon size="19" color="white">{{ activeModuleForSheet.icon }}</v-icon></div>
+          <span class="sheet-module-title">{{ activeModuleForSheet.name }}</span>
+        </div>
+        <div class="sheet-module-body">
+          <div v-for="cat in activeModuleForSheet.children" :key="cat.name" class="sheet-cat-block">
+            <div class="sheet-cat-header" @click="toggleSheetCat(cat.name)">
+              <v-icon size="15" color="rgba(var(--v-theme-on-surface),.5)">{{ cat.icon }}</v-icon>
+              <span>{{ cat.name }}</span>
+              <v-icon size="13" class="sheet-chevron" :class="{ rotated: sheetOpenCats[cat.name] }">mdi-chevron-down</v-icon>
+            </div>
+            <div v-show="sheetOpenCats[cat.name]" class="sheet-items">
+              <button
+                v-for="item in cat.items"
+                :key="item.path"
+                class="sheet-item"
+                :class="{ 'sheet-item-active': route.path === item.path }"
+                @click="goToItem(item.path)"
+              >
+                {{ item.name }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </v-bottom-sheet>
   </v-layout>
 </template>
 
@@ -372,6 +437,68 @@ const currentModuleTitle = computed(() => {
   const found = MODULES.find(m => route.path === m.path || route.path.startsWith(m.path + '/'))
   return found?.name || 'INICIO'
 })
+
+// ─── Bottom Navigation (mobile) ─────────────────────────────────────────────
+const bottomNavPriority = ['contabilidad', 'tesoreria', 'almacen', 'nomina']
+const BOTTOM_NAV_LABELS = { contabilidad: 'Contab.', tesoreria: 'Tesorería', almacen: 'Almacén', nomina: 'Nómina' }
+
+const moreSheet     = ref(false)
+const moduleSheet   = ref(false)
+const activeModuleId = ref(null)
+const sheetOpenCats  = reactive({})
+
+const bottomNavButtons = computed(() =>
+  bottomNavPriority.map(id => modules.value.find(m => m.id === id)).filter(Boolean)
+)
+const moreModules = computed(() =>
+  modules.value.filter(m => !bottomNavPriority.includes(m.id))
+)
+const activeModuleForSheet = computed(() =>
+  modules.value.find(m => m.id === activeModuleId.value) || null
+)
+const bottomNavActiveId = computed(() => {
+  const found = modules.value.find(m => m.path && m.path !== '/' && (route.path === m.path || route.path.startsWith(m.path + '/')))
+  return found?.id || null
+})
+
+function bottomNavLabel(mod) {
+  return BOTTOM_NAV_LABELS[mod.id] || mod.name
+}
+
+function openModuleSheet(mod) {
+  activeModuleId.value = mod.id
+  Object.keys(sheetOpenCats).forEach(k => delete sheetOpenCats[k])
+  const firstCat = mod.children?.find(c => c.items?.length)
+  if (firstCat) sheetOpenCats[firstCat.name] = true
+  moduleSheet.value = true
+}
+
+function onBottomNavClick(mod) {
+  if (!mod.children?.length) {
+    router.push(mod.path)
+    return
+  }
+  openModuleSheet(mod)
+}
+
+function onMoreTileClick(mod) {
+  moreSheet.value = false
+  if (!mod.children?.length) {
+    router.push(mod.path)
+    return
+  }
+  openModuleSheet(mod)
+}
+
+function toggleSheetCat(name) {
+  sheetOpenCats[name] = !sheetOpenCats[name]
+}
+
+function goToItem(path) {
+  router.push(path)
+  moduleSheet.value = false
+  moreSheet.value = false
+}
 
 const avatarInitials = computed(() => {
   const name = authStore.userNombre || authStore.userName || 'US'
@@ -743,33 +870,6 @@ const handleLogout = () => {
   z-index: 10;
 }
 
-.mobile-menu-btn {
-  position: relative;
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: rgb(var(--v-theme-on-surface));
-  flex-shrink: 0;
-}
-.mobile-menu-btn:active { background: rgba(var(--v-theme-on-surface), 0.08); }
-
-.menu-btn-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 8px;
-  height: 8px;
-  background: #ef4444;
-  border-radius: 50%;
-  border: 2px solid rgb(var(--v-theme-surface));
-}
-
 .mobile-page-title {
   flex: 1;
   font-size: 16px;
@@ -777,7 +877,7 @@ const handleLogout = () => {
   color: rgb(var(--v-theme-on-surface));
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  text-align: center;
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -887,6 +987,167 @@ const handleLogout = () => {
   .page-body {
     padding: 14px 14px calc(24px + env(safe-area-inset-bottom));
   }
+}
+.page-body.has-bottom-nav {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+/* ─── BOTTOM NAVIGATION (mobile) ─── */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  background: #0D0D0D;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bn-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 2px 7px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  min-width: 0;
+}
+.bn-btn:active { background: rgba(255,255,255,0.05); }
+.bn-btn-active { color: var(--bn-color, #F5A623); }
+.bn-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ─── BOTTOM SHEETS ─── */
+.sheet-card {
+  background: rgb(var(--v-theme-surface));
+  border-radius: 20px 20px 0 0;
+  padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+  max-height: 78vh;
+  overflow-y: auto;
+}
+.sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(var(--v-theme-on-surface), 0.18);
+  margin: 4px auto 14px;
+}
+.sheet-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  margin-bottom: 14px;
+}
+
+/* Grid de "Más módulos" */
+.more-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.more-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 6px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+.more-tile:active { background: rgba(var(--v-theme-on-surface), 0.05); }
+.more-tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--mod-color, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.more-tile-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  color: rgb(var(--v-theme-on-surface));
+  line-height: 1.25;
+}
+
+/* Contenido de módulo (categorías/ítems) */
+.sheet-module-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.sheet-module-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--mod-color, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sheet-module-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgb(var(--v-theme-on-surface));
+}
+.sheet-cat-block { margin-bottom: 6px; }
+.sheet-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+}
+.sheet-chevron { margin-left: auto; transition: transform 0.2s ease; opacity: 0.6; }
+.sheet-chevron.rotated { transform: rotate(180deg); }
+.sheet-items { padding: 4px 0 8px; }
+.sheet-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 11px 12px 11px 24px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  font-size: 13.5px;
+  color: rgba(var(--v-theme-on-surface), 0.75);
+  cursor: pointer;
+}
+.sheet-item:active { background: rgba(var(--v-theme-on-surface), 0.06); }
+.sheet-item-active {
+  background: rgba(245,166,35,0.1) !important;
+  color: #F5A623 !important;
+  font-weight: 700;
 }
 
 /* ─── NOTIFICACIONES ─── */
