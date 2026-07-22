@@ -1993,10 +1993,10 @@ app.get('/api/almacen/entradas-almacen', async (req, res) => {
                     COALESCE(p.nombre, dea.articulo) AS producto_nombre,
                     p.und,
                     dea.cantidad,
-                    dea.precio_unitario,
+                    dea.vr_unitario AS precio_unitario,
                     dea.subtotal
              FROM entrada_almacen ea
-             JOIN detalles_entrada_almacen dea ON dea.entrada = ea.codigo
+             JOIN detalle_entrada_almacen dea ON dea.codigo = ea.codigo
              LEFT JOIN productos p ON p.codigo = dea.articulo
              LEFT JOIN proveedores prov ON prov.codigo = ea.proveedor AND prov.empresa::text = $1
              WHERE ${conditions.join(' AND ')}
@@ -2042,10 +2042,10 @@ app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
                     COALESCE(p.nombre, dea.articulo) AS producto_nombre,
                     p.und,
                     dea.cantidad,
-                    dea.precio_unitario,
+                    dea.vr_unitario AS precio_unitario,
                     dea.subtotal
              FROM entrada_almacen ea
-             JOIN detalles_entrada_almacen dea ON dea.entrada = ea.codigo
+             JOIN detalle_entrada_almacen dea ON dea.codigo = ea.codigo
              LEFT JOIN productos p ON p.codigo = dea.articulo
              WHERE ea.empresa::text = $1
                AND ea.gasto = $2
@@ -8910,12 +8910,8 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
              forma_pago, 'NO', empresa, codigos[0], proveedor, null, lineas[0].ccosto]
         );
 
-        // 4. Materia prima: siempre guardar en entrada_almacen/detalles_entrada_almacen;
+        // 4. Materia prima: siempre guardar en entrada_almacen/detalle_entrada_almacen;
         //    condicionalmente afectar detalle_inventario y/o precio_costo
-        await client.query(
-            `ALTER TABLE detalles_entrada_almacen ADD COLUMN IF NOT EXISTS empresa VARCHAR(20)`
-        );
-
         let bodegaMaestra = null;
         await client.query('LOCK TABLE entrada_almacen IN SHARE ROW EXCLUSIVE MODE');
         const eaMaxRes = await client.query(
@@ -8943,12 +8939,12 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
                 [eaCodigo, empresa, fecha, codigos[i], proveedor, totalEa]
             );
 
-            // 4b. SIEMPRE: crear detalles_entrada_almacen
+            // 4b. SIEMPRE: crear detalle_entrada_almacen
             for (const item of itemsValidos) {
                 const cant  = parseFloat(item.cantidad) || 0;
                 const costo = parseFloat(item.costoUnit) || 0;
                 await client.query(
-                    `INSERT INTO detalles_entrada_almacen (articulo, cantidad, entrada, precio_unitario, subtotal, empresa)
+                    `INSERT INTO detalle_entrada_almacen (articulo, cantidad, codigo, vr_unitario, subtotal, empresa)
                      VALUES ($1, $2, $3, $4, $5, $6)`,
                     [item.codigo, cant, eaCodigo, costo, cant * costo, empresa]
                 );
