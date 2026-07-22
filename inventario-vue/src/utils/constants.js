@@ -182,6 +182,7 @@ export const MODULES = [
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Horario Semanal',    icon: 'mdi-calendar-week',           path: '/nomina/procesos/horario' },
         { name: 'Liquidación',        icon: 'mdi-calculator-variant',      path: '/nomina/procesos/liquidacion' },
+        { name: 'Gestión de Propinas', icon: 'mdi-cash-fast',              path: '/nomina/procesos/propinas' },
       ]},
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Horario para Publicar', icon: 'mdi-calendar-clock',      path: '/nomina/reportes/horario' },
