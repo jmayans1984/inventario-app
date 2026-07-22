@@ -238,8 +238,7 @@ async function cargarGastosConEntradas() {
 
 onMounted(cargarGastosConEntradas)
 
-// Recargar cuando el store actualice los gastos (ej. después de guardar uno nuevo)
-watch(() => store.gastos.length, cargarGastosConEntradas)
+watch(() => store.gastos, cargarGastosConEntradas)
 
 // ── Popup entradas de almacén ──
 const dlgEntradas = ref(false)
