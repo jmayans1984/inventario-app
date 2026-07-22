@@ -7865,13 +7865,14 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         }
 
         // ── Traer TODAS las cuentas (incluso sin movimientos en el período) ─
+        // Se excluye la cuenta de Materia Prima porque se agrega aparte como el
+        // consumo calculado por juego de inventarios (ver esGrupoMateriaPrima abajo).
         const cuentasActivasRes = await pool.query(`
-            SELECT c.codigo, c.nombre, gg.codigo as grupo_codigo
-            FROM cuentas c
-            LEFT JOIN grupos_gastos gg ON c.grupo_gastos_codigo = gg.codigo
-            WHERE c.empresa = $1
-            ORDER BY c.codigo
-        `, [empresa]);
+            SELECT codigo, cuenta AS nombre, TRIM(grupo) AS grupo_codigo
+            FROM cuentas
+            WHERE empresa = $1 AND ($2::text IS NULL OR codigo <> $2)
+            ORDER BY codigo
+        `, [emp, ctaMateriaPrima]);
 
         // ── Ventas netas por período (denominador de % sobre venta) ───────
         const ventasNetasPorPeriodo = periodos.map(p => {
