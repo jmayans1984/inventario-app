@@ -95,6 +95,7 @@ const routes = [
   { path: '/nomina/configuracion/control-asistencia', component: () => import('../views/nomina/ControlAsistenciaView.vue'), meta: { requiresAuth: true } },
   { path: '/nomina/procesos/horario',             component: () => import('../views/nomina/HorarioSemanalView.vue'),    meta: { requiresAuth: true } },
   { path: '/nomina/procesos/liquidacion',         component: () => import('../views/nomina/LiquidacionNominaView.vue'), meta: { requiresAuth: true } },
+  { path: '/nomina/procesos/propinas',            component: () => import('../views/nomina/PropinasView.vue'),          meta: { requiresAuth: true } },
   { path: '/nomina/reportes/horario',             component: () => import('../views/nomina/ReporteHorarioView.vue'),    meta: { requiresAuth: true } },
   { path: '/nomina/reportes/recibos',             component: () => import('../views/nomina/RecibosNominaView.vue'),     meta: { requiresAuth: true } },
   { path: '/nomina/reportes/nomina',              component: () => import('../views/nomina/ReporteNominaView.vue'),     meta: { requiresAuth: true } },

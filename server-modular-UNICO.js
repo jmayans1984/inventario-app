@@ -12876,6 +12876,26 @@ async function crearTablasNomina() {
             cuenta_nomina VARCHAR(50) DEFAULT '',
             activo BOOLEAN DEFAULT TRUE,
             UNIQUE(empresa, anio)
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_propinas (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL,
+            anio INT4 NOT NULL, mes INT4 NOT NULL,
+            estado VARCHAR(15) DEFAULT 'BORRADOR',
+            total_propinas NUMERIC(12,2) DEFAULT 0,
+            total_horas NUMERIC(10,2) DEFAULT 0,
+            fecha_generacion TIMESTAMP DEFAULT NOW(),
+            fecha_pago TIMESTAMP,
+            UNIQUE(empresa, anio, mes)
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_propinas_detalle (
+            id SERIAL PRIMARY KEY, propina_id INT4 NOT NULL REFERENCES nom_propinas(id) ON DELETE CASCADE,
+            ccosto VARCHAR(3), ccosto_nombre VARCHAR(150),
+            total_propinas_ccosto NUMERIC(12,2) DEFAULT 0,
+            total_horas_ccosto NUMERIC(10,2) DEFAULT 0,
+            empleado_id INT4 NOT NULL,
+            empleado_nombre VARCHAR(200),
+            horas NUMERIC(10,2) DEFAULT 0,
+            valor_asignado NUMERIC(12,2) DEFAULT 0
         )`
     ];
     for (const sql of sqls) {
@@ -14433,6 +14453,195 @@ app.put('/api/nomina/config-fiscal', async (req, res) => {
              d.ot_threshold_hours,d.ot_multiplier,d.fl_min_wage,d.wc_default_rate,
              d.cuenta_nomina||'', fitJson]
         );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ── GESTIÓN DE PROPINAS ──────────────────────────────────────────
+// Reparte las propinas del mes (registradas en `gastos` con la cuenta
+// contable configurada como "CUENTA CONTABLE INGRESO PROPINAS") entre
+// los empleados, proporcionalmente a las horas trabajadas por cada uno
+// dentro de su centro de costo ese mes.
+
+// GET /api/nomina/propinas?empresa=&anio=&mes= — trae el registro guardado (si existe)
+app.get('/api/nomina/propinas', async (req, res) => {
+    const { empresa, anio, mes } = req.query;
+    if (!empresa || !anio || !mes)
+        return res.status(400).json({ success: false, error: 'empresa, anio y mes son requeridos' });
+    try {
+        const cab = await pool.query(
+            'SELECT * FROM nom_propinas WHERE empresa=$1 AND anio=$2 AND mes=$3', [empresa, anio, mes]
+        );
+        if (!cab.rows.length) return res.json({ success: true, data: null });
+        const det = await pool.query(
+            `SELECT * FROM nom_propinas_detalle WHERE propina_id=$1
+             ORDER BY ccosto_nombre, empleado_nombre`, [cab.rows[0].id]
+        );
+        res.json({ success: true, data: { ...cab.rows[0], detalle: det.rows } });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// GET /api/nomina/propinas/historial?empresa= — lista de meses generados
+app.get('/api/nomina/propinas/historial', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const r = await pool.query(
+            `SELECT * FROM nom_propinas WHERE empresa=$1 ORDER BY anio DESC, mes DESC LIMIT 24`, [empresa]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// POST /api/nomina/propinas/generar { empresa, anio, mes }
+// Calcula la distribución y la guarda como BORRADOR (reemplaza el borrador anterior si existe).
+app.post('/api/nomina/propinas/generar', async (req, res) => {
+    const { empresa, anio, mes } = req.body;
+    if (!empresa || !anio || !mes)
+        return res.status(400).json({ success: false, error: 'empresa, anio y mes son requeridos' });
+    const client = await pool.connect();
+    try {
+        const existente = await client.query(
+            'SELECT * FROM nom_propinas WHERE empresa=$1 AND anio=$2 AND mes=$3', [empresa, anio, mes]
+        );
+        if (existente.rows.length && existente.rows[0].estado === 'PAGADO') {
+            return res.status(400).json({ success: false, error: 'Este mes ya fue marcado como PAGADO y no se puede regenerar' });
+        }
+
+        const cfg = await client.query('SELECT cta_propinas FROM config_general WHERE empresa=$1', [empresa]);
+        const ctaPropinas = cfg.rows[0]?.cta_propinas;
+        if (!ctaPropinas) {
+            return res.status(400).json({ success: false, error: 'Configure la "CUENTA CONTABLE INGRESO PROPINAS" en Configuración General antes de continuar' });
+        }
+
+        // 1. Propinas del mes por centro de costo (tabla gastos)
+        const propinasPorCcosto = await client.query(
+            `SELECT g.ccosto, COALESCE(cc.nombre, g.ccosto, 'SIN CC') AS ccosto_nombre,
+                    COALESCE(SUM(g.total),0) AS total_propinas
+             FROM gastos g
+             LEFT JOIN ccostos cc ON cc.codigo = g.ccosto AND cc.empresa = g.empresa
+             WHERE g.empresa=$1 AND g.cuenta=$2
+               AND EXTRACT(YEAR FROM g.fecha)=$3 AND EXTRACT(MONTH FROM g.fecha)=$4
+             GROUP BY g.ccosto, cc.nombre`,
+            [empresa, ctaPropinas, anio, mes]
+        );
+
+        // 2. Horas trabajadas del mes por empleado y centro de costo (tabla nom_semana_detalle)
+        const horasPorEmpleado = await client.query(
+            `SELECT sd.ccosto, e.id AS empleado_id,
+                    COALESCE(e.nombre||' '||e.apellido, 'Empleado '||e.id) AS empleado_nombre,
+                    SUM(COALESCE(sd.real_horas, sd.prog_horas, 0)) AS horas
+             FROM nom_semana_detalle sd
+             JOIN nom_semana sem ON sem.id = sd.semana_id
+             JOIN nom_empleados e ON e.id = sd.empleado_id
+             WHERE sem.empresa=$1
+               AND EXTRACT(YEAR FROM sd.fecha)=$2 AND EXTRACT(MONTH FROM sd.fecha)=$3
+               AND COALESCE(sd.es_dia_libre,false) = false
+             GROUP BY sd.ccosto, e.id, e.nombre, e.apellido
+             HAVING SUM(COALESCE(sd.real_horas, sd.prog_horas, 0)) > 0`,
+            [empresa, anio, mes]
+        );
+
+        // 3. Combinar: por cada ccosto con propinas, repartir proporcional a horas de ese ccosto
+        const horasPorCcosto = {};
+        for (const h of horasPorEmpleado.rows) {
+            const key = h.ccosto || 'SIN CC';
+            if (!horasPorCcosto[key]) horasPorCcosto[key] = [];
+            horasPorCcosto[key].push(h);
+        }
+
+        const detalleFinal = [];
+        let totalPropinas = 0, totalHoras = 0;
+
+        for (const cc of propinasPorCcosto.rows) {
+            const key = cc.ccosto || 'SIN CC';
+            const totalPropinasCc = parseFloat(cc.total_propinas) || 0;
+            const empleadosCc = horasPorCcosto[key] || [];
+            const totalHorasCc = empleadosCc.reduce((s, e) => s + (parseFloat(e.horas) || 0), 0);
+
+            totalPropinas += totalPropinasCc;
+            totalHoras += totalHorasCc;
+
+            if (!empleadosCc.length || totalHorasCc <= 0) {
+                // No hay horas registradas para repartir estas propinas — se deja constancia sin empleado asignado
+                detalleFinal.push({
+                    ccosto: cc.ccosto, ccosto_nombre: cc.ccosto_nombre,
+                    total_propinas_ccosto: totalPropinasCc, total_horas_ccosto: 0,
+                    empleado_id: null, empleado_nombre: '(Sin horas registradas — no se pudo repartir)',
+                    horas: 0, valor_asignado: 0
+                });
+                continue;
+            }
+
+            for (const emp of empleadosCc) {
+                const horas = parseFloat(emp.horas) || 0;
+                const valor = totalPropinasCc * (horas / totalHorasCc);
+                detalleFinal.push({
+                    ccosto: cc.ccosto, ccosto_nombre: cc.ccosto_nombre,
+                    total_propinas_ccosto: totalPropinasCc, total_horas_ccosto: totalHorasCc,
+                    empleado_id: emp.empleado_id, empleado_nombre: emp.empleado_nombre,
+                    horas, valor_asignado: Math.round(valor * 100) / 100
+                });
+            }
+        }
+
+        await client.query('BEGIN');
+        let propinaId;
+        if (existente.rows.length) {
+            propinaId = existente.rows[0].id;
+            await client.query('DELETE FROM nom_propinas_detalle WHERE propina_id=$1', [propinaId]);
+            await client.query(
+                `UPDATE nom_propinas SET total_propinas=$1, total_horas=$2, estado='BORRADOR', fecha_generacion=NOW() WHERE id=$3`,
+                [totalPropinas, totalHoras, propinaId]
+            );
+        } else {
+            const ins = await client.query(
+                `INSERT INTO nom_propinas (empresa, anio, mes, total_propinas, total_horas)
+                 VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+                [empresa, anio, mes, totalPropinas, totalHoras]
+            );
+            propinaId = ins.rows[0].id;
+        }
+
+        for (const d of detalleFinal) {
+            await client.query(
+                `INSERT INTO nom_propinas_detalle
+                    (propina_id, ccosto, ccosto_nombre, total_propinas_ccosto, total_horas_ccosto,
+                     empleado_id, empleado_nombre, horas, valor_asignado)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                [propinaId, d.ccosto, d.ccosto_nombre, d.total_propinas_ccosto, d.total_horas_ccosto,
+                 d.empleado_id, d.empleado_nombre, d.horas, d.valor_asignado]
+            );
+        }
+        await client.query('COMMIT');
+
+        const cabFinal = await pool.query('SELECT * FROM nom_propinas WHERE id=$1', [propinaId]);
+        res.json({ success: true, data: { ...cabFinal.rows[0], detalle: detalleFinal } });
+    } catch(e) {
+        await client.query('ROLLBACK').catch(()=>{});
+        console.error('Error POST /api/nomina/propinas/generar:', e);
+        res.status(500).json({ success: false, error: e.message });
+    } finally { client.release(); }
+});
+
+// PUT /api/nomina/propinas/:id/pagar — marca el mes como pagado (ya no se puede regenerar)
+app.put('/api/nomina/propinas/:id/pagar', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `UPDATE nom_propinas SET estado='PAGADO', fecha_pago=NOW() WHERE id=$1 RETURNING *`,
+            [req.params.id]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+        res.json({ success: true, data: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// DELETE /api/nomina/propinas/:id — solo permite borrar borradores (para poder regenerar limpio)
+app.delete('/api/nomina/propinas/:id', async (req, res) => {
+    try {
+        const chk = await pool.query('SELECT estado FROM nom_propinas WHERE id=$1', [req.params.id]);
+        if (!chk.rows.length) return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+        if (chk.rows[0].estado === 'PAGADO') return res.status(400).json({ success: false, error: 'No se puede eliminar un registro ya PAGADO' });
+        await pool.query('DELETE FROM nom_propinas WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });

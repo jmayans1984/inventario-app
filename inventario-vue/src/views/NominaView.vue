@@ -231,6 +231,7 @@ const secciones = [
     items: [
       { path: '/nomina/procesos/horario',     icon: 'mdi-calendar-week-outline', title: 'Horario Semanal',       desc: 'Registro de horas trabajadas por semana' },
       { path: '/nomina/procesos/liquidacion', icon: 'mdi-calculator',            title: 'Liquidación de Nómina', desc: 'Calcula y aprueba nóminas' },
+      { path: '/nomina/procesos/propinas',    icon: 'mdi-cash-fast',             title: 'Gestión de Propinas',   desc: 'Reparte propinas del mes según horas trabajadas' },
     ],
   },
   {
