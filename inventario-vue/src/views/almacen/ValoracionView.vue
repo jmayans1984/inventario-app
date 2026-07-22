@@ -115,45 +115,36 @@
           </div>
         </div>
 
-        <!-- FILA 1: Fórmula visual + gráfica -->
-        <div class="vm-card vm-card-full">
-          <div class="vm-card-header">
-            <v-icon size="18" color="#06b6d4">mdi-scale-balance</v-icon>
-            <span class="vm-card-title">Juego de Inventarios — {{ mesLabel }}</span>
+        <!-- FILA 1: Fórmula visual -->
+        <!-- Fórmula visual: Inv. Inicial + Compras − Inv. Final = Consumo Real -->
+        <div class="vm-formula">
+          <div class="vm-formula-item">
+            <div class="vm-formula-bar" style="background:#8b5cf6">
+              <span class="vm-formula-val">{{ fmt(data.kpis.valorInicial) }}</span>
+            </div>
+            <div class="vm-formula-lbl">Inv. Inicial</div>
           </div>
-
-          <!-- Fórmula visual: Inv. Inicial + Compras − Inv. Final = Consumo Real -->
-          <div class="vm-formula">
-            <div class="vm-formula-item">
-              <div class="vm-formula-bar" style="background:#8b5cf6">
-                <span class="vm-formula-val">{{ fmt(data.kpis.valorInicial) }}</span>
-              </div>
-              <div class="vm-formula-lbl">Inv. Inicial</div>
+          <div class="vm-formula-op">+</div>
+          <div class="vm-formula-item">
+            <div class="vm-formula-bar" style="background:#0ea5e9">
+              <span class="vm-formula-val">{{ fmt(data.kpis.compras) }}</span>
             </div>
-            <div class="vm-formula-op">+</div>
-            <div class="vm-formula-item">
-              <div class="vm-formula-bar" style="background:#0ea5e9">
-                <span class="vm-formula-val">{{ fmt(data.kpis.compras) }}</span>
-              </div>
-              <div class="vm-formula-lbl">Compras</div>
-            </div>
-            <div class="vm-formula-op">−</div>
-            <div class="vm-formula-item">
-              <div class="vm-formula-bar" style="background:#8b5cf6">
-                <span class="vm-formula-val">{{ fmt(data.kpis.valorFinal) }}</span>
-              </div>
-              <div class="vm-formula-lbl">Inv. Final</div>
-            </div>
-            <div class="vm-formula-op">=</div>
-            <div class="vm-formula-item vm-formula-result">
-              <div class="vm-formula-bar" style="background:#f97316">
-                <span class="vm-formula-val">{{ fmt(data.kpis.consumoReal) }}</span>
-              </div>
-              <div class="vm-formula-lbl">Consumo Real</div>
-            </div>
+            <div class="vm-formula-lbl">Compras</div>
           </div>
-
-          <div ref="chartWaterfallRef" class="chart-area"></div>
+          <div class="vm-formula-op">−</div>
+          <div class="vm-formula-item">
+            <div class="vm-formula-bar" style="background:#8b5cf6">
+              <span class="vm-formula-val">{{ fmt(data.kpis.valorFinal) }}</span>
+            </div>
+            <div class="vm-formula-lbl">Inv. Final</div>
+          </div>
+          <div class="vm-formula-op">=</div>
+          <div class="vm-formula-item vm-formula-result">
+            <div class="vm-formula-bar" style="background:#f97316">
+              <span class="vm-formula-val">{{ fmt(data.kpis.consumoReal) }}</span>
+            </div>
+            <div class="vm-formula-lbl">Consumo Real</div>
+          </div>
         </div>
 
         <!-- DIALOGS DE DETALLE -->
@@ -400,10 +391,15 @@
                   <th>PRODUCTO</th>
                   <th>GRUPO</th>
                   <th class="tr">COSTO UNIT.</th>
-                  <th class="tr">STOCK INICIAL</th>
-                  <th class="tr">VALOR INICIAL</th>
-                  <th class="tr">STOCK FINAL</th>
-                  <th class="tr">VALOR FINAL</th>
+                  <th colspan="2" class="th-section-inicial">INVENTARIO INICIAL</th>
+                  <th colspan="2" class="th-section-final">INVENTARIO FINAL</th>
+                </tr>
+                <tr>
+                  <th colspan="4"></th>
+                  <th class="tr th-stock-inicial">STOCK</th>
+                  <th class="tr th-valor-inicial">VALOR</th>
+                  <th class="tr th-stock-final">STOCK</th>
+                  <th class="tr th-valor-final">VALOR</th>
                 </tr>
               </thead>
               <tbody>
@@ -415,10 +411,10 @@
                   </td>
                   <td class="text-dim">{{ p.grupo_nombre }}</td>
                   <td class="tr">{{ fmt(p.precio_costo) }}</td>
-                  <td class="tr">{{ numFmt(p.stockInicial) }} {{ p.und }}</td>
-                  <td class="tr">{{ fmt(p.valorInicial) }}</td>
-                  <td class="tr">{{ numFmt(p.stockFinal) }} {{ p.und }}</td>
-                  <td class="tr">{{ fmt(p.valorFinal) }}</td>
+                  <td class="tr td-stock-inicial">{{ numFmt(p.stockInicial) }} {{ p.und }}</td>
+                  <td class="tr td-valor-inicial">{{ fmt(p.valorInicial) }}</td>
+                  <td class="tr td-stock-final">{{ numFmt(p.stockFinal) }} {{ p.und }}</td>
+                  <td class="tr td-valor-final">{{ fmt(p.valorFinal) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -476,11 +472,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
-import ApexCharts from 'apexcharts'
 
 const authStore = useAuthStore()
 const empresa = computed(() =>
@@ -518,10 +513,19 @@ const fechaCorteInicialTxt = computed(() => {
 const productosFiltrados = computed(() => {
   if (!data.value) return []
   const q = filtroProducto.value.trim().toLowerCase()
-  if (!q) return data.value.productos
-  return data.value.productos.filter(p =>
-    p.nombre.toLowerCase().includes(q) || String(p.codigo).toLowerCase().includes(q)
-  )
+  let filtrados = data.value.productos
+  if (q) {
+    filtrados = filtrados.filter(p =>
+      p.nombre.toLowerCase().includes(q) || String(p.codigo).toLowerCase().includes(q)
+    )
+  }
+  // Ordenar por grupo_nombre, luego por codigo
+  return filtrados.sort((a, b) => {
+    if (a.grupo_nombre !== b.grupo_nombre) {
+      return a.grupo_nombre.localeCompare(b.grupo_nombre)
+    }
+    return String(a.codigo).localeCompare(String(b.codigo))
+  })
 })
 
 // ── Formatters ──────────────────────────────────────────────────────────────
@@ -558,68 +562,13 @@ async function cargar() {
     if (!j.success) throw new Error(j.error)
     data.value = j
     loading.value = false
-    await nextTick()
-    renderCharts()
   } catch (e) {
     console.error('valoracion-mensual:', e)
     loading.value = false
   }
 }
 
-// ── Gráficas ─────────────────────────────────────────────────────────────────
-function isDark() {
-  return document.documentElement.classList.contains('v-theme--dark') ||
-         document.body.classList.contains('v-theme--dark')
-}
-function themeColors() {
-  return isDark()
-    ? { fg: '#94a3b8', grid: 'rgba(255,255,255,0.06)' }
-    : { fg: '#64748b', grid: 'rgba(0,0,0,0.06)' }
-}
-
-let chartWaterfall = null
-function destroyAll() {
-  chartWaterfall?.destroy(); chartWaterfall = null
-}
-
-function renderCharts() {
-  destroyAll()
-  if (!data.value) return
-  renderWaterfall()
-}
-
-function renderWaterfall() {
-  if (!chartWaterfallRef.value || !data.value) return
-  const { fg, grid } = themeColors()
-  const k = data.value.kpis
-
-  const categorias = ['Inv. Inicial', 'Compras', 'Inv. Final', 'Consumo Real']
-  const colores      = ['#8b5cf6', '#0ea5e9', '#8b5cf6', '#f97316']
-
-  chartWaterfall = new ApexCharts(chartWaterfallRef.value, {
-    chart: { type: 'bar', height: 340, toolbar: { show: false }, fontFamily: 'Inter,sans-serif', background: 'transparent', animations: { enabled: true, speed: 600, animateGradually: { enabled: true, delay: 80 } } },
-    theme: { mode: isDark() ? 'dark' : 'light' },
-    series: [{ name: 'Valor', data: [k.valorInicial, k.compras, k.valorFinal, k.consumoReal] }],
-    colors: colores,
-    plotOptions: { bar: { columnWidth: '45%', borderRadius: 6, distributed: true, borderRadiusApplication: 'end' } },
-    dataLabels: { enabled: true, formatter: v => fmt(v), style: { fontSize: '12px', fontWeight: 700 }, offsetY: -22 },
-    xaxis: {
-      categories: categorias,
-      labels: { style: { colors: fg, fontSize: '12px', fontWeight: 700 } },
-      axisBorder: { show: false }, axisTicks: { show: false },
-    },
-    yaxis: { labels: { style: { colors: fg }, formatter: v => fmt(v) } },
-    grid:  { borderColor: grid, strokeDashArray: 4, padding: { top: 20 } },
-    legend: { show: false },
-    tooltip: { y: { formatter: v => fmt(v) } },
-  })
-  chartWaterfall.render()
-}
-
-const chartWaterfallRef = ref(null)
-
 onMounted(cargar)
-onBeforeUnmount(destroyAll)
 </script>
 
 <style scoped>
@@ -708,28 +657,31 @@ onBeforeUnmount(destroyAll)
 /* FORMULA VISUAL */
 .vm-formula {
   display: flex; align-items: center; justify-content: center; gap: 0;
-  padding: 24px 12px 18px; flex-wrap: wrap;
+  padding: 40px 16px; flex-wrap: wrap;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+  border-radius: 12px; margin-bottom: 20px;
 }
 .vm-formula-item {
-  display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 120px; flex: 1; max-width: 200px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 140px; flex: 1; max-width: 220px;
 }
 .vm-formula-bar {
-  width: 100%; border-radius: 10px; padding: 16px 10px; text-align: center;
+  width: 100%; border-radius: 12px; padding: 18px 12px; text-align: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
 }
 .vm-formula-val {
-  font-size: 16px; font-weight: 800; color: #fff; white-space: nowrap;
+  font-size: 17px; font-weight: 800; color: #fff; white-space: nowrap;
 }
 .vm-formula-lbl {
-  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
   color: rgba(var(--v-theme-on-surface), 0.55);
 }
 .vm-formula-result .vm-formula-bar {
   box-shadow: 0 2px 12px rgba(249,115,22,0.3);
+  transform: scaleY(1.08);
 }
 .vm-formula-op {
-  font-size: 36px; font-weight: 900; color: rgba(var(--v-theme-on-surface), 0.3);
-  padding: 0 16px; line-height: 1; margin-bottom: 22px; user-select: none;
+  font-size: 42px; font-weight: 900; color: rgba(var(--v-theme-on-surface), 0.25);
+  padding: 0 20px; line-height: 1; margin-bottom: 24px; user-select: none;
 }
 
 /* KPI DETAIL BUTTON */
@@ -775,5 +727,25 @@ onBeforeUnmount(destroyAll)
 .badge-dim-tag {
   background: rgba(148,163,184,0.12); color: #94a3b8;
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
+}
+
+/* COLOREO DE TABLA PRODUCTOS */
+.th-section-inicial {
+  background: rgba(139,92,246,0.12) !important; color: #8b5cf6 !important; font-weight: 800;
+}
+.th-section-final {
+  background: rgba(34,197,94,0.12) !important; color: #22c55e !important; font-weight: 800;
+}
+.th-stock-inicial, .th-valor-inicial {
+  background: rgba(139,92,246,0.08) !important; border-bottom: 2px solid rgba(139,92,246,0.25) !important;
+}
+.th-stock-final, .th-valor-final {
+  background: rgba(34,197,94,0.08) !important; border-bottom: 2px solid rgba(34,197,94,0.25) !important;
+}
+.td-stock-inicial, .td-valor-inicial {
+  background: rgba(139,92,246,0.04); color: #8b5cf6; font-weight: 600;
+}
+.td-stock-final, .td-valor-final {
+  background: rgba(34,197,94,0.04); color: #22c55e; font-weight: 600;
 }
 </style>
