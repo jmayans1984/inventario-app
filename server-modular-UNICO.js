@@ -8920,8 +8920,8 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
         await client.query('LOCK TABLE entrada_almacen IN SHARE ROW EXCLUSIVE MODE');
         const eaMaxRes = await client.query(
             `SELECT COALESCE(MAX(CASE WHEN codigo ~ '^[0-9]+$' THEN CAST(codigo AS BIGINT) ELSE 0 END), 0) AS max_cod
-             FROM entrada_almacen WHERE empresa::text = $1`,
-            [String(empresa)]
+             FROM entrada_almacen WHERE empresa = $1`,
+            [parseInt(empresa)]
         );
         let eaSeq = (parseInt(eaMaxRes.rows[0].max_cod) || 0) + 1;
 
