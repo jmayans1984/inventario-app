@@ -214,15 +214,22 @@ const filasFiltradas = computed(() => {
   })
 })
 
-// Agrupa filasFiltradas por nombre de grupo, ordenado alfabéticamente
+// Agrupa filasFiltradas por nombre de grupo, ordenado por grupo.codigo
 const gruposConProductos = computed(() => {
-  const map = {}
+  const map = new Map()
   filasFiltradas.value.forEach(p => {
-    const key = p.grupo_nombre || (p.grupo ? p.grupo : 'SIN GRUPO')
-    if (!map[key]) map[key] = []
-    map[key].push(p)
+    const key = p.grupo || '__sin_grupo__'
+    const nombre = p.grupo_nombre || 'SIN GRUPO'
+    if (!map.has(key)) map.set(key, { nombre, items: [] })
+    map.get(key).items.push(p)
   })
-  return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, 'es'))
+  return Array.from(map.entries())
+    .sort(([a], [b]) => {
+      if (a === '__sin_grupo__') return 1
+      if (b === '__sin_grupo__') return -1
+      return a.localeCompare(b, 'es')
+    })
+    .map(([, { nombre, items }]) => [nombre, items])
 })
 
 function fmt(n) {
