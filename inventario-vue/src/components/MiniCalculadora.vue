@@ -90,7 +90,7 @@
               <div class="conv-divider"></div>
               <div class="conv-row">
                 <label style="font-weight:700;color:rgba(255,255,255,.8)">Total</label>
-                <div class="conv-result-val">{{ fmtResult(precioTotal) }}</div>
+                <div class="conv-result-val" title="Doble click para insertar" @dblclick="aceptarConv">{{ fmtResult(precioTotal) }}</div>
               </div>
             </div>
           </template>
@@ -115,8 +115,10 @@
               <div class="precioU-list">
                 <div v-for="row in precioURows" :key="row.key"
                   class="precioU-row"
+                  title="Doble click para insertar"
                   :class="{ 'precioU-source': row.key === precioUUnit, 'precioU-sel': precioUSelected === row.key }"
-                  @click="precioUSelected = row.key">
+                  @click="precioUSelected = row.key"
+                  @dblclick="dblClickPrecioURow(row)">
                   <span class="precioU-label">{{ row.label }}</span>
                   <span class="precioU-val">
                     {{ row.key === precioUUnit ? fmtResult(precioUPrice) : fmtResult(row.price) }}
@@ -140,7 +142,8 @@
                 <button class="conv-swap-btn" @click="swapUnits">⇅ intercambiar</button>
               </div>
               <div class="conv-row">
-                <input :value="fmtConv(convResult)" readonly class="conv-input conv-input-result" />
+                <input :value="fmtConv(convResult)" readonly class="conv-input conv-input-result"
+                  title="Doble click para insertar" @dblclick="aceptarConv" />
                 <select v-model="convUnitTo" class="conv-select" @change="doConvert">
                   <option v-for="u in unitsOf(categoria)" :key="u.key" :value="u.key">{{ u.label }}</option>
                 </select>
@@ -411,6 +414,13 @@ function aceptarConv() {
   insertarEnCampo(v ?? '')
 }
 
+// Doble click sobre una fila del listado Prec/U: inserta ese valor puntual y cierra
+function dblClickPrecioURow(row) {
+  precioUSelected.value = row.key
+  const v = row.key === precioUUnit.value ? precioUPrice.value : row.price
+  insertarEnCampo(v ?? '')
+}
+
 // ── Teclado ────────────────────────────────────────────────────────
 function onKeyDown(e) {
   if (!show.value || tab.value !== 'calc') return
@@ -514,7 +524,7 @@ watch(show, async (val) => {
 .conv-row label { font-size:11px; color:rgba(255,255,255,.45); width:80px; flex-shrink:0; }
 .conv-input { flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:7px; padding:7px 9px; color:white; font-size:13px; font-family:monospace; outline:none; min-width:0; }
 .conv-input:focus { border-color:#f59e0b; background:rgba(245,158,11,.06); }
-.conv-input-result { background:rgba(20,184,166,.1); border-color:rgba(20,184,166,.25); color:#2dd4bf; cursor:default; }
+.conv-input-result { background:rgba(20,184,166,.1); border-color:rgba(20,184,166,.25); color:#2dd4bf; cursor:pointer; }
 .conv-select { background:#1a1a2e; border:1px solid rgba(255,255,255,.12); border-radius:7px; padding:6px 5px; color:white; font-size:10px; outline:none; flex-shrink:0; max-width:125px; cursor:pointer; }
 .conv-swap-row { display:flex; align-items:center; gap:8px; margin:0 0 5px; }
 .conv-swap-btn { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.22); border-radius:6px; padding:4px 10px; color:#f59e0b; cursor:pointer; font-size:10px; font-weight:600; flex:1; }
@@ -522,7 +532,7 @@ watch(show, async (val) => {
 
 .conv-precio, .conv-generic { background:rgba(255,255,255,.02); border-radius:9px; padding:10px; margin-bottom:8px; }
 .conv-divider { height:1px; background:rgba(255,255,255,.07); margin:7px 0; }
-.conv-result-val { font-size:20px; font-weight:700; color:#f59e0b; font-family:monospace; flex:1; text-align:right; }
+.conv-result-val { font-size:20px; font-weight:700; color:#f59e0b; font-family:monospace; flex:1; text-align:right; cursor:pointer; }
 
 .precioU-list { display:flex; flex-direction:column; gap:3px; max-height:180px; overflow-y:auto; }
 .precioU-row { display:flex; justify-content:space-between; align-items:center; padding:5px 8px; border-radius:6px; cursor:pointer; border:1px solid transparent; transition:.12s; }
