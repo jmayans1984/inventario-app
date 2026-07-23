@@ -63,13 +63,17 @@ const routes = [
   { path: '/almacen/:section?/:item?', component: () => import('../views/AlmacenView.vue'), meta: { requiresAuth: true } },
 
   // RECETAS ESPECÍFICAS
-  { path: '/recetas/configuracion/catalogo',  component: () => import('../views/recetas/RecetasCatalogoView.vue'),  meta: { requiresAuth: true } },
-  { path: '/recetas/configuracion/articulos', component: () => import('../views/recetas/RecetasArticulosView.vue'), meta: { requiresAuth: true } },
-  { path: '/recetas/configuracion/precios',           component: () => import('../views/recetas/RecetasPreciosView.vue'),              meta: { requiresAuth: true } },
-  { path: '/recetas/configuracion/precios-cv',        component: () => import('../views/recetas/RecetasPreciosCompraVentaView.vue'),   meta: { requiresAuth: true } },
-  { path: '/recetas/configuracion/grupos-articulos',  component: () => import('../views/recetas/RecetasGruposArticulosView.vue'),      meta: { requiresAuth: true } },
+  // Edición de la fórmula/catálogo compartido (recetas, ingredientes, artículos,
+  // precios, grupos) es exclusiva del principal — los clientes solo consultan
+  // sus propios costos vía los reportes (que ya resuelven COALESCE por empresa).
+  { path: '/recetas/configuracion/catalogo',  component: () => import('../views/recetas/RecetasCatalogoView.vue'),  meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/recetas/configuracion/articulos', component: () => import('../views/recetas/RecetasArticulosView.vue'), meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/recetas/configuracion/precios',           component: () => import('../views/recetas/RecetasPreciosView.vue'),              meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/recetas/configuracion/precios-cv',        component: () => import('../views/recetas/RecetasPreciosCompraVentaView.vue'),   meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/recetas/configuracion/grupos-articulos',  component: () => import('../views/recetas/RecetasGruposArticulosView.vue'),      meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  { path: '/recetas/procesos/costos',         component: () => import('../views/recetas/RecetasGestionView.vue'),   meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
+  // Reportes: de solo lectura y ya resueltos por empresa (COALESCE capa/base) — abiertos a clientes.
   { path: '/recetas/reportes/valoracion-ventas',      component: () => import('../views/recetas/RecetasValoracionVentasView.vue'),     meta: { requiresAuth: true } },
-  { path: '/recetas/procesos/costos',         component: () => import('../views/recetas/RecetasGestionView.vue'),   meta: { requiresAuth: true } },
   { path: '/recetas/reportes/costos',         component: () => import('../views/recetas/RecetasCostosView.vue'),    meta: { requiresAuth: true } },
   { path: '/recetas/reportes/fichas',         component: () => import('../views/recetas/RecetasFichasView.vue'),    meta: { requiresAuth: true } },
 
