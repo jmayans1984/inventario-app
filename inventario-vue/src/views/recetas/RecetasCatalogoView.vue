@@ -512,6 +512,14 @@ import { API_BASE } from '../../utils/constants.js'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+// Header de empresa para que el backend resuelva costos por empresa
+// (COALESCE capa_empresa / costo_base). Estas vistas usan fetch directo,
+// que no pasa por el interceptor de axios.
+const empHeaders = () => {
+  const e = localStorage.getItem('empresaActual')
+  return e ? { 'X-Empresa': e } : {}
+}
+
 const recetas      = ref([])
 const articulos    = ref([])
 const gruposReceta = ref([])   // grupos únicos de recetas para el combobox
@@ -636,7 +644,7 @@ async function cargarRecetas() {
   loading.value = true
   try {
     const [rr, rg] = await Promise.all([
-      fetch(`${API_BASE}/recetas`).then(r => r.json()),
+      fetch(`${API_BASE}/recetas`, { headers: empHeaders() }).then(r => r.json()),
       fetch(`${API_BASE}/recetas/grupos`).then(r => r.json()),
     ])
     recetas.value      = rr.data || []
@@ -648,7 +656,7 @@ async function cargarRecetas() {
 async function cargarArticulos() {
   try {
     const [ra, rs] = await Promise.all([
-      fetch(`${API_BASE}/articulos`).then(r => r.json()),
+      fetch(`${API_BASE}/articulos`, { headers: empHeaders() }).then(r => r.json()),
       fetch(`${API_BASE}/recetas/para-selector`).then(r => r.json()),
     ])
     articulos.value = ra.data || []
@@ -802,7 +810,7 @@ async function toggleSubprod(ing, idx) {
 
   subprodLoading.value = { ...subprodLoading.value, [idx]: true }
   try {
-    const r = await fetch(`${API_BASE}/recetas/${ing.articulo}`)
+    const r = await fetch(`${API_BASE}/recetas/${ing.articulo}`, { headers: empHeaders() })
     const j = await r.json()
     subprodIngredientes.value = {
       ...subprodIngredientes.value,
@@ -895,7 +903,7 @@ async function cargarIngredientesFila(item) {
   subprodLoading.value       = {}
   subprodIngredientes.value  = {}
   try {
-    const r = await fetch(`${API_BASE}/recetas/${item.codigo}`)
+    const r = await fetch(`${API_BASE}/recetas/${item.codigo}`, { headers: empHeaders() })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const j = await r.json()
     if (!j.success) throw new Error(j.error || 'Respuesta inválida')
@@ -1061,7 +1069,7 @@ async function imprimirReceta() {
       } else {
         // Cargar del API
         try {
-          const r = await fetch(`${API_BASE}/recetas/${ing.articulo}`)
+          const r = await fetch(`${API_BASE}/recetas/${ing.articulo}`, { headers: empHeaders() })
           const j = await r.json()
           subIngs = j.data?.ingredientes || []
         } catch { subIngs = [] }

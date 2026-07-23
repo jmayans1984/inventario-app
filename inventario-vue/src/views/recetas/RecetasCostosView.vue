@@ -146,7 +146,10 @@ async function cargar() {
   try {
     const params = new URLSearchParams()
     if (filtroTipo.value !== 'TODOS') params.set('subproducto', filtroTipo.value)
-    const r = await fetch(`${API_BASE}/recetas-reporte/costos?${params}`)
+    // Costo resuelto por empresa (COALESCE su capa / base) vía header X-Empresa
+    const emp = localStorage.getItem('empresaActual')
+    const r = await fetch(`${API_BASE}/recetas-reporte/costos?${params}`,
+      emp ? { headers: { 'X-Empresa': emp } } : {})
     const j = await r.json()
     if (!j.success) throw new Error(j.error)
     recetas.value = j.data || []

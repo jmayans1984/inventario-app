@@ -451,6 +451,13 @@ import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 
+// Header de empresa: el backend resuelve el costo (valor) por empresa
+// COALESCE(su capa, base). Estas vistas usan fetch directo (sin interceptor axios).
+const empHeaders = () => {
+  const e = localStorage.getItem('empresaActual')
+  return e ? { 'X-Empresa': e } : {}
+}
+
 const theme = useTheme()
 const rowHoverBg = computed(() =>
   theme.current.value.dark ? 'rgba(251,191,36,.2)' : '#fee2e2'
@@ -659,7 +666,7 @@ async function cargar() {
   loading.value = true
   try {
     const [ra, rg] = await Promise.all([
-      fetch(`${API_BASE}/articulos`).then(r => r.json()),
+      fetch(`${API_BASE}/articulos`, { headers: empHeaders() }).then(r => r.json()),
       fetch(`${API_BASE}/articulos/grupos`).then(r => r.json()),
     ])
     articulos.value = ra.data || []

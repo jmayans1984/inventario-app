@@ -2679,20 +2679,23 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         const bodegaMaestra   = bodegaRes.rows[0]?.bodega_maestra || null;
         const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
 
-        // Stock valorizado por producto x ccosto, a un corte de fecha dado
+        // Stock valorizado por producto x ccosto, a un corte de fecha dado.
+        // Costo resuelto por empresa: COALESCE(su capa, costo base del principal).
         async function stockValorizado(fechaCorte) {
             const r = await pool.query(
                 `SELECT di.ccosto, di.codigo,
                         ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
-                        COALESCE(p.precio_costo, 0) AS precio_costo,
+                        COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
                         p.nombre, p.und,
                         COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre
                  FROM detalle_inventario di
                  JOIN productos p ON p.codigo = di.codigo
+                 LEFT JOIN producto_costo_empresa pce
+                        ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
                  LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-                 WHERE di.empresa = $1 AND di.fecha <= $2 AND p.control = 'SI'
-                 GROUP BY di.ccosto, di.codigo, p.precio_costo, p.nombre, p.und, gp.nombre`,
-                [emp, fechaCorte]
+                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
+                 GROUP BY di.ccosto, di.codigo, pce.precio_costo, p.precio_costo, p.nombre, p.und, gp.nombre`,
+                [String(empresa), emp, fechaCorte]
             );
             return r.rows;
         }
@@ -7785,13 +7788,16 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         }
 
         // ── Valorización de inventario (empresa completa) en cada corte ──
+        // Costo resuelto por empresa: COALESCE(su capa, costo base del principal).
         async function stockValorizadoTotal(fechaCorte) {
             const r = await pool.query(
-                `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(p.precio_costo,0)), 0) AS valor
+                `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
                  FROM detalle_inventario di
                  JOIN productos p ON p.codigo = di.codigo
-                 WHERE di.empresa = $1 AND di.fecha <= $2 AND p.control = 'SI'`,
-                [emp, fechaCorte]
+                 LEFT JOIN producto_costo_empresa pce
+                        ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'`,
+                [String(empresa), emp, fechaCorte]
             );
             return parseFloat(r.rows[0].valor) || 0;
         }
@@ -11767,10 +11773,12 @@ app.delete('/api/articulos/grupos/:codigo', async (req, res) => {
 
 // GET /api/articulos - Listar todos los artículos con nombre del grupo y conteo de recetas
 app.get('/api/articulos', async (req, res) => {
+    // Costo (valor) resuelto por empresa: COALESCE(su capa, valor base del principal).
+    const empresa = req.query.empresa || req.headers['x-empresa'] || null;
     try {
         const result = await pool.query(`
             SELECT a.codigo, a.nombre, a.und,
-                   COALESCE(a.valor, 0)             AS valor,
+                   COALESCE(ace.valor, a.valor, 0)   AS valor,
                    COALESCE(a.grupo, '')             AS grupo,
                    COALESCE(ga.nombre, a.grupo, '')  AS grupo_nombre,
                    COALESCE(a.prod_propio, '')        AS prod_propio,
@@ -11778,8 +11786,10 @@ app.get('/api/articulos', async (req, res) => {
                     WHERE TRIM(dr.articulo) = TRIM(a.codigo))::int AS num_recetas
             FROM articulos a
             LEFT JOIN grupo_articulos ga ON ga.codigo = a.grupo
+            LEFT JOIN articulo_costo_empresa ace
+                   ON TRIM(ace.codigo) = TRIM(a.codigo) AND TRIM(ace.empresa) = TRIM($1::text)
             ORDER BY ga.nombre NULLS LAST, a.nombre
-        `);
+        `, [empresa]);
         res.json({ success: true, data: result.rows });
     } catch (error) {
         console.error('Error GET /api/articulos:', error);
@@ -11906,7 +11916,10 @@ app.get('/api/recetas/grupos', async (req, res) => {
 // GET /api/recetas - Listar todas las recetas
 app.get('/api/recetas', async (req, res) => {
     const { grupo } = req.query;
+    // Costo (valor) resuelto por empresa: COALESCE(su capa, valor base del principal).
+    const empresa = req.query.empresa || req.headers['x-empresa'] || null;
     try {
+        const params = [empresa];   // $1 = empresa (capa de costo)
         let sql = `
             SELECT r.codigo,
                    r.nombre,
@@ -11914,19 +11927,20 @@ app.get('/api/recetas', async (req, res) => {
                    COALESCE(gr.nombre, r.grupo_receta, '') AS grupo_nombre,
                    COALESCE(r.subproducto, '')            AS subproducto,
                    COALESCE(r.und, '')                    AS und,
-                   COALESCE(r.valor, 0)                   AS valor,
+                   COALESCE(rce.valor, r.valor, 0)        AS valor,
                    COALESCE(r.precio_venta, 0)            AS precio_venta,
                    COALESCE((SELECT COUNT(*) FROM detalle_recetas dr WHERE dr.receta = r.codigo), 0) AS num_ingredientes,
                    CASE WHEN COALESCE(r.precio_venta, 0) > 0
-                        THEN ROUND((COALESCE(r.valor, 0) / r.precio_venta * 100)::numeric, 1)
+                        THEN ROUND((COALESCE(rce.valor, r.valor, 0) / r.precio_venta * 100)::numeric, 1)
                         ELSE 0 END AS porcentaje_costo
             FROM recetas r
             LEFT JOIN grupo_recetas gr ON gr.codigo = r.grupo_receta
+            LEFT JOIN receta_costo_empresa rce
+                   ON TRIM(rce.codigo) = TRIM(r.codigo) AND TRIM(rce.empresa) = TRIM($1::text)
         `;
-        const params = [];
         if (grupo && grupo !== 'TODOS') {
-            sql += ' WHERE r.grupo_receta = $1';
             params.push(grupo);
+            sql += ` WHERE r.grupo_receta = $${params.length}`;
         }
         sql += ' ORDER BY r.nombre';
         const result = await pool.query(sql, params);
@@ -12079,6 +12093,10 @@ app.get('/api/recetas/para-selector', async (req, res) => {
 // GET /api/recetas/:codigo - Obtener receta con sus ingredientes (jerárquico)
 app.get('/api/recetas/:codigo', async (req, res) => {
     const { codigo } = req.params;
+    // Costos resueltos por empresa (al vuelo): COALESCE(su capa, costo base).
+    // El desglose (vr_unit/vr_total) se calcula con el costo de la empresa, no
+    // con el desglose compartido almacenado (que es el del principal).
+    const empresa = req.query.empresa || req.headers['x-empresa'] || null;
     try {
         const [recetaRes, detalleRes] = await Promise.all([
             pool.query(`
@@ -12086,10 +12104,13 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                        COALESCE(r.grupo_receta, '') AS grupo_receta,
                        COALESCE(r.subproducto, '')  AS subproducto,
                        COALESCE(r.und, '')           AS und,
-                       COALESCE(r.valor, 0)          AS valor,
+                       COALESCE(rce.valor, r.valor, 0) AS valor,
                        COALESCE(r.precio_venta, 0)   AS precio_venta
-                FROM recetas r WHERE r.codigo = $1
-            `, [codigo]),
+                FROM recetas r
+                LEFT JOIN receta_costo_empresa rce
+                       ON TRIM(rce.codigo) = TRIM(r.codigo) AND TRIM(rce.empresa) = TRIM($2::text)
+                WHERE r.codigo = $1
+            `, [codigo, empresa]),
             pool.query(`
                 SELECT dr.codigo AS id,
                        dr.articulo,
@@ -12102,11 +12123,9 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                        COALESCE(r2.nombre, a.nombre, dr.articulo) AS nombre_item,
                        COALESCE(r2.nombre, a.nombre, dr.articulo) AS articulo_nombre,
                        COALESCE(r2.und, a.und, '') AS und,
-                       COALESCE(r2.valor, a.valor, 0) AS precio_unit,
-                       COALESCE(dr.vr_unit, r2.valor, a.valor, 0) AS vr_unit,
-                       COALESCE(dr.vr_total,
-                         (COALESCE(r2.valor, a.valor, 0)) * dr.cantidad
-                       ) AS vr_total,
+                       COALESCE(rce2.valor, r2.valor, ace.valor, a.valor, 0) AS precio_unit,
+                       COALESCE(rce2.valor, r2.valor, ace.valor, a.valor, 0) AS vr_unit,
+                       (COALESCE(rce2.valor, r2.valor, ace.valor, a.valor, 0)) * dr.cantidad AS vr_total,
                        CASE WHEN r2.codigo IS NOT NULL THEN true ELSE false END AS es_subreceta,
                        r2.codigo AS subreceta_codigo
                 FROM detalle_recetas dr
@@ -12114,9 +12133,14 @@ app.get('/api/recetas/:codigo', async (req, res) => {
                 LEFT JOIN recetas r2 ON TRIM(r2.codigo) = TRIM(dr.articulo) AND r2.subproducto = 'SI'
                 -- Buscar en artículos solo si NO es subproducto
                 LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dr.articulo) AND r2.codigo IS NULL
+                -- Capas de costo por empresa
+                LEFT JOIN receta_costo_empresa rce2
+                       ON TRIM(rce2.codigo) = TRIM(r2.codigo) AND TRIM(rce2.empresa) = TRIM($2::text)
+                LEFT JOIN articulo_costo_empresa ace
+                       ON TRIM(ace.codigo) = TRIM(a.codigo) AND TRIM(ace.empresa) = TRIM($2::text)
                 WHERE dr.receta = $1
                 ORDER BY dr.codigo
-            `, [codigo])
+            `, [codigo, empresa])
         ]);
         if (recetaRes.rowCount === 0)
             return res.status(404).json({ success: false, error: 'Receta no encontrada' });
@@ -12631,7 +12655,10 @@ setTimeout(ejecutarRecalculoRecetasSiToca, 5 * 60 * 1000);   // primera revisió
 // GET /api/recetas-reporte/costos - Reporte de costos
 app.get('/api/recetas-reporte/costos', async (req, res) => {
     const { grupo, subproducto } = req.query;
+    // Costo resuelto por empresa: COALESCE(su capa, valor base del principal).
+    const empresa = req.query.empresa || req.headers['x-empresa'] || null;
     try {
+        const params = [empresa];   // $1 = empresa (capa de costo)
         let sql = `
             SELECT r.codigo,
                    r.nombre,
@@ -12639,17 +12666,18 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
                    COALESCE(r.subproducto, '')  AS subproducto,
                    COALESCE(r.und, '')           AS und,
                    COALESCE(r.precio_venta, 0)   AS precio_venta,
-                   COALESCE(r.valor, 0)           AS costo,
+                   COALESCE(rce.valor, r.valor, 0) AS costo,
                    CASE WHEN COALESCE(r.precio_venta, 0) > 0
-                        THEN ROUND((COALESCE(r.valor,0) / r.precio_venta * 100)::numeric, 2)
+                        THEN ROUND((COALESCE(rce.valor, r.valor, 0) / r.precio_venta * 100)::numeric, 2)
                         ELSE 0 END               AS porcentaje_costo,
                    CASE WHEN COALESCE(r.precio_venta, 0) > 0
-                        THEN ROUND((r.precio_venta - COALESCE(r.valor,0))::numeric, 2)
+                        THEN ROUND((r.precio_venta - COALESCE(rce.valor, r.valor, 0))::numeric, 2)
                         ELSE 0 END               AS margen,
                    (SELECT COUNT(*) FROM detalle_recetas dr WHERE dr.receta = r.codigo) AS num_ingredientes
             FROM recetas r
+            LEFT JOIN receta_costo_empresa rce
+                   ON TRIM(rce.codigo) = TRIM(r.codigo) AND TRIM(rce.empresa) = TRIM($1::text)
         `;
-        const params = [];
         const conditions = [];
         if (grupo && grupo !== 'TODOS') {
             params.push(grupo);
