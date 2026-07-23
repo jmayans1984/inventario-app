@@ -256,7 +256,47 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
-           SECCIÓN 5: ACTUALIZACIONES DEL SISTEMA
+           SECCIÓN 5: ETIQUETAS DE ÓRDENES DE PRODUCCIÓN
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(4,120,87,0.12)">
+            <v-icon size="16" color="#047857">mdi-label-outline</v-icon>
+          </div>
+          <span class="cfg-section-title">ETIQUETAS DE ÓRDENES DE PRODUCCIÓN</span>
+        </div>
+
+        <div class="cfg-etiqueta-section">
+          <p class="cfg-logo-hint">Elige el tamaño de etiqueta a imprimir en Almacén › Procesos › Órdenes de Producción</p>
+
+          <div v-if="loadingFormatoEtiqueta" class="cfg-loading">
+            <v-progress-circular indeterminate color="#047857" size="24" />
+          </div>
+          <div v-else class="cfg-etiqueta-opts">
+            <label class="cfg-etiqueta-opt" :class="{ 'cfg-etiqueta-opt--activa': formatoEtiqueta === '6x4' }">
+              <input type="radio" value="6x4" v-model="formatoEtiqueta" @change="guardarFormatoEtiqueta" />
+              <span class="cfg-etiqueta-opt-title">6" x 4"</span>
+              <span class="cfg-etiqueta-opt-sub">Etiqueta estándar (mayor tamaño)</span>
+            </label>
+            <label class="cfg-etiqueta-opt" :class="{ 'cfg-etiqueta-opt--activa': formatoEtiqueta === '3x4' }">
+              <input type="radio" value="3x4" v-model="formatoEtiqueta" @change="guardarFormatoEtiqueta" />
+              <span class="cfg-etiqueta-opt-title">3" x 4"</span>
+              <span class="cfg-etiqueta-opt-sub">Etiqueta compacta</span>
+            </label>
+          </div>
+
+          <span v-if="guardandoFormatoEtiqueta" class="cfg-ok-msg" style="margin-top:10px">
+            <v-progress-circular indeterminate size="13" width="2" color="#047857" /> Guardando...
+          </span>
+          <span v-else-if="formatoEtiquetaSaveOk" class="cfg-ok-msg" style="margin-top:10px">
+            <v-icon size="13" color="#10b981">mdi-check-circle</v-icon> Formato guardado
+          </span>
+          <span v-if="formatoEtiquetaSaveErr" class="cfg-err-msg" style="margin-top:10px">{{ formatoEtiquetaSaveErr }}</span>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           SECCIÓN 6: ACTUALIZACIONES DEL SISTEMA
       ══════════════════════════════════════════════ -->
       <div class="cfg-card">
         <div class="cfg-section-hdr">
@@ -505,11 +545,45 @@ function quitarLogo() {
   logoUrl.value = null
 }
 
+// ── Formato de etiqueta de producción (6x4 / 3x4) ───────────────
+const formatoEtiqueta          = ref('6x4')
+const loadingFormatoEtiqueta   = ref(true)
+const guardandoFormatoEtiqueta = ref(false)
+const formatoEtiquetaSaveOk    = ref(false)
+const formatoEtiquetaSaveErr   = ref('')
+
+async function cargarFormatoEtiqueta() {
+  loadingFormatoEtiqueta.value = true
+  try {
+    const res = await api.get('/empresas/formato-etiqueta-produccion', { params: { empresa: empresa.value } })
+    formatoEtiqueta.value = res.data?.data?.formato_etiqueta_produccion || '6x4'
+  } catch { formatoEtiqueta.value = '6x4' }
+  finally { loadingFormatoEtiqueta.value = false }
+}
+
+async function guardarFormatoEtiqueta() {
+  guardandoFormatoEtiqueta.value = true
+  formatoEtiquetaSaveOk.value  = false
+  formatoEtiquetaSaveErr.value = ''
+  try {
+    const res = await api.put('/empresas/formato-etiqueta-produccion',
+      { formato_etiqueta_produccion: formatoEtiqueta.value },
+      { params: { empresa: empresa.value } }
+    )
+    if (!res.data?.success) throw new Error(res.data?.error)
+    formatoEtiquetaSaveOk.value = true
+    setTimeout(() => { formatoEtiquetaSaveOk.value = false }, 3000)
+  } catch (e) {
+    formatoEtiquetaSaveErr.value = e?.response?.data?.error || e.message
+  } finally { guardandoFormatoEtiqueta.value = false }
+}
+
 // ── Inicialización ─────────────────────────────────────────────
 onMounted(() => {
   cargarConfigContable()
   cargarUsuarios()
   cargarLogo()
+  cargarFormatoEtiqueta()
 })
 </script>
 
@@ -670,6 +744,25 @@ onMounted(() => {
 /* Mensajes */
 .cfg-ok-msg  { font-size: 12px; font-weight: 600; color: #10b981; display: flex; align-items: center; gap: 4px; }
 .cfg-err-msg { font-size: 12px; font-weight: 600; color: #ef4444; }
+
+/* ═══ ETIQUETA DE PRODUCCIÓN ═══ */
+.cfg-etiqueta-section { display: flex; flex-direction: column; gap: 14px; }
+.cfg-etiqueta-opts { display: flex; gap: 12px; flex-wrap: wrap; }
+.cfg-etiqueta-opt {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 18px; min-width: 160px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(var(--v-theme-on-surface),0.12);
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.cfg-etiqueta-opt input[type="radio"] { position: absolute; top: 12px; right: 14px; accent-color: #047857; }
+.cfg-etiqueta-opt-title { font-size: 15px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); }
+.cfg-etiqueta-opt-sub   { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.45); }
+.cfg-etiqueta-opt--activa {
+  border-color: #047857;
+  background: rgba(4,120,87,0.06);
+}
 
 /* ═══ ACTUALIZACIONES ═══ */
 .cfg-update-section {

@@ -12524,6 +12524,7 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS lista_precio_id INTEGER DEFAULT NULL`);
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(2) DEFAULT NULL`);
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS pct_imprevisto_despachos NUMERIC(5,2) DEFAULT 0`);
+        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS formato_etiqueta_produccion VARCHAR(5) DEFAULT '6x4'`);
         console.log('✅ Columnas empresas listas');
     } catch (e) { console.error('Error migrando empresas ADD:', e.message); }
 })();
@@ -12660,6 +12661,55 @@ app.put('/api/empresas/pct-imprevisto-despachos', async (req, res) => {
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Error PUT /api/empresas/pct-imprevisto-despachos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/empresas/formato-etiqueta-produccion — formato de etiqueta (6x4 o 3x4) configurado
+app.get('/api/empresas/formato-etiqueta-produccion', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT COALESCE(formato_etiqueta_produccion, '6x4') AS formato_etiqueta_produccion
+             FROM empresas WHERE codigo = $1`,
+            [empresaCod]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        }
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error GET /api/empresas/formato-etiqueta-produccion:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/empresas/formato-etiqueta-produccion — actualizar formato de etiqueta (6x4 o 3x4)
+app.put('/api/empresas/formato-etiqueta-produccion', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        const { formato_etiqueta_produccion } = req.body;
+
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        if (!['6x4', '3x4'].includes(formato_etiqueta_produccion)) {
+            return res.status(400).json({ success: false, error: 'Formato inválido. Debe ser 6x4 o 3x4' });
+        }
+
+        const result = await pool.query(
+            `UPDATE empresas SET formato_etiqueta_produccion = $1 WHERE codigo = $2
+             RETURNING codigo, nombre, formato_etiqueta_produccion`,
+            [formato_etiqueta_produccion, empresaCod]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        }
+
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/empresas/formato-etiqueta-produccion:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

@@ -168,6 +168,7 @@ const lotes    = ref([])
 const etiquetas = ref([])
 const empleados = ref([])
 const busqueda  = ref('')
+const formatoEtiqueta = ref('6x4')
 const loading   = ref(false)
 const guardando = ref(false)
 const eliminando = ref(null)
@@ -236,14 +237,16 @@ function venceProximo(f) {
 async function cargar() {
   loading.value = true
   try {
-    const [rLotes, rEtiq, rEmp] = await Promise.all([
+    const [rLotes, rEtiq, rEmp, rFmt] = await Promise.all([
       fetch(`${API_BASE}/almacen/lotes-fabricacion?empresa=${empresa.value}`).then(r => r.json()),
       fetch(`${API_BASE}/almacen/etiquetas-producto?empresa=${empresa.value}`).then(r => r.json()),
-      fetch(`${API_BASE}/nomina/empleados-basico?empresa=${empresa.value}`).then(r => r.json())
+      fetch(`${API_BASE}/nomina/empleados-basico?empresa=${empresa.value}`).then(r => r.json()),
+      fetch(`${API_BASE}/empresas/formato-etiqueta-produccion?empresa=${empresa.value}`).then(r => r.json())
     ])
     lotes.value     = rLotes.data || []
     etiquetas.value = rEtiq.data || []
     empleados.value = rEmp.data || []
+    formatoEtiqueta.value = rFmt.data?.formato_etiqueta_produccion || '6x4'
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
@@ -332,10 +335,46 @@ function imprimirEtiqueta(l) {
   }
 
   const barcodeVal = l.barcode || l.codigo
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Label – ${l.etiqueta_nombre || l.etiqueta} – ${l.codigo}</title>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
-<style>
+  const es3x4 = formatoEtiqueta.value === '3x4'
+  const bcHeight = es3x4 ? 32 : 45
+  const bcWidth  = es3x4 ? 1.3 : 1.8
+
+  const stylesLbl = es3x4 ? `
+  @page { size: 3in 4in; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
+  body { width: 3in; min-height: 4in; background: #fff; color: #000; }
+
+  .lbl { display: flex; flex-direction: column; min-height: 4in; border: 1px solid #000; }
+
+  .lbl-header { padding: 4px 8px 3px; text-align: center; border-bottom: 1.5px solid #000; }
+  .emp-name { font-size: 9pt; font-weight: 900; letter-spacing: 0.3px; text-transform: uppercase; }
+  .emp-sub  { font-size: 5pt; color: #333; margin-top: 1px; }
+
+  .lbl-product { padding: 4px 8px 4px; text-align: center; border-bottom: 1px solid #000; }
+  .prod-name { font-size: 11pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
+  .lot-tag   { font-size: 5.5pt; font-family: monospace; letter-spacing: 1px; margin-top: 2px; color: #333; }
+
+  .lbl-body { flex: 1; padding: 4px 8px; display: flex; flex-direction: column; gap: 4px; }
+
+  .dates-row { display: flex; gap: 5px; }
+  .date-box  { flex: 1; border: 1px solid #000; padding: 2px 4px; }
+  .date-lbl  { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px; }
+  .date-val  { font-size: 7.5pt; font-weight: 900; }
+
+  .weight-row { display: flex; gap: 4px; }
+  .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 2px 3px; }
+  .w-lbl { font-size: 4.5pt; text-transform: uppercase; font-weight: 700; }
+  .w-val { font-size: 6.5pt; font-weight: 900; }
+
+  .section-title { font-size: 5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
+  .section-txt   { font-size: 5.5pt; line-height: 1.25; }
+  .alerg-txt     { font-size: 5.5pt; font-weight: 700; line-height: 1.2; }
+  .instr-txt     { font-size: 5pt; font-style: italic; line-height: 1.2; }
+
+  .lbl-barcode { padding: 3px 8px 5px; text-align: center; border-top: 1px solid #000; }
+  .lbl-barcode svg { max-width: 100%; }
+  .bc-num { font-size: 5pt; margin-top: 1px; font-family: monospace; letter-spacing: 0.5px; }
+` : `
   @page { size: 4in 6in; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
   body { width: 4in; min-height: 6in; background: #fff; color: #000; }
@@ -377,7 +416,13 @@ function imprimirEtiqueta(l) {
   .lbl-barcode { padding: 6px 12px 8px; text-align: center; border-top: 1.5px solid #000; }
   .lbl-barcode svg { max-width: 100%; }
   .bc-num { font-size: 7pt; margin-top: 1px; font-family: monospace; letter-spacing: 1px; }
+`
 
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Label – ${l.etiqueta_nombre || l.etiqueta} – ${l.codigo}</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<style>
+${stylesLbl}
   /* Botón imprimir – solo pantalla */
   @media screen {
     .print-btn-wrap { text-align: center; padding: 12px; }
@@ -451,7 +496,7 @@ function imprimirEtiqueta(l) {
   window.onload = function() {
     try {
       JsBarcode("#bc", "${barcodeVal}", {
-        format: "CODE128", width: 1.8, height: 45,
+        format: "CODE128", width: ${bcWidth}, height: ${bcHeight},
         displayValue: false, margin: 0, background: "#ffffff", lineColor: "#000000"
       });
     } catch(e) {}
