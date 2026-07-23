@@ -480,8 +480,8 @@ async function exportarExcel() {
 .col-codigo   { width: 130px; }
 .col-fecha    { width: 100px; }
 .col-proveedor{ width: 16%; }
-.col-centro   { width: 13%; }
-.col-forma-pago { width: 10%; }
+.col-centro   { width: 11%; }
+.col-forma-pago { width: 12%; }
 .col-cuenta     { width: 18%; }
 .col-concepto   { width: 15%; }
 .col-factura  { width: 100px; }
