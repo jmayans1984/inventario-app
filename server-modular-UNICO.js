@@ -12304,108 +12304,116 @@ app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
     }
 });
 
+// Recalcula el costo de TODAS las recetas en orden topológico de dependencias
+// (subrecetas primero), detectando auto-referencias y ciclos. Se usa tanto desde
+// el botón manual (POST /api/recetas/recalcular-todos) como desde el job
+// silencioso en segundo plano (ver más abajo, sección "RECALCULO AUTOMATICO").
+async function ejecutarRecalculoTodasRecetas(client) {
+    const recetasRes = await client.query(
+        `SELECT codigo, subproducto, nombre FROM recetas ORDER BY nombre`
+    );
+    const recetas = recetasRes.rows;
+    const subprodMap = new Map(recetas.map(r => [r.codigo, r.subproducto]));
+
+    // Grafo: receta -> Set(subrecetas usadas como ingrediente)
+    const depsRes = await client.query(`
+        SELECT receta, articulo
+        FROM detalle_recetas
+        WHERE COALESCE(tipo, 'ARTICULO') = 'RECETA'
+    `);
+    const deps = new Map();
+    for (const r of recetas) deps.set(r.codigo, new Set());
+    for (const d of depsRes.rows) {
+        if (d.articulo === d.receta) continue;  // ignorar auto-referencia
+        if (deps.has(d.receta) && deps.has(d.articulo)) {
+            deps.get(d.receta).add(d.articulo);
+        }
+    }
+
+    // Kahn: ordenamos primero las que no dependen de ninguna otra receta
+    const indeg = new Map();
+    const usadoPor = new Map();
+    for (const [cod, set] of deps) {
+        indeg.set(cod, set.size);
+        for (const sub of set) {
+            if (!usadoPor.has(sub)) usadoPor.set(sub, []);
+            usadoPor.get(sub).push(cod);
+        }
+    }
+    const orden = [];
+    const visitados = new Set();
+    const cola = [];
+    for (const [cod, n] of indeg) if (n === 0) cola.push(cod);
+    while (cola.length > 0) {
+        const cod = cola.shift();
+        orden.push(cod);
+        visitados.add(cod);
+        for (const cons of (usadoPor.get(cod) || [])) {
+            indeg.set(cons, indeg.get(cons) - 1);
+            if (indeg.get(cons) === 0) cola.push(cons);
+        }
+    }
+    // Ciclos: agregamos al final para no perderlas del recálculo
+    const ciclos = [];
+    for (const r of recetas) {
+        if (!visitados.has(r.codigo)) {
+            orden.push(r.codigo);
+            ciclos.push(r.codigo);
+        }
+    }
+
+    async function calcularCosto(codigo) {
+        const subproducto = subprodMap.get(codigo);
+        const detalleRes = await client.query(`
+            SELECT dr.codigo, dr.articulo, dr.cantidad, COALESCE(dr.tipo, 'ARTICULO') AS tipo
+            FROM detalle_recetas dr
+            WHERE dr.receta = $1
+        `, [codigo]);
+
+        let costoTotal = 0;
+        for (const det of detalleRes.rows) {
+            if (det.tipo === 'RECETA' && det.articulo === codigo) {
+                await client.query(
+                    'UPDATE detalle_recetas SET vr_unit = 0, vr_total = 0 WHERE codigo = $1',
+                    [det.codigo]
+                );
+                continue;
+            }
+            let precio = 0;
+            if (det.tipo === 'ARTICULO') {
+                const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
+                precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
+            } else if (det.tipo === 'RECETA') {
+                const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
+                precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
+            }
+            const cant = parseFloat(det.cantidad) || 0;
+            costoTotal += precio * cant;
+            await client.query(
+                'UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2 WHERE codigo = $3',
+                [precio, precio * cant, det.codigo]
+            );
+        }
+
+        await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+        if (subproducto === 'SI') {
+            await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+        }
+        return { codigo, costo: costoTotal };
+    }
+
+    const resultados = [];
+    for (const cod of orden) resultados.push(await calcularCosto(cod));
+
+    return { resultados, ciclos };
+}
+
 // POST /api/recetas/recalcular-todos - orden topológico por dependencias + detección auto-referencia y ciclos
 app.post('/api/recetas/recalcular-todos', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        const recetasRes = await client.query(
-            `SELECT codigo, subproducto, nombre FROM recetas ORDER BY nombre`
-        );
-        const recetas = recetasRes.rows;
-        const subprodMap = new Map(recetas.map(r => [r.codigo, r.subproducto]));
-
-        // Grafo: receta -> Set(subrecetas usadas como ingrediente)
-        const depsRes = await client.query(`
-            SELECT receta, articulo
-            FROM detalle_recetas
-            WHERE COALESCE(tipo, 'ARTICULO') = 'RECETA'
-        `);
-        const deps = new Map();
-        for (const r of recetas) deps.set(r.codigo, new Set());
-        for (const d of depsRes.rows) {
-            if (d.articulo === d.receta) continue;  // ignorar auto-referencia
-            if (deps.has(d.receta) && deps.has(d.articulo)) {
-                deps.get(d.receta).add(d.articulo);
-            }
-        }
-
-        // Kahn: ordenamos primero las que no dependen de ninguna otra receta
-        const indeg = new Map();
-        const usadoPor = new Map();
-        for (const [cod, set] of deps) {
-            indeg.set(cod, set.size);
-            for (const sub of set) {
-                if (!usadoPor.has(sub)) usadoPor.set(sub, []);
-                usadoPor.get(sub).push(cod);
-            }
-        }
-        const orden = [];
-        const visitados = new Set();
-        const cola = [];
-        for (const [cod, n] of indeg) if (n === 0) cola.push(cod);
-        while (cola.length > 0) {
-            const cod = cola.shift();
-            orden.push(cod);
-            visitados.add(cod);
-            for (const cons of (usadoPor.get(cod) || [])) {
-                indeg.set(cons, indeg.get(cons) - 1);
-                if (indeg.get(cons) === 0) cola.push(cons);
-            }
-        }
-        // Ciclos: agregamos al final para no perderlas del recálculo
-        const ciclos = [];
-        for (const r of recetas) {
-            if (!visitados.has(r.codigo)) {
-                orden.push(r.codigo);
-                ciclos.push(r.codigo);
-            }
-        }
-
-        async function calcularCosto(codigo) {
-            const subproducto = subprodMap.get(codigo);
-            const detalleRes = await client.query(`
-                SELECT dr.codigo, dr.articulo, dr.cantidad, COALESCE(dr.tipo, 'ARTICULO') AS tipo
-                FROM detalle_recetas dr
-                WHERE dr.receta = $1
-            `, [codigo]);
-
-            let costoTotal = 0;
-            for (const det of detalleRes.rows) {
-                if (det.tipo === 'RECETA' && det.articulo === codigo) {
-                    await client.query(
-                        'UPDATE detalle_recetas SET vr_unit = 0, vr_total = 0 WHERE codigo = $1',
-                        [det.codigo]
-                    );
-                    continue;
-                }
-                let precio = 0;
-                if (det.tipo === 'ARTICULO') {
-                    const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
-                    precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
-                } else if (det.tipo === 'RECETA') {
-                    const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
-                    precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
-                }
-                const cant = parseFloat(det.cantidad) || 0;
-                costoTotal += precio * cant;
-                await client.query(
-                    'UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2 WHERE codigo = $3',
-                    [precio, precio * cant, det.codigo]
-                );
-            }
-
-            await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
-            if (subproducto === 'SI') {
-                await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
-            }
-            return { codigo, costo: costoTotal };
-        }
-
-        const resultados = [];
-        for (const cod of orden) resultados.push(await calcularCosto(cod));
-
+        const { resultados, ciclos } = await ejecutarRecalculoTodasRecetas(client);
         await client.query('COMMIT');
         res.json({
             success: true,
@@ -12421,6 +12429,54 @@ app.post('/api/recetas/recalcular-todos', async (req, res) => {
         client.release();
     }
 });
+
+// ================================================================
+// RECALCULO AUTOMATICO DE COSTOS DE RECETAS (job silencioso)
+// ================================================================
+// Corre en segundo plano, sin que el usuario lo note ni tenga que esperar:
+// cada hora revisa si ya pasó el intervalo configurado desde la última
+// ejecución (persistida en sistema_tareas) y, si toca, recalcula todas las
+// recetas. Así el costo de las recetas queda al día con los cambios de
+// precio de artículos/productos sin bloquear ninguna pantalla del usuario.
+pool.query(`CREATE TABLE IF NOT EXISTS sistema_tareas (
+    tarea VARCHAR(50) PRIMARY KEY,
+    ultima_ejecucion TIMESTAMP
+)`).catch(() => {});
+
+const RECALCULO_RECETAS_INTERVALO_HORAS = 24; // cambiar a 48 para "cada dos días"
+
+async function ejecutarRecalculoRecetasSiToca() {
+    try {
+        const chk = await pool.query(
+            `SELECT ultima_ejecucion FROM sistema_tareas WHERE tarea = 'recalculo_recetas'`
+        );
+        const ultima = chk.rows[0]?.ultima_ejecucion;
+        const horasDesde = ultima ? (Date.now() - new Date(ultima).getTime()) / 3600000 : Infinity;
+        if (horasDesde < RECALCULO_RECETAS_INTERVALO_HORAS) return;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const { resultados, ciclos } = await ejecutarRecalculoTodasRecetas(client);
+            await client.query('COMMIT');
+            await pool.query(
+                `INSERT INTO sistema_tareas (tarea, ultima_ejecucion) VALUES ('recalculo_recetas', NOW())
+                 ON CONFLICT (tarea) DO UPDATE SET ultima_ejecucion = NOW()`
+            );
+            console.log(`[recalculo-recetas] Recalculo automatico OK: ${resultados.length} recetas, ${ciclos.length} ciclos detectados`);
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error('[recalculo-recetas] Error en recalculo automatico:', err.message);
+        } finally {
+            client.release();
+        }
+    } catch (err) {
+        console.error('[recalculo-recetas] Error verificando ultima ejecucion:', err.message);
+    }
+}
+
+setInterval(ejecutarRecalculoRecetasSiToca, 60 * 60 * 1000); // revisa cada hora si ya toca
+setTimeout(ejecutarRecalculoRecetasSiToca, 5 * 60 * 1000);   // primera revisión poco después de arrancar
 
 // GET /api/recetas-reporte/costos - Reporte de costos
 app.get('/api/recetas-reporte/costos', async (req, res) => {
