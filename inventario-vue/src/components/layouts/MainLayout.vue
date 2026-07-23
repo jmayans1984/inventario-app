@@ -373,6 +373,9 @@
         </div>
       </div>
     </v-bottom-sheet>
+
+    <!-- Popup automático de actualizaciones (una vez por usuario, hasta que haya una nueva) -->
+    <ActualizacionesModal v-model:mostrar="mostrarActualizacionesAuto" @update:mostrar="onCerrarActualizacionesAuto" />
   </v-layout>
 </template>
 
@@ -385,6 +388,7 @@ import { useAppStore } from '../../stores/app'
 import { MODULES, APP_VERSION } from '../../utils/constants'
 import { formatFechaLarga } from '../../utils/formatters'
 import { notificacionesService } from '../../services/notificaciones.service'
+import ActualizacionesModal from '../ActualizacionesModal.vue'
 import { useCalculadora } from '../../composables/useCalculadora'
 import logoSrc from '../../assets/logo.png'
 
@@ -517,12 +521,14 @@ onMounted(() => {
       })
     }
   })
-  cargarNotificaciones()
-  setInterval(cargarNotificaciones, 60000)
+  cargarNotificaciones(true)
+  setInterval(() => cargarNotificaciones(false), 60000)
 })
 
 const notificaciones = ref([])
 const notificacionesSinLeer = ref(0)
+const mostrarActualizacionesAuto = ref(false)
+const actualizacionesAutoIds = ref([])
 
 function obtenerIconoTipo(tipo) {
   const iconos = {
@@ -546,15 +552,37 @@ function obtenerColorTipo(tipo) {
   return colores[tipo] || 'inherit'
 }
 
-async function cargarNotificaciones() {
+async function cargarNotificaciones(chequearActualizaciones = false) {
   try {
     const res = await notificacionesService.obtenerNotificaciones()
     notificaciones.value = res.data || []
     const count = await notificacionesService.obtenerCountSinLeer()
     notificacionesSinLeer.value = count.data.total
+
+    if (chequearActualizaciones) {
+      const pendientes = notificaciones.value.filter(n => n.tipo === 'actualizaciones' && n.leida === 'NO')
+      if (pendientes.length > 0) {
+        actualizacionesAutoIds.value = pendientes.map(n => n.id)
+        mostrarActualizacionesAuto.value = true
+      }
+    }
   } catch (e) {
     console.error('Error cargando notificaciones:', e)
   }
+}
+
+async function onCerrarActualizacionesAuto(abierto) {
+  if (abierto) return
+  const ids = actualizacionesAutoIds.value
+  actualizacionesAutoIds.value = []
+  await Promise.all(ids.map(id => notificacionesService.marcarComoLeida(id).catch(() => {})))
+  notificaciones.value = notificaciones.value.map(n =>
+    ids.includes(n.id) ? { ...n, leida: 'SI' } : n
+  )
+  try {
+    const count = await notificacionesService.obtenerCountSinLeer()
+    notificacionesSinLeer.value = count.data.total
+  } catch { /* silencioso */ }
 }
 
 async function descartarNotificacion(n) {
