@@ -7,7 +7,7 @@
         <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
         <span class="bc-cat">Procesos</span>
         <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Órdenes de Producción</span>
+        <span class="bc-current">Lotes de Fabricación</span>
       </div>
 
       <div class="page-header">
@@ -16,7 +16,7 @@
             <v-icon size="24" color="white">mdi-factory</v-icon>
           </div>
           <div>
-            <h1 class="page-title">ÓRDENES DE PRODUCCIÓN</h1>
+            <h1 class="page-title">LOTES DE FABRICACIÓN</h1>
             <p class="page-sub">Lotes de fabricación por etiqueta de producto</p>
           </div>
         </div>
@@ -460,7 +460,6 @@ ${es3x4 ? `
     </div>
     <div class="top-badge">
       <div class="badge-title">PRODUCTION<br>BATCH</div>
-      <div class="badge-sub">Handle with care</div>
     </div>
   </div>
 
@@ -510,7 +509,6 @@ ${es3x4 ? `
   </div>` : ''}
 
   <div class="lbl-barcode">
-    <div class="footer-title">Batch Code</div>
     <svg id="bc"></svg>
     <div class="bc-num">${barcodeVal}</div>
   </div>
