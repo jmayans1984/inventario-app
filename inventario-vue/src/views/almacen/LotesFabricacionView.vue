@@ -344,34 +344,44 @@ function imprimirEtiqueta(l) {
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
   body { width: 3in; min-height: 4in; background: #fff; color: #000; }
 
-  .lbl { display: flex; flex-direction: column; min-height: 4in; border: 1px solid #000; }
+  .lbl { display: flex; flex-direction: column; min-height: 4in; border: 1.5px solid #000; }
 
-  .lbl-header { padding: 4px 8px 3px; text-align: center; border-bottom: 1.5px solid #000; }
-  .emp-name { font-size: 9pt; font-weight: 900; letter-spacing: 0.3px; text-transform: uppercase; }
-  .emp-sub  { font-size: 5pt; color: #333; margin-top: 1px; }
+  /* Franja superior: caja de icono + badge tipo "FRAGILE" */
+  .lbl-top { display: flex; align-items: stretch; border-bottom: 1.5px solid #000; }
+  .top-icon-box { width: 30%; border-right: 1.5px solid #000; padding: 5px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .top-icon { width: 20px; height: 20px; border: 1.5px solid #000; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 11pt; font-weight: 900; }
+  .top-icon-cap { font-size: 4pt; text-align: center; line-height: 1.2; color: #333; text-transform: uppercase; }
+  .top-badge { flex: 1; padding: 5px 6px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; }
+  .badge-title { font-size: 8pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
+  .badge-sub   { font-size: 4.5pt; font-weight: 700; text-transform: uppercase; color: #333; margin-top: 1px; }
 
-  .lbl-product { padding: 4px 8px 4px; text-align: center; border-bottom: 1px solid #000; }
+  /* Barra de producto */
+  .lbl-header-bar { padding: 4px 8px; border-bottom: 1.5px solid #000; display: flex; align-items: baseline; justify-content: space-between; gap: 4px; }
   .prod-name { font-size: 11pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
-  .lot-tag   { font-size: 5.5pt; font-family: monospace; letter-spacing: 1px; margin-top: 2px; color: #333; }
+  .lot-ref   { font-size: 4.5pt; font-family: monospace; letter-spacing: 0.5px; color: #333; white-space: nowrap; }
 
-  .lbl-body { flex: 1; padding: 4px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .weight-line { padding: 2px 8px; font-size: 5pt; font-weight: 700; text-align: center; border-bottom: 1px solid #000; color: #333; }
 
-  .dates-row { display: flex; gap: 5px; }
-  .date-box  { flex: 1; border: 1px solid #000; padding: 2px 4px; }
-  .date-lbl  { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3px; }
-  .date-val  { font-size: 7.5pt; font-weight: 900; }
+  /* Sección tipo From/To */
+  .two-col { display: flex; border-bottom: 1px solid #000; }
+  .col { flex: 1; padding: 4px 6px; }
+  .col:first-child { border-right: 1px solid #000; }
+  .col-title { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .col-row { font-size: 5pt; line-height: 1.5; }
+  .col-lbl { color: #555; }
+  .col-val { font-weight: 700; margin-left: 2px; }
+  .col-warn { display: inline-block; margin-top: 2px; font-size: 4pt; font-weight: 900; text-transform: uppercase; border: 1px solid #000; padding: 1px 4px; border-radius: 3px; }
 
-  .weight-row { display: flex; gap: 4px; }
-  .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 2px 3px; }
-  .w-lbl { font-size: 4.5pt; text-transform: uppercase; font-weight: 700; }
-  .w-val { font-size: 6.5pt; font-weight: 900; }
+  /* Información adicional */
+  .lbl-extra { flex: 1; padding: 4px 8px; display: flex; flex-direction: column; gap: 3px; }
+  .section-title { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
+  .section-txt   { font-size: 5pt; line-height: 1.25; }
+  .alerg-txt     { font-size: 5pt; font-weight: 700; line-height: 1.2; }
+  .instr-txt     { font-size: 4.5pt; font-style: italic; line-height: 1.2; }
 
-  .section-title { font-size: 5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
-  .section-txt   { font-size: 5.5pt; line-height: 1.25; }
-  .alerg-txt     { font-size: 5.5pt; font-weight: 700; line-height: 1.2; }
-  .instr-txt     { font-size: 5pt; font-style: italic; line-height: 1.2; }
-
-  .lbl-barcode { padding: 3px 8px 5px; text-align: center; border-top: 1px solid #000; }
+  /* Footer tipo Tracking Number */
+  .lbl-barcode { padding: 4px 8px 6px; text-align: center; border-top: 1.5px solid #000; }
+  .footer-title { font-size: 5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
   .lbl-barcode svg { max-width: 100%; }
   .bc-num { font-size: 5pt; margin-top: 1px; font-family: monospace; letter-spacing: 0.5px; }
 ` : `
@@ -438,6 +448,74 @@ ${stylesLbl}
 <div class="print-btn-wrap">
   <button class="print-btn" onclick="window.print()">🖨 Print Label</button>
 </div>
+${es3x4 ? `
+<div class="lbl">
+  <div class="lbl-top">
+    <div class="top-icon-box">
+      <div class="top-icon">${(empresaNombre || 'P').charAt(0).toUpperCase()}</div>
+      <div class="top-icon-cap">${empresaNombre}</div>
+    </div>
+    <div class="top-badge">
+      <div class="badge-title">LOTE DE<br>PRODUCCIÓN</div>
+      <div class="badge-sub">Manéjese con cuidado</div>
+    </div>
+  </div>
+
+  <div class="lbl-header-bar">
+    <div class="prod-name">${l.etiqueta_nombre || l.etiqueta}</div>
+    <div class="lot-ref">LOT<br>${l.codigo}</div>
+  </div>
+
+  ${(l.peso_neto_oz || l.peso_neto_g || l.porciones || l.tamano_porcion) ? `
+  <div class="weight-line">
+    ${[
+      l.peso_neto_oz   ? `${l.peso_neto_oz} oz` : '',
+      l.peso_neto_g    ? `${l.peso_neto_g} g`   : '',
+      l.porciones      ? `${l.porciones} porciones` : '',
+      l.tamano_porcion ? `${l.tamano_porcion}` : ''
+    ].filter(Boolean).join(' &middot; ')}
+  </div>` : ''}
+
+  <div class="two-col">
+    <div class="col">
+      <div class="col-title">Fabricado</div>
+      <div class="col-row"><span class="col-lbl">Fecha:</span><span class="col-val">${fmtD(l.fecha_fab)}</span></div>
+      ${l.responsable ? `<div class="col-row"><span class="col-lbl">Resp:</span><span class="col-val">${l.responsable}</span></div>` : ''}
+    </div>
+    <div class="col">
+      <div class="col-title">Vence</div>
+      <div class="col-row"><span class="col-lbl">Fecha:</span><span class="col-val">${fmtD(l.fecha_vence)}</span></div>
+      ${venceProximo(l.fecha_vence) ? `<div class="col-warn">Próximo</div>` : ''}
+    </div>
+  </div>
+
+  ${(l.ingredientes || l.alergenos || l.instrucciones) ? `
+  <div class="lbl-extra">
+    ${l.ingredientes ? `
+    <div>
+      <div class="section-title">Ingredientes</div>
+      <div class="section-txt">${l.ingredientes}</div>
+    </div>` : ''}
+
+    ${l.alergenos ? `
+    <div>
+      <div class="section-title">Contiene / Alérgenos</div>
+      <div class="alerg-txt">${l.alergenos}</div>
+    </div>` : ''}
+
+    ${l.instrucciones ? `
+    <div>
+      <div class="section-title">Instrucciones</div>
+      <div class="instr-txt">${l.instrucciones}</div>
+    </div>` : ''}
+  </div>` : ''}
+
+  <div class="lbl-barcode">
+    <div class="footer-title">Código de Lote</div>
+    <svg id="bc"></svg>
+    <div class="bc-num">${barcodeVal}</div>
+  </div>
+</div>` : `
 <div class="lbl">
   <div class="lbl-header">
     <div class="emp-name">${empresaNombre}</div>
@@ -491,7 +569,7 @@ ${stylesLbl}
     <svg id="bc"></svg>
     <div class="bc-num">${barcodeVal}</div>
   </div>
-</div>
+</div>`}
 <script>
   window.onload = function() {
     try {
