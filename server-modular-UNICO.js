@@ -8999,14 +8999,23 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
             }
 
             // 4d. OPCIONAL: actualizar precio de costo
+            //     - PRODUCTO  → productos.precio_costo
+            //     - ARTICULO  → articulos.valor (materia prima; afecta costo de recetas)
             if (mp.actualizaCosto) {
                 for (const item of itemsValidos) {
                     const costo = parseFloat(item.costoUnit) || 0;
                     if (costo <= 0) continue;
-                    await client.query(
-                        `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
-                        [costo, item.codigo]
-                    );
+                    if (item.origen === 'ARTICULO') {
+                        await client.query(
+                            `UPDATE articulos SET valor = $1 WHERE TRIM(codigo) = $2`,
+                            [costo, String(item.codigo).trim()]
+                        );
+                    } else {
+                        await client.query(
+                            `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
+                            [costo, item.codigo]
+                        );
+                    }
                 }
             }
         }

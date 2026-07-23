@@ -474,6 +474,7 @@
                 <span class="mp-opt-lbl">
                   <strong>Actualizar precio de costo</strong>
                   — el costo unitario de esta compra reemplaza el precio de costo del producto
+                  o el valor del artículo (materia prima), afectando el costo de las recetas
                 </span>
               </template>
             </v-checkbox>
@@ -483,24 +484,31 @@
           <div class="mp-items">
             <div v-for="(item, i) in mpDraft.items" :key="i" class="mp-item-row">
               <v-autocomplete
-                v-model="item.codigo"
-                :items="productosOptions"
+                v-model="item.key"
+                :items="itemsOptions"
                 :loading="productosLoading"
                 item-title="nombre"
-                item-value="codigo"
-                label="Producto *"
+                item-value="key"
+                :custom-filter="filtroItemCompra"
+                label="Producto / Artículo *"
                 variant="outlined"
                 density="comfortable"
                 hide-details
                 autocomplete="off"
                 class="mp-item-prod"
-                no-data-text="Sin productos"
-                @update:model-value="onProductoSeleccionado(item)"
+                no-data-text="Sin productos ni artículos"
+                @update:model-value="onItemSeleccionado(item)"
               >
                 <template #item="{ item: it, props: p }">
                   <v-list-item v-bind="p">
                     <template #append>
-                      <span class="mp-prod-meta">{{ it.raw.codigo }} · {{ it.raw.und }}</span>
+                      <span class="mp-prod-meta">
+                        <span
+                          class="mp-origen-tag"
+                          :class="it.raw.origen === 'ARTICULO' ? 'tag-art' : 'tag-prod'"
+                        >{{ it.raw.origen === 'ARTICULO' ? 'MATERIA PRIMA' : 'PRODUCTO' }}</span>
+                        {{ it.raw.codigo }} · {{ it.raw.und }}
+                      </span>
                     </template>
                   </v-list-item>
                 </template>
@@ -516,7 +524,7 @@
                 min="0"
                 autocomplete="off"
                 class="mp-item-cant"
-                :suffix="undProducto(item.codigo)"
+                :suffix="undItem(item)"
               />
               <v-text-field
                 v-model.number="item.costoUnit"
@@ -762,48 +770,84 @@ const mpLineaIdx = ref(-1)
 const mpDraft = ref({ afectaInventario: false, actualizaCosto: false, items: [] })
 const mpLineaRef = computed(() => form.value.lineas[mpLineaIdx.value] || null)
 
-const productosOptions = ref([])
+// Lista combinada: productos controlados en inventario + artículos (materia prima).
+// Cada opción lleva `key` = `${origen}::${codigo}` para desambiguar posibles
+// colisiones de código entre ambas tablas.
+const itemsOptions = ref([])
 const productosLoading = ref(false)
 
-async function cargarProductos() {
-  if (productosOptions.value.length || productosLoading.value) return
+async function cargarItemsCompra() {
+  if (itemsOptions.value.length || productosLoading.value) return
   productosLoading.value = true
   try {
-    const res = await api.get('/almacen/productos', { params: { empresa: empresa.value } })
-    const todos = res.data?.data || []
-    // Solo productos controlados en inventario (los que maneja la bodega maestra)
-    productosOptions.value = todos.filter(p => p.control === 'SI')
+    const [resProd, resArt] = await Promise.all([
+      api.get('/almacen/productos', { params: { empresa: empresa.value } }),
+      api.get('/articulos'),
+    ])
+    const productos = (resProd.data?.data || [])
+      .filter(p => p.control === 'SI')   // solo los que maneja la bodega maestra
+      .map(p => ({
+        key: `PRODUCTO::${p.codigo}`,
+        codigo: p.codigo,
+        origen: 'PRODUCTO',
+        nombre: p.nombre,
+        und: p.und || '',
+        precio: parseFloat(p.precio_costo) || 0,
+      }))
+    const articulos = (resArt.data?.data || []).map(a => ({
+      key: `ARTICULO::${a.codigo}`,
+      codigo: a.codigo,
+      origen: 'ARTICULO',
+      nombre: a.nombre,
+      und: a.und || '',
+      precio: parseFloat(a.valor) || 0,
+    }))
+    itemsOptions.value = [...productos, ...articulos]
   } catch (e) {
-    console.error('cargarProductos:', e)
+    console.error('cargarItemsCompra:', e)
   } finally {
     productosLoading.value = false
   }
 }
+
+// Búsqueda tolerante a acentos/orden de palabras, por nombre o código
+function filtroItemCompra(_value, query, item) {
+  const q = normalizarTexto(query)
+  if (!q) return true
+  const nombre = normalizarTexto(item?.raw?.nombre)
+  const codigo = normalizarTexto(item?.raw?.codigo)
+  return q.split(/\s+/).filter(Boolean).every(p => nombre.includes(p) || codigo.includes(p))
+}
+
+const itemVacio = () => ({ key: '', codigo: '', origen: '', cantidad: 0, costoUnit: 0 })
 
 function abrirMateriaPrima(idx) {
   mpLineaIdx.value = idx
   const existente = form.value.lineas[idx].materiaPrima
   mpDraft.value = existente
     ? JSON.parse(JSON.stringify(existente))
-    : { afectaInventario: false, actualizaCosto: false, items: [{ codigo: '', cantidad: 0, costoUnit: 0 }] }
-  if (!mpDraft.value.items.length) mpDraft.value.items.push({ codigo: '', cantidad: 0, costoUnit: 0 })
+    : { afectaInventario: false, actualizaCosto: false, items: [itemVacio()] }
+  if (!mpDraft.value.items.length) mpDraft.value.items.push(itemVacio())
   mpDialogOpen.value = true
-  cargarProductos()
+  cargarItemsCompra()
 }
 
 function agregarItemMp() {
-  mpDraft.value.items.push({ codigo: '', cantidad: 0, costoUnit: 0 })
+  mpDraft.value.items.push(itemVacio())
 }
 
-function onProductoSeleccionado(item) {
-  const p = productosOptions.value.find(pr => pr.codigo === item.codigo)
-  if (p && (!item.costoUnit || item.costoUnit === 0)) {
-    item.costoUnit = parseFloat(p.precio_costo) || 0
+function onItemSeleccionado(item) {
+  const opt = itemsOptions.value.find(o => o.key === item.key)
+  if (!opt) return
+  item.codigo = opt.codigo
+  item.origen = opt.origen
+  if (!item.costoUnit || item.costoUnit === 0) {
+    item.costoUnit = opt.precio || 0
   }
 }
 
-function undProducto(codigo) {
-  return productosOptions.value.find(p => p.codigo === codigo)?.und || ''
+function undItem(item) {
+  return itemsOptions.value.find(o => o.key === item?.key)?.und || ''
 }
 
 const totalItemsMp = (mp) =>
@@ -1266,7 +1310,17 @@ function cerrar() {
   min-width: 90px;
   text-align: right;
 }
-.mp-prod-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), 0.4); }
+.mp-prod-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), 0.4); display: inline-flex; align-items: center; gap: 6px; }
+.mp-origen-tag {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+.mp-origen-tag.tag-prod { background: rgba(102,126,234,0.14); color: #667eea; }
+.mp-origen-tag.tag-art  { background: rgba(245,158,11,0.16); color: #d97706; }
 .mp-total-row {
   display: flex;
   align-items: center;
