@@ -12362,7 +12362,21 @@ app.post('/api/recetas/:codigo/calcular-costo', async (req, res) => {
 // (subrecetas primero), detectando auto-referencias y ciclos. Se usa tanto desde
 // el botón manual (POST /api/recetas/recalcular-todos) como desde el job
 // silencioso en segundo plano (ver más abajo, sección "RECALCULO AUTOMATICO").
-async function ejecutarRecalculoTodasRecetas(client) {
+//
+// Consciente de empresa (Fase 2):
+//   - PRINCIPAL (PROVEEDOR) → lee/escribe los costos BASE (articulos.valor,
+//     recetas.valor, y el desglose compartido detalle_recetas.vr_unit/vr_total).
+//   - CLIENTE → lee costos con COALESCE(su capa, base) y escribe SOLO en su capa
+//     (receta_costo_empresa / articulo_costo_empresa para subproductos), sin
+//     tocar el costo base ni el desglose compartido del principal.
+// La FÓRMULA (qué ingredientes y cantidades) es compartida: el orden topológico
+// se calcula una sola vez sobre detalle_recetas y aplica igual a toda empresa.
+async function ejecutarRecalculoTodasRecetas(client, empresa) {
+    const teRes = empresa
+        ? await client.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa])
+        : { rows: [] };
+    const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+
     const recetasRes = await client.query(
         `SELECT codigo, subproducto, nombre FROM recetas ORDER BY nombre`
     );
@@ -12427,31 +12441,78 @@ async function ejecutarRecalculoTodasRecetas(client) {
         let costoTotal = 0;
         for (const det of detalleRes.rows) {
             if (det.tipo === 'RECETA' && det.articulo === codigo) {
-                await client.query(
-                    'UPDATE detalle_recetas SET vr_unit = 0, vr_total = 0 WHERE codigo = $1',
-                    [det.codigo]
-                );
+                // auto-referencia: solo el principal limpia el desglose compartido
+                if (esPrincipal) {
+                    await client.query(
+                        'UPDATE detalle_recetas SET vr_unit = 0, vr_total = 0 WHERE codigo = $1',
+                        [det.codigo]
+                    );
+                }
                 continue;
             }
             let precio = 0;
             if (det.tipo === 'ARTICULO') {
-                const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
-                precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
+                if (esPrincipal) {
+                    const artRes = await client.query('SELECT valor FROM articulos WHERE codigo = $1', [det.articulo]);
+                    precio = artRes.rows.length > 0 ? parseFloat(artRes.rows[0].valor) || 0 : 0;
+                } else {
+                    const r = await client.query(
+                        `SELECT COALESCE(
+                            (SELECT valor FROM articulo_costo_empresa WHERE empresa = $1 AND TRIM(codigo) = TRIM($2)),
+                            (SELECT valor FROM articulos WHERE TRIM(codigo) = TRIM($2)),
+                            0) AS valor`,
+                        [empresa, det.articulo]
+                    );
+                    precio = parseFloat(r.rows[0].valor) || 0;
+                }
             } else if (det.tipo === 'RECETA') {
-                const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
-                precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
+                if (esPrincipal) {
+                    const recRes = await client.query('SELECT valor FROM recetas WHERE codigo = $1', [det.articulo]);
+                    precio = recRes.rows.length > 0 ? parseFloat(recRes.rows[0].valor) || 0 : 0;
+                } else {
+                    const r = await client.query(
+                        `SELECT COALESCE(
+                            (SELECT valor FROM receta_costo_empresa WHERE empresa = $1 AND codigo = $2),
+                            (SELECT valor FROM recetas WHERE codigo = $2),
+                            0) AS valor`,
+                        [empresa, det.articulo]
+                    );
+                    precio = parseFloat(r.rows[0].valor) || 0;
+                }
             }
             const cant = parseFloat(det.cantidad) || 0;
             costoTotal += precio * cant;
-            await client.query(
-                'UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2 WHERE codigo = $3',
-                [precio, precio * cant, det.codigo]
-            );
+            // Desglose por línea (vr_unit/vr_total) vive en la fila compartida:
+            // solo lo escribe el principal (es el desglose base). El desglose por
+            // empresa se calcula al vuelo en la Fase 3.
+            if (esPrincipal) {
+                await client.query(
+                    'UPDATE detalle_recetas SET vr_unit = $1, vr_total = $2 WHERE codigo = $3',
+                    [precio, precio * cant, det.codigo]
+                );
+            }
         }
 
-        await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
-        if (subproducto === 'SI') {
-            await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+        if (esPrincipal) {
+            await client.query('UPDATE recetas SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+            if (subproducto === 'SI') {
+                await client.query('UPDATE articulos SET valor = $1 WHERE codigo = $2', [costoTotal, codigo]);
+            }
+        } else {
+            await client.query(
+                `INSERT INTO receta_costo_empresa (empresa, codigo, valor) VALUES ($1, $2, $3)
+                 ON CONFLICT (empresa, codigo) DO UPDATE SET valor = EXCLUDED.valor`,
+                [empresa, codigo, costoTotal]
+            );
+            // Subproducto: su costo también alimenta la capa de artículos de la empresa,
+            // para que las recetas que lo usan como ingrediente lo tomen actualizado.
+            if (subproducto === 'SI') {
+                await client.query(
+                    `INSERT INTO articulo_costo_empresa (empresa, codigo, valor) VALUES ($1, $2, $3)
+                     ON CONFLICT (empresa, codigo) DO UPDATE SET valor = EXCLUDED.valor`,
+                    [empresa, codigo, costoTotal]
+                );
+            }
         }
         return { codigo, costo: costoTotal };
     }
@@ -12466,11 +12527,18 @@ async function ejecutarRecalculoTodasRecetas(client) {
 app.post('/api/recetas/recalcular-todos', async (req, res) => {
     const client = await pool.connect();
     try {
+        // Empresa solicitante: recalcula SU capa de costos. Si no viene, el principal.
+        let empresa = req.query.empresa || req.headers['x-empresa'] || req.body?.empresa;
+        if (!empresa) {
+            const p = await pool.query(`SELECT codigo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`);
+            empresa = p.rows[0]?.codigo;
+        }
         await client.query('BEGIN');
-        const { resultados, ciclos } = await ejecutarRecalculoTodasRecetas(client);
+        const { resultados, ciclos } = await ejecutarRecalculoTodasRecetas(client, empresa);
         await client.query('COMMIT');
         res.json({
             success: true,
+            empresa,
             recalculadas: resultados.length,
             ciclos_detectados: ciclos,
             detalle: resultados
@@ -12521,22 +12589,37 @@ async function ejecutarRecalculoRecetasSiToca() {
         const horasDesde = ultima ? (Date.now() - new Date(ultima).getTime()) / 3600000 : Infinity;
         if (horasDesde < intervaloHoras) return;
 
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            const { resultados, ciclos } = await ejecutarRecalculoTodasRecetas(client);
-            await client.query('COMMIT');
-            await pool.query(
-                `INSERT INTO sistema_tareas (tarea, ultima_ejecucion) VALUES ('recalculo_recetas', NOW())
-                 ON CONFLICT (tarea) DO UPDATE SET ultima_ejecucion = NOW()`
-            );
-            console.log(`[recalculo-recetas] Recalculo automatico OK: ${resultados.length} recetas, ${ciclos.length} ciclos detectados`);
-        } catch (err) {
-            await client.query('ROLLBACK');
-            console.error('[recalculo-recetas] Error en recalculo automatico:', err.message);
-        } finally {
-            client.release();
+        // Empresas a recalcular: el principal + cada empresa que tenga capa propia
+        // de costos de artículos (que es lo que hace variar el costo de sus recetas).
+        const empresasRes = await pool.query(`
+            SELECT codigo FROM empresas WHERE tipo_empresa = 'PROVEEDOR'
+            UNION
+            SELECT DISTINCT empresa AS codigo FROM articulo_costo_empresa
+        `);
+        const empresas = empresasRes.rows.map(r => r.codigo).filter(Boolean);
+
+        let okCount = 0;
+        for (const emp of empresas) {
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+                const { resultados, ciclos } = await ejecutarRecalculoTodasRecetas(client, emp);
+                await client.query('COMMIT');
+                okCount++;
+                console.log(`[recalculo-recetas] empresa ${emp}: ${resultados.length} recetas, ${ciclos.length} ciclos`);
+            } catch (err) {
+                await client.query('ROLLBACK');
+                console.error(`[recalculo-recetas] Error empresa ${emp}:`, err.message);
+            } finally {
+                client.release();
+            }
         }
+
+        await pool.query(
+            `INSERT INTO sistema_tareas (tarea, ultima_ejecucion) VALUES ('recalculo_recetas', NOW())
+             ON CONFLICT (tarea) DO UPDATE SET ultima_ejecucion = NOW()`
+        );
+        console.log(`[recalculo-recetas] Recalculo automatico OK para ${okCount}/${empresas.length} empresa(s)`);
     } catch (err) {
         console.error('[recalculo-recetas] Error verificando ultima ejecucion:', err.message);
     }

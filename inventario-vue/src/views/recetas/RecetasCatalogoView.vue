@@ -666,7 +666,11 @@ async function recalcularTodos() {
   recalcFase.value         = 'Recalculando en orden de dependencias…'
 
   try {
-    const r = await fetch(`${API_BASE}/recetas/recalcular-todos`, { method: 'POST' })
+    // Recalcula la capa de costos de la empresa activa (el backend rutea
+    // principal→base, cliente→su capa). Sin empresa, el backend usa el principal.
+    const empresa = localStorage.getItem('empresaActual') || ''
+    const qs = empresa ? `?empresa=${encodeURIComponent(empresa)}` : ''
+    const r = await fetch(`${API_BASE}/recetas/recalcular-todos${qs}`, { method: 'POST' })
     const j = await r.json()
     if (!j.success) throw new Error(j.error || 'Error al recalcular')
     recalcHecho.value = j.recalculadas || recetas.value.length
