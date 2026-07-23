@@ -472,7 +472,7 @@ async function exportarExcel() {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
   table-layout: fixed;
 }
 
