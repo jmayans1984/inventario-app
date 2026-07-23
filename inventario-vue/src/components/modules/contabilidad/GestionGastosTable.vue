@@ -502,7 +502,7 @@ async function exportarExcel() {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 12px 10px;
+  padding: 8px 10px;
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.5px;
@@ -530,7 +530,7 @@ async function exportarExcel() {
 .data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
 
 .data-table tbody td {
-  padding: 6px 10px;
+  padding: 3px 10px;
   color: rgb(var(--v-theme-on-surface));
   overflow: hidden;
   text-overflow: ellipsis;
