@@ -8950,6 +8950,11 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
         );
         let eaSeq = (parseInt(eaMaxRes.rows[0].max_cod) || 0) + 1;
 
+        // ¿La empresa que registra el gasto es el principal (PROVEEDOR)?
+        // Principal → actualiza el costo BASE. Cliente → actualiza SU capa de costo.
+        const teRes = await client.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
+        const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+
         for (let i = 0; i < lineas.length; i++) {
             const mp = lineas[i].materiaPrima;
             if (!mp || !Array.isArray(mp.items) || !mp.items.length) continue;
@@ -8998,23 +9003,43 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
                 }
             }
 
-            // 4d. OPCIONAL: actualizar precio de costo
-            //     - PRODUCTO  → productos.precio_costo
-            //     - ARTICULO  → articulos.valor (materia prima; afecta costo de recetas)
+            // 4d. OPCIONAL: actualizar precio de costo (ruteado por empresa)
+            //     PRINCIPAL → costo BASE (productos.precio_costo / articulos.valor)
+            //     CLIENTE   → su capa de costo (producto_costo_empresa / articulo_costo_empresa),
+            //                 sin tocar jamás el costo del principal ni de otros clientes.
             if (mp.actualizaCosto) {
                 for (const item of itemsValidos) {
                     const costo = parseFloat(item.costoUnit) || 0;
                     if (costo <= 0) continue;
+                    const cod = String(item.codigo).trim();
                     if (item.origen === 'ARTICULO') {
-                        await client.query(
-                            `UPDATE articulos SET valor = $1 WHERE TRIM(codigo) = $2`,
-                            [costo, String(item.codigo).trim()]
-                        );
+                        if (esPrincipal) {
+                            await client.query(
+                                `UPDATE articulos SET valor = $1 WHERE TRIM(codigo) = $2`,
+                                [costo, cod]
+                            );
+                        } else {
+                            await client.query(
+                                `INSERT INTO articulo_costo_empresa (empresa, codigo, valor)
+                                 VALUES ($1, $2, $3)
+                                 ON CONFLICT (empresa, codigo) DO UPDATE SET valor = EXCLUDED.valor`,
+                                [empresa, cod, costo]
+                            );
+                        }
                     } else {
-                        await client.query(
-                            `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
-                            [costo, item.codigo]
-                        );
+                        if (esPrincipal) {
+                            await client.query(
+                                `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
+                                [costo, item.codigo]
+                            );
+                        } else {
+                            await client.query(
+                                `INSERT INTO producto_costo_empresa (empresa, codigo, precio_costo)
+                                 VALUES ($1, $2, $3)
+                                 ON CONFLICT (empresa, codigo) DO UPDATE SET precio_costo = EXCLUDED.precio_costo`,
+                                [empresa, cod, costo]
+                            );
+                        }
                     }
                 }
             }
@@ -9787,6 +9812,35 @@ pool.query(`ALTER TABLE etiquetas_producto ADD COLUMN IF NOT EXISTS barcode VARC
         await pool.query(`ALTER TABLE productos ALTER COLUMN stock_minimo  TYPE NUMERIC(10,2) USING stock_minimo::NUMERIC(10,2)`);
         console.log('✅ Precisión de columnas de precios asegurada (2 decimales)');
     } catch (e) { console.error('Error migrando precisión de precios:', e.message); }
+})();
+
+// ── COSTOS POR EMPRESA (Fase 1) ───────────────────────────────
+// Capas de costo por empresa sobre el catálogo compartido. El costo BASE sigue
+// en productos.precio_costo / articulos.valor / recetas.valor (= costos del
+// principal). Cada empresa CLIENTE guarda aquí SU propio costo; las lecturas
+// resuelven COALESCE(costo_empresa, costo_base). Ver memoria costos-por-empresa.
+(async () => {
+    try {
+        await pool.query(`CREATE TABLE IF NOT EXISTS producto_costo_empresa (
+            empresa      VARCHAR(20)   NOT NULL,
+            codigo       VARCHAR(30)   NOT NULL,
+            precio_costo NUMERIC(12,2) DEFAULT 0,
+            PRIMARY KEY (empresa, codigo)
+        )`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS articulo_costo_empresa (
+            empresa VARCHAR(20)   NOT NULL,
+            codigo  VARCHAR(30)   NOT NULL,
+            valor   NUMERIC(12,4) DEFAULT 0,
+            PRIMARY KEY (empresa, codigo)
+        )`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS receta_costo_empresa (
+            empresa VARCHAR(20)   NOT NULL,
+            codigo  VARCHAR(30)   NOT NULL,
+            valor   NUMERIC(12,4) DEFAULT 0,
+            PRIMARY KEY (empresa, codigo)
+        )`);
+        console.log('✅ Tablas de costo por empresa listas');
+    } catch (e) { console.error('Error creando tablas de costo por empresa:', e.message); }
 })();
 
 // ── NOTIFICACIONES ────────────────────────────────────────────
