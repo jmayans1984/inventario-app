@@ -530,7 +530,7 @@ async function exportarExcel() {
 .data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
 
 .data-table tbody td {
-  padding: 11px 10px;
+  padding: 6px 10px;
   color: rgb(var(--v-theme-on-surface));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -581,7 +581,8 @@ async function exportarExcel() {
 .td-total { text-align: right; }
 .total-bold { font-weight: 700; color: #667eea; font-family: 'Courier New', monospace; }
 .td-acciones { text-align: center; }
-.action-buttons { display: flex; gap: 2px; justify-content: center; }
+.action-buttons { display: flex; gap: 0; justify-content: center; align-items: center; }
+.action-buttons :deep(.v-btn) { margin: 0 -2px; }
 .text-muted { color: rgba(var(--v-theme-on-surface), 0.35); }
 
 /* ── Paginación ── */
