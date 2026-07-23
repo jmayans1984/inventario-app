@@ -340,48 +340,51 @@ function imprimirEtiqueta(l) {
   const bcWidth  = es3x4 ? 1.3 : 1.8
 
   const stylesLbl = es3x4 ? `
-  @page { size: 3in 4in; margin: 0; }
+  @page { size: 4in 3in; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
-  body { width: 3in; min-height: 4in; background: #fff; color: #000; }
+  body { width: 4in; min-height: 3in; background: #fff; color: #000; }
 
-  .lbl { display: flex; flex-direction: column; min-height: 4in; border: 1.5px solid #000; }
+  .lbl { display: flex; flex-direction: column; min-height: 3in; border: 1.5px solid #000; }
 
-  /* Franja superior: caja de icono + badge tipo "FRAGILE" */
+  /* Top strip: icon box + badge type "FRAGILE" */
   .lbl-top { display: flex; align-items: stretch; border-bottom: 1.5px solid #000; }
-  .top-icon-box { width: 30%; border-right: 1.5px solid #000; padding: 5px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
-  .top-icon { width: 20px; height: 20px; border: 1.5px solid #000; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 11pt; font-weight: 900; }
+  .top-icon-box { width: 22%; border-right: 1.5px solid #000; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .top-icon { width: 18px; height: 18px; border: 1.5px solid #000; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9pt; font-weight: 900; }
   .top-icon-cap { font-size: 4pt; text-align: center; line-height: 1.2; color: #333; text-transform: uppercase; }
-  .top-badge { flex: 1; padding: 5px 6px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; }
-  .badge-title { font-size: 8pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
+  .top-badge { flex: 1; padding: 4px 6px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; }
+  .badge-title { font-size: 7.5pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
   .badge-sub   { font-size: 4.5pt; font-weight: 700; text-transform: uppercase; color: #333; margin-top: 1px; }
 
-  /* Barra de producto */
-  .lbl-header-bar { padding: 4px 8px; border-bottom: 1.5px solid #000; display: flex; align-items: baseline; justify-content: space-between; gap: 4px; }
-  .prod-name { font-size: 11pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
-  .lot-ref   { font-size: 4.5pt; font-family: monospace; letter-spacing: 0.5px; color: #333; white-space: nowrap; }
+  /* Product title bar – centered, no lot reference (shown in footer) */
+  .lbl-header-bar { padding: 4px 8px; border-bottom: 1.5px solid #000; text-align: center; }
+  .prod-name { font-size: 12pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
 
-  .weight-line { padding: 2px 8px; font-size: 5pt; font-weight: 700; text-align: center; border-bottom: 1px solid #000; color: #333; }
+  /* Net weight / servings boxes */
+  .weight-row { display: flex; gap: 4px; padding: 3px 8px; border-bottom: 1px solid #000; }
+  .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 2px 3px; }
+  .w-lbl { font-size: 4pt; text-transform: uppercase; font-weight: 700; }
+  .w-val { font-size: 6pt; font-weight: 900; }
 
-  /* Sección tipo From/To */
+  /* From/To style dates section */
   .two-col { display: flex; border-bottom: 1px solid #000; }
-  .col { flex: 1; padding: 4px 6px; }
+  .col { flex: 1; padding: 3px 6px; }
   .col:first-child { border-right: 1px solid #000; }
   .col-title { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-  .col-row { font-size: 5pt; line-height: 1.5; }
+  .col-row { font-size: 5pt; line-height: 1.4; }
   .col-lbl { color: #555; }
   .col-val { font-weight: 700; margin-left: 2px; }
   .col-warn { display: inline-block; margin-top: 2px; font-size: 4pt; font-weight: 900; text-transform: uppercase; border: 1px solid #000; padding: 1px 4px; border-radius: 3px; }
 
-  /* Información adicional */
-  .lbl-extra { flex: 1; padding: 4px 8px; display: flex; flex-direction: column; gap: 3px; }
+  /* Additional information */
+  .lbl-extra { flex: 1; padding: 3px 8px; display: flex; flex-direction: column; gap: 2px; }
   .section-title { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
-  .section-txt   { font-size: 5pt; line-height: 1.25; }
-  .alerg-txt     { font-size: 5pt; font-weight: 700; line-height: 1.2; }
-  .instr-txt     { font-size: 4.5pt; font-style: italic; line-height: 1.2; }
+  .section-txt   { font-size: 5pt; line-height: 1.2; }
+  .alerg-txt     { font-size: 5pt; font-weight: 700; line-height: 1.15; }
+  .instr-txt     { font-size: 4.5pt; font-style: italic; line-height: 1.15; }
 
-  /* Footer tipo Tracking Number */
-  .lbl-barcode { padding: 4px 8px 6px; text-align: center; border-top: 1.5px solid #000; }
-  .footer-title { font-size: 5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  /* Footer: batch code + barcode */
+  .lbl-barcode { padding: 3px 8px 5px; text-align: center; border-top: 1.5px solid #000; }
+  .footer-title { font-size: 5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
   .lbl-barcode svg { max-width: 100%; }
   .bc-num { font-size: 5pt; margin-top: 1px; font-family: monospace; letter-spacing: 0.5px; }
 ` : `
@@ -456,36 +459,32 @@ ${es3x4 ? `
       <div class="top-icon-cap">${empresaNombre}</div>
     </div>
     <div class="top-badge">
-      <div class="badge-title">LOTE DE<br>PRODUCCIÓN</div>
-      <div class="badge-sub">Manéjese con cuidado</div>
+      <div class="badge-title">PRODUCTION<br>BATCH</div>
+      <div class="badge-sub">Handle with care</div>
     </div>
   </div>
 
   <div class="lbl-header-bar">
     <div class="prod-name">${l.etiqueta_nombre || l.etiqueta}</div>
-    <div class="lot-ref">LOT<br>${l.codigo}</div>
   </div>
 
   ${(l.peso_neto_oz || l.peso_neto_g || l.porciones || l.tamano_porcion) ? `
-  <div class="weight-line">
-    ${[
-      l.peso_neto_oz   ? `${l.peso_neto_oz} oz` : '',
-      l.peso_neto_g    ? `${l.peso_neto_g} g`   : '',
-      l.porciones      ? `${l.porciones} porciones` : '',
-      l.tamano_porcion ? `${l.tamano_porcion}` : ''
-    ].filter(Boolean).join(' &middot; ')}
+  <div class="weight-row">
+    ${l.peso_neto_oz   ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_oz} oz</div></div>` : ''}
+    ${l.peso_neto_g    ? `<div class="w-box"><div class="w-lbl">Net Weight</div><div class="w-val">${l.peso_neto_g} g</div></div>` : ''}
+    ${l.porciones      ? `<div class="w-box"><div class="w-lbl">Servings</div><div class="w-val">${l.porciones}</div></div>` : ''}
+    ${l.tamano_porcion ? `<div class="w-box"><div class="w-lbl">Serving Size</div><div class="w-val">${l.tamano_porcion}</div></div>` : ''}
   </div>` : ''}
 
   <div class="two-col">
     <div class="col">
-      <div class="col-title">Fabricado</div>
-      <div class="col-row"><span class="col-lbl">Fecha:</span><span class="col-val">${fmtD(l.fecha_fab)}</span></div>
-      ${l.responsable ? `<div class="col-row"><span class="col-lbl">Resp:</span><span class="col-val">${l.responsable}</span></div>` : ''}
+      <div class="col-title">Manufactured</div>
+      <div class="col-row"><span class="col-lbl">Date:</span><span class="col-val">${fmtD(l.fecha_fab)}</span></div>
     </div>
     <div class="col">
-      <div class="col-title">Vence</div>
-      <div class="col-row"><span class="col-lbl">Fecha:</span><span class="col-val">${fmtD(l.fecha_vence)}</span></div>
-      ${venceProximo(l.fecha_vence) ? `<div class="col-warn">Próximo</div>` : ''}
+      <div class="col-title">Best By / Exp.</div>
+      <div class="col-row"><span class="col-lbl">Date:</span><span class="col-val">${fmtD(l.fecha_vence)}</span></div>
+      ${venceProximo(l.fecha_vence) ? `<div class="col-warn">Expiring Soon</div>` : ''}
     </div>
   </div>
 
@@ -493,25 +492,25 @@ ${es3x4 ? `
   <div class="lbl-extra">
     ${l.ingredientes ? `
     <div>
-      <div class="section-title">Ingredientes</div>
+      <div class="section-title">Ingredients</div>
       <div class="section-txt">${l.ingredientes}</div>
     </div>` : ''}
 
     ${l.alergenos ? `
     <div>
-      <div class="section-title">Contiene / Alérgenos</div>
+      <div class="section-title">Contains / Allergens</div>
       <div class="alerg-txt">${l.alergenos}</div>
     </div>` : ''}
 
     ${l.instrucciones ? `
     <div>
-      <div class="section-title">Instrucciones</div>
+      <div class="section-title">Storage Instructions</div>
       <div class="instr-txt">${l.instrucciones}</div>
     </div>` : ''}
   </div>` : ''}
 
   <div class="lbl-barcode">
-    <div class="footer-title">Código de Lote</div>
+    <div class="footer-title">Batch Code</div>
     <svg id="bc"></svg>
     <div class="bc-num">${barcodeVal}</div>
   </div>
