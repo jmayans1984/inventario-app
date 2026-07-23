@@ -12443,16 +12443,29 @@ pool.query(`CREATE TABLE IF NOT EXISTS sistema_tareas (
     ultima_ejecucion TIMESTAMP
 )`).catch(() => {});
 
-const RECALCULO_RECETAS_INTERVALO_HORAS = 24; // cambiar a 48 para "cada dos días"
+// Intervalo configurable desde Configuración General (empresas.recalculo_recetas_horas).
+// Como el catálogo de recetas es único para toda la instalación, se respeta el
+// valor más exigente (menor) entre las empresas que lo hayan configurado.
+async function obtenerIntervaloRecalculoHoras() {
+    try {
+        const r = await pool.query(
+            `SELECT MIN(COALESCE(recalculo_recetas_horas, 24)) AS horas FROM empresas`
+        );
+        return parseInt(r.rows[0]?.horas) || 24;
+    } catch {
+        return 24;
+    }
+}
 
 async function ejecutarRecalculoRecetasSiToca() {
     try {
+        const intervaloHoras = await obtenerIntervaloRecalculoHoras();
         const chk = await pool.query(
             `SELECT ultima_ejecucion FROM sistema_tareas WHERE tarea = 'recalculo_recetas'`
         );
         const ultima = chk.rows[0]?.ultima_ejecucion;
         const horasDesde = ultima ? (Date.now() - new Date(ultima).getTime()) / 3600000 : Infinity;
-        if (horasDesde < RECALCULO_RECETAS_INTERVALO_HORAS) return;
+        if (horasDesde < intervaloHoras) return;
 
         const client = await pool.connect();
         try {
@@ -12590,6 +12603,7 @@ app.get('/api/recetas-reporte/costos', async (req, res) => {
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS bodega_maestra VARCHAR(2) DEFAULT NULL`);
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS pct_imprevisto_despachos NUMERIC(5,2) DEFAULT 0`);
         await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS formato_etiqueta_produccion VARCHAR(5) DEFAULT '6x4'`);
+        await pool.query(`ALTER TABLE empresas ADD COLUMN IF NOT EXISTS recalculo_recetas_horas INTEGER DEFAULT 24`);
         console.log('✅ Columnas empresas listas');
     } catch (e) { console.error('Error migrando empresas ADD:', e.message); }
 })();
@@ -12775,6 +12789,55 @@ app.put('/api/empresas/formato-etiqueta-produccion', async (req, res) => {
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Error PUT /api/empresas/formato-etiqueta-produccion:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/empresas/recalculo-recetas-horas — horas entre recalculos automaticos de costos de recetas
+app.get('/api/empresas/recalculo-recetas-horas', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+
+        const result = await pool.query(
+            `SELECT COALESCE(recalculo_recetas_horas, 24) AS recalculo_recetas_horas
+             FROM empresas WHERE codigo = $1`,
+            [empresaCod]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        }
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error GET /api/empresas/recalculo-recetas-horas:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/empresas/recalculo-recetas-horas — actualizar horas entre recalculos automaticos
+app.put('/api/empresas/recalculo-recetas-horas', async (req, res) => {
+    try {
+        const empresaCod = req.query.empresa || req.headers['x-empresa'];
+        const horas = parseInt(req.body.recalculo_recetas_horas);
+
+        if (!empresaCod) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+        if (![24, 48, 168].includes(horas)) {
+            return res.status(400).json({ success: false, error: 'Valor inválido. Debe ser 24, 48 o 168 horas' });
+        }
+
+        const result = await pool.query(
+            `UPDATE empresas SET recalculo_recetas_horas = $1 WHERE codigo = $2
+             RETURNING codigo, nombre, recalculo_recetas_horas`,
+            [horas, empresaCod]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
+        }
+
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/empresas/recalculo-recetas-horas:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

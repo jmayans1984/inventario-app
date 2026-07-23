@@ -296,6 +296,49 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           SECCIÓN 5B: RECÁLCULO AUTOMÁTICO DE COSTOS DE RECETAS
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(102,126,234,0.12)">
+            <v-icon size="16" color="#667eea">mdi-autorenew</v-icon>
+          </div>
+          <span class="cfg-section-title">RECÁLCULO DE COSTOS DE RECETAS</span>
+        </div>
+
+        <div class="cfg-etiqueta-section">
+          <p class="cfg-logo-hint">
+            Cada cuánto se recalcula automáticamente el costo de todas las recetas en segundo plano
+            (sin necesidad de usar el botón "Recalcular Costos" ni esperar el proceso)
+          </p>
+
+          <div v-if="loadingRecalculoRecetas" class="cfg-loading">
+            <v-progress-circular indeterminate color="#667eea" size="24" />
+          </div>
+          <div v-else class="cfg-etiqueta-opts">
+            <label
+              v-for="opt in recalculoRecetasOpciones"
+              :key="opt.valor"
+              class="cfg-etiqueta-opt"
+              :class="{ 'cfg-etiqueta-opt--activa': recalculoRecetasHoras === opt.valor }"
+            >
+              <input type="radio" :value="opt.valor" v-model.number="recalculoRecetasHoras" @change="guardarRecalculoRecetas" />
+              <span class="cfg-etiqueta-opt-title">{{ opt.titulo }}</span>
+              <span class="cfg-etiqueta-opt-sub">{{ opt.sub }}</span>
+            </label>
+          </div>
+
+          <span v-if="guardandoRecalculoRecetas" class="cfg-ok-msg" style="margin-top:10px">
+            <v-progress-circular indeterminate size="13" width="2" color="#667eea" /> Guardando...
+          </span>
+          <span v-else-if="recalculoRecetasSaveOk" class="cfg-ok-msg" style="margin-top:10px">
+            <v-icon size="13" color="#10b981">mdi-check-circle</v-icon> Guardado
+          </span>
+          <span v-if="recalculoRecetasSaveErr" class="cfg-err-msg" style="margin-top:10px">{{ recalculoRecetasSaveErr }}</span>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            SECCIÓN 6: ACTUALIZACIONES DEL SISTEMA
       ══════════════════════════════════════════════ -->
       <div class="cfg-card">
@@ -578,12 +621,51 @@ async function guardarFormatoEtiqueta() {
   } finally { guardandoFormatoEtiqueta.value = false }
 }
 
+// ── Recálculo automático de costos de recetas (horas entre corridas) ──
+const recalculoRecetasOpciones = [
+  { valor: 24, titulo: 'Cada día',   sub: 'Recalcula 1 vez cada 24 horas' },
+  { valor: 48, titulo: 'Cada 2 días', sub: 'Recalcula 1 vez cada 48 horas' },
+  { valor: 168, titulo: 'Cada semana', sub: 'Recalcula 1 vez cada 7 días' },
+]
+const recalculoRecetasHoras     = ref(24)
+const loadingRecalculoRecetas   = ref(true)
+const guardandoRecalculoRecetas = ref(false)
+const recalculoRecetasSaveOk    = ref(false)
+const recalculoRecetasSaveErr   = ref('')
+
+async function cargarRecalculoRecetas() {
+  loadingRecalculoRecetas.value = true
+  try {
+    const res = await api.get('/empresas/recalculo-recetas-horas', { params: { empresa: empresa.value } })
+    recalculoRecetasHoras.value = res.data?.data?.recalculo_recetas_horas || 24
+  } catch { recalculoRecetasHoras.value = 24 }
+  finally { loadingRecalculoRecetas.value = false }
+}
+
+async function guardarRecalculoRecetas() {
+  guardandoRecalculoRecetas.value = true
+  recalculoRecetasSaveOk.value  = false
+  recalculoRecetasSaveErr.value = ''
+  try {
+    const res = await api.put('/empresas/recalculo-recetas-horas',
+      { recalculo_recetas_horas: recalculoRecetasHoras.value },
+      { params: { empresa: empresa.value } }
+    )
+    if (!res.data?.success) throw new Error(res.data?.error)
+    recalculoRecetasSaveOk.value = true
+    setTimeout(() => { recalculoRecetasSaveOk.value = false }, 3000)
+  } catch (e) {
+    recalculoRecetasSaveErr.value = e?.response?.data?.error || e.message
+  } finally { guardandoRecalculoRecetas.value = false }
+}
+
 // ── Inicialización ─────────────────────────────────────────────
 onMounted(() => {
   cargarConfigContable()
   cargarUsuarios()
   cargarLogo()
   cargarFormatoEtiqueta()
+  cargarRecalculoRecetas()
 })
 </script>
 
