@@ -239,7 +239,10 @@ const seccionesBase = [
 const secciones = computed(() => {
   return seccionesBase.map(sec => ({
     ...sec,
-    items: sec.items.filter(item => !item.requiredTipo || item.requiredTipo === tipoEmpresa.value)
+    items: sec.items.filter(item => {
+      if (!item.requiredTipo) return true
+      return (item.requiredTipo || '').toUpperCase() === (tipoEmpresa.value || '').toUpperCase()
+    })
   }))
 })
 
