@@ -213,8 +213,8 @@ const seccionesBase = [
       { path: '/almacen/procesos/toma-fisica',         icon: 'mdi-barcode-scan',           title: 'Toma Física',            desc: 'Conteo físico de inventario y ajustes' },
       { path: '/almacen/procesos/valoracion',          icon: 'mdi-currency-usd',           title: 'Valoración',             desc: 'Valor del inventario por costo promedio' },
       { path: '/almacen/procesos/ordenes-compra',      icon: 'mdi-cart-outline',           title: 'Órdenes de Compra',      desc: 'Gestiona órdenes a proveedores', requiredTipo: 'CLIENTE' },
-      { path: '/almacen/procesos/despachos-bodega',    icon: 'mdi-truck-outline',          title: 'Despachos de Bodega',    desc: 'Envíos desde almacén central' },
-      { path: '/almacen/procesos/recepciones',         icon: 'mdi-package-plus',           title: 'Recepción de Compras',   desc: 'Ingreso de productos al almacén' },
+      { path: '/almacen/procesos/despachos',           icon: 'mdi-truck-outline',          title: 'Despachos de Bodega',    desc: 'Envíos desde almacén central' },
+      { path: '/almacen/procesos/ordenes-produccion',  icon: 'mdi-factory',                title: 'Órdenes de Producción',  desc: 'Gestión de órdenes de fabricación' },
     ],
   },
   {
