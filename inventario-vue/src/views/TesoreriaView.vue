@@ -235,6 +235,7 @@ const go = (path) => router.push(path)
 
 const auth = useAuthStore()
 const empresa = computed(() => auth.empresa)
+const tipoEmpresa = computed(() => auth.empresaTipo)
 
 // ─── Fecha / mes actual ──────────────────────────────────────
 const fechaHoy = computed(() => {
@@ -255,8 +256,8 @@ function fmt(val) {
   }).format(parseFloat(val || 0))
 }
 
-// ─── Navegación (mismas rutas de siempre) ────────────────────
-const secciones = [
+// ─── Navegación con filtrado por tipo de empresa ──────────────
+const seccionesBase = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
@@ -275,8 +276,8 @@ const secciones = [
       { path: '/tesoreria/procesos/movimientos-bancarios', icon: 'mdi-swap-horizontal',       title: 'Movimientos Bancarios', desc: 'Registro de ingresos y egresos bancarios' },
       { path: '/tesoreria/procesos/conciliacion-cuentas',  icon: 'mdi-check-all',             title: 'Conciliación Bancaria', desc: 'Concilia movimientos con extractos' },
       { path: '/tesoreria/procesos/importar-ventas',       icon: 'mdi-file-import-outline',   title: 'Importar Ventas',       desc: 'Importa ventas desde archivos CSV' },
-      { path: '/tesoreria/procesos/facturas-compra',       icon: 'mdi-file-document-outline', title: 'Facturas de Compra',    desc: 'Facturas recibidas de proveedores' },
-      { path: '/tesoreria/procesos/facturas-venta',        icon: 'mdi-file-send-outline',     title: 'Facturas de Venta',     desc: 'Facturas emitidas a clientes' },
+      { path: '/tesoreria/procesos/facturas-compra',       icon: 'mdi-file-document-outline', title: 'Facturas de Compra',    desc: 'Facturas recibidas de proveedores', requiredTipo: 'CLIENTE' },
+      { path: '/tesoreria/procesos/facturas-venta',        icon: 'mdi-file-send-outline',     title: 'Facturas de Venta',     desc: 'Facturas emitidas a clientes', requiredTipo: 'PROVEEDOR' },
     ],
   },
   {
@@ -292,6 +293,13 @@ const secciones = [
     ],
   },
 ]
+
+const secciones = computed(() => {
+  return seccionesBase.map(sec => ({
+    ...sec,
+    items: sec.items.filter(item => !item.requiredTipo || item.requiredTipo === tipoEmpresa.value)
+  }))
+})
 
 // ─── Saldos de cuentas bancarias activas ─────────────────────
 const saldosLoading = ref(true)
