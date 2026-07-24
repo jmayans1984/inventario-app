@@ -98,40 +98,6 @@
         <!-- ── Columna derecha: paneles en vivo ── -->
         <div class="alm-side">
 
-          <!-- Próximos a agotarse -->
-          <div class="alm-panel">
-            <div class="alm-panel-header">
-              <div class="alm-panel-title">
-                <v-icon size="14" color="#ef4444">mdi-fire</v-icon>
-                PRÓXIMOS A AGOTARSE
-              </div>
-              <button class="alm-panel-link" @click="go('/almacen/reportes/prediccion-agotamiento')">Ver todo</button>
-            </div>
-            <div v-if="kpisLoading" class="alm-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#10b981" />
-            </div>
-            <template v-else>
-              <div v-if="criticos.length === 0" class="alm-panel-empty">
-                <v-icon size="22" color="#10b981">mdi-check-circle-outline</v-icon>
-                <span>Sin productos en riesgo</span>
-              </div>
-              <div
-                v-for="p in criticos"
-                :key="p.codigo"
-                class="alm-crit-row"
-                @click="go('/almacen/reportes/prediccion-agotamiento')"
-              >
-                <div class="alm-crit-info">
-                  <div class="alm-crit-nombre">{{ p.nombre }}</div>
-                  <div class="alm-crit-meta">Stock: {{ parseFloat(p.stock_actual).toFixed(1) }} {{ p.und }}</div>
-                </div>
-                <span :class="`alm-crit-badge alm-crit-${p.alerta.toLowerCase()}`">
-                  {{ p.dias_restantes }}d
-                </span>
-              </div>
-            </template>
-          </div>
-
           <!-- Resumen de Despachos -->
           <div class="alm-panel">
             <div class="alm-panel-header">
@@ -175,6 +141,40 @@
               <div v-else class="alm-panel-empty">
                 <v-icon size="20" color="rgba(var(--v-theme-on-surface),.3)">mdi-truck-check</v-icon>
                 <span style="font-size: 11px;">Sin despachos pendientes</span>
+              </div>
+            </template>
+          </div>
+
+          <!-- Próximos a agotarse -->
+          <div class="alm-panel">
+            <div class="alm-panel-header">
+              <div class="alm-panel-title">
+                <v-icon size="14" color="#ef4444">mdi-fire</v-icon>
+                PRÓXIMOS A AGOTARSE
+              </div>
+              <button class="alm-panel-link" @click="go('/almacen/reportes/prediccion-agotamiento')">Ver todo</button>
+            </div>
+            <div v-if="kpisLoading" class="alm-panel-loading">
+              <v-progress-circular indeterminate size="20" width="2" color="#10b981" />
+            </div>
+            <template v-else>
+              <div v-if="criticos.length === 0" class="alm-panel-empty">
+                <v-icon size="22" color="#10b981">mdi-check-circle-outline</v-icon>
+                <span>Sin productos en riesgo</span>
+              </div>
+              <div
+                v-for="p in criticos"
+                :key="p.codigo"
+                class="alm-crit-row"
+                @click="go('/almacen/reportes/prediccion-agotamiento')"
+              >
+                <div class="alm-crit-info">
+                  <div class="alm-crit-nombre">{{ p.nombre }}</div>
+                  <div class="alm-crit-meta">Stock: {{ parseFloat(p.stock_actual).toFixed(1) }} {{ p.und }}</div>
+                </div>
+                <span :class="`alm-crit-badge alm-crit-${p.alerta.toLowerCase()}`">
+                  {{ p.dias_restantes }}d
+                </span>
               </div>
             </template>
           </div>
