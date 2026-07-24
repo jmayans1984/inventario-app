@@ -178,6 +178,7 @@ const go = (path) => router.push(path)
 
 const auth = useAuthStore()
 const empresa = computed(() => auth.empresa)
+const tipoEmpresa = computed(() => auth.empresaTipo)
 
 // ─── Fecha de hoy formateada ─────────────────────────────────
 const fechaHoy = computed(() => {
@@ -186,8 +187,8 @@ const fechaHoy = computed(() => {
   return s.charAt(0).toUpperCase() + s.slice(1)
 })
 
-// ─── Navegación (mismas rutas de siempre) ────────────────────
-const secciones = [
+// ─── Navegación base ────────────────────
+const seccionesBase = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
@@ -198,6 +199,8 @@ const secciones = [
       { path: '/almacen/configuracion/control-inventario',  icon: 'mdi-tune-vertical',            title: 'Control de Inventario',          desc: 'Parámetros y niveles de stock mínimo' },
       { path: '/almacen/configuracion/impresion-barcodes',  icon: 'mdi-barcode',                  title: 'Códigos de Barras',              desc: 'Etiquetas con nombre y código' },
       { path: '/almacen/configuracion/grupo-productos',     icon: 'mdi-folder-multiple-outline',  title: 'Grupo de Productos',             desc: 'Categorías para organizar el catálogo' },
+      { path: '/almacen/configuracion/ubicaciones',         icon: 'mdi-map-marker-outline',       title: 'Ubicaciones de Almacén',         desc: 'Distribución y localización de zonas' },
+      { path: '/almacen/configuracion/precios',             icon: 'mdi-tag-multiple-outline',     title: 'Precios de Productos',           desc: 'Gestión de costos y precios' },
     ],
   },
   {
@@ -206,10 +209,12 @@ const secciones = [
     color: '#0ea5e9',
     iconBg: 'linear-gradient(135deg,#0ea5e9,#0369a1)',
     items: [
-      { path: '/almacen/procesos/gestion-inventario', icon: 'mdi-clipboard-list-outline', title: 'Gestión de Inventario', desc: 'Entradas, salidas y ajustes de stock' },
-      { path: '/almacen/procesos/toma-fisica',        icon: 'mdi-barcode-scan',           title: 'Toma Física',           desc: 'Conteo físico de inventario y ajustes' },
-      { path: '/almacen/procesos/valoracion',         icon: 'mdi-currency-usd',           title: 'Valoración',            desc: 'Valor del inventario por costo promedio' },
-      { path: '/almacen/procesos/ordenes-compra',     icon: 'mdi-cart-outline',           title: 'Órdenes de Compra',     desc: 'Gestiona órdenes a proveedores' },
+      { path: '/almacen/procesos/gestion-inventario',  icon: 'mdi-clipboard-list-outline', title: 'Gestión de Inventario',  desc: 'Entradas, salidas y ajustes de stock' },
+      { path: '/almacen/procesos/toma-fisica',         icon: 'mdi-barcode-scan',           title: 'Toma Física',            desc: 'Conteo físico de inventario y ajustes' },
+      { path: '/almacen/procesos/valoracion',          icon: 'mdi-currency-usd',           title: 'Valoración',             desc: 'Valor del inventario por costo promedio' },
+      { path: '/almacen/procesos/ordenes-compra',      icon: 'mdi-cart-outline',           title: 'Órdenes de Compra',      desc: 'Gestiona órdenes a proveedores', requiredTipo: 'CLIENTE' },
+      { path: '/almacen/procesos/despachos-bodega',    icon: 'mdi-truck-outline',          title: 'Despachos de Bodega',    desc: 'Envíos desde almacén central' },
+      { path: '/almacen/procesos/recepciones',         icon: 'mdi-package-plus',           title: 'Recepción de Compras',   desc: 'Ingreso de productos al almacén' },
     ],
   },
   {
@@ -225,9 +230,18 @@ const secciones = [
       { path: '/almacen/reportes/kardex-consolidado',     icon: 'mdi-table-multiple',      title: 'Kardex Consolidado',      desc: 'Stock actual por centro de costos' },
       { path: '/almacen/reportes/prediccion-agotamiento', icon: 'mdi-chart-box-outline',   title: 'Predicción Agotamiento',  desc: 'Cuándo se acabará el stock' },
       { path: '/almacen/reportes/valoracion-mensual',     icon: 'mdi-calculator-variant',  title: 'Valoración Mensual',      desc: 'Consumo de MP y juego de inventarios' },
+      { path: '/almacen/reportes/toma-fisica',            icon: 'mdi-clipboard-check',     title: 'Reporte Toma Física',     desc: 'Resultados y ajustes de tomas' },
+      { path: '/almacen/reportes/entradas-almacen',       icon: 'mdi-archive-outline',     title: 'Entradas de Almacén',     desc: 'Recepción de productos comprados' },
     ],
   },
 ]
+
+const secciones = computed(() => {
+  return seccionesBase.map(sec => ({
+    ...sec,
+    items: sec.items.filter(item => !item.requiredTipo || item.requiredTipo === tipoEmpresa.value)
+  }))
+})
 
 // ─── KPIs + productos críticos (desde predicción de agotamiento) ──
 const kpisLoading = ref(true)
