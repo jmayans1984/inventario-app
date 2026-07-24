@@ -442,38 +442,74 @@
                 <v-icon size="16" color="#f59e0b">mdi-tune-variant</v-icon>
               </div>
               <div>
-                <div class="iv-section-title">MODIFICADORES</div>
-                <div class="iv-section-sub">{{ xlsxData.modifiers.length }} modificadores</div>
+                <div class="iv-section-title">MODIFICADORES VENDIDOS</div>
+                <div class="iv-section-sub">{{ xlsxData.modifiers.length }} modificadores en {{ Object.keys(modifiersGrouped).length }} grupos</div>
               </div>
             </div>
             <div class="iv-card">
+              <div class="iv-card-header">
+                <div class="iv-card-title">
+                  <v-icon size="14" color="#f59e0b" class="mr-1">mdi-tune-variant</v-icon>
+                  Detalle por Grupo
+                </div>
+                <div style="font-size:11px; color:rgba(var(--v-theme-on-surface),0.4)">
+                  Total: {{ fmt(totalModNetas) }} · {{ totalModUnidades }} uds
+                </div>
+              </div>
               <div class="art-tabla-wrap">
                 <table class="art-tabla">
                   <thead>
                     <tr>
-                      <th>GRUPO</th>
-                      <th>MODIFICADOR</th>
-                      <th class="col-right" style="width:80px">CANT.</th>
-                      <th class="col-right" style="width:120px">BRUTAS</th>
-                      <th class="col-right" style="width:120px">NETAS</th>
-                      <th class="col-right" style="width:80px">ÓRDENES</th>
+                      <th>NOMBRE</th>
+                      <th class="col-right" style="width:70px">CANT.</th>
+                      <th class="col-right" style="width:130px">VR. ARTÍCULO</th>
+                      <th class="col-right" style="width:140px">SUBTOTAL</th>
+                      <th class="col-center" style="width:160px">INVENTARIO</th>
                     </tr>
                   </thead>
                   <tbody>
                     <template v-for="(mods, grupo) in modifiersGrouped" :key="grupo">
                       <tr class="tr-cat-header tr-cat-orange">
-                        <td colspan="6"><span class="cat-badge cat-badge-orange">{{ grupo }}</span></td>
+                        <td colspan="5"><span class="cat-badge cat-badge-orange">{{ grupo }}</span></td>
                       </tr>
                       <tr v-for="(m, i) in mods" :key="i" class="tr-item">
-                        <td class="td-variante">{{ m.group }}</td>
                         <td class="td-nombre">{{ m.name }}</td>
                         <td class="td-num col-right">{{ m.netQty }}</td>
-                        <td class="td-monto col-right">{{ fmt(m.grossSales) }}</td>
-                        <td class="td-monto col-right txt-orange">{{ fmt(m.netSales) }}</td>
-                        <td class="td-num col-right">{{ m.orders }}</td>
+                        <td class="td-monto col-right txt-dim">{{ m.netQty > 0 ? fmt(m.netSales / m.netQty) : '—' }}</td>
+                        <td class="td-monto col-right txt-orange">{{ m.netSales > 0 ? fmt(m.netSales) : '—' }}</td>
+                        <td class="col-center">
+                          <div class="mod-inv-cell">
+                            <span
+                              class="mod-inv-badge"
+                              :class="modificadoresConfigurados.has(m.name) ? 'mod-inv-ok' : 'mod-inv-warn'"
+                            >
+                              <v-icon size="11">{{ modificadoresConfigurados.has(m.name) ? 'mdi-check-circle' : 'mdi-alert-circle-outline' }}</v-icon>
+                              {{ modificadoresConfigurados.has(m.name) ? 'Configurado' : 'Sin config' }}
+                            </span>
+                            <button class="btn-config-mod" @click="openModConfigDialog(m)" title="Configurar impacto en inventario">
+                              <v-icon size="14">mdi-cog-outline</v-icon>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr class="tr-subtotal">
+                        <td class="subtotal-lbl">Subtotal {{ grupo }}</td>
+                        <td class="col-right subtotal-val">{{ mods.reduce((s,m) => s + m.netQty, 0) }}</td>
+                        <td class="col-right subtotal-val txt-dim">—</td>
+                        <td class="col-right subtotal-val txt-orange">{{ fmt(mods.reduce((s,m) => s + m.netSales, 0)) }}</td>
+                        <td></td>
                       </tr>
                     </template>
                   </tbody>
+                  <tfoot>
+                    <tr class="tr-total">
+                      <td class="total-lbl">TOTAL MODIFICADORES</td>
+                      <td class="col-right total-val">{{ totalModUnidades }}</td>
+                      <td class="col-right total-val txt-dim">—</td>
+                      <td class="col-right total-val txt-orange">{{ fmt(totalModNetas) }}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
@@ -691,6 +727,128 @@
       </v-card>
     </v-dialog>
 
+    <!-- ═══ DIALOG: CONFIGURAR MODIFICADOR → INVENTARIO ═══ -->
+    <v-dialog v-model="showModConfigDlg" max-width="660" scrollable>
+      <v-card v-if="modConfigMod" class="rcpopup">
+        <div class="rcpopup-header" style="background: linear-gradient(135deg,#f59e0b,#d97706)">
+          <div class="rcpopup-icon">
+            <v-icon size="18" color="white">mdi-cog-outline</v-icon>
+          </div>
+          <div class="rcpopup-title-wrap">
+            <div class="rcpopup-title">{{ modConfigMod.name }}</div>
+            <div class="rcpopup-sub">Grupo: {{ modConfigMod.group }} · Configura qué ingredientes impacta este modificador</div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="showModConfigDlg = false">
+            <v-icon size="18" color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <div class="rcpopup-body">
+          <div v-if="modConfigLines.length === 0" class="config-empty">
+            <v-icon size="28" color="rgba(var(--v-theme-on-surface),0.2)">mdi-package-variant-closed-remove</v-icon>
+            <span>Sin configuración — agrega un ingrediente abajo</span>
+          </div>
+
+          <table v-else class="art-tabla">
+            <thead>
+              <tr>
+                <th>INGREDIENTE</th>
+                <th class="col-right" style="width:90px">CANT/UNIDAD</th>
+                <th class="col-center" style="width:80px">TIPO</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="ln in modConfigLines" :key="ln.id" class="tr-item">
+                <td>
+                  <div class="td-nombre">{{ ln.articulo_nombre }}</div>
+                  <div class="td-sku">{{ ln.articulo }} · {{ ln.und }}</div>
+                </td>
+                <td class="col-right td-monto">{{ fmtNum(ln.cant) }}</td>
+                <td class="col-center">
+                  <span class="tipo-badge" :class="ln.tipo === '+' ? 'tipo-suma' : 'tipo-resta'">
+                    {{ ln.tipo === '+' ? '+ SUMA' : '− RESTA' }}
+                  </span>
+                </td>
+                <td class="col-center">
+                  <v-btn
+                    icon size="x-small" variant="text" color="#ef4444"
+                    :loading="modDeletingId === ln.id"
+                    @click="deleteModLine(ln.id)"
+                  >
+                    <v-icon size="15">mdi-delete-outline</v-icon>
+                  </v-btn>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="modSaveLineError" class="iv-error" style="margin:8px 16px 0; border-radius:8px">
+          <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <span>{{ modSaveLineError }}</span>
+        </div>
+
+        <div class="config-new-row">
+          <div class="config-new-title">
+            <v-icon size="13" color="#f59e0b" class="mr-1">mdi-plus-circle-outline</v-icon>
+            AGREGAR INGREDIENTE
+          </div>
+          <div class="config-new-fields">
+            <v-autocomplete
+              v-model="modNewLine.articulo"
+              :items="productosControlados"
+              item-title="nombre"
+              item-value="codigo"
+              return-object
+              label="Producto (ingrediente)"
+              density="compact"
+              variant="outlined"
+              hide-details
+              class="config-field-art"
+              @update:search="val => fetchProductosControlados(val)"
+            >
+              <template #item="{ item, props }">
+                <v-list-item v-bind="props">
+                  <template #append>
+                    <span style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4)">{{ item.raw.codigo }} · {{ item.raw.und }}</span>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-autocomplete>
+
+            <v-text-field
+              v-model="modNewLine.cant"
+              label="Cant/Unidad"
+              density="compact"
+              variant="outlined"
+              hide-details
+              type="number"
+              min="0"
+              step="0.0001"
+              class="config-field-cant"
+            />
+
+            <v-btn-toggle v-model="modNewLine.tipo" mandatory density="compact" class="config-tipo-toggle">
+              <v-btn value="+" color="#10b981" size="small">+ SUMA</v-btn>
+              <v-btn value="-" color="#ef4444" size="small">− RESTA</v-btn>
+            </v-btn-toggle>
+
+            <v-btn
+              color="#f59e0b"
+              :loading="modSavingLine"
+              :disabled="!modNewLine.articulo || !modNewLine.cant"
+              @click="saveModNewLine"
+              size="small"
+            >
+              <v-icon size="16" class="mr-1">mdi-content-save-outline</v-icon>
+              Guardar
+            </v-btn>
+          </div>
+        </div>
+      </v-card>
+    </v-dialog>
+
     <!-- ═══ DIALOG: CONFIRMAR GUARDAR ═══ -->
     <v-dialog v-model="showSaveDlg" max-width="680" scrollable>
       <v-card class="rcpopup">
@@ -885,6 +1043,71 @@ function applyMappingsToItems() {
   }
 }
 
+// ─── Configuración modificadores → inventario ────────
+const showModConfigDlg = ref(false)
+const modConfigMod = ref(null)
+const modConfigLines = ref([])
+const productosControlados = ref([])
+const modNewLine = ref({ articulo: null, cant: '', tipo: '+' })
+const modSavingLine = ref(false)
+const modDeletingId = ref(null)
+const modSaveLineError = ref('')
+
+const modificadoresConfigurados = computed(() =>
+  new Set(allModInventario.value.map(m => m.modificador))
+)
+
+async function fetchProductosControlados(q = '') {
+  try {
+    const resp = await api.get('/productos/controlados', { params: q ? { q } : {} })
+    if (resp.data?.success) productosControlados.value = resp.data.data
+  } catch (e) { console.error('fetchProductosControlados:', e) }
+}
+
+function openModConfigDialog(mod) {
+  modConfigMod.value = mod
+  modConfigLines.value = allModInventario.value.filter(m => m.modificador === mod.name)
+  modNewLine.value = { articulo: null, cant: '', tipo: '+' }
+  modSaveLineError.value = ''
+  showModConfigDlg.value = true
+  fetchProductosControlados()
+}
+
+async function saveModNewLine() {
+  if (!modNewLine.value.articulo || !modNewLine.value.cant) return
+  modSavingLine.value = true
+  modSaveLineError.value = ''
+  try {
+    const codigo = typeof modNewLine.value.articulo === 'object'
+      ? modNewLine.value.articulo.codigo
+      : modNewLine.value.articulo
+    const resp = await api.post('/modificadores-inventario', {
+      modificador: modConfigMod.value.name,
+      articulo: codigo,
+      cant: parseFloat(modNewLine.value.cant),
+      tipo: modNewLine.value.tipo
+    })
+    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
+    await fetchModInventario()
+    modConfigLines.value = allModInventario.value.filter(m => m.modificador === modConfigMod.value.name)
+    modNewLine.value = { articulo: null, cant: '', tipo: '+' }
+    if (xlsxData.value) await calcularConsumo()
+  } catch (e) {
+    modSaveLineError.value = e?.response?.data?.error || e.message || 'Error al guardar'
+  } finally { modSavingLine.value = false }
+}
+
+async function deleteModLine(id) {
+  modDeletingId.value = id
+  try {
+    await api.delete(`/modificadores-inventario/${id}`)
+    await fetchModInventario()
+    modConfigLines.value = allModInventario.value.filter(m => m.modificador === modConfigMod.value.name)
+    if (xlsxData.value) await calcularConsumo()
+  } catch (e) { console.error('deleteModLine:', e) }
+  finally { modDeletingId.value = null }
+}
+
 // ─── Consumo ─────────────────────────────────────────
 const consumo = ref([])
 const consumoLoading = ref(false)
@@ -1045,6 +1268,17 @@ function fmt(val) {
   }).format(parseFloat(val || 0))
 }
 
+function fmtNum(val) {
+  const n = parseFloat(val || 0)
+  const decimals = n % 1 === 0 ? 0 : Math.min(4,
+    (n.toString().split('.')[1] || '').replace(/0+$/, '').length
+  )
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals > 0 ? 2 : 0,
+    maximumFractionDigits: 4
+  }).format(n)
+}
+
 function fmtDec(val) {
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2, maximumFractionDigits: 2
@@ -1097,6 +1331,13 @@ const paymentTotals = computed(() => {
 })
 
 const totalFees = computed(() => (xlsxData.value?.fees || []).reduce((s, f) => s + f.amount, 0))
+
+const totalModUnidades = computed(() =>
+  (xlsxData.value?.modifiers || []).reduce((s, m) => s + m.netQty, 0)
+)
+const totalModNetas = computed(() =>
+  (xlsxData.value?.modifiers || []).reduce((s, m) => s + m.netSales, 0)
+)
 
 // ─── XLSX Parser ─────────────────────────────────────
 function parseNum(val) {
@@ -1475,6 +1716,29 @@ function limpiar() {
 .pay-card { background: rgba(139,92,246,0.1); color: #8b5cf6; }
 .pay-cash { background: rgba(16,185,129,0.1); color: #10b981; }
 .pay-other { background: rgba(59,130,246,0.1); color: #3b82f6; }
+
+/* Modifier inventory config */
+.mod-inv-cell { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.mod-inv-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
+.mod-inv-ok   { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+.mod-inv-warn { background: rgba(245,158,11,0.1);  color: #d97706; border: 1px solid rgba(245,158,11,0.2); }
+.btn-config-mod { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; background: rgba(var(--v-theme-on-surface),0.06); border: 1px solid rgba(var(--v-theme-on-surface),0.12); color: rgba(var(--v-theme-on-surface),0.6); transition: all 0.15s; outline: none; }
+.btn-config-mod:hover { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #d97706; }
+.config-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 24px; color: rgba(var(--v-theme-on-surface),0.35); font-size: 12px; }
+.config-new-row { border-top: 1px solid rgba(var(--v-theme-on-surface),0.08); padding: 14px 16px; background: rgba(var(--v-theme-on-surface),0.02); }
+.config-new-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.5); margin-bottom: 10px; display: flex; align-items: center; }
+.config-new-fields { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.config-field-art  { flex: 1; min-width: 200px; }
+.config-field-cant { width: 110px; flex-shrink: 0; }
+.config-tipo-toggle { flex-shrink: 0; }
+.tipo-badge { font-size: 9.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.3px; }
+.tipo-suma  { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+.tipo-resta { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+.txt-dim { color: rgba(var(--v-theme-on-surface),0.4); }
+.tr-subtotal { background: rgba(var(--v-theme-on-surface),0.03); border-top: 1px solid rgba(var(--v-theme-on-surface),0.08); }
+.tr-subtotal td { padding: 7px 12px; }
+.subtotal-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: rgba(var(--v-theme-on-surface),0.5); }
+.subtotal-val { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; }
 
 /* Consumo */
 .consumo-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 24px; text-align: center; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 14px; color: rgba(var(--v-theme-on-surface), 0.4); font-size: 13px; }
