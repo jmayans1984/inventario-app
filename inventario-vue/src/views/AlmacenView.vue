@@ -51,14 +51,14 @@
               <div class="alm-kpi-lbl">En alerta (7-14 días)</div>
             </div>
           </div>
-          <div class="alm-kpi" @click="go('/almacen/procesos/gestion-inventario')">
-            <div class="alm-kpi-icon"><v-icon size="18" color="#7dd3fc">mdi-swap-vertical-bold</v-icon></div>
+          <div class="alm-kpi" @click="go('/almacen/procesos/despachos')">
+            <div class="alm-kpi-icon"><v-icon size="18" color="#7dd3fc">mdi-truck-outline</v-icon></div>
             <div>
               <div class="alm-kpi-val">
-                <span v-if="!movsLoading">{{ movimientos.length }}</span>
+                <span v-if="!despachosLoading">{{ allDespachos.length }}</span>
                 <span v-else class="alm-kpi-skel"></span>
               </div>
-              <div class="alm-kpi-lbl">Movimientos (7 días)</div>
+              <div class="alm-kpi-lbl">Despachos totales</div>
             </div>
           </div>
         </div>
