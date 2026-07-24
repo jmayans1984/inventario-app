@@ -293,35 +293,29 @@ async function cargarKpis() {
 
 // ─── Despachos de Bodega ────────────────────
 const despachosLoading = ref(true)
-const todosDespachos = ref([])
-const despachosProgramados = ref(0)
-const despachosProcesando = ref(0)
-const despachosEntregados = ref(0)
-const proximosDespachos = ref([])
+const allDespachos = ref([])
+const despachosProgramados = computed(() => (allDespachos.value || []).filter(d => (d.estado || '').toUpperCase() === 'PROGRAMADO').length)
+const despachosProcesando = computed(() => (allDespachos.value || []).filter(d => (d.estado || '').toUpperCase() === 'PROCESANDO').length)
+const despachosEntregados = computed(() => (allDespachos.value || []).filter(d => (d.estado || '').toUpperCase() === 'ENTREGADO').length)
+const proximosDespachos = computed(() => {
+  const hoy = new Date().toISOString().split('T')[0]
+  return (allDespachos.value || [])
+    .filter(d => d.fecha && new Date(d.fecha) > new Date(hoy))
+    .sort((a, b) => new Date(a.fecha || 0) - new Date(b.fecha || 0))
+})
 
 async function cargarDespachos() {
   if (!empresa.value) { despachosLoading.value = false; return }
   try {
-    // Obtener despachos de hoy
-    const hoy = new Date().toISOString().split('T')[0]
-    const resHoy = await fetch(`${API_BASE}/almacen/despachos?empresa=${empresa.value}&fecha=${hoy}`)
-    const jsonHoy = await resHoy.json()
-    const despachosHoy = jsonHoy.data || []
-
-    // Contar por estado
-    despachosProgramados.value = despachosHoy.filter(d => (d.estado || '').toUpperCase() === 'PROGRAMADO').length
-    despachosProcesando.value = despachosHoy.filter(d => (d.estado || '').toUpperCase() === 'PROCESANDO').length
-    despachosEntregados.value = despachosHoy.filter(d => (d.estado || '').toUpperCase() === 'ENTREGADO').length
-
-    // Obtener próximos despachos (posteriores a hoy)
-    const resProximos = await fetch(`${API_BASE}/almacen/despachos?empresa=${empresa.value}`)
-    const jsonProximos = await resProximos.json()
-    const todosDesp = jsonProximos.data || []
-    proximosDespachos.value = todosDesp
-      .filter(d => new Date(d.fecha) > new Date(hoy))
-      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    const res = await fetch(`${API_BASE}/almacen/despachos?empresa=${empresa.value}`)
+    const json = await res.json()
+    allDespachos.value = (json.data || []).map(d => ({
+      ...d,
+      fecha: d.fecha || new Date().toISOString().split('T')[0]
+    }))
   } catch (e) {
     console.error('cargarDespachos:', e)
+    allDespachos.value = []
   } finally {
     despachosLoading.value = false
   }
