@@ -4340,26 +4340,25 @@ app.delete('/api/modificadores-inventario/:id', async (req, res) => {
 
 pool.query(`CREATE TABLE IF NOT EXISTS square_item_mapping (
     id SERIAL PRIMARY KEY,
-    empresa TEXT NOT NULL,
     item_name TEXT NOT NULL,
     item_variation TEXT NOT NULL DEFAULT '',
     sku TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(empresa, item_name, item_variation)
+    UNIQUE(item_name, item_variation)
 )`).catch(e => console.error('Error creando square_item_mapping:', e.message));
 
+// Migración: el mapeo es global (igual para todos los clientes), ya no por empresa
+pool.query(`ALTER TABLE square_item_mapping DROP COLUMN IF EXISTS empresa`).catch(e => console.error('Migración square_item_mapping (drop empresa):', e.message));
+pool.query(`ALTER TABLE square_item_mapping ADD CONSTRAINT square_item_mapping_item_name_item_variation_key UNIQUE (item_name, item_variation)`).catch(() => {});
+
 app.get('/api/square/item-mappings', async (req, res) => {
-    const { empresa } = req.query;
-    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
     try {
         const { rows } = await pool.query(
             `SELECT m.id, m.item_name, m.item_variation, m.sku,
                     r.nombre AS receta_nombre, r.precio_venta
              FROM square_item_mapping m
              LEFT JOIN recetas r ON TRIM(r.codigo::text) = TRIM(m.sku)
-             WHERE m.empresa = $1
-             ORDER BY m.item_name, m.item_variation`,
-            [empresa]
+             ORDER BY m.item_name, m.item_variation`
         );
         res.json({ success: true, data: rows });
     } catch (error) {
@@ -4369,15 +4368,15 @@ app.get('/api/square/item-mappings', async (req, res) => {
 });
 
 app.post('/api/square/item-mappings', async (req, res) => {
-    const { empresa, item_name, item_variation, sku } = req.body;
-    if (!empresa || !item_name || !sku) return res.status(400).json({ success: false, error: 'empresa, item_name y sku requeridos' });
+    const { item_name, item_variation, sku } = req.body;
+    if (!item_name || !sku) return res.status(400).json({ success: false, error: 'item_name y sku requeridos' });
     try {
         const { rows } = await pool.query(
-            `INSERT INTO square_item_mapping (empresa, item_name, item_variation, sku)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (empresa, item_name, item_variation) DO UPDATE SET sku = $4
+            `INSERT INTO square_item_mapping (item_name, item_variation, sku)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (item_name, item_variation) DO UPDATE SET sku = $3
              RETURNING *`,
-            [empresa, item_name, item_variation || '', sku]
+            [item_name, item_variation || '', sku]
         );
         res.json({ success: true, data: rows[0] });
     } catch (error) {
@@ -4397,17 +4396,17 @@ app.delete('/api/square/item-mappings/:id', async (req, res) => {
 });
 
 app.post('/api/square/item-mappings/bulk', async (req, res) => {
-    const { empresa, mappings } = req.body;
-    if (!empresa || !mappings?.length) return res.status(400).json({ success: false, error: 'empresa y mappings requeridos' });
+    const { mappings } = req.body;
+    if (!mappings?.length) return res.status(400).json({ success: false, error: 'mappings requeridos' });
     try {
         let saved = 0;
         for (const m of mappings) {
             if (!m.item_name || !m.sku) continue;
             await pool.query(
-                `INSERT INTO square_item_mapping (empresa, item_name, item_variation, sku)
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (empresa, item_name, item_variation) DO UPDATE SET sku = $4`,
-                [empresa, m.item_name, m.item_variation || '', m.sku]
+                `INSERT INTO square_item_mapping (item_name, item_variation, sku)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (item_name, item_variation) DO UPDATE SET sku = $3`,
+                [m.item_name, m.item_variation || '', m.sku]
             );
             saved++;
         }

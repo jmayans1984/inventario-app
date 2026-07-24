@@ -1074,10 +1074,9 @@ const mappingDeleting = ref(false)
 const mappingError = ref('')
 
 async function fetchMappings() {
-  if (!empresaCodigo.value) return
   mappingsLoading.value = true
   try {
-    const resp = await api.get('/square/item-mappings', { params: { empresa: empresaCodigo.value } })
+    const resp = await api.get('/square/item-mappings')
     if (resp.data?.success) mappings.value = resp.data.data
   } catch (e) { console.error('fetchMappings:', e) }
   finally { mappingsLoading.value = false }
@@ -1114,7 +1113,6 @@ async function saveMapping() {
   mappingError.value = ''
   try {
     await api.post('/square/item-mappings', {
-      empresa: empresaCodigo.value,
       item_name: mappingItem.value.name,
       item_variation: mappingItem.value.variation || '',
       sku: mappingSku.value
