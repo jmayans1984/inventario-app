@@ -132,29 +132,49 @@
             </template>
           </div>
 
-          <!-- Actividad reciente -->
+          <!-- Resumen de Despachos -->
           <div class="alm-panel">
             <div class="alm-panel-header">
               <div class="alm-panel-title">
-                <v-icon size="14" color="#06b6d4">mdi-history</v-icon>
-                ACTIVIDAD RECIENTE
+                <v-icon size="14" color="#f59e0b">mdi-truck-outline</v-icon>
+                DESPACHOS HOY
               </div>
-              <button class="alm-panel-link" @click="go('/almacen/procesos/gestion-inventario')">Ir a gestión</button>
+              <button class="alm-panel-link" @click="go('/almacen/procesos/despachos')">Ver todos</button>
             </div>
-            <div v-if="movsLoading" class="alm-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#06b6d4" />
+            <div v-if="despachosLoading" class="alm-panel-loading">
+              <v-progress-circular indeterminate size="20" width="2" color="#f59e0b" />
             </div>
             <template v-else>
-              <div v-if="movimientos.length === 0" class="alm-panel-empty">
-                <v-icon size="22" color="rgba(var(--v-theme-on-surface),.3)">mdi-sleep</v-icon>
-                <span>Sin movimientos esta semana</span>
-              </div>
-              <div v-for="(m, i) in movimientos.slice(0, 6)" :key="i" class="alm-mov-row">
-                <span :class="`alm-mov-tipo alm-mov-${(m.tipo_fe || '').toLowerCase()}`">{{ m.tipo_fe }}</span>
-                <div class="alm-mov-info">
-                  <div class="alm-mov-cc">{{ m.ccosto_nombre || m.ccosto }}</div>
-                  <div class="alm-mov-meta">{{ fmtFechaCorta(m.fecha) }} · {{ (m.productos || []).length }} producto{{ (m.productos || []).length !== 1 ? 's' : '' }}</div>
+              <div class="alm-despachos-kpi">
+                <div class="dkpi" :style="{ borderLeft: '3px solid #3b82f6' }">
+                  <div class="dkpi-val">{{ despachosProgramados }}</div>
+                  <div class="dkpi-lbl">Programados</div>
                 </div>
+                <div class="dkpi" :style="{ borderLeft: '3px solid #f59e0b' }">
+                  <div class="dkpi-val">{{ despachosProcesando }}</div>
+                  <div class="dkpi-lbl">Procesando</div>
+                </div>
+                <div class="dkpi" :style="{ borderLeft: '3px solid #10b981' }">
+                  <div class="dkpi-val">{{ despachosEntregados }}</div>
+                  <div class="dkpi-lbl">Entregados</div>
+                </div>
+              </div>
+              <div v-if="proximosDespachos.length > 0" class="alm-proximos">
+                <div class="alm-prox-title">Próximos despachos</div>
+                <div v-for="d in proximosDespachos.slice(0, 4)" :key="d.id" class="alm-prox-item">
+                  <div class="alm-prox-badge" :style="{ background: estadoColor(d.estado) }">
+                    {{ d.estado || 'PENDIENTE' }}
+                  </div>
+                  <div class="alm-prox-info">
+                    <div class="alm-prox-cc">{{ d.cc_destino_nombre || 'Destino' }}</div>
+                    <div class="alm-prox-fecha">{{ fmtFechaCorta(d.fecha) }}</div>
+                  </div>
+                  <div class="alm-prox-unidades">{{ d.total_unidades }} un</div>
+                </div>
+              </div>
+              <div v-else class="alm-panel-empty">
+                <v-icon size="20" color="rgba(var(--v-theme-on-surface),.3)">mdi-truck-check</v-icon>
+                <span style="font-size: 11px;">Sin despachos pendientes</span>
               </div>
             </template>
           </div>
@@ -271,21 +291,48 @@ async function cargarKpis() {
   }
 }
 
-// ─── Movimientos recientes (últimos 7 días) ──────────────────
-const movsLoading = ref(true)
-const movimientos = ref([])
+// ─── Despachos de Bodega ────────────────────
+const despachosLoading = ref(true)
+const todosDespachos = ref([])
+const despachosProgramados = ref(0)
+const despachosProcesando = ref(0)
+const despachosEntregados = ref(0)
+const proximosDespachos = ref([])
 
-async function cargarMovimientos() {
-  if (!empresa.value) { movsLoading.value = false; return }
+async function cargarDespachos() {
+  if (!empresa.value) { despachosLoading.value = false; return }
   try {
-    const res = await fetch(`${API_BASE}/almacen/movimientos-recientes?empresa=${empresa.value}&dias=7`)
-    const json = await res.json()
-    if (json.success) movimientos.value = json.data || []
+    // Obtener despachos de hoy
+    const hoy = new Date().toISOString().split('T')[0]
+    const resHoy = await fetch(`${API_BASE}/almacen/despachos?empresa=${empresa.value}&fecha=${hoy}`)
+    const jsonHoy = await resHoy.json()
+    const despachosHoy = jsonHoy.data || []
+
+    // Contar por estado
+    despachosProgramados.value = despachosHoy.filter(d => (d.estado || '').toUpperCase() === 'PROGRAMADO').length
+    despachosProcesando.value = despachosHoy.filter(d => (d.estado || '').toUpperCase() === 'PROCESANDO').length
+    despachosEntregados.value = despachosHoy.filter(d => (d.estado || '').toUpperCase() === 'ENTREGADO').length
+
+    // Obtener próximos despachos (posteriores a hoy)
+    const resProximos = await fetch(`${API_BASE}/almacen/despachos?empresa=${empresa.value}`)
+    const jsonProximos = await resProximos.json()
+    const todosDesp = jsonProximos.data || []
+    proximosDespachos.value = todosDesp
+      .filter(d => new Date(d.fecha) > new Date(hoy))
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
   } catch (e) {
-    console.error('cargarMovimientos:', e)
+    console.error('cargarDespachos:', e)
   } finally {
-    movsLoading.value = false
+    despachosLoading.value = false
   }
+}
+
+function estadoColor(estado) {
+  const st = (estado || '').toUpperCase()
+  if (st === 'PROGRAMADO') return '#3b82f6'
+  if (st === 'PROCESANDO') return '#f59e0b'
+  if (st === 'ENTREGADO') return '#10b981'
+  return '#6b7280'
 }
 
 function fmtFechaCorta(f) {
@@ -296,7 +343,7 @@ function fmtFechaCorta(f) {
 
 onMounted(() => {
   cargarKpis()
-  cargarMovimientos()
+  cargarDespachos()
 })
 </script>
 
@@ -440,4 +487,33 @@ onMounted(() => {
 .alm-mov-info { min-width: 0; }
 .alm-mov-cc { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .alm-mov-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); }
+
+/* Resumen de Despachos */
+.alm-despachos-kpi { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.dkpi {
+  padding: 10px; border-radius: 9px;
+  background: rgba(var(--v-theme-on-surface), .03);
+  border-left-width: 3px; border-left-style: solid;
+}
+.dkpi-val { font-size: 20px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.dkpi-lbl { font-size: 10px; color: rgba(var(--v-theme-on-surface), .5); font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+
+.alm-proximos { margin-top: 12px; }
+.alm-prox-title { font-size: 10px; font-weight: 800; color: rgba(var(--v-theme-on-surface), .6); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+.alm-prox-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 9px;
+  background: rgba(var(--v-theme-on-surface), .03);
+  transition: background .15s;
+}
+.alm-prox-item:hover { background: rgba(var(--v-theme-on-surface), .06); }
+.alm-prox-badge {
+  flex-shrink: 0; padding: 3px 8px; border-radius: 6px;
+  font-size: 9px; font-weight: 800; color: white;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.alm-prox-info { flex: 1; min-width: 0; }
+.alm-prox-cc { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alm-prox-fecha { font-size: 10px; color: rgba(var(--v-theme-on-surface), .5); margin-top: 1px; }
+.alm-prox-unidades { flex-shrink: 0; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), .7); }
 </style>
