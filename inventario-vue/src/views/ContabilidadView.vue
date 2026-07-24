@@ -125,7 +125,7 @@
                 <v-icon size="22" color="rgba(var(--v-theme-on-surface),.3)">mdi-file-remove-outline</v-icon>
                 <span>Sin movimientos este mes</span>
               </div>
-              <div v-for="g in pyg" :key="g.grupo" :class="['cbl-pyg-row', g.bold && 'cbl-pyg-bold', g.tipo === 'utilidad' && (g.total >= 0 ? 'cbl-pyg-utilidad-pos' : 'cbl-pyg-utilidad-neg')]">
+              <div v-for="g in pyg" :key="g.grupo" :class="['cbl-pyg-row', g.bold && 'cbl-pyg-bold', g.tipo === 'subtotal-ingreso' && 'cbl-pyg-subtotal-ingreso', g.tipo === 'subtotal-gasto' && 'cbl-pyg-subtotal-gasto', g.tipo === 'utilidad' && (g.total >= 0 ? 'cbl-pyg-utilidad-pos' : 'cbl-pyg-utilidad-neg')]">
                 <div class="cbl-pyg-top">
                   <span class="cbl-pyg-grupo">{{ g.grupo }}</span>
                   <span class="cbl-pyg-val" :class="g.bold && 'cbl-pyg-val-bold'">{{ fmt(g.total) }}</span>
@@ -417,18 +417,28 @@ onMounted(() => {
 .cbl-pyg-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#8b5cf6,#d946ef); transition: width .3s; }
 .cbl-pyg-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .4); margin-top: 3px; }
 .cbl-pyg-bold {
-  padding: 8px 4px 6px !important;
-  margin-top: 6px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), .1);
-  background: rgba(var(--v-theme-on-surface), .02);
-  border-radius: 6px;
+  padding: 10px 8px 8px !important;
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 1px solid;
 }
 .cbl-pyg-bold .cbl-pyg-grupo { font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
-.cbl-pyg-val-bold { font-size: 13px !important; color: #8b5cf6 !important; }
-.cbl-pyg-utilidad-pos { background: rgba(16,185,129,.06) !important; }
-.cbl-pyg-utilidad-pos .cbl-pyg-val-bold { color: #10b981 !important; }
-.cbl-pyg-utilidad-neg { background: rgba(239,68,68,.06) !important; }
-.cbl-pyg-utilidad-neg .cbl-pyg-val-bold { color: #ef4444 !important; }
+.cbl-pyg-val-bold { font-size: 13px !important; font-weight: 900 !important; }
+.cbl-pyg-subtotal-ingreso {
+  background: rgba(16,185,129,.12) !important;
+  border-color: rgba(16,185,129,.25) !important;
+}
+.cbl-pyg-subtotal-ingreso .cbl-pyg-val-bold { color: #047857 !important; }
+.cbl-pyg-subtotal-gasto {
+  background: rgba(239,68,68,.12) !important;
+  border-color: rgba(239,68,68,.25) !important;
+  margin-top: 16px !important;
+}
+.cbl-pyg-subtotal-gasto .cbl-pyg-val-bold { color: #b91c1c !important; }
+.cbl-pyg-utilidad-pos { background: rgba(16,185,129,.12) !important; border-color: rgba(16,185,129,.25) !important; margin-top: 12px !important; }
+.cbl-pyg-utilidad-pos .cbl-pyg-val-bold { color: #047857 !important; }
+.cbl-pyg-utilidad-neg { background: rgba(239,68,68,.12) !important; border-color: rgba(239,68,68,.25) !important; margin-top: 12px !important; }
+.cbl-pyg-utilidad-neg .cbl-pyg-val-bold { color: #b91c1c !important; }
 .cbl-pyg-total {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 8px; padding: 10px 4px 2px;

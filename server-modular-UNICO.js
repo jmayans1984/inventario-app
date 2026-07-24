@@ -7733,12 +7733,12 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
         const pyg = [
             { grupo: 'VENTAS', total: ventas, cantidad: kpiMap['00']?.cantidad || 0, tipo: 'ingreso' },
             { grupo: 'OTROS INGRESOS', total: otrosIngresos, cantidad: kpiMap['04']?.cantidad || 0, tipo: 'ingreso' },
-            { grupo: 'TOTAL INGRESOS', total: totalIngresos, cantidad: 0, tipo: 'subtotal', bold: true },
-            { grupo: 'NÓMINA (GASTOS DE PERSONAL)', total: nomina, cantidad: kpiMap['02']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'TOTAL INGRESOS', total: totalIngresos, cantidad: 0, tipo: 'subtotal-ingreso', bold: true },
+            { grupo: 'NÓMINA', total: nomina, cantidad: kpiMap['02']?.cantidad || 0, tipo: 'gasto' },
             { grupo: 'MATERIA PRIMA', total: comprasMP, cantidad: kpiMap['01']?.cantidad || 0, tipo: 'gasto' },
             { grupo: 'GASTOS GENERALES', total: gastosGenerales, cantidad: kpiMap['03']?.cantidad || 0, tipo: 'gasto' },
             { grupo: 'IMPUESTOS', total: impuestos, cantidad: kpiMap['05']?.cantidad || 0, tipo: 'gasto' },
-            { grupo: 'TOTAL GASTOS', total: totalGastos, cantidad: 0, tipo: 'subtotal', bold: true },
+            { grupo: 'TOTAL GASTOS', total: totalGastos, cantidad: 0, tipo: 'subtotal-gasto', bold: true },
             { grupo: 'UTILIDAD APROXIMADA', total: utilidad, cantidad: 0, tipo: 'utilidad', bold: true },
         ];
 
