@@ -7657,15 +7657,29 @@ app.get('/api/contabilidad/grupos-gastos', async (req, res) => {
 });
 
 // GET /api/contabilidad/dashboard — datos para el panel principal del módulo:
-// P&G del mes actual (gastos agrupados por grupo_gastos de la cuenta contable)
-// y últimos gastos registrados con proveedor válido.
+// KPIs por grupo específico, últimos gastos, y P&G del mes actual.
 app.get('/api/contabilidad/dashboard', async (req, res) => {
     const empresa = req.query.empresa || req.headers['x-empresa'];
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
     try {
-        const [pygRes, ultimosRes] = await Promise.all([
-            // Gastos del mes actual agrupados por grupo de la cuenta contable
+        const [kpisRes, pygRes, ultimosRes] = await Promise.all([
+            // KPIs por código de grupo específico
+            pool.query(
+                `SELECT
+                    gg.codigo AS codigo_grupo,
+                    gg.nombre AS grupo,
+                    SUM(g.total)  AS total,
+                    COUNT(*)      AS cantidad
+                 FROM gastos g
+                 LEFT JOIN cuentas c       ON g.cuenta = c.codigo AND c.empresa = g.empresa
+                 LEFT JOIN grupo_gastos gg ON c.grupo = gg.codigo
+                 WHERE g.empresa = $1
+                   AND DATE_TRUNC('month', g.fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
+                 GROUP BY gg.codigo, gg.nombre`,
+                [empresa]
+            ),
+            // P&G del mes actual agrupados por grupo de la cuenta contable (para el panel lateral)
             pool.query(
                 `SELECT
                     COALESCE(gg.nombre, 'SIN GRUPO') AS grupo,
@@ -7693,6 +7707,16 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
             ),
         ]);
 
+        // Mapear KPIs por código de grupo
+        const kpiMap = {};
+        kpisRes.rows.forEach(r => {
+            kpiMap[r.codigo_grupo] = {
+                grupo:    r.grupo,
+                total:    parseFloat(r.total) || 0,
+                cantidad: parseInt(r.cantidad) || 0,
+            };
+        });
+
         const pyg = pygRes.rows.map(r => ({
             grupo:    r.grupo,
             total:    parseFloat(r.total) || 0,
@@ -7702,6 +7726,14 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
         res.json({
             success: true,
             data: {
+                kpis: {
+                    ingresos: kpiMap['00'] || { grupo: 'INGRESOS', total: 0, cantidad: 0 },
+                    comprasMP: kpiMap['01'] || { grupo: 'COMPRAS MATERIA PRIMA', total: 0, cantidad: 0 },
+                    nomina: kpiMap['02'] || { grupo: 'NÓMINA', total: 0, cantidad: 0 },
+                    gastosGenerales: kpiMap['03'] || { grupo: 'GASTOS GENERALES', total: 0, cantidad: 0 },
+                    otros: kpiMap['04'] || { grupo: 'OTROS', total: 0, cantidad: 0 },
+                    impuestos: kpiMap['05'] || { grupo: 'IMPUESTOS', total: 0, cantidad: 0 },
+                },
                 pyg,
                 totalMes: pyg.reduce((s, r) => s + r.total, 0),
                 cantidadMes: pyg.reduce((s, r) => s + r.cantidad, 0),

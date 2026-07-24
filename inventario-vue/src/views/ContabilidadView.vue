@@ -22,43 +22,53 @@
         <!-- KPIs -->
         <div class="cbl-kpi-row">
           <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#c4b5fd">mdi-cash-multiple</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#10b981">mdi-cash-plus</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
-                <span v-if="!dashLoading">{{ fmt(totalMes) }}</span>
+                <span v-if="!dashLoading">{{ fmt(kpis.ingresos.total) }}</span>
                 <span v-else class="cbl-kpi-skel"></span>
               </div>
-              <div class="cbl-kpi-lbl">Gastos del mes</div>
+              <div class="cbl-kpi-lbl">Ingresos</div>
             </div>
           </div>
           <div class="cbl-kpi" @click="go('/contabilidad/procesos/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#7dd3fc">mdi-receipt-text-outline</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#f59e0b">mdi-factory</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
-                <span v-if="!dashLoading">{{ cantidadMes }}</span>
+                <span v-if="!dashLoading">{{ fmt(kpis.comprasMP.total) }}</span>
                 <span v-else class="cbl-kpi-skel"></span>
               </div>
-              <div class="cbl-kpi-lbl">Registros del mes</div>
+              <div class="cbl-kpi-lbl">Compras M.P.</div>
             </div>
           </div>
           <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#6ee7b7">mdi-chart-timeline-variant</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#ef4444">mdi-account-tie-outline</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
-                <span v-if="!dashLoading">{{ fmt(promedioDiario) }}</span>
+                <span v-if="!dashLoading">{{ fmt(kpis.nomina.total) }}</span>
                 <span v-else class="cbl-kpi-skel"></span>
               </div>
-              <div class="cbl-kpi-lbl">Promedio diario</div>
+              <div class="cbl-kpi-lbl">Nómina</div>
             </div>
           </div>
-          <div class="cbl-kpi cbl-kpi-warn" @click="go('/contabilidad/reportes/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#fcd34d">mdi-trophy-outline</v-icon></div>
-            <div style="min-width:0">
-              <div class="cbl-kpi-val cbl-kpi-val-txt">
-                <span v-if="!dashLoading">{{ grupoTop?.grupo || '—' }}</span>
+          <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#8b5cf6">mdi-chart-line</v-icon></div>
+            <div>
+              <div class="cbl-kpi-val">
+                <span v-if="!dashLoading">{{ fmt(kpis.gastosGenerales.total) }}</span>
                 <span v-else class="cbl-kpi-skel"></span>
               </div>
-              <div class="cbl-kpi-lbl">Mayor grupo de gasto</div>
+              <div class="cbl-kpi-lbl">Gastos Generales</div>
+            </div>
+          </div>
+          <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#ec4899">mdi-calculator-variant</v-icon></div>
+            <div>
+              <div class="cbl-kpi-val">
+                <span v-if="!dashLoading">{{ fmt(kpis.impuestos.total) }}</span>
+                <span v-else class="cbl-kpi-skel"></span>
+              </div>
+              <div class="cbl-kpi-lbl">Impuestos</div>
             </div>
           </div>
         </div>
@@ -98,12 +108,12 @@
         <!-- ── Columna derecha: paneles en vivo ── -->
         <div class="cbl-side">
 
-          <!-- P&G del mes por grupo -->
+          <!-- Movimientos del mes por grupo -->
           <div class="cbl-panel">
             <div class="cbl-panel-header">
               <div class="cbl-panel-title">
                 <v-icon size="14" color="#8b5cf6">mdi-chart-pie</v-icon>
-                P&amp;G DE {{ mesActual }}
+                MOVIMIENTOS DEL MES
               </div>
               <button class="cbl-panel-link" @click="go('/contabilidad/reportes/gastos')">Ver reporte</button>
             </div>
@@ -234,22 +244,25 @@ const secciones = [
     iconBg: 'linear-gradient(135deg,#f43f5e,#be123c)',
     items: [
       { path: '/contabilidad/reportes/gastos', icon: 'mdi-file-chart-outline', title: 'Reporte de Gastos', desc: 'Análisis por período y centro de costo' },
+      { path: '/contabilidad/reportes/estado-resultados', icon: 'mdi-chart-line-stacked', title: 'Estado de Resultados', desc: 'P&L por período y centro de costo' },
     ],
   },
 ]
 
-// ─── Dashboard: P&G del mes + últimos gastos ─────────────────
+// ─── Dashboard: KPIs + P&G del mes + últimos gastos ─────────────────
 const dashLoading = ref(true)
+const kpis = ref({
+  ingresos: { grupo: 'INGRESOS', total: 0, cantidad: 0 },
+  comprasMP: { grupo: 'COMPRAS MATERIA PRIMA', total: 0, cantidad: 0 },
+  nomina: { grupo: 'NÓMINA', total: 0, cantidad: 0 },
+  gastosGenerales: { grupo: 'GASTOS GENERALES', total: 0, cantidad: 0 },
+  otros: { grupo: 'OTROS', total: 0, cantidad: 0 },
+  impuestos: { grupo: 'IMPUESTOS', total: 0, cantidad: 0 },
+})
 const pyg = ref([])
 const totalMes = ref(0)
 const cantidadMes = ref(0)
 const ultimosGastos = ref([])
-
-const grupoTop = computed(() => pyg.value[0] || null)
-const promedioDiario = computed(() => {
-  const dia = new Date().getDate()
-  return dia > 0 ? totalMes.value / dia : 0
-})
 
 async function cargarDashboard() {
   if (!empresa.value) { dashLoading.value = false; return }
@@ -257,6 +270,7 @@ async function cargarDashboard() {
     const res = await fetch(`${API_BASE}/contabilidad/dashboard?empresa=${empresa.value}`)
     const json = await res.json()
     if (json.success && json.data) {
+      kpis.value = json.data.kpis || kpis.value
       pyg.value = json.data.pyg || []
       totalMes.value = json.data.totalMes || 0
       cantidadMes.value = json.data.cantidadMes || 0
