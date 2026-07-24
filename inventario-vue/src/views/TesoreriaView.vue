@@ -25,10 +25,20 @@
             <div class="tes-kpi-icon"><v-icon size="18" color="#7dd3fc">mdi-bank-outline</v-icon></div>
             <div>
               <div class="tes-kpi-val">
-                <span v-if="!saldosLoading">{{ fmt(saldoTotal) }}</span>
+                <span v-if="!saldosLoading">{{ fmt(saldoBancos) }}</span>
                 <span v-else class="tes-kpi-skel"></span>
               </div>
               <div class="tes-kpi-lbl">Saldo en bancos</div>
+            </div>
+          </div>
+          <div class="tes-kpi tes-kpi-danger" @click="go('/tesoreria/procesos/movimientos-bancarios')">
+            <div class="tes-kpi-icon"><v-icon size="18" color="#fca5a5">mdi-credit-card-outline</v-icon></div>
+            <div>
+              <div class="tes-kpi-val">
+                <span v-if="!saldosLoading">{{ fmt(deudaTarjetas) }}</span>
+                <span v-else class="tes-kpi-skel"></span>
+              </div>
+              <div class="tes-kpi-lbl">Deuda tarjetas</div>
             </div>
           </div>
           <div class="tes-kpi" @click="go('/tesoreria/reportes/ventas-periodo')">
@@ -39,16 +49,6 @@
                 <span v-else class="tes-kpi-skel"></span>
               </div>
               <div class="tes-kpi-lbl">Ventas netas del mes</div>
-            </div>
-          </div>
-          <div class="tes-kpi" @click="go('/tesoreria/reportes/ventas-periodo')">
-            <div class="tes-kpi-icon"><v-icon size="18" color="#c4b5fd">mdi-credit-card-outline</v-icon></div>
-            <div>
-              <div class="tes-kpi-val">
-                <span v-if="!ventasLoading">{{ fmt(ventasMes.tarjetas) }}</span>
-                <span v-else class="tes-kpi-skel"></span>
-              </div>
-              <div class="tes-kpi-lbl">Recibido por tarjeta</div>
             </div>
           </div>
           <div class="tes-kpi tes-kpi-warn" @click="go('/tesoreria/reportes/ventas-periodo')">
@@ -103,7 +103,7 @@
             <div class="tes-panel-header">
               <div class="tes-panel-title">
                 <v-icon size="14" color="#0ea5e9">mdi-bank-outline</v-icon>
-                SALDOS EN BANCOS
+                CUENTAS BANCARIAS
               </div>
               <button class="tes-panel-link" @click="go('/tesoreria/procesos/movimientos-bancarios')">Ver movimientos</button>
             </div>
@@ -111,20 +111,49 @@
               <v-progress-circular indeterminate size="20" width="2" color="#0ea5e9" />
             </div>
             <template v-else>
-              <div v-if="saldos.length === 0" class="tes-panel-empty">
+              <div v-if="cuentasBanco.length === 0 && cuentasTarjeta.length === 0" class="tes-panel-empty">
                 <v-icon size="22" color="rgba(var(--v-theme-on-surface),.3)">mdi-bank-off-outline</v-icon>
                 <span>Sin cuentas bancarias activas</span>
               </div>
-              <div v-for="c in saldos" :key="c.codigo" class="tes-cta-row">
-                <div class="tes-cta-info">
-                  <div class="tes-cta-nombre">{{ c.nombre_cta }}</div>
-                  <div class="tes-cta-meta">{{ c.nombre_banco }}<template v-if="c.tipo_cuenta"> · {{ c.tipo_cuenta }}</template></div>
+
+              <!-- Cuentas regulares -->
+              <template v-if="cuentasBanco.length">
+                <div v-for="c in cuentasBanco" :key="c.codigo" class="tes-cta-row">
+                  <div class="tes-cta-info">
+                    <div class="tes-cta-nombre">{{ c.nombre_cta }}</div>
+                    <div class="tes-cta-meta">{{ c.nombre_banco }}<template v-if="c.tipo_cuenta"> · {{ c.tipo_cuenta }}</template></div>
+                  </div>
+                  <span class="tes-cta-saldo" :class="{ 'tes-neg': c.saldo < 0 }">{{ fmt(c.saldo) }}</span>
                 </div>
-                <span class="tes-cta-saldo" :class="{ 'tes-neg': c.saldo < 0 }">{{ fmt(c.saldo) }}</span>
-              </div>
-              <div v-if="saldos.length" class="tes-cta-total">
-                <span>TOTAL</span>
-                <span :class="{ 'tes-neg': saldoTotal < 0 }">{{ fmt(saldoTotal) }}</span>
+                <div class="tes-cta-total">
+                  <span>SUBTOTAL BANCOS</span>
+                  <span :class="{ 'tes-neg': saldoBancos < 0 }">{{ fmt(saldoBancos) }}</span>
+                </div>
+              </template>
+
+              <!-- Tarjetas de crédito -->
+              <template v-if="cuentasTarjeta.length">
+                <div class="tes-tarjetas-header">
+                  <v-icon size="13" color="#ef4444">mdi-credit-card-outline</v-icon>
+                  TARJETAS DE CRÉDITO
+                </div>
+                <div v-for="c in cuentasTarjeta" :key="c.codigo" class="tes-cta-row">
+                  <div class="tes-cta-info">
+                    <div class="tes-cta-nombre">{{ c.nombre_cta }}</div>
+                    <div class="tes-cta-meta">{{ c.nombre_banco }}</div>
+                  </div>
+                  <span class="tes-cta-saldo tes-neg">{{ fmt(c.saldo) }}</span>
+                </div>
+                <div class="tes-cta-total tes-cta-total-deuda">
+                  <span>DEUDA TARJETAS</span>
+                  <span class="tes-neg">{{ fmt(deudaTarjetas) }}</span>
+                </div>
+              </template>
+
+              <!-- Posición neta -->
+              <div v-if="saldos.length" class="tes-cta-neta">
+                <span>POSICIÓN NETA</span>
+                <span :class="posicionNeta >= 0 ? 'tes-pos' : 'tes-neg'">{{ fmt(posicionNeta) }}</span>
               </div>
             </template>
           </div>
@@ -267,7 +296,11 @@ const secciones = [
 // ─── Saldos de cuentas bancarias activas ─────────────────────
 const saldosLoading = ref(true)
 const saldos = ref([])
-const saldoTotal = computed(() => saldos.value.reduce((s, c) => s + c.saldo, 0))
+const cuentasBanco = computed(() => saldos.value.filter(c => (c.tipo_cuenta || '').toUpperCase() !== 'TARJETA'))
+const cuentasTarjeta = computed(() => saldos.value.filter(c => (c.tipo_cuenta || '').toUpperCase() === 'TARJETA'))
+const saldoBancos = computed(() => cuentasBanco.value.reduce((s, c) => s + c.saldo, 0))
+const deudaTarjetas = computed(() => cuentasTarjeta.value.reduce((s, c) => s + c.saldo, 0))
+const posicionNeta = computed(() => saldoBancos.value + deudaTarjetas.value)
 
 async function cargarSaldos() {
   if (!empresa.value) { saldosLoading.value = false; return }
@@ -357,6 +390,7 @@ onMounted(() => {
 }
 .tes-kpi:hover { background: rgba(255,255,255,.16); transform: translateY(-2px); }
 .tes-kpi-warn { border-color: rgba(252,211,77,.3); }
+.tes-kpi-danger { border-color: rgba(252,165,165,.3); }
 .tes-kpi-icon {
   width: 36px; height: 36px; border-radius: 10px;
   background: rgba(255,255,255,.1);
@@ -442,6 +476,24 @@ onMounted(() => {
 }
 .tes-cta-total span:last-child { font-family: monospace; font-size: 13px; color: #059669; }
 .tes-neg { color: #ef4444 !important; }
+.tes-pos { color: #059669; }
+
+/* Separador tarjetas de crédito */
+.tes-tarjetas-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 800; letter-spacing: .8px;
+  color: rgba(var(--v-theme-on-surface), .5);
+  margin-top: 14px; padding: 8px 10px 4px;
+  border-top: 1px dashed rgba(var(--v-theme-on-surface), .1);
+}
+.tes-cta-total-deuda span:last-child { color: #ef4444 !important; }
+.tes-cta-neta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; padding: 10px 10px 2px;
+  border-top: 2px solid rgba(var(--v-theme-on-surface), .12);
+  font-size: 12px; font-weight: 900; letter-spacing: .4px;
+}
+.tes-cta-neta span:last-child { font-family: monospace; font-size: 14px; }
 
 /* Filas: ventas del mes */
 .tes-vta-row {
@@ -454,6 +506,5 @@ onMounted(() => {
 .tes-vta-destacada { background: rgba(16,185,129,.06); }
 .tes-vta-destacada .tes-vta-lbl { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 .tes-vta-destacada .tes-vta-val { font-size: 13px; }
-.tes-pos { color: #059669; }
 .tes-vta-sep { height: 1px; background: rgba(var(--v-theme-on-surface), .07); margin: 6px 4px; }
 </style>
