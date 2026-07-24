@@ -294,14 +294,33 @@ async function cargarKpis() {
 // ─── Despachos de Bodega ────────────────────
 const despachosLoading = ref(true)
 const allDespachos = ref([])
-const despachosProgramados = computed(() => (allDespachos.value || []).filter(d => (d.estado || '').toUpperCase() === 'PROGRAMADO').length)
-const despachosProcesando = computed(() => (allDespachos.value || []).filter(d => (d.estado || '').toUpperCase() === 'PROCESANDO').length)
-const despachosEntregados = computed(() => (allDespachos.value || []).filter(d => (d.estado || '').toUpperCase() === 'ENTREGADO').length)
+
+// Fecha local (no UTC) en formato YYYY-MM-DD, para evitar desfases de zona horaria
+function fechaLocalHoy() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function soloFecha(f) {
+  if (!f) return ''
+  return String(f).substring(0, 10)
+}
+
+const despachosDeHoy = computed(() => {
+  const hoy = fechaLocalHoy()
+  return (allDespachos.value || []).filter(d => soloFecha(d.fecha) === hoy)
+})
+const despachosProgramados = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'PROGRAMADO').length)
+const despachosProcesando = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'PROCESANDO').length)
+const despachosEntregados = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'ENTREGADO').length)
 const proximosDespachos = computed(() => {
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = fechaLocalHoy()
   return (allDespachos.value || [])
-    .filter(d => d.fecha && new Date(d.fecha) > new Date(hoy))
-    .sort((a, b) => new Date(a.fecha || 0) - new Date(b.fecha || 0))
+    .filter(d => soloFecha(d.fecha) > hoy)
+    .sort((a, b) => soloFecha(a.fecha).localeCompare(soloFecha(b.fecha)))
 })
 
 async function cargarDespachos() {
@@ -309,10 +328,7 @@ async function cargarDespachos() {
   try {
     const res = await fetch(`${API_BASE}/almacen/despachos?empresa=${empresa.value}`)
     const json = await res.json()
-    allDespachos.value = (json.data || []).map(d => ({
-      ...d,
-      fecha: d.fecha || new Date().toISOString().split('T')[0]
-    }))
+    allDespachos.value = json.data || []
   } catch (e) {
     console.error('cargarDespachos:', e)
     allDespachos.value = []
