@@ -7717,7 +7717,32 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
             };
         });
 
-        const pyg = pygRes.rows.map(r => ({
+        // Construcción del mini estado de resultados (para panel lateral)
+        const ventas = kpiMap['00']?.total || 0;
+        const otrosIngresos = kpiMap['04']?.total || 0;
+        const totalIngresos = ventas + otrosIngresos;
+
+        const comprasMP = kpiMap['01']?.total || 0;
+        const nomina = kpiMap['02']?.total || 0;
+        const gastosGenerales = kpiMap['03']?.total || 0;
+        const impuestos = kpiMap['05']?.total || 0;
+        const totalGastos = comprasMP + nomina + gastosGenerales + impuestos;
+
+        const utilidad = totalIngresos - totalGastos;
+
+        const pyg = [
+            { grupo: 'VENTAS', total: ventas, cantidad: kpiMap['00']?.cantidad || 0, tipo: 'ingreso' },
+            { grupo: 'OTROS INGRESOS', total: otrosIngresos, cantidad: kpiMap['04']?.cantidad || 0, tipo: 'ingreso' },
+            { grupo: 'TOTAL INGRESOS', total: totalIngresos, cantidad: 0, tipo: 'subtotal', bold: true },
+            { grupo: 'NÓMINA (GASTOS DE PERSONAL)', total: nomina, cantidad: kpiMap['02']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'MATERIA PRIMA', total: comprasMP, cantidad: kpiMap['01']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'GASTOS GENERALES', total: gastosGenerales, cantidad: kpiMap['03']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'IMPUESTOS', total: impuestos, cantidad: kpiMap['05']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'TOTAL GASTOS', total: totalGastos, cantidad: 0, tipo: 'subtotal', bold: true },
+            { grupo: 'UTILIDAD APROXIMADA', total: utilidad, cantidad: 0, tipo: 'utilidad', bold: true },
+        ];
+
+        const pyg_legacy = pygRes.rows.map(r => ({
             grupo:    r.grupo,
             total:    parseFloat(r.total) || 0,
             cantidad: parseInt(r.cantidad) || 0,
@@ -7735,8 +7760,8 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                     impuestos: kpiMap['05'] || { grupo: 'IMPUESTOS', total: 0, cantidad: 0 },
                 },
                 pyg,
-                totalMes: pyg.reduce((s, r) => s + r.total, 0),
-                cantidadMes: pyg.reduce((s, r) => s + r.cantidad, 0),
+                totalMes: pyg_legacy.reduce((s, r) => s + r.total, 0),
+                cantidadMes: pyg_legacy.reduce((s, r) => s + r.cantidad, 0),
                 ultimosGastos: ultimosRes.rows,
             },
         });

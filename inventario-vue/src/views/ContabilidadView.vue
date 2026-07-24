@@ -123,21 +123,17 @@
             <template v-else>
               <div v-if="pyg.length === 0" class="cbl-panel-empty">
                 <v-icon size="22" color="rgba(var(--v-theme-on-surface),.3)">mdi-file-remove-outline</v-icon>
-                <span>Sin gastos este mes</span>
+                <span>Sin movimientos este mes</span>
               </div>
-              <div v-for="g in pyg" :key="g.grupo" class="cbl-pyg-row">
+              <div v-for="g in pyg" :key="g.grupo" :class="['cbl-pyg-row', g.bold && 'cbl-pyg-bold', g.tipo === 'utilidad' && (g.total >= 0 ? 'cbl-pyg-utilidad-pos' : 'cbl-pyg-utilidad-neg')]">
                 <div class="cbl-pyg-top">
                   <span class="cbl-pyg-grupo">{{ g.grupo }}</span>
-                  <span class="cbl-pyg-val">{{ fmt(g.total) }}</span>
+                  <span class="cbl-pyg-val" :class="g.bold && 'cbl-pyg-val-bold'">{{ fmt(g.total) }}</span>
                 </div>
-                <div class="cbl-pyg-bar-track">
-                  <div class="cbl-pyg-bar-fill" :style="{ width: barW(g.total) + '%' }"></div>
+                <div v-if="!g.bold && g.tipo !== 'utilidad'" class="cbl-pyg-bar-track">
+                  <div class="cbl-pyg-bar-fill" :style="{ width: barW(g.total) + '%', background: g.tipo === 'ingreso' ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#f59e0b,#d97706)' }"></div>
                 </div>
-                <div class="cbl-pyg-meta">{{ g.cantidad }} registro{{ g.cantidad !== 1 ? 's' : '' }} · {{ pct(g.total) }}%</div>
-              </div>
-              <div v-if="pyg.length" class="cbl-pyg-total">
-                <span>TOTAL</span>
-                <span>{{ fmt(totalMes) }}</span>
+                <div v-if="g.cantidad > 0" class="cbl-pyg-meta">{{ g.cantidad }} registro{{ g.cantidad !== 1 ? 's' : '' }}</div>
               </div>
             </template>
           </div>
@@ -420,6 +416,19 @@ onMounted(() => {
 .cbl-pyg-bar-track { height: 6px; border-radius: 3px; background: rgba(var(--v-theme-on-surface), .06); overflow: hidden; }
 .cbl-pyg-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#8b5cf6,#d946ef); transition: width .3s; }
 .cbl-pyg-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .4); margin-top: 3px; }
+.cbl-pyg-bold {
+  padding: 8px 4px 6px !important;
+  margin-top: 6px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .1);
+  background: rgba(var(--v-theme-on-surface), .02);
+  border-radius: 6px;
+}
+.cbl-pyg-bold .cbl-pyg-grupo { font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+.cbl-pyg-val-bold { font-size: 13px !important; color: #8b5cf6 !important; }
+.cbl-pyg-utilidad-pos { background: rgba(16,185,129,.06) !important; }
+.cbl-pyg-utilidad-pos .cbl-pyg-val-bold { color: #10b981 !important; }
+.cbl-pyg-utilidad-neg { background: rgba(239,68,68,.06) !important; }
+.cbl-pyg-utilidad-neg .cbl-pyg-val-bold { color: #ef4444 !important; }
 .cbl-pyg-total {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 8px; padding: 10px 4px 2px;
