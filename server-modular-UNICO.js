@@ -4334,6 +4334,90 @@ app.delete('/api/modificadores-inventario/:id', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// SQUARE ITEM MAPPING — mapea Item name + variation → SKU receta
+// ═══════════════════════════════════════════════════════════════
+
+pool.query(`CREATE TABLE IF NOT EXISTS square_item_mapping (
+    id SERIAL PRIMARY KEY,
+    empresa TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    item_variation TEXT NOT NULL DEFAULT '',
+    sku TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(empresa, item_name, item_variation)
+)`).catch(e => console.error('Error creando square_item_mapping:', e.message));
+
+app.get('/api/square/item-mappings', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const { rows } = await pool.query(
+            `SELECT m.id, m.item_name, m.item_variation, m.sku,
+                    r.nombre AS receta_nombre, r.precio_venta
+             FROM square_item_mapping m
+             LEFT JOIN recetas r ON TRIM(r.codigo::text) = TRIM(m.sku)
+             WHERE m.empresa = $1
+             ORDER BY m.item_name, m.item_variation`,
+            [empresa]
+        );
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error('Error GET /api/square/item-mappings:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/api/square/item-mappings', async (req, res) => {
+    const { empresa, item_name, item_variation, sku } = req.body;
+    if (!empresa || !item_name || !sku) return res.status(400).json({ success: false, error: 'empresa, item_name y sku requeridos' });
+    try {
+        const { rows } = await pool.query(
+            `INSERT INTO square_item_mapping (empresa, item_name, item_variation, sku)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (empresa, item_name, item_variation) DO UPDATE SET sku = $4
+             RETURNING *`,
+            [empresa, item_name, item_variation || '', sku]
+        );
+        res.json({ success: true, data: rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/square/item-mappings:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.delete('/api/square/item-mappings/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM square_item_mapping WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/square/item-mappings/:id:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/api/square/item-mappings/bulk', async (req, res) => {
+    const { empresa, mappings } = req.body;
+    if (!empresa || !mappings?.length) return res.status(400).json({ success: false, error: 'empresa y mappings requeridos' });
+    try {
+        let saved = 0;
+        for (const m of mappings) {
+            if (!m.item_name || !m.sku) continue;
+            await pool.query(
+                `INSERT INTO square_item_mapping (empresa, item_name, item_variation, sku)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (empresa, item_name, item_variation) DO UPDATE SET sku = $4`,
+                [empresa, m.item_name, m.item_variation || '', m.sku]
+            );
+            saved++;
+        }
+        res.json({ success: true, saved });
+    } catch (error) {
+        console.error('Error POST /api/square/item-mappings/bulk:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/productos/controlados — productos con control='SI' para autocomplete
 app.get('/api/productos/controlados', async (req, res) => {
     const { q } = req.query;

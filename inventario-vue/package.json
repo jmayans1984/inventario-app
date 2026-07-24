@@ -21,7 +21,8 @@
     "tesseract.js": "^7.0.0",
     "vue": "^3.5.34",
     "vue-router": "^5.0.7",
-    "vuetify": "^3.12.6"
+    "vuetify": "^3.12.6",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.6",
