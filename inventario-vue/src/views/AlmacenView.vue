@@ -163,7 +163,7 @@
                 <div class="alm-prox-title">Próximos despachos</div>
                 <div v-for="d in proximosDespachos.slice(0, 4)" :key="d.id" class="alm-prox-item">
                   <div class="alm-prox-badge" :style="{ background: estadoColor(d.estado) }">
-                    {{ d.estado || 'PENDIENTE' }}
+                    {{ estadoLabel(d.estado) || 'Pendiente' }}
                   </div>
                   <div class="alm-prox-info">
                     <div class="alm-prox-cc">{{ d.cc_destino_nombre || 'Destino' }}</div>
@@ -313,9 +313,10 @@ const despachosDeHoy = computed(() => {
   const hoy = fechaLocalHoy()
   return (allDespachos.value || []).filter(d => soloFecha(d.fecha) === hoy)
 })
-const despachosProgramados = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'PROGRAMADO').length)
-const despachosProcesando = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'PROCESANDO').length)
-const despachosEntregados = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'ENTREGADO').length)
+// Estados reales de ordenes_despacho: PENDIENTE, EN_PICKING, EN_PACKING, COMPLETADO, CANCELADO
+const despachosProgramados = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'PENDIENTE').length)
+const despachosProcesando = computed(() => despachosDeHoy.value.filter(d => ['EN_PICKING', 'EN_PACKING'].includes((d.estado || '').toUpperCase())).length)
+const despachosEntregados = computed(() => despachosDeHoy.value.filter(d => (d.estado || '').toUpperCase() === 'COMPLETADO').length)
 const proximosDespachos = computed(() => {
   const hoy = fechaLocalHoy()
   return (allDespachos.value || [])
@@ -338,11 +339,13 @@ async function cargarDespachos() {
 }
 
 function estadoColor(estado) {
-  const st = (estado || '').toUpperCase()
-  if (st === 'PROGRAMADO') return '#3b82f6'
-  if (st === 'PROCESANDO') return '#f59e0b'
-  if (st === 'ENTREGADO') return '#10b981'
-  return '#6b7280'
+  const colores = { PENDIENTE: '#f59e0b', EN_PICKING: '#3b82f6', EN_PACKING: '#8b5cf6', COMPLETADO: '#10b981', CANCELADO: '#6b7280' }
+  return colores[(estado || '').toUpperCase()] || '#6b7280'
+}
+
+function estadoLabel(estado) {
+  const labels = { PENDIENTE: 'Pendiente', EN_PICKING: 'En Picking', EN_PACKING: 'En Packing', COMPLETADO: 'Completado', CANCELADO: 'Cancelado' }
+  return labels[(estado || '').toUpperCase()] || estado
 }
 
 function fmtFechaCorta(f) {
