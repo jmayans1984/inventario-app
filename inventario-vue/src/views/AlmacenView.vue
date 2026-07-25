@@ -221,6 +221,7 @@ const seccionesBase = [
       { path: '/almacen/configuracion/grupo-productos',     icon: 'mdi-folder-multiple-outline',  title: 'Grupo de Productos',             desc: 'Categorías para organizar el catálogo' },
       { path: '/almacen/configuracion/ubicaciones',         icon: 'mdi-map-marker-outline',       title: 'Ubicaciones de Almacén',         desc: 'Distribución y localización de zonas' },
       { path: '/almacen/configuracion/precios',             icon: 'mdi-tag-multiple-outline',     title: 'Precios de Productos',           desc: 'Gestión de costos y precios' },
+      { path: '/almacen/configuracion/mapeo-receta-producto', icon: 'mdi-link-variant',           title: 'Mapeo Subproductos-Inventario',  desc: 'Asocia subproductos con su código de inventario' },
     ],
   },
   {

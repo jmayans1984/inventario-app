@@ -97,6 +97,7 @@ export const MODULES = [
         { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/almacen/configuracion/grupo-productos' },
         { name: 'Etiquetas de Producto', icon: 'mdi-label-outline', path: '/almacen/configuracion/etiquetas-producto' },
         { name: 'Ubicación de Productos en Bodega', icon: 'mdi-map-marker-outline', path: '/almacen/configuracion/ubicacion-productos' },
+        { name: 'Mapeo Subproductos-Inventario', icon: 'mdi-link-variant', path: '/almacen/configuracion/mapeo-receta-producto' },
       ]},
       { name: 'Procesos', icon: 'mdi-cogs', items: [
         { name: 'Gestión de Inventario', icon: 'mdi-history', path: '/almacen/procesos/gestion-inventario' },

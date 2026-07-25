@@ -42,6 +42,7 @@ const routes = [
   { path: '/almacen/configuracion/grupo-productos',    component: () => import('../views/almacen/GrupoProductosAlmacenView.vue'), meta: { requiresAuth: true } },
   { path: '/almacen/configuracion/etiquetas-producto',  component: () => import('../views/almacen/EtiquetasProductoView.vue'),  meta: { requiresAuth: true } },
   { path: '/almacen/configuracion/ubicacion-productos', component: () => import('../views/almacen/UbicacionProductosView.vue'), meta: { requiresAuth: true } },
+  { path: '/almacen/configuracion/mapeo-receta-producto', component: () => import('../views/almacen/MapeoRecetaProductoView.vue'), meta: { requiresAuth: true } },
   { path: '/almacen/procesos/gestion-inventario',      component: () => import('../views/almacen/GestionInventarioView.vue'),  meta: { requiresAuth: true } },
   { path: '/almacen/procesos/toma-fisica',             component: () => import('../views/almacen/TomaFisicaView.vue'),        meta: { requiresAuth: true } },
   { path: '/almacen/procesos/valoracion',              component: () => import('../views/almacen/ValoracionView.vue'),        meta: { requiresAuth: true } },

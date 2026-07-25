@@ -15416,9 +15416,15 @@ app.get('/api/productos', async (req, res) => {
 app.get('/api/produccion/receta-producto', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT codigo_receta, codigo_producto, created_at
-            FROM receta_producto
-            ORDER BY codigo_receta ASC
+            SELECT rp.codigo_receta, rp.codigo_producto, rp.created_at,
+                   COALESCE(r.nombre, '') AS receta_nombre,
+                   COALESCE(r.und, '')    AS receta_und,
+                   COALESCE(p.nombre, '') AS producto_nombre,
+                   COALESCE(p.und, '')    AS producto_und
+            FROM receta_producto rp
+            LEFT JOIN recetas   r ON TRIM(r.codigo::text) = TRIM(rp.codigo_receta::text)
+            LEFT JOIN productos p ON TRIM(p.codigo::text) = TRIM(rp.codigo_producto::text)
+            ORDER BY rp.codigo_receta ASC
         `);
         res.json({ success: true, data: result.rows });
     } catch (error) {
