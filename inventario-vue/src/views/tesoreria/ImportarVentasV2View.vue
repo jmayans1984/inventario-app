@@ -1496,7 +1496,7 @@ const previewResumen = computed(() => {
   const ventasNetas = Math.abs((s.grossSales || 0) - Math.abs(s.returns || 0))
   const descuentos = Math.abs(s.discounts || 0)
   const impuestos = Math.abs(s.salesTax || 0)
-  const propinas = Math.abs(s.tips || 0)
+  const propinas = Math.abs(paymentTotals.value.tips || 0)
   const comisiones = Math.abs(totalFees.value || 0)
   return [
     { label: 'Ventas Brutas − Devoluciones', campo: 'cta_ventas',            cuenta: cfg.cta_ventas,            valor: ventasNetas },
@@ -1523,7 +1523,7 @@ async function confirmarGuardar(force = false) {
       ventasNetas: s.netSales,
       ventasTarjetaRegalo: 0,
       impuestos: s.salesTax,
-      propinas: s.tips,
+      propinas: paymentTotals.value.tips,
       reembolsos: 0,
       total: s.totalCollected
     }
