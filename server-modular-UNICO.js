@@ -2899,6 +2899,20 @@ app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
     const emp = parseInt(empresa);
     const nDias = Math.max(1, parseInt(dias) || 15);
     try {
+        // La receta (subproducto) puede tener un código distinto al del producto
+        // controlado que realmente se descuenta en detalle_inventario. Se resuelve
+        // vía receta_producto; si no hay mapeo, se usa el código de la receta tal cual.
+        let codigoInventario = String(receta);
+        try {
+            const mapeoRes = await pool.query(
+                'SELECT codigo_producto FROM receta_producto WHERE codigo_receta = $1',
+                [String(receta)]
+            );
+            if (mapeoRes.rows.length > 0) codigoInventario = mapeoRes.rows[0].codigo_producto;
+        } catch (e) {
+            console.error('receta_producto lookup:', e.message);
+        }
+
         const [recRes, directoRes, totalRes, mpRes] = await Promise.all([
 
             // Datos de la receta
@@ -2915,9 +2929,10 @@ app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
                   AND d.fecha::date >= NOW()::date - ($3 || ' days')::interval`,
                 [emp, String(receta), String(nDias)]),
 
-            // Consumo TOTAL real: salidas de inventario ya registradas para este código
-            // (incluye venta directa + su uso dentro de cualquier plato, sin importar
-            // niveles de anidación, porque ya quedó reflejado al importar las ventas)
+            // Consumo TOTAL real: salidas de inventario ya registradas para el código
+            // de producto controlado mapeado (incluye venta directa + su uso dentro
+            // de cualquier plato, sin importar niveles de anidación, porque ya quedó
+            // reflejado al importar las ventas)
             pool.query(`
                 SELECT COALESCE(SUM(di.salida),0) AS cant
                 FROM detalle_inventario di
@@ -2925,7 +2940,7 @@ app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
                   AND TRIM(di.codigo::text) = TRIM($2)
                   AND di.tipo LIKE 'SALIDA POR VENTA%'
                   AND di.fecha >= NOW()::date - ($3 || ' days')::interval`,
-                [String(emp), String(receta), String(nDias)]),
+                [String(emp), String(codigoInventario), String(nDias)]),
 
             // Materia prima de la receta (1 unidad de producción)
             pool.query(`
