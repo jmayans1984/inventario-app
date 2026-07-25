@@ -309,7 +309,7 @@
                   </div>
                   <div class="rs-row rs-sep"></div>
                   <div v-for="fee in xlsxData.fees" :key="fee.subtype" class="rs-row">
-                    <span class="rs-lbl">Fee: {{ fee.subtype }}</span>
+                    <span class="rs-lbl">Fee: {{ feeLabel(fee.subtype) }}</span>
                     <span class="rs-val rs-neg">{{ fmt(fee.amount) }}</span>
                   </div>
                   <div class="rs-row rs-sep"></div>
@@ -1647,6 +1647,13 @@ const paymentTotals = computed(() => {
 })
 
 const totalFees = computed(() => (xlsxData.value?.fees || []).reduce((s, f) => s + f.amount, 0))
+
+const FEE_LABELS = {
+  'ADDITIONAL_FEE': 'International Payments Fee',
+}
+function feeLabel(subtype) {
+  return FEE_LABELS[String(subtype || '').toUpperCase()] || subtype
+}
 
 const totalModUnidades = computed(() =>
   (xlsxData.value?.modifiers || []).reduce((s, m) => s + m.netQty, 0)
