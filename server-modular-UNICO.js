@@ -2915,13 +2915,26 @@ app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
                   AND d.fecha::date >= NOW()::date - ($3 || ' days')::interval`,
                 [emp, String(receta), String(nDias)]),
 
-            // Consumo como ingrediente: platos vendidos que llevan este subproducto
+            // Consumo como ingrediente: platos vendidos que llevan este subproducto,
+            // directamente o anidado dentro de otras subrecetas (cualquier profundidad)
             pool.query(`
-                SELECT COALESCE(SUM(d.cant * dr.cantidad),0) AS cant
+                WITH RECURSIVE contiene AS (
+                    -- Caso base: recetas que usan el subproducto directamente
+                    SELECT TRIM(dr.receta::text) AS receta, dr.cantidad AS mult
+                    FROM detalle_recetas dr
+                    WHERE TRIM(dr.articulo::text) = TRIM($2)
+
+                    UNION ALL
+
+                    -- Caso recursivo: recetas que usan una subreceta que ya contiene el subproducto
+                    SELECT TRIM(dr.receta::text) AS receta, dr.cantidad * c.mult AS mult
+                    FROM detalle_recetas dr
+                    JOIN contiene c ON TRIM(dr.articulo::text) = c.receta
+                )
+                SELECT COALESCE(SUM(d.cant * c.mult),0) AS cant
                 FROM detalle_ventas d
-                JOIN detalle_recetas dr ON TRIM(dr.receta::text) = TRIM(d.codigo::text)
+                JOIN contiene c ON c.receta = TRIM(d.codigo::text)
                 WHERE d.empresa = $1
-                  AND TRIM(dr.articulo::text) = TRIM($2)
                   AND d.fecha::date >= NOW()::date - ($3 || ' days')::interval`,
                 [emp, String(receta), String(nDias)]),
 
