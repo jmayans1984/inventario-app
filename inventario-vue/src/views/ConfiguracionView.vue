@@ -42,32 +42,42 @@
           <div v-for="row in CFG_ROWS" :key="row.key" class="cfg-cta-row">
             <span class="cfg-cta-label">{{ row.label }}</span>
 
-            <!-- CBB1: Grupo (native select — sin problemas de reactividad) -->
-            <select
+            <!-- CBB1: Grupo -->
+            <v-autocomplete
               v-model="selGrupo[row.key]"
-              class="cfg-native-sel"
-              @change="onGrupoChange(row.key)"
-            >
-              <option value="">— Grupo —</option>
-              <option v-for="g in grupos" :key="g.codigo" :value="g.codigo">
-                {{ g.nombre }}
-              </option>
-            </select>
+              :items="grupos"
+              item-title="nombre"
+              item-value="codigo"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              placeholder="— Grupo —"
+              class="cfg-editor-select"
+              bg-color="rgb(var(--v-theme-surface))"
+              @update:model-value="onGrupoChange(row.key)"
+            />
 
             <!-- CBB2: Cuenta del grupo seleccionado -->
             <div class="cfg-sel-wrap">
-              <select
+              <v-autocomplete
                 v-model="selCuenta[row.key]"
-                class="cfg-native-sel"
+                :items="rowCuentas[row.key] || []"
+                item-title="cuenta"
+                item-value="codigo"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
                 :disabled="!selGrupo[row.key] || rowLoading[row.key]"
+                placeholder="Sin asignar"
+                class="cfg-editor-select"
+                bg-color="rgb(var(--v-theme-surface))"
               >
-                <option value="">
-                  {{ rowLoading[row.key] ? 'Cargando...' : '— Cuenta —' }}
-                </option>
-                <option v-for="c in (rowCuentas[row.key] || [])" :key="c.codigo" :value="c.codigo">
-                  {{ c.cuenta }}
-                </option>
-              </select>
+                <template #prepend-inner>
+                  <span v-if="selCuenta[row.key]" class="rs-dlg-cta-badge">{{ selCuenta[row.key] }}</span>
+                </template>
+              </v-autocomplete>
               <v-progress-circular
                 v-if="rowLoading[row.key]"
                 size="14" width="2" indeterminate color="#06b6d4"
