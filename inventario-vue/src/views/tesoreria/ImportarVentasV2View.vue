@@ -971,6 +971,9 @@
               Fecha: {{ configFecha }} · {{ ccostos.find(c => c.codigo === configCcosto)?.nombre || configCcosto }}
             </div>
           </div>
+          <v-btn icon variant="text" size="small" title="Configurar cuentas contables" @click="abrirCfgEditor">
+            <v-icon size="18" color="rgba(255,255,255,0.7)">mdi-cog-outline</v-icon>
+          </v-btn>
           <v-btn icon variant="text" size="small" @click="showSaveDlg = false">
             <v-icon size="18" color="white">mdi-close</v-icon>
           </v-btn>
@@ -981,16 +984,100 @@
           <span>{{ saveError }}</span>
         </div>
 
-        <div v-if="!saveError" class="rcpopup-body" style="padding:24px 20px;text-align:center;color:rgba(var(--v-theme-on-surface),0.6);font-size:14px">
+        <div v-if="!saveError && !configGeneral" class="rs-dlg-loading">
+          <v-progress-circular indeterminate color="#06b6d4" size="32" />
+          <span>Cargando configuración...</span>
+        </div>
+
+        <div v-if="!saveError && configGeneral" class="rcpopup-body" style="padding:24px 20px;text-align:center;color:rgba(var(--v-theme-on-surface),0.6);font-size:14px">
           <v-icon size="20" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
-          Se guardarán los movimientos contables del período.<br>
+          Se guardarán <strong>{{ previewResumen.filter(r => r.cuenta).length }}</strong> movimientos contables para el período seleccionado.<br>
           <strong>{{ xlsxData?.location }}</strong> · {{ xlsxData?.dateRange }}
         </div>
 
-        <div class="rs-dlg-actions">
+        <div v-if="!saveError && configGeneral" class="rs-dlg-actions">
           <v-btn variant="flat" color="#ef4444" @click="showSaveDlg = false">Cancelar</v-btn>
-          <v-btn color="#0891b2" variant="flat" :loading="saving" @click="confirmarGuardar()">
+          <v-btn
+            color="#0891b2"
+            variant="flat"
+            :loading="saving"
+            :disabled="previewResumen.filter(r => r.cuenta).length === 0"
+            @click="confirmarGuardar()"
+          >
             <v-icon size="16" class="mr-1">mdi-content-save-outline</v-icon> Confirmar y Guardar
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- ═══ DIALOG: CONFIGURAR CUENTAS CONTABLES ═══ -->
+    <v-dialog v-model="showCfgEditor" max-width="560" scrollable>
+      <v-card class="rcpopup">
+        <div class="rcpopup-header" style="background: linear-gradient(135deg,#475569,#334155)">
+          <div class="rcpopup-icon">
+            <v-icon size="18" color="white">mdi-cog-outline</v-icon>
+          </div>
+          <div class="rcpopup-title-wrap">
+            <div class="rcpopup-title">CONFIGURAR CUENTAS CONTABLES</div>
+            <div class="rcpopup-sub">Asigna una cuenta a cada concepto de importación Square</div>
+          </div>
+          <v-btn icon variant="text" size="small" @click="showCfgEditor = false">
+            <v-icon size="18" color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <div class="rcpopup-body" style="padding:16px">
+          <div v-if="cuentasLoading2" class="rs-dlg-loading">
+            <v-progress-circular indeterminate color="#475569" size="28" />
+            <span>Cargando cuentas...</span>
+          </div>
+          <template v-else>
+            <div v-for="f in CFG_FIELDS" :key="f.key" class="cfg-editor-row">
+              <div class="cfg-editor-lbl">{{ f.label }}</div>
+              <v-autocomplete
+                v-model="editCfg[f.key]"
+                :items="cuentasContables"
+                item-title="cuenta"
+                item-value="codigo"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                placeholder="Sin asignar"
+                class="cfg-editor-select"
+                bg-color="rgb(var(--v-theme-surface))"
+              >
+                <template #prepend-inner>
+                  <span v-if="editCfg[f.key]" class="rs-dlg-cta-badge">{{ editCfg[f.key] }}</span>
+                </template>
+                <template #item="{ item, props }">
+                  <v-list-item v-bind="props">
+                    <template #prepend>
+                      <span style="font-family:monospace;font-size:11px;font-weight:700;color:#06b6d4;margin-right:8px">{{ item.raw.codigo }}</span>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+            </div>
+
+            <div v-if="saveCfgError" class="iv-error" style="margin-top:10px;border-radius:8px">
+              <v-icon size="15" color="#ef4444">mdi-alert-circle-outline</v-icon>
+              <span>{{ saveCfgError }}</span>
+            </div>
+          </template>
+        </div>
+
+        <div class="rs-dlg-actions">
+          <v-btn variant="text" @click="showCfgEditor = false">Cancelar</v-btn>
+          <v-btn
+            color="#475569"
+            variant="flat"
+            :loading="savingCfg"
+            :disabled="cuentasLoading2"
+            @click="guardarCfg"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
           </v-btn>
         </div>
       </v-card>
@@ -1337,15 +1424,95 @@ const showSaveDlg = ref(false)
 const saving = ref(false)
 const saveError = ref('')
 const snackbarSuccess = ref(false)
+const configGeneral = ref(null)
 
-function abrirGuardarResumen() {
+// ── Config General: editor de cuentas ─────────────────
+const showCfgEditor = ref(false)
+const cuentasContables = ref([])
+const cuentasLoading2 = ref(false)
+const editCfg = ref({})
+const savingCfg = ref(false)
+const saveCfgError = ref('')
+
+const CFG_FIELDS = [
+  { key: 'cta_ventas',            label: 'Ventas Brutas − Devoluciones' },
+  { key: 'cta_descuentos_ventas', label: 'Descuentos en Ventas' },
+  { key: 'cta_impuestos',         label: 'Impuestos' },
+  { key: 'cta_propinas',          label: 'Propinas' },
+  { key: 'cta_comisiones',        label: 'Comisiones Square' },
+  { key: 'cta_egresos_impuestos', label: 'Egreso Impuestos' },
+  { key: 'cta_egresos_propinas',  label: 'Egreso Propinas' },
+]
+
+async function abrirCfgEditor() {
+  saveCfgError.value = ''
+  if (!cuentasContables.value.length) {
+    cuentasLoading2.value = true
+    try {
+      const resp = await api.get('/gastos/cuentas-contables', { params: { empresa: empresaCodigo.value } })
+      if (resp.data?.success) cuentasContables.value = resp.data.cuentas
+    } catch (e) { console.error('fetchCuentasContables:', e) }
+    finally { cuentasLoading2.value = false }
+  }
+  editCfg.value = configGeneral.value ? { ...configGeneral.value } : {}
+  showCfgEditor.value = true
+}
+
+async function guardarCfg() {
+  savingCfg.value = true
+  saveCfgError.value = ''
+  try {
+    const payload = { empresa: empresaCodigo.value }
+    for (const f of CFG_FIELDS) payload[f.key] = editCfg.value[f.key] || null
+    const resp = await api.put('/config-general', payload)
+    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
+    const r2 = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
+    if (r2.data?.success) configGeneral.value = r2.data.data
+    showCfgEditor.value = false
+  } catch (e) {
+    saveCfgError.value = e?.response?.data?.error || e.message || 'Error al guardar'
+  } finally { savingCfg.value = false }
+}
+
+async function abrirGuardarResumen() {
   if (!xlsxData.value) return
   saveError.value = ''
+  configGeneral.value = null
   if (!configFecha.value || !configCcosto.value) {
     saveError.value = 'Debes seleccionar Fecha y Centro de Costo antes de guardar.'
+    showSaveDlg.value = true
+    return
+  }
+  try {
+    const resp = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
+    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al leer configuración')
+    configGeneral.value = resp.data.data
+  } catch (e) {
+    saveError.value = e?.response?.data?.error || e.message || 'Error al cargar config_general'
   }
   showSaveDlg.value = true
 }
+
+// Preview de los 7 registros calculados con los datos actuales
+const previewResumen = computed(() => {
+  if (!xlsxData.value || !configGeneral.value) return []
+  const s = xlsxData.value.summary
+  const cfg = configGeneral.value
+  const ventasNetas = Math.abs((s.grossSales || 0) - Math.abs(s.returns || 0))
+  const descuentos = Math.abs(s.discounts || 0)
+  const impuestos = Math.abs(s.salesTax || 0)
+  const propinas = Math.abs(s.tips || 0)
+  const comisiones = Math.abs(totalFees.value || 0)
+  return [
+    { label: 'Ventas Brutas − Devoluciones', campo: 'cta_ventas',            cuenta: cfg.cta_ventas,            valor: ventasNetas },
+    { label: 'Descuentos en Ventas',         campo: 'cta_descuentos_ventas', cuenta: cfg.cta_descuentos_ventas, valor: descuentos  },
+    { label: 'Impuestos',                    campo: 'cta_impuestos',         cuenta: cfg.cta_impuestos,         valor: impuestos   },
+    { label: 'Propinas',                     campo: 'cta_propinas',          cuenta: cfg.cta_propinas,          valor: propinas    },
+    { label: 'Comisiones Square',            campo: 'cta_comisiones',        cuenta: cfg.cta_comisiones,        valor: comisiones  },
+    { label: 'Egreso Impuestos',             campo: 'cta_egresos_impuestos', cuenta: cfg.cta_egresos_impuestos, valor: impuestos   },
+    { label: 'Egreso Propinas',              campo: 'cta_egresos_propinas',  cuenta: cfg.cta_egresos_propinas,  valor: propinas    },
+  ]
+})
 
 async function confirmarGuardar(force = false) {
   saving.value = true
@@ -1924,4 +2091,22 @@ function limpiar() {
 .rcpopup-body { padding: 0; }
 .rs-dlg-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 16px; border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
 .rs-dlg-loading { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 48px 24px; font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.rs-dlg-cta-badge {
+  font-family: 'Courier New', monospace; font-size: 11px; font-weight: 800;
+  background: rgba(6,182,212,0.1); color: #06b6d4;
+  border: 1px solid rgba(6,182,212,0.25);
+  border-radius: 4px; padding: 2px 6px;
+}
+.cfg-editor-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+}
+.cfg-editor-row:last-child { border-bottom: none; }
+.cfg-editor-lbl {
+  font-size: 12px; font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.65);
+  min-width: 190px; flex-shrink: 0;
+}
+.cfg-editor-select { flex: 1; }
 </style>
