@@ -1127,9 +1127,22 @@ async function fetchCuentasBancarias() {
   finally { cuentasLoading.value = false }
 }
 
+async function fetchCtasBancariasPredeterminadas() {
+  if (!empresaCodigo.value) return
+  try {
+    const resp = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
+    if (resp.data?.success) {
+      const cfg = resp.data.data
+      if (cfg.cta_bancaria_otros) configCtaOtros.value = cfg.cta_bancaria_otros
+      if (cfg.cta_bancaria_efectivo) configCtaEfectivo.value = cfg.cta_bancaria_efectivo
+    }
+  } catch (e) { console.error('fetchCtasBancariasPredeterminadas:', e) }
+}
+
 onMounted(() => {
   fetchCcostos()
   fetchCuentasBancarias()
+  fetchCtasBancariasPredeterminadas()
   fetchRecetas()
   fetchMappings()
   fetchModInventario()

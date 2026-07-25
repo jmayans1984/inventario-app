@@ -96,6 +96,61 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           SECCIÓN 1B: CONFIGURACIÓN GENERAL DE TESORERÍA
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(16,185,129,0.12)">
+            <v-icon size="16" color="#10b981">mdi-bank-outline</v-icon>
+          </div>
+          <span class="cfg-section-title">CONFIGURACIÓN GENERAL DE TESORERÍA</span>
+        </div>
+
+        <div v-if="loadingCfgTes" class="cfg-loading">
+          <v-progress-circular indeterminate color="#10b981" size="28" />
+          <span>Cargando configuración...</span>
+        </div>
+
+        <div v-else class="cfg-ctas-table">
+          <div class="cfg-cta-row" style="grid-template-columns: 1fr 260px">
+            <span class="cfg-cta-label">CUENTA BANCARIA PREDETERMINADA — OTROS</span>
+            <select v-model="ctaBancariaOtros" class="cfg-native-sel">
+              <option value="">— Sin asignar —</option>
+              <option v-for="c in cuentasBancariasTes" :key="c.codigo" :value="c.codigo">
+                {{ c.nombre_cta }}
+              </option>
+            </select>
+          </div>
+          <div class="cfg-cta-row" style="grid-template-columns: 1fr 260px">
+            <span class="cfg-cta-label">CUENTA BANCARIA PREDETERMINADA — EFECTIVO</span>
+            <select v-model="ctaBancariaEfectivo" class="cfg-native-sel">
+              <option value="">— Sin asignar —</option>
+              <option v-for="c in cuentasBancariasTes" :key="c.codigo" :value="c.codigo">
+                {{ c.nombre_cta }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div v-if="!loadingCfgTes" class="cfg-ctas-actions">
+          <span v-if="cfgTesSaveOk" class="cfg-ok-msg">
+            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado correctamente
+          </span>
+          <span v-if="cfgTesSaveErr" class="cfg-err-msg">{{ cfgTesSaveErr }}</span>
+          <v-btn
+            color="#10b981"
+            variant="flat"
+            size="small"
+            :loading="savingCfgTes"
+            @click="guardarConfigTesoreria"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
+          </v-btn>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            SECCIÓN 2: GESTIÓN DE USUARIOS
       ══════════════════════════════════════════════ -->
       <div class="cfg-card">
@@ -457,7 +512,10 @@ async function cargarConfigContable() {
 
 // Retry si empresa no estaba lista al montar
 watch(empresa, (val) => {
-  if (val) cargarConfigContable()
+  if (val) {
+    cargarConfigContable()
+    cargarConfigTesoreria()
+  }
 }, { immediate: false })
 
 async function guardarConfigContable() {
@@ -475,6 +533,55 @@ async function guardarConfigContable() {
     cfgSaveErr.value = e?.response?.data?.error || e.message
   } finally {
     savingCfg.value = false
+  }
+}
+
+// ── Estado tesorería (cuentas bancarias predeterminadas) ───────
+const cuentasBancariasTes = ref([])
+const ctaBancariaOtros    = ref('')
+const ctaBancariaEfectivo = ref('')
+const loadingCfgTes = ref(true)
+const savingCfgTes  = ref(false)
+const cfgTesSaveOk  = ref(false)
+const cfgTesSaveErr = ref('')
+
+async function cargarConfigTesoreria() {
+  loadingCfgTes.value = true
+  try {
+    if (!empresa.value) return
+    const [ctasRes, cfgRes] = await Promise.all([
+      api.get('/cuentas-bancarias', { params: { empresa: empresa.value } }),
+      api.get('/config-general',    { params: { empresa: empresa.value } }),
+    ])
+    cuentasBancariasTes.value = ctasRes.data?.data || []
+    const cfg = cfgRes.data?.data || {}
+    ctaBancariaOtros.value    = cfg.cta_bancaria_otros    || ''
+    ctaBancariaEfectivo.value = cfg.cta_bancaria_efectivo || ''
+  } catch (e) {
+    console.error('[Configuracion] error al cargar tesorería:', e)
+  } finally {
+    loadingCfgTes.value = false
+  }
+}
+
+async function guardarConfigTesoreria() {
+  savingCfgTes.value = true
+  cfgTesSaveOk.value = false
+  cfgTesSaveErr.value = ''
+  try {
+    const payload = {
+      empresa: empresa.value,
+      cta_bancaria_otros: ctaBancariaOtros.value || null,
+      cta_bancaria_efectivo: ctaBancariaEfectivo.value || null,
+    }
+    const res = await api.put('/config-general', payload)
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
+    cfgTesSaveOk.value = true
+    setTimeout(() => { cfgTesSaveOk.value = false }, 3000)
+  } catch (e) {
+    cfgTesSaveErr.value = e?.response?.data?.error || e.message
+  } finally {
+    savingCfgTes.value = false
   }
 }
 
@@ -662,6 +769,7 @@ async function guardarRecalculoRecetas() {
 // ── Inicialización ─────────────────────────────────────────────
 onMounted(() => {
   cargarConfigContable()
+  cargarConfigTesoreria()
   cargarUsuarios()
   cargarLogo()
   cargarFormatoEtiqueta()

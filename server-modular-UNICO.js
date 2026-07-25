@@ -9533,6 +9533,10 @@ app.get('/api/contabilidad/gastos/proximo-codigo', async (req, res) => {
 // dispara el flujo de entrada de almacén en Gestión de Gastos)
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_materia_prima VARCHAR(10)`).catch(() => {});
 
+// Cuentas bancarias predeterminadas para Importar Ventas (Square) — Cta. Otros y Cta. Efectivo
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_otros VARCHAR(10)`).catch(() => {});
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_efectivo VARCHAR(10)`).catch(() => {});
+
 // GET /api/config-general
 app.get('/api/config-general', async (req, res) => {
     const { empresa } = req.query;
@@ -9561,7 +9565,7 @@ app.put('/api/config-general', async (req, res) => {
         'cta_ventas', 'cta_comisiones', 'cta_descuentos_ventas',
         'cta_propinas', 'cta_impuestos', 'cta_egresos_impuestos',
         'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo',
-        'cta_materia_prima'
+        'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo'
     ];
 
     const sets = [];
