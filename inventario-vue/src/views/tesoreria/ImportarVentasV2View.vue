@@ -39,27 +39,35 @@
               <v-icon size="12" color="#06b6d4" class="mr-1">mdi-calendar-outline</v-icon>
               FECHA
             </label>
-            <input v-model="configFecha" type="date" class="imp-cfg-date" />
+            <div class="imp-cfg-input-wrap">
+              <input v-model="configFecha" type="date" class="imp-cfg-date" />
+              <v-icon v-if="fechaMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Fecha coincide con el archivo">mdi-check-circle</v-icon>
+              <v-icon v-else-if="fechaMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="La fecha no coincide con el archivo">mdi-close-circle</v-icon>
+            </div>
           </div>
           <div class="imp-cfg-field">
             <label class="imp-cfg-label">
               <v-icon size="12" color="#f59e0b" class="mr-1">mdi-map-marker-outline</v-icon>
               CENTRO DE COSTO
             </label>
-            <v-select
-              v-model="configCcosto"
-              :items="ccostos"
-              item-title="nombre"
-              item-value="codigo"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Seleccionar..."
-              :loading="ccostosLoading"
-              class="imp-cfg-select"
-              bg-color="rgb(var(--v-theme-surface))"
-              style="min-width:180px"
-            />
+            <div class="imp-cfg-input-wrap">
+              <v-select
+                v-model="configCcosto"
+                :items="ccostos"
+                item-title="nombre"
+                item-value="codigo"
+                density="compact"
+                variant="outlined"
+                hide-details
+                placeholder="Seleccionar..."
+                :loading="ccostosLoading"
+                class="imp-cfg-select"
+                bg-color="rgb(var(--v-theme-surface))"
+                style="min-width:180px"
+              />
+              <v-icon v-if="ccostoMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Centro de costo coincide con el archivo">mdi-check-circle</v-icon>
+              <v-icon v-else-if="ubicacionMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="El centro de costo no coincide con el archivo">mdi-close-circle</v-icon>
+            </div>
           </div>
           <div class="imp-cfg-field">
             <label class="imp-cfg-label">
@@ -974,6 +982,26 @@
           </v-btn>
         </div>
 
+        <!-- Advertencia: ubicación del XLSX vs centro de costo seleccionado -->
+        <div v-if="ubicacionMismatch" class="rs-loc-warn">
+          <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
+          <div>
+            <strong>Verificar centro de costo:</strong>
+            el archivo dice <em>"{{ xlsxData?.location }}"</em>
+            pero el CCosto seleccionado es <em>"{{ ccostos.find(c => c.codigo === configCcosto)?.nombre }}"</em>.
+          </div>
+        </div>
+
+        <!-- Advertencia: fecha seleccionada vs rango de fechas del XLSX -->
+        <div v-if="fechaMismatch" class="rs-loc-warn">
+          <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
+          <div>
+            <strong>Verificar fecha:</strong>
+            el archivo corresponde al período <em>"{{ xlsxData?.dateRange }}"</em>
+            pero la fecha seleccionada es <em>"{{ configFecha }}"</em>.
+          </div>
+        </div>
+
         <div v-if="saveError" class="iv-error" style="margin:16px 16px 0;border-radius:8px">
           <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
           <span>{{ saveError }}</span>
@@ -1106,6 +1134,49 @@ const ccostos = ref([])
 const ccostosLoading = ref(false)
 const cuentasBancarias = ref([])
 const cuentasLoading = ref(false)
+
+// Extrae la fecha final (YYYY-MM-DD) del "Date range" del Sales Summary,
+// ej: "Jul 24, 2026 to Jul 24, 2026" → "2026-07-24"
+function extractEndDateFromRange(dateRange) {
+  if (!dateRange) return null
+  const parts = String(dateRange).split(/\s+to\s+/i)
+  const endStr = parts.length > 1 ? parts[1] : parts[0]
+  const d = new Date(endStr)
+  if (isNaN(d.getTime())) return null
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// ✓ La fecha seleccionada coincide con el rango de fechas del XLSX
+const fechaMatch = computed(() => {
+  if (!configFecha.value || !xlsxData.value?.dateRange) return false
+  return extractEndDateFromRange(xlsxData.value.dateRange) === configFecha.value
+})
+
+// ✗ Hay archivo cargado pero la fecha no coincide
+const fechaMismatch = computed(() => {
+  if (!configFecha.value || !xlsxData.value?.dateRange) return false
+  const end = extractEndDateFromRange(xlsxData.value.dateRange)
+  return end !== null && end !== configFecha.value
+})
+
+// Detecta si la ubicación del XLSX no coincide con el CCosto seleccionado
+const ubicacionMismatch = computed(() => {
+  if (!xlsxData.value?.location || !configCcosto.value) return false
+  const ccObj = ccostos.value.find(c => c.codigo === configCcosto.value)
+  if (!ccObj) return false
+  const normalize = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return !normalize(ccObj.nombre).includes(normalize(xlsxData.value.location)) &&
+         !normalize(xlsxData.value.location).includes(normalize(ccObj.nombre))
+})
+
+// ✓ El centro de costo seleccionado coincide con la ubicación del XLSX
+const ccostoMatch = computed(() => {
+  if (!xlsxData.value?.location || !configCcosto.value) return false
+  return !ubicacionMismatch.value
+})
 
 async function fetchCcostos() {
   if (!empresaCodigo.value) return
@@ -1912,6 +1983,18 @@ function limpiar() {
 .imp-cfg-field { display: flex; flex-direction: column; gap: 5px; }
 .imp-cfg-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.45); display: flex; align-items: center; }
 .imp-cfg-date { height: 40px; border-radius: 8px; padding: 0 10px; border: 1px solid rgba(var(--v-theme-on-surface), 0.2); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 13px; font-weight: 600; outline: none; font-family: inherit; }
+.imp-cfg-input-wrap { display: flex; align-items: center; gap: 6px; }
+.cfg-ok-icon { flex-shrink: 0; animation: cfg-ok-pop 0.25s ease; }
+@keyframes cfg-ok-pop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.rs-loc-warn {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 12px 16px 0; padding: 10px 12px; border-radius: 8px;
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.75); line-height: 1.5;
+}
 .imp-cfg-date:focus { border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6,182,212,0.15); }
 .imp-cfg-select { font-size: 13px; }
 
