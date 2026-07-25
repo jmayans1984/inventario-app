@@ -308,11 +308,6 @@
                     <span class="rs-val rs-val-big rs-pos">{{ fmt(paymentTotals.total) }}</span>
                   </div>
                   <div class="rs-row rs-sep"></div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Propinas (en pagos)</span>
-                    <span class="rs-val rs-purple">{{ fmt(paymentTotals.tips) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
                   <div v-for="fee in xlsxData.fees" :key="fee.subtype" class="rs-row">
                     <span class="rs-lbl">Fee: {{ fee.subtype }}</span>
                     <span class="rs-val rs-neg">{{ fmt(fee.amount) }}</span>
