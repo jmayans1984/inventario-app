@@ -2899,14 +2899,14 @@ app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
     const emp = parseInt(empresa);
     const nDias = Math.max(1, parseInt(dias) || 15);
     try {
-        const [recRes, directoRes, ingredienteRes, mpRes] = await Promise.all([
+        const [recRes, directoRes, totalRes, mpRes] = await Promise.all([
 
             // Datos de la receta
             pool.query(`
                 SELECT codigo, nombre, COALESCE(und,'UND') AS und, COALESCE(valor,0) AS valor
                 FROM recetas WHERE TRIM(codigo::text) = TRIM($1)`, [String(receta)]),
 
-            // Consumo directo: el subproducto vendido como plato
+            // Consumo directo: el subproducto vendido como plato (registro de venta)
             pool.query(`
                 SELECT COALESCE(SUM(d.cant),0) AS cant
                 FROM detalle_ventas d
@@ -2915,28 +2915,17 @@ app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
                   AND d.fecha::date >= NOW()::date - ($3 || ' days')::interval`,
                 [emp, String(receta), String(nDias)]),
 
-            // Consumo como ingrediente: platos vendidos que llevan este subproducto,
-            // directamente o anidado dentro de otras subrecetas (cualquier profundidad)
+            // Consumo TOTAL real: salidas de inventario ya registradas para este código
+            // (incluye venta directa + su uso dentro de cualquier plato, sin importar
+            // niveles de anidación, porque ya quedó reflejado al importar las ventas)
             pool.query(`
-                WITH RECURSIVE contiene AS (
-                    -- Caso base: recetas que usan el subproducto directamente
-                    SELECT TRIM(dr.receta::text) AS receta, dr.cantidad AS mult
-                    FROM detalle_recetas dr
-                    WHERE TRIM(dr.articulo::text) = TRIM($2)
-
-                    UNION ALL
-
-                    -- Caso recursivo: recetas que usan una subreceta que ya contiene el subproducto
-                    SELECT TRIM(dr.receta::text) AS receta, dr.cantidad * c.mult AS mult
-                    FROM detalle_recetas dr
-                    JOIN contiene c ON TRIM(dr.articulo::text) = c.receta
-                )
-                SELECT COALESCE(SUM(d.cant * c.mult),0) AS cant
-                FROM detalle_ventas d
-                JOIN contiene c ON c.receta = TRIM(d.codigo::text)
-                WHERE d.empresa = $1
-                  AND d.fecha::date >= NOW()::date - ($3 || ' days')::interval`,
-                [emp, String(receta), String(nDias)]),
+                SELECT COALESCE(SUM(di.salida),0) AS cant
+                FROM detalle_inventario di
+                WHERE di.empresa::text = $1
+                  AND TRIM(di.codigo::text) = TRIM($2)
+                  AND di.tipo LIKE 'SALIDA POR VENTA%'
+                  AND di.fecha >= NOW()::date - ($3 || ' days')::interval`,
+                [String(emp), String(receta), String(nDias)]),
 
             // Materia prima de la receta (1 unidad de producción)
             pool.query(`
@@ -2957,8 +2946,8 @@ app.get('/api/almacen/ordenes-produccion/sugerencia', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Receta no encontrada' });
 
         const consumoDirecto     = parseFloat(directoRes.rows[0].cant) || 0;
-        const consumoIngrediente = parseFloat(ingredienteRes.rows[0].cant) || 0;
-        const consumoTotal       = consumoDirecto + consumoIngrediente;
+        const consumoTotal       = Math.max(parseFloat(totalRes.rows[0].cant) || 0, consumoDirecto);
+        const consumoIngrediente = consumoTotal - consumoDirecto;
 
         res.json({
             success: true,
