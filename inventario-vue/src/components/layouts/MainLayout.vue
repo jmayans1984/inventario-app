@@ -425,6 +425,7 @@ const modules = computed(() => {
         ...cat,
         items: (cat.items || []).filter(item =>
           (!item.requiredTipo || item.requiredTipo === tipo) &&
+          !item.hidden &&
           rutaPermitida(item.path)
         ),
       })).filter(cat => cat.keepEmpty || !cat.items || cat.items.length > 0),
