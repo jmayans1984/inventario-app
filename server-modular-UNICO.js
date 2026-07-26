@@ -1283,17 +1283,32 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
         );
 
         const fecha         = orden.fecha instanceof Date ? orden.fecha.toISOString().split('T')[0] : String(orden.fecha).split('T')[0];
+        const esVenta       = orden.tipo === 'VENTA' && orden.orden_compra;
         const nombreOrigen  = (orden.nom_origen  || orden.cc_origen).toUpperCase();
-        const nombreDestino = (orden.nom_destino || orden.cc_destino).toUpperCase();
+        const nombreDestino = esVenta ? '' : (orden.nom_destino || orden.cc_destino || '').toUpperCase();
+
+        const cantidadesDespachadas = {}; // por producto (para actualizar la orden de compra)
 
         for (const item of rDetalle.rows) {
-            // Usar cant_packing si > 0, sino cant_picking, sino 0 (no registrar si no se despachó nada)
+            // Usar cant_packing si > 0, sino cant_picking.
+            // En despachos por VENTA sin escaneos, usar la cantidad requerida de la orden.
             const cant = parseFloat(item.cant_packing) > 0
                 ? parseFloat(item.cant_packing)
                 : parseFloat(item.cant_picking) > 0
                     ? parseFloat(item.cant_picking)
-                    : 0;
+                    : (esVenta ? parseFloat(item.cant_requerida) || 0 : 0);
             if (!cant || cant <= 0) continue;
+
+            if (esVenta) {
+                // SALIDA POR VENTA desde bodega maestra (no es traslado entre ccostos)
+                cantidadesDespachadas[item.producto_codigo] = cant;
+                await client.query(`
+                    INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
+                    VALUES ($1,$2,$3,0,$4,'SALIDA POR VENTA',$5,$6)
+                `, [fecha, orden.cc_origen, item.producto_codigo, cant, empresa,
+                    `Despacho #${orden.id} — Orden de Compra ${orden.orden_compra}`]);
+                continue;
+            }
 
             // SALIDA POR TRASLADO en cc_origen
             await client.query(`
@@ -1308,6 +1323,43 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
                 VALUES ($1,$2,$3,$4,0,'ENTRADA POR TRASLADO',$5,$6,$7)
             `, [fecha, orden.cc_destino, item.producto_codigo, cant, empresa,
                 `Despacho #${orden.id} desde ${nombreOrigen}`, orden.cc_origen]);
+        }
+
+        // Despacho de VENTA: ajustar la orden de compra a lo realmente despachado
+        // y pasarla a EN REPARTO
+        if (esVenta) {
+            const ocRes = await client.query(
+                `SELECT estado FROM ordenes_compra WHERE codigo = $1 FOR UPDATE`,
+                [orden.orden_compra]
+            );
+            if (ocRes.rows.length > 0 && ocRes.rows[0].estado === 'PENDIENTE') {
+                const detOC = await client.query(
+                    `SELECT producto_venta, precio_unitario FROM detalle_ordenes WHERE orden = $1`,
+                    [orden.orden_compra]
+                );
+                let nuevoTotal = 0;
+                for (const d of detOC.rows) {
+                    const cant = cantidadesDespachadas[d.producto_venta] || 0;
+                    const subtotal = cant * (parseFloat(d.precio_unitario) || 0);
+                    nuevoTotal += subtotal;
+                    if (cant > 0) {
+                        await client.query(
+                            `UPDATE detalle_ordenes SET cantidad = $1, subtotal = $2
+                             WHERE orden = $3 AND producto_venta = $4`,
+                            [cant, subtotal, orden.orden_compra, d.producto_venta]
+                        );
+                    } else {
+                        await client.query(
+                            `DELETE FROM detalle_ordenes WHERE orden = $1 AND producto_venta = $2`,
+                            [orden.orden_compra, d.producto_venta]
+                        );
+                    }
+                }
+                await client.query(
+                    `UPDATE ordenes_compra SET estado = 'EN REPARTO', total = $1 WHERE codigo = $2`,
+                    [nuevoTotal, orden.orden_compra]
+                );
+            }
         }
 
         // Marcar orden como COMPLETADO
@@ -1333,7 +1385,10 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
                         `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
                          VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW())
                          RETURNING id`,
-                        [empresa, 'Despacho Completado', `Despacho #${orden.id} completado. De ${nombreOrigen} a ${nombreDestino}`]
+                        [empresa, 'Despacho Completado',
+                         esVenta
+                            ? `Despacho #${orden.id} completado — Orden de Compra ${orden.orden_compra} (salida por venta desde ${nombreOrigen})`
+                            : `Despacho #${orden.id} completado. De ${nombreOrigen} a ${nombreDestino}`]
                     );
 
                     const notif_id = notifResult.rows[0].id;
@@ -6291,272 +6346,149 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
 });
 
 // ================================================================
-// PROVEEDURÍA: AUTORIZACIÓN + DESPACHOS PARCIALES + CIERRE DE ORDEN
+// PROVEEDURÍA: VÍNCULO ORDEN DE COMPRA ↔ ORDEN DE DESPACHO (VENTA)
 // ================================================================
 
-// PUT /api/ordenes-compra/:codigo/autorizar — PENDIENTE → AUTORIZADA (solo PROVEEDOR)
-// A partir de aquí el cliente ya no puede editar la orden y se pueden registrar despachos.
-app.put('/api/ordenes-compra/:codigo/autorizar', async (req, res) => {
+// Despacho de bodega vinculado a una orden de compra (tipo VENTA), si existe.
+async function obtenerDespachoVentaOC(client, ocCodigo) {
+    const r = await client.query(
+        `SELECT id, estado FROM ordenes_despacho
+         WHERE orden_compra = $1 AND estado <> 'CANCELADO'
+         ORDER BY id DESC LIMIT 1`,
+        [ocCodigo]
+    );
+    return r.rows[0] || null;
+}
+
+// Crea la orden de despacho tipo VENTA en Despachos de Bodega del proveedor.
+// Sale de la bodega maestra; al confirmarse genera SALIDA POR VENTA (no traslado).
+async function crearDespachoVentaOC(client, { codigo, empresaProveedor, fecha, clienteNombre, detalles }) {
+    const bodRes = await client.query(
+        `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
+        [String(empresaProveedor)]
+    );
+    const bodega = bodRes.rows[0]?.bodega_maestra;
+    if (!bodega) return null; // proveedor sin bodega maestra configurada
+
+    const obs = `Orden de Compra ${codigo}${clienteNombre ? ' — ' + clienteNombre : ''}`;
+    const r = await client.query(
+        `INSERT INTO ordenes_despacho (empresa, fecha, cc_origen, cc_destino, observaciones, creado_por, tipo, orden_compra)
+         VALUES ($1::integer, $2, $3, NULL, $4, 'SISTEMA', 'VENTA', $5) RETURNING id`,
+        [empresaProveedor, fecha || new Date().toISOString().split('T')[0], bodega, obs, codigo]
+    );
+    const despachoId = r.rows[0].id;
+
+    for (const d of detalles) {
+        const cant = parseFloat(d.cantidad) || 0;
+        if (cant <= 0) continue;
+        await client.query(
+            `INSERT INTO ordenes_despacho_detalle (orden_id, producto_codigo, cant_requerida)
+             VALUES ($1, $2, $3)`,
+            [despachoId, d.producto_venta, cant]
+        );
+    }
+
+    // Notificar al personal de bodega (misma preferencia que despachos normales)
+    try {
+        const prefRes = await client.query(
+            `SELECT usuarios_receptores FROM preferencias_notificaciones
+             WHERE empresa = $1 AND tipo = 'DESPACHO_BODEGA' AND activa = 'SI'`,
+            [empresaProveedor]
+        );
+        if (prefRes.rows.length > 0) {
+            const usuarios = JSON.parse(prefRes.rows[0].usuarios_receptores || '[]');
+            if (usuarios.length > 0) {
+                const notifResult = await client.query(
+                    `INSERT INTO notificaciones (empresa, titulo, mensaje, tipo, fecha_creacion)
+                     VALUES ($1, $2, $3, 'DESPACHO_BODEGA', NOW()) RETURNING id`,
+                    [empresaProveedor, 'Nuevo Despacho por Venta', `Despacho #${despachoId} — ${obs}`]
+                );
+                for (const usr of usuarios) {
+                    await client.query(
+                        `INSERT INTO notificaciones_usuarios (notificacion_id, usuario_codigo, leida)
+                         VALUES ($1, $2, 'NO')`,
+                        [notifResult.rows[0].id, usr]
+                    ).catch(() => {});
+                }
+            }
+        }
+    } catch (notifError) {
+        console.error('Error creando notificación de despacho por venta:', notifError);
+    }
+
+    return despachoId;
+}
+
+// DELETE /api/ordenes-compra/:codigo — eliminar orden (solo PENDIENTE, cliente)
+// Elimina también la orden de despacho vinculada si la bodega aún no la procesó.
+app.delete('/api/ordenes-compra/:codigo', async (req, res) => {
     const { codigo } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const r = await client.query(
+            `SELECT estado FROM ordenes_compra WHERE codigo = $1 FOR UPDATE`, [codigo]
+        );
+        if (r.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Orden no encontrada' });
+        }
+        if (r.rows[0].estado !== 'PENDIENTE') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, error: `Solo se pueden eliminar órdenes PENDIENTE. Estado actual: ${r.rows[0].estado}` });
+        }
+
+        const despacho = await obtenerDespachoVentaOC(client, codigo);
+        if (despacho && despacho.estado !== 'PENDIENTE') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, error: 'El almacén ya está procesando el despacho de esta orden. No se puede eliminar.' });
+        }
+        if (despacho) {
+            await client.query(`DELETE FROM ordenes_despacho WHERE id = $1`, [despacho.id]);
+        }
+
+        await client.query(`DELETE FROM detalle_ordenes WHERE orden = $1`, [codigo]);
+        await client.query(`DELETE FROM ordenes_compra WHERE codigo = $1`, [codigo]);
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: `Orden ${codigo} eliminada` });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error eliminando orden de compra:', e);
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PUT /api/ordenes-compra/:codigo/marcar-entregada — cliente confirma recepción
+// EN REPARTO → ENTREGADA (a partir de aquí el proveedor puede facturar)
+app.put('/api/ordenes-compra/:codigo/marcar-entregada', async (req, res) => {
+    const { codigo } = req.params;
+    const { fecha_entrega_real } = req.body;
     try {
         const r = await pool.query(
-            `SELECT estado FROM ordenes_compra WHERE codigo = $1`, [codigo]
+            `SELECT estado, dias_credito FROM ordenes_compra WHERE codigo = $1`, [codigo]
         );
         if (r.rows.length === 0)
             return res.status(404).json({ success: false, error: 'Orden no encontrada' });
-        if (r.rows[0].estado !== 'PENDIENTE')
-            return res.status(400).json({ success: false, error: `Solo se pueden autorizar órdenes PENDIENTE. Estado actual: ${r.rows[0].estado}` });
+        if (r.rows[0].estado !== 'EN REPARTO')
+            return res.status(400).json({ success: false, error: `Solo se pueden marcar como entregadas las órdenes EN REPARTO. Estado actual: ${r.rows[0].estado}` });
 
+        const fechaEntrega = fecha_entrega_real || new Date().toISOString().split('T')[0];
         await pool.query(
-            `UPDATE ordenes_compra SET estado = 'AUTORIZADA' WHERE codigo = $1`, [codigo]
-        );
-        res.json({ success: true, message: `Orden ${codigo} autorizada para despacho` });
-    } catch (e) {
-        console.error('Error autorizando orden:', e);
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
-// GET /api/ordenes-compra/:codigo/despachos — despachos registrados + resumen por producto
-app.get('/api/ordenes-compra/:codigo/despachos', async (req, res) => {
-    const { codigo } = req.params;
-    try {
-        const despachosRes = await pool.query(
-            `SELECT d.id, d.numero, d.fecha, d.observaciones, d.creado
-             FROM despachos_oc d WHERE d.orden = $1 ORDER BY d.numero`,
-            [codigo]
-        );
-        const detallesRes = await pool.query(
-            `SELECT dd.despacho_id, dd.producto_venta, dd.cantidad, p.nombre AS producto_nombre
-             FROM detalle_despachos_oc dd
-             JOIN despachos_oc d ON d.id = dd.despacho_id
-             LEFT JOIN productos p ON p.codigo = dd.producto_venta
-             WHERE d.orden = $1
-             ORDER BY dd.id`,
-            [codigo]
-        );
-        const despachos = despachosRes.rows.map(d => ({
-            ...d,
-            detalles: detallesRes.rows.filter(x => x.despacho_id === d.id)
-        }));
-
-        // Resumen: ordenado vs despachado vs pendiente por producto
-        const resumenRes = await pool.query(
-            `SELECT od.producto_venta, p.nombre AS producto_nombre,
-                    od.cantidad AS cantidad_ordenada,
-                    od.precio_unitario,
-                    COALESCE(desp.despachado, 0) AS cantidad_despachada
-             FROM detalle_ordenes od
-             LEFT JOIN productos p ON p.codigo = od.producto_venta
-             LEFT JOIN (
-                 SELECT dd.producto_venta, SUM(dd.cantidad) AS despachado
-                 FROM detalle_despachos_oc dd
-                 JOIN despachos_oc d ON d.id = dd.despacho_id
-                 WHERE d.orden = $1
-                 GROUP BY dd.producto_venta
-             ) desp ON desp.producto_venta = od.producto_venta
-             WHERE od.orden = $1
-             ORDER BY p.nombre`,
-            [codigo]
-        );
-
-        res.json({ success: true, despachos, resumen: resumenRes.rows });
-    } catch (e) {
-        console.error('Error listando despachos:', e);
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
-// POST /api/ordenes-compra/:codigo/despachos — registrar despacho total o parcial
-// Genera la salida de inventario (SALIDA POR VENTA) desde la bodega maestra del proveedor.
-app.post('/api/ordenes-compra/:codigo/despachos', async (req, res) => {
-    const { codigo } = req.params;
-    const { fecha, observaciones, detalles } = req.body;
-
-    if (!detalles || !Array.isArray(detalles) || detalles.length === 0)
-        return res.status(400).json({ success: false, error: 'Debe incluir al menos un producto a despachar' });
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const ordenRes = await client.query(
-            `SELECT estado, empresa, cliente FROM ordenes_compra WHERE codigo = $1 FOR UPDATE`,
-            [codigo]
-        );
-        if (ordenRes.rows.length === 0) throw new Error('Orden no encontrada');
-        const orden = ordenRes.rows[0];
-        if (orden.estado !== 'AUTORIZADA')
-            throw new Error(`Solo se pueden despachar órdenes AUTORIZADA. Estado actual: ${orden.estado}`);
-
-        // Cantidades ordenadas y ya despachadas por producto
-        const ordRes = await client.query(
-            `SELECT producto_venta, cantidad FROM detalle_ordenes WHERE orden = $1`, [codigo]
-        );
-        const ordenado = {};
-        for (const r of ordRes.rows) ordenado[r.producto_venta] = parseFloat(r.cantidad) || 0;
-
-        const despRes = await client.query(
-            `SELECT dd.producto_venta, SUM(dd.cantidad) AS total
-             FROM detalle_despachos_oc dd
-             JOIN despachos_oc d ON d.id = dd.despacho_id
-             WHERE d.orden = $1
-             GROUP BY dd.producto_venta`,
-            [codigo]
-        );
-        const yaDespachado = {};
-        for (const r of despRes.rows) yaDespachado[r.producto_venta] = parseFloat(r.total) || 0;
-
-        // Validar que no se exceda lo pendiente
-        const items = [];
-        for (const d of detalles) {
-            const cant = parseFloat(d.cantidad) || 0;
-            if (cant <= 0) continue;
-            if (!(d.producto_venta in ordenado))
-                throw new Error(`El producto ${d.producto_venta} no pertenece a la orden`);
-            const pendiente = ordenado[d.producto_venta] - (yaDespachado[d.producto_venta] || 0);
-            if (cant > pendiente + 0.0001)
-                throw new Error(`Cantidad a despachar de ${d.producto_venta} (${cant}) excede lo pendiente (${pendiente})`);
-            items.push({ producto_venta: d.producto_venta, cantidad: cant });
-        }
-        if (items.length === 0) throw new Error('No hay cantidades válidas para despachar');
-
-        // Crear despacho
-        const numRes = await client.query(
-            `SELECT COALESCE(MAX(numero), 0) + 1 AS num FROM despachos_oc WHERE orden = $1`, [codigo]
-        );
-        const numero = numRes.rows[0].num;
-        const fechaDespacho = fecha || new Date().toISOString().split('T')[0];
-
-        const despInsert = await client.query(
-            `INSERT INTO despachos_oc (orden, numero, fecha, observaciones, empresa)
-             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-            [codigo, numero, fechaDespacho, observaciones || '', String(orden.empresa)]
-        );
-        const despachoId = despInsert.rows[0].id;
-
-        for (const it of items) {
-            await client.query(
-                `INSERT INTO detalle_despachos_oc (despacho_id, producto_venta, cantidad)
-                 VALUES ($1, $2, $3)`,
-                [despachoId, it.producto_venta, it.cantidad]
-            );
-        }
-
-        // Salida de inventario desde bodega maestra del proveedor (SALIDA POR VENTA)
-        const empRes = await client.query(
-            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
-            [String(orden.empresa)]
-        );
-        const bodegaMaestra = empRes.rows[0]?.bodega_maestra;
-        if (bodegaMaestra) {
-            for (const it of items) {
-                await client.query(
-                    `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
-                     VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
-                    [fechaDespacho, bodegaMaestra, it.producto_venta, it.cantidad,
-                     String(orden.empresa), `SALIDA POR VENTA ${codigo} DESPACHO ${numero}`]
-                );
-            }
-        }
-
-        await client.query('COMMIT');
-        res.json({
-            success: true,
-            despacho: numero,
-            message: `Despacho #${numero} de la orden ${codigo} registrado${bodegaMaestra ? ' y descargado de bodega maestra' : ''}`
-        });
-    } catch (e) {
-        await client.query('ROLLBACK');
-        console.error('Error registrando despacho:', e);
-        res.status(500).json({ success: false, error: e.message });
-    } finally {
-        client.release();
-    }
-});
-
-// PUT /api/ordenes-compra/:codigo/cerrar — cerrar orden (AUTORIZADA → ENTREGADA)
-// Ajusta las cantidades de la orden a lo realmente despachado para que la factura
-// se genere por lo entregado (soporta entregas parciales).
-app.put('/api/ordenes-compra/:codigo/cerrar', async (req, res) => {
-    const { codigo } = req.params;
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const ordenRes = await client.query(
-            `SELECT estado, dias_credito FROM ordenes_compra WHERE codigo = $1 FOR UPDATE`,
-            [codigo]
-        );
-        if (ordenRes.rows.length === 0) throw new Error('Orden no encontrada');
-        if (ordenRes.rows[0].estado !== 'AUTORIZADA')
-            throw new Error(`Solo se pueden cerrar órdenes AUTORIZADA. Estado actual: ${ordenRes.rows[0].estado}`);
-
-        const despachosRes = await client.query(
-            `SELECT COUNT(*)::int AS n, MAX(fecha) AS ultima_fecha FROM despachos_oc WHERE orden = $1`,
-            [codigo]
-        );
-        if (despachosRes.rows[0].n === 0)
-            throw new Error('La orden no tiene despachos registrados. Registre al menos un despacho antes de cerrarla.');
-
-        const fechaEntrega = despachosRes.rows[0].ultima_fecha || new Date().toISOString().split('T')[0];
-
-        // Ajustar detalle_ordenes a lo despachado
-        const detRes = await client.query(
-            `SELECT od.producto_venta, od.precio_unitario,
-                    COALESCE(desp.despachado, 0) AS despachado
-             FROM detalle_ordenes od
-             LEFT JOIN (
-                 SELECT dd.producto_venta, SUM(dd.cantidad) AS despachado
-                 FROM detalle_despachos_oc dd
-                 JOIN despachos_oc d ON d.id = dd.despacho_id
-                 WHERE d.orden = $1
-                 GROUP BY dd.producto_venta
-             ) desp ON desp.producto_venta = od.producto_venta
-             WHERE od.orden = $1`,
-            [codigo]
-        );
-
-        let nuevoTotal = 0;
-        for (const d of detRes.rows) {
-            const cant = parseFloat(d.despachado) || 0;
-            const precio = parseFloat(d.precio_unitario) || 0;
-            const subtotal = cant * precio;
-            nuevoTotal += subtotal;
-            if (cant > 0) {
-                await client.query(
-                    `UPDATE detalle_ordenes SET cantidad = $1, subtotal = $2
-                     WHERE orden = $3 AND producto_venta = $4`,
-                    [cant, subtotal, codigo, d.producto_venta]
-                );
-            } else {
-                // Producto nunca despachado: se elimina de la orden cerrada
-                await client.query(
-                    `DELETE FROM detalle_ordenes WHERE orden = $1 AND producto_venta = $2`,
-                    [codigo, d.producto_venta]
-                );
-            }
-        }
-        if (nuevoTotal <= 0) throw new Error('La orden no tiene cantidades despachadas');
-
-        await client.query(
             `UPDATE ordenes_compra
              SET estado = 'ENTREGADA',
-                 total = $1,
-                 fecha_entrega = $2,
-                 fecha_vencimiento = $2::date + dias_credito
-             WHERE codigo = $3`,
-            [nuevoTotal, fechaEntrega, codigo]
+                 fecha_entrega = $1,
+                 fecha_vencimiento = $1::date + dias_credito
+             WHERE codigo = $2`,
+            [fechaEntrega, codigo]
         );
-
-        await client.query('COMMIT');
-        res.json({ success: true, message: `Orden ${codigo} cerrada como ENTREGADA por ${nuevoTotal.toFixed(2)}` });
+        res.json({ success: true, message: `Orden ${codigo} marcada como ENTREGADA` });
     } catch (e) {
-        await client.query('ROLLBACK');
-        console.error('Error cerrando orden:', e);
+        console.error('Error marcando orden entregada:', e);
         res.status(500).json({ success: false, error: e.message });
-    } finally {
-        client.release();
     }
 });
 
@@ -6950,6 +6882,16 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
             });
         }
 
+        // Si la bodega ya está procesando el despacho vinculado, no permitir cambios
+        const despachoVinculado = await obtenerDespachoVentaOC(client, codigo);
+        if (despachoVinculado && despachoVinculado.estado !== 'PENDIENTE') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'El almacén ya está procesando el despacho de esta orden. No se puede modificar.'
+            });
+        }
+
         const ordenCliente = checkResult.rows[0].cliente;
 
         // Actualizar la orden (preservar estado si no se envía)
@@ -6991,6 +6933,24 @@ app.put('/api/ordenes-compra/:codigo', async (req, res) => {
                 }
             }
             console.log(`Detalles insertados correctamente`);
+        }
+
+        // Sincronizar la orden de despacho vinculada (aún PENDIENTE en bodega)
+        if (despachoVinculado && detalles && detalles.length > 0) {
+            await client.query(
+                `UPDATE ordenes_despacho SET fecha = COALESCE($1, fecha) WHERE id = $2`,
+                [fecha_entrega || null, despachoVinculado.id]
+            );
+            await client.query(`DELETE FROM ordenes_despacho_detalle WHERE orden_id = $1`, [despachoVinculado.id]);
+            for (const detalle of detalles) {
+                const cant = parseFloat(detalle.cantidad) || 0;
+                if (cant <= 0) continue;
+                await client.query(
+                    `INSERT INTO ordenes_despacho_detalle (orden_id, producto_codigo, cant_requerida)
+                     VALUES ($1, $2, $3)`,
+                    [despachoVinculado.id, detalle.producto_venta, cant]
+                );
+            }
         }
 
         await client.query('COMMIT');
@@ -7184,6 +7144,24 @@ app.post('/api/ordenes-compra/crear', async (req, res) => {
             throw new Error('No hay productos con cantidad válida para guardar');
         }
 
+        // Crear orden de despacho tipo VENTA en Despachos de Bodega del proveedor
+        const provRes = await client.query(
+            `SELECT codigo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`
+        );
+        const empresaProveedor = provRes.rows[0]?.codigo;
+        if (empresaProveedor) {
+            const cliNomRes = await client.query(
+                `SELECT nombre FROM empresas WHERE codigo::text = $1`, [String(clienteId)]
+            );
+            await crearDespachoVentaOC(client, {
+                codigo: codigoOrdenGuardado,
+                empresaProveedor,
+                fecha: fecha_entrega || null,
+                clienteNombre: cliNomRes.rows[0]?.nombre || '',
+                detalles: detalles.map(d => ({ producto_venta: d.producto_venta, cantidad: d.cantidad })),
+            });
+        }
+
         await client.query('COMMIT');
 
         // Crear notificación para el proveedor
@@ -7236,6 +7214,15 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
         if (orden.estado !== 'ENTREGADA') {
             await client.query('ROLLBACK');
             return res.status(400).json({ success: false, error: `Solo se puede facturar una orden ENTREGADA. Estado actual: ${orden.estado}` });
+        }
+
+        // 1b. Debe tener al menos un soporte de entrega
+        const soporteRes = await client.query(
+            `SELECT COUNT(*)::int AS n FROM soportes_entrega WHERE orden = $1`, [codigo]
+        );
+        if (soporteRes.rows[0].n === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, error: 'La orden debe tener al menos un soporte de entrega para generar la factura' });
         }
 
         // 2. Verificar que no exista ya una factura para esta orden
@@ -7319,10 +7306,11 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
         );
 
         // 10. Descargar del inventario (bodega maestra) con las cantidades reales de la orden
-        //     SOLO si la orden NO tiene despachos registrados (flujo nuevo: la salida
-        //     de inventario ya se hizo al registrar cada despacho — evitar doble descargue)
+        //     SOLO si la orden NO tiene un despacho de bodega COMPLETADO (flujo nuevo:
+        //     la SALIDA POR VENTA ya se hizo al confirmar el despacho — evitar doble descargue)
         const despachosCheck = await client.query(
-            `SELECT COUNT(*)::int AS n FROM despachos_oc WHERE orden = $1`, [codigo]
+            `SELECT COUNT(*)::int AS n FROM ordenes_despacho
+             WHERE orden_compra = $1 AND estado = 'COMPLETADO'`, [codigo]
         );
         const tieneDespachos = despachosCheck.rows[0].n > 0;
 
@@ -9834,22 +9822,11 @@ pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS ccosto_proveedur
 // Centro de costo en facturas de venta (para P&L por ccosto)
 pool.query(`ALTER TABLE factura_venta ADD COLUMN IF NOT EXISTS ccosto VARCHAR(10)`).catch(() => {});
 
-// Despachos (totales o parciales) de órdenes de compra de proveeduría
-pool.query(`CREATE TABLE IF NOT EXISTS despachos_oc (
-    id SERIAL PRIMARY KEY,
-    orden VARCHAR(30) NOT NULL,
-    numero INTEGER NOT NULL,
-    fecha DATE NOT NULL,
-    observaciones TEXT,
-    empresa VARCHAR(10),
-    creado TIMESTAMP DEFAULT NOW()
-)`).catch(() => {});
-pool.query(`CREATE TABLE IF NOT EXISTS detalle_despachos_oc (
-    id SERIAL PRIMARY KEY,
-    despacho_id INTEGER NOT NULL REFERENCES despachos_oc(id) ON DELETE CASCADE,
-    producto_venta VARCHAR(30) NOT NULL,
-    cantidad NUMERIC(14,4) NOT NULL
-)`).catch(() => {});
+// Vincular órdenes de despacho de bodega con órdenes de compra de proveeduría
+// tipo: 'TRASLADO' (entre ccostos, flujo original) | 'VENTA' (despacho de una orden de compra de cliente)
+pool.query(`ALTER TABLE ordenes_despacho ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) DEFAULT 'TRASLADO'`).catch(() => {});
+pool.query(`ALTER TABLE ordenes_despacho ADD COLUMN IF NOT EXISTS orden_compra VARCHAR(30)`).catch(() => {});
+pool.query(`ALTER TABLE ordenes_despacho ALTER COLUMN cc_destino DROP NOT NULL`).catch(() => {});
 
 // GET /api/config-general
 app.get('/api/config-general', async (req, res) => {

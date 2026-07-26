@@ -54,7 +54,7 @@
           <span class="oc-filter-label">Filtrar por estado:</span>
           <div class="oc-estado-chips">
             <button v-for="est in estadoOpciones" :key="est.val"
-              :class="['estado-chip', `estado-chip--${est.val.toLowerCase()}`, { active: filtroEstados.includes(est.val) }]"
+              :class="['estado-chip', `estado-chip--${estadoSlug(est.val)}`, { active: filtroEstados.includes(est.val) }]"
               @click="toggleEstado(est.val)">
               {{ est.label }}
             </button>
@@ -92,7 +92,7 @@
               <td class="ta-c dim-text">{{ o.dias_credito ?? 0 }}d</td>
               <td class="ta-r font-mono">{{ fmt(o.total) }}</td>
               <td class="ta-c">
-                <span :class="`estado-badge estado-${(o.estado||'').toLowerCase()}`">
+                <span :class="`estado-badge estado-${estadoSlug(o.estado||'')}`">
                   {{ o.estado }}
                 </span>
               </td>
@@ -114,6 +114,24 @@
                     <template #activator="{ props }">
                       <v-btn v-bind="props" icon="mdi-pencil-outline" size="x-small" variant="tonal" color="#f59e0b"
                         @click="abrirEditar(o)" />
+                    </template>
+                  </v-tooltip>
+                  <!-- Marcar entregada (solo EN REPARTO) -->
+                  <v-tooltip v-if="o.estado === 'EN REPARTO'" text="Confirmar recepción / marcar entregada">
+                    <template #activator="{ props }">
+                      <v-btn v-bind="props" icon="mdi-package-variant-closed-check" size="x-small" variant="tonal" color="#3b82f6"
+                        @click="confirmarEntregada(o)" />
+                    </template>
+                  </v-tooltip>
+                  <!-- Eliminar: habilitado solo en PENDIENTE -->
+                  <v-tooltip :text="o.estado === 'PENDIENTE' ? 'Eliminar orden' : 'Solo se pueden eliminar órdenes pendientes'">
+                    <template #activator="{ props }">
+                      <span v-bind="props">
+                        <v-btn icon="mdi-trash-can-outline" size="x-small" variant="tonal"
+                          :color="o.estado === 'PENDIENTE' ? 'error' : 'rgba(var(--v-theme-on-surface),.25)'"
+                          :disabled="o.estado !== 'PENDIENTE'"
+                          @click="confirmarEliminar(o)" />
+                      </span>
                     </template>
                   </v-tooltip>
                 </div>
@@ -286,7 +304,7 @@
               <div class="det-sub">{{ fmtFecha(ordenDetalle?.fecha) }} · {{ proveedor?.nombre }} · {{ ordenDetalle?.tipo_precio }}</div>
             </div>
           </div>
-          <span :class="`estado-badge estado-${(ordenDetalle?.estado||'').toLowerCase()}`">{{ ordenDetalle?.estado }}</span>
+          <span :class="`estado-badge estado-${estadoSlug(ordenDetalle?.estado||'')}`">{{ ordenDetalle?.estado }}</span>
           <div style="display:flex;gap:8px">
             <v-btn icon="mdi-printer-outline" size="small" variant="text" color="white" @click="imprimirDetalle" title="Imprimir" />
           </div>
@@ -523,6 +541,43 @@
       </v-card>
     </v-dialog>
 
+    <!-- ══ DIALOG ELIMINAR ══ -->
+    <v-dialog v-model="dlgEliminar" max-width="420">
+      <v-card rounded="xl" class="pa-1">
+        <v-card-text class="pa-5 text-center">
+          <v-icon size="46" color="error" class="mb-2">mdi-alert-circle-outline</v-icon>
+          <div style="font-size:16px;font-weight:800;margin-bottom:6px">¿Eliminar orden?</div>
+          <div style="font-size:13px;color:rgba(var(--v-theme-on-surface),.6)">
+            Se eliminará la orden <strong>{{ ordenAccion?.codigo }}</strong> y su despacho de bodega asociado. Esta acción no se puede deshacer.
+          </div>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-4">
+          <v-spacer />
+          <v-btn variant="text" @click="dlgEliminar=false">Cancelar</v-btn>
+          <v-btn color="error" variant="flat" :loading="procesandoAccion" @click="eliminarOrden">Eliminar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ══ DIALOG MARCAR ENTREGADA ══ -->
+    <v-dialog v-model="dlgEntregada" max-width="440">
+      <v-card rounded="xl" class="pa-1">
+        <v-card-text class="pa-5 text-center">
+          <v-icon size="46" color="#3b82f6" class="mb-2">mdi-package-variant-closed-check</v-icon>
+          <div style="font-size:16px;font-weight:800;margin-bottom:6px">¿Confirmar recepción?</div>
+          <div style="font-size:13px;color:rgba(var(--v-theme-on-surface),.6)">
+            Confirmas que recibiste la orden <strong>{{ ordenAccion?.codigo }}</strong>. Pasará a
+            <span class="estado-badge estado-entregada">ENTREGADA</span> y el proveedor podrá facturarte.
+          </div>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-4">
+          <v-spacer />
+          <v-btn variant="text" @click="dlgEntregada=false">Cancelar</v-btn>
+          <v-btn color="#3b82f6" variant="flat" :loading="procesandoAccion" @click="marcarEntregada">Confirmar Entrega</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snack.show" :color="snack.color" timeout="4000" location="bottom right">
       {{ snack.msg }}
     </v-snackbar>
@@ -631,12 +686,12 @@ function fmtStock(v) {
 // ── Computed ────────────────────────────────────────────────
 const estadoOpciones = [
   { val: 'PENDIENTE',  label: 'Pendiente' },
-  { val: 'AUTORIZADA', label: 'En Despacho' },
+  { val: 'EN REPARTO', label: 'En Reparto' },
   { val: 'ENTREGADA',  label: 'Entregada' },
   { val: 'FACTURADA',  label: 'Facturada' },
   { val: 'ANULADA',    label: 'Anulada' },
 ]
-const filtroEstados = ref(['PENDIENTE', 'AUTORIZADA', 'ENTREGADA'])
+const filtroEstados = ref(['PENDIENTE', 'EN REPARTO', 'ENTREGADA'])
 
 function toggleEstado(val) {
   const i = filtroEstados.value.indexOf(val)
@@ -795,6 +850,54 @@ async function cargarProductos() {
     console.error('Error cargando productos:', e)
     err('Error cargando productos')
   }
+}
+
+// ── Eliminar / Marcar entregada ──────────────────────────────
+const dlgEliminar     = ref(false)
+const dlgEntregada    = ref(false)
+const ordenAccion     = ref(null)
+const procesandoAccion = ref(false)
+
+function estadoSlug(estado) {
+  return (estado || '').toLowerCase().replace(/\s+/g, '-')
+}
+
+function confirmarEliminar(o) {
+  if (o.estado !== 'PENDIENTE') return
+  ordenAccion.value = o
+  dlgEliminar.value = true
+}
+
+async function eliminarOrden() {
+  if (!ordenAccion.value) return
+  procesandoAccion.value = true
+  try {
+    const res = await api.delete(`/ordenes-compra/${ordenAccion.value.codigo}`)
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al eliminar')
+    ok('Orden eliminada correctamente')
+    dlgEliminar.value = false
+    await cargar()
+  } catch (e) { err(e?.response?.data?.error || e.message) }
+  finally { procesandoAccion.value = false }
+}
+
+function confirmarEntregada(o) {
+  if (o.estado !== 'EN REPARTO') return
+  ordenAccion.value = o
+  dlgEntregada.value = true
+}
+
+async function marcarEntregada() {
+  if (!ordenAccion.value) return
+  procesandoAccion.value = true
+  try {
+    const res = await api.put(`/ordenes-compra/${ordenAccion.value.codigo}/marcar-entregada`, {})
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al marcar entregada')
+    ok('Orden marcada como entregada')
+    dlgEntregada.value = false
+    await cargar()
+  } catch (e) { err(e?.response?.data?.error || e.message) }
+  finally { procesandoAccion.value = false }
 }
 
 // ── Acciones ─────────────────────────────────────────────────
@@ -1261,7 +1364,7 @@ onMounted(cargar)
 .oc-estado-chips { display:flex; gap:6px; flex-wrap:wrap; }
 .estado-chip { padding:3px 12px; border-radius:20px; font-size:11px; font-weight:700; cursor:pointer; border:1.5px solid transparent; transition:all .15s; background:rgba(var(--v-theme-on-surface),.05); color:rgba(var(--v-theme-on-surface),.4); }
 .estado-chip--pendiente.active  { background:rgba(245,158,11,.12);  color:#b45309; border-color:#f59e0b; }
-.estado-chip--autorizada.active { background:rgba(139,92,246,.12);  color:#7c3aed; border-color:#8b5cf6; }
+.estado-chip--en-reparto.active { background:rgba(139,92,246,.12);  color:#7c3aed; border-color:#8b5cf6; }
 .estado-chip--entregada.active  { background:rgba(59,130,246,.12);  color:#1d4ed8; border-color:#3b82f6; }
 .estado-chip--facturada.active  { background:rgba(34,197,94,.12);   color:#15803d; border-color:#22c55e; }
 .estado-chip--anulada.active    { background:rgba(239,68,68,.12);   color:#b91c1c; border-color:#ef4444; }
@@ -1285,7 +1388,7 @@ onMounted(cargar)
 
 .estado-badge { padding: 3px 9px; border-radius: 5px; font-size: 10px; font-weight: 700; }
 .estado-pendiente  { background: rgba(245,158,11,.12);  color: #b45309; }
-.estado-autorizada { background: rgba(139,92,246,.12);  color: #7c3aed; }
+.estado-en-reparto { background: rgba(139,92,246,.12);  color: #7c3aed; }
 .estado-entregada  { background: rgba(59,130,246,.12);  color: #1d4ed8; }
 .estado-facturada  { background: rgba(34,197,94,.12);   color: #15803d; }
 .estado-cancelada  { background: rgba(239,68,68,.12);   color: #b91c1c; }

@@ -114,8 +114,14 @@
               <td class="td-fecha">{{ fmtFecha(d.fecha) }}</td>
               <td>
                 <div class="td-destino">
-                  <v-icon size="14" color="#047857">mdi-store-outline</v-icon>
-                  {{ d.cc_destino_nombre || d.cc_destino }}
+                  <template v-if="d.tipo === 'VENTA'">
+                    <span class="tipo-venta-badge"><v-icon size="12">mdi-cart-arrow-up</v-icon> VENTA</span>
+                    <span class="td-oc">{{ d.observaciones || d.orden_compra }}</span>
+                  </template>
+                  <template v-else>
+                    <v-icon size="14" color="#047857">mdi-store-outline</v-icon>
+                    {{ d.cc_destino_nombre || d.cc_destino }}
+                  </template>
                 </div>
               </td>
               <td class="ta-c">{{ d.total_items }}</td>
@@ -124,7 +130,7 @@
               <td class="ta-c">
                 <div class="acc-btns">
                   <v-btn icon size="x-small" variant="text" color="#047857" title="Ver / Editar" @click="abrirDetalle(d)">
-                    <v-icon>{{ d.estado === 'PENDIENTE' ? 'mdi-pencil' : 'mdi-eye' }}</v-icon>
+                    <v-icon>{{ d.estado === 'PENDIENTE' && d.tipo !== 'VENTA' ? 'mdi-pencil' : 'mdi-eye' }}</v-icon>
                   </v-btn>
                   <v-btn icon size="x-small" variant="text" color="#6b7280" title="Imprimir"
                     :loading="imprimiendo === d.id"
@@ -132,7 +138,7 @@
                     <v-icon>mdi-printer-outline</v-icon>
                   </v-btn>
                   <v-btn icon size="x-small" variant="text" color="#ef4444" title="Eliminar"
-                    v-if="d.estado !== 'COMPLETADO'"
+                    v-if="d.estado !== 'COMPLETADO' && d.tipo !== 'VENTA'"
                     :loading="eliminando === d.id"
                     @click="eliminar(d)">
                     <v-icon>mdi-delete</v-icon>
@@ -387,11 +393,11 @@
               <div class="dlg-header-icon"><v-icon color="white" size="20">mdi-clipboard-text-outline</v-icon></div>
               <div>
                 <div class="dlg-title">Orden #{{ detalleActivo.id }} — {{ estadoLabel(detalleActivo.estado) }}</div>
-                <div class="dlg-sub">{{ fmtFecha(detalleActivo.fecha) }} · {{ detalleActivo.cc_destino_nombre }}</div>
+                <div class="dlg-sub">{{ fmtFecha(detalleActivo.fecha) }} · {{ detalleActivo.tipo === 'VENTA' ? (detalleActivo.observaciones || detalleActivo.orden_compra) : detalleActivo.cc_destino_nombre }}</div>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
-              <v-btn v-if="detalleActivo.estado === 'PENDIENTE'" variant="flat"
+              <v-btn v-if="detalleActivo.estado === 'PENDIENTE' && detalleActivo.tipo !== 'VENTA'" variant="flat"
                 style="background:rgba(255,255,255,.2);color:white" size="small"
                 prepend-icon="mdi-pencil" @click="abrirEditar(detalleActivo)">
                 Editar
@@ -408,8 +414,11 @@
                 <span class="det-val">{{ detalleActivo.cc_origen_nombre }}</span>
               </div>
               <div class="det-info-item">
-                <span class="det-lbl">CC Destino</span>
-                <span class="det-val">{{ detalleActivo.cc_destino_nombre }}</span>
+                <span class="det-lbl">{{ detalleActivo.tipo === 'VENTA' ? 'Destino (Venta)' : 'CC Destino' }}</span>
+                <span class="det-val">
+                  <span v-if="detalleActivo.tipo === 'VENTA'" class="tipo-venta-badge" style="margin-right:6px"><v-icon size="12">mdi-cart-arrow-up</v-icon> VENTA</span>
+                  {{ detalleActivo.tipo === 'VENTA' ? (detalleActivo.observaciones || detalleActivo.orden_compra) : detalleActivo.cc_destino_nombre }}
+                </span>
               </div>
               <div class="det-info-item">
                 <span class="det-lbl">Estado</span>
@@ -458,6 +467,12 @@
               Imprimir Reporte
             </v-btn>
             <v-spacer />
+            <!-- Completar despacho por VENTA: genera salida por venta y pasa la orden de compra a EN REPARTO -->
+            <v-btn v-if="detalleActivo.tipo === 'VENTA' && detalleActivo.estado !== 'COMPLETADO' && detalleActivo.estado !== 'CANCELADO'"
+              variant="flat" color="#10b981" style="color:white" prepend-icon="mdi-truck-check-outline"
+              :loading="completandoVenta" @click="completarDespachoVenta(detalleActivo)">
+              Despachar (Salida por Venta)
+            </v-btn>
             <v-btn variant="flat" color="#ef4444" @click="dlgDetalle=false" style="color:white">Cerrar</v-btn>
           </v-card-actions>
         </v-card>
@@ -576,6 +591,7 @@ const ccostos    = ref([])
 const loading    = ref(false)
 const eliminando = ref(null)
 const imprimiendo = ref(null)
+const completandoVenta = ref(null)
 
 // Filtros
 const filtroFecha   = ref('')
@@ -1096,6 +1112,20 @@ async function abrirDetalle(d) {
   }
 }
 
+async function completarDespachoVenta(d) {
+  if (!confirm(`¿Confirmar el despacho por venta #${d.id}? Se generará la salida por venta desde la bodega maestra y la orden de compra pasará a EN REPARTO.`)) return
+  completandoVenta.value = true
+  try {
+    await api.post(`/almacen/despachos/${d.id}/confirmar`, { empresa: empresa.value })
+    dlgDetalle.value = false
+    await cargar()
+  } catch (e) {
+    alert(e?.response?.data?.error || 'Error al completar el despacho')
+  } finally {
+    completandoVenta.value = null
+  }
+}
+
 async function eliminar(d) {
   if (!confirm(`¿Eliminar la orden #${d.id}?`)) return
   eliminando.value = d.id
@@ -1333,7 +1363,9 @@ onMounted(async () => {
 .badge-cod { background: rgba(6,182,212,.12); color: #0891b2; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px; font-family: monospace; }
 .badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
 .td-fecha   { font-size: 12px; color: rgba(var(--v-theme-on-surface),.7); }
-.td-destino { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.td-destino { display: flex; align-items: center; gap: 6px; font-weight: 500; flex-wrap: wrap; }
+.tipo-venta-badge { display: inline-flex; align-items: center; gap: 3px; background: rgba(217,119,6,.14); color: #b45309; font-size: 10px; font-weight: 800; letter-spacing: .5px; padding: 2px 7px; border-radius: 10px; }
+.td-oc { font-size: 12px; color: rgba(var(--v-theme-on-surface),.7); }
 .acc-btns   { display: inline-flex; align-items: center; gap: 2px; }
 
 /* Estado chips */
