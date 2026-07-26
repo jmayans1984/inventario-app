@@ -1276,9 +1276,21 @@ async function fetchCuentasBancarias() {
   finally { cuentasLoading.value = false }
 }
 
+// Precarga las cuentas bancarias predeterminadas (Otros / Efectivo) definidas
+// en Configuración → Configuración General (Tesorería).
+async function precargarCuentasDefault() {
+  try {
+    const resp = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
+    const cfg = resp.data?.data || {}
+    if (cfg.cta_bancaria_otros)    configCtaOtros.value    = cfg.cta_bancaria_otros
+    if (cfg.cta_bancaria_efectivo) configCtaEfectivo.value = cfg.cta_bancaria_efectivo
+  } catch (e) { console.error('precargarCuentasDefault:', e) }
+}
+
 onMounted(() => {
   fetchCcostos()
   fetchCuentasBancarias()
+  precargarCuentasDefault()
 })
 
 // ─── State ───────────────────────────────────────────────────
