@@ -161,6 +161,60 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           SECCIÓN 1C: CONFIGURACIÓN GENERAL DE PROVEEDURÍA
+      ══════════════════════════════════════════════ -->
+      <div v-if="esProveedor" class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(180,83,9,0.12)">
+            <v-icon size="16" color="#b45309">mdi-store</v-icon>
+          </div>
+          <span class="cfg-section-title">CONFIGURACIÓN GENERAL DE PROVEEDURÍA</span>
+        </div>
+
+        <div v-if="loadingCfgProv" class="cfg-loading">
+          <v-progress-circular indeterminate color="#b45309" size="28" />
+          <span>Cargando configuración...</span>
+        </div>
+
+        <div v-else class="cfg-ctas-table">
+          <div class="cfg-cta-row" style="grid-template-columns: 1fr 260px">
+            <span class="cfg-cta-label">CENTRO DE COSTO — PROVEEDURÍA / FRANQUICIAS</span>
+            <v-autocomplete
+              v-model="ccostoProveeduria"
+              :items="ccostosProv"
+              item-title="nombre"
+              item-value="codigo"
+              placeholder="— Sin asignar —"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+            />
+          </div>
+          <p class="cfg-hint-prov">
+            Las facturas de venta y salidas de inventario del módulo de proveeduría se registrarán bajo este centro de costo.
+          </p>
+        </div>
+
+        <div v-if="!loadingCfgProv" class="cfg-ctas-actions">
+          <span v-if="cfgProvSaveOk" class="cfg-ok-msg">
+            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado correctamente
+          </span>
+          <span v-if="cfgProvSaveErr" class="cfg-err-msg">{{ cfgProvSaveErr }}</span>
+          <v-btn
+            color="#b45309"
+            variant="flat"
+            size="small"
+            :loading="savingCfgProv"
+            @click="guardarConfigProveeduria"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
+          </v-btn>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            SECCIÓN 2: GESTIÓN DE USUARIOS
       ══════════════════════════════════════════════ -->
       <div class="cfg-card">
@@ -525,6 +579,7 @@ watch(empresa, (val) => {
   if (val) {
     cargarConfigContable()
     cargarConfigTesoreria()
+    cargarConfigProveeduria()
   }
 }, { immediate: false })
 
@@ -592,6 +647,60 @@ async function guardarConfigTesoreria() {
     cfgTesSaveErr.value = e?.response?.data?.error || e.message
   } finally {
     savingCfgTes.value = false
+  }
+}
+
+// ── Estado proveeduría (centro de costo del módulo) ────────────
+const esProveedor = computed(() =>
+  (authStore.empresaTipo || localStorage.getItem('empresaTipo') || '') === 'PROVEEDOR'
+)
+const ccostosProv       = ref([])
+const ccostoProveeduria = ref(null)
+const loadingCfgProv = ref(true)
+const savingCfgProv  = ref(false)
+const cfgProvSaveOk  = ref(false)
+const cfgProvSaveErr = ref('')
+
+async function cargarConfigProveeduria() {
+  if (!esProveedor.value) { loadingCfgProv.value = false; return }
+  loadingCfgProv.value = true
+  try {
+    if (!empresa.value) return
+    const [ccRes, cfgRes] = await Promise.all([
+      api.get('/ccostos',        { params: { empresa: empresa.value } }),
+      api.get('/config-general', { params: { empresa: empresa.value } }),
+    ])
+    ccostosProv.value = ccRes.data?.data || []
+    const cfg = cfgRes.data?.data || {}
+    ccostoProveeduria.value = cfg.ccosto_proveeduria || null
+    // Si el ccosto guardado está inactivo, agregarlo igual para que se vea seleccionado
+    if (ccostoProveeduria.value && !ccostosProv.value.some(c => c.codigo === ccostoProveeduria.value)) {
+      ccostosProv.value.push({ codigo: ccostoProveeduria.value, nombre: ccostoProveeduria.value + ' (inactivo)' })
+    }
+  } catch (e) {
+    console.error('[Configuracion] error al cargar proveeduría:', e)
+  } finally {
+    loadingCfgProv.value = false
+  }
+}
+
+async function guardarConfigProveeduria() {
+  savingCfgProv.value = true
+  cfgProvSaveOk.value = false
+  cfgProvSaveErr.value = ''
+  try {
+    const payload = {
+      empresa: empresa.value,
+      ccosto_proveeduria: ccostoProveeduria.value || null,
+    }
+    const res = await api.put('/config-general', payload)
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
+    cfgProvSaveOk.value = true
+    setTimeout(() => { cfgProvSaveOk.value = false }, 3000)
+  } catch (e) {
+    cfgProvSaveErr.value = e?.response?.data?.error || e.message
+  } finally {
+    savingCfgProv.value = false
   }
 }
 
@@ -780,6 +889,7 @@ async function guardarRecalculoRecetas() {
 onMounted(() => {
   cargarConfigContable()
   cargarConfigTesoreria()
+  cargarConfigProveeduria()
   cargarUsuarios()
   cargarLogo()
   cargarFormatoEtiqueta()
@@ -874,6 +984,11 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: flex-end; gap: 12px;
   margin-top: 16px; padding-top: 14px;
   border-top: 1px solid rgba(var(--v-theme-on-surface),0.07);
+}
+
+.cfg-hint-prov {
+  font-size: 11px; color: rgba(var(--v-theme-on-surface),0.45);
+  margin: 8px 0 0; line-height: 1.5;
 }
 
 /* ═══ USUARIOS ═══ */

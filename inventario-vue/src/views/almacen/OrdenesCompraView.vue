@@ -631,11 +631,12 @@ function fmtStock(v) {
 // ── Computed ────────────────────────────────────────────────
 const estadoOpciones = [
   { val: 'PENDIENTE',  label: 'Pendiente' },
+  { val: 'AUTORIZADA', label: 'En Despacho' },
   { val: 'ENTREGADA',  label: 'Entregada' },
   { val: 'FACTURADA',  label: 'Facturada' },
   { val: 'ANULADA',    label: 'Anulada' },
 ]
-const filtroEstados = ref(['PENDIENTE', 'ENTREGADA'])
+const filtroEstados = ref(['PENDIENTE', 'AUTORIZADA', 'ENTREGADA'])
 
 function toggleEstado(val) {
   const i = filtroEstados.value.indexOf(val)
@@ -1260,6 +1261,7 @@ onMounted(cargar)
 .oc-estado-chips { display:flex; gap:6px; flex-wrap:wrap; }
 .estado-chip { padding:3px 12px; border-radius:20px; font-size:11px; font-weight:700; cursor:pointer; border:1.5px solid transparent; transition:all .15s; background:rgba(var(--v-theme-on-surface),.05); color:rgba(var(--v-theme-on-surface),.4); }
 .estado-chip--pendiente.active  { background:rgba(245,158,11,.12);  color:#b45309; border-color:#f59e0b; }
+.estado-chip--autorizada.active { background:rgba(139,92,246,.12);  color:#7c3aed; border-color:#8b5cf6; }
 .estado-chip--entregada.active  { background:rgba(59,130,246,.12);  color:#1d4ed8; border-color:#3b82f6; }
 .estado-chip--facturada.active  { background:rgba(34,197,94,.12);   color:#15803d; border-color:#22c55e; }
 .estado-chip--anulada.active    { background:rgba(239,68,68,.12);   color:#b91c1c; border-color:#ef4444; }
@@ -1283,6 +1285,7 @@ onMounted(cargar)
 
 .estado-badge { padding: 3px 9px; border-radius: 5px; font-size: 10px; font-weight: 700; }
 .estado-pendiente  { background: rgba(245,158,11,.12);  color: #b45309; }
+.estado-autorizada { background: rgba(139,92,246,.12);  color: #7c3aed; }
 .estado-entregada  { background: rgba(59,130,246,.12);  color: #1d4ed8; }
 .estado-facturada  { background: rgba(34,197,94,.12);   color: #15803d; }
 .estado-cancelada  { background: rgba(239,68,68,.12);   color: #b91c1c; }

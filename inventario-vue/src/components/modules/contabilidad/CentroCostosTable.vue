@@ -81,6 +81,20 @@
             </div>
           </td>
 
+          <!-- ESTADO -->
+          <td class="td td-estado">
+            <button
+              class="estado-toggle"
+              :class="esActivo(cc) ? 'estado-on' : 'estado-off'"
+              :disabled="togglingCodigo === cc.codigo"
+              :title="esActivo(cc) ? 'Clic para desactivar (se ocultará en los menús)' : 'Clic para activar'"
+              @click="toggleActivo(cc)"
+            >
+              <v-icon size="13">{{ esActivo(cc) ? 'mdi-check-circle' : 'mdi-minus-circle-outline' }}</v-icon>
+              {{ esActivo(cc) ? 'ACTIVO' : 'INACTIVO' }}
+            </button>
+          </td>
+
           <!-- ACCIONES -->
           <td class="td-acciones">
             <div class="action-buttons">
@@ -188,7 +202,30 @@ const nombreAEliminar = ref('')
 const columnas = [
   { key: 'codigo', label: 'CÓDIGO', sortable: true },
   { key: 'nombre', label: 'NOMBRE', sortable: true },
+  { key: 'activo', label: 'ESTADO', sortable: false },
 ]
+
+const togglingCodigo = ref(null)
+
+function esActivo(cc) {
+  return (cc.activo || 'SI') !== 'NO'
+}
+
+async function toggleActivo(cc) {
+  togglingCodigo.value = cc.codigo
+  try {
+    await store.actualizarCentroCostos(cc.codigo, {
+      nombre: cc.nombre,
+      empresa: cc.empresa,
+      square_location_id: cc.square_location_id || '',
+      activo: esActivo(cc) ? 'NO' : 'SI',
+    })
+  } catch (err) {
+    console.error('Error cambiando estado del centro de costo:', err)
+  } finally {
+    togglingCodigo.value = null
+  }
+}
 
 const todosSeleccionados = computed(
   () => selectedIds.value.length > 0 && selectedIds.value.length === store.centrosCostos.length
@@ -374,6 +411,20 @@ function toggleSeleccion(id, val) {
 }
 
 .text-muted { color: rgba(var(--v-theme-on-surface), 0.3); font-size: 13px; }
+
+/* Toggle de estado activo/inactivo */
+.td-estado { width: 130px; }
+.estado-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 20px;
+  font-size: 11px; font-weight: 800; letter-spacing: .5px;
+  border: 1px solid transparent; cursor: pointer; transition: all .15s;
+}
+.estado-toggle:disabled { opacity: .5; cursor: wait; }
+.estado-on  { background: rgba(34,197,94,.12);  color: #16a34a; border-color: rgba(34,197,94,.25); }
+.estado-on:hover  { background: rgba(34,197,94,.2); }
+.estado-off { background: rgba(148,163,184,.12); color: #94a3b8; border-color: rgba(148,163,184,.25); }
+.estado-off:hover { background: rgba(148,163,184,.2); }
 
 .td-acciones { text-align: center !important; width: 100px !important; }
 .action-buttons { display: flex; gap: 4px; justify-content: center; }

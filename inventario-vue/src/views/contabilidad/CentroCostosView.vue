@@ -98,13 +98,13 @@ const kpis = computed(() => [
   },
   {
     label: 'Total Activos',
-    value: store.totalCentrosCostos,
+    value: store.centrosCostos.filter(c => (c.activo || 'SI') !== 'NO').length,
     icon: 'mdi-check-circle-outline',
     color: '#22c55e',
   },
   {
     label: 'Total Inactivos',
-    value: 0,
+    value: store.centrosCostos.filter(c => (c.activo || 'SI') === 'NO').length,
     icon: 'mdi-minus-circle-outline',
     color: '#94a3b8',
   },

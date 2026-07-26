@@ -141,20 +141,22 @@ app.post('/api/auth/login', async (req, res) => {
 
 // GET /api/ccostos - Obtener centros de costo
 app.get('/api/ccostos', async (req, res) => {
-    const { empresa } = req.query;
-    
+    const { empresa, todos } = req.query;
+
     if (!empresa) {
         return res.status(400).json({
             success: false,
             error: 'Parámetro empresa requerido'
         });
     }
-    
+
     try {
+        // Por defecto solo centros de costo ACTIVOS (todos=1 para incluir inactivos)
         const query = `
             SELECT codigo, nombre
             FROM ccostos
             WHERE empresa = $1
+            ${todos === '1' ? '' : `AND COALESCE(activo, 'SI') <> 'NO'`}
             ORDER BY nombre
         `;
         
@@ -512,7 +514,7 @@ app.get('/api/almacen/kardex-consolidado', async (req, res) => {
     const emp = parseInt(empresa);
     try {
         const ccRes = await pool.query(
-            `SELECT codigo, nombre FROM ccostos WHERE empresa = $1 ORDER BY nombre`,
+            `SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`,
             [emp]
         );
 
@@ -2672,7 +2674,7 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
     const emp = parseInt(empresa);
     try {
         const [ccRes, bodegaRes, cfgRes] = await Promise.all([
-            pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 ORDER BY nombre`, [emp]),
+            pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [emp]),
             pool.query(`SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]),
             pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [emp]),
         ]);
@@ -5878,6 +5880,7 @@ app.get('/api/gastos/ccostos', async (req, res) => {
             SELECT codigo, nombre
             FROM ccostos
             WHERE empresa = $1
+              AND COALESCE(activo, 'SI') <> 'NO'
             ORDER BY codigo
         `;
         
@@ -6282,6 +6285,276 @@ app.put('/api/ordenes-compra/:codigo/procesar-recepcion', async (req, res) => {
             success: false,
             error: 'Error al procesar la recepción: ' + error.message
         });
+    } finally {
+        client.release();
+    }
+});
+
+// ================================================================
+// PROVEEDURÍA: AUTORIZACIÓN + DESPACHOS PARCIALES + CIERRE DE ORDEN
+// ================================================================
+
+// PUT /api/ordenes-compra/:codigo/autorizar — PENDIENTE → AUTORIZADA (solo PROVEEDOR)
+// A partir de aquí el cliente ya no puede editar la orden y se pueden registrar despachos.
+app.put('/api/ordenes-compra/:codigo/autorizar', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const r = await pool.query(
+            `SELECT estado FROM ordenes_compra WHERE codigo = $1`, [codigo]
+        );
+        if (r.rows.length === 0)
+            return res.status(404).json({ success: false, error: 'Orden no encontrada' });
+        if (r.rows[0].estado !== 'PENDIENTE')
+            return res.status(400).json({ success: false, error: `Solo se pueden autorizar órdenes PENDIENTE. Estado actual: ${r.rows[0].estado}` });
+
+        await pool.query(
+            `UPDATE ordenes_compra SET estado = 'AUTORIZADA' WHERE codigo = $1`, [codigo]
+        );
+        res.json({ success: true, message: `Orden ${codigo} autorizada para despacho` });
+    } catch (e) {
+        console.error('Error autorizando orden:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET /api/ordenes-compra/:codigo/despachos — despachos registrados + resumen por producto
+app.get('/api/ordenes-compra/:codigo/despachos', async (req, res) => {
+    const { codigo } = req.params;
+    try {
+        const despachosRes = await pool.query(
+            `SELECT d.id, d.numero, d.fecha, d.observaciones, d.creado
+             FROM despachos_oc d WHERE d.orden = $1 ORDER BY d.numero`,
+            [codigo]
+        );
+        const detallesRes = await pool.query(
+            `SELECT dd.despacho_id, dd.producto_venta, dd.cantidad, p.nombre AS producto_nombre
+             FROM detalle_despachos_oc dd
+             JOIN despachos_oc d ON d.id = dd.despacho_id
+             LEFT JOIN productos p ON p.codigo = dd.producto_venta
+             WHERE d.orden = $1
+             ORDER BY dd.id`,
+            [codigo]
+        );
+        const despachos = despachosRes.rows.map(d => ({
+            ...d,
+            detalles: detallesRes.rows.filter(x => x.despacho_id === d.id)
+        }));
+
+        // Resumen: ordenado vs despachado vs pendiente por producto
+        const resumenRes = await pool.query(
+            `SELECT od.producto_venta, p.nombre AS producto_nombre,
+                    od.cantidad AS cantidad_ordenada,
+                    od.precio_unitario,
+                    COALESCE(desp.despachado, 0) AS cantidad_despachada
+             FROM detalle_ordenes od
+             LEFT JOIN productos p ON p.codigo = od.producto_venta
+             LEFT JOIN (
+                 SELECT dd.producto_venta, SUM(dd.cantidad) AS despachado
+                 FROM detalle_despachos_oc dd
+                 JOIN despachos_oc d ON d.id = dd.despacho_id
+                 WHERE d.orden = $1
+                 GROUP BY dd.producto_venta
+             ) desp ON desp.producto_venta = od.producto_venta
+             WHERE od.orden = $1
+             ORDER BY p.nombre`,
+            [codigo]
+        );
+
+        res.json({ success: true, despachos, resumen: resumenRes.rows });
+    } catch (e) {
+        console.error('Error listando despachos:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST /api/ordenes-compra/:codigo/despachos — registrar despacho total o parcial
+// Genera la salida de inventario (SALIDA POR VENTA) desde la bodega maestra del proveedor.
+app.post('/api/ordenes-compra/:codigo/despachos', async (req, res) => {
+    const { codigo } = req.params;
+    const { fecha, observaciones, detalles } = req.body;
+
+    if (!detalles || !Array.isArray(detalles) || detalles.length === 0)
+        return res.status(400).json({ success: false, error: 'Debe incluir al menos un producto a despachar' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const ordenRes = await client.query(
+            `SELECT estado, empresa, cliente FROM ordenes_compra WHERE codigo = $1 FOR UPDATE`,
+            [codigo]
+        );
+        if (ordenRes.rows.length === 0) throw new Error('Orden no encontrada');
+        const orden = ordenRes.rows[0];
+        if (orden.estado !== 'AUTORIZADA')
+            throw new Error(`Solo se pueden despachar órdenes AUTORIZADA. Estado actual: ${orden.estado}`);
+
+        // Cantidades ordenadas y ya despachadas por producto
+        const ordRes = await client.query(
+            `SELECT producto_venta, cantidad FROM detalle_ordenes WHERE orden = $1`, [codigo]
+        );
+        const ordenado = {};
+        for (const r of ordRes.rows) ordenado[r.producto_venta] = parseFloat(r.cantidad) || 0;
+
+        const despRes = await client.query(
+            `SELECT dd.producto_venta, SUM(dd.cantidad) AS total
+             FROM detalle_despachos_oc dd
+             JOIN despachos_oc d ON d.id = dd.despacho_id
+             WHERE d.orden = $1
+             GROUP BY dd.producto_venta`,
+            [codigo]
+        );
+        const yaDespachado = {};
+        for (const r of despRes.rows) yaDespachado[r.producto_venta] = parseFloat(r.total) || 0;
+
+        // Validar que no se exceda lo pendiente
+        const items = [];
+        for (const d of detalles) {
+            const cant = parseFloat(d.cantidad) || 0;
+            if (cant <= 0) continue;
+            if (!(d.producto_venta in ordenado))
+                throw new Error(`El producto ${d.producto_venta} no pertenece a la orden`);
+            const pendiente = ordenado[d.producto_venta] - (yaDespachado[d.producto_venta] || 0);
+            if (cant > pendiente + 0.0001)
+                throw new Error(`Cantidad a despachar de ${d.producto_venta} (${cant}) excede lo pendiente (${pendiente})`);
+            items.push({ producto_venta: d.producto_venta, cantidad: cant });
+        }
+        if (items.length === 0) throw new Error('No hay cantidades válidas para despachar');
+
+        // Crear despacho
+        const numRes = await client.query(
+            `SELECT COALESCE(MAX(numero), 0) + 1 AS num FROM despachos_oc WHERE orden = $1`, [codigo]
+        );
+        const numero = numRes.rows[0].num;
+        const fechaDespacho = fecha || new Date().toISOString().split('T')[0];
+
+        const despInsert = await client.query(
+            `INSERT INTO despachos_oc (orden, numero, fecha, observaciones, empresa)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [codigo, numero, fechaDespacho, observaciones || '', String(orden.empresa)]
+        );
+        const despachoId = despInsert.rows[0].id;
+
+        for (const it of items) {
+            await client.query(
+                `INSERT INTO detalle_despachos_oc (despacho_id, producto_venta, cantidad)
+                 VALUES ($1, $2, $3)`,
+                [despachoId, it.producto_venta, it.cantidad]
+            );
+        }
+
+        // Salida de inventario desde bodega maestra del proveedor (SALIDA POR VENTA)
+        const empRes = await client.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
+            [String(orden.empresa)]
+        );
+        const bodegaMaestra = empRes.rows[0]?.bodega_maestra;
+        if (bodegaMaestra) {
+            for (const it of items) {
+                await client.query(
+                    `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
+                     VALUES ($1, $2, $3, 0, $4, 'SALIDA', $5, $6)`,
+                    [fechaDespacho, bodegaMaestra, it.producto_venta, it.cantidad,
+                     String(orden.empresa), `SALIDA POR VENTA ${codigo} DESPACHO ${numero}`]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            despacho: numero,
+            message: `Despacho #${numero} de la orden ${codigo} registrado${bodegaMaestra ? ' y descargado de bodega maestra' : ''}`
+        });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error registrando despacho:', e);
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PUT /api/ordenes-compra/:codigo/cerrar — cerrar orden (AUTORIZADA → ENTREGADA)
+// Ajusta las cantidades de la orden a lo realmente despachado para que la factura
+// se genere por lo entregado (soporta entregas parciales).
+app.put('/api/ordenes-compra/:codigo/cerrar', async (req, res) => {
+    const { codigo } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const ordenRes = await client.query(
+            `SELECT estado, dias_credito FROM ordenes_compra WHERE codigo = $1 FOR UPDATE`,
+            [codigo]
+        );
+        if (ordenRes.rows.length === 0) throw new Error('Orden no encontrada');
+        if (ordenRes.rows[0].estado !== 'AUTORIZADA')
+            throw new Error(`Solo se pueden cerrar órdenes AUTORIZADA. Estado actual: ${ordenRes.rows[0].estado}`);
+
+        const despachosRes = await client.query(
+            `SELECT COUNT(*)::int AS n, MAX(fecha) AS ultima_fecha FROM despachos_oc WHERE orden = $1`,
+            [codigo]
+        );
+        if (despachosRes.rows[0].n === 0)
+            throw new Error('La orden no tiene despachos registrados. Registre al menos un despacho antes de cerrarla.');
+
+        const fechaEntrega = despachosRes.rows[0].ultima_fecha || new Date().toISOString().split('T')[0];
+
+        // Ajustar detalle_ordenes a lo despachado
+        const detRes = await client.query(
+            `SELECT od.producto_venta, od.precio_unitario,
+                    COALESCE(desp.despachado, 0) AS despachado
+             FROM detalle_ordenes od
+             LEFT JOIN (
+                 SELECT dd.producto_venta, SUM(dd.cantidad) AS despachado
+                 FROM detalle_despachos_oc dd
+                 JOIN despachos_oc d ON d.id = dd.despacho_id
+                 WHERE d.orden = $1
+                 GROUP BY dd.producto_venta
+             ) desp ON desp.producto_venta = od.producto_venta
+             WHERE od.orden = $1`,
+            [codigo]
+        );
+
+        let nuevoTotal = 0;
+        for (const d of detRes.rows) {
+            const cant = parseFloat(d.despachado) || 0;
+            const precio = parseFloat(d.precio_unitario) || 0;
+            const subtotal = cant * precio;
+            nuevoTotal += subtotal;
+            if (cant > 0) {
+                await client.query(
+                    `UPDATE detalle_ordenes SET cantidad = $1, subtotal = $2
+                     WHERE orden = $3 AND producto_venta = $4`,
+                    [cant, subtotal, codigo, d.producto_venta]
+                );
+            } else {
+                // Producto nunca despachado: se elimina de la orden cerrada
+                await client.query(
+                    `DELETE FROM detalle_ordenes WHERE orden = $1 AND producto_venta = $2`,
+                    [codigo, d.producto_venta]
+                );
+            }
+        }
+        if (nuevoTotal <= 0) throw new Error('La orden no tiene cantidades despachadas');
+
+        await client.query(
+            `UPDATE ordenes_compra
+             SET estado = 'ENTREGADA',
+                 total = $1,
+                 fecha_entrega = $2,
+                 fecha_vencimiento = $2::date + dias_credito
+             WHERE codigo = $3`,
+            [nuevoTotal, fechaEntrega, codigo]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: `Orden ${codigo} cerrada como ENTREGADA por ${nuevoTotal.toFixed(2)}` });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error cerrando orden:', e);
+        res.status(500).json({ success: false, error: e.message });
     } finally {
         client.release();
     }
@@ -7015,13 +7288,19 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
             fechaVencimiento = d.toISOString().split('T')[0];
         }
 
-        // 7. Insertar factura_venta
+        // 7. Insertar factura_venta (con el centro de costo de proveeduría configurado)
+        const cfgProvRes = await client.query(
+            `SELECT ccosto_proveeduria FROM config_general WHERE empresa::text = $1`,
+            [String(orden.empresa)]
+        );
+        const ccostoProveeduria = cfgProvRes.rows[0]?.ccosto_proveeduria || null;
+
         await client.query(
             `INSERT INTO factura_venta
-             (codigo, fecha, cliente, orden_compra, subtotal, impuestos, total, estado, observaciones, fecha_vencimiento, valor_pagado)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDIENTE', $8, $9, 0)`,
+             (codigo, fecha, cliente, orden_compra, subtotal, impuestos, total, estado, observaciones, fecha_vencimiento, valor_pagado, ccosto)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDIENTE', $8, $9, 0, $10)`,
             [codigoFactura, fechaHoy, orden.cliente, codigo, subtotal, impuestos, total,
-             orden.observaciones || '', fechaVencimiento]
+             orden.observaciones || '', fechaVencimiento, ccostoProveeduria]
         );
 
         // 8. Insertar detalle_factura_venta
@@ -7040,6 +7319,13 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
         );
 
         // 10. Descargar del inventario (bodega maestra) con las cantidades reales de la orden
+        //     SOLO si la orden NO tiene despachos registrados (flujo nuevo: la salida
+        //     de inventario ya se hizo al registrar cada despacho — evitar doble descargue)
+        const despachosCheck = await client.query(
+            `SELECT COUNT(*)::int AS n FROM despachos_oc WHERE orden = $1`, [codigo]
+        );
+        const tieneDespachos = despachosCheck.rows[0].n > 0;
+
         const empresaActivaFact = req.headers['x-empresa'] || String(orden.empresa);
         const empResFact = await client.query(
             `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`,
@@ -7048,7 +7334,7 @@ app.post('/api/ordenes-compra/:codigo/generar-factura', async (req, res) => {
         const bodegaMaestraFact = empResFact.rows[0]?.bodega_maestra;
         const fechaDescarga = new Date().toISOString().split('T')[0];
 
-        if (bodegaMaestraFact) {
+        if (bodegaMaestraFact && !tieneDespachos) {
             for (const det of detallesRes.rows) {
                 if (parseFloat(det.cantidad) > 0) {
                     await client.query(
@@ -7926,7 +8212,7 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         const [cfgRes, gruposRes, ccostosRes] = await Promise.all([
             pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [emp]),
             pool.query(`SELECT TRIM(codigo) AS codigo, TRIM(nombre) AS nombre, TRIM(tipo) AS tipo FROM grupo_gastos ORDER BY codigo ASC`),
-            pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 ORDER BY nombre`, [emp]),
+            pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [emp]),
         ]);
         const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
 
@@ -8403,7 +8689,7 @@ app.get('/api/contabilidad/centrocostos', async (req, res) => {
 
         params.push(limit, offset);
         const dataRes = await pool.query(
-            `SELECT codigo, nombre, empresa, square_location_id
+            `SELECT codigo, nombre, empresa, square_location_id, COALESCE(activo, 'SI') AS activo
              FROM ccostos ${whereClause}
              ORDER BY ${sortBy} ${sortOrd}
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -8428,6 +8714,7 @@ app.get('/api/contabilidad/centrocostos/buscar', async (req, res) => {
             `SELECT codigo, nombre, empresa, square_location_id
              FROM ccostos
              WHERE empresa = $1 AND (codigo ILIKE $2 OR nombre ILIKE $2)
+               AND COALESCE(activo, 'SI') <> 'NO'
              ORDER BY codigo ASC LIMIT 20`,
             [empresa, `%${q}%`]
         );
@@ -8443,7 +8730,7 @@ app.get('/api/contabilidad/centrocostos/:codigo', async (req, res) => {
         const { codigo } = req.params;
         const empresa = req.query.empresa || req.headers['x-empresa'];
         const result = await pool.query(
-            `SELECT codigo, nombre, empresa, square_location_id
+            `SELECT codigo, nombre, empresa, square_location_id, COALESCE(activo, 'SI') AS activo
              FROM ccostos WHERE codigo = $1 AND empresa = $2`,
             [codigo, empresa]
         );
@@ -8470,8 +8757,8 @@ app.post('/api/contabilidad/centrocostos', async (req, res) => {
             return res.status(409).json({ success: false, error: `El código ${codigo} ya existe` });
         }
         const result = await pool.query(
-            `INSERT INTO ccostos (codigo, nombre, empresa, square_location_id)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
+            `INSERT INTO ccostos (codigo, nombre, empresa, square_location_id, activo)
+             VALUES ($1, $2, $3, $4, 'SI') RETURNING *`,
             [codigo.toUpperCase(), nombre.trim(), empresa, square_location_id || '']
         );
         res.status(201).json({ success: true, data: result.rows[0] });
@@ -8485,13 +8772,14 @@ app.post('/api/contabilidad/centrocostos', async (req, res) => {
 app.put('/api/contabilidad/centrocostos/:codigo', async (req, res) => {
     try {
         const { codigo } = req.params;
-        const { nombre, empresa, square_location_id } = req.body;
+        const { nombre, empresa, square_location_id, activo } = req.body;
         if (!nombre) return res.status(400).json({ success: false, error: 'nombre es requerido' });
 
         const result = await pool.query(
-            `UPDATE ccostos SET nombre = $1, square_location_id = $2
-             WHERE codigo = $3 AND empresa = $4 RETURNING *`,
-            [nombre.trim(), square_location_id || '', codigo, empresa]
+            `UPDATE ccostos SET nombre = $1, square_location_id = $2,
+                    activo = COALESCE($3, activo, 'SI')
+             WHERE codigo = $4 AND empresa = $5 RETURNING *`,
+            [nombre.trim(), square_location_id || '', activo === 'SI' || activo === 'NO' ? activo : null, codigo, empresa]
         );
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Centro de costos no encontrado' });
         res.json({ success: true, data: result.rows[0] });
@@ -9537,6 +9825,32 @@ pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_materia_prim
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_otros VARCHAR(10)`).catch(() => {});
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_efectivo VARCHAR(10)`).catch(() => {});
 
+// Estado activo/inactivo de centros de costo (solo los activos aparecen en los menús)
+pool.query(`ALTER TABLE ccostos ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
+
+// Centro de costo asignado al módulo de Proveeduría/Franquicias (empresa PROVEEDOR)
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS ccosto_proveeduria VARCHAR(10)`).catch(() => {});
+
+// Centro de costo en facturas de venta (para P&L por ccosto)
+pool.query(`ALTER TABLE factura_venta ADD COLUMN IF NOT EXISTS ccosto VARCHAR(10)`).catch(() => {});
+
+// Despachos (totales o parciales) de órdenes de compra de proveeduría
+pool.query(`CREATE TABLE IF NOT EXISTS despachos_oc (
+    id SERIAL PRIMARY KEY,
+    orden VARCHAR(30) NOT NULL,
+    numero INTEGER NOT NULL,
+    fecha DATE NOT NULL,
+    observaciones TEXT,
+    empresa VARCHAR(10),
+    creado TIMESTAMP DEFAULT NOW()
+)`).catch(() => {});
+pool.query(`CREATE TABLE IF NOT EXISTS detalle_despachos_oc (
+    id SERIAL PRIMARY KEY,
+    despacho_id INTEGER NOT NULL REFERENCES despachos_oc(id) ON DELETE CASCADE,
+    producto_venta VARCHAR(30) NOT NULL,
+    cantidad NUMERIC(14,4) NOT NULL
+)`).catch(() => {});
+
 // GET /api/config-general
 app.get('/api/config-general', async (req, res) => {
     const { empresa } = req.query;
@@ -9565,7 +9879,8 @@ app.put('/api/config-general', async (req, res) => {
         'cta_ventas', 'cta_comisiones', 'cta_descuentos_ventas',
         'cta_propinas', 'cta_impuestos', 'cta_egresos_impuestos',
         'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo',
-        'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo'
+        'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo',
+        'ccosto_proveeduria'
     ];
 
     const sets = [];
