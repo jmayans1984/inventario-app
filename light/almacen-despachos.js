@@ -137,7 +137,7 @@ function renderLista(ordenes) {
             <div class="orden-card-header">
                 <div>
                     <div class="orden-id">#${o.id} · ${fmtFecha(o.fecha)}</div>
-                    <div class="orden-dest">🏪 ${o.cc_destino_nombre || o.cc_destino}</div>
+                    <div class="orden-dest">${o.tipo === 'VENTA' ? '🛒' : '🏪'} ${o.destino_nombre || o.cc_destino_nombre || o.cc_destino || o.orden_compra || '—'}</div>
                     <div class="orden-meta">${o.total_items} productos · ${parseFloat(o.total_unidades||0).toFixed(0)} unidades</div>
                 </div>
                 <span class="estado-badge est-${o.estado}">${estadoLabel(o.estado)}</span>
@@ -213,7 +213,7 @@ function renderDetalle() {
 
         <div class="det-header-band">
             <h2>🚚 Orden #${o.id}</h2>
-            <p>${fmtFecha(o.fecha)} · ${o.cc_origen_nombre} → ${o.cc_destino_nombre}</p>
+            <p>${fmtFecha(o.fecha)} · ${o.cc_origen_nombre} → ${o.tipo === 'VENTA' ? (o.destino_nombre || o.orden_compra) : o.cc_destino_nombre}</p>
             <p style="margin-top:6px"><span class="estado-badge est-${est}">${estadoLabel(est)}</span></p>
         </div>
 
@@ -340,7 +340,7 @@ function renderEscaneo() {
         <div class="scan-hero-icon">📦</div>
         <div class="scan-hero-info">
             <div class="scan-hero-title">📦 PACKING — Despacho</div>
-            <div class="scan-hero-sub">${ordenActiva.cc_destino_nombre || ordenActiva.cc_destino} · #${ordenActiva.id}</div>
+            <div class="scan-hero-sub">${ordenActiva.destino_nombre || ordenActiva.cc_destino_nombre || ordenActiva.cc_destino || ordenActiva.orden_compra} · #${ordenActiva.id}</div>
         </div>
         <div class="scan-hero-stats">
             <div class="scan-hero-count" id="scanHeroCount">0/0</div>

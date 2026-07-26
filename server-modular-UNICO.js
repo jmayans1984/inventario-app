@@ -1026,11 +1026,17 @@ app.get('/api/almacen/despachos', async (req, res) => {
             SELECT od.*,
                    co.nombre AS cc_origen_nombre,
                    cd.nombre AS cc_destino_nombre,
+                   ec.nombre AS cliente_nombre,
+                   CASE WHEN od.tipo = 'VENTA'
+                        THEN COALESCE(ec.nombre, od.orden_compra)
+                        ELSE cd.nombre END AS destino_nombre,
                    (SELECT COUNT(*) FROM ordenes_despacho_detalle WHERE orden_id=od.id) AS total_items,
                    (SELECT COALESCE(SUM(cant_requerida),0) FROM ordenes_despacho_detalle WHERE orden_id=od.id) AS total_unidades
             FROM ordenes_despacho od
             LEFT JOIN ccostos co ON co.codigo=od.cc_origen AND co.empresa=od.empresa
             LEFT JOIN ccostos cd ON cd.codigo=od.cc_destino AND cd.empresa=od.empresa
+            LEFT JOIN ordenes_compra oc ON oc.codigo = od.orden_compra
+            LEFT JOIN empresas ec ON oc.cliente::text = ec.codigo::text
             WHERE ${conds.join(' AND ')}
             ORDER BY od.fecha DESC, od.id DESC
         `, params);
@@ -1065,10 +1071,16 @@ app.get('/api/almacen/despachos/:id', async (req, res) => {
             pool.query(`
                 SELECT od.*,
                        co.nombre AS cc_origen_nombre,
-                       cd.nombre AS cc_destino_nombre
+                       cd.nombre AS cc_destino_nombre,
+                       ec.nombre AS cliente_nombre,
+                       CASE WHEN od.tipo = 'VENTA'
+                            THEN COALESCE(ec.nombre, od.orden_compra)
+                            ELSE cd.nombre END AS destino_nombre
                 FROM ordenes_despacho od
                 LEFT JOIN ccostos co ON co.codigo=od.cc_origen AND co.empresa=od.empresa
                 LEFT JOIN ccostos cd ON cd.codigo=od.cc_destino AND cd.empresa=od.empresa
+                LEFT JOIN ordenes_compra oc ON oc.codigo = od.orden_compra
+                LEFT JOIN empresas ec ON oc.cliente::text = ec.codigo::text
                 WHERE od.id=$1 AND od.empresa=$2::integer
             `, [req.params.id, empresa]),
             pool.query(`

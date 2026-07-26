@@ -116,7 +116,7 @@
                 <div class="td-destino">
                   <template v-if="d.tipo === 'VENTA'">
                     <span class="tipo-venta-badge"><v-icon size="12">mdi-cart-arrow-up</v-icon> VENTA</span>
-                    <span class="td-oc">{{ d.observaciones || d.orden_compra }}</span>
+                    <span class="td-oc">{{ d.cliente_nombre || d.destino_nombre || d.orden_compra }}</span>
                   </template>
                   <template v-else>
                     <v-icon size="14" color="#047857">mdi-store-outline</v-icon>
@@ -393,7 +393,7 @@
               <div class="dlg-header-icon"><v-icon color="white" size="20">mdi-clipboard-text-outline</v-icon></div>
               <div>
                 <div class="dlg-title">Orden #{{ detalleActivo.id }} — {{ estadoLabel(detalleActivo.estado) }}</div>
-                <div class="dlg-sub">{{ fmtFecha(detalleActivo.fecha) }} · {{ detalleActivo.tipo === 'VENTA' ? (detalleActivo.observaciones || detalleActivo.orden_compra) : detalleActivo.cc_destino_nombre }}</div>
+                <div class="dlg-sub">{{ fmtFecha(detalleActivo.fecha) }} · {{ detalleActivo.tipo === 'VENTA' ? (detalleActivo.cliente_nombre || detalleActivo.orden_compra) : detalleActivo.cc_destino_nombre }}</div>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
@@ -417,7 +417,7 @@
                 <span class="det-lbl">{{ detalleActivo.tipo === 'VENTA' ? 'Destino (Venta)' : 'CC Destino' }}</span>
                 <span class="det-val">
                   <span v-if="detalleActivo.tipo === 'VENTA'" class="tipo-venta-badge" style="margin-right:6px"><v-icon size="12">mdi-cart-arrow-up</v-icon> VENTA</span>
-                  {{ detalleActivo.tipo === 'VENTA' ? (detalleActivo.observaciones || detalleActivo.orden_compra) : detalleActivo.cc_destino_nombre }}
+                  {{ detalleActivo.tipo === 'VENTA' ? (detalleActivo.cliente_nombre || detalleActivo.orden_compra) : detalleActivo.cc_destino_nombre }}
                 </span>
               </div>
               <div class="det-info-item">

@@ -46,7 +46,7 @@ function renderDespachos(despachos) {
         <div class="inf-item">
             <div class="inf-item-info">
                 <div class="inf-item-id">#${d.id} · ${fmtFecha(d.fecha)}</div>
-                <div class="inf-item-dest">🏪 ${d.cc_destino_nombre || d.cc_destino}</div>
+                <div class="inf-item-dest">${d.tipo === 'VENTA' ? '🛒' : '🏪'} ${d.destino_nombre || d.cc_destino_nombre || d.cc_destino || d.orden_compra || '—'}</div>
                 <div class="inf-item-meta">${d.total_items} productos · ${parseFloat(d.total_unidades || 0).toFixed(0)} unidades · <span style="color:var(--text-tertiary)">${estadoLabel(d.estado)}</span></div>
             </div>
             <button class="inf-item-btn" onclick="imprimirDespacho(${d.id})">
@@ -103,7 +103,7 @@ async function imprimirDespacho(id) {
 
             <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:20px">
                 <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;display:block">CC Origen</label><span style="font-size:13px;font-weight:600;margin-top:2px;display:block">${o.cc_origen_nombre}</span></div>
-                <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;display:block">CC Destino</label><span style="font-size:13px;font-weight:600;margin-top:2px;display:block">${o.cc_destino_nombre}</span></div>
+                <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;display:block">${o.tipo === 'VENTA' ? 'Destino (Venta)' : 'CC Destino'}</label><span style="font-size:13px;font-weight:600;margin-top:2px;display:block">${o.tipo === 'VENTA' ? (o.destino_nombre || o.orden_compra) : o.cc_destino_nombre}</span></div>
                 <div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;display:block">Fecha</label><span style="font-size:13px;font-weight:600;margin-top:2px;display:block">${fmtFecha(o.fecha)}</span></div>
             </div>
 
