@@ -19,7 +19,7 @@
           </div>
           <div>
             <h1 class="iv-title">IMPORTAR VENTAS SQUARE</h1>
-            <p class="iv-sub">Carga los dos CSV exportados desde Square para ver el resumen del período</p>
+            <p class="iv-sub">Carga el CSV exportado desde Square para ver el resumen del período</p>
           </div>
         </div>
       </div>
@@ -156,68 +156,39 @@
         </div>
       </div>
 
-      <!-- ZONA DE CARGA -->
+      <!-- ZONA DE CARGA (archivo único combinado) -->
       <div class="iv-upload-row">
 
-        <!-- Resumen de ventas -->
         <div
-          class="drop-zone"
-          :class="{ 'drop-zone--active': dragging[0], 'drop-zone--loaded': resumen }"
+          class="drop-zone drop-zone--single"
+          :class="{ 'drop-zone--active': dragging[0], 'drop-zone--loaded': resumen || articulos }"
           @dragover.prevent="dragging[0] = true"
           @dragleave="dragging[0] = false"
-          @drop.prevent="onDrop($event, 'resumen')"
-          @click="$refs.inputResumen.click()"
+          @drop.prevent="onDrop($event)"
+          @click="$refs.inputArchivo.click()"
         >
-          <input ref="inputResumen" type="file" accept=".csv" hidden @change="onFileInput($event, 'resumen')" />
-          <div v-if="!resumen" class="drop-content">
+          <input ref="inputArchivo" type="file" accept=".csv" hidden @change="onFileInput($event)" />
+          <div v-if="!resumen && !articulos" class="drop-content">
             <div class="drop-icon-wrap drop-icon-blue">
               <v-icon size="28" color="white">mdi-file-chart-outline</v-icon>
             </div>
-            <div class="drop-title">Resumen de Ventas</div>
-            <div class="drop-sub">Arrastra o haz click para cargar</div>
-            <div class="drop-hint"><code>resumen_ventas-YYYY-MM-DD.csv</code></div>
+            <div class="drop-title">Reporte de Ventas Square (CSV)</div>
+            <div class="drop-sub">Arrastra o haz click para cargar el archivo</div>
+            <div class="drop-hint"><code>ventas-YYYY-MM-DD-YYYY-MM-DD.csv</code></div>
           </div>
           <div v-else class="drop-loaded">
             <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
-            <div class="drop-loaded-name">{{ resumenFileName }}</div>
-            <div class="drop-loaded-sub">{{ resumen.periodo }}</div>
-            <div v-if="resumen.ubicacion" class="drop-loaded-loc">
+            <div class="drop-loaded-name">{{ archivoFileName }}</div>
+            <div class="drop-loaded-sub">{{ (resumen || articulos)?.periodo }}</div>
+            <div class="drop-loaded-stats" v-if="articulos">
+              <span class="drop-stat"><v-icon size="11" color="#8b5cf6">mdi-package-variant-closed</v-icon> {{ articulos.items.length }} artículos</span>
+              <span class="drop-stat"><v-icon size="11" color="#f59e0b">mdi-tune-variant</v-icon> {{ articulos.modificadores.length }} modificadores</span>
+            </div>
+            <div v-if="(resumen || articulos)?.ubicacion" class="drop-loaded-loc">
               <v-icon size="11" color="#06b6d4">mdi-map-marker-outline</v-icon>
-              {{ resumen.ubicacion }}
+              {{ (resumen || articulos).ubicacion }}
             </div>
-            <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar('resumen')">
-              <v-icon size="14">mdi-close</v-icon> Quitar
-            </v-btn>
-          </div>
-        </div>
-
-        <!-- Artículos vendidos -->
-        <div
-          class="drop-zone"
-          :class="{ 'drop-zone--active': dragging[1], 'drop-zone--loaded': articulos }"
-          @dragover.prevent="dragging[1] = true"
-          @dragleave="dragging[1] = false"
-          @drop.prevent="onDrop($event, 'articulos')"
-          @click="$refs.inputArticulos.click()"
-        >
-          <input ref="inputArticulos" type="file" accept=".csv" hidden @change="onFileInput($event, 'articulos')" />
-          <div v-if="!articulos" class="drop-content">
-            <div class="drop-icon-wrap drop-icon-purple">
-              <v-icon size="28" color="white">mdi-package-variant-closed</v-icon>
-            </div>
-            <div class="drop-title">Artículos Vendidos</div>
-            <div class="drop-sub">Arrastra o haz click para cargar</div>
-            <div class="drop-hint"><code>ventas_articulos-YYYY-MM-DD.csv</code></div>
-          </div>
-          <div v-else class="drop-loaded">
-            <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
-            <div class="drop-loaded-name">{{ articulosFileName }}</div>
-            <div class="drop-loaded-sub">{{ articulos.items.length }} artículos · {{ articulos.modificadores.length }} modificadores</div>
-            <div v-if="articulos.ubicacion" class="drop-loaded-loc">
-              <v-icon size="11" color="#06b6d4">mdi-map-marker-outline</v-icon>
-              {{ articulos.ubicacion }}
-            </div>
-            <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar('articulos')">
+            <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar()">
               <v-icon size="14">mdi-close</v-icon> Quitar
             </v-btn>
           </div>
@@ -242,7 +213,7 @@
             variant="outlined"
             color="#94a3b8"
             size="small"
-            @click="limpiar('resumen'); limpiar('articulos')"
+            @click="limpiar()"
           >
             <v-icon size="15" class="mr-1">mdi-close</v-icon>
             Cancelar
@@ -1315,6 +1286,7 @@ const resumen          = ref(null)
 const articulos        = ref(null)
 const resumenFileName  = ref('')
 const articulosFileName= ref('')
+const archivoFileName  = ref('')
 const parseError       = ref('')
 const dragging         = ref([false, false])
 const catFiltro        = ref('')
@@ -2139,83 +2111,60 @@ async function deleteLine(id) {
 }
 
 // ─── File handling ────────────────────────────────────────────
-function detectType(filename, buffer) {
-  const name = filename.toLowerCase()
-  // Nombres en español
-  if (name.includes('resumen'))  return 'resumen'
-  if (name.includes('articulo') || name.includes('artículo')) return 'articulos'
-  // Nombres en inglés (Square exporta así)
-  if (name.includes('sales_summary') || name.includes('sales-summary') ||
-      name.includes('sales summary')) return 'resumen'
-  if (name.includes('item_sales') || name.includes('item-sales') ||
-      name.includes('item sales'))  return 'articulos'
-  // Detección por contenido (primeros 600 bytes)
-  const text  = decodeAny(buffer.slice ? buffer.slice(0, 600) : buffer)
-  const lower = text.toLowerCase()
-  if (lower.includes('sales summary') || lower.includes('resumen de ventas') ||
-      lower.includes('gross sales'))   return 'resumen'
-  return 'articulos'
-}
-
-async function processFile(file, forcedType) {
+// Procesa un ÚNICO archivo CSV combinado (Square exporta todas las secciones
+// en un solo archivo: Key Stats, Sales Summary, Payments, Item Sales, Modifier
+// Sales). Los dos parsers escanean el archivo completo y extraen su sección,
+// funcionando tanto en inglés como en español.
+async function processFile(file) {
   parseError.value = ''
   try {
     const buffer = await file.arrayBuffer()
-    const type   = forcedType || detectType(file.name, buffer)
+    archivoFileName.value   = file.name
+    resumenFileName.value   = file.name
+    articulosFileName.value = file.name
 
-    if (type === 'resumen') {
-      resumenFileName.value = file.name
-      resumen.value = parseResumen(buffer, file.name)
-    } else {
-      articulosFileName.value = file.name
-      articulos.value = parseArticulos(buffer, file.name)
-      await enrichWithRecetas()
-      await fetchMappings()
-      await calcularConsumo()
-    }
-    // El grid siempre se queda en la pestaña "Resumen" al cargar un CSV
-    activeTab.value = resumen.value ? 'resumen' : 'articulos'
+    resumen.value   = parseResumen(buffer, file.name)
+    articulos.value = parseArticulos(buffer, file.name)
+
+    await enrichWithRecetas()
+    await fetchMappings()
+    await calcularConsumo()
+
+    activeTab.value = 'resumen'
   } catch (e) {
     parseError.value = `Error al parsear "${file.name}": ${e.message}`
     console.error(e)
   }
 }
 
-function onDrop(e, type) {
+function onDrop(e) {
   dragging.value = [false, false]
   const file = e.dataTransfer.files[0]
-  if (file) processFile(file, type)
+  if (file) processFile(file)
 }
 
-function onFileInput(e, type) {
+function onFileInput(e) {
   const file = e.target.files[0]
-  if (file) processFile(file, type)
+  if (file) processFile(file)
   e.target.value = ''
 }
 
-function limpiar(type) {
-  if (type === 'resumen') {
-    resumen.value = null
-    resumenFileName.value = ''
-    if (activeTab.value === 'resumen') activeTab.value = articulos.value ? 'articulos' : 'resumen'
-  }
-  if (type === 'articulos') {
-    articulos.value = null
-    articulosFileName.value = ''
-    consumo.value = []
-    consumoError.value = ''
-    if (['articulos','modificadores','consumo'].includes(activeTab.value)) {
-      activeTab.value = resumen.value ? 'resumen' : 'resumen'
-    }
-  }
+function limpiar() {
+  resumen.value = null
+  articulos.value = null
+  resumenFileName.value = ''
+  articulosFileName.value = ''
+  archivoFileName.value = ''
+  consumo.value = []
+  consumoError.value = ''
+  activeTab.value = 'resumen'
   parseError.value = ''
 }
 
 // Tras guardar exitosamente: limpiar los CSV cargados y los selects
 // de Centro de Costo / Cta. Square para el siguiente día a importar
 function limpiarFormularioImportacion() {
-  limpiar('resumen')
-  limpiar('articulos')
+  limpiar()
   configCcosto.value    = null
   configCtaSquare.value = null
 }
@@ -2245,10 +2194,9 @@ function limpiarFormularioImportacion() {
 
 /* ── Drop zones ────────────────────────────────────── */
 .iv-upload-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  display: grid; grid-template-columns: 1fr; gap: 16px;
   margin-bottom: 24px;
 }
-@media (max-width: 640px) { .iv-upload-row { grid-template-columns: 1fr; } }
 
 .drop-zone {
   border: 2px dashed rgba(var(--v-theme-on-surface), 0.18);
@@ -2286,6 +2234,12 @@ function limpiarFormularioImportacion() {
   background: rgba(6,182,212,0.08);
   padding: 2px 8px;
   border-radius: 10px;
+}
+.drop-loaded-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 2px; }
+.drop-stat {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.6);
 }
 
 /* Advertencia de mismatch en el diálogo */
