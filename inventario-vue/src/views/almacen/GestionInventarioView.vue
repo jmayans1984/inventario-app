@@ -1,36 +1,18 @@
-﻿<template>
+<template>
   <MainLayout>
     <div class="gi-container">
 
-      <!-- BREADCRUMB -->
-      <div class="gi-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Gestión de Inventario</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="gi-header">
-        <div class="gi-header-left">
-          <div class="gi-icon-wrap">
-            <v-icon size="22" color="white">mdi-history</v-icon>
-          </div>
-          <div>
-            <h1 class="gi-title">GESTIÓN DE INVENTARIO</h1>
-            <p class="gi-sub">Registro de entradas, salidas y traslados de productos</p>
-          </div>
-        </div>
-        <v-btn
-          variant="tonal"
-          size="small"
-          prepend-icon="mdi-clipboard-text-clock-outline"
-          @click="abrirHistorial"
-        >
-          Historial / Editar
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Gestión de Inventario"
+        description="Registro de entradas, salidas y traslados de productos"
+        :crumbs="['Almacén', 'Procesos', 'Gestión de Inventario']"
+      >
+        <template #actions>
+          <v-btn variant="tonal" size="small" prepend-icon="mdi-clipboard-text-clock-outline" @click="abrirHistorial">
+            Historial / Editar
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- BANNER DE MODO EDICIÓN -->
       <v-alert
@@ -139,7 +121,7 @@
         <!-- Barra superior del grid -->
         <div class="gi-grid-header">
           <div class="gi-grid-title">
-            <v-icon size="18" class="mr-1" color="#0891b2">mdi-package-variant</v-icon>
+            <v-icon size="18" class="mr-1" color="primary">mdi-package-variant</v-icon>
             Productos de Inventario
             <span class="gi-grid-sub">— ingresa las cantidades del movimiento</span>
           </div>
@@ -154,14 +136,14 @@
               prepend-inner-icon="mdi-magnify"
               style="max-width:240px"
             />
-            <v-btn variant="tonal" size="small" color="#8b5cf6" prepend-icon="mdi-camera-outline" @click="abrirOcr" style="display:none">
+            <v-btn variant="tonal" size="small" color="primary" prepend-icon="mdi-camera-outline" @click="abrirOcr" style="display:none">
               Leer foto
             </v-btn>
             <v-btn
               v-if="filtroActivo === 'punto_venta'"
               variant="tonal"
               size="small"
-              color="#0891b2"
+              color="primary"
               prepend-icon="mdi-warehouse"
               @click="abrirProductosBodega"
             >
@@ -219,10 +201,10 @@
               >
                 <img v-if="ocrPreview" :src="ocrPreview" class="ocr-img-preview" alt="preview" />
                 <div v-else class="ocr-dropzone-inner">
-                  <v-icon size="48" color="#8b5cf6" class="mb-3">mdi-image-plus</v-icon>
+                  <v-icon size="48" color="primary" class="mb-3">mdi-image-plus</v-icon>
                   <p class="ocr-drop-txt">Haz clic o arrastra la foto aquí</p>
                   <p class="ocr-drop-sub">JPG, PNG, WEBP · también puedes usar la cámara</p>
-                  <v-btn class="mt-4" color="#8b5cf6" variant="tonal" size="small" prepend-icon="mdi-camera">
+                  <v-btn class="mt-4" color="primary" variant="tonal" size="small" prepend-icon="mdi-camera">
                     Abrir cámara
                   </v-btn>
                 </div>
@@ -237,7 +219,7 @@
                   @click="ocrPreview=''; ocrImagen=null">
                   Cambiar imagen
                 </v-btn>
-                <v-btn color="#8b5cf6" variant="flat" size="small" prepend-icon="mdi-text-recognition"
+                <v-btn color="primary" variant="flat" size="small" prepend-icon="mdi-text-recognition"
                   @click="procesarOcr">
                   Procesar OCR
                 </v-btn>
@@ -251,9 +233,9 @@
 
             <!-- ── PASO 2: Procesando ── -->
             <div v-if="ocrPaso === 2" class="ocr-processing">
-              <v-icon size="56" color="#8b5cf6" class="mb-4">mdi-text-recognition</v-icon>
+              <v-icon size="56" color="primary" class="mb-4">mdi-text-recognition</v-icon>
               <p class="ocr-proc-txt">Reconociendo texto...</p>
-              <v-progress-linear :model-value="ocrProgreso" color="#8b5cf6" height="8" rounded class="mt-4" style="max-width:400px" />
+              <v-progress-linear :model-value="ocrProgreso" color="primary" height="8" rounded class="mt-4" style="max-width:400px" />
               <p class="ocr-proc-sub mt-2">{{ ocrProgreso }}% completado</p>
             </div>
 
@@ -261,7 +243,7 @@
             <div v-if="ocrPaso === 3">
               <div class="ocr-review-header">
                 <div class="ocr-review-stats">
-                  <v-chip color="#8b5cf6" size="small" variant="tonal" prepend-icon="mdi-format-list-bulleted">
+                  <v-chip color="primary" size="small" variant="tonal" prepend-icon="mdi-format-list-bulleted">
                     {{ ocrItems.length }} líneas detectadas
                   </v-chip>
                   <v-chip color="success" size="small" variant="tonal" prepend-icon="mdi-check-circle">
@@ -338,7 +320,7 @@
             <v-btn variant="text" @click="cerrarOcr">Cancelar</v-btn>
             <v-spacer />
             <v-btn v-if="ocrPaso === 3 && ocrItems.some(i => i.productoEdit && i.cantidadEdit > 0)"
-              color="#8b5cf6" variant="flat" rounded="lg" prepend-icon="mdi-table-arrow-down"
+              color="primary" variant="flat" rounded="lg" prepend-icon="mdi-table-arrow-down"
               @click="aplicarOcr">
               Aplicar al Grid ({{ ocrItems.filter(i => i.productoEdit && i.cantidadEdit > 0).length }} productos)
             </v-btn>
@@ -402,7 +384,7 @@
 
         <!-- Loading -->
         <div v-else-if="loadingProductos" class="gi-loading">
-          <v-progress-circular indeterminate color="#0891b2" size="32" />
+          <v-progress-circular indeterminate color="primary" size="32" />
           <span class="ml-3" style="font-size:13px;color:rgba(var(--v-theme-on-surface),.5)">Cargando productos...</span>
         </div>
 
@@ -482,7 +464,7 @@
       <!-- FOOTER -->
       <div class="gi-footer">
         <div class="gi-footer-info">
-          <v-icon size="16" color="#0891b2" class="mr-1">mdi-information-outline</v-icon>
+          <v-icon size="16" color="primary" class="mr-1">mdi-information-outline</v-icon>
           <span v-if="productosConCantidad === 0" style="color:rgba(var(--v-theme-on-surface),.5)">
             Ingresa cantidades para los productos del movimiento
           </span>
@@ -514,17 +496,17 @@
       <v-dialog v-model="dlgExito" max-width="420">
         <v-card rounded="lg">
           <v-card-text class="pa-6" style="text-align:center">
-            <v-icon size="56" color="#10b981" class="mb-3">mdi-check-circle</v-icon>
+            <v-icon size="56" color="success" class="mb-3">mdi-check-circle</v-icon>
             <div style="font-size:18px;font-weight:700;color:#10b981;margin-bottom:8px">¡Guardado correctamente!</div>
             <div style="font-size:13px;color:rgba(var(--v-theme-on-surface),.6)">{{ exitoMsg }}</div>
           </v-card-text>
           <v-divider />
           <v-card-actions class="pa-4">
-            <v-btn color="#0891b2" variant="tonal" prepend-icon="mdi-printer-outline" @click="imprimirMovimientoActual">
+            <v-btn color="primary" variant="tonal" prepend-icon="mdi-printer-outline" @click="imprimirMovimientoActual">
               Imprimir
             </v-btn>
             <v-spacer />
-            <v-btn color="#10b981" variant="flat" @click="dlgExito = false">Aceptar</v-btn>
+            <v-btn color="success" variant="flat" @click="dlgExito = false">Aceptar</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -533,7 +515,7 @@
       <v-dialog v-model="dlgConflicto" max-width="480">
         <v-card rounded="lg">
           <v-card-title class="dlg-title">
-            <v-icon size="22" class="mr-2" color="#f59e0b">mdi-alert-circle</v-icon>
+            <v-icon size="22" class="mr-2" color="warning">mdi-alert-circle</v-icon>
             Registros Existentes
           </v-card-title>
           <v-divider />
@@ -568,7 +550,7 @@
             <v-btn color="error" variant="elevated" prepend-icon="mdi-delete-sweep" :loading="guardando" @click="guardar('replace')">
               Eliminar registros previos y reemplazar
             </v-btn>
-            <v-btn color="#0891b2" variant="outlined" prepend-icon="mdi-plus-circle-outline" :loading="guardando" @click="guardar('add')">
+            <v-btn color="primary" variant="outlined" prepend-icon="mdi-plus-circle-outline" :loading="guardando" @click="guardar('add')">
               Adicionar a las cantidades existentes
             </v-btn>
             <v-btn variant="text" :disabled="guardando" @click="dlgConflicto=false">Cancelar</v-btn>
@@ -614,7 +596,7 @@
 
             <!-- Loading -->
             <div v-if="historialLoading" class="d-flex justify-center align-center pa-8">
-              <v-progress-circular indeterminate color="#3b82f6" />
+              <v-progress-circular indeterminate color="primary" />
             </div>
 
             <!-- Vacío -->
@@ -678,7 +660,7 @@
                 <!-- Botón editar -->
                 <v-btn
                   size="small"
-                  color="#f59e0b"
+                  color="warning"
                   variant="tonal"
                   prepend-icon="mdi-pencil"
                   style="flex-shrink:0"
@@ -701,6 +683,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import { formatFecha, fechaInputLocal } from '../../utils/formatters'
@@ -1412,7 +1395,7 @@ function aplicarOcr() {
 
 /* Breadcrumb */
 .gi-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
+.bc-root    { font-size: 12px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
 .bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
@@ -1420,7 +1403,7 @@ function aplicarOcr() {
 /* Header */
 .gi-header      { display: flex; align-items: center; margin-bottom: 20px; }
 .gi-header-left { display: flex; align-items: center; gap: 16px; }
-.gi-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,.35); flex-shrink: 0; }
+.gi-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,var(--indigo),var(--indigo)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,.35); flex-shrink: 0; }
 .gi-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .gi-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
@@ -1435,8 +1418,8 @@ function aplicarOcr() {
 .gi-loading     { display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
 .filtro-badge-wrap { padding: 8px 12px 0; }
 .filtro-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-.filtro-bodega { background: rgba(16,185,129,.15); color: #10b981; }
-.filtro-pventa  { background: rgba(245,158,11,.15); color: #f59e0b; }
+.filtro-bodega { background: rgba(16,185,129,.15); color: var(--success); }
+.filtro-pventa  { background: rgba(245,158,11,.15); color: var(--gold); }
 
 /* Tabla */
 .gi-table  { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -1445,7 +1428,7 @@ function aplicarOcr() {
 
 .gi-grupo-row  { background: rgba(139,92,246,.06); }
 .gi-grupo-cell { padding: 7px 14px !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
-.gi-grupo-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #8b5cf6; }
+.gi-grupo-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--indigo); }
 .gi-grupo-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: 8px; }
 
 .gi-prod-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); transition: background .1s; }
@@ -1472,8 +1455,8 @@ function aplicarOcr() {
   font-size: 13px; text-align: right; outline: none;
   transition: border-color .15s, background .15s;
 }
-.gi-cant-input:focus { border-color: #0891b2; background: rgba(8,145,178,.06); }
-.gi-cant-active { border-color: #0891b2; background: rgba(8,145,178,.08); font-weight: 600; color: #0891b2; }
+.gi-cant-input:focus { border-color: var(--indigo); background: rgba(8,145,178,.06); }
+.gi-cant-active { border-color: var(--indigo); background: rgba(8,145,178,.08); font-weight: 600; color: var(--indigo); }
 .gi-cant-input { text-align: right; }
 
 .gi-empty { text-align: center !important; padding: 40px !important; }
@@ -1484,11 +1467,11 @@ function aplicarOcr() {
 .gi-footer-btns { display: flex; align-items: center; gap: 10px; }
 
 /* Badges */
-.badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
-.badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
+.badge-cod { background: rgba(6,182,212,.15); color: var(--indigo); padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
+.badge-und { background: rgba(139,92,246,.12); color: var(--indigo); padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
 
 /* Popup Productos Bodega Maestra */
-.popup-grupo-header { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #0891b2; padding: 8px 4px 4px; }
+.popup-grupo-header { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--indigo); padding: 8px 4px 4px; }
 .popup-prod-item { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; cursor: pointer; }
 .popup-prod-item:hover { background: rgba(var(--v-theme-on-surface),.05); }
 .popup-prod-nombre { flex: 1; font-size: 13px; }
@@ -1510,7 +1493,7 @@ function aplicarOcr() {
 }
 .ocr-icon-wrap {
   width: 38px; height: 38px; border-radius: 10px;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 12px rgba(139,92,246,.4);
   flex-shrink: 0;
@@ -1521,7 +1504,7 @@ function aplicarOcr() {
 /* Stepper */
 .ocr-steps { display: flex; align-items: center; justify-content: center; gap: 0; padding: 14px 20px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06); }
 .ocr-step  { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.4); }
-.ocr-step.active { color: #8b5cf6; }
+.ocr-step.active { color: var(--indigo); }
 .ocr-step.done   { color: #22c55e; }
 .ocr-step-num {
   width: 22px; height: 22px; border-radius: 50%;
@@ -1529,7 +1512,7 @@ function aplicarOcr() {
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700;
 }
-.ocr-step.active .ocr-step-num { background: #8b5cf6; color: white; }
+.ocr-step.active .ocr-step-num { background: var(--indigo); color: white; }
 .ocr-step.done   .ocr-step-num { background: #22c55e; color: white; }
 .ocr-step-line { flex: 1; height: 2px; background: rgba(var(--v-theme-on-surface),.1); margin: 0 8px; max-width: 60px; }
 .ocr-step-line.done { background: #22c55e; }
@@ -1544,8 +1527,8 @@ function aplicarOcr() {
   transition: border-color .2s, background .2s;
   background: rgba(139,92,246,.03);
 }
-.ocr-dropzone:hover { border-color: #8b5cf6; background: rgba(139,92,246,.06); }
-.ocr-dropzone--preview { border-style: solid; border-color: #8b5cf6; padding: 8px; }
+.ocr-dropzone:hover { border-color: var(--indigo); background: rgba(139,92,246,.06); }
+.ocr-dropzone--preview { border-style: solid; border-color: var(--indigo); padding: 8px; }
 .ocr-dropzone-inner { text-align: center; padding: 20px; }
 .ocr-drop-txt { font-size: 15px; font-weight: 600; margin: 0; }
 .ocr-drop-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 4px 0 0; }
@@ -1588,5 +1571,5 @@ function aplicarOcr() {
   font-size: 13px; font-weight: 600;
   outline: none;
 }
-.ocr-cant-input:focus { border-color: #8b5cf6; background: rgba(139,92,246,.06); }
+.ocr-cant-input:focus { border-color: var(--indigo); background: rgba(139,92,246,.06); }
 </style>

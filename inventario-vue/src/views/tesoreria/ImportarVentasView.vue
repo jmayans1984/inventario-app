@@ -2,27 +2,11 @@
   <MainLayout>
     <div class="iv-wrap">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" color="#475569">mdi-chevron-right</v-icon>
-        <span class="bc-cur">Importar Ventas Square</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="iv-header">
-        <div class="iv-header-left">
-          <div class="iv-icon-wrap">
-            <v-icon size="26" color="white">mdi-storefront-outline</v-icon>
-          </div>
-          <div>
-            <h1 class="iv-title">IMPORTAR VENTAS SQUARE</h1>
-            <p class="iv-sub">Carga el CSV exportado desde Square para ver el resumen del período</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Importar Ventas Square"
+        description="Carga el CSV exportado desde Square para ver el resumen del período"
+        :crumbs="['Tesorería', 'Procesos', 'Importar Ventas Square']"
+      />
 
       <!-- ═══════════════════════════════════════════════
            CONFIGURACIÓN DE IMPORTACIÓN
@@ -40,7 +24,7 @@
           <!-- Fecha -->
           <div class="imp-cfg-field">
             <label class="imp-cfg-label">
-              <v-icon size="12" color="#06b6d4" class="mr-1">mdi-calendar-outline</v-icon>
+              <v-icon size="12" color="primary" class="mr-1">mdi-calendar-outline</v-icon>
               FECHA
             </label>
             <div class="imp-cfg-input-wrap">
@@ -49,15 +33,15 @@
                 type="date"
                 class="imp-cfg-date"
               />
-              <v-icon v-if="fechaMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Fecha coincide con el archivo">mdi-check-circle</v-icon>
-              <v-icon v-else-if="fechaMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="La fecha no coincide con el archivo">mdi-close-circle</v-icon>
+              <v-icon v-if="fechaMatch" size="18" color="success" class="cfg-ok-icon" title="Fecha coincide con el archivo">mdi-check-circle</v-icon>
+              <v-icon v-else-if="fechaMismatch" size="18" color="error" class="cfg-ok-icon" title="La fecha no coincide con el archivo">mdi-close-circle</v-icon>
             </div>
           </div>
 
           <!-- Centro de Costo -->
           <div class="imp-cfg-field">
             <label class="imp-cfg-label">
-              <v-icon size="12" color="#f59e0b" class="mr-1">mdi-map-marker-outline</v-icon>
+              <v-icon size="12" color="warning" class="mr-1">mdi-map-marker-outline</v-icon>
               CENTRO DE COSTO
             </label>
             <div class="imp-cfg-input-wrap">
@@ -79,8 +63,8 @@
                   <span v-if="configCcosto" class="imp-cfg-code-chip">{{ configCcosto }}</span>
                 </template>
               </v-select>
-              <v-icon v-if="ccostoMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Centro de costo coincide con el archivo">mdi-check-circle</v-icon>
-              <v-icon v-else-if="ubicacionMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="El centro de costo no coincide con el archivo">mdi-close-circle</v-icon>
+              <v-icon v-if="ccostoMatch" size="18" color="success" class="cfg-ok-icon" title="Centro de costo coincide con el archivo">mdi-check-circle</v-icon>
+              <v-icon v-else-if="ubicacionMismatch" size="18" color="error" class="cfg-ok-icon" title="El centro de costo no coincide con el archivo">mdi-close-circle</v-icon>
             </div>
           </div>
 
@@ -110,7 +94,7 @@
           <!-- CTA. OTROS -->
           <div class="imp-cfg-field">
             <label class="imp-cfg-label">
-              <v-icon size="12" color="#06b6d4" class="mr-1">mdi-bank-transfer-out</v-icon>
+              <v-icon size="12" color="primary" class="mr-1">mdi-bank-transfer-out</v-icon>
               CTA. OTROS
             </label>
             <v-select
@@ -133,7 +117,7 @@
           <!-- CTA. EFECTIVO -->
           <div class="imp-cfg-field">
             <label class="imp-cfg-label">
-              <v-icon size="12" color="#10b981" class="mr-1">mdi-cash</v-icon>
+              <v-icon size="12" color="success" class="mr-1">mdi-cash</v-icon>
               CTA. EFECTIVO
             </label>
             <v-select
@@ -177,15 +161,15 @@
             <div class="drop-hint"><code>ventas-YYYY-MM-DD-YYYY-MM-DD.csv</code></div>
           </div>
           <div v-else class="drop-loaded">
-            <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
+            <v-icon size="32" color="success">mdi-check-circle</v-icon>
             <div class="drop-loaded-name">{{ archivoFileName }}</div>
             <div class="drop-loaded-sub">{{ (resumen || articulos)?.periodo }}</div>
             <div class="drop-loaded-stats" v-if="articulos">
-              <span class="drop-stat"><v-icon size="11" color="#8b5cf6">mdi-package-variant-closed</v-icon> {{ articulos.items.length }} artículos</span>
-              <span class="drop-stat"><v-icon size="11" color="#f59e0b">mdi-tune-variant</v-icon> {{ articulos.modificadores.length }} modificadores</span>
+              <span class="drop-stat"><v-icon size="11" color="primary">mdi-package-variant-closed</v-icon> {{ articulos.items.length }} artículos</span>
+              <span class="drop-stat"><v-icon size="11" color="warning">mdi-tune-variant</v-icon> {{ articulos.modificadores.length }} modificadores</span>
             </div>
             <div v-if="(resumen || articulos)?.ubicacion" class="drop-loaded-loc">
-              <v-icon size="11" color="#06b6d4">mdi-map-marker-outline</v-icon>
+              <v-icon size="11" color="primary">mdi-map-marker-outline</v-icon>
               {{ (resumen || articulos).ubicacion }}
             </div>
             <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar()">
@@ -199,9 +183,9 @@
       <!-- BARRA DE ACCIONES (visible cuando hay resumen cargado) -->
       <div v-if="resumen" class="iv-action-bar">
         <div class="iv-action-bar-left">
-          <v-icon size="15" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
+          <v-icon size="15" color="primary" class="mr-1">mdi-information-outline</v-icon>
           <span v-if="saveResumenSuccess" class="iv-action-ok">
-            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
+            <v-icon size="14" color="success">mdi-check-circle</v-icon>
             {{ saveResumenResult?.total }} registros guardados en Gastos
           </span>
           <span v-else class="iv-action-hint">
@@ -219,7 +203,7 @@
             Cancelar
           </v-btn>
           <v-btn
-            color="#06b6d4"
+            color="primary"
             variant="flat"
             size="small"
             @click="abrirGuardarResumen"
@@ -232,7 +216,7 @@
 
       <!-- ERROR DE PARSEO -->
       <div v-if="parseError" class="iv-error">
-        <v-icon size="20" color="#ef4444">mdi-alert-circle-outline</v-icon>
+        <v-icon size="20" color="error">mdi-alert-circle-outline</v-icon>
         <span>{{ parseError }}</span>
       </div>
 
@@ -281,7 +265,7 @@
             <v-icon size="13">mdi-package-down</v-icon>
             Consumo
             <span v-if="consumo.length" class="sheet-badge sheet-badge-red">{{ consumo.length }}</span>
-            <v-progress-circular v-if="consumoLoading" size="10" width="2" indeterminate color="#ef4444" class="ml-1" />
+            <v-progress-circular v-if="consumoLoading" size="10" width="2" indeterminate color="error" class="ml-1" />
           </button>
           <div class="sheets-tabbar-line"></div>
         </div>
@@ -364,7 +348,7 @@
                 <div class="iv-card rs-card">
                   <div class="iv-card-header">
                     <div class="iv-card-title">
-                      <v-icon size="14" color="#10b981" class="mr-1">mdi-credit-card-outline</v-icon>
+                      <v-icon size="14" color="success" class="mr-1">mdi-credit-card-outline</v-icon>
                       PAGOS
                     </div>
                   </div>
@@ -421,14 +405,14 @@
 
               <div class="iv-section-header">
                 <div class="iv-section-icon" style="background:rgba(139,92,246,0.1)">
-                  <v-icon size="16" color="#8b5cf6">mdi-package-variant-closed</v-icon>
+                  <v-icon size="16" color="primary">mdi-package-variant-closed</v-icon>
                 </div>
                 <div>
                   <div class="iv-section-title">ARTÍCULOS VENDIDOS</div>
                   <div class="iv-section-sub">{{ articulos.ubicacion }} · {{ articulos.periodo }}</div>
                 </div>
                 <div v-if="enrichLoading" class="enrich-badge">
-                  <v-progress-circular size="14" width="2" indeterminate color="#8b5cf6" />
+                  <v-progress-circular size="14" width="2" indeterminate color="primary" />
                   <span>Cargando precios...</span>
                 </div>
               </div>
@@ -438,7 +422,7 @@
                 <div class="kpi-card kpi-purple">
                   <div class="kpi-top">
                     <span class="kpi-lbl">Artículos Distintos</span>
-                    <v-icon size="16" color="#8b5cf6">mdi-format-list-bulleted</v-icon>
+                    <v-icon size="16" color="primary">mdi-format-list-bulleted</v-icon>
                   </div>
                   <div class="kpi-val kpi-val-purple">{{ articulos.items.length }}</div>
                 </div>
@@ -452,7 +436,7 @@
                 <div class="kpi-card kpi-green">
                   <div class="kpi-top">
                     <span class="kpi-lbl">Ventas Brutas</span>
-                    <v-icon size="16" color="#10b981">mdi-cash</v-icon>
+                    <v-icon size="16" color="success">mdi-cash</v-icon>
                   </div>
                   <div class="kpi-val kpi-val-green">{{ fmt(totalVentasBrutas) }}</div>
                 </div>
@@ -469,7 +453,7 @@
               <div class="iv-card">
                 <div class="iv-card-header">
                   <div class="iv-card-title">
-                    <v-icon size="14" color="#8b5cf6" class="mr-1">mdi-table</v-icon>
+                    <v-icon size="14" color="primary" class="mr-1">mdi-table</v-icon>
                     Detalle por Artículo
                   </div>
                   <div class="iv-card-chips">
@@ -541,7 +525,7 @@
 
               <div class="iv-section-header">
                 <div class="iv-section-icon" style="background:rgba(245,158,11,0.1)">
-                  <v-icon size="16" color="#f59e0b">mdi-tune-variant</v-icon>
+                  <v-icon size="16" color="warning">mdi-tune-variant</v-icon>
                 </div>
                 <div>
                   <div class="iv-section-title">MODIFICADORES VENDIDOS</div>
@@ -552,7 +536,7 @@
               <div class="iv-card">
                 <div class="iv-card-header">
                   <div class="iv-card-title">
-                    <v-icon size="14" color="#f59e0b" class="mr-1">mdi-tune-variant</v-icon>
+                    <v-icon size="14" color="warning" class="mr-1">mdi-tune-variant</v-icon>
                     Detalle por Grupo
                   </div>
                   <div style="font-size:11px; color:rgba(var(--v-theme-on-surface),0.4)">
@@ -630,21 +614,21 @@
 
               <div class="iv-section-header">
                 <div class="iv-section-icon" style="background:rgba(239,68,68,0.1)">
-                  <v-icon size="16" color="#ef4444">mdi-package-down</v-icon>
+                  <v-icon size="16" color="error">mdi-package-down</v-icon>
                 </div>
                 <div>
                   <div class="iv-section-title">CONSUMO DE INVENTARIO</div>
                   <div class="iv-section-sub">Productos descontados del inventario según ventas del período</div>
                 </div>
                 <div v-if="consumoLoading" class="enrich-badge" style="color:#ef4444; margin-left:auto">
-                  <v-progress-circular size="14" width="2" indeterminate color="#ef4444" />
+                  <v-progress-circular size="14" width="2" indeterminate color="error" />
                   <span>Calculando...</span>
                 </div>
               </div>
 
               <!-- Error -->
               <div v-if="consumoError" class="iv-error">
-                <v-icon size="18" color="#ef4444">mdi-alert-circle-outline</v-icon>
+                <v-icon size="18" color="error">mdi-alert-circle-outline</v-icon>
                 <span>{{ consumoError }}</span>
               </div>
 
@@ -660,14 +644,14 @@
                 <div class="kpi-card kpi-red">
                   <div class="kpi-top">
                     <span class="kpi-lbl">Productos Afectados</span>
-                    <v-icon size="16" color="#ef4444">mdi-package-variant-closed</v-icon>
+                    <v-icon size="16" color="error">mdi-package-variant-closed</v-icon>
                   </div>
                   <div class="kpi-val kpi-val-red">{{ consumo.length }}</div>
                 </div>
                 <div class="kpi-card kpi-orange">
                   <div class="kpi-top">
                     <span class="kpi-lbl">Recetas Involucradas</span>
-                    <v-icon size="16" color="#f59e0b">mdi-chef-hat</v-icon>
+                    <v-icon size="16" color="warning">mdi-chef-hat</v-icon>
                   </div>
                   <div class="kpi-val kpi-val-orange">
                     {{ new Set(consumo.flatMap(c => c.recetas.map(r => r.sku))).size }}
@@ -676,7 +660,7 @@
                 <div class="kpi-card kpi-purple">
                   <div class="kpi-top">
                     <span class="kpi-lbl">Mayor Consumo</span>
-                    <v-icon size="16" color="#8b5cf6">mdi-trending-up</v-icon>
+                    <v-icon size="16" color="primary">mdi-trending-up</v-icon>
                   </div>
                   <div class="kpi-val kpi-val-purple" style="font-size:15px">
                     {{ consumo[0]?.nombre || '—' }}
@@ -688,7 +672,7 @@
               <div v-if="!consumoLoading && consumo.length" class="iv-card">
                 <div class="iv-card-header">
                   <div class="iv-card-title">
-                    <v-icon size="14" color="#ef4444" class="mr-1">mdi-clipboard-list-outline</v-icon>
+                    <v-icon size="14" color="error" class="mr-1">mdi-clipboard-list-outline</v-icon>
                     Detalle de Consumo por Producto
                   </div>
                   <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4)">
@@ -732,7 +716,7 @@
                           </td>
                           <td class="col-center">
                             <button class="btn-ver-recetas" @click="verRecetas(c)">
-                              <v-icon size="15" color="#8b5cf6">mdi-eye-outline</v-icon>
+                              <v-icon size="15" color="primary">mdi-eye-outline</v-icon>
                               <span>{{ c.recetas.length }} receta{{ c.recetas.length !== 1 ? 's' : '' }}</span>
                             </button>
                           </td>
@@ -778,7 +762,7 @@
 
         <!-- Advertencia: ubicación del CSV vs centro de costo seleccionado -->
         <div v-if="ubicacionMismatch" class="rs-loc-warn">
-          <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
+          <v-icon size="15" color="warning">mdi-alert-outline</v-icon>
           <div>
             <strong>Verificar centro de costo:</strong>
             el archivo dice <em>"{{ resumen?.ubicacion }}"</em>
@@ -788,7 +772,7 @@
 
         <!-- Error de configuración o de API -->
         <div v-if="saveResumenError" class="iv-error" style="margin:16px 16px 0; border-radius:8px">
-          <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <v-icon size="16" color="error">mdi-alert-circle-outline</v-icon>
           <span>{{ saveResumenError }}</span>
         </div>
 
@@ -799,7 +783,7 @@
           <div v-if="conflictInfo" class="rcpopup-body">
             <div class="rs-conflict-banner">
               <div class="rs-conflict-banner-top">
-                <v-icon size="28" color="#f59e0b">mdi-alert-circle</v-icon>
+                <v-icon size="28" color="warning">mdi-alert-circle</v-icon>
                 <span class="rs-conflict-banner-title">¡Ya existen registros para esta importación!</span>
               </div>
               <div class="rs-conflict-banner-msg">
@@ -828,19 +812,19 @@
 
           <!-- Sin conflictos: solo mensaje simple -->
           <div v-else class="rcpopup-body" style="padding:24px 20px; text-align:center; color:rgba(var(--v-theme-on-surface),0.6); font-size:14px">
-            <v-icon size="20" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
+            <v-icon size="20" color="primary" class="mr-1">mdi-information-outline</v-icon>
             Se guardarán <strong>{{ previewResumen.filter(r => r.cuenta).length }}</strong> movimientos contables para el período seleccionado.
           </div>
 
           <!-- Botones — cambian según si hay conflicto o no -->
           <div class="rs-dlg-actions">
-            <v-btn variant="flat" color="#ef4444" @click="conflictInfo ? conflictInfo = null : showSaveResumenDlg = false">
+            <v-btn variant="flat" color="error" @click="conflictInfo ? conflictInfo = null : showSaveResumenDlg = false">
               Cancelar
             </v-btn>
             <!-- Botón conflicto -->
             <v-btn
               v-if="conflictInfo"
-              color="#f59e0b"
+              color="warning"
               variant="flat"
               :loading="savingResumen"
               @click="confirmarGuardarResumenForce"
@@ -865,7 +849,7 @@
 
         <!-- Cargando config -->
         <div v-if="!saveResumenError && !configGeneral" class="rs-dlg-loading">
-          <v-progress-circular indeterminate color="#06b6d4" size="32" />
+          <v-progress-circular indeterminate color="primary" size="32" />
           <span>Cargando configuración...</span>
         </div>
 
@@ -933,7 +917,7 @@
 
             <!-- Error -->
             <div v-if="saveCfgError" class="iv-error" style="margin-top:10px;border-radius:8px">
-              <v-icon size="15" color="#ef4444">mdi-alert-circle-outline</v-icon>
+              <v-icon size="15" color="error">mdi-alert-circle-outline</v-icon>
               <span>{{ saveCfgError }}</span>
             </div>
           </template>
@@ -1061,7 +1045,7 @@
                 </td>
                 <td class="col-center">
                   <v-btn
-                    icon size="x-small" variant="text" color="#ef4444"
+                    icon size="x-small" variant="text" color="error"
                     :loading="deletingId === ln.id"
                     @click="deleteLine(ln.id)"
                   >
@@ -1075,14 +1059,14 @@
 
         <!-- Error al guardar -->
         <div v-if="saveLineError" class="iv-error" style="margin:8px 16px 0; border-radius:8px">
-          <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <v-icon size="16" color="error">mdi-alert-circle-outline</v-icon>
           <span>{{ saveLineError }}</span>
         </div>
 
         <!-- Formulario nueva línea -->
         <div class="config-new-row">
           <div class="config-new-title">
-            <v-icon size="13" color="#f59e0b" class="mr-1">mdi-plus-circle-outline</v-icon>
+            <v-icon size="13" color="warning" class="mr-1">mdi-plus-circle-outline</v-icon>
             AGREGAR INGREDIENTE
           </div>
           <div class="config-new-fields">
@@ -1121,12 +1105,12 @@
             />
 
             <v-btn-toggle v-model="newLine.tipo" mandatory density="compact" class="config-tipo-toggle">
-              <v-btn value="+" color="#10b981" size="small">+ SUMA</v-btn>
-              <v-btn value="-" color="#ef4444" size="small">− RESTA</v-btn>
+              <v-btn value="+" color="success" size="small">+ SUMA</v-btn>
+              <v-btn value="-" color="error" size="small">− RESTA</v-btn>
             </v-btn-toggle>
 
             <v-btn
-              color="#f59e0b"
+              color="warning"
               :loading="savingLine"
               :disabled="!newLine.articulo || !newLine.cant"
               @click="saveNewLine"
@@ -1147,7 +1131,7 @@
         <v-card-text class="pa-6">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
             <div style="width:44px;height:44px;border-radius:12px;background:rgba(245,158,11,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <v-icon size="24" color="#f59e0b">mdi-alert-outline</v-icon>
+              <v-icon size="24" color="warning">mdi-alert-outline</v-icon>
             </div>
             <div>
               <div style="font-size:15px;font-weight:700;color:rgb(var(--v-theme-on-surface))">Centros de costo distintos</div>
@@ -1156,12 +1140,12 @@
           </div>
           <div style="background:rgba(var(--v-theme-on-surface),0.04);border-radius:10px;padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;align-items:center;gap:8px">
-              <v-icon size="13" color="#06b6d4">mdi-file-chart-outline</v-icon>
+              <v-icon size="13" color="primary">mdi-file-chart-outline</v-icon>
               <span style="color:rgba(var(--v-theme-on-surface),0.55);min-width:80px">Resumen:</span>
               <strong>{{ resumen?.ubicacion }}</strong>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
-              <v-icon size="13" color="#8b5cf6">mdi-package-variant-closed</v-icon>
+              <v-icon size="13" color="primary">mdi-package-variant-closed</v-icon>
               <span style="color:rgba(var(--v-theme-on-surface),0.55);min-width:80px">Artículos:</span>
               <strong>{{ articulos?.ubicacion }}</strong>
             </div>
@@ -1173,7 +1157,7 @@
         <v-divider />
         <v-card-actions class="pa-4">
           <v-spacer />
-          <v-btn color="#f59e0b" variant="flat" @click="dlgUbicDiferente = false">Entendido</v-btn>
+          <v-btn color="warning" variant="flat" @click="dlgUbicDiferente = false">Entendido</v-btn>
           <v-spacer />
         </v-card-actions>
       </v-card>
@@ -1182,7 +1166,7 @@
     <!-- Snackbar de confirmación -->
     <v-snackbar
       v-model="snackbarSuccess"
-      color="#10b981"
+      color="success"
       :timeout="3500"
       location="bottom center"
       rounded="pill"
@@ -1197,6 +1181,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
@@ -2188,7 +2173,7 @@ function limpiarFormularioImportacion() {
 
 /* ── Breadcrumb ────────────────────────────────────── */
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 11px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; }
+.bc-root { font-size: 11px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: 0.5px; }
 .bc-cat  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.4); }
 .bc-cur  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 600; }
 
@@ -2197,7 +2182,7 @@ function limpiarFormularioImportacion() {
 .iv-header-left { display: flex; align-items: center; gap: 16px; }
 .iv-icon-wrap {
   width: 52px; height: 52px; border-radius: 16px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: linear-gradient(135deg, var(--gold), var(--gold));
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 20px rgba(245,158,11,0.38); flex-shrink: 0;
 }
@@ -2217,9 +2202,9 @@ function limpiarFormularioImportacion() {
   text-align: center; min-height: 160px;
   display: flex; align-items: center; justify-content: center;
 }
-.drop-zone:hover { border-color: #06b6d4; background: rgba(6,182,212,0.03); }
-.drop-zone--active { border-color: #06b6d4; background: rgba(6,182,212,0.06); }
-.drop-zone--loaded { border-style: solid; border-color: #10b981; background: rgba(16,185,129,0.04); }
+.drop-zone:hover { border-color: var(--indigo); background: rgba(6,182,212,0.03); }
+.drop-zone--active { border-color: var(--indigo); background: rgba(6,182,212,0.06); }
+.drop-zone--loaded { border-style: solid; border-color: var(--success); background: rgba(16,185,129,0.04); }
 
 .drop-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .drop-icon-wrap {
@@ -2227,14 +2212,14 @@ function limpiarFormularioImportacion() {
   display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
 }
 .drop-icon-blue   { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-.drop-icon-purple { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
+.drop-icon-purple { background: linear-gradient(135deg,var(--indigo),var(--indigo)); }
 .drop-title { font-size: 15px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 .drop-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); }
 .drop-hint  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.3); margin-top: 4px; }
 .drop-hint code { background: rgba(var(--v-theme-on-surface),0.06); padding: 2px 6px; border-radius: 4px; }
 
 .drop-loaded { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.drop-loaded-name { font-size: 13px; font-weight: 600; color: #10b981; word-break: break-all; }
+.drop-loaded-name { font-size: 13px; font-weight: 600; color: var(--success); word-break: break-all; }
 .drop-loaded-sub  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
 .drop-loaded-loc {
   display: flex;
@@ -2242,7 +2227,7 @@ function limpiarFormularioImportacion() {
   gap: 4px;
   font-size: 11px;
   font-weight: 600;
-  color: #06b6d4;
+  color: var(--indigo);
   background: rgba(6,182,212,0.08);
   padding: 2px 8px;
   border-radius: 10px;
@@ -2274,7 +2259,7 @@ function limpiarFormularioImportacion() {
   display: flex; align-items: center; gap: 10px;
   background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25);
   border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
-  font-size: 13px; color: #ef4444;
+  font-size: 13px; color: var(--error);
 }
 
 /* ── Sheets (tabs) ─────────────────────────────────── */
@@ -2321,9 +2306,9 @@ function limpiarFormularioImportacion() {
   font-size: 9px; font-weight: 800;
   padding: 1px 6px; border-radius: 20px;
 }
-.sheet-badge-purple { background: rgba(139,92,246,0.13); color: #8b5cf6; }
-.sheet-badge-orange { background: rgba(245,158,11,0.13); color: #d97706; }
-.sheet-badge-red    { background: rgba(239,68,68,0.13);  color: #ef4444; }
+.sheet-badge-purple { background: rgba(139,92,246,0.13); color: var(--indigo); }
+.sheet-badge-orange { background: rgba(245,158,11,0.13); color: var(--gold); }
+.sheet-badge-red    { background: rgba(239,68,68,0.13);  color: var(--error); }
 
 .sheet-content {
   border: 1.5px solid rgba(var(--v-theme-on-surface), 0.18);
@@ -2367,16 +2352,16 @@ function limpiarFormularioImportacion() {
 }
 .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.kpi-val { font-size: 20px; font-weight: 800; font-family: 'Courier New', monospace; }
+.kpi-val { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .kpi-blue      { border-left: 3px solid #3b82f6; } .kpi-val-blue      { color: #3b82f6; }
-.kpi-green     { border-left: 3px solid #10b981; } .kpi-val-green     { color: #10b981; }
-.kpi-green-dark{ border-left: 3px solid #059669; } .kpi-val-green-dark{ color: #059669; }
-.kpi-orange    { border-left: 3px solid #f59e0b; } .kpi-val-orange    { color: #f59e0b; }
-.kpi-purple    { border-left: 3px solid #8b5cf6; } .kpi-val-purple    { color: #8b5cf6; }
+.kpi-green     { border-left: 3px solid var(--success); } .kpi-val-green     { color: var(--success); }
+.kpi-green-dark{ border-left: 3px solid var(--success); } .kpi-val-green-dark{ color: var(--success); }
+.kpi-orange    { border-left: 3px solid var(--gold); } .kpi-val-orange    { color: var(--gold); }
+.kpi-purple    { border-left: 3px solid var(--indigo); } .kpi-val-purple    { color: var(--indigo); }
 .kpi-gray      { border-left: 3px solid #64748b; } .kpi-val-gray      { color: #64748b; }
 .kpi-blue-dark { border-left: 3px solid #1d4ed8; } .kpi-val-blue-dark { color: #1d4ed8; }
-.kpi-red       { border-left: 3px solid #ef4444; } .kpi-val-red       { color: #ef4444; }
+.kpi-red       { border-left: 3px solid var(--error); } .kpi-val-red       { color: var(--error); }
 
 /* ── Card ──────────────────────────────────────────── */
 .iv-card {
@@ -2436,17 +2421,17 @@ function limpiarFormularioImportacion() {
 .rs-lbl-bold { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 
 .rs-val {
-  font-family: 'Courier New', monospace; font-size: 13px;
+  font-variant-numeric: tabular-nums; font-size: 13px;
   font-weight: 600; text-align: right; white-space: nowrap;
   color: rgba(var(--v-theme-on-surface), 0.7);
 }
 .rs-val-big   { font-size: 15px; font-weight: 800; }
 .rs-val-grand { font-size: 17px; font-weight: 800; }
 
-.rs-pos    { color: #10b981; }
-.rs-neg    { color: #ef4444; }
-.rs-green  { color: #10b981; }
-.rs-purple { color: #8b5cf6; }
+.rs-pos    { color: var(--success); }
+.rs-neg    { color: var(--error); }
+.rs-green  { color: var(--success); }
+.rs-purple { color: var(--indigo); }
 .rs-pink   { color: #db2777; }
 
 /* ── Categoría chips ───────────────────────────────── */
@@ -2458,8 +2443,8 @@ function limpiarFormularioImportacion() {
   background: rgba(var(--v-theme-on-surface), 0.04);
   transition: all 0.15s; white-space: nowrap;
 }
-.cat-chip:hover { border-color: #8b5cf6; color: #8b5cf6; }
-.cat-chip--active { background: rgba(139,92,246,0.12); border-color: #8b5cf6; color: #8b5cf6; }
+.cat-chip:hover { border-color: var(--indigo); color: var(--indigo); }
+.cat-chip--active { background: rgba(139,92,246,0.12); border-color: var(--indigo); color: var(--indigo); }
 
 /* ── Artículos tabla ───────────────────────────────── */
 .art-tabla-wrap { overflow-x: auto; }
@@ -2478,7 +2463,7 @@ function limpiarFormularioImportacion() {
 .tr-cat-header td { padding: 7px 12px; }
 .cat-badge {
   font-size: 9.5px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.6px; color: #8b5cf6;
+  letter-spacing: 0.6px; color: var(--indigo);
   background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
   padding: 2px 10px; border-radius: 20px;
 }
@@ -2493,7 +2478,7 @@ function limpiarFormularioImportacion() {
 }
 .tr-subtotal td { padding: 8px 12px; }
 .subtotal-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.subtotal-val { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; color: rgba(var(--v-theme-on-surface), 0.7); }
+.subtotal-val { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: rgba(var(--v-theme-on-surface), 0.7); }
 
 .tr-total {
   background: rgba(var(--v-theme-on-surface), 0.07);
@@ -2501,22 +2486,22 @@ function limpiarFormularioImportacion() {
 }
 .tr-total td { padding: 10px 12px; }
 .total-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.7); }
-.total-val { font-size: 13px; font-weight: 800; font-family: 'Courier New', monospace; }
+.total-val { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .col-right    { text-align: right !important; }
 .td-nombre    { font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
-.td-sku       { font-family: 'Courier New', monospace; font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.td-sku       { font-variant-numeric: tabular-nums; font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
 .td-num       { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-.td-monto     { font-family: 'Courier New', monospace; font-weight: 500; }
-.variante-tag { font-size: 10px; font-weight: 600; color: #8b5cf6; background: rgba(139,92,246,0.1); padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+.td-monto     { font-variant-numeric: tabular-nums; font-weight: 500; }
+.variante-tag { font-size: 10px; font-weight: 600; color: var(--indigo); background: rgba(139,92,246,0.1); padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 
-.txt-green  { color: #10b981; }
-.txt-orange { color: #f59e0b; }
+.txt-green  { color: var(--success); }
+.txt-orange { color: var(--gold); }
 .txt-dim    { color: rgba(var(--v-theme-on-surface), 0.4); }
 
 .tr-cat-orange { background: rgba(245,158,11,0.04); border-top: 1px solid rgba(245,158,11,0.15); }
 .cat-badge-orange {
-  color: #d97706;
+  color: var(--gold);
   background: rgba(245,158,11,0.1);
   border: 1px solid rgba(245,158,11,0.25);
 }
@@ -2544,7 +2529,7 @@ function limpiarFormularioImportacion() {
 .tr-consumo { vertical-align: middle; }
 .td-idx { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.3); text-align: center; }
 .td-und { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); font-weight: 600; }
-.consumo-total-val { font-family: 'Courier New', monospace; font-size: 15px; font-weight: 800; color: #ef4444; }
+.consumo-total-val { font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 800; color: var(--error); }
 
 .td-recetas { padding: 8px 12px !important; }
 .recetas-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -2553,13 +2538,13 @@ function limpiarFormularioImportacion() {
   background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.15);
   border-radius: 5px; padding: 2px 7px; font-size: 10.5px; cursor: default;
 }
-.receta-sku { font-family: 'Courier New', monospace; font-weight: 700; color: #8b5cf6; }
+.receta-sku { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--indigo); }
 .receta-subtotal { color: rgba(var(--v-theme-on-surface), 0.55); font-weight: 500; }
 
 /* ── Misc ──────────────────────────────────────────── */
 .enrich-badge {
   display: flex; align-items: center; gap: 6px; margin-left: auto;
-  font-size: 11px; color: #8b5cf6; font-weight: 600;
+  font-size: 11px; color: var(--indigo); font-weight: 600;
 }
 
 .col-center { text-align: center !important; }
@@ -2570,7 +2555,7 @@ function limpiarFormularioImportacion() {
   padding: 4px 10px; border-radius: 20px; cursor: pointer;
   background: rgba(139,92,246,0.08);
   border: 1px solid rgba(139,92,246,0.2);
-  color: #8b5cf6; font-size: 11px; font-weight: 600;
+  color: var(--indigo); font-size: 11px; font-weight: 600;
   transition: all 0.15s; outline: none;
 }
 .btn-ver-recetas:hover {
@@ -2584,7 +2569,7 @@ function limpiarFormularioImportacion() {
 .rcpopup-header {
   display: flex; align-items: center; gap: 12px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
 }
 .rcpopup-icon {
   width: 36px; height: 36px; border-radius: 10px;
@@ -2602,12 +2587,12 @@ function limpiarFormularioImportacion() {
   border-bottom: 1px solid rgba(139,92,246,0.12);
 }
 .rcpopup-total-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.5); }
-.rcpopup-total-val { font-size: 18px; font-weight: 800; font-family: 'Courier New', monospace; color: #8b5cf6; }
+.rcpopup-total-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--indigo); }
 
 .rcpopup-body { padding: 0; }
 
 .rcpopup-receta-nombre { font-weight: 700; font-size: 12.5px; color: rgb(var(--v-theme-on-surface)); }
-.rcpopup-receta-sku    { font-family: 'Courier New', monospace; font-size: 10px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
+.rcpopup-receta-sku    { font-variant-numeric: tabular-nums; font-size: 10px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
 
 /* ── Columna inventario en Modificadores ───────────── */
 .mod-inv-cell {
@@ -2618,8 +2603,8 @@ function limpiarFormularioImportacion() {
   font-size: 9.5px; font-weight: 700; padding: 2px 7px;
   border-radius: 20px;
 }
-.mod-inv-ok   { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.mod-inv-warn { background: rgba(245,158,11,0.1);  color: #d97706; border: 1px solid rgba(245,158,11,0.2); }
+.mod-inv-ok   { background: rgba(16,185,129,0.1);  color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+.mod-inv-warn { background: rgba(245,158,11,0.1);  color: var(--gold); border: 1px solid rgba(245,158,11,0.2); }
 
 .btn-config-mod {
   display: inline-flex; align-items: center; justify-content: center;
@@ -2632,7 +2617,7 @@ function limpiarFormularioImportacion() {
 .btn-config-mod:hover {
   background: rgba(245,158,11,0.12);
   border-color: rgba(245,158,11,0.3);
-  color: #d97706;
+  color: var(--gold);
 }
 
 /* ── Config dialog ─────────────────────────────────── */
@@ -2662,8 +2647,8 @@ function limpiarFormularioImportacion() {
   font-size: 9.5px; font-weight: 800; padding: 2px 8px;
   border-radius: 20px; letter-spacing: 0.3px;
 }
-.tipo-suma  { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.tipo-resta { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+.tipo-suma  { background: rgba(16,185,129,0.1);  color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+.tipo-resta { background: rgba(239,68,68,0.1);   color: var(--error); border: 1px solid rgba(239,68,68,0.2); }
 
 /* ── Configuración de importación ──────────────────── */
 .imp-cfg-card {
@@ -2683,13 +2668,13 @@ function limpiarFormularioImportacion() {
 
 .imp-cfg-icon {
   width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
   display: flex; align-items: center; justify-content: center;
 }
 
 .imp-cfg-title {
   font-size: 11px; font-weight: 800; letter-spacing: 0.6px;
-  color: #06b6d4; text-transform: uppercase;
+  color: var(--indigo); text-transform: uppercase;
 }
 
 .imp-cfg-sub {
@@ -2739,7 +2724,7 @@ function limpiarFormularioImportacion() {
   transition: border-color 0.15s;
   font-family: inherit;
 }
-.imp-cfg-date:focus { border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6,182,212,0.15); }
+.imp-cfg-date:focus { border-color: var(--indigo); box-shadow: 0 0 0 2px rgba(6,182,212,0.15); }
 
 .imp-cfg-empresa {
   height: 40px; border-radius: 8px; padding: 0 12px;
@@ -2750,9 +2735,9 @@ function limpiarFormularioImportacion() {
 }
 
 .imp-cfg-empresa-code {
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 16px; font-weight: 800;
-  color: #8b5cf6;
+  color: var(--indigo);
 }
 
 .imp-cfg-select { font-size: 13px; }
@@ -2773,7 +2758,7 @@ function limpiarFormularioImportacion() {
 .iv-action-bar-right { display: flex; align-items: center; gap: 8px; }
 .iv-action-ok {
   display: flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 600; color: #10b981;
+  font-size: 12px; font-weight: 600; color: var(--success);
 }
 .iv-action-hint { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); }
 
@@ -2786,11 +2771,11 @@ function limpiarFormularioImportacion() {
 }
 .rs-save-hint {
   display: flex; align-items: center; gap: 5px;
-  font-size: 11px; color: #f59e0b;
+  font-size: 11px; color: var(--gold);
 }
 .rs-save-ok {
   display: flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 600; color: #10b981;
+  font-size: 12px; font-weight: 600; color: var(--success);
 }
 
 /* ── Dialog guardar resumen ────────────────────────── */
@@ -2799,15 +2784,15 @@ function limpiarFormularioImportacion() {
   margin-bottom: 14px; display: flex; align-items: center;
 }
 .rs-dlg-cta-badge {
-  font-family: 'Courier New', monospace; font-size: 11px; font-weight: 800;
-  background: rgba(6,182,212,0.1); color: #06b6d4;
+  font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 800;
+  background: rgba(6,182,212,0.1); color: var(--indigo);
   border: 1px solid rgba(6,182,212,0.25);
   border-radius: 4px; padding: 2px 6px;
 }
-.rs-dlg-nocta { font-size: 10px; color: #f59e0b; display: flex; align-items: center; gap: 3px; }
+.rs-dlg-nocta { font-size: 10px; color: var(--gold); display: flex; align-items: center; gap: 3px; }
 .rs-dlg-estado {
   font-size: 9px; font-weight: 800; letter-spacing: 0.3px;
-  background: rgba(245,158,11,0.1); color: #f59e0b;
+  background: rgba(245,158,11,0.1); color: var(--gold);
   border: 1px solid rgba(245,158,11,0.2); border-radius: 4px; padding: 2px 6px;
 }
 .rs-dlg-omitido {
@@ -2818,7 +2803,7 @@ function limpiarFormularioImportacion() {
 .rs-dlg-row-warn { opacity: 0.5; }
 .rs-dlg-warn-note {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; color: #f59e0b;
+  font-size: 11px; color: var(--gold);
   margin-top: 12px; padding: 8px 12px;
   background: rgba(245,158,11,0.06); border-radius: 8px;
 }
@@ -2842,7 +2827,7 @@ function limpiarFormularioImportacion() {
   display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
 }
 .rs-conflict-banner-title {
-  font-size: 15px; font-weight: 700; color: #f59e0b;
+  font-size: 15px; font-weight: 700; color: var(--gold);
 }
 .rs-conflict-banner-msg {
   font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.85); line-height: 1.7;
@@ -2851,7 +2836,7 @@ function limpiarFormularioImportacion() {
   display: flex; flex-direction: column; align-items: center; gap: 14px;
   padding: 32px 24px; text-align: center;
 }
-.rs-dlg-success-title { font-size: 16px; font-weight: 700; color: #10b981; }
+.rs-dlg-success-title { font-size: 16px; font-weight: 700; color: var(--success); }
 .rs-dlg-success-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); margin-top: 4px; }
 .rs-dlg-success-codigos {
   display: flex; flex-direction: column; gap: 4px; width: 100%;
@@ -2864,16 +2849,16 @@ function limpiarFormularioImportacion() {
   font-size: 12px;
 }
 .rs-dlg-codigo {
-  font-family: 'Courier New', monospace; font-weight: 700; font-size: 11px;
+  font-variant-numeric: tabular-nums; font-weight: 700; font-size: 11px;
   color: rgba(var(--v-theme-on-surface), 0.4);
 }
 .rs-dlg-ccta {
-  font-family: 'Courier New', monospace; font-weight: 800;
-  color: #06b6d4; background: rgba(6,182,212,0.08);
+  font-variant-numeric: tabular-nums; font-weight: 800;
+  color: var(--indigo); background: rgba(6,182,212,0.08);
   border-radius: 4px; padding: 1px 5px; font-size: 11px;
 }
-.rs-dlg-cval { margin-left: auto; font-weight: 700; color: #10b981; font-size: 12px; }
-.txt-red { color: #ef4444; }
+.rs-dlg-cval { margin-left: auto; font-weight: 700; color: var(--success); font-size: 12px; }
+.txt-red { color: var(--error); }
 
 /* ── Editor Config General ─────────────────────────── */
 .cfg-editor-row {
@@ -2890,9 +2875,9 @@ function limpiarFormularioImportacion() {
 .cfg-editor-select { flex: 1; }
 
 .imp-cfg-code-chip {
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 10px; font-weight: 700;
-  background: rgba(245,158,11,0.1); color: #f59e0b;
+  background: rgba(245,158,11,0.1); color: var(--gold);
   border: 1px solid rgba(245,158,11,0.25);
   border-radius: 4px; padding: 1px 5px; margin-right: 4px;
 }

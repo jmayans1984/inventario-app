@@ -1,73 +1,18 @@
 ﻿<template>
   <MainLayout>
     <div class="view-container">
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Facturas de Venta</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon-wrap">
-            <v-icon size="22" color="white">mdi-receipt-outline</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">FACTURAS DE VENTA</h1>
-            <p class="page-sub">Revisión y aprobación de pagos recibidos de clientes</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Facturas de Venta"
+        description="Revisión y aprobación de pagos recibidos de clientes"
+        :crumbs="['Tesorería', 'Procesos', 'Facturas de Venta']"
+      />
 
       <!-- KPI CARDS -->
       <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-cyan">
-            <v-icon size="20" color="white">mdi-currency-usd-circle-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">TOTAL POR COBRAR</div>
-            <div class="kpi-value cyan-text">{{ formatMoneda(store.totalPendiente) }}</div>
-            <div class="kpi-sub">{{ store.facturasPendientes.length }} facturas pendientes</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-amber">
-            <v-icon size="20" color="white">mdi-clock-alert-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">POR VERIFICAR</div>
-            <div class="kpi-value amber-text">{{ store.totalPorVerificar }}</div>
-            <div class="kpi-sub">soportes pendientes de revisión</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-green">
-            <v-icon size="20" color="white">mdi-check-circle-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">PAGADAS</div>
-            <div class="kpi-value green-text">{{ store.facturasPagadas.length }}</div>
-            <div class="kpi-sub">facturas cobradas</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-purple">
-            <v-icon size="20" color="white">mdi-percent-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">% COBRADO</div>
-            <div class="kpi-value purple-text">{{ store.porcentajeCobrado }}%</div>
-            <div class="kpi-sub">del total de facturas</div>
-          </div>
-        </div>
+        <KpiCard :index="0" label="Total por Cobrar" :value="formatMoneda(store.totalPendiente)" icon="mdi-currency-usd-circle-outline" color="var(--indigo)" :hint="`${store.facturasPendientes.length} facturas pendientes`" />
+        <KpiCard :index="1" label="Por Verificar" :value="String(store.totalPorVerificar)" icon="mdi-clock-alert-outline" color="var(--gold)" hint="soportes pendientes de revisión" />
+        <KpiCard :index="2" label="Pagadas" :value="String(store.facturasPagadas.length)" icon="mdi-check-circle-outline" color="var(--success)" hint="facturas cobradas" />
+        <KpiCard :index="3" label="% Cobrado" :value="`${store.porcentajeCobrado}%`" icon="mdi-percent-outline" color="var(--indigo)" hint="del total de facturas" />
       </div>
 
       <!-- FILTROS -->
@@ -517,6 +462,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import FilePreviewModal from '../../components/modules/tesoreria/FilePreviewModal.vue'
 import { useFacturasVentaProveedorStore } from '../../stores/facturas-venta-proveedor'
 import { useCuentasBancariasStore } from '../../stores/cuentasbancarias'
@@ -835,46 +782,8 @@ onMounted(async () => {
 <style scoped>
 .view-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
-/* Breadcrumb */
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-/* Header */
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.header-left { display: flex; align-items: center; gap: 16px; }
-.header-icon-wrap {
-  width: 48px; height: 48px; border-radius: 12px;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
-}
-.page-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; margin: 0; }
-.page-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
-
-/* KPI Cards */
+/* KPI */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
-.kpi-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px; padding: 16px 20px;
-  display: flex; align-items: center; gap: 16px;
-}
-.kpi-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.kpi-icon-cyan   { background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 12px rgba(6,182,212,0.3); }
-.kpi-icon-amber  { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 12px rgba(245,158,11,0.3); }
-.kpi-icon-green  { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
-.kpi-icon-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); box-shadow: 0 4px 12px rgba(139,92,246,0.3); }
-.kpi-body { flex: 1; min-width: 0; }
-.kpi-label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-value { font-size: 22px; font-weight: 800; margin: 2px 0; }
-.kpi-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.cyan-text   { color: #06b6d4 !important; }
-.amber-text  { color: #f59e0b !important; }
-.green-text  { color: #10b981 !important; }
-.purple-text { color: #8b5cf6 !important; }
 
 /* Filtros */
 .filtros-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
@@ -887,7 +796,7 @@ onMounted(async () => {
   transition: all 0.15s;
 }
 .tipo-tab:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
-.tipo-tab.active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+.tipo-tab.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
 .tab-content { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .tab-header { display: flex; align-items: center; gap: 6px; }
 .tab-subtext {
@@ -895,7 +804,7 @@ onMounted(async () => {
   color: inherit;
 }
 .tab-badge {
-  background: #ef4444; color: #fff; border-radius: 10px;
+  background: var(--error); color: #fff; border-radius: 10px;
   padding: 1px 6px; font-size: 10px; font-weight: 700; min-width: 18px; text-align: center;
 }
 
@@ -924,10 +833,10 @@ onMounted(async () => {
   white-space: nowrap; vertical-align: middle;
 }
 .data-table thead th.sortable { cursor: pointer; user-select: none; transition: color 0.15s; }
-.data-table thead th.sortable:hover { color: #8b5cf6; }
+.data-table thead th.sortable:hover { color: var(--indigo); }
 .data-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
 .data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
-.data-table tbody tr.row-por-verificar { background: rgba(245, 158, 11, 0.05); }
+.data-table tbody tr.row-por-verificar { background: color-mix(in srgb, var(--gold) 8%, transparent); }
 .data-table tbody td { padding: 11px 10px; color: rgb(var(--v-theme-on-surface)); }
 
 .col-codigo      { width: 100px; }
@@ -942,12 +851,12 @@ onMounted(async () => {
 .col-soportes    { width: 80px; text-align: center; }
 .col-acciones    { width: 90px; text-align: center; }
 
-.codigo-badge { background: rgba(139,92,246,0.12); color: #8b5cf6; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; font-family: 'Courier New', monospace; }
+.codigo-badge { background: var(--indigo-wash); color: var(--indigo); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; font-variant-numeric: tabular-nums; }
 .cliente-nombre { font-weight: 600; font-size: 13px; }
-.monto-text   { color: #8b5cf6; font-weight: 600; font-family: 'Courier New', monospace; }
-.pagado-text  { color: #10b981; font-weight: 600; }
-.pendiente-text { color: #f59e0b; font-weight: 600; }
-.badge-soportes { display: inline-flex; align-items: center; gap: 4px; background: rgba(16,185,129,0.12); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.monto-text   { color: var(--indigo); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pagado-text  { color: var(--success); font-weight: 600; }
+.pendiente-text { color: var(--gold); font-weight: 600; }
+.badge-soportes { display: inline-flex; align-items: center; gap: 4px; background: var(--success-wash); color: var(--success); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .text-muted { color: rgba(var(--v-theme-on-surface), 0.3); }
 
 /* Modales */
@@ -955,9 +864,9 @@ onMounted(async () => {
 .form-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
 }
-.form-header-green { background: linear-gradient(135deg, #10b981, #059669) !important; }
+.form-header-green { background: linear-gradient(135deg, var(--success), var(--success)) !important; }
 .form-header-left { display: flex; align-items: center; gap: 10px; }
 .form-header-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
 .form-title { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; color: #fff; }
@@ -971,9 +880,9 @@ onMounted(async () => {
 .info-item { display: flex; flex-direction: column; gap: 4px; }
 .info-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); letter-spacing: 0.5px; }
 .info-value { font-size: 14px; font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
-.info-value.monto    { color: #8b5cf6; font-family: 'Courier New', monospace; }
-.info-value.pagado   { color: #10b981; }
-.info-value.pendiente { color: #f59e0b; }
+.info-value.monto    { color: var(--indigo); font-variant-numeric: tabular-nums; }
+.info-value.pagado   { color: var(--success); }
+.info-value.pendiente { color: var(--gold); }
 
 .observaciones { padding: 12px; background: rgba(var(--v-theme-on-surface), 0.03); border-radius: 8px; }
 .obs-text { margin: 8px 0 0; font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.7); line-height: 1.4; }
@@ -986,20 +895,20 @@ onMounted(async () => {
 .soporte-nombre { font-size: 13px; font-weight: 600; word-break: break-word; }
 .soporte-fecha { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); margin-top: 2px; }
 .soporte-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.btn-previsualizar, .btn-descargar { background: transparent; border: none; cursor: pointer; padding: 4px 8px; color: #8b5cf6; transition: all 0.15s; }
-.btn-previsualizar:hover, .btn-descargar:hover { color: #7c3aed; }
+.btn-previsualizar, .btn-descargar { background: transparent; border: none; cursor: pointer; padding: 4px 8px; color: var(--indigo); transition: all 0.15s; }
+.btn-previsualizar:hover, .btn-descargar:hover { color: var(--indigo); }
 .no-soportes { text-align: center; padding: 32px 24px; color: rgba(var(--v-theme-on-surface), 0.3); }
 .no-soportes p { margin: 8px 0 0; font-size: 13px; }
 
 /* Modal Aprobación */
-.saldo-favor-box { padding: 14px 16px; background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(139,92,246,0.04)); border: 1px solid rgba(139,92,246,0.2); border-radius: 10px; }
+.saldo-favor-box { padding: 14px 16px; background: linear-gradient(135deg, var(--indigo-wash), var(--indigo-wash)); border: 1px solid var(--indigo-wash); border-radius: 10px; }
 .saldo-favor-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .saldo-favor-label { font-size: 13px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.8); display: flex; align-items: center; gap: 6px; }
 .saldo-favor-valor { font-size: 16px; font-weight: 700; }
-.saldo-favor-valor.has-saldo { color: #8b5cf6; }
+.saldo-favor-valor.has-saldo { color: var(--indigo); }
 .saldo-favor-valor.no-saldo { color: rgba(var(--v-theme-on-surface), 0.4); }
 .saldo-favor-check { margin-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.saldo-favor-check input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; accent-color: #8b5cf6; }
+.saldo-favor-check input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; accent-color: var(--indigo); }
 .saldo-favor-check label { cursor: pointer; color: rgba(var(--v-theme-on-surface), 0.7); }
 
 .saldo-favor-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 10px; font-size: 13px; }
@@ -1009,14 +918,14 @@ onMounted(async () => {
 .resumen-row:last-child { border-bottom: none; }
 .resumen-label { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
 .resumen-valor { font-size: 13px; font-weight: 600; }
-.resumen-valor.monto    { color: #8b5cf6; }
-.resumen-valor.pagado   { color: #10b981; }
-.resumen-valor.pendiente { color: #f59e0b; }
+.resumen-valor.monto    { color: var(--indigo); }
+.resumen-valor.pagado   { color: var(--success); }
+.resumen-valor.pendiente { color: var(--gold); }
 
 .form-fields { display: flex; flex-direction: column; gap: 14px; }
 .field-group { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.7); }
-.req { color: #ef4444; }
+.req { color: var(--error); }
 .field-input, .field-select {
   width: 100%; padding: 9px 12px; border-radius: 8px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
@@ -1025,22 +934,22 @@ onMounted(async () => {
   font-size: 14px; outline: none; transition: border-color 0.15s;
   box-sizing: border-box;
 }
-.field-input:focus, .field-select:focus { border-color: #10b981; }
+.field-input:focus, .field-select:focus { border-color: var(--success); }
 
 .preview-resultado { background: rgba(var(--v-theme-on-surface), 0.03); border-radius: 10px; padding: 14px 16px; }
 .preview-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); letter-spacing: 0.5px; margin-bottom: 8px; }
-.preview-info-pendiente { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; margin-bottom: 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1); color: #f59e0b; font-weight: 600; }
-.preview-info-pendiente .monto { font-family: 'Courier New', monospace; }
+.preview-info-pendiente { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 8px 0; margin-bottom: 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1); color: var(--gold); font-weight: 600; }
+.preview-info-pendiente .monto { font-variant-numeric: tabular-nums; }
 .preview-caso { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; flex-wrap: wrap; }
-.preview-caso.pagada   { color: #10b981; }
-.preview-caso.parcial  { color: #f59e0b; }
-.preview-caso.sobrepago { color: #06b6d4; }
+.preview-caso.pagada   { color: var(--success); }
+.preview-caso.parcial  { color: var(--gold); }
+.preview-caso.sobrepago { color: var(--indigo); }
 .caso-sub { display: block; width: 100%; font-size: 11px; margin-top: 4px; opacity: 0.9; }
 
-.preview-desglose { padding: 10px; background: rgba(139,92,246,0.06); border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #8b5cf6; }
+.preview-desglose { padding: 10px; background: var(--indigo-wash); border-radius: 8px; margin-bottom: 10px; border-left: 3px solid var(--indigo); }
 .desglose-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; }
-.desglose-row .monto { font-weight: 600; font-family: 'Courier New', monospace; color: #8b5cf6; }
-.desglose-total { padding: 8px 0; margin-top: 5px; border-top: 1px solid rgba(139,92,246,0.2); font-weight: 600; }
+.desglose-row .monto { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--indigo); }
+.desglose-total { padding: 8px 0; margin-top: 5px; border-top: 1px solid var(--indigo-wash); font-weight: 600; }
 
 .form-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
 

@@ -1,40 +1,23 @@
 <template>
   <MainLayout>
 
-    <!-- BREADCRUMB -->
-    <div class="breadcrumb-bar">
-      <span class="bc-root">TESORERÍA</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-section">Reportes</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-item">Ventas de Productos por Período</span>
-    </div>
-
-    <!-- HEADER -->
-    <div class="page-header">
-      <div class="header-left">
-        <div class="header-icon">
-          <v-icon size="26" color="white">mdi-package-variant-closed</v-icon>
-        </div>
-        <div>
-          <h1 class="page-title">VENTAS DE PRODUCTOS POR PERÍODO</h1>
-          <p class="page-sub">Detalle de productos vendidos importados desde Square</p>
-        </div>
-      </div>
-      <div class="header-actions">
+    <PageHeader
+      title="Ventas de Productos por Período"
+      description="Detalle de productos vendidos importados desde Square"
+      :crumbs="['Tesorería', 'Reportes', 'Ventas de Productos por Período']"
+    >
+      <template #actions>
         <v-btn
           v-if="rows.length > 0"
-          color="#ef4444"
+          color="error"
           variant="flat"
           size="small"
           prepend-icon="mdi-file-pdf-box"
           :loading="generandoPdf"
           @click="exportarPDF"
-        >
-          Exportar PDF
-        </v-btn>
-      </div>
-    </div>
+        >Exportar PDF</v-btn>
+      </template>
+    </PageHeader>
 
     <!-- FILTROS -->
     <div class="filters-panel">
@@ -43,7 +26,7 @@
         <!-- Fechas -->
         <div class="filter-group dates-group">
           <div class="filter-label">
-            <v-icon size="13" color="#06b6d4">mdi-calendar-range</v-icon>
+            <v-icon size="13" color="primary">mdi-calendar-range</v-icon>
             <span>Período</span>
           </div>
           <div class="dates-row">
@@ -56,7 +39,7 @@
         <!-- Centro de Costos -->
         <div class="filter-group">
           <div class="filter-label">
-            <v-icon size="13" color="#f59e0b">mdi-map-marker-outline</v-icon>
+            <v-icon size="13" color="warning">mdi-map-marker-outline</v-icon>
             <span>Centro de Costos</span>
           </div>
           <v-select
@@ -83,7 +66,7 @@
                   <v-checkbox-btn
                     :model-value="todosSeleccionados"
                     :indeterminate="algunoSeleccionado && !todosSeleccionados"
-                    color="#f59e0b"
+                    color="warning"
                   />
                 </template>
               </v-list-item>
@@ -94,7 +77,7 @@
                 <template #prepend>
                   <v-checkbox-btn
                     :model-value="ccostosSeleccionados.includes(item.value)"
-                    color="#f59e0b"
+                    color="warning"
                   />
                 </template>
               </v-list-item>
@@ -115,7 +98,7 @@
 
     <!-- ERROR -->
     <div v-if="error" class="error-banner">
-      <v-icon size="18" color="#ef4444">mdi-alert-circle-outline</v-icon>
+      <v-icon size="18" color="error">mdi-alert-circle-outline</v-icon>
       <span>{{ error }}</span>
     </div>
 
@@ -123,7 +106,7 @@
     <div v-if="rows.length > 0" class="kpi-row">
       <div class="kpi-card">
         <div class="kpi-icon" style="background:rgba(6,182,212,0.13)">
-          <v-icon size="20" color="#06b6d4">mdi-package-variant-closed</v-icon>
+          <v-icon size="20" color="primary">mdi-package-variant-closed</v-icon>
         </div>
         <div class="kpi-info">
           <span class="kpi-val">{{ totals.total_productos }}</span>
@@ -132,7 +115,7 @@
       </div>
       <div class="kpi-card">
         <div class="kpi-icon" style="background:rgba(139,92,246,0.13)">
-          <v-icon size="20" color="#8b5cf6">mdi-counter</v-icon>
+          <v-icon size="20" color="primary">mdi-counter</v-icon>
         </div>
         <div class="kpi-info">
           <span class="kpi-val">{{ fmtNum(totals.total_cant) }}</span>
@@ -141,7 +124,7 @@
       </div>
       <div class="kpi-card">
         <div class="kpi-icon" style="background:rgba(16,185,129,0.13)">
-          <v-icon size="20" color="#10b981">mdi-currency-usd</v-icon>
+          <v-icon size="20" color="success">mdi-currency-usd</v-icon>
         </div>
         <div class="kpi-info">
           <span class="kpi-val">{{ fmt(totals.total_valor) }}</span>
@@ -150,7 +133,7 @@
       </div>
       <div class="kpi-card">
         <div class="kpi-icon" style="background:rgba(245,158,11,0.13)">
-          <v-icon size="20" color="#f59e0b">mdi-tag-outline</v-icon>
+          <v-icon size="20" color="warning">mdi-tag-outline</v-icon>
         </div>
         <div class="kpi-info">
           <span class="kpi-val">{{ fmt(totals.ticket_promedio) }}</span>
@@ -212,6 +195,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
@@ -448,7 +432,7 @@ onMounted(() => {
   color: rgba(var(--v-theme-on-surface), 0.45);
   letter-spacing: 0.5px; margin-bottom: 16px;
 }
-.bc-root   { color: #06b6d4; }
+.bc-root   { color: var(--indigo); }
 .bc-sep    { color: rgba(var(--v-theme-on-surface), 0.25) !important; }
 .bc-item   { color: rgba(var(--v-theme-on-surface), 0.7); }
 
@@ -460,7 +444,7 @@ onMounted(() => {
 .header-left    { display: flex; align-items: center; gap: 14px; }
 .header-icon {
   width: 48px; height: 48px; border-radius: 14px;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .page-title {
@@ -490,11 +474,11 @@ onMounted(() => {
   color: rgb(var(--v-theme-on-surface));
   outline: none; transition: border-color .2s;
 }
-.date-input:focus { border-color: #06b6d4; }
+.date-input:focus { border-color: var(--indigo); }
 .filters-footer { margin-top: 14px; display: flex; justify-content: flex-end; }
 .btn-consultar {
   display: flex; align-items: center; gap: 6px;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
   color: white; border: none; border-radius: 8px;
   padding: 9px 20px; font-size: 13px; font-weight: 700;
   cursor: pointer; transition: opacity .2s;
@@ -507,7 +491,7 @@ onMounted(() => {
   display: flex; align-items: center; gap: 8px;
   background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
   border-radius: 10px; padding: 12px 16px;
-  font-size: 13px; color: #ef4444; margin-bottom: 16px;
+  font-size: 13px; color: var(--error); margin-bottom: 16px;
 }
 
 /* ── KPIs ─────────────────────────────────────────────────────── */
@@ -526,7 +510,7 @@ onMounted(() => {
 .kpi-info   { display: flex; flex-direction: column; gap: 2px; }
 .kpi-val    {
   font-size: 16px; font-weight: 800;
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
   color: rgb(var(--v-theme-on-surface));
 }
 .kpi-label  {
@@ -557,9 +541,9 @@ onMounted(() => {
 }
 .tr-data:last-child td { border-bottom: none; }
 .tr-data:hover td { background: rgba(var(--v-theme-on-surface), 0.025); }
-.col-num   { text-align: right !important; font-family: 'Courier New', monospace; }
+.col-num   { text-align: right !important; font-variant-numeric: tabular-nums; }
 .td-nombre { font-weight: 500; white-space: normal; max-width: 260px; }
-.td-bold   { font-weight: 700; color: #06b6d4; }
+.td-bold   { font-weight: 700; color: var(--indigo); }
 .td-dim    { color: rgba(var(--v-theme-on-surface), 0.5); }
 
 .badge-cod {
@@ -571,7 +555,7 @@ onMounted(() => {
 }
 .badge-ccosto {
   display: inline-block;
-  background: rgba(6,182,212,0.1); color: #06b6d4;
+  background: rgba(6,182,212,0.1); color: var(--indigo);
   border-radius: 4px; padding: 1px 6px;
   font-size: 10px; font-weight: 700; font-family: monospace;
   margin-right: 4px;
@@ -584,7 +568,7 @@ onMounted(() => {
 }
 .pct-bar {
   height: 5px; border-radius: 3px;
-  background: linear-gradient(90deg, #06b6d4, #0891b2);
+  background: linear-gradient(90deg, var(--indigo), var(--indigo));
   min-width: 2px; max-width: 50px;
   transition: width .3s;
 }
@@ -598,7 +582,7 @@ onMounted(() => {
   border-top: 2px solid rgba(var(--v-theme-on-surface), 0.12);
   white-space: nowrap;
 }
-.tr-total td.col-num { font-family: 'Courier New', monospace; text-align: right; }
+.tr-total td.col-num { font-variant-numeric: tabular-nums; text-align: right; }
 
 /* ── Empty ────────────────────────────────────────────────────── */
 .empty-state {

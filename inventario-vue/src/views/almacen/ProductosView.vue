@@ -1,31 +1,18 @@
-﻿<template>
+<template>
   <MainLayout>
     <div class="prd-container">
 
-      <!-- BREADCRUMB -->
-      <div class="prd-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Productos</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="prd-header">
-        <div class="prd-header-left">
-          <div class="prd-icon-wrap">
-            <v-icon size="22" color="white">mdi-package-variant</v-icon>
-          </div>
-          <div>
-            <h1 class="prd-title">GESTIÓN DE PRODUCTOS</h1>
-            <p class="prd-sub">Catálogo de productos de inventario</p>
-          </div>
-        </div>
-        <v-btn color="#0891b2" variant="elevated" prepend-icon="mdi-plus" @click="abrirCrear">
-          Nuevo Producto
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Gestión de Productos"
+        description="Catálogo de productos de inventario"
+        :crumbs="['Almacén', 'Configuración', 'Productos']"
+      >
+        <template #actions>
+          <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="abrirCrear">
+            Nuevo Producto
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- KPI CARDS -->
       <div class="prd-kpis">
@@ -120,7 +107,7 @@
       <!-- TABLA AGRUPADA -->
       <div class="prd-tabla-wrap">
         <div v-if="loading" class="prd-loading">
-          <v-progress-circular indeterminate color="#0891b2" size="36" />
+          <v-progress-circular indeterminate color="primary" size="36" />
           <p class="mt-3" style="color:rgba(var(--v-theme-on-surface),.5)">Cargando productos...</p>
         </div>
 
@@ -238,7 +225,7 @@
                       icon
                       size="x-small"
                       variant="text"
-                      color="#8b5cf6"
+                      color="primary"
                       title="Códigos de Barra"
                       @click="abrirBarcodes(p)"
                     >
@@ -249,7 +236,7 @@
                       icon
                       size="x-small"
                       variant="text"
-                      color="#0891b2"
+                      color="primary"
                       title="Editar"
                       @click="abrirEditar(p)"
                     >
@@ -290,7 +277,7 @@
             <!-- SECCIÓN 1: INFORMACIÓN BÁSICA -->
             <v-sheet class="dlg-sheet">
               <div class="sheet-header">
-                <v-icon size="20" color="#0891b2">mdi-information-outline</v-icon>
+                <v-icon size="20" color="primary">mdi-information-outline</v-icon>
                 <span class="sheet-title">Información Básica</span>
               </div>
               <v-divider class="my-3" />
@@ -361,7 +348,7 @@
             <!-- SECCIÓN 2: CONFIGURACIÓN -->
             <v-sheet class="dlg-sheet mt-5">
               <div class="sheet-header">
-                <v-icon size="20" color="#10b981">mdi-tune-outline</v-icon>
+                <v-icon size="20" color="success">mdi-tune-outline</v-icon>
                 <span class="sheet-title">Configuración</span>
               </div>
               <v-divider class="my-3" />
@@ -371,7 +358,7 @@
                 <v-col cols="12" md="6">
                   <div class="config-box">
                     <div class="config-label">
-                      <v-icon size="18" color="#10b981">mdi-warehouse</v-icon>
+                      <v-icon size="18" color="success">mdi-warehouse</v-icon>
                       Bodega Maestra
                     </div>
                     <v-select
@@ -391,7 +378,7 @@
                 <v-col cols="12" md="6">
                   <div class="config-box">
                     <div class="config-label">
-                      <v-icon size="18" color="#f59e0b">mdi-store-outline</v-icon>
+                      <v-icon size="18" color="warning">mdi-store-outline</v-icon>
                       Punto de Venta
                     </div>
                     <v-select
@@ -411,7 +398,7 @@
                 <v-col cols="12" md="6">
                   <div class="config-box">
                     <div class="config-label">
-                      <v-icon size="18" color="#06b6d4">mdi-shopping-outline</v-icon>
+                      <v-icon size="18" color="primary">mdi-shopping-outline</v-icon>
                       Franquicia
                     </div>
                     <v-select
@@ -440,7 +427,7 @@
           <v-card-actions class="pa-4">
             <v-spacer />
             <v-btn variant="text" @click="cerrarDlg" :disabled="guardando">Cancelar</v-btn>
-            <v-btn color="#0891b2" variant="elevated" size="large" :loading="guardando" @click="guardar">
+            <v-btn color="primary" variant="elevated" size="large" :loading="guardando" @click="guardar">
               {{ editando ? 'Guardar Cambios' : 'Crear Producto' }}
             </v-btn>
           </v-card-actions>
@@ -484,7 +471,7 @@
                     :loading="bcToggling === bc.id"
                     @click="marcarPrincipal(bc)"
                   ><v-icon size="16">mdi-star</v-icon></v-btn>
-                  <v-btn icon size="x-small" variant="text" color="#ef4444" title="Eliminar"
+                  <v-btn icon size="x-small" variant="text" color="error" title="Eliminar"
                     :loading="bcDeleting === bc.id"
                     @click="eliminarBarcode(bc)"
                   ><v-icon size="16">mdi-delete</v-icon></v-btn>
@@ -496,7 +483,7 @@
               <p>Sin códigos de barra registrados</p>
             </div>
             <div v-if="bcLoading" class="bc-empty">
-              <v-progress-circular indeterminate color="#8b5cf6" size="28" />
+              <v-progress-circular indeterminate color="primary" size="28" />
             </div>
 
             <v-divider class="my-4" />
@@ -504,7 +491,7 @@
             <!-- Formulario agregar -->
             <div class="bc-form">
               <div class="sheet-header mb-3">
-                <v-icon size="16" color="#8b5cf6">mdi-plus-circle</v-icon>
+                <v-icon size="16" color="primary">mdi-plus-circle</v-icon>
                 <span class="sheet-title">Agregar Código</span>
               </div>
               <v-row dense>
@@ -547,7 +534,7 @@
                     v-model="bcNuevo.es_principal"
                     label="Marcar como código principal"
                     density="compact"
-                    color="#8b5cf6"
+                    color="primary"
                     hide-details
                   />
                 </v-col>
@@ -560,7 +547,7 @@
           <v-card-actions class="pa-4">
             <v-spacer />
             <v-btn variant="text" @click="dlgBarcodes=false">Cerrar</v-btn>
-            <v-btn color="#8b5cf6" variant="elevated" :loading="bcGuardando" @click="agregarBarcode"
+            <v-btn color="primary" variant="elevated" :loading="bcGuardando" @click="agregarBarcode"
               :disabled="!bcNuevo.barcode.trim()">
               Agregar Código
             </v-btn>
@@ -575,6 +562,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 import api from '../../services/api'
 
@@ -873,7 +861,7 @@ onMounted(cargar)
 
 /* Breadcrumb */
 .prd-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
+.bc-root    { font-size: 12px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
 .bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
@@ -881,7 +869,7 @@ onMounted(cargar)
 /* Header */
 .prd-header      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .prd-header-left { display: flex; align-items: center; gap: 16px; }
-.prd-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,.35); flex-shrink: 0; }
+.prd-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,var(--indigo),var(--indigo)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,.35); flex-shrink: 0; }
 .prd-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .prd-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
@@ -910,7 +898,7 @@ onMounted(cargar)
 /* Fila de encabezado de grupo */
 .grupo-header-row  { background: rgba(139,92,246,.06); }
 .grupo-header-cell { padding: 8px 14px !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
-.grupo-header-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #8b5cf6; }
+.grupo-header-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--indigo); }
 .grupo-header-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: 10px; }
 
 /* Filas de producto */
@@ -931,8 +919,8 @@ onMounted(cargar)
 .td-acc  { text-align: center; white-space: nowrap; }
 .acc-btns { display: inline-flex; align-items: center; gap: 2px; }
 
-.badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
-.badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
+.badge-cod { background: rgba(6,182,212,.15); color: var(--indigo); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
+.badge-und { background: rgba(139,92,246,.12); color: var(--indigo); padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
 
 .prd-empty { text-align: center !important; padding: 50px 20px !important; }
 .prd-total { margin-top: 12px; font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; padding-right: 4px; }
@@ -947,7 +935,7 @@ onMounted(cargar)
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #0891b2, #06b6d4);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
 }
 
 .dlg-header-left {
@@ -1017,8 +1005,8 @@ onMounted(cargar)
 .field-value {
   font-size: 14px;
   font-weight: 700;
-  color: #0891b2;
-  font-family: 'Courier New', monospace;
+  color: var(--indigo);
+  font-variant-numeric: tabular-nums;
   padding: 6px 10px;
   background: rgba(8,145,178,.12);
   border-radius: 6px;
@@ -1093,8 +1081,8 @@ onMounted(cargar)
 .bc-item  { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(var(--v-theme-on-surface),.03); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 8px; }
 .bc-item-left  { display: flex; align-items: center; gap: 10px; }
 .bc-item-right { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
-.bc-code   { font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; letter-spacing: .5px; color: #7c3aed; display: flex; align-items: center; gap: 6px; }
-.bc-factor { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: rgba(16,185,129,.12); color: #059669; font-family: sans-serif; letter-spacing: 0; }
+.bc-code   { font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; letter-spacing: .5px; color: var(--indigo); display: flex; align-items: center; gap: 6px; }
+.bc-factor { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: rgba(16,185,129,.12); color: var(--success); font-family: sans-serif; letter-spacing: 0; }
 .bc-desc   { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 2px; }
 .bc-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
 .bc-form  { }

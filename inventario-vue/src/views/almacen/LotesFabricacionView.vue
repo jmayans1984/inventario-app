@@ -2,28 +2,17 @@
   <MainLayout>
     <div class="pg-container">
 
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Lotes de Fabricación</span>
-      </div>
-
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon">
-            <v-icon size="24" color="white">mdi-factory</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">LOTES DE FABRICACIÓN</h1>
-            <p class="page-sub">Lotes de fabricación por etiqueta de producto</p>
-          </div>
-        </div>
-        <v-btn color="#047857" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
-          Nuevo Lote
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Lotes de Fabricación"
+        description="Lotes de fabricación por etiqueta de producto"
+        :crumbs="['Almacén', 'Procesos', 'Lotes de Fabricación']"
+      >
+        <template #actions>
+          <v-btn color="success" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
+            Nuevo Lote
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <div class="toolbar">
         <div class="search-wrap">
@@ -35,7 +24,7 @@
 
       <div class="tabla-card">
         <div v-if="loading" class="loading-wrap">
-          <v-progress-circular indeterminate color="#10b981" size="36" />
+          <v-progress-circular indeterminate color="success" size="36" />
         </div>
         <table v-else class="crud-table">
           <thead>
@@ -66,7 +55,7 @@
               </td>
               <td>{{ l.responsable || '—' }}</td>
               <td class="col-acc">
-                <v-btn icon="mdi-printer-outline" size="x-small" variant="text" color="#047857" @click="imprimirEtiqueta(l)" />
+                <v-btn icon="mdi-printer-outline" size="x-small" variant="text" color="success" @click="imprimirEtiqueta(l)" />
                 <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(l)" />
                 <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
                   :loading="eliminando === l.codigo" @click="eliminar(l)" />
@@ -80,7 +69,7 @@
       <v-dialog v-model="modal" max-width="560">
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#10b981" class="mr-2">mdi-factory</v-icon>
+            <v-icon color="success" class="mr-2">mdi-factory</v-icon>
             <span>{{ editando ? 'Editar Lote' : 'Nuevo Lote de Fabricación' }}</span>
             <v-spacer />
             <v-btn icon="mdi-close" size="small" variant="text" @click="modal = false" />
@@ -144,7 +133,7 @@
           </div>
           <div class="modal-footer">
             <v-btn variant="text" @click="modal = false">Cancelar</v-btn>
-            <v-btn color="#047857" variant="flat" :loading="guardando" @click="guardar">
+            <v-btn color="success" variant="flat" :loading="guardando" @click="guardar">
               {{ editando ? 'Guardar Cambios' : 'Crear Lote' }}
             </v-btn>
           </div>
@@ -158,6 +147,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth.js'
 import { API_BASE } from '../../utils/constants.js'
 
@@ -591,13 +581,13 @@ onMounted(cargar)
 .pg-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
 
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),.45); }
-.bc-root { color: #047857; }
+.bc-root { color: var(--success); }
 .bc-sep  { color: rgba(var(--v-theme-on-surface),.25) !important; }
 .bc-current { color: rgba(var(--v-theme-on-surface),.7); }
 
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
 .header-left { display: flex; align-items: center; gap: 14px; }
-.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#047857,#10b981); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,var(--success),var(--success)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .page-title { font-size: 17px; font-weight: 800; letter-spacing: .5px; margin: 0; color: rgb(var(--v-theme-on-surface)); }
 .page-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
@@ -616,10 +606,10 @@ onMounted(cargar)
 .data-row td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); vertical-align: middle; }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
-.cod-badge { background: rgba(16,185,129,.12); color: #10b981; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-family: monospace; letter-spacing: 1px; }
+.cod-badge { background: rgba(16,185,129,.12); color: var(--success); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-family: monospace; letter-spacing: 1px; }
 .fw500 { font-weight: 500; }
 .sub-txt { font-size: 11px; color: rgba(var(--v-theme-on-surface),.45); margin-top: 2px; font-family: monospace; }
-.chip-warn { background: rgba(245,158,11,.12); color: #d97706; padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: 600; }
+.chip-warn { background: rgba(245,158,11,.12); color: var(--gold); padding: 2px 8px; border-radius: 5px; font-size: 12px; font-weight: 600; }
 .empty-row { text-align: center !important; padding: 48px !important; color: rgba(var(--v-theme-on-surface),.35); }
 .empty-row p { margin: 10px 0 0; font-size: 13px; }
 
@@ -632,15 +622,15 @@ onMounted(cargar)
 .field-group { margin-bottom: 14px; }
 .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 6px; }
 .field-input { width: 100%; padding: 9px 12px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; font-size: 13px; background: rgba(var(--v-theme-on-surface),.03); color: rgb(var(--v-theme-on-surface)); outline: none; transition: border-color .2s; box-sizing: border-box; }
-.field-input:focus { border-color: #10b981; }
-.field-input.field-error { border-color: #ef4444; }
+.field-input:focus { border-color: var(--success); }
+.field-input.field-error { border-color: var(--error); }
 .field-input:disabled { opacity: .55; cursor: not-allowed; }
 .field-select { appearance: auto; cursor: pointer; background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); }
 .field-textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 .cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
 .cod-wrap { position: relative; }
 .cod-hint { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-top: 3px; display: block; }
-.error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
-.hint-txt { font-size: 11px; color: #10b981; margin-top: 3px; display: block; font-weight: 600; }
-.api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
+.error-txt { font-size: 11px; color: var(--error); margin-top: 3px; display: block; }
+.hint-txt { font-size: 11px; color: var(--success); margin-top: 3px; display: block; font-weight: 600; }
+.api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--error); margin-top: 8px; }
 </style>

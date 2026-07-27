@@ -2,50 +2,37 @@
   <MainLayout>
     <div class="db-container">
 
-      <!-- BREADCRUMB -->
-      <div class="db-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Despachos de Bodega</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="db-header">
-        <div class="db-header-left">
-          <div class="db-icon-wrap"><v-icon size="22" color="white">mdi-truck-delivery-outline</v-icon></div>
-          <div>
-            <h1 class="db-title">DESPACHOS DE BODEGA</h1>
-            <p class="db-sub">Órdenes de traslado con doble verificación por scanner</p>
-          </div>
-        </div>
-        <div style="display:flex;gap:10px">
-          <v-btn color="#047857" variant="flat" rounded="lg" @click="abrirAnalisisFaltantes">
+      <PageHeader
+        title="Despachos de Bodega"
+        description="Órdenes de traslado con doble verificación por scanner"
+        :crumbs="['Almacén', 'Procesos', 'Despachos de Bodega']"
+      >
+        <template #actions>
+          <v-btn variant="tonal" @click="abrirAnalisisFaltantes">
             <v-icon start>mdi-chart-line</v-icon>Análisis de Faltantes
           </v-btn>
-          <v-btn color="#047857" variant="flat" rounded="lg" @click="abrirNuevo">
+          <v-btn color="success" variant="flat" @click="abrirNuevo">
             <v-icon start>mdi-plus</v-icon>Nueva Orden
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- KPIs -->
       <div class="db-kpi-row">
         <div class="db-kpi" style="--kc:#f59e0b">
-          <v-icon size="18" color="#f59e0b">mdi-clock-outline</v-icon>
+          <v-icon size="18" color="warning">mdi-clock-outline</v-icon>
           <div><div class="kpi-val">{{ despachos.filter(d=>d.estado==='PENDIENTE').length }}</div><div class="kpi-lbl">PENDIENTES</div></div>
         </div>
         <div class="db-kpi" style="--kc:#3b82f6">
-          <v-icon size="18" color="#3b82f6">mdi-hand-pointing-right</v-icon>
+          <v-icon size="18" color="primary">mdi-hand-pointing-right</v-icon>
           <div><div class="kpi-val">{{ despachos.filter(d=>d.estado==='EN_PICKING'||d.estado==='EN_PACKING').length }}</div><div class="kpi-lbl">EN PROCESO</div></div>
         </div>
         <div class="db-kpi" style="--kc:#10b981">
-          <v-icon size="18" color="#10b981">mdi-check-circle-outline</v-icon>
+          <v-icon size="18" color="success">mdi-check-circle-outline</v-icon>
           <div><div class="kpi-val">{{ despachos.filter(d=>d.estado==='COMPLETADO').length }}</div><div class="kpi-lbl">COMPLETADOS</div></div>
         </div>
         <div class="db-kpi" style="--kc:#0891b2">
-          <v-icon size="18" color="#0891b2">mdi-package-variant-closed</v-icon>
+          <v-icon size="18" color="primary">mdi-package-variant-closed</v-icon>
           <div><div class="kpi-val">{{ totalUnidades }}</div><div class="kpi-lbl">UNIDADES HOY</div></div>
         </div>
       </div>
@@ -90,7 +77,7 @@
       <!-- TABLA -->
       <div class="db-tabla-wrap">
         <div v-if="loading" class="db-loading">
-          <v-progress-circular indeterminate color="#047857" size="36" />
+          <v-progress-circular indeterminate color="success" size="36" />
           <span>Cargando despachos...</span>
         </div>
         <table v-else class="db-table">
@@ -119,7 +106,7 @@
                     <span class="td-oc">{{ d.cliente_nombre || d.destino_nombre || d.orden_compra }}</span>
                   </template>
                   <template v-else>
-                    <v-icon size="14" color="#047857">mdi-store-outline</v-icon>
+                    <v-icon size="14" color="success">mdi-store-outline</v-icon>
                     {{ d.cc_destino_nombre || d.cc_destino }}
                   </template>
                 </div>
@@ -129,7 +116,7 @@
               <td class="ta-c"><span class="estado-chip" :class="`est-${d.estado}`">{{ estadoLabel(d.estado) }}</span></td>
               <td class="ta-c">
                 <div class="acc-btns">
-                  <v-btn icon size="x-small" variant="text" color="#047857" title="Ver / Editar" @click="abrirDetalle(d)">
+                  <v-btn icon size="x-small" variant="text" color="success" title="Ver / Editar" @click="abrirDetalle(d)">
                     <v-icon>{{ d.estado === 'PENDIENTE' && d.tipo !== 'VENTA' ? 'mdi-pencil' : 'mdi-eye' }}</v-icon>
                   </v-btn>
                   <v-btn icon size="x-small" variant="text" color="#6b7280" title="Imprimir"
@@ -137,7 +124,7 @@
                     @click="imprimirDesdeTabla(d)">
                     <v-icon>mdi-printer-outline</v-icon>
                   </v-btn>
-                  <v-btn icon size="x-small" variant="text" color="#ef4444" title="Eliminar"
+                  <v-btn icon size="x-small" variant="text" color="error" title="Eliminar"
                     v-if="d.estado !== 'COMPLETADO' && d.tipo !== 'VENTA'"
                     :loading="eliminando === d.id"
                     @click="eliminar(d)">
@@ -167,7 +154,7 @@
           <v-card-text class="pa-5" style="max-height:75vh;overflow-y:auto">
             <!-- Cabecera de la orden -->
             <div class="form-sheet mb-4">
-              <div class="sheet-hdr"><v-icon size="15" color="#047857">mdi-information-outline</v-icon><span class="sheet-ttl">Información de la Orden</span></div>
+              <div class="sheet-hdr"><v-icon size="15" color="success">mdi-information-outline</v-icon><span class="sheet-ttl">Información de la Orden</span></div>
               <v-row dense class="mt-2">
                 <v-col cols="12" sm="3">
                   <v-text-field v-model="form.fecha" type="date" label="Fecha *" density="compact" variant="outlined"
@@ -194,18 +181,18 @@
               <span>Verificando inventario del día anterior...</span>
             </div>
             <div v-else-if="inventarioStatus === 'ok'" class="inv-check inv-check--ok">
-              <v-icon size="16" color="#10b981">mdi-check-circle</v-icon>
+              <v-icon size="16" color="success">mdi-check-circle</v-icon>
               <span>Inventario verificado — ventas del día anterior registradas</span>
             </div>
             <div v-else-if="inventarioStatus === 'warning'" class="inv-check inv-check--warn">
-              <v-icon size="16" color="#ef4444">mdi-alert-circle</v-icon>
+              <v-icon size="16" color="error">mdi-alert-circle</v-icon>
               <span>El inventario se encuentra desactualizado — no se encontraron ventas del día anterior</span>
             </div>
 
             <!-- Grid de productos -->
             <div class="form-sheet">
               <div class="sheet-hdr mb-3">
-                <v-icon size="15" color="#047857">mdi-package-variant</v-icon>
+                <v-icon size="15" color="success">mdi-package-variant</v-icon>
                 <span class="sheet-ttl">Productos a Despachar</span>
                 <span class="sheet-count">{{ productosConCantidad }} con cantidad</span>
                 <v-btn v-if="productosConCantidad > 0" variant="text" size="x-small" color="grey" class="ml-2"
@@ -233,7 +220,7 @@
 
               <!-- Cargando -->
               <div v-else-if="loadingGrid" class="grid-placeholder">
-                <v-progress-circular indeterminate color="#047857" size="28" />
+                <v-progress-circular indeterminate color="success" size="28" />
                 <p>Cargando productos y stock...</p>
               </div>
 
@@ -292,11 +279,11 @@
                       </td>
                       <td class="pg-td-promedio">
                         <template v-if="loadingPromedioVentas">
-                          <v-progress-circular indeterminate size="14" width="2" color="#8b5cf6" />
+                          <v-progress-circular indeterminate size="14" width="2" color="primary" />
                         </template>
                         <template v-else-if="promedioVentas(p.codigo) !== null">
                           <span class="pg-promedio-val">{{ promedioVentas(p.codigo).toFixed(1) }}</span>
-                          <v-btn icon size="x-small" variant="text" color="#8b5cf6"
+                          <v-btn icon size="x-small" variant="text" color="primary"
                             @click="abrirVentasDetalle(p)" title="Ver ventas usadas en el cálculo">
                             <v-icon size="15">mdi-eye-outline</v-icon>
                           </v-btn>
@@ -333,7 +320,7 @@
           <v-card-actions class="pa-4">
             <v-spacer />
             <v-btn variant="text" @click="dlgForm=false" :disabled="guardando">Cancelar</v-btn>
-            <v-btn color="#047857" variant="elevated" :loading="guardando" @click="guardar"
+            <v-btn color="success" variant="elevated" :loading="guardando" @click="guardar"
               :disabled="productosConCantidad === 0 || !form.cc_destino">
               {{ editandoId ? 'Guardar Cambios' : 'Crear Orden' }}
             </v-btn>
@@ -463,17 +450,17 @@
 
           <v-divider />
           <v-card-actions class="pa-4">
-            <v-btn variant="tonal" color="#047857" prepend-icon="mdi-printer-outline" @click="imprimirDespacho(detalleActivo)">
+            <v-btn variant="tonal" color="success" prepend-icon="mdi-printer-outline" @click="imprimirDespacho(detalleActivo)">
               Imprimir Reporte
             </v-btn>
             <v-spacer />
             <!-- Completar despacho por VENTA: genera salida por venta y pasa la orden de compra a EN REPARTO -->
             <v-btn v-if="detalleActivo.tipo === 'VENTA' && detalleActivo.estado !== 'COMPLETADO' && detalleActivo.estado !== 'CANCELADO'"
-              variant="flat" color="#10b981" style="color:white" prepend-icon="mdi-truck-check-outline"
+              variant="flat" color="success" style="color:white" prepend-icon="mdi-truck-check-outline"
               :loading="completandoVenta" @click="completarDespachoVenta(detalleActivo)">
               Despachar (Salida por Venta)
             </v-btn>
-            <v-btn variant="flat" color="#ef4444" @click="dlgDetalle=false" style="color:white">Cerrar</v-btn>
+            <v-btn variant="flat" color="error" @click="dlgDetalle=false" style="color:white">Cerrar</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -499,7 +486,7 @@
 
           <v-card-text class="pa-5" style="max-height:75vh;overflow-y:auto">
             <div v-if="cargandoAnalisis" style="text-align:center;padding:40px">
-              <v-progress-circular indeterminate color="#3b82f6" size="36" />
+              <v-progress-circular indeterminate color="primary" size="36" />
               <p style="margin-top:12px;color:rgba(var(--v-theme-on-surface),.5)">Analizando despachos pendientes...</p>
             </div>
 
@@ -573,6 +560,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import { useAuthStore } from '../../stores/auth'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 
 const auth    = useAuthStore()
@@ -1326,7 +1314,7 @@ onMounted(async () => {
 
 /* Breadcrumb */
 .db-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: .5px; }
+.bc-root    { font-size: 12px; font-weight: 700; color: var(--success); text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
 .bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
@@ -1334,7 +1322,7 @@ onMounted(async () => {
 /* Header */
 .db-header      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .db-header-left { display: flex; align-items: center; gap: 16px; }
-.db-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#047857,#10b981); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(4,120,87,.35); flex-shrink: 0; }
+.db-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,var(--success),var(--success)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(4,120,87,.35); flex-shrink: 0; }
 .db-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .db-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
@@ -1359,9 +1347,9 @@ onMounted(async () => {
 .db-empty { text-align: center !important; padding: 50px 20px !important; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
 .ta-c { text-align: center; }
 
-.badge-id  { background: rgba(4,120,87,.12); color: #047857; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
-.badge-cod { background: rgba(6,182,212,.12); color: #0891b2; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px; font-family: monospace; }
-.badge-und { background: rgba(139,92,246,.12); color: #8b5cf6; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+.badge-id  { background: rgba(4,120,87,.12); color: var(--success); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
+.badge-cod { background: rgba(6,182,212,.12); color: var(--indigo); padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px; font-family: monospace; }
+.badge-und { background: rgba(139,92,246,.12); color: var(--indigo); padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
 .td-fecha   { font-size: 12px; color: rgba(var(--v-theme-on-surface),.7); }
 .td-destino { display: flex; align-items: center; gap: 6px; font-weight: 500; flex-wrap: wrap; }
 .tipo-venta-badge { display: inline-flex; align-items: center; gap: 3px; background: rgba(217,119,6,.14); color: #b45309; font-size: 10px; font-weight: 800; letter-spacing: .5px; padding: 2px 7px; border-radius: 10px; }
@@ -1370,17 +1358,17 @@ onMounted(async () => {
 
 /* Estado chips */
 .estado-chip { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; display: inline-block; }
-.est-PENDIENTE  { background: rgba(245,158,11,.12); color: #f59e0b; }
-.est-EN_PICKING { background: rgba(59,130,246,.12); color: #3b82f6; }
-.est-EN_PACKING { background: rgba(139,92,246,.12); color: #8b5cf6; }
-.est-COMPLETADO { background: rgba(16,185,129,.12); color: #10b981; }
+.est-PENDIENTE  { background: rgba(245,158,11,.12); color: var(--gold); }
+.est-EN_PICKING { background: rgba(59,130,246,.12); color: var(--indigo); }
+.est-EN_PACKING { background: rgba(139,92,246,.12); color: var(--indigo); }
+.est-COMPLETADO { background: rgba(16,185,129,.12); color: var(--success); }
 .est-CANCELADO  { background: rgba(107,114,128,.12); color: #6b7280; }
 
 /* Dialog */
 .dlg-card { overflow: visible !important; }
-.dlg-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; background: linear-gradient(135deg,#047857,#10b981); }
+.dlg-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; background: linear-gradient(135deg,var(--success),var(--success)); }
 
-.ventas-dlg-header { display: flex; align-items: center; padding: 14px 16px; background: linear-gradient(135deg,#7c3aed,#8b5cf6); }
+.ventas-dlg-header { display: flex; align-items: center; padding: 14px 16px; background: linear-gradient(135deg,var(--indigo),var(--indigo)); }
 .ventas-dlg-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 10px; }
 .ventas-dlg-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .ventas-dlg-table th { text-align: left; padding: 6px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
@@ -1389,7 +1377,7 @@ onMounted(async () => {
 .ventas-dlg-table .mono { font-family: monospace; }
 .ventas-dlg-resumen { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(var(--v-theme-on-surface),.08); }
 .ventas-dlg-resumen-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: rgba(var(--v-theme-on-surface),.65); }
-.ventas-dlg-resumen-row strong { color: #8b5cf6; font-family: monospace; }
+.ventas-dlg-resumen-row strong { color: var(--indigo); font-family: monospace; }
 .dlg-header-left { display: flex; align-items: center; gap: 12px; }
 .dlg-header-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; }
 .dlg-title { font-size: 16px; font-weight: 700; color: white; }
@@ -1417,11 +1405,11 @@ onMounted(async () => {
 .pg-promedio { width: 130px; text-align: center !important; }
 .pg-faltante { width: 90px; text-align: center !important; }
 .pg-cant  { width: 130px; text-align: right !important; }
-.pg-th-hint { display: block; font-size: 9px; font-weight: 600; color: #8b5cf6; text-transform: none; letter-spacing: 0; margin-top: 1px; }
+.pg-th-hint { display: block; font-size: 9px; font-weight: 600; color: var(--indigo); text-transform: none; letter-spacing: 0; margin-top: 1px; }
 
 .pg-grupo-row  { background: rgba(139,92,246,.06); }
 .pg-grupo-cell { padding: 6px 10px !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
-.pg-grupo-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #8b5cf6; }
+.pg-grupo-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--indigo); }
 .pg-grupo-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: 8px; }
 
 .pg-prod-row { border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); }
@@ -1438,11 +1426,11 @@ onMounted(async () => {
 .pg-td-promedio { text-align: center; white-space: nowrap; }
 .pg-td-faltante { text-align: center; font-family: monospace; font-size: 13px; font-weight: 700; }
 .pg-td-cant  { text-align: right; }
-.stock-pos  { color: #10b981; }
+.stock-pos  { color: var(--success); }
 .stock-zero { color: rgba(var(--v-theme-on-surface),.35); }
-.pg-promedio-val { font-family: monospace; font-size: 13px; font-weight: 600; color: #8b5cf6; }
+.pg-promedio-val { font-family: monospace; font-size: 13px; font-weight: 600; color: var(--indigo); }
 .pg-promedio-sin-datos { color: rgba(var(--v-theme-on-surface),.3); font-size: 12px; }
-.pg-faltante-val { color: #ef4444; }
+.pg-faltante-val { color: var(--error); }
 .pg-faltante-ok  { color: rgba(var(--v-theme-on-surface),.35); }
 
 .grid-empty { text-align: center !important; padding: 30px !important; color: rgba(var(--v-theme-on-surface),.4); }
@@ -1456,8 +1444,8 @@ onMounted(async () => {
   font-size: 13px; text-align: right; outline: none;
   transition: border-color .15s, background .15s;
 }
-.pg-cant-input:focus { border-color: #047857; background: rgba(4,120,87,.06); }
-.pg-cant-active { border-color: #047857; background: rgba(4,120,87,.08); font-weight: 700; color: #047857; }
+.pg-cant-input:focus { border-color: var(--success); background: rgba(4,120,87,.06); }
+.pg-cant-active { border-color: var(--success); background: rgba(4,120,87,.08); font-weight: 700; color: var(--success); }
 
 /* Detalle dialog */
 .detalle-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
@@ -1468,9 +1456,9 @@ onMounted(async () => {
 .item-nom { font-weight: 600; font-size: 13px; }
 .num-cell { font-family: monospace; font-size: 13px; }
 
-.dif-ok    { color: #10b981; font-weight: 700; }
-.dif-falta { color: #ef4444; font-weight: 700; }
-.dif-sobre { color: #f59e0b; font-weight: 700; }
+.dif-ok    { color: var(--success); font-weight: 700; }
+.dif-falta { color: var(--error); font-weight: 700; }
+.dif-sobre { color: var(--gold); font-weight: 700; }
 .dif-na    { color: rgba(var(--v-theme-on-surface),.3); }
 .row-falta { background: rgba(239,68,68,.04); }
 .row-sobre { background: rgba(245,158,11,.04); }
@@ -1482,13 +1470,13 @@ onMounted(async () => {
 .det-obs       { font-size: 13px; color: rgba(var(--v-theme-on-surface),.6); font-style: italic; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 6px; }
 .det-acciones  { display: flex; gap: 8px; }
 .det-grupo-row { background: rgba(139,92,246,.07); }
-.det-grupo-cell { padding: 5px 10px !important; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #7c3aed; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
+.det-grupo-cell { padding: 5px 10px !important; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--indigo); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06) !important; }
 
 /* Verificación de inventario */
 .inv-check { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
 .inv-check--loading { background: rgba(var(--v-theme-on-surface),.04); color: rgba(var(--v-theme-on-surface),.5); }
-.inv-check--ok   { background: rgba(16,185,129,.1); color: #047857; border: 1px solid rgba(16,185,129,.25); }
-.inv-check--warn { background: rgba(239,68,68,.08); color: #dc2626; border: 1px solid rgba(239,68,68,.2); }
+.inv-check--ok   { background: rgba(16,185,129,.1); color: var(--success); border: 1px solid rgba(16,185,129,.25); }
+.inv-check--warn { background: rgba(239,68,68,.08); color: var(--error); border: 1px solid rgba(239,68,68,.2); }
 
 /* Análisis de faltantes */
 .ana-stat { background: rgba(var(--v-theme-on-surface),.03); border-radius: 10px; padding: 14px; border-left: 3px solid var(--color); }
@@ -1501,7 +1489,7 @@ onMounted(async () => {
 .ana-row-falta { background: rgba(239,68,68,.04); }
 .ana-table tbody tr:hover { background: rgba(59,130,246,.08); }
 .badge-cod { font-family: monospace; font-size: 11px; font-weight: 700; background: rgba(99,102,241,.1); color: #6366f1; padding: 3px 8px; border-radius: 4px; }
-.badge-und { font-size: 10px; font-weight: 700; background: rgba(59,130,246,.1); color: #3b82f6; padding: 2px 6px; border-radius: 4px; }
-.stock-pos { color: #10b981; font-weight: 600; }
+.badge-und { font-size: 10px; font-weight: 700; background: rgba(59,130,246,.1); color: var(--indigo); padding: 2px 6px; border-radius: 4px; }
+.stock-pos { color: var(--success); font-weight: 600; }
 .stock-zero { color: #6b7280; }
 </style>

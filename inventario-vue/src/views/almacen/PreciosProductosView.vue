@@ -2,27 +2,11 @@
   <MainLayout>
     <div class="prx-container">
 
-      <!-- BREADCRUMB -->
-      <div class="prx-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Precios de Compra / Venta</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="prx-header">
-        <div class="prx-header-left">
-          <div class="prx-icon-wrap">
-            <v-icon size="22" color="white">mdi-currency-usd</v-icon>
-          </div>
-          <div>
-            <h1 class="prx-title">PRECIOS DE COMPRA / VENTA</h1>
-            <p class="prx-sub">Actualice el precio de costo de cada artículo y vea los precios de venta calculados automáticamente</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Precios de Compra / Venta"
+        description="Actualice el precio de costo de cada artículo y vea los precios de venta calculados automáticamente"
+        :crumbs="['Almacén', 'Configuración', 'Precios de Compra / Venta']"
+      />
 
       <!-- CONTROLES EN UNA FILA -->
       <div class="prx-controles">
@@ -45,21 +29,21 @@
           @update:model-value="recalcularTodos"
         />
 
-        <v-btn color="#0891b2" variant="elevated" prepend-icon="mdi-content-save-all" :loading="guardandoTodos" @click="guardarTodos">
+        <v-btn color="primary" variant="elevated" prepend-icon="mdi-content-save-all" :loading="guardandoTodos" @click="guardarTodos">
           Guardar Todo
         </v-btn>
       </div>
 
       <!-- INFO LISTA SELECCIONADA -->
       <div v-if="listaActual" class="lista-info">
-        <v-icon size="18" color="#0891b2">mdi-information-outline</v-icon>
+        <v-icon size="18" color="primary">mdi-information-outline</v-icon>
         <span>Lista: <strong>{{ listaActual.lista }}</strong> — Margen: <strong>{{ (listaActual.margen * 100).toFixed(1) }}%</strong> — Fórmula: Precio Venta = Precio Costo ÷ (1 - {{ (listaActual.margen * 100).toFixed(1) }}%)</span>
       </div>
 
       <!-- TABLA AGRUPADA -->
       <div class="prx-table-wrap">
         <div v-if="loading" class="prx-loading">
-          <v-progress-circular indeterminate color="#0891b2" size="36" />
+          <v-progress-circular indeterminate color="primary" size="36" />
         </div>
 
         <template v-else-if="productosAgrupados.length === 0">
@@ -156,6 +140,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 
 const theme = useTheme()
@@ -312,14 +297,14 @@ onMounted(cargar)
 .prx-container { padding: 24px; max-width: 1600px; margin: 0 auto; }
 
 .prx-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
+.bc-root    { font-size: 12px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
 .bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
 
 .prx-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .prx-header-left { display: flex; align-items: center; gap: 16px; }
-.prx-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,.35); flex-shrink: 0; }
+.prx-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,var(--gold),var(--gold)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,.35); flex-shrink: 0; }
 .prx-title { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .prx-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
@@ -331,7 +316,7 @@ onMounted(cargar)
 .lista-info {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 16px; margin-bottom: 16px;
-  background: rgba(8,145,178,.08); border-left: 3px solid #0891b2;
+  background: rgba(8,145,178,.08); border-left: 3px solid var(--indigo);
   border-radius: 8px; font-size: 13px; color: rgba(var(--v-theme-on-surface),.8);
 }
 
@@ -343,11 +328,11 @@ onMounted(cargar)
   display: flex; align-items: center; gap: 8px;
   padding: 12px 16px;
   background: rgba(139,92,246,.08);
-  border-left: 3px solid #8b5cf6;
+  border-left: 3px solid var(--indigo);
   border-radius: 8px;
   margin: 20px 0 12px 0;
 }
-.grupo-nombre { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #8b5cf6; }
+.grupo-nombre { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--indigo); }
 .grupo-count { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
 
 .prx-table {
@@ -404,14 +389,14 @@ onMounted(cargar)
   width: 70px;
 }
 
-.badge-cod { background: rgba(6,182,212,.15); color: #0891b2; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
+.badge-cod { background: rgba(6,182,212,.15); color: var(--indigo); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
 
 .nombre-cell { font-weight: 500; min-width: 160px; }
 .desc-cell { font-size: 12px; color: rgba(var(--v-theme-on-surface),.55); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
 .und-cell { width: 60px; text-align: center; font-weight: 500; }
 
 .precio-input-cell { width: 130px; }
-.precio-venta-cell { width: 110px; text-align: right; color: #10b981; font-weight: 600; }
+.precio-venta-cell { width: 110px; text-align: right; color: var(--success); font-weight: 600; }
 
 .input-wrap {
   display: flex;

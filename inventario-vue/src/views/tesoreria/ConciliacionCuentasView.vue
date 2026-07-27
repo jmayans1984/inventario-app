@@ -1,27 +1,12 @@
 <template>
   <MainLayout>
     <div class="view-container">
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Conciliación de Cuentas</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon-wrap">
-            <v-icon size="22" color="white">mdi-bank-check</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">CONCILIACIÓN DE CUENTAS</h1>
-            <p class="page-sub">Selecciona una cuenta y marca los movimientos como conciliados</p>
-          </div>
-        </div>
-        <div class="header-actions">
+      <PageHeader
+        title="Conciliación de Cuentas"
+        description="Selecciona una cuenta y marca los movimientos como conciliados"
+        :crumbs="['Tesorería', 'Procesos', 'Conciliación de Cuentas']"
+      >
+        <template #actions>
           <v-btn
             v-if="selectedNros.length > 0"
             color="success"
@@ -31,8 +16,8 @@
           >
             Conciliar {{ selectedNros.length }}
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- SELECTOR DE CUENTA BANCARIA (solo ACTIVAS) -->
       <div class="cuenta-selector-wrap">
@@ -65,40 +50,18 @@
       <template v-else>
         <!-- KPI CARDS -->
         <div class="kpi-grid">
-          <div class="kpi-card kpi-saldo-ini">
-            <div class="kpi-icon-wrap kpi-icon-cyan">
-              <v-icon size="18" color="white">mdi-bank-check</v-icon>
-            </div>
-            <div class="kpi-label">SALDO INICIAL CONCILIADO</div>
-            <div class="kpi-value kpi-cyan">{{ formatMoneda(store.saldoInicialConciliado) }}</div>
-            <div class="kpi-sub">Balance ya conciliado</div>
-          </div>
-          <div class="kpi-card kpi-ingreso">
-            <div class="kpi-icon-wrap kpi-icon-verde">
-              <v-icon size="18" color="white">mdi-arrow-down-circle</v-icon>
-            </div>
-            <div class="kpi-label">INGRESOS POR CONCILIAR</div>
-            <div class="kpi-value kpi-verde">{{ formatMoneda(store.ingresosPendientes) }}</div>
-            <div class="kpi-sub">{{ store.movimientos.filter(m => m.ingreso > 0).length }} movimientos</div>
-          </div>
-          <div class="kpi-card kpi-egreso">
-            <div class="kpi-icon-wrap kpi-icon-ambar">
-              <v-icon size="18" color="white">mdi-arrow-up-circle</v-icon>
-            </div>
-            <div class="kpi-label">EGRESOS POR CONCILIAR</div>
-            <div class="kpi-value kpi-ambar">{{ formatMoneda(store.egresosPendientes) }}</div>
-            <div class="kpi-sub">{{ store.movimientos.filter(m => m.egreso > 0).length }} movimientos</div>
-          </div>
-          <div class="kpi-card kpi-saldo-fin">
-            <div class="kpi-icon-wrap" :class="store.saldoFinalConciliado >= 0 ? 'kpi-icon-verde' : 'kpi-icon-rojo'">
-              <v-icon size="18" color="white">mdi-scale-balance</v-icon>
-            </div>
-            <div class="kpi-label">SALDO FINAL CONCILIADO</div>
-            <div class="kpi-value" :class="store.saldoFinalConciliado >= 0 ? 'kpi-verde' : 'kpi-rojo'">
-              {{ formatMoneda(store.saldoFinalConciliado) }}
-            </div>
-            <div class="kpi-sub">Si se concilian todos</div>
-          </div>
+          <KpiCard :index="0" label="Saldo Inicial Conciliado" :value="formatMoneda(store.saldoInicialConciliado)" icon="mdi-bank-check" color="var(--indigo)" hint="Balance ya conciliado" />
+          <KpiCard :index="1" label="Ingresos por Conciliar" :value="formatMoneda(store.ingresosPendientes)" icon="mdi-arrow-down-circle" color="var(--success)" :hint="`${store.movimientos.filter(m => m.ingreso > 0).length} movimientos`" />
+          <KpiCard :index="2" label="Egresos por Conciliar" :value="formatMoneda(store.egresosPendientes)" icon="mdi-arrow-up-circle" color="var(--gold)" :hint="`${store.movimientos.filter(m => m.egreso > 0).length} movimientos`" />
+          <KpiCard
+            :index="3"
+            label="Saldo Final Conciliado"
+            :value="formatMoneda(store.saldoFinalConciliado)"
+            icon="mdi-scale-balance"
+            :color="store.saldoFinalConciliado >= 0 ? 'var(--success)' : 'var(--error)'"
+            :value-color="store.saldoFinalConciliado >= 0 ? 'var(--success)' : 'var(--error)'"
+            hint="Si se concilian todos"
+          />
         </div>
 
         <!-- TABLA -->
@@ -224,6 +187,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { useConciliacionBancariaStore } from '../../stores/conciliacion-bancaria'
 import { useCuentasBancariasStore } from '../../stores/cuentasbancarias'
 import { formatMoneda, formatFecha } from '../../utils/formatters'
@@ -316,17 +281,6 @@ onMounted(async () => {
 
 <style scoped>
 .view-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.header-left { display: flex; align-items: center; gap: 16px; }
-.header-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,0.35); }
-.page-title { font-size: 20px; font-weight: 800; margin: 0; }
-.page-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
 
 /* SELECTOR CUENTA */
 .cuenta-selector-wrap { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
@@ -344,21 +298,6 @@ onMounted(async () => {
 @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 500px) { .kpi-grid { grid-template-columns: 1fr; } }
 
-.kpi-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 12px; padding: 18px 16px; }
-.kpi-icon-wrap { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
-.kpi-icon-cyan  { background: linear-gradient(135deg, #06b6d4, #0891b2); }
-.kpi-icon-verde { background: linear-gradient(135deg, #10b981, #059669); }
-.kpi-icon-ambar { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.kpi-icon-rojo  { background: linear-gradient(135deg, #ef4444, #dc2626); }
-
-.kpi-label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.kpi-value { font-size: 20px; font-weight: 800; color: #06b6d4; margin: 4px 0 4px; }
-.kpi-cyan  { color: #06b6d4 !important; }
-.kpi-verde { color: #10b981 !important; }
-.kpi-ambar { color: #f59e0b !important; }
-.kpi-rojo  { color: #ef4444 !important; }
-.kpi-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
-
 /* TABLA */
 .tabla-container { background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
 .tabla-header { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
@@ -374,7 +313,7 @@ onMounted(async () => {
 .data-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
 .data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
 .data-table tbody td { padding: 10px 10px; color: rgb(var(--v-theme-on-surface)); vertical-align: middle; }
-.row-selected { background: rgba(6, 182, 212, 0.06) !important; }
+.row-selected { background: var(--indigo-wash) !important; }
 
 .col-checkbox { width: 36px; }
 .col-checkbox input { cursor: pointer; }
@@ -387,11 +326,11 @@ onMounted(async () => {
 .col-egreso { width: 120px; text-align: right; }
 .col-acciones { width: 60px; text-align: center; }
 
-.badge-numero { background: rgba(6,182,212,0.12); color: #06b6d4; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; font-family: 'Courier New', monospace; }
-.badge-cheque { background: rgba(var(--v-theme-on-surface),0.07); color: rgba(var(--v-theme-on-surface),0.7); padding: 2px 7px; border-radius: 5px; font-size: 12px; font-family: 'Courier New', monospace; }
+.badge-numero { background: var(--indigo-wash); color: var(--indigo); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; }
+.badge-cheque { background: rgba(var(--v-theme-on-surface),0.07); color: rgba(var(--v-theme-on-surface),0.7); padding: 2px 7px; border-radius: 5px; font-size: 12px; font-variant-numeric: tabular-nums; }
 
-.monto-ingreso { font-weight: 700; color: #10b981; font-family: 'Courier New', monospace; }
-.monto-egreso { font-weight: 700; color: #f59e0b; font-family: 'Courier New', monospace; }
+.monto-ingreso { font-weight: 700; color: var(--success); font-variant-numeric: tabular-nums; }
+.monto-egreso { font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
 .text-muted { color: rgba(var(--v-theme-on-surface), 0.3); font-size: 12px; }
 
 .tabla-empty { text-align: center !important; padding: 40px !important; }

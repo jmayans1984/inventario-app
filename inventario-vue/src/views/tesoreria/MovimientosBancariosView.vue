@@ -1,27 +1,12 @@
 ﻿<template>
   <MainLayout>
     <div class="view-container">
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Movimientos Bancarios</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon-wrap">
-            <v-icon size="22" color="white">mdi-bank-transfer</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">MOVIMIENTOS BANCARIOS</h1>
-            <p class="page-sub">Registro y control de movimientos bancarios por cuenta</p>
-          </div>
-        </div>
-        <div class="header-actions">
+      <PageHeader
+        title="Movimientos Bancarios"
+        description="Registro y control de movimientos bancarios por cuenta"
+        :crumbs="['Tesorería', 'Procesos', 'Movimientos Bancarios']"
+      >
+        <template #actions>
           <v-btn
             color="primary"
             prepend-icon="mdi-plus"
@@ -30,13 +15,13 @@
           >
             Nuevo Movimiento
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- SELECTOR DE CUENTA -->
       <div class="cuenta-selector-wrap">
         <div class="cuenta-selector-label">
-          <v-icon size="16" color="#06b6d4">mdi-bank-outline</v-icon>
+          <v-icon size="16">mdi-bank-outline</v-icon>
           Cuenta Bancaria
         </div>
         <v-select
@@ -55,51 +40,18 @@
 
       <!-- KPI CARDS -->
       <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-cyan">
-            <v-icon size="20" color="white">mdi-format-list-numbered</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">TOTAL MOVIMIENTOS</div>
-            <div class="kpi-value">{{ store.totalMovimientos }}</div>
-            <div class="kpi-sub">en la cuenta seleccionada</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-green">
-            <v-icon size="20" color="white">mdi-arrow-down-circle-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">TOTAL INGRESOS</div>
-            <div class="kpi-value green-text">{{ formatMoneda(store.totalIngresos) }}</div>
-            <div class="kpi-sub">{{ store.movimientosIngresos.length }} transacciones</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-amber">
-            <v-icon size="20" color="white">mdi-arrow-up-circle-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">TOTAL EGRESOS</div>
-            <div class="kpi-value amber-text">{{ formatMoneda(store.totalEgresos) }}</div>
-            <div class="kpi-sub">{{ store.movimientosEgresos.length }} transacciones</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap" :class="store.saldoNeto >= 0 ? 'kpi-icon-green' : 'kpi-icon-red'">
-            <v-icon size="20" color="white">mdi-scale-balance</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">SALDO NETO</div>
-            <div class="kpi-value" :class="store.saldoNeto >= 0 ? 'green-text' : 'red-text'">
-              {{ formatMoneda(store.saldoNeto) }}
-            </div>
-            <div class="kpi-sub">ingresos - egresos</div>
-          </div>
-        </div>
+        <KpiCard :index="0" label="Total Movimientos" :value="String(store.totalMovimientos)" icon="mdi-format-list-numbered" color="var(--indigo)" hint="en la cuenta seleccionada" />
+        <KpiCard :index="1" label="Total Ingresos" :value="formatMoneda(store.totalIngresos)" icon="mdi-arrow-down-circle-outline" color="var(--success)" :hint="`${store.movimientosIngresos.length} transacciones`" />
+        <KpiCard :index="2" label="Total Egresos" :value="formatMoneda(store.totalEgresos)" icon="mdi-arrow-up-circle-outline" color="var(--gold)" :hint="`${store.movimientosEgresos.length} transacciones`" />
+        <KpiCard
+          :index="3"
+          label="Saldo Neto"
+          :value="formatMoneda(store.saldoNeto)"
+          icon="mdi-scale-balance"
+          :color="store.saldoNeto >= 0 ? 'var(--success)' : 'var(--error)'"
+          :value-color="store.saldoNeto >= 0 ? 'var(--success)' : 'var(--error)'"
+          hint="ingresos - egresos"
+        />
       </div>
 
       <!-- FILTROS -->
@@ -387,6 +339,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { useMovimientosBancariosStore } from '../../stores/movimientos-bancarios'
 import { formatMoneda, formatFecha } from '../../utils/formatters'
 
@@ -522,98 +476,6 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
-/* ── Breadcrumb ── */
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 20px;
-}
-.bc-root {
-  font-size: 12px;
-  font-weight: 700;
-  color: #06b6d4;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-/* ── Header ── */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-.header-left { display: flex; align-items: center; gap: 16px; }
-.header-icon-wrap {
-  width: 48px; height: 48px; border-radius: 12px;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
-}
-.page-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; margin: 0; }
-.page-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
-
-/* ── Selector cuenta ── */
-.cuenta-selector-wrap {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.cuenta-selector-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-}
-.cuenta-select { flex: 1; max-width: 500px; }
-
-/* ── KPI cards ── */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.kpi-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.kpi-icon-wrap {
-  width: 44px; height: 44px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.kpi-icon-cyan  { background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 12px rgba(6,182,212,0.3); }
-.kpi-icon-green { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
-.kpi-icon-amber { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 12px rgba(245,158,11,0.3); }
-.kpi-icon-red   { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
-.kpi-body { flex: 1; min-width: 0; }
-.kpi-label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-value { font-size: 22px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); margin: 2px 0; }
-.kpi-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.green-text { color: #10b981 !important; }
-.amber-text { color: #f59e0b !important; }
-.red-text   { color: #ef4444 !important; }
-
 /* ── Filtros ── */
 .filtros-bar {
   display: flex;
@@ -631,7 +493,7 @@ onMounted(async () => {
   transition: all 0.15s;
 }
 .tipo-tab:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
-.tipo-tab.active { background: #06b6d4; border-color: #06b6d4; color: #fff; }
+.tipo-tab.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
 
 .search-bar {
   display: flex; align-items: center; gap: 8px;
@@ -697,14 +559,14 @@ onMounted(async () => {
 .col-conciliado   { width: 100px; text-align: center !important; }
 
 .numero-badge {
-  background: rgba(6, 182, 212, 0.12); color: #06b6d4;
+  background: var(--indigo-wash); color: var(--indigo);
   padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .tipo-chip { text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; font-size: 10px !important; }
-.ingreso-text { color: #10b981; font-weight: 600; font-family: 'Courier New', monospace; }
-.egreso-text  { color: #f59e0b; font-weight: 600; font-family: 'Courier New', monospace; }
-.total-text   { font-family: 'Courier New', monospace; font-weight: 700; }
+.ingreso-text { color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; }
+.egreso-text  { color: var(--gold); font-weight: 600; font-variant-numeric: tabular-nums; }
+.total-text   { font-variant-numeric: tabular-nums; font-weight: 700; }
 .text-muted   { color: rgba(var(--v-theme-on-surface), 0.3); }
 .footer-label { text-align: right; padding-right: 10px !important; font-weight: 700; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
 
@@ -720,7 +582,7 @@ onMounted(async () => {
 .form-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
 }
 .form-header-left { display: flex; align-items: center; gap: 10px; }
 .form-header-icon {
@@ -739,7 +601,7 @@ onMounted(async () => {
   font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
   text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.6);
 }
-.req { color: #ef4444; }
+.req { color: var(--error); }
 .field-input {
   padding: 9px 12px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
@@ -753,10 +615,10 @@ onMounted(async () => {
   box-sizing: border-box;
   text-transform: uppercase;
 }
-.field-input:focus { border-color: #06b6d4; }
-.field-input.error { border-color: #ef4444; }
+.field-input:focus { border-color: var(--indigo); }
+.field-input.error { border-color: var(--error); }
 .field-input.readonly { background: rgba(var(--v-theme-on-surface), 0.06); color: rgba(var(--v-theme-on-surface), 0.5); cursor: default; }
-.field-error { font-size: 11px; color: #ef4444; }
+.field-error { font-size: 11px; color: var(--error); }
 
 /* Tipo selector */
 .tipo-selector { display: flex; gap: 8px; }
@@ -768,9 +630,9 @@ onMounted(async () => {
   transition: all 0.15s; letter-spacing: 0.5px;
 }
 .tipo-btn:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
-.tipo-btn.btn-green.active { background: #10b981; border-color: #10b981; color: #fff; }
-.tipo-btn.btn-amber.active { background: #f59e0b; border-color: #f59e0b; color: #fff; }
-.tipo-btn.btn-cyan.active  { background: #06b6d4; border-color: #06b6d4; color: #fff; }
+.tipo-btn.btn-green.active { background: var(--success); border-color: var(--success); color: #fff; }
+.tipo-btn.btn-amber.active { background: var(--gold); border-color: var(--gold); color: #fff; }
+.tipo-btn.btn-cyan.active  { background: var(--indigo); border-color: var(--indigo); color: #fff; }
 
 /* Info tipo */
 .tipo-info {
@@ -785,10 +647,10 @@ onMounted(async () => {
   display: flex; align-items: center; gap: 6px;
   padding: 9px 12px;
   border-radius: 8px;
-  background: rgba(6, 182, 212, 0.08);
-  border: 1px solid rgba(6, 182, 212, 0.2);
+  background: var(--indigo-wash);
+  border: 1px solid var(--indigo-wash);
   font-size: 12px;
-  color: #06b6d4;
+  color: var(--indigo);
   font-weight: 600;
 }
 

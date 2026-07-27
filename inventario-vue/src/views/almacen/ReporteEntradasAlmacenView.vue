@@ -2,25 +2,11 @@
   <MainLayout>
     <div class="ea-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Entradas de Almacén</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="ea-header">
-        <div class="ea-header-icon">
-          <v-icon size="28" color="white">mdi-package-down</v-icon>
-        </div>
-        <div>
-          <h2 class="ea-title">Entradas de Almacén</h2>
-          <p class="ea-subtitle">Historial de entradas de materia prima registradas en el sistema</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Entradas de Almacén"
+        description="Historial de entradas de materia prima registradas en el sistema"
+        :crumbs="['Almacén', 'Reportes', 'Entradas de Almacén']"
+      />
 
       <!-- FILTROS -->
       <div class="ea-form-card">
@@ -47,7 +33,7 @@
           </div>
           <div class="ea-field ea-field--btn">
             <v-btn
-              color="#0891b2"
+              color="primary"
               variant="elevated"
               prepend-icon="mdi-magnify"
               :loading="loading"
@@ -103,7 +89,7 @@
 
         <!-- Cargando -->
         <div v-else-if="loading" class="ea-empty">
-          <v-progress-circular indeterminate color="#0891b2" size="40" />
+          <v-progress-circular indeterminate color="primary" size="40" />
           <p class="mt-3">Cargando entradas...</p>
         </div>
 
@@ -160,6 +146,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import { formatMoneda } from '../../utils/formatters'
 import api from '../../services/api'
@@ -236,7 +223,7 @@ function imprimir() {
 .ea-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
 .ea-header-icon {
   width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #0c4a6e, #0891b2);
+  background: linear-gradient(135deg, #0c4a6e, var(--indigo));
   display: flex; align-items: center; justify-content: center;
 }
 .ea-title { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: rgb(var(--v-theme-on-surface)); text-transform: uppercase; }
@@ -269,7 +256,7 @@ function imprimir() {
   display: flex; flex-direction: column; gap: 4px;
 }
 .ea-kpi-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.45); }
-.ea-kpi-value { font-size: 22px; font-weight: 800; color: #0891b2; }
+.ea-kpi-value { font-size: 22px; font-weight: 800; color: var(--indigo); }
 .ea-kpi-value--sm { font-size: 13px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 
 /* TABLE CARD */
@@ -314,17 +301,17 @@ function imprimir() {
 .td-fecha     { text-align: center; }
 .td-entrada   { text-align: center; }
 .badge-entrada {
-  background: rgba(8, 145, 178, 0.12); color: #0891b2;
+  background: rgba(8, 145, 178, 0.12); color: var(--indigo);
   padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700;
 }
 .td-gasto     { text-align: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
 .td-proveedor { text-align: left; }
 .td-producto  { text-align: left; }
 .td-und       { text-align: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.td-cantidad  { text-align: right; font-weight: 700; font-family: 'Courier New', monospace; }
+.td-cantidad  { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .td-precio    { text-align: right; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
-.td-subtotal  { text-align: right; font-weight: 700; color: #0891b2; font-family: 'Courier New', monospace; }
-.ea-kpi-value--money { font-size: 16px; font-weight: 800; color: #0891b2; }
+.td-subtotal  { text-align: right; font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; }
+.ea-kpi-value--money { font-size: 16px; font-weight: 800; color: var(--indigo); }
 
 .ea-table-footer {
   padding: 12px 16px;

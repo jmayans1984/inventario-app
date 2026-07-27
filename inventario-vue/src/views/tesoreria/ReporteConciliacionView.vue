@@ -2,46 +2,29 @@
   <MainLayout>
     <div class="rc-wrap">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" color="#475569">mdi-chevron-right</v-icon>
-        <span class="bc-cur">Conciliación Bancaria</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rc-header">
-        <div class="rc-header-left">
-          <div class="rc-icon-wrap">
-            <v-icon size="26" color="white">mdi-bank-check</v-icon>
-          </div>
-          <div>
-            <h1 class="rc-title">CONCILIACIÓN BANCARIA</h1>
-            <p class="rc-sub">Seguimiento de movimientos pendientes de conciliar</p>
-          </div>
-        </div>
-        <div class="rc-header-actions">
+      <PageHeader
+        title="Conciliación Bancaria"
+        description="Seguimiento de movimientos pendientes de conciliar"
+        :crumbs="['Tesorería', 'Reportes', 'Conciliación Bancaria']"
+      >
+        <template #actions>
           <v-btn
             v-if="datos"
-            color="#ef4444"
+            color="error"
             variant="flat"
             prepend-icon="mdi-file-pdf-box"
             size="small"
-            rounded="lg"
             @click="exportarPDF"
             :loading="generandoPDF"
-            class="btn-pdf"
           >Exportar PDF</v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- PANEL SELECTOR -->
       <div class="rc-selector-panel">
         <div class="rc-selector-left">
           <div class="rc-selector-icon">
-            <v-icon size="20" color="#06b6d4">mdi-bank-outline</v-icon>
+            <v-icon size="20" color="primary">mdi-bank-outline</v-icon>
           </div>
           <div class="rc-selector-content">
             <label class="rc-selector-label">Cuenta Bancaria</label>
@@ -57,7 +40,7 @@
         </div>
         <div class="rc-selector-right">
           <v-btn
-            color="#06b6d4"
+            color="primary"
             variant="flat"
             prepend-icon="mdi-magnify"
             size="small"
@@ -69,7 +52,7 @@
         </div>
         <!-- Cuenta seleccionada badge -->
         <div v-if="cuentaNombre" class="rc-cuenta-badge">
-          <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
+          <v-icon size="14" color="success">mdi-check-circle</v-icon>
           {{ cuentaNombre }}
         </div>
       </div>
@@ -78,7 +61,7 @@
       <div v-if="!bancoSeleccionado && !cargando" class="rc-estado-inicial">
         <div class="estado-inicial-inner">
           <div class="estado-inicial-icon">
-            <v-icon size="52" color="#06b6d4">mdi-bank-outline</v-icon>
+            <v-icon size="52" color="primary">mdi-bank-outline</v-icon>
           </div>
           <h3 class="estado-inicial-title">Selecciona una Cuenta Bancaria</h3>
           <p class="estado-inicial-sub">Elige una cuenta del selector de arriba para ver el reporte de conciliación con los movimientos pendientes.</p>
@@ -87,17 +70,17 @@
 
       <!-- ERROR -->
       <div v-else-if="errorMsg && !cargando" class="rc-error-panel">
-        <v-icon size="24" color="#ef4444">mdi-alert-circle-outline</v-icon>
+        <v-icon size="24" color="error">mdi-alert-circle-outline</v-icon>
         <div>
           <div class="error-title">Error al cargar el reporte</div>
           <div class="error-detail">{{ errorMsg }}</div>
         </div>
-        <v-btn size="x-small" variant="text" color="#ef4444" @click="cargarDatos">Reintentar</v-btn>
+        <v-btn size="x-small" variant="text" color="error" @click="cargarDatos">Reintentar</v-btn>
       </div>
 
       <!-- LOADING -->
       <div v-else-if="cargando" class="rc-loading">
-        <v-progress-circular indeterminate color="#06b6d4" size="40" width="3" />
+        <v-progress-circular indeterminate color="primary" size="40" width="3" />
         <div>
           <div class="loading-title">Cargando reporte...</div>
           <div class="loading-sub">{{ cuentaNombre }}</div>
@@ -217,7 +200,7 @@
           <div class="rc-table-header">
             <div class="rc-table-title-group">
               <div class="rc-table-icon">
-                <v-icon size="16" color="#f59e0b">mdi-clock-alert-outline</v-icon>
+                <v-icon size="16" color="warning">mdi-clock-alert-outline</v-icon>
               </div>
               <div>
                 <div class="rc-table-title">Movimientos Pendientes de Conciliar</div>
@@ -242,7 +225,7 @@
           <!-- Sin movimientos pendientes -->
           <div v-if="datos.movimientos.length === 0" class="rc-all-ok">
             <div class="all-ok-circle">
-              <v-icon size="40" color="#10b981">mdi-check-circle-outline</v-icon>
+              <v-icon size="40" color="success">mdi-check-circle-outline</v-icon>
             </div>
             <div class="all-ok-title">¡Todo Conciliado!</div>
             <div class="all-ok-sub">No hay movimientos pendientes de conciliar en esta cuenta.</div>
@@ -296,6 +279,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
@@ -496,7 +480,7 @@ function exportarPDF() {
   display: flex; align-items: center; gap: 6px;
   margin-bottom: 20px;
 }
-.bc-root { font-size: 11px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; }
+.bc-root { font-size: 11px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: 0.5px; }
 .bc-cat  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.4); }
 .bc-cur  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 600; }
 
@@ -508,7 +492,7 @@ function exportarPDF() {
 .rc-header-left { display: flex; align-items: center; gap: 16px; }
 .rc-icon-wrap {
   width: 52px; height: 52px; border-radius: 16px;
-  background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, var(--indigo) 0%, var(--indigo) 100%);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 20px rgba(6,182,212,0.38);
   flex-shrink: 0;
@@ -558,11 +542,11 @@ function exportarPDF() {
   cursor: pointer; outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.rc-select:focus { border-color: #06b6d4; box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
+.rc-select:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
 .rc-selector-right { flex-shrink: 0; }
 .rc-cuenta-badge {
   display: flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 600; color: #10b981;
+  font-size: 11px; font-weight: 600; color: var(--success);
   background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2);
   border-radius: 20px; padding: 3px 10px;
   white-space: nowrap;
@@ -597,7 +581,7 @@ function exportarPDF() {
   border: 1px solid rgba(239,68,68,0.2);
   border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
 }
-.error-title { font-size: 13px; font-weight: 700; color: #ef4444; }
+.error-title { font-size: 13px; font-weight: 700; color: var(--error); }
 .error-detail { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); margin-top: 2px; }
 
 /* ── Loading ─────────────────────────────────────────────────── */
@@ -637,9 +621,9 @@ function exportarPDF() {
   opacity: 0.07;
 }
 .kpi-conciliado .kpi-decoration { background: #3b82f6; }
-.kpi-ingresos   .kpi-decoration { background: #10b981; }
-.kpi-egresos    .kpi-decoration { background: #ef4444; }
-.kpi-proyectado .kpi-decoration { background: #8b5cf6; }
+.kpi-ingresos   .kpi-decoration { background: var(--success); }
+.kpi-egresos    .kpi-decoration { background: var(--error); }
+.kpi-proyectado .kpi-decoration { background: var(--indigo); }
 
 .kpi-inner { padding: 18px 18px 14px; }
 .kpi-top {
@@ -651,9 +635,9 @@ function exportarPDF() {
   display: flex; align-items: center; justify-content: center;
 }
 .kpi-icon-blue   { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-.kpi-icon-green  { background: linear-gradient(135deg,#10b981,#059669); }
-.kpi-icon-red    { background: linear-gradient(135deg,#ef4444,#dc2626); }
-.kpi-icon-purple { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
+.kpi-icon-green  { background: linear-gradient(135deg,var(--success),var(--success)); }
+.kpi-icon-red    { background: linear-gradient(135deg,var(--error),var(--error)); }
+.kpi-icon-purple { background: linear-gradient(135deg,var(--indigo),var(--indigo)); }
 
 .kpi-trend {
   font-size: 9.5px; font-weight: 700;
@@ -662,18 +646,18 @@ function exportarPDF() {
   text-transform: uppercase; letter-spacing: 0.3px;
 }
 .kpi-trend-blue   { background: rgba(59,130,246,0.1);  color: #3b82f6; }
-.kpi-trend-green  { background: rgba(16,185,129,0.1);  color: #10b981; }
-.kpi-trend-red    { background: rgba(239,68,68,0.1);   color: #ef4444; }
-.kpi-trend-purple { background: rgba(139,92,246,0.1);  color: #8b5cf6; }
+.kpi-trend-green  { background: rgba(16,185,129,0.1);  color: var(--success); }
+.kpi-trend-red    { background: rgba(239,68,68,0.1);   color: var(--error); }
+.kpi-trend-purple { background: rgba(139,92,246,0.1);  color: var(--indigo); }
 
 .kpi-value {
   font-size: 20px; font-weight: 800; line-height: 1;
-  margin-bottom: 4px; font-family: 'Courier New', monospace;
+  margin-bottom: 4px; font-variant-numeric: tabular-nums;
 }
 .kpi-val-blue   { color: #3b82f6; }
-.kpi-val-green  { color: #10b981; }
-.kpi-val-red    { color: #ef4444; }
-.kpi-val-purple { color: #8b5cf6; }
+.kpi-val-green  { color: var(--success); }
+.kpi-val-red    { color: var(--error); }
+.kpi-val-purple { color: var(--indigo); }
 
 .kpi-label {
   font-size: 10px; font-weight: 600; text-transform: uppercase;
@@ -693,7 +677,7 @@ function exportarPDF() {
   height: 100%; border-radius: 2px;
   transition: width 0.8s ease;
 }
-.kpi-bar-blue { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+.kpi-bar-blue { background: linear-gradient(90deg, #3b82f6, var(--indigo)); }
 
 /* ── Fórmula bar ─────────────────────────────────────────────── */
 .rc-formula-bar {
@@ -716,7 +700,7 @@ function exportarPDF() {
 .formula-label-white { color: rgba(255,255,255,0.7); }
 .formula-value {
   font-size: 15px; font-weight: 800;
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .formula-blue   { color: #60a5fa; }
 .formula-green  { color: #34d399; }
@@ -767,8 +751,8 @@ function exportarPDF() {
   border-radius: 20px; padding: 3px 9px;
   text-transform: uppercase; letter-spacing: 0.3px;
 }
-.chip-green { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.chip-red   { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+.chip-green { background: rgba(16,185,129,0.1);  color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+.chip-red   { background: rgba(239,68,68,0.1);   color: var(--error); border: 1px solid rgba(239,68,68,0.2); }
 .chip-gray  { background: rgba(var(--v-theme-on-surface),0.06); color: rgba(var(--v-theme-on-surface),0.5); border: 1px solid rgba(var(--v-theme-on-surface),0.1); }
 
 /* ── Todo OK ─────────────────────────────────────────────────── */
@@ -781,7 +765,7 @@ function exportarPDF() {
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px; border: 2px solid rgba(16,185,129,0.2);
 }
-.all-ok-title { font-size: 17px; font-weight: 700; color: #10b981; margin-bottom: 6px; }
+.all-ok-title { font-size: 17px; font-weight: 700; color: var(--success); margin-bottom: 6px; }
 .all-ok-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); }
 
 /* ── Tabla ───────────────────────────────────────────────────── */
@@ -813,21 +797,21 @@ function exportarPDF() {
 .td-fecha        { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); white-space: nowrap; }
 .td-concepto     { color: rgb(var(--v-theme-on-surface)); }
 .td-beneficiario { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.65); }
-.td-monto        { font-family: 'Courier New', monospace; font-weight: 600; font-size: 12px; }
+.td-monto        { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12px; }
 
 .tipo-ing {
-  background: rgba(16,185,129,0.12); color: #10b981;
+  background: rgba(16,185,129,0.12); color: var(--success);
   padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 800;
   letter-spacing: 0.3px;
 }
 .tipo-egr {
-  background: rgba(239,68,68,0.1); color: #ef4444;
+  background: rgba(239,68,68,0.1); color: var(--error);
   padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 800;
   letter-spacing: 0.3px;
 }
 
-.monto-ing  { color: #10b981; }
-.monto-egr  { color: #ef4444; }
+.monto-ing  { color: var(--success); }
+.monto-egr  { color: var(--error); }
 .monto-dash { color: rgba(var(--v-theme-on-surface), 0.2); }
 
 /* ── Tfoot ───────────────────────────────────────────────────── */
@@ -840,5 +824,5 @@ function exportarPDF() {
   font-size: 11px; font-weight: 800; text-transform: uppercase;
   letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.6);
 }
-.foot-monto { font-size: 13px; font-weight: 800; font-family: 'Courier New', monospace; }
+.foot-monto { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 </style>

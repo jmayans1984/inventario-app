@@ -1,73 +1,18 @@
 ﻿<template>
   <MainLayout>
     <div class="view-container">
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Facturas de Compra</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon-wrap">
-            <v-icon size="22" color="white">mdi-file-invoice-outline</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">FACTURAS DE COMPRA</h1>
-            <p class="page-sub">Gestión de facturas recibidas y soportes de pago</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Facturas de Compra"
+        description="Gestión de facturas recibidas y soportes de pago"
+        :crumbs="['Tesorería', 'Procesos', 'Facturas de Compra']"
+      />
 
       <!-- KPI CARDS -->
       <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-cyan">
-            <v-icon size="20" color="white">mdi-currency-usd-circle-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">PENDIENTE POR PAGAR</div>
-            <div class="kpi-value">{{ formatMoneda(store.totalPendiente) }}</div>
-            <div class="kpi-sub">{{ store.cantidadPendientes }} facturas</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-red">
-            <v-icon size="20" color="white">mdi-alert-circle-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">VENCIDO</div>
-            <div class="kpi-value red-text">{{ formatMoneda(store.totalVencido) }}</div>
-            <div class="kpi-sub">{{ store.facturasVencidas.length }} facturas</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-amber">
-            <v-icon size="20" color="white">mdi-calendar-alert-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">PRÓXIMAS A VENCER</div>
-            <div class="kpi-value amber-text">{{ store.facturasProximas.length }}</div>
-            <div class="kpi-sub">en los próximos 30 días</div>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-icon-wrap kpi-icon-green">
-            <v-icon size="20" color="white">mdi-percent-outline</v-icon>
-          </div>
-          <div class="kpi-body">
-            <div class="kpi-label">PORCENTAJE COBRADO</div>
-            <div class="kpi-value green-text">{{ store.porcentajeCobro }}%</div>
-            <div class="kpi-sub">del total de facturas</div>
-          </div>
-        </div>
+        <KpiCard :index="0" label="Pendiente por Pagar" :value="formatMoneda(store.totalPendiente)" icon="mdi-currency-usd-circle-outline" color="var(--indigo)" :hint="`${store.cantidadPendientes} facturas`" />
+        <KpiCard :index="1" label="Vencido" :value="formatMoneda(store.totalVencido)" icon="mdi-alert-circle-outline" color="var(--error)" :hint="`${store.facturasVencidas.length} facturas`" />
+        <KpiCard :index="2" label="Próximas a Vencer" :value="String(store.facturasProximas.length)" icon="mdi-calendar-alert-outline" color="var(--gold)" hint="en los próximos 30 días" />
+        <KpiCard :index="3" label="% Cobrado" :value="`${store.porcentajeCobro}%`" icon="mdi-percent-outline" color="var(--success)" hint="del total de facturas" />
       </div>
 
       <!-- FILTROS -->
@@ -411,6 +356,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import FilePreviewModal from '../../components/modules/tesoreria/FilePreviewModal.vue'
 import { useFacturasCompraClienteStore } from '../../stores/facturas-compra-cliente'
 import api from '../../services/api'
@@ -733,79 +680,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.view-container {
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+.view-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
-/* ── Breadcrumb ── */
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 20px;
-}
-.bc-root {
-  font-size: 12px;
-  font-weight: 700;
-  color: #06b6d4;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-/* ── Header ── */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-.header-left { display: flex; align-items: center; gap: 16px; }
-.header-icon-wrap {
-  width: 48px; height: 48px; border-radius: 12px;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
-}
-.page-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; margin: 0; }
-.page-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
-
-/* ── KPI cards ── */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.kpi-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.kpi-icon-wrap {
-  width: 44px; height: 44px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.kpi-icon-cyan  { background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 12px rgba(6,182,212,0.3); }
-.kpi-icon-green { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
-.kpi-icon-amber { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 12px rgba(245,158,11,0.3); }
-.kpi-icon-red   { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
-.kpi-body { flex: 1; min-width: 0; }
-.kpi-label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-value { font-size: 22px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); margin: 2px 0; }
-.kpi-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.green-text { color: #10b981 !important; }
-.amber-text { color: #f59e0b !important; }
-.red-text   { color: #ef4444 !important; }
+/* KPI */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
 
 /* ── Filtros ── */
 .filtros-bar {
@@ -824,12 +702,12 @@ onMounted(async () => {
   transition: all 0.15s;
 }
 .tipo-tab:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
-.tipo-tab.active { background: #06b6d4; border-color: #06b6d4; color: #fff; }
+.tipo-tab.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
 
 .tab-content { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .tab-header { display: flex; align-items: center; gap: 6px; }
 .tab-subtext { font-size: 10px; font-weight: 700; opacity: 0.8; color: inherit; }
-.tab-badge { background: #ef4444; color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 10px; font-weight: 700; min-width: 18px; text-align: center; }
+.tab-badge { background: var(--error); color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 10px; font-weight: 700; min-width: 18px; text-align: center; }
 
 /* ── Loading / Empty ── */
 .loading-wrap { text-align: center; padding: 60px; }
@@ -867,14 +745,14 @@ onMounted(async () => {
   transition: color 0.15s;
 }
 .data-table thead th.sortable:hover {
-  color: #06b6d4;
+  color: var(--indigo);
 }
 .header-text {
   display: inline;
   white-space: nowrap;
 }
 .sort-icon {
-  color: #06b6d4;
+  color: var(--indigo);
   font-weight: 700;
   margin-left: 4px;
   vertical-align: middle;
@@ -882,7 +760,7 @@ onMounted(async () => {
 }
 .data-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
 .data-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
-.data-table tbody tr.row-vencido { background: rgba(239, 68, 68, 0.05); }
+.data-table tbody tr.row-vencido { background: color-mix(in srgb, var(--error) 8%, transparent); }
 .data-table tbody td { padding: 11px 10px; color: rgb(var(--v-theme-on-surface)); }
 
 .col-codigo       { width: 100px; }
@@ -897,16 +775,16 @@ onMounted(async () => {
 .col-acciones     { width: 60px; text-align: center; }
 
 .codigo-badge {
-  background: rgba(6, 182, 212, 0.12); color: #06b6d4;
+  background: var(--indigo-wash); color: var(--indigo);
   padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
-.monto-text { color: #06b6d4; font-weight: 600; font-family: 'Courier New', monospace; }
-.pagado-text { color: #10b981; font-weight: 600; }
-.pendiente-text { color: #f59e0b; font-weight: 600; }
+.monto-text { color: var(--indigo); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pagado-text { color: var(--success); font-weight: 600; }
+.pendiente-text { color: var(--gold); font-weight: 600; }
 .badge-soportes {
   display: inline-flex; align-items: center; gap: 4px;
-  background: rgba(16, 185, 129, 0.12); color: #10b981;
+  background: var(--success-wash); color: var(--success);
   padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;
 }
 .text-muted   { color: rgba(var(--v-theme-on-surface), 0.3); }
@@ -919,7 +797,7 @@ onMounted(async () => {
 .form-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
 }
 .form-header-left { display: flex; align-items: center; gap: 10px; }
 .form-header-icon {
@@ -947,9 +825,9 @@ onMounted(async () => {
 .info-item { display: flex; flex-direction: column; gap: 4px; }
 .info-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); letter-spacing: 0.5px; }
 .info-value { font-size: 14px; font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
-.info-value.monto { color: #06b6d4; font-family: 'Courier New', monospace; }
-.info-value.pagado { color: #10b981; }
-.info-value.pendiente { color: #f59e0b; }
+.info-value.monto { color: var(--indigo); font-variant-numeric: tabular-nums; }
+.info-value.pagado { color: var(--success); }
+.info-value.pendiente { color: var(--gold); }
 
 .observaciones {
   margin-top: 12px; padding: 12px;
@@ -967,18 +845,18 @@ onMounted(async () => {
   transition: all 0.15s;
 }
 .file-input-area:hover {
-  border-color: #06b6d4;
-  background: rgba(6, 182, 212, 0.03);
+  border-color: var(--indigo);
+  background: var(--indigo-wash);
 }
 
 .btn-subir {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 16px; border-radius: 8px;
-  background: #06b6d4; color: #fff; border: none;
+  background: var(--indigo); color: #fff; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: all 0.15s;
 }
-.btn-subir:hover:not(:disabled) { background: #0891b2; }
+.btn-subir:hover:not(:disabled) { background: var(--indigo); }
 .btn-subir:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .file-help {
@@ -989,22 +867,22 @@ onMounted(async () => {
 .archivo-preview {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px; border-radius: 8px;
-  background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);
-  margin-top: 12px; font-size: 13px; color: #10b981;
+  background: var(--success-wash); border: 1px solid var(--success-wash);
+  margin-top: 12px; font-size: 13px; color: var(--success);
 }
 .btn-limpiar {
   margin-left: auto; background: transparent; border: none;
-  cursor: pointer; color: #10b981;
+  cursor: pointer; color: var(--success);
 }
 
 .btn-guardar-soporte {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   width: 100%; padding: 10px;
-  background: #10b981; color: #fff; border: none; border-radius: 8px;
+  background: var(--success); color: #fff; border: none; border-radius: 8px;
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: all 0.15s; margin-top: 12px;
 }
-.btn-guardar-soporte:hover:not(:disabled) { background: #059669; }
+.btn-guardar-soporte:hover:not(:disabled) { background: var(--success); }
 .btn-guardar-soporte:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .mr-2 { margin-right: 8px; }
@@ -1033,10 +911,10 @@ onMounted(async () => {
 .btn-previsualizar,
 .btn-descargar {
   background: transparent; border: none; cursor: pointer;
-  padding: 4px 8px; color: #06b6d4; transition: all 0.15s;
+  padding: 4px 8px; color: var(--indigo); transition: all 0.15s;
 }
 .btn-previsualizar:hover,
-.btn-descargar:hover { color: #0891b2; }
+.btn-descargar:hover { color: var(--indigo); }
 
 .no-soportes {
   text-align: center; padding: 32px 24px;

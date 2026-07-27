@@ -2,34 +2,21 @@
   <MainLayout>
     <div class="op-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Mapeo Subproductos → Inventario</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="op-header">
-        <div class="op-header-left">
-          <div class="op-icon-wrap">
-            <v-icon size="24" color="white">mdi-link-variant</v-icon>
-          </div>
-          <div>
-            <h1 class="op-title">MAPEO SUBPRODUCTOS → INVENTARIO</h1>
-            <p class="op-sub">Asocia cada subproducto (receta) con el código de producto controlado que realmente se descuenta en inventario</p>
-          </div>
-        </div>
-        <v-btn color="#047857" variant="flat" prepend-icon="mdi-plus" rounded="lg" @click="abrirNuevo">
-          Nuevo Mapeo
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Mapeo Subproductos → Inventario"
+        description="Asocia cada subproducto (receta) con el código de producto controlado que se descuenta en inventario"
+        :crumbs="['Almacén', 'Configuración', 'Mapeo Subproductos']"
+      >
+        <template #actions>
+          <v-btn color="success" variant="flat" prepend-icon="mdi-plus" @click="abrirNuevo">
+            Nuevo Mapeo
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- INFO -->
       <div class="info-banner">
-        <v-icon size="18" color="#0891b2">mdi-information-outline</v-icon>
+        <v-icon size="18" color="primary">mdi-information-outline</v-icon>
         <span>
           Cuando un subproducto (ej. "BOLLO LIMPIO") se vende dentro de un plato, el sistema descuenta inventario
           usando el código del <strong>producto controlado</strong>, que puede ser distinto al código de la receta.
@@ -40,7 +27,7 @@
       <!-- TABLA -->
       <div class="op-card">
         <div v-if="loading" class="op-loading">
-          <v-progress-circular indeterminate color="#10b981" size="40" />
+          <v-progress-circular indeterminate color="success" size="40" />
         </div>
         <div v-else class="op-table-wrap">
           <table class="op-table">
@@ -74,7 +61,7 @@
                 </td>
                 <td class="text-dim">{{ m.producto_und || '—' }}</td>
                 <td class="tc">
-                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="#0891b2" @click="editar(m)" />
+                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="editar(m)" />
                   <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
                     :loading="eliminando === m.codigo_receta" @click="eliminar(m)" />
                 </td>
@@ -88,7 +75,7 @@
       <v-dialog v-model="dlg" max-width="560" persistent>
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#10b981" class="mr-2">mdi-link-variant</v-icon>
+            <v-icon color="success" class="mr-2">mdi-link-variant</v-icon>
             <span>{{ editando ? 'Editar Mapeo' : 'Nuevo Mapeo' }}</span>
             <v-spacer />
             <v-btn icon="mdi-close" size="small" variant="text" @click="dlg = false" />
@@ -141,13 +128,13 @@
             </div>
 
             <div v-if="saveError" class="save-error">
-              <v-icon size="15" color="#ef4444">mdi-alert-circle-outline</v-icon>
+              <v-icon size="15" color="error">mdi-alert-circle-outline</v-icon>
               <span>{{ saveError }}</span>
             </div>
           </div>
           <div class="modal-footer">
             <v-btn variant="text" @click="dlg = false">Cancelar</v-btn>
-            <v-btn color="#047857" variant="flat" prepend-icon="mdi-content-save-outline"
+            <v-btn color="success" variant="flat" prepend-icon="mdi-content-save-outline"
               :disabled="!form.codigo_receta || !form.codigo_producto" :loading="guardando" @click="guardar">
               Guardar
             </v-btn>
@@ -162,6 +149,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const loading      = ref(false)
@@ -281,7 +269,7 @@ onMounted(() => {
 .op-header-left { display: flex; align-items: center; gap: 16px; }
 .op-icon-wrap {
   width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #10b981, #047857);
+  background: linear-gradient(135deg, var(--success), var(--success));
   display: flex; align-items: center; justify-content: center;
 }
 .op-title { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: rgb(var(--v-theme-on-surface)); }
@@ -340,6 +328,6 @@ onMounted(() => {
 .save-error {
   display: flex; align-items: center; gap: 8px; margin-top: 14px;
   background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
-  border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: #ef4444;
+  border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--error);
 }
 </style>

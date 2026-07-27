@@ -2,25 +2,11 @@
   <MainLayout>
     <div class="pg-container">
 
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Ubicación de Productos en Bodega</span>
-      </div>
-
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon">
-            <v-icon size="24" color="white">mdi-map-marker-outline</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">UBICACIÓN DE PRODUCTOS EN BODEGA</h1>
-            <p class="page-sub">Asigna la posición física de cada producto en el almacén para agilizar el packing</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Ubicación de Productos en Bodega"
+        description="Asigna la posición física de cada producto en el almacén para agilizar el packing"
+        :crumbs="['Almacén', 'Configuración', 'Ubicación de Productos']"
+      />
 
       <div class="toolbar">
         <div class="search-wrap">
@@ -31,13 +17,13 @@
       </div>
 
       <div v-if="loading" class="loading-wrap">
-        <v-progress-circular indeterminate color="#10b981" size="36" />
+        <v-progress-circular indeterminate color="success" size="36" />
       </div>
 
       <template v-else>
         <div v-for="grupo in gruposFiltrados" :key="grupo.key" class="grupo-block">
           <div class="grupo-header">
-            <v-icon size="15" color="#047857" class="mr-1">mdi-folder-outline</v-icon>
+            <v-icon size="15" color="success" class="mr-1">mdi-folder-outline</v-icon>
             {{ grupo.nombre }}
             <span class="grupo-cnt">{{ grupo.items.length }}</span>
           </div>
@@ -71,7 +57,7 @@
                   </td>
                   <td class="col-center">
                     <span v-if="guardando[item.codigo]" class="est-saving">
-                      <v-progress-circular indeterminate size="14" width="2" color="#10b981" />
+                      <v-progress-circular indeterminate size="14" width="2" color="success" />
                     </span>
                     <span v-else-if="guardado[item.codigo]" class="est-ok">✓</span>
                     <span v-else-if="error[item.codigo]" class="est-err" :title="error[item.codigo]">!</span>
@@ -95,6 +81,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth.js'
 import { API_BASE } from '../../utils/constants.js'
 
@@ -190,13 +177,13 @@ onMounted(cargar)
 .pg-container { padding: 24px; max-width: 1100px; margin: 0 auto; }
 
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),.45); }
-.bc-root { color: #047857; }
+.bc-root { color: var(--success); }
 .bc-sep  { color: rgba(var(--v-theme-on-surface),.25) !important; }
 .bc-current { color: rgba(var(--v-theme-on-surface),.7); }
 
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
 .header-left { display: flex; align-items: center; gap: 14px; }
-.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#047857,#10b981); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,var(--success),var(--success)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .page-title { font-size: 17px; font-weight: 800; letter-spacing: .5px; margin: 0; color: rgb(var(--v-theme-on-surface)); }
 .page-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
@@ -219,15 +206,15 @@ onMounted(cargar)
 .data-row td { padding: 8px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); vertical-align: middle; }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
-.cod-badge { background: rgba(16,185,129,.12); color: #10b981; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-family: monospace; }
+.cod-badge { background: rgba(16,185,129,.12); color: var(--success); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-family: monospace; }
 .fw500 { font-weight: 500; }
 
 .ub-input { width: 100%; padding: 7px 10px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 7px; font-size: 13px; background: rgba(var(--v-theme-on-surface),.03); color: rgb(var(--v-theme-on-surface)); outline: none; transition: border-color .2s; box-sizing: border-box; }
-.ub-input:focus { border-color: #10b981; background: rgba(16,185,129,.04); }
+.ub-input:focus { border-color: var(--success); background: rgba(16,185,129,.04); }
 .ub-input::placeholder { color: rgba(var(--v-theme-on-surface),.3); font-style: italic; }
 
-.est-ok   { color: #10b981; font-size: 16px; font-weight: 700; }
-.est-err  { color: #ef4444; font-size: 16px; font-weight: 700; cursor: help; }
+.est-ok   { color: var(--success); font-size: 16px; font-weight: 700; }
+.est-err  { color: var(--error); font-size: 16px; font-weight: 700; cursor: help; }
 .est-saving { display: flex; justify-content: center; }
 
 .empty-state { text-align: center; padding: 60px; color: rgba(var(--v-theme-on-surface),.35); }

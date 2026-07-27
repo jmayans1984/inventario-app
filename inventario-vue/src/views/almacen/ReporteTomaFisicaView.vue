@@ -2,25 +2,11 @@
   <MainLayout>
     <div class="rc-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Faltantes y Sobrantes (Toma Física)</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rc-header">
-        <div class="rc-header-icon">
-          <v-icon size="28" color="white">mdi-clipboard-check-outline</v-icon>
-        </div>
-        <div>
-          <h2 class="rc-title">Faltantes y Sobrantes (Toma Física)</h2>
-          <p class="rc-subtitle">Sumatoria por producto de las diferencias registradas en tomas físicas dentro del período</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Faltantes y Sobrantes (Toma Física)"
+        description="Sumatoria por producto de las diferencias registradas en tomas físicas dentro del período"
+        :crumbs="['Almacén', 'Reportes', 'Faltantes y Sobrantes']"
+      />
 
       <!-- FILTROS -->
       <div class="rc-form-card">
@@ -72,7 +58,7 @@
                     <v-checkbox-btn
                       :model-value="todosSeleccionados"
                       :indeterminate="algunoSeleccionado && !todosSeleccionados"
-                      color="#0891b2"
+                      color="primary"
                     />
                   </template>
                 </v-list-item>
@@ -83,7 +69,7 @@
                   <template #prepend>
                     <v-checkbox-btn
                       :model-value="ccostosSeleccionados.includes(item.value)"
-                      color="#0891b2"
+                      color="primary"
                     />
                   </template>
                 </v-list-item>
@@ -93,7 +79,7 @@
 
           <div class="rc-field rc-field--btn">
             <v-btn
-              color="#0891b2"
+              color="primary"
               variant="elevated"
               prepend-icon="mdi-magnify"
               :loading="loading"
@@ -125,7 +111,7 @@
         <!-- KPIs -->
         <div class="rc-kpis">
           <div class="rc-kpi">
-            <v-icon size="18" color="#0891b2" class="mr-2">mdi-package-variant</v-icon>
+            <v-icon size="18" color="primary" class="mr-2">mdi-package-variant</v-icon>
             <div>
               <div class="rc-kpi-val">{{ filas.length }}</div>
               <div class="rc-kpi-lbl">Productos</div>
@@ -202,6 +188,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
@@ -483,13 +470,13 @@ function exportarPDF() {
 .rc-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
+.bc-root    { font-size: 12px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
 .bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
 
 .rc-header      { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
-.rc-header-icon { width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg,#06b6d4,#0891b2); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 14px rgba(6,182,212,.3); }
+.rc-header-icon { width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg,var(--indigo),var(--indigo)); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 14px rgba(6,182,212,.3); }
 .rc-title       { font-size: 20px; font-weight: 800; margin: 0; }
 .rc-subtitle    { font-size: 13px; color: rgba(var(--v-theme-on-surface),.55); margin: 2px 0 0; }
 
@@ -523,13 +510,13 @@ function exportarPDF() {
 .rc-total-row td { padding: 8px 12px; border-top: 2px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.03); font-size: 13px; }
 
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
-.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:#0891b2; font-weight:600; }
+.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:var(--indigo); font-weight:600; }
 .badge-mov { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; background:rgba(var(--v-theme-on-surface),.07); font-weight:600; }
 
 .td-nom       { font-weight: 500; }
 .td-num       { text-align: right !important; white-space: nowrap; }
-.num-faltante { color: #d97706; font-weight: 700; }
-.num-sobrante { color: #059669; font-weight: 700; }
+.num-faltante { color: var(--gold); font-weight: 700; }
+.num-sobrante { color: var(--success); font-weight: 700; }
 
 .rc-empty { text-align:center; padding:60px 24px; color:rgba(var(--v-theme-on-surface),.4); display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14px; }
 </style>

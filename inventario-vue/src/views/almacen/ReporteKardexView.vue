@@ -2,25 +2,11 @@
   <MainLayout>
     <div class="kx-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Kardex por Período</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="kx-header">
-        <div class="kx-header-icon">
-          <v-icon size="28" color="white">mdi-file-chart-outline</v-icon>
-        </div>
-        <div>
-          <h2 class="kx-title">Kardex por Período</h2>
-          <p class="kx-subtitle">Movimiento de inventario del día por Centro de Costo</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Kardex por Período"
+        description="Movimiento de inventario del día por Centro de Costo"
+        :crumbs="['Almacén', 'Reportes', 'Kardex por Período']"
+      />
 
       <!-- FILTROS -->
       <div class="kx-form-card">
@@ -54,7 +40,7 @@
 
           <div class="kx-field kx-field--btn">
             <v-btn
-              color="#0891b2"
+              color="primary"
               variant="elevated"
               prepend-icon="mdi-magnify"
               :loading="loading"
@@ -152,6 +138,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
@@ -451,13 +438,13 @@ function exportarPDF() {
 .kx-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
+.bc-root    { font-size: 12px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
 .bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
 
 .kx-header      { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
-.kx-header-icon { width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg,#06b6d4,#0891b2); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 14px rgba(6,182,212,.3); }
+.kx-header-icon { width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg,var(--indigo),var(--indigo)); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 14px rgba(6,182,212,.3); }
 .kx-title       { font-size: 20px; font-weight: 800; margin: 0; }
 .kx-subtitle    { font-size: 13px; color: rgba(var(--v-theme-on-surface),.55); margin: 2px 0 0; }
 
@@ -477,19 +464,19 @@ function exportarPDF() {
 .kx-kpi:last-child { border-right: none; }
 .kx-kpi-lbl { display: block; font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
 .kx-kpi-val { display: block; font-size: 20px; font-weight: 800; }
-.kx-kpi--entrada { color: #10b981; }
-.kx-kpi--salida  { color: #f59e0b; }
-.kx-kpi--venta   { color: #ef4444; }
+.kx-kpi--entrada { color: var(--success); }
+.kx-kpi--salida  { color: var(--gold); }
+.kx-kpi--venta   { color: var(--error); }
 
 .kx-table-wrap { overflow-x: auto; }
 .kx-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 .kx-table thead th { position: sticky; top: 0; z-index: 2; background: rgb(var(--v-theme-surface)); padding: 10px 10px; text-align: left; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1); white-space: nowrap; overflow: hidden; }
 .th-nom     { width: 155px; }
 .th-num     { text-align: right !important; }
-.th-entrada { color: #10b981 !important; }
-.th-salida  { color: #f59e0b !important; }
-.th-venta   { color: #ef4444 !important; }
-.th-stock   { color: #0891b2 !important; }
+.th-entrada { color: var(--success) !important; }
+.th-salida  { color: var(--gold) !important; }
+.th-venta   { color: var(--error) !important; }
+.th-stock   { color: var(--indigo) !important; }
 
 .kx-grupo-row td { padding: 8px 12px 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); background: rgba(var(--v-theme-on-surface),.02); text-align: left; }
 .kx-prod-row td  { padding: 4px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); }
@@ -497,15 +484,15 @@ function exportarPDF() {
 .kx-total-row td { padding: 7px 10px; border-top: 2px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.03); font-size: 13px; }
 
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
-.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:#0891b2; font-weight:600; }
+.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:var(--indigo); font-weight:600; }
 .td-nom { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .td-num { text-align: right !important; white-space: nowrap; }
 
-.num-entrada { color: #10b981; font-weight: 600; }
-.num-salida  { color: #f59e0b; font-weight: 600; }
-.num-venta   { color: #ef4444; font-weight: 600; }
-.num-stock   { color: #0891b2; }
-.num-neg     { color: #ef4444; font-weight: 700; }
+.num-entrada { color: var(--success); font-weight: 600; }
+.num-salida  { color: var(--gold); font-weight: 600; }
+.num-venta   { color: var(--error); font-weight: 600; }
+.num-stock   { color: var(--indigo); }
+.num-neg     { color: var(--error); font-weight: 700; }
 .num-cero    { color: rgba(var(--v-theme-on-surface),.25); }
 
 .kx-empty { text-align:center; padding:60px 24px; color:rgba(var(--v-theme-on-surface),.4); display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14px; }

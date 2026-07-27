@@ -2,47 +2,30 @@
   <MainLayout>
     <div class="rm-wrap">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" color="#475569">mdi-chevron-right</v-icon>
-        <span class="bc-cur">Movimiento por Cuentas</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rm-header">
-        <div class="rm-header-left">
-          <div class="rm-icon-wrap">
-            <v-icon size="26" color="white">mdi-chart-timeline-variant</v-icon>
-          </div>
-          <div>
-            <h1 class="rm-title">MOVIMIENTO POR CUENTAS</h1>
-            <p class="rm-sub">Ingresos y egresos de una cuenta en un período determinado</p>
-          </div>
-        </div>
-        <div class="rm-header-actions">
+      <PageHeader
+        title="Movimiento por Cuentas"
+        description="Ingresos y egresos de una cuenta en un período determinado"
+        :crumbs="['Tesorería', 'Reportes', 'Movimiento por Cuentas']"
+      >
+        <template #actions>
           <v-btn
             v-if="datos"
-            color="#ef4444"
+            color="error"
             variant="flat"
             prepend-icon="mdi-file-pdf-box"
             size="small"
-            rounded="lg"
             @click="exportarPDF"
             :loading="generandoPDF"
-            class="btn-pdf"
           >Exportar PDF</v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- PANEL FILTROS -->
       <div class="rm-filtros-panel">
         <!-- Cuenta bancaria -->
         <div class="filtro-group filtro-cuenta">
           <div class="filtro-icon-wrap">
-            <v-icon size="18" color="#06b6d4">mdi-bank-outline</v-icon>
+            <v-icon size="18" color="primary">mdi-bank-outline</v-icon>
           </div>
           <div class="filtro-content">
             <label class="filtro-label">Cuenta Bancaria</label>
@@ -61,7 +44,7 @@
         <!-- Fecha inicio -->
         <div class="filtro-group filtro-fecha">
           <div class="filtro-icon-wrap">
-            <v-icon size="18" color="#8b5cf6">mdi-calendar-start</v-icon>
+            <v-icon size="18" color="primary">mdi-calendar-start</v-icon>
           </div>
           <div class="filtro-content">
             <label class="filtro-label">Desde</label>
@@ -72,7 +55,7 @@
         <!-- Fecha fin -->
         <div class="filtro-group filtro-fecha">
           <div class="filtro-icon-wrap">
-            <v-icon size="18" color="#8b5cf6">mdi-calendar-end</v-icon>
+            <v-icon size="18" color="primary">mdi-calendar-end</v-icon>
           </div>
           <div class="filtro-content">
             <label class="filtro-label">Hasta</label>
@@ -83,7 +66,7 @@
         <!-- Botón -->
         <div class="filtro-btn-wrap">
           <v-btn
-            color="#06b6d4"
+            color="primary"
             variant="flat"
             prepend-icon="mdi-magnify"
             size="small"
@@ -96,7 +79,7 @@
 
         <!-- Badge cuenta seleccionada -->
         <div v-if="cuentaNombre" class="rm-cuenta-badge">
-          <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
+          <v-icon size="14" color="success">mdi-check-circle</v-icon>
           {{ cuentaNombre }}
         </div>
       </div>
@@ -105,7 +88,7 @@
       <div v-if="!bancoSeleccionado && !cargando" class="rm-estado-inicial">
         <div class="estado-inicial-inner">
           <div class="estado-inicial-icon">
-            <v-icon size="52" color="#06b6d4">mdi-chart-timeline-variant</v-icon>
+            <v-icon size="52" color="primary">mdi-chart-timeline-variant</v-icon>
           </div>
           <h3 class="estado-inicial-title">Selecciona una Cuenta y Período</h3>
           <p class="estado-inicial-sub">Elige la cuenta bancaria y el rango de fechas para ver el detalle de movimientos del período.</p>
@@ -114,17 +97,17 @@
 
       <!-- ERROR -->
       <div v-else-if="errorMsg && !cargando" class="rm-error-panel">
-        <v-icon size="24" color="#ef4444">mdi-alert-circle-outline</v-icon>
+        <v-icon size="24" color="error">mdi-alert-circle-outline</v-icon>
         <div>
           <div class="error-title">Error al cargar el reporte</div>
           <div class="error-detail">{{ errorMsg }}</div>
         </div>
-        <v-btn size="x-small" variant="text" color="#ef4444" @click="cargarDatos">Reintentar</v-btn>
+        <v-btn size="x-small" variant="text" color="error" @click="cargarDatos">Reintentar</v-btn>
       </div>
 
       <!-- LOADING -->
       <div v-else-if="cargando" class="rm-loading">
-        <v-progress-circular indeterminate color="#06b6d4" size="40" width="3" />
+        <v-progress-circular indeterminate color="primary" size="40" width="3" />
         <div>
           <div class="loading-title">Cargando movimientos...</div>
           <div class="loading-sub">{{ cuentaNombre }} · {{ fmtFechaCorta(fechaInicio) }} — {{ fmtFechaCorta(fechaFin) }}</div>
@@ -230,7 +213,7 @@
           <div class="rm-table-header">
             <div class="rm-table-title-group">
               <div class="rm-table-icon">
-                <v-icon size="16" color="#06b6d4">mdi-table-arrow-right</v-icon>
+                <v-icon size="16" color="primary">mdi-table-arrow-right</v-icon>
               </div>
               <div>
                 <div class="rm-table-title">Detalle de Movimientos</div>
@@ -309,6 +292,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
@@ -496,7 +480,7 @@ function exportarPDF() {
 
 /* ── Breadcrumb ────────────────────────────────────── */
 .breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 11px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; }
+.bc-root { font-size: 11px; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: 0.5px; }
 .bc-cat  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.4); }
 .bc-cur  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 600; }
 
@@ -505,7 +489,7 @@ function exportarPDF() {
 .rm-header-left { display: flex; align-items: center; gap: 16px; }
 .rm-icon-wrap {
   width: 52px; height: 52px; border-radius: 16px;
-  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, var(--indigo) 0%, var(--indigo) 100%);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 20px rgba(139,92,246,0.38); flex-shrink: 0;
 }
@@ -544,7 +528,7 @@ function exportarPDF() {
   cursor: pointer; outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.rm-select:focus { border-color: #06b6d4; box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
+.rm-select:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
 
 .rm-date {
   height: 36px; padding: 0 10px;
@@ -556,11 +540,11 @@ function exportarPDF() {
   cursor: pointer; outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.rm-date:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
+.rm-date:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
 
 .rm-cuenta-badge {
   display: flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 600; color: #10b981;
+  font-size: 11px; font-weight: 600; color: var(--success);
   background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2);
   border-radius: 20px; padding: 3px 10px; white-space: nowrap;
 }
@@ -582,7 +566,7 @@ function exportarPDF() {
   background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2);
   border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
 }
-.error-title  { font-size: 13px; font-weight: 700; color: #ef4444; }
+.error-title  { font-size: 13px; font-weight: 700; color: var(--error); }
 .error-detail { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); margin-top: 2px; }
 
 /* ── Loading ───────────────────────────────────────── */
@@ -608,21 +592,21 @@ function exportarPDF() {
 .kpi-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.09); transform: translateY(-2px); }
 
 .kpi-deco { position: absolute; top: 0; right: 0; width: 80px; height: 80px; border-radius: 0 14px 0 80px; opacity: 0.07; }
-.kpi-ingresos  .kpi-deco { background: #10b981; }
-.kpi-egresos   .kpi-deco { background: #ef4444; }
+.kpi-ingresos  .kpi-deco { background: var(--success); }
+.kpi-egresos   .kpi-deco { background: var(--error); }
 .kpi-saldo-pos .kpi-deco { background: #3b82f6; }
-.kpi-saldo-neg .kpi-deco { background: #f59e0b; }
-.kpi-total     .kpi-deco { background: #8b5cf6; }
+.kpi-saldo-neg .kpi-deco { background: var(--gold); }
+.kpi-total     .kpi-deco { background: var(--indigo); }
 
 .kpi-inner { padding: 18px 18px 14px; }
 .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 
 .kpi-icon-wrap { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.kpi-icon-green  { background: linear-gradient(135deg,#10b981,#059669); }
-.kpi-icon-red    { background: linear-gradient(135deg,#ef4444,#dc2626); }
+.kpi-icon-green  { background: linear-gradient(135deg,var(--success),var(--success)); }
+.kpi-icon-red    { background: linear-gradient(135deg,var(--error),var(--error)); }
 .kpi-icon-blue   { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-.kpi-icon-orange { background: linear-gradient(135deg,#f59e0b,#d97706); }
-.kpi-icon-purple { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
+.kpi-icon-orange { background: linear-gradient(135deg,var(--gold),var(--gold)); }
+.kpi-icon-purple { background: linear-gradient(135deg,var(--indigo),var(--indigo)); }
 
 .kpi-badge {
   font-size: 9.5px; font-weight: 700;
@@ -630,18 +614,18 @@ function exportarPDF() {
   border-radius: 20px; padding: 3px 8px;
   text-transform: uppercase; letter-spacing: 0.3px;
 }
-.kpi-badge-green  { background: rgba(16,185,129,0.1);  color: #10b981; }
-.kpi-badge-red    { background: rgba(239,68,68,0.1);   color: #ef4444; }
+.kpi-badge-green  { background: rgba(16,185,129,0.1);  color: var(--success); }
+.kpi-badge-red    { background: rgba(239,68,68,0.1);   color: var(--error); }
 .kpi-badge-blue   { background: rgba(59,130,246,0.1);  color: #3b82f6; }
-.kpi-badge-orange { background: rgba(245,158,11,0.1);  color: #f59e0b; }
-.kpi-badge-purple { background: rgba(139,92,246,0.1);  color: #8b5cf6; }
+.kpi-badge-orange { background: rgba(245,158,11,0.1);  color: var(--gold); }
+.kpi-badge-purple { background: rgba(139,92,246,0.1);  color: var(--indigo); }
 
-.kpi-value  { font-size: 20px; font-weight: 800; line-height: 1; margin-bottom: 4px; font-family: 'Courier New', monospace; }
-.kpi-val-green  { color: #10b981; }
-.kpi-val-red    { color: #ef4444; }
+.kpi-value  { font-size: 20px; font-weight: 800; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.kpi-val-green  { color: var(--success); }
+.kpi-val-red    { color: var(--error); }
 .kpi-val-blue   { color: #3b82f6; }
-.kpi-val-orange { color: #f59e0b; }
-.kpi-val-purple { color: #8b5cf6; }
+.kpi-val-orange { color: var(--gold); }
+.kpi-val-purple { color: var(--indigo); }
 
 .kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.5); margin-bottom: 4px; }
 .kpi-sub   { font-size: 10.5px; color: rgba(var(--v-theme-on-surface), 0.4); }
@@ -659,7 +643,7 @@ function exportarPDF() {
 .resumen-op { flex-shrink: 0; width: 28px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.3); }
 .resumen-label   { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.4); }
 .resumen-label-w { color: rgba(255,255,255,0.7); }
-.resumen-value   { font-size: 14px; font-weight: 800; font-family: 'Courier New', monospace; }
+.resumen-value   { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .resumen-white  { color: #fff; }
 .resumen-green  { color: #34d399; }
 .resumen-red    { color: #f87171; }
@@ -689,8 +673,8 @@ function exportarPDF() {
 .rm-table-chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
 .chip { font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 3px; border-radius: 20px; padding: 3px 9px; text-transform: uppercase; letter-spacing: 0.3px; }
-.chip-green { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.chip-red   { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+.chip-green { background: rgba(16,185,129,0.1);  color: var(--success); border: 1px solid rgba(16,185,129,0.2); }
+.chip-red   { background: rgba(239,68,68,0.1);   color: var(--error); border: 1px solid rgba(239,68,68,0.2); }
 .chip-gray  { background: rgba(var(--v-theme-on-surface),0.06); color: rgba(var(--v-theme-on-surface),0.5); border: 1px solid rgba(var(--v-theme-on-surface),0.1); }
 
 /* ── Empty state ───────────────────────────────────── */
@@ -725,18 +709,18 @@ function exportarPDF() {
 .td-tipo         { }
 .td-beneficiario { font-size: 12px; color: rgba(var(--v-theme-on-surface),0.7); font-weight: 500; }
 .td-concepto     { color: rgb(var(--v-theme-on-surface)); }
-.td-monto        { font-family: 'Courier New', monospace; font-weight: 600; font-size: 12px; }
+.td-monto        { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12px; }
 
-.tipo-ing { background: rgba(16,185,129,0.12); color: #10b981; padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 800; }
-.tipo-egr { background: rgba(239,68,68,0.1);  color: #ef4444; padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 800; }
+.tipo-ing { background: rgba(16,185,129,0.12); color: var(--success); padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 800; }
+.tipo-egr { background: rgba(239,68,68,0.1);  color: var(--error); padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 800; }
 
-.monto-ing  { color: #10b981; }
-.monto-egr  { color: #ef4444; }
+.monto-ing  { color: var(--success); }
+.monto-egr  { color: var(--error); }
 .monto-dash { color: rgba(var(--v-theme-on-surface),0.2); }
 
 /* ── Tfoot ─────────────────────────────────────────── */
 .tr-foot { background: rgba(var(--v-theme-on-surface),0.05); border-top: 2px solid rgba(var(--v-theme-on-surface),0.1); }
 .tr-foot td { padding: 11px 14px; }
 .foot-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.6); }
-.foot-monto { font-size: 13px; font-weight: 800; font-family: 'Courier New', monospace; }
+.foot-monto { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 </style>

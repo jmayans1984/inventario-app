@@ -1,26 +1,12 @@
 <template>
   <MainLayout>
     <div class="pa-container">
-      <!-- BREADCRUMB -->
-      <div class="pa-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Predicción Agotamiento</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="pa-header">
-        <div class="pa-header-left">
-          <div class="pa-icon-wrap"><v-icon size="22" color="white">mdi-chart-line</v-icon></div>
-          <div>
-            <h1 class="pa-title">PREDICCIÓN DE AGOTAMIENTO</h1>
-            <p class="pa-sub">Cuándo se acabará el stock de cada producto en bodega maestra</p>
-          </div>
-        </div>
-        <div class="pa-header-right">
-          <span class="pa-vent-lbl">Analizar consumo de:</span>
+      <PageHeader
+        title="Predicción de Agotamiento"
+        description="Cuándo se acabará el stock de cada producto en bodega maestra"
+        :crumbs="['Almacén', 'Reportes', 'Predicción de Agotamiento']"
+      >
+        <template #actions>
           <div class="pa-vent-group">
             <button
               v-for="opt in opcionesDias"
@@ -29,21 +15,21 @@
               @click="cambiarVentana(opt)"
             >{{ opt }} días</button>
           </div>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- KPIs -->
       <div class="pa-kpi-row">
         <div class="pa-kpi" style="--kc:#dc2626">
-          <v-icon size="18" color="#dc2626">mdi-alert-circle-outline</v-icon>
+          <v-icon size="18" color="error">mdi-alert-circle-outline</v-icon>
           <div><div class="kpi-val">{{ enPeligro }}</div><div class="kpi-lbl">EN PELIGRO (< 7 DÍAS)</div></div>
         </div>
         <div class="pa-kpi" style="--kc:#f59e0b">
-          <v-icon size="18" color="#f59e0b">mdi-alert-outline</v-icon>
+          <v-icon size="18" color="warning">mdi-alert-outline</v-icon>
           <div><div class="kpi-val">{{ enAlerta }}</div><div class="kpi-lbl">EN ALERTA (7-14 DÍAS)</div></div>
         </div>
         <div class="pa-kpi" style="--kc:#10b981">
-          <v-icon size="18" color="#10b981">mdi-check-circle-outline</v-icon>
+          <v-icon size="18" color="success">mdi-check-circle-outline</v-icon>
           <div><div class="kpi-val">{{ enOk }}</div><div class="kpi-lbl">SIN PELIGRO (> 14 DÍAS)</div></div>
         </div>
       </div>
@@ -116,7 +102,7 @@
       </div>
 
       <div v-else class="pa-loading">
-        <v-progress-circular indeterminate color="#047857"></v-progress-circular>
+        <v-progress-circular indeterminate color="success"></v-progress-circular>
         <p>Analizando consumo y calculando predicciones...</p>
       </div>
     </div>
@@ -137,7 +123,7 @@
 
         <div class="dt-body">
           <div v-if="cargandoDetalle" class="dt-loading">
-            <v-progress-circular indeterminate color="#047857" size="28"></v-progress-circular>
+            <v-progress-circular indeterminate color="success" size="28"></v-progress-circular>
             <span>Cargando detalle...</span>
           </div>
 
@@ -145,7 +131,7 @@
             <!-- ── GRÁFICO 1: consumo diario de los últimos X días ── -->
             <div class="dt-section-header">
               <span class="dt-section-title">CONSUMO DIARIO DE LOS ÚLTIMOS {{ ventanaDias }} DÍAS</span>
-              <v-btn size="x-small" variant="tonal" color="#047857" @click="dlgGridDetalle = true">
+              <v-btn size="x-small" variant="tonal" color="success" @click="dlgGridDetalle = true">
                 <v-icon size="13" class="mr-1">mdi-table</v-icon>
                 Ver detalle
               </v-btn>
@@ -255,7 +241,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import MainLayout from '../../components/layouts/MainLayout.vue';
+import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue';
 import { useAuthStore } from '../../stores/auth';
 import { API_BASE } from '../../utils/constants';
 
@@ -425,7 +412,7 @@ function nombreDiaSemana(f) {
 
 /* Breadcrumb */
 .pa-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: .5px; }
+.bc-root { font-size: 12px; font-weight: 700; color: var(--success); text-transform: uppercase; letter-spacing: .5px; }
 .bc-sep { color: rgba(var(--v-theme-on-surface),.3); }
 .bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
 .bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
@@ -433,7 +420,7 @@ function nombreDiaSemana(f) {
 /* Header */
 .pa-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .pa-header-left { display: flex; align-items: center; gap: 16px; }
-.pa-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #047857, #10b981); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(4, 120, 87, .35); flex-shrink: 0; }
+.pa-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--success), var(--success)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(4, 120, 87, .35); flex-shrink: 0; }
 .pa-title { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .pa-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), .5); margin: 2px 0 0; }
 
@@ -443,7 +430,7 @@ function nombreDiaSemana(f) {
 .pa-vent-group { display: inline-flex; background: rgba(var(--v-theme-on-surface), .05); border-radius: 8px; padding: 3px; gap: 2px; }
 .pa-vent-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .6); cursor: pointer; transition: all .15s; }
 .pa-vent-btn:hover { color: rgba(var(--v-theme-on-surface), .9); }
-.pa-vent-btn.active { background: linear-gradient(135deg, #047857, #10b981); color: white; box-shadow: 0 2px 8px rgba(4, 120, 87, .3); }
+.pa-vent-btn.active { background: linear-gradient(135deg, var(--success), var(--success)); color: white; box-shadow: 0 2px 8px rgba(4, 120, 87, .3); }
 
 /* KPIs */
 .pa-kpi-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
@@ -482,30 +469,30 @@ function nombreDiaSemana(f) {
 .sem-bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 38px; }
 .sem-col { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 15px; }
 .sem-bar-track { height: 26px; width: 100%; display: flex; align-items: flex-end; background: rgba(var(--v-theme-on-surface), .05); border-radius: 2px; overflow: hidden; }
-.sem-bar-fill { width: 100%; background: #10b981; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
-.sem-bar-fill.sem-fin-semana { background: #f59e0b; }
+.sem-bar-fill { width: 100%; background: var(--success); border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
+.sem-bar-fill.sem-fin-semana { background: var(--gold); }
 .sem-lbl { font-size: 8px; font-weight: 700; color: rgba(var(--v-theme-on-surface), .45); }
 .sem-vacio { color: rgba(var(--v-theme-on-surface), .3); }
 .pa-dias { text-align: center; font-weight: 600; }
 .pa-alerta { text-align: center; }
 
-.fecha-badge { display: inline-block; padding: 3px 8px; background: #fee2e2; color: #dc2626; border-radius: 4px; font-weight: 600; font-size: 10px; }
-.fecha-ok { color: #10b981; font-weight: 700; }
+.fecha-badge { display: inline-block; padding: 3px 8px; background: #fee2e2; color: var(--error); border-radius: 4px; font-weight: 600; font-size: 10px; }
+.fecha-ok { color: var(--success); font-weight: 700; }
 
 .dias-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; }
-.dias-peligro { background: #fecaca; color: #dc2626; }
+.dias-peligro { background: #fecaca; color: var(--error); }
 .dias-alerta { background: #fde047; color: #92400e; }
-.dias-ok { color: #10b981; font-weight: 700; }
+.dias-ok { color: var(--success); font-weight: 700; }
 
-.badge-peligro { display: inline-block; padding: 4px 12px; background: #fecaca; color: #dc2626; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+.badge-peligro { display: inline-block; padding: 4px 12px; background: #fecaca; color: var(--error); border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
 .badge-alerta { display: inline-block; padding: 4px 12px; background: #fde047; color: #92400e; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
-.badge-ok { display: inline-block; padding: 4px 12px; background: #d1fae5; color: #047857; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+.badge-ok { display: inline-block; padding: 4px 12px; background: #d1fae5; color: var(--success); border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
 
 /* ── Popup: detalle de salidas diarias ──────────────────────── */
 .dt-card { border-radius: 14px; overflow: hidden; }
 .dt-header {
   display: flex; align-items: center; gap: 12px; padding: 16px 18px;
-  background: linear-gradient(135deg, #047857, #10b981);
+  background: linear-gradient(135deg, var(--success), var(--success));
 }
 .dt-icon-wrap {
   width: 36px; height: 36px; border-radius: 10px;
@@ -535,9 +522,9 @@ function nombreDiaSemana(f) {
 .dt-chart { display: flex; align-items: flex-end; gap: 3px; height: 128px; overflow-x: auto; padding-bottom: 4px; flex: 1; border-left: 1px solid rgba(var(--v-theme-on-surface), .1); padding-left: 6px; }
 .dt-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 14px; height: 100%; justify-content: flex-end; }
 .dt-bar-track { height: 110px; width: 100%; max-width: 16px; display: flex; align-items: flex-end; background: rgba(var(--v-theme-on-surface), .05); border-radius: 2px; overflow: hidden; }
-.dt-bar-fill { width: 100%; background: #10b981; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
-.dt-bar-fill.dt-bar-hoy { background: #047857; }
-.dt-bar-fill.dt-bar-finde { background: #f59e0b; }
+.dt-bar-fill { width: 100%; background: var(--success); border-radius: 2px 2px 0 0; transition: height .2s; min-height: 0; }
+.dt-bar-fill.dt-bar-hoy { background: var(--success); }
+.dt-bar-fill.dt-bar-finde { background: var(--gold); }
 .dt-bar-lbl { font-size: 9px; font-weight: 600; color: rgba(var(--v-theme-on-surface), .5); white-space: nowrap; }
 .dt-chart-semana .dt-bar-col { flex: none; width: 13%; }
 
@@ -549,5 +536,5 @@ function nombreDiaSemana(f) {
 .dt-val { font-family: monospace; font-weight: 600; }
 .dt-tabla tfoot td { padding: 10px; border-top: 2px solid rgba(var(--v-theme-on-surface), .1); font-weight: 700; }
 .dt-total-lbl { text-transform: uppercase; font-size: 11px; letter-spacing: .3px; }
-.dt-total-val { font-family: monospace; color: #047857; font-size: 13px; }
+.dt-total-val { font-family: monospace; color: var(--success); font-size: 13px; }
 </style>

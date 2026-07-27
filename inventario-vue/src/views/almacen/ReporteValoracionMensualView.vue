@@ -2,37 +2,22 @@
   <MainLayout>
     <div class="vm-wrap">
 
-      <!-- BREADCRUMB -->
-      <div class="vm-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Valoración Mensual de Inventario</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="vm-header">
-        <div class="vm-header-left">
-          <div class="vm-icon-wrap">
-            <v-icon size="24" color="white">mdi-calculator-variant</v-icon>
-          </div>
-          <div>
-            <h1 class="vm-title">VALORACIÓN MENSUAL DE INVENTARIO</h1>
-            <p class="vm-sub">Consumo real de materia prima por juego de inventarios (Inv. Inicial + Compras − Inv. Final)</p>
-          </div>
-        </div>
-        <div class="vm-header-right">
+      <PageHeader
+        title="Valoración Mensual de Inventario"
+        description="Consumo real de materia prima por juego de inventarios (Inv. Inicial + Compras − Inv. Final)"
+        :crumbs="['Almacén', 'Reportes', 'Valoración Mensual']"
+      >
+        <template #actions>
           <input type="month" v-model="mesSel" class="mes-input" />
-          <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
+          <v-btn color="primary" variant="flat" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
             Actualizar
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- LOADING -->
       <div v-if="loading" class="vm-loading">
-        <v-progress-circular indeterminate color="#06b6d4" size="48" />
+        <v-progress-circular indeterminate color="primary" size="48" />
         <p>Valorizando inventario de todos los centros de costo...</p>
       </div>
 
@@ -40,7 +25,7 @@
 
         <!-- AVISO: cuenta de materia prima no configurada -->
         <div v-if="!data.ctaMateriaPrima" class="vm-warning">
-          <v-icon size="20" color="#ef4444">mdi-alert-circle-outline</v-icon>
+          <v-icon size="20" color="error">mdi-alert-circle-outline</v-icon>
           <span>No hay configurada la <b>Cuenta Contable Materia Prima (Entrada de Almacén)</b> en Configuración General. Las compras del período se calcularán en $0 hasta que la configures.</span>
         </div>
 
@@ -49,7 +34,7 @@
           <div class="vm-kpi">
             <div class="vm-kpi-accent" style="background:#8b5cf6"></div>
             <div class="vm-kpi-icon" style="background:rgba(139,92,246,0.12)">
-              <v-icon size="20" color="#8b5cf6">mdi-archive-outline</v-icon>
+              <v-icon size="20" color="primary">mdi-archive-outline</v-icon>
             </div>
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Inventario Inicial</div>
@@ -79,7 +64,7 @@
           <div class="vm-kpi">
             <div class="vm-kpi-accent" style="background:#8b5cf6"></div>
             <div class="vm-kpi-icon" style="background:rgba(139,92,246,0.12)">
-              <v-icon size="20" color="#8b5cf6">mdi-archive-check-outline</v-icon>
+              <v-icon size="20" color="primary">mdi-archive-check-outline</v-icon>
             </div>
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Inventario Final</div>
@@ -151,7 +136,7 @@
         <v-dialog v-model="showDetalleInicial" max-width="700" scrollable>
           <v-card rounded="lg">
             <v-card-title class="d-flex align-center ga-2 pa-4" style="background:rgba(139,92,246,0.08)">
-              <v-icon color="#8b5cf6">mdi-archive-outline</v-icon>
+              <v-icon color="primary">mdi-archive-outline</v-icon>
               Detalle — Inventario Inicial
             </v-card-title>
             <v-card-text class="pa-4">
@@ -185,7 +170,7 @@
             </v-card-text>
             <v-card-actions class="pa-4 pt-0">
               <v-spacer />
-              <v-btn variant="flat" color="#8b5cf6" @click="showDetalleInicial = false">Cerrar</v-btn>
+              <v-btn variant="flat" color="primary" @click="showDetalleInicial = false">Cerrar</v-btn>
             </v-card-actions>
           </v-card>
         </v-dialog>
@@ -193,7 +178,7 @@
         <v-dialog v-model="showDetalleFinal" max-width="700" scrollable>
           <v-card rounded="lg">
             <v-card-title class="d-flex align-center ga-2 pa-4" style="background:rgba(139,92,246,0.08)">
-              <v-icon color="#8b5cf6">mdi-archive-check-outline</v-icon>
+              <v-icon color="primary">mdi-archive-check-outline</v-icon>
               Detalle — Inventario Final
             </v-card-title>
             <v-card-text class="pa-4">
@@ -227,7 +212,7 @@
             </v-card-text>
             <v-card-actions class="pa-4 pt-0">
               <v-spacer />
-              <v-btn variant="flat" color="#8b5cf6" @click="showDetalleFinal = false">Cerrar</v-btn>
+              <v-btn variant="flat" color="primary" @click="showDetalleFinal = false">Cerrar</v-btn>
             </v-card-actions>
           </v-card>
         </v-dialog>
@@ -285,7 +270,7 @@
         <!-- FILA 2: Asignación de consumo MP por centro de costo -->
         <div class="vm-card vm-card-full">
           <div class="vm-card-header">
-            <v-icon size="18" color="#8b5cf6">mdi-store-outline</v-icon>
+            <v-icon size="18" color="primary">mdi-store-outline</v-icon>
             <span class="vm-card-title">Consumo de Materia Prima por Centro de Costo</span>
             <span class="vm-card-badge">asignado proporcional a % de ventas</span>
           </div>
@@ -336,7 +321,7 @@
         <!-- FILA 3: Valorización de inventario por CC (toma física) -->
         <div class="vm-card vm-card-full">
           <div class="vm-card-header">
-            <v-icon size="18" color="#8b5cf6">mdi-clipboard-check-outline</v-icon>
+            <v-icon size="18" color="primary">mdi-clipboard-check-outline</v-icon>
             <span class="vm-card-title">Valorización de Toma Física por Centro de Costo / Bodega</span>
           </div>
           <div class="vm-table-wrap">
@@ -474,6 +459,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
 
@@ -586,7 +572,7 @@ onMounted(cargar)
 .vm-header-left { display: flex; align-items: center; gap: 16px; }
 .vm-icon-wrap {
   width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: linear-gradient(135deg, var(--indigo), var(--indigo));
   display: flex; align-items: center; justify-content: center;
 }
 .vm-title { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: rgb(var(--v-theme-on-surface)); }
@@ -640,7 +626,7 @@ onMounted(cargar)
 .vm-card-title { font-size: 13.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: rgb(var(--v-theme-on-surface)); flex: 1; }
 .vm-card-badge {
   font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px;
-  background: rgba(139,92,246,0.1); color: #8b5cf6; white-space: nowrap;
+  background: rgba(139,92,246,0.1); color: var(--indigo); white-space: nowrap;
 }
 .vm-card-note {
   font-size: 12.5px; color: rgba(var(--v-theme-on-surface), 0.55);
@@ -715,11 +701,11 @@ onMounted(cargar)
 .text-dim { color: rgba(var(--v-theme-on-surface), 0.45); }
 
 .badge-info {
-  background: rgba(6,182,212,0.12); color: #06b6d4;
+  background: rgba(6,182,212,0.12); color: var(--indigo);
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
 }
 .badge-warn {
-  background: rgba(239,68,68,0.12); color: #ef4444;
+  background: rgba(239,68,68,0.12); color: var(--error);
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
 }
 .badge-dim-tag {
@@ -729,7 +715,7 @@ onMounted(cargar)
 
 /* COLOREO DE TABLA PRODUCTOS */
 .th-section-inicial {
-  background: rgba(139,92,246,0.12) !important; color: #8b5cf6 !important; font-weight: 800;
+  background: rgba(139,92,246,0.12) !important; color: var(--indigo) !important; font-weight: 800;
 }
 .th-section-final {
   background: rgba(34,197,94,0.12) !important; color: #22c55e !important; font-weight: 800;
@@ -741,7 +727,7 @@ onMounted(cargar)
   background: rgba(34,197,94,0.08) !important; border-bottom: 2px solid rgba(34,197,94,0.25) !important;
 }
 .td-stock-inicial, .td-valor-inicial {
-  background: rgba(139,92,246,0.04); color: #8b5cf6; font-weight: 600;
+  background: rgba(139,92,246,0.04); color: var(--indigo); font-weight: 600;
 }
 .td-stock-final, .td-valor-final {
   background: rgba(34,197,94,0.04); color: #22c55e; font-weight: 600;
