@@ -470,6 +470,13 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
 .view-container {
   padding: 24px;
   max-width: 1400px;
