@@ -1,27 +1,12 @@
 <template>
   <MainLayout>
     <div class="view-container">
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Conciliación de Cuentas</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon-wrap">
-            <v-icon size="22" color="white">mdi-bank-check</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">CONCILIACIÓN DE CUENTAS</h1>
-            <p class="page-sub">Marca los movimientos bancarios como conciliados</p>
-          </div>
-        </div>
-        <div class="header-actions">
+      <PageHeader
+        title="Conciliación de Cuentas"
+        description="Marca los movimientos bancarios como conciliados"
+        :crumbs="['Tesorería', 'Procesos', 'Conciliación de Cuentas']"
+      >
+        <template #actions>
           <v-btn
             v-if="selectedIds.length > 0"
             color="success"
@@ -31,26 +16,22 @@
           >
             Conciliar {{ selectedIds.length }}
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- KPI CARDS -->
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">PENDIENTES</div>
-          <div class="kpi-value">{{ store.movimientosPendientes.length }}</div>
-          <div class="kpi-sub">{{ formatMoneda(store.totalPendiente) }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">CONCILIADOS</div>
-          <div class="kpi-value">{{ store.movimientosConciliados.length }}</div>
-          <div class="kpi-sub">{{ formatMoneda(store.totalConciliado) }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">TOTAL</div>
-          <div class="kpi-value">{{ store.totalMovimientos }}</div>
-          <div class="kpi-sub">{{ formatMoneda(store.totalPendiente + store.totalConciliado) }}</div>
-        </div>
+      <div class="kpi-grid mb-5">
+        <KpiCard
+          v-for="(kpi, i) in kpis"
+          :key="kpi.label"
+          :index="i"
+          :label="kpi.label"
+          :value="kpi.value"
+          :icon="kpi.icon"
+          :color="kpi.color"
+          :value-color="kpi.color"
+          :hint="kpi.hint"
+        />
       </div>
 
       <!-- FILTROS -->
@@ -252,23 +233,8 @@ onMounted(async () => {
 
 <style scoped>
 .view-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.header-left { display: flex; align-items: center; gap: 16px; }
-.header-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,0.35); }
-.page-title { font-size: 20px; font-weight: 800; margin: 0; }
-.page-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.kpi-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 12px; padding: 20px; text-align: center; }
-.kpi-label { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-value { font-size: 28px; font-weight: 800; color: #06b6d4; margin: 8px 0; }
-.kpi-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); }
 
 .filtros-bar { margin-bottom: 20px; }
 .filtro-toggle { border: 1px solid rgba(var(--v-theme-on-surface), 0.12); border-radius: 8px; }
@@ -297,8 +263,8 @@ onMounted(async () => {
 .col-estado { width: 120px; }
 .col-acciones { width: 80px; text-align: center; }
 
-.badge-referencia { background: rgba(6,182,212,0.15); color: #06b6d4; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
-.monto-bold { font-weight: 700; color: #06b6d4; font-family: 'Courier New', monospace; }
+.badge-referencia { background: var(--indigo-wash); color: var(--indigo); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+.monto-bold { font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; }
 .action-buttons { display: flex; gap: 2px; justify-content: center; }
 
 .tabla-empty { text-align: center !important; padding: 40px !important; }

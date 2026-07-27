@@ -2,31 +2,26 @@
   <MainLayout>
     <div class="cst-container">
 
-      <!-- BREADCRUMB -->
-      <div class="cst-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Control de Stock</span>
-      </div>
+      <PageHeader
+        title="Control de Stock"
+        description="Asigne stock mínimo a cada producto y monitoree su disponibilidad"
+        :crumbs="['Almacén', 'Configuración', 'Control de Stock']"
+      >
+        <template #actions>
+          <v-btn v-if="!sinBodegaMaestra" color="primary" variant="flat" size="large" prepend-icon="mdi-content-save-all" :loading="guardandoTodos" @click="guardarTodos">
+            Guardar Todo
+          </v-btn>
+        </template>
+      </PageHeader>
 
-      <!-- HEADER -->
-      <div class="cst-header">
-        <div class="cst-header-left">
-          <div class="cst-icon-wrap">
-            <v-icon size="22" color="white">mdi-package-variant-closed</v-icon>
-          </div>
-          <div>
-            <h1 class="cst-title">CONTROL DE STOCK</h1>
-            <p class="cst-sub">Asigne stock mínimo a cada producto y monitoree su disponibilidad</p>
-          </div>
-        </div>
+      <!-- KPI CARDS -->
+      <div class="kpi-grid mb-5">
+        <KpiCard v-for="(kpi, i) in kpis" :key="kpi.label" :index="i" :label="kpi.label" :value="kpi.value" :icon="kpi.icon" :color="kpi.color" :value-color="kpi.color" />
       </div>
 
       <!-- INFORMACIÓN DE BODEGA MAESTRA -->
       <div v-if="!loading && bodegaMaestraCC" class="bodega-info">
-        <v-icon size="18" color="#0891b2">mdi-warehouse</v-icon>
+        <v-icon size="18" color="var(--indigo)">mdi-warehouse</v-icon>
         <span>Centro de Costo: <strong>{{ bodegaMaestraCC }} - {{ bodegaMaestraNombre }}</strong></span>
       </div>
 
@@ -49,27 +44,23 @@
           hide-details
           style="min-width:160px"
         />
-
-        <v-btn color="#ef4444" variant="elevated" prepend-icon="mdi-content-save-all" :loading="guardandoTodos" @click="guardarTodos">
-          Guardar Todo
-        </v-btn>
       </div>
 
       <!-- TABLA AGRUPADA -->
       <div class="cst-table-wrap">
         <div v-if="loading" class="cst-loading">
-          <v-progress-circular indeterminate color="#ef4444" size="36" />
+          <v-progress-circular indeterminate color="var(--error)" size="36" />
         </div>
 
         <template v-else-if="sinBodegaMaestra">
           <div class="cst-empty-bodega">
-            <v-icon size="48" color="#f59e0b">mdi-alert-outline</v-icon>
+            <v-icon size="48" color="var(--warning)">mdi-alert-outline</v-icon>
             <p><strong>⚠ No hay Bodega Maestra asignada</strong></p>
             <p style="font-size:13px;color:rgba(var(--v-theme-on-surface),.6)">
               Debes asignar un Centro de Costo como Bodega Maestra en <strong>CONFIGURACIÓN > Bodega Maestra / Proveeduría</strong> para poder gestionar el control de stock.
             </p>
             <router-link to="/configuracion/bodega-maestra" style="text-decoration:none">
-              <v-btn color="#0891b2" variant="elevated" size="small" prepend-icon="mdi-warehouse">
+              <v-btn color="var(--indigo)" variant="elevated" size="small" prepend-icon="mdi-warehouse">
                 Ir a Bodega Maestra
               </v-btn>
             </router-link>
@@ -84,7 +75,7 @@
           <template v-for="grupo in productosAgrupados" :key="grupo.key">
             <!-- HEADER DE GRUPO -->
             <div class="grupo-header">
-              <v-icon size="15" style="color:#ef4444">mdi-folder-outline</v-icon>
+              <v-icon size="15" style="color:var(--error)">mdi-folder-outline</v-icon>
               <span class="grupo-nombre">{{ grupo.nombre }}</span>
               <span class="grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
             </div>
@@ -139,7 +130,7 @@
                       icon
                       size="x-small"
                       variant="text"
-                      :color="p._modificado ? '#10b981' : '#cbd5e1'"
+                      :color="p._modificado ? 'var(--success)' : 'var(--ink-400)'"
                       :loading="p._guardando"
                       @click="guardarFila(p)"
                       :title="p._modificado ? 'Guardar cambio' : 'Sin cambios'"
@@ -172,6 +163,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 import { useRouter } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 import { bodegaMaestraService } from '../../services/bodega-maestra.service'
 import api from '../../services/api'
@@ -202,12 +195,24 @@ const opcionesEstado = [
   { value: 'normal', label: '🟢 Normal' },
 ]
 
+const kpis = computed(() => {
+  const fuera  = productos.value.filter(p => (p.stock_actual || 0) <= 0).length
+  const bajo   = productos.value.filter(p => (p.stock_actual || 0) > 0 && (p.stock_actual || 0) < (p.stock_minimo || 0)).length
+  const normal = productos.value.filter(p => (p.stock_actual || 0) >= (p.stock_minimo || 0)).length
+  return [
+    { label: 'Total Productos', value: productos.value.length, icon: 'mdi-package-variant-closed', color: 'var(--indigo)' },
+    { label: 'Fuera de Stock', value: fuera, icon: 'mdi-close-circle-outline', color: 'var(--error)' },
+    { label: 'Bajo Stock', value: bajo, icon: 'mdi-alert-outline', color: 'var(--warning)' },
+    { label: 'Normal', value: normal, icon: 'mdi-check-circle-outline', color: 'var(--success)' },
+  ]
+})
+
 function obtenerColorStock(p) {
   const actual = p.stock_actual || 0
   const minimo = p.stock_minimo || 0
-  if (actual <= 0) return '#ef4444'
-  if (actual < minimo) return '#f59e0b'
-  return '#10b981'
+  if (actual <= 0) return 'var(--error)'
+  if (actual < minimo) return 'var(--warning)'
+  return 'var(--success)'
 }
 
 function obtenerEstado(p) {
@@ -359,18 +364,6 @@ onMounted(cargar)
 <style scoped>
 .cst-container { padding: 24px; max-width: 1600px; margin: 0 auto; }
 
-.cst-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
-.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
-
-.cst-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.cst-header-left { display: flex; align-items: center; gap: 16px; }
-.cst-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#ef4444,#dc2626); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(239,68,68,.35); flex-shrink: 0; }
-.cst-title { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
-.cst-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
-
 .cst-controles { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .cst-search  { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(var(--v-theme-on-surface),.03); border-radius: 8px; border: 1px solid rgba(var(--v-theme-on-surface),.08); flex: 1; min-width: 260px; }
 .cst-search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: rgb(var(--v-theme-on-surface)); }
@@ -384,11 +377,11 @@ onMounted(cargar)
   display: flex; align-items: center; gap: 8px;
   padding: 12px 16px;
   background: rgba(239,68,68,.08);
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid var(--error);
   border-radius: 8px;
   margin: 20px 0 12px 0;
 }
-.grupo-nombre { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #ef4444; }
+.grupo-nombre { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--error); }
 .grupo-count { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
 
 .cst-table {
@@ -454,7 +447,7 @@ onMounted(cargar)
   width: 70px;
 }
 
-.badge-cod { background: rgba(239,68,68,.15); color: #ef4444; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
+.badge-cod { background: rgba(239,68,68,.15); color: var(--error); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
 
 .nombre-cell { font-weight: 500; min-width: 150px; }
 .desc-cell { font-size: 12px; color: rgba(var(--v-theme-on-surface),.55); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
@@ -501,9 +494,9 @@ onMounted(cargar)
   letter-spacing: .2px;
 }
 
-.estado-normal { background: rgba(16,185,129,.15); color: #10b981; }
-.estado-bajo { background: rgba(245,158,11,.15); color: #f59e0b; }
-.estado-fuera { background: rgba(239,68,68,.15); color: #ef4444; }
+.estado-normal { background: rgba(16,185,129,.15); color: var(--success); }
+.estado-bajo { background: rgba(245,158,11,.15); color: var(--gold); }
+.estado-fuera { background: rgba(239,68,68,.15); color: var(--error); }
 
 .cst-total { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); text-align: right; margin-top: 12px; }
 
@@ -513,7 +506,7 @@ onMounted(cargar)
   gap: 8px;
   padding: 12px 16px;
   background: rgba(8,145,178,.08);
-  border-left: 3px solid #0891b2;
+  border-left: 3px solid var(--indigo);
   border-radius: 6px;
   font-size: 13px;
   margin-bottom: 16px;

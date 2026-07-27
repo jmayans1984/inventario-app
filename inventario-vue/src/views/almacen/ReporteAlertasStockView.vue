@@ -2,28 +2,14 @@
   <MainLayout>
     <div class="as-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Alertas de Stock</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="as-header">
-        <div class="as-header-icon">
-          <v-icon size="28" color="white">mdi-alert-circle-outline</v-icon>
-        </div>
-        <div>
-          <h2 class="as-title">Alertas de Stock</h2>
-          <p class="as-subtitle">Productos bajo stock mínimo en la Bodega Maestra</p>
-        </div>
-        <div style="flex:1"></div>
-        <div class="as-header-actions">
+      <PageHeader
+        title="Alertas de Stock"
+        description="Productos bajo stock mínimo en la Bodega Maestra"
+        :crumbs="['Almacén', 'Reportes', 'Alertas de Stock']"
+      >
+        <template #actions>
           <v-btn
-            color="#dc2626"
+            color="var(--error)"
             variant="elevated"
             prepend-icon="mdi-magnify"
             :loading="loading"
@@ -37,8 +23,8 @@
             class="ml-2"
             @click="exportarPDF"
           >PDF</v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- MENSAJES -->
       <v-alert v-if="advertencia" type="warning" variant="tonal" class="mb-4" closable @click:close="advertencia=''">
@@ -50,20 +36,20 @@
 
       <!-- LOADING -->
       <div v-if="loading" class="as-loading">
-        <v-progress-circular indeterminate color="#dc2626" size="36" />
+        <v-progress-circular indeterminate color="var(--error)" size="36" />
         <span>Consultando stock...</span>
       </div>
 
       <!-- SIN DATOS GENERADOS -->
       <div v-else-if="!generado" class="as-empty-state">
-        <v-icon size="56" color="rgba(var(--v-theme-on-surface),.15)">mdi-alert-circle-outline</v-icon>
+        <v-icon size="56" color="var(--ink-400)">mdi-alert-circle-outline</v-icon>
         <p>Presiona <strong>Generar</strong> para consultar los productos bajo stock mínimo</p>
       </div>
 
       <!-- SIN ALERTAS -->
       <div v-else-if="grupos.length === 0" class="as-empty-state as-ok">
-        <v-icon size="56" color="#16a34a">mdi-check-circle-outline</v-icon>
-        <p style="color:#16a34a;font-weight:700">¡Todo en orden!</p>
+        <v-icon size="56" color="var(--success)">mdi-check-circle-outline</v-icon>
+        <p style="color:var(--success);font-weight:700">¡Todo en orden!</p>
         <p>No hay productos por debajo del stock mínimo en la Bodega Maestra<span v-if="bodega"> ({{ bodega }})</span>.</p>
       </div>
 
@@ -89,7 +75,7 @@
         <!-- Grupos -->
         <div v-for="grupo in grupos" :key="grupo.nombre" class="as-grupo-block">
           <div class="as-grupo-header">
-            <v-icon size="14" color="#dc2626" class="mr-1">mdi-folder-outline</v-icon>
+            <v-icon size="14" color="var(--error)" class="mr-1">mdi-folder-outline</v-icon>
             <span class="as-grupo-nombre">{{ grupo.nombre }}</span>
             <span class="as-grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
           </div>
@@ -142,6 +128,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
@@ -383,20 +370,6 @@ function exportarPDF() {
 <style scoped>
 .as-container { padding: 20px 24px; max-width: 1200px; }
 
-/* Breadcrumb */
-.breadcrumb { display:flex; align-items:center; gap:4px; margin-bottom:16px; font-size:11px; }
-.bc-root  { color:rgba(var(--v-theme-on-surface),.4); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
-.bc-sep   { color:rgba(var(--v-theme-on-surface),.25); }
-.bc-cat   { color:rgba(var(--v-theme-on-surface),.5); }
-.bc-current { color:rgba(var(--v-theme-on-surface),.85); font-weight:700; }
-
-/* Header */
-.as-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; }
-.as-header-icon { width:46px; height:46px; border-radius:12px; background:linear-gradient(135deg,#dc2626,#b91c1c); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.as-title    { font-size:18px; font-weight:800; margin:0; }
-.as-subtitle { font-size:12px; color:rgba(var(--v-theme-on-surface),.5); margin:2px 0 0; }
-.as-header-actions { display:flex; align-items:center; }
-
 /* Loading / Empty */
 .as-loading { display:flex; align-items:center; gap:12px; padding:48px; justify-content:center; color:rgba(var(--v-theme-on-surface),.5); font-size:14px; }
 .as-empty-state { display:flex; flex-direction:column; align-items:center; gap:10px; padding:64px 24px; text-align:center; color:rgba(var(--v-theme-on-surface),.45); font-size:13px; }
@@ -406,13 +379,13 @@ function exportarPDF() {
 /* Resumen chips */
 .as-resumen { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
 .as-res-chip { display:flex; align-items:center; gap:5px; padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700; }
-.as-res-total  { background:rgba(220,38,38,.1);  color:#dc2626; border:1px solid rgba(220,38,38,.25); }
-.as-res-cero   { background:rgba(220,38,38,.06); color:#9f1239; border:1px solid rgba(220,38,38,.15); }
+.as-res-total  { background:var(--error-wash);  color:var(--error); border:1px solid color-mix(in srgb, var(--error) 25%, transparent); }
+.as-res-cero   { background:color-mix(in srgb, var(--error) 6%, transparent); color:var(--error); border:1px solid color-mix(in srgb, var(--error) 15%, transparent); }
 .as-res-bodega { background:rgba(var(--v-theme-on-surface),.06); color:rgba(var(--v-theme-on-surface),.6); border:1px solid rgba(var(--v-theme-on-surface),.12); }
 
 /* Grupo */
 .as-grupo-block  { margin-bottom:24px; border:1px solid rgba(var(--v-theme-on-surface),.08); border-radius:10px; overflow:hidden; }
-.as-grupo-header { display:flex; align-items:center; gap:6px; padding:9px 16px; background:rgba(220,38,38,.05); border-bottom:1px solid rgba(220,38,38,.1); }
+.as-grupo-header { display:flex; align-items:center; gap:6px; padding:9px 16px; background:var(--error-wash); border-bottom:1px solid color-mix(in srgb, var(--error) 10%, transparent); }
 .as-grupo-nombre { font-size:12px; font-weight:700; color:rgba(var(--v-theme-on-surface),.8); text-transform:uppercase; letter-spacing:.4px; }
 .as-grupo-count  { font-size:11px; color:rgba(var(--v-theme-on-surface),.4); margin-left:6px; }
 
@@ -422,8 +395,8 @@ function exportarPDF() {
 
 .as-row { border-bottom:1px solid rgba(var(--v-theme-on-surface),.05); }
 .as-row:hover { background:rgba(var(--v-theme-on-surface),.03); }
-.as-row-cero  { background:rgba(220,38,38,.04); }
-.as-row-cero:hover { background:rgba(220,38,38,.08); }
+.as-row-cero  { background:color-mix(in srgb, var(--error) 4%, transparent); }
+.as-row-cero:hover { background:color-mix(in srgb, var(--error) 8%, transparent); }
 
 .as-table td { padding:9px 12px; vertical-align:middle; }
 
@@ -436,19 +409,19 @@ function exportarPDF() {
 
 .td-nom  { font-weight:600; }
 .td-desc { color:rgba(var(--v-theme-on-surface),.5); font-size:12px; }
-.td-num  { text-align:right; font-family:monospace; font-size:12px; }
-.td-bajo    { color:#ca8a04; font-weight:700; }
-.td-cero    { color:#dc2626; font-weight:700; }
-.td-faltante { color:#dc2626; font-weight:700; }
+.td-num  { text-align:right; font-variant-numeric: tabular-nums; font-size:12px; }
+.td-bajo    { color:var(--gold); font-weight:700; }
+.td-cero    { color:var(--error); font-weight:700; }
+.td-faltante { color:var(--error); font-weight:700; }
 
-.badge-cod { background:rgba(var(--v-theme-on-surface),.07); border-radius:4px; padding:2px 7px; font-size:11px; font-weight:700; font-family:monospace; }
-.badge-und { background:rgba(59,130,246,.1); color:#3b82f6; border-radius:4px; padding:2px 7px; font-size:10px; font-weight:700; }
+.badge-cod { background:rgba(var(--v-theme-on-surface),.07); border-radius:4px; padding:2px 7px; font-size:11px; font-weight:700; font-family:var(--font-mono); }
+.badge-und { background:color-mix(in srgb, var(--indigo) 10%, transparent); color:var(--indigo); border-radius:4px; padding:2px 7px; font-size:10px; font-weight:700; }
 
 /* Barra nivel */
 .td-barra { vertical-align:middle; }
 .nivel-bar-bg   { height:6px; background:rgba(var(--v-theme-on-surface),.1); border-radius:3px; overflow:hidden; display:inline-block; width:70px; vertical-align:middle; }
-.nivel-bar-fill { height:100%; border-radius:3px; transition:width .3s; }
-.nivel-bajo { background:#ca8a04; }
-.nivel-cero { background:#dc2626; width:0% !important; }
-.nivel-pct  { font-size:10px; color:rgba(var(--v-theme-on-surface),.4); margin-left:6px; font-family:monospace; }
+.nivel-bar-fill { height:100%; border-radius:3px; transition:width var(--dur-slow) var(--ease-out); }
+.nivel-bajo { background:var(--gold); }
+.nivel-cero { background:var(--error); width:0% !important; }
+.nivel-pct  { font-size:10px; color:rgba(var(--v-theme-on-surface),.4); margin-left:6px; font-variant-numeric: tabular-nums; }
 </style>

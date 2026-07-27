@@ -2,27 +2,11 @@
   <MainLayout>
     <div class="bcv-container">
 
-      <!-- BREADCRUMB -->
-      <div class="bcv-breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Impresión de Códigos de Barras</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="bcv-header">
-        <div class="bcv-header-left">
-          <div class="bcv-icon-wrap">
-            <v-icon size="22" color="white">mdi-barcode</v-icon>
-          </div>
-          <div>
-            <h1 class="bcv-title">IMPRESIÓN DE CÓDIGOS DE BARRAS</h1>
-            <p class="bcv-sub">Etiquetas con nombre y código del producto</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Impresión de Códigos de Barras"
+        description="Etiquetas con nombre y código del producto"
+        :crumbs="['Almacén', 'Configuración', 'Impresión de Códigos de Barras']"
+      />
 
       <!-- OPCIONES DE IMPRESIÓN -->
       <div class="bcv-opciones">
@@ -82,7 +66,7 @@
       <!-- LISTA -->
       <div class="bcv-lista-wrap">
         <div v-if="loading" class="bcv-empty">
-          <v-progress-circular indeterminate color="#0891b2" size="36" />
+          <v-progress-circular indeterminate color="var(--indigo)" size="36" />
           <p class="mt-3" style="color:rgba(var(--v-theme-on-surface),.5)">Cargando productos...</p>
         </div>
         <div v-else-if="productosFiltrados.length === 0" class="bcv-empty">
@@ -101,7 +85,7 @@
               :model-value="seleccionados.has(p.codigo)"
               density="compact"
               hide-details
-              color="#10b981"
+              color="var(--success)"
               @click.stop="toggleProducto(p.codigo)"
             />
             <div>
@@ -115,7 +99,7 @@
       <!-- BARRA INFERIOR -->
       <div class="bcv-bottom-bar">
         <v-btn variant="outlined" @click="toggleSeleccionarTodos">☑️ Todos / Ninguno</v-btn>
-        <v-btn color="#047857" variant="elevated" :disabled="seleccionados.size === 0" @click="imprimirSeleccionados">
+        <v-btn color="var(--success)" variant="elevated" :disabled="seleccionados.size === 0" @click="imprimirSeleccionados">
           🖨️ Imprimir ({{ seleccionados.size }})
         </v-btn>
       </div>
@@ -127,6 +111,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
@@ -246,18 +231,6 @@ onMounted(cargar)
 <style scoped>
 .bcv-container { padding: 24px; max-width: 1000px; margin: 0 auto; padding-bottom: 90px; }
 
-.bcv-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
-.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
-
-.bcv-header      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.bcv-header-left { display: flex; align-items: center; gap: 16px; }
-.bcv-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#047857,#10b981); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(16,185,129,.35); flex-shrink: 0; }
-.bcv-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
-.bcv-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
-
 .bcv-opciones { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
 
 .bcv-filtros      { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
@@ -275,9 +248,9 @@ onMounted(cargar)
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
 }
 .bcv-item:hover { background: rgba(var(--v-theme-on-surface),.02); }
-.bcv-item.sel { background: rgba(16,185,129,.06); }
+.bcv-item.sel { background: var(--success-wash); }
 .bcv-item-nombre { font-weight: 600; font-size: 14px; }
-.bcv-item-cod { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); font-family: monospace; }
+.bcv-item-cod { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); font-variant-numeric: tabular-nums; }
 
 .bcv-bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0; background: rgb(var(--v-theme-surface));

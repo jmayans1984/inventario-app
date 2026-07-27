@@ -2,40 +2,29 @@
   <MainLayout>
     <div class="kc-container">
 
-      <!-- BREADCRUMB -->
-      <div class="kc-breadcrumb no-print">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Kardex Consolidado</span>
-      </div>
-
-      <!-- CONTROLES -->
-      <div class="kc-controls no-print">
-        <div class="kc-controls-left">
-          <div class="kc-icon-wrap">
-            <v-icon size="22" color="white">mdi-table-multiple</v-icon>
-          </div>
-          <div>
-            <h1 class="kc-title">KARDEX CONSOLIDADO</h1>
-            <p class="kc-sub">Stock actual detallado por centro de costos</p>
-          </div>
-        </div>
-        <v-btn
-          v-if="!loading && productosAgrupados.length > 0"
-          color="#047857"
-          variant="elevated"
-          prepend-icon="mdi-printer"
-          @click="imprimir"
+      <div class="no-print">
+        <PageHeader
+          title="Kardex Consolidado"
+          description="Stock actual detallado por centro de costos"
+          :crumbs="['Almacén', 'Reportes', 'Kardex Consolidado']"
         >
-          Imprimir / PDF
-        </v-btn>
+          <template #actions>
+            <v-btn
+              v-if="!loading && productosAgrupados.length > 0"
+              color="var(--success)"
+              variant="elevated"
+              prepend-icon="mdi-printer"
+              @click="imprimir"
+            >
+              Imprimir / PDF
+            </v-btn>
+          </template>
+        </PageHeader>
       </div>
 
       <!-- CARGANDO -->
       <div v-if="loading" class="kc-loading no-print">
-        <v-progress-circular indeterminate color="#047857" size="36" />
+        <v-progress-circular indeterminate color="var(--success)" size="36" />
         <span>Cargando kardex...</span>
       </div>
 
@@ -119,6 +108,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
@@ -314,15 +304,6 @@ onMounted(cargar)
 
 <style scoped>
 .kc-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.kc-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #047857; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface),.3); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
-.kc-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-.kc-controls-left { display: flex; align-items: center; gap: 16px; }
-.kc-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#047857,#065f46); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(4,120,87,.35); flex-shrink: 0; }
-.kc-title { font-size: 20px; font-weight: 800; margin: 0; }
-.kc-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 .kc-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 80px; font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); }
 .kc-empty { text-align: center; padding: 80px 20px; color: rgba(var(--v-theme-on-surface),.4); }
 .kc-empty p { font-size: 16px; font-weight: 600; margin: 12px 0 6px; }

@@ -22,7 +22,7 @@
         <!-- KPIs -->
         <div class="alm-kpi-row">
           <div class="alm-kpi" @click="go('/almacen/reportes/kardex-consolidado')">
-            <div class="alm-kpi-icon"><v-icon size="18" color="#6ee7b7">mdi-package-variant-closed</v-icon></div>
+            <div class="alm-kpi-icon"><v-icon size="18" color="var(--success)">mdi-package-variant-closed</v-icon></div>
             <div>
               <div class="alm-kpi-val">
                 <span v-if="!kpisLoading">{{ kpis.conStock }}</span>
@@ -32,7 +32,7 @@
             </div>
           </div>
           <div class="alm-kpi alm-kpi-danger" @click="go('/almacen/reportes/prediccion-agotamiento')">
-            <div class="alm-kpi-icon"><v-icon size="18" color="#fca5a5">mdi-alert-circle-outline</v-icon></div>
+            <div class="alm-kpi-icon"><v-icon size="18" color="var(--error)">mdi-alert-circle-outline</v-icon></div>
             <div>
               <div class="alm-kpi-val">
                 <span v-if="!kpisLoading">{{ kpis.enPeligro }}</span>
@@ -42,7 +42,7 @@
             </div>
           </div>
           <div class="alm-kpi alm-kpi-warn" @click="go('/almacen/reportes/prediccion-agotamiento')">
-            <div class="alm-kpi-icon"><v-icon size="18" color="#fcd34d">mdi-alert-outline</v-icon></div>
+            <div class="alm-kpi-icon"><v-icon size="18" color="var(--warning)">mdi-alert-outline</v-icon></div>
             <div>
               <div class="alm-kpi-val">
                 <span v-if="!kpisLoading">{{ kpis.enAlerta }}</span>
@@ -52,7 +52,7 @@
             </div>
           </div>
           <div class="alm-kpi" @click="go('/almacen/procesos/despachos')">
-            <div class="alm-kpi-icon"><v-icon size="18" color="#7dd3fc">mdi-truck-outline</v-icon></div>
+            <div class="alm-kpi-icon"><v-icon size="18" color="var(--indigo)">mdi-truck-outline</v-icon></div>
             <div>
               <div class="alm-kpi-val">
                 <span v-if="!despachosLoading">{{ allDespachos.length }}</span>
@@ -102,25 +102,25 @@
           <div class="alm-panel">
             <div class="alm-panel-header">
               <div class="alm-panel-title">
-                <v-icon size="14" color="#f59e0b">mdi-truck-outline</v-icon>
+                <v-icon size="14" color="var(--gold)">mdi-truck-outline</v-icon>
                 DESPACHOS HOY
               </div>
               <button class="alm-panel-link" @click="go('/almacen/procesos/despachos')">Ver todos</button>
             </div>
             <div v-if="despachosLoading" class="alm-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#f59e0b" />
+              <v-progress-circular indeterminate size="20" width="2" color="var(--gold)" />
             </div>
             <template v-else>
               <div class="alm-despachos-kpi">
-                <div class="dkpi" :style="{ borderLeft: '3px solid #3b82f6' }">
+                <div class="dkpi" :style="{ borderLeft: '3px solid var(--info)' }">
                   <div class="dkpi-val">{{ despachosProgramados }}</div>
                   <div class="dkpi-lbl">Programados</div>
                 </div>
-                <div class="dkpi" :style="{ borderLeft: '3px solid #f59e0b' }">
+                <div class="dkpi" :style="{ borderLeft: '3px solid var(--gold)' }">
                   <div class="dkpi-val">{{ despachosProcesando }}</div>
                   <div class="dkpi-lbl">Procesando</div>
                 </div>
-                <div class="dkpi" :style="{ borderLeft: '3px solid #10b981' }">
+                <div class="dkpi" :style="{ borderLeft: '3px solid var(--success)' }">
                   <div class="dkpi-val">{{ despachosEntregados }}</div>
                   <div class="dkpi-lbl">Entregados</div>
                 </div>
@@ -149,17 +149,17 @@
           <div class="alm-panel">
             <div class="alm-panel-header">
               <div class="alm-panel-title">
-                <v-icon size="14" color="#ef4444">mdi-fire</v-icon>
+                <v-icon size="14" color="var(--error)">mdi-fire</v-icon>
                 PRÓXIMOS A AGOTARSE
               </div>
               <button class="alm-panel-link" @click="go('/almacen/reportes/prediccion-agotamiento')">Ver todo</button>
             </div>
             <div v-if="kpisLoading" class="alm-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#10b981" />
+              <v-progress-circular indeterminate size="20" width="2" color="var(--success)" />
             </div>
             <template v-else>
               <div v-if="criticos.length === 0" class="alm-panel-empty">
-                <v-icon size="22" color="#10b981">mdi-check-circle-outline</v-icon>
+                <v-icon size="22" color="var(--success)">mdi-check-circle-outline</v-icon>
                 <span>Sin productos en riesgo</span>
               </div>
               <div
@@ -212,8 +212,8 @@ const seccionesBase = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
-    color: '#10b981',
-    iconBg: 'linear-gradient(135deg,#10b981,#047857)',
+    color: 'var(--success)',
+    iconBg: 'linear-gradient(135deg,var(--success),var(--success))',
     items: [
       { path: '/almacen/configuracion/productos',           icon: 'mdi-package-variant',          title: 'Productos',                      desc: 'Catálogo de productos del inventario' },
       { path: '/almacen/configuracion/control-inventario',  icon: 'mdi-tune-vertical',            title: 'Control de Inventario',          desc: 'Parámetros y niveles de stock mínimo' },
@@ -227,8 +227,8 @@ const seccionesBase = [
   {
     label: 'PROCESOS',
     icon: 'mdi-lightning-bolt-outline',
-    color: '#0ea5e9',
-    iconBg: 'linear-gradient(135deg,#0ea5e9,#0369a1)',
+    color: 'var(--info)',
+    iconBg: 'linear-gradient(135deg,var(--info),var(--info))',
     items: [
       { path: '/almacen/procesos/gestion-inventario',  icon: 'mdi-clipboard-list-outline', title: 'Gestión de Inventario',  desc: 'Entradas, salidas y ajustes de stock' },
       { path: '/almacen/procesos/toma-fisica',         icon: 'mdi-barcode-scan',           title: 'Toma Física',            desc: 'Conteo físico de inventario y ajustes' },
@@ -241,8 +241,8 @@ const seccionesBase = [
   {
     label: 'REPORTES',
     icon: 'mdi-chart-box-outline',
-    color: '#8b5cf6',
-    iconBg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+    color: 'var(--indigo)',
+    iconBg: 'linear-gradient(135deg,var(--indigo),var(--indigo))',
     items: [
       { path: '/almacen/reportes/kardex',                 icon: 'mdi-file-chart-outline',  title: 'Kardex',                  desc: 'Movimientos históricos por producto' },
       { path: '/almacen/reportes/consumos',               icon: 'mdi-chart-bar',           title: 'Reporte de Consumos',     desc: 'Consumo de productos por período' },
@@ -340,8 +340,8 @@ async function cargarDespachos() {
 }
 
 function estadoColor(estado) {
-  const colores = { PENDIENTE: '#f59e0b', EN_PICKING: '#3b82f6', EN_PACKING: '#8b5cf6', COMPLETADO: '#10b981', CANCELADO: '#6b7280' }
-  return colores[(estado || '').toUpperCase()] || '#6b7280'
+  const colores = { PENDIENTE: 'var(--gold)', EN_PICKING: 'var(--info)', EN_PACKING: 'var(--indigo)', COMPLETADO: 'var(--success)', CANCELADO: 'var(--ink-400)' }
+  return colores[(estado || '').toUpperCase()] || 'var(--ink-400)'
 }
 
 function estadoLabel(estado) {
@@ -368,7 +368,7 @@ onMounted(() => {
 .alm-hero {
   position: relative; overflow: hidden;
   border-radius: 18px; padding: 26px 28px 22px;
-  background: linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%);
+  background: linear-gradient(130deg, var(--sidebar-bg) 0%, #241d13 55%, #1c1710 100%);
   margin-bottom: 24px;
   box-shadow: 0 10px 30px rgba(4, 120, 87, .25);
 }
@@ -463,7 +463,7 @@ onMounted(() => {
 .alm-panel-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .8px; color: rgba(var(--v-theme-on-surface), .6); }
 .alm-panel-link {
   border: none; background: transparent; cursor: pointer;
-  font-size: 11px; font-weight: 700; color: #10b981;
+  font-size: 11px; font-weight: 700; color: var(--success);
   padding: 2px 6px; border-radius: 6px; transition: background .15s;
 }
 .alm-panel-link:hover { background: rgba(16,185,129,.08); }
@@ -483,9 +483,9 @@ onMounted(() => {
 .alm-crit-nombre { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .alm-crit-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); margin-top: 1px; }
 .alm-crit-badge { flex-shrink: 0; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 800; }
-.alm-crit-peligro { background: rgba(239,68,68,.12); color: #ef4444; }
-.alm-crit-alerta { background: rgba(245,158,11,.14); color: #d97706; }
-.alm-crit-ok { background: rgba(16,185,129,.12); color: #059669; }
+.alm-crit-peligro { background: rgba(239,68,68,.12); color: var(--error); }
+.alm-crit-alerta { background: rgba(245,158,11,.14); color: var(--gold-strong); }
+.alm-crit-ok { background: rgba(16,185,129,.12); color: var(--success); }
 
 /* Filas: actividad reciente */
 .alm-mov-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px; }
@@ -494,10 +494,10 @@ onMounted(() => {
   padding: 3px 0; border-radius: 6px;
   font-size: 9px; font-weight: 800; letter-spacing: .4px;
 }
-.alm-mov-entrada  { background: rgba(16,185,129,.12); color: #059669; }
-.alm-mov-salida   { background: rgba(239,68,68,.1);  color: #ef4444; }
-.alm-mov-baja     { background: rgba(245,158,11,.14); color: #d97706; }
-.alm-mov-traslado { background: rgba(14,165,233,.12); color: #0284c7; }
+.alm-mov-entrada  { background: rgba(16,185,129,.12); color: var(--success); }
+.alm-mov-salida   { background: rgba(239,68,68,.1);  color: var(--error); }
+.alm-mov-baja     { background: rgba(245,158,11,.14); color: var(--gold-strong); }
+.alm-mov-traslado { background: rgba(14,165,233,.12); color: var(--info); }
 .alm-mov-info { min-width: 0; }
 .alm-mov-cc { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .alm-mov-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); }

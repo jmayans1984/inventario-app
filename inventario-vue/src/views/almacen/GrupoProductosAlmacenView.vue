@@ -2,30 +2,17 @@
   <MainLayout>
     <div class="pg-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Grupo de Productos</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon">
-            <v-icon size="24" color="white">mdi-folder-multiple-outline</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">GRUPO DE PRODUCTOS</h1>
-            <p class="page-sub">Categorías para organizar el catálogo de productos del almacén</p>
-          </div>
-        </div>
-        <v-btn color="#047857" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
-          Nuevo Grupo
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Grupo de Productos"
+        description="Categorías para organizar el catálogo de productos del almacén"
+        :crumbs="['Almacén', 'Configuración', 'Grupo de Productos']"
+      >
+        <template #actions>
+          <v-btn color="var(--success)" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
+            Nuevo Grupo
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- BUSCADOR + CONTADOR -->
       <div class="toolbar">
@@ -39,7 +26,7 @@
       <!-- TABLA -->
       <div class="tabla-card">
         <div v-if="loading" class="loading-wrap">
-          <v-progress-circular indeterminate color="#10b981" size="36" />
+          <v-progress-circular indeterminate color="var(--success)" size="36" />
         </div>
         <table v-else class="crud-table">
           <thead>
@@ -70,7 +57,7 @@
                   :icon="g.activo === 'SI' ? 'mdi-eye-outline' : 'mdi-eye-off-outline'"
                   size="x-small"
                   variant="text"
-                  :color="g.activo === 'SI' ? '#10b981' : 'rgba(var(--v-theme-on-surface),.35)'"
+                  :color="g.activo === 'SI' ? 'var(--success)' : 'rgba(var(--v-theme-on-surface),.35)'"
                   :loading="toggling === g.codigo"
                   @click="toggleActivo(g)"
                 />
@@ -86,7 +73,7 @@
       <v-dialog v-model="modal" max-width="420">
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#10b981" class="mr-2">mdi-folder-outline</v-icon>
+            <v-icon color="var(--success)" class="mr-2">mdi-folder-outline</v-icon>
             <span>{{ editando ? 'Editar Grupo' : 'Nuevo Grupo' }}</span>
             <v-spacer />
             <v-btn icon="mdi-close" size="small" variant="text" @click="modal = false" />
@@ -139,7 +126,7 @@
           </div>
           <div class="modal-footer">
             <v-btn variant="text" @click="modal = false">Cancelar</v-btn>
-            <v-btn color="#047857" variant="flat" :loading="guardando" @click="guardar">
+            <v-btn color="var(--success)" variant="flat" :loading="guardando" @click="guardar">
               {{ editando ? 'Guardar Cambios' : 'Crear Grupo' }}
             </v-btn>
           </div>
@@ -153,6 +140,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 
 const grupos     = ref([])
@@ -256,17 +244,6 @@ onMounted(cargar)
 <style scoped>
 .pg-container { padding: 24px; max-width: 900px; margin: 0 auto; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),.45); }
-.bc-root { color: #047857; }
-.bc-sep  { color: rgba(var(--v-theme-on-surface),.25) !important; }
-.bc-current { color: rgba(var(--v-theme-on-surface),.7); }
-
-.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-.header-left { display: flex; align-items: center; gap: 14px; }
-.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#047857,#10b981); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.page-title { font-size: 17px; font-weight: 800; letter-spacing: .5px; margin: 0; color: rgb(var(--v-theme-on-surface)); }
-.page-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
-
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .search-wrap { display: flex; align-items: center; gap: 8px; flex: 1; padding: 8px 12px; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.1); border-radius: 8px; }
 .search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 13px; color: rgb(var(--v-theme-on-surface)); }
@@ -282,10 +259,10 @@ onMounted(cargar)
 .data-row td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
-.cod-badge { background: rgba(16,185,129,.12); color: #10b981; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-family: monospace; }
+.cod-badge { background: var(--success-wash); color: var(--success); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .nombre-cell { font-weight: 500; }
-.chip-activo { background: rgba(34,197,94,.12); color: #16a34a; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-.chip-inactivo { background: rgba(239,68,68,.1); color: #dc2626; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.chip-activo { background: var(--success-wash); color: var(--success); padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.chip-inactivo { background: var(--error-wash); color: var(--error); padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .empty-row { text-align: center !important; padding: 48px !important; color: rgba(var(--v-theme-on-surface),.35); }
 .empty-row p { margin: 10px 0 0; font-size: 13px; }
 
@@ -297,16 +274,16 @@ onMounted(cargar)
 
 .field-group { margin-bottom: 16px; }
 .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 6px; }
-.field-input { width: 100%; padding: 9px 12px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; font-size: 13px; background: rgba(var(--v-theme-on-surface),.03); color: rgb(var(--v-theme-on-surface)); outline: none; transition: border-color .2s; box-sizing: border-box; }
-.field-input:focus { border-color: #10b981; }
-.field-input.field-error { border-color: #ef4444; }
+.field-input { width: 100%; padding: 9px 12px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; font-size: 13px; background: rgba(var(--v-theme-on-surface),.03); color: rgb(var(--v-theme-on-surface)); outline: none; transition: border-color 180ms var(--ease-out); box-sizing: border-box; }
+.field-input:focus { border-color: var(--success); }
+.field-input.field-error { border-color: var(--error); }
 .field-input:disabled { opacity: .55; cursor: not-allowed; }
-.cod-input { text-align: center; font-weight: 700; font-family: monospace; letter-spacing: 2px; font-size: 15px; }
-.error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
+.cod-input { text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 2px; font-size: 15px; }
+.error-txt { font-size: 11px; color: var(--error); margin-top: 3px; display: block; }
 .hint-txt { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-top: 3px; display: block; }
-.api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
+.api-error { background: var(--error-wash); border: 1px solid var(--error-wash); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--error); margin-top: 8px; }
 
 .radio-group { display: flex; gap: 20px; }
 .radio-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: rgb(var(--v-theme-on-surface)); }
-.radio-opt input[type="radio"] { accent-color: #10b981; width: 15px; height: 15px; }
+.radio-opt input[type="radio"] { accent-color: var(--success); width: 15px; height: 15px; }
 </style>

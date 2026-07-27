@@ -2,35 +2,22 @@
   <MainLayout>
     <div class="op-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Órdenes de Producción</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="op-header">
-        <div class="op-header-left">
-          <div class="op-icon-wrap">
-            <v-icon size="24" color="white">mdi-factory</v-icon>
-          </div>
-          <div>
-            <h1 class="op-title">ÓRDENES DE PRODUCCIÓN</h1>
-            <p class="op-sub">Producción de subproductos según consumo · Cálculo de materia prima a comprar</p>
-          </div>
-        </div>
-        <v-btn color="#047857" variant="flat" prepend-icon="mdi-plus" rounded="lg" @click="abrirNueva">
-          Nueva Orden
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Órdenes de Producción"
+        description="Producción de subproductos según consumo · Cálculo de materia prima a comprar"
+        :crumbs="['Almacén', 'Procesos', 'Órdenes de Producción']"
+      >
+        <template #actions>
+          <v-btn color="primary" variant="flat" size="large" prepend-icon="mdi-plus" @click="abrirNueva">
+            Nueva Orden
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- TABLA DE ÓRDENES -->
       <div class="op-card">
         <div v-if="loading" class="op-loading">
-          <v-progress-circular indeterminate color="#10b981" size="40" />
+          <v-progress-circular indeterminate color="var(--success)" size="40" />
         </div>
         <div v-else class="op-table-wrap">
           <table class="op-table">
@@ -49,7 +36,7 @@
             <tbody>
               <tr v-if="!ordenes.length">
                 <td colspan="8" class="empty-row">
-                  <v-icon size="40" color="rgba(var(--v-theme-on-surface),.15)">mdi-factory</v-icon>
+                  <v-icon size="40" color="var(--ink-400)">mdi-factory</v-icon>
                   <p>No hay órdenes de producción registradas</p>
                 </td>
               </tr>
@@ -64,9 +51,9 @@
                   <span :class="o.estado === 'COMPLETADA' ? 'chip-ok' : 'chip-pend'">{{ o.estado }}</span>
                 </td>
                 <td class="tc">
-                  <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="#0891b2" @click="verOrden(o)" />
+                  <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="var(--indigo)" @click="verOrden(o)" />
                   <v-btn :icon="o.estado === 'COMPLETADA' ? 'mdi-undo-variant' : 'mdi-check-circle-outline'"
-                    size="x-small" variant="text" color="#047857" @click="toggleEstado(o)" />
+                    size="x-small" variant="text" color="var(--success)" @click="toggleEstado(o)" />
                   <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
                     :loading="eliminando === o.id" @click="eliminar(o)" />
                 </td>
@@ -80,7 +67,7 @@
       <v-dialog v-model="dlgNueva" max-width="980" persistent>
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#10b981" class="mr-2">mdi-factory</v-icon>
+            <v-icon color="var(--success)" class="mr-2">mdi-factory</v-icon>
             <span>Nueva Orden de Producción</span>
             <v-spacer />
             <v-btn icon="mdi-close" size="small" variant="text" @click="dlgNueva = false" />
@@ -112,7 +99,7 @@
 
             <!-- Loading sugerencia -->
             <div v-if="calculando" class="sug-loading">
-              <v-progress-circular indeterminate color="#10b981" size="28" />
+              <v-progress-circular indeterminate color="var(--success)" size="28" />
               <span>Calculando consumo de los últimos {{ form.dias }} días...</span>
             </div>
 
@@ -153,7 +140,7 @@
               <!-- Paso 4: materia prima necesaria -->
               <div class="mp-section">
                 <div class="mp-title">
-                  <v-icon size="16" color="#047857">mdi-basket-outline</v-icon>
+                  <v-icon size="16" color="var(--success)">mdi-basket-outline</v-icon>
                   Materia prima necesaria para producir {{ fmtNum(form.cantidad) }} {{ sugerencia.receta.und }}
                 </div>
                 <div v-if="!sugerencia.ingredientes.length" class="mp-empty">
@@ -198,7 +185,7 @@
           </div>
           <div class="modal-footer">
             <v-btn variant="text" @click="dlgNueva = false">Cancelar</v-btn>
-            <v-btn color="#047857" variant="flat" prepend-icon="mdi-content-save-outline"
+            <v-btn color="var(--success)" variant="flat" prepend-icon="mdi-content-save-outline"
               :disabled="!puedeGuardar" :loading="guardando" @click="guardarOrden">
               Guardar Orden
             </v-btn>
@@ -210,10 +197,10 @@
       <v-dialog v-model="dlgVer" max-width="900">
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#0891b2" class="mr-2">mdi-clipboard-text-outline</v-icon>
+            <v-icon color="var(--indigo)" class="mr-2">mdi-clipboard-text-outline</v-icon>
             <span>Orden de Producción #{{ ordenVer?.orden?.id }}</span>
             <v-spacer />
-            <v-btn icon="mdi-printer-outline" size="small" variant="text" color="#047857" @click="imprimirOrden" />
+            <v-btn icon="mdi-printer-outline" size="small" variant="text" color="var(--success)" @click="imprimirOrden" />
             <v-btn icon="mdi-close" size="small" variant="text" @click="dlgVer = false" />
           </div>
           <div class="modal-body" v-if="ordenVer">
@@ -269,6 +256,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
 
@@ -500,23 +488,6 @@ onMounted(() => {
 <style scoped>
 .op-container { padding: 0 0 32px; }
 
-/* BREADCRUMB */
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: rgba(var(--v-theme-on-surface), 0.4); text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.25); }
-.bc-cat { font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-
-/* HEADER */
-.op-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.op-header-left { display: flex; align-items: center; gap: 16px; }
-.op-icon-wrap {
-  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #10b981, #047857);
-  display: flex; align-items: center; justify-content: center;
-}
-.op-title { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: rgb(var(--v-theme-on-surface)); }
-.op-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 0; }
 
 /* CARD / TABLA */
 .op-card {
@@ -551,11 +522,11 @@ onMounted(() => {
   font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 10px; letter-spacing: 0.4px;
 }
 .chip-pend {
-  background: rgba(245,158,11,0.12); color: #f59e0b;
+  background: rgba(245,158,11,0.12); color: var(--gold);
   font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 10px; letter-spacing: 0.4px;
 }
 .chip-sub {
-  background: rgba(139,92,246,0.12); color: #8b5cf6;
+  background: rgba(139,92,246,0.12); color: var(--indigo);
   font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 8px; margin-left: 6px; letter-spacing: 0.3px;
 }
 
@@ -583,9 +554,9 @@ onMounted(() => {
   background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface));
   outline: none;
 }
-.field-input:focus { border-color: #10b981; }
+.field-input:focus { border-color: var(--success); }
 .field-select { cursor: pointer; }
-.cant-input { width: 160px; font-weight: 800; font-size: 16px; color: #047857; }
+.cant-input { width: 160px; font-weight: 800; font-size: 16px; color: var(--success); }
 
 .ventana-toggle {
   display: flex; border-radius: 9px; overflow: hidden;
@@ -598,7 +569,7 @@ onMounted(() => {
   transition: all 0.15s ease;
 }
 .ventana-btn + .ventana-btn { border-left: 1px solid rgba(var(--v-theme-on-surface), 0.1); }
-.ventana-btn.active { background: #10b981; color: white; }
+.ventana-btn.active { background: var(--success); color: white; }
 
 /* SUGERENCIA */
 .sug-loading {
@@ -613,7 +584,7 @@ onMounted(() => {
 .sug-card--main { border-color: rgba(16,185,129,0.45); background: rgba(16,185,129,0.06); }
 .sug-lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(var(--v-theme-on-surface), 0.45); margin-bottom: 4px; }
 .sug-val { font-size: 17px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); }
-.sug-card--main .sug-val { color: #047857; }
+.sug-card--main .sug-val { color: var(--success); }
 
 /* MP TABLE */
 .mp-section { margin-top: 8px; }
@@ -622,10 +593,10 @@ onMounted(() => {
   font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
   color: rgb(var(--v-theme-on-surface)); margin-bottom: 10px;
 }
-.mp-empty { font-size: 13px; color: #f59e0b; padding: 12px 0; }
+.mp-empty { font-size: 13px; color: var(--gold); padding: 12px 0; }
 .mp-table th { padding: 9px 12px; }
 .mp-table td { padding: 8px 12px; }
-.total-cell { font-weight: 800; color: #047857; font-size: 14px; }
+.total-cell { font-weight: 800; color: var(--success); font-size: 14px; }
 
 /* VER ORDEN */
 .ver-info {

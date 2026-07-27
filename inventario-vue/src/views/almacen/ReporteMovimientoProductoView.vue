@@ -2,25 +2,11 @@
   <MainLayout>
     <div class="mp-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Movimiento por Producto</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="mp-header">
-        <div class="mp-header-icon">
-          <v-icon size="28" color="white">mdi-swap-vertical-bold</v-icon>
-        </div>
-        <div>
-          <h2 class="mp-title">Movimiento por Producto</h2>
-          <p class="mp-subtitle">Detalle día a día de entradas, salidas y ventas por rango de fechas</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Movimiento por Producto"
+        description="Detalle día a día de entradas, salidas y ventas por rango de fechas"
+        :crumbs="['Almacén', 'Reportes', 'Movimiento por Producto']"
+      />
 
       <!-- FILTROS -->
       <div class="mp-form-card">
@@ -85,7 +71,7 @@
 
           <div class="mp-field mp-field--btn">
             <v-btn
-              color="#0891b2"
+              color="var(--indigo)"
               variant="elevated"
               prepend-icon="mdi-magnify"
               :loading="loading"
@@ -115,23 +101,17 @@
       <div v-if="productosAgrupados.length > 0" class="mp-reporte-card">
 
         <!-- KPIs -->
-        <div class="mp-kpis">
-          <div class="mp-kpi">
-            <span class="mp-kpi-lbl">Productos con movimiento</span>
-            <span class="mp-kpi-val">{{ totalProductos }}</span>
-          </div>
-          <div class="mp-kpi">
-            <span class="mp-kpi-lbl">Total entradas</span>
-            <span class="mp-kpi-val mp-kpi--entrada">{{ fmtNum(totalEntradas) }}</span>
-          </div>
-          <div class="mp-kpi">
-            <span class="mp-kpi-lbl">Total salidas</span>
-            <span class="mp-kpi-val mp-kpi--salida">{{ fmtNum(totalSalidas) }}</span>
-          </div>
-          <div class="mp-kpi">
-            <span class="mp-kpi-lbl">Total ventas</span>
-            <span class="mp-kpi-val mp-kpi--venta">{{ fmtNum(totalVentas) }}</span>
-          </div>
+        <div class="kpi-grid mp-kpis">
+          <KpiCard
+            v-for="(kpi, i) in kpis"
+            :key="kpi.label"
+            :index="i"
+            :label="kpi.label"
+            :value="kpi.value"
+            :icon="kpi.icon"
+            :color="kpi.color"
+            :value-color="kpi.color"
+          />
         </div>
 
         <!-- TABLA -->
@@ -659,16 +639,6 @@ function exportarPDF() {
 <style scoped>
 .mp-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .5px; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
-.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
-
-.mp-header      { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
-.mp-header-icon { width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg,#06b6d4,#0891b2); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 14px rgba(6,182,212,.3); }
-.mp-title       { font-size: 20px; font-weight: 800; margin: 0; }
-.mp-subtitle    { font-size: 13px; color: rgba(var(--v-theme-on-surface),.55); margin: 2px 0 0; }
 
 .mp-form-card  { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
 .mp-form-row   { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
@@ -684,9 +654,9 @@ function exportarPDF() {
 .mp-kpi:last-child { border-right: none; }
 .mp-kpi-lbl { display: block; font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
 .mp-kpi-val { display: block; font-size: 22px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); }
-.mp-kpi--entrada { color: #10b981; }
-.mp-kpi--salida  { color: #f59e0b; }
-.mp-kpi--venta   { color: #ef4444; }
+.mp-kpi--entrada { color: var(--success); }
+.mp-kpi--salida  { color: var(--gold); }
+.mp-kpi--venta   { color: var(--error); }
 
 /* Tabla */
 .mp-table-wrap { overflow-x: auto; }
@@ -707,11 +677,11 @@ function exportarPDF() {
 .th-prod  { min-width: 140px; }
 .th-und   { width: 52px; text-align: center !important; }
 .th-num   { text-align: right !important; width: 80px; }
-.th-ant   { color: #94a3b8 !important; }
-.th-ent   { color: #10b981 !important; }
-.th-sal   { color: #f59e0b !important; }
-.th-ven   { color: #ef4444 !important; }
-.th-saldo { color: #38bdf8 !important; }
+.th-ant   { color: var(--ink-400) !important; }
+.th-ent   { color: var(--success) !important; }
+.th-sal   { color: var(--gold) !important; }
+.th-ven   { color: var(--error) !important; }
+.th-saldo { color: var(--info) !important; }
 
 /* Filas de grupo */
 .mp-grupo-row td {
@@ -759,23 +729,23 @@ function exportarPDF() {
 /* Colores de números */
 .num-ini     { color: rgba(var(--v-theme-on-surface),.45); }
 .num-ant     { color: rgba(var(--v-theme-on-surface),.4); font-size: 11px; }
-.num-entrada { color: #10b981; }
-.num-salida  { color: #f59e0b; }
-.num-venta   { color: #ef4444; }
-.num-saldo   { color: #0891b2; }
-.num-neg     { color: #ef4444; }
+.num-entrada { color: var(--success); }
+.num-salida  { color: var(--gold); }
+.num-venta   { color: var(--error); }
+.num-saldo   { color: var(--indigo); }
+.num-neg     { color: var(--error); }
 .num-cero    { color: rgba(var(--v-theme-on-surface),.2); }
 .text-muted  { color: rgba(var(--v-theme-on-surface),.35); font-size: 11px; }
 .td-prod-span { font-size: 11px; }
 
 /* Badges */
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
-.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:#0891b2; font-weight:600; }
+.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:var(--indigo); font-weight:600; }
 .badge-tipo { display:inline-block; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
-.tipo-entrada  { background:rgba(16,185,129,.12);  color:#10b981; }
-.tipo-venta    { background:rgba(239,68,68,.12);   color:#ef4444; }
-.tipo-salida   { background:rgba(245,158,11,.12);  color:#f59e0b; }
-.tipo-ajuste   { background:rgba(59,130,246,.12);  color:#3b82f6; }
+.tipo-entrada  { background:rgba(16,185,129,.12);  color:var(--success); }
+.tipo-venta    { background:rgba(239,68,68,.12);   color:var(--error); }
+.tipo-salida   { background:rgba(245,158,11,.12);  color:var(--gold); }
+.tipo-ajuste   { background:rgba(59,130,246,.12);  color:var(--info); }
 .tipo-devol    { background:rgba(168,85,247,.12);  color:#a855f7; }
 .tipo-traslado { background:rgba(20,184,166,.12);  color:#14b8a6; }
 .tipo-otro     { background:rgba(var(--v-theme-on-surface),.06); color:rgba(var(--v-theme-on-surface),.5); }

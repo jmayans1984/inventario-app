@@ -22,7 +22,7 @@
         <!-- KPIs -->
         <div class="tes-kpi-row">
           <div class="tes-kpi" @click="go('/tesoreria/procesos/movimientos-bancarios')">
-            <div class="tes-kpi-icon"><v-icon size="18" color="#7dd3fc">mdi-bank-outline</v-icon></div>
+            <div class="tes-kpi-icon"><v-icon size="18" color="var(--info)">mdi-bank-outline</v-icon></div>
             <div>
               <div class="tes-kpi-val">
                 <span v-if="!saldosLoading">{{ fmt(saldoBancos) }}</span>
@@ -32,7 +32,7 @@
             </div>
           </div>
           <div class="tes-kpi tes-kpi-danger" @click="go('/tesoreria/procesos/movimientos-bancarios')">
-            <div class="tes-kpi-icon"><v-icon size="18" color="#fca5a5">mdi-credit-card-outline</v-icon></div>
+            <div class="tes-kpi-icon"><v-icon size="18" color="var(--error)">mdi-credit-card-outline</v-icon></div>
             <div>
               <div class="tes-kpi-val">
                 <span v-if="!saldosLoading">{{ fmt(deudaTarjetas) }}</span>
@@ -42,7 +42,7 @@
             </div>
           </div>
           <div class="tes-kpi" @click="go('/tesoreria/reportes/ventas-periodo')">
-            <div class="tes-kpi-icon"><v-icon size="18" color="#6ee7b7">mdi-cash-register</v-icon></div>
+            <div class="tes-kpi-icon"><v-icon size="18" color="var(--success)">mdi-cash-register</v-icon></div>
             <div>
               <div class="tes-kpi-val">
                 <span v-if="!ventasLoading">{{ fmt(ventasMes.ventas_netas) }}</span>
@@ -52,7 +52,7 @@
             </div>
           </div>
           <div class="tes-kpi tes-kpi-warn" @click="go('/tesoreria/reportes/ventas-periodo')">
-            <div class="tes-kpi-icon"><v-icon size="18" color="#fcd34d">mdi-percent-outline</v-icon></div>
+            <div class="tes-kpi-icon"><v-icon size="18" color="var(--gold)">mdi-percent-outline</v-icon></div>
             <div>
               <div class="tes-kpi-val">
                 <span v-if="!ventasLoading">{{ fmt(ventasMes.comisiones) }}</span>
@@ -102,13 +102,13 @@
           <div class="tes-panel">
             <div class="tes-panel-header">
               <div class="tes-panel-title">
-                <v-icon size="14" color="#0ea5e9">mdi-bank-outline</v-icon>
+                <v-icon size="14" color="var(--indigo)">mdi-bank-outline</v-icon>
                 CUENTAS BANCARIAS
               </div>
               <button class="tes-panel-link" @click="go('/tesoreria/procesos/movimientos-bancarios')">Ver movimientos</button>
             </div>
             <div v-if="saldosLoading" class="tes-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#0ea5e9" />
+              <v-progress-circular indeterminate size="20" width="2" color="var(--indigo)" />
             </div>
             <template v-else>
               <div v-if="cuentasBanco.length === 0 && cuentasTarjeta.length === 0" class="tes-panel-empty">
@@ -134,7 +134,7 @@
               <!-- Tarjetas de crédito -->
               <template v-if="cuentasTarjeta.length">
                 <div class="tes-tarjetas-header">
-                  <v-icon size="13" color="#ef4444">mdi-credit-card-outline</v-icon>
+                  <v-icon size="13" color="var(--error)">mdi-credit-card-outline</v-icon>
                   TARJETAS DE CRÉDITO
                 </div>
                 <div v-for="c in cuentasTarjeta" :key="c.codigo" class="tes-cta-row">
@@ -162,13 +162,13 @@
           <div class="tes-panel">
             <div class="tes-panel-header">
               <div class="tes-panel-title">
-                <v-icon size="14" color="#10b981">mdi-cash-register</v-icon>
+                <v-icon size="14" color="var(--success)">mdi-cash-register</v-icon>
                 VENTAS DE {{ mesActual }}
               </div>
               <button class="tes-panel-link" @click="go('/tesoreria/reportes/ventas-periodo')">Ver reporte</button>
             </div>
             <div v-if="ventasLoading" class="tes-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#10b981" />
+              <v-progress-circular indeterminate size="20" width="2" color="var(--success)" />
             </div>
             <template v-else>
               <div class="tes-vta-row">
@@ -202,15 +202,15 @@
               </div>
               <div class="tes-vta-sep"></div>
               <div class="tes-vta-row">
-                <span class="tes-vta-lbl"><v-icon size="12" color="#8b5cf6" class="mr-1">mdi-credit-card-outline</v-icon>Tarjetas</span>
+                <span class="tes-vta-lbl"><v-icon size="12" color="var(--indigo)" class="mr-1">mdi-credit-card-outline</v-icon>Tarjetas</span>
                 <span class="tes-vta-val">{{ fmt(ventasMes.tarjetas) }}</span>
               </div>
               <div class="tes-vta-row">
-                <span class="tes-vta-lbl"><v-icon size="12" color="#10b981" class="mr-1">mdi-cash</v-icon>Efectivo</span>
+                <span class="tes-vta-lbl"><v-icon size="12" color="var(--success)" class="mr-1">mdi-cash</v-icon>Efectivo</span>
                 <span class="tes-vta-val">{{ fmt(ventasMes.efectivo) }}</span>
               </div>
               <div class="tes-vta-row">
-                <span class="tes-vta-lbl"><v-icon size="12" color="#06b6d4" class="mr-1">mdi-bank-transfer-out</v-icon>Otros</span>
+                <span class="tes-vta-lbl"><v-icon size="12" color="var(--indigo)" class="mr-1">mdi-bank-transfer-out</v-icon>Otros</span>
                 <span class="tes-vta-val">{{ fmt(ventasMes.otros) }}</span>
               </div>
             </template>
@@ -261,8 +261,8 @@ const seccionesBase = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
-    color: '#0ea5e9',
-    iconBg: 'linear-gradient(135deg,#0ea5e9,#0369a1)',
+    color: 'var(--indigo)',
+    iconBg: 'var(--indigo)',
     items: [
       { path: '/tesoreria/configuracion/cuentas-bancarias', icon: 'mdi-bank-outline', title: 'Cuentas Bancarias', desc: 'Gestiona las cuentas bancarias de la empresa' },
     ],
@@ -270,8 +270,8 @@ const seccionesBase = [
   {
     label: 'PROCESOS',
     icon: 'mdi-lightning-bolt-outline',
-    color: '#6366f1',
-    iconBg: 'linear-gradient(135deg,#6366f1,#4338ca)',
+    color: 'var(--gold)',
+    iconBg: 'var(--gold)',
     items: [
       { path: '/tesoreria/procesos/movimientos-bancarios', icon: 'mdi-swap-horizontal',       title: 'Movimientos Bancarios', desc: 'Registro de ingresos y egresos bancarios' },
       { path: '/tesoreria/procesos/conciliacion-cuentas',  icon: 'mdi-check-all',             title: 'Conciliación Bancaria', desc: 'Concilia movimientos con extractos' },
@@ -284,8 +284,8 @@ const seccionesBase = [
   {
     label: 'REPORTES',
     icon: 'mdi-chart-box-outline',
-    color: '#14b8a6',
-    iconBg: 'linear-gradient(135deg,#14b8a6,#0f766e)',
+    color: 'var(--success)',
+    iconBg: 'var(--success)',
     items: [
       { path: '/tesoreria/reportes/conciliacion-bancaria',    icon: 'mdi-file-chart-outline',       title: 'Reporte Conciliación',  desc: 'Estado de conciliación por cuenta' },
       { path: '/tesoreria/reportes/movimiento-cuentas',       icon: 'mdi-chart-timeline-variant',   title: 'Movimiento de Cuentas', desc: 'Historial por cuenta y período' },
@@ -362,14 +362,14 @@ onMounted(() => {
 .tes-hero {
   position: relative; overflow: hidden;
   border-radius: 18px; padding: 26px 28px 22px;
-  background: linear-gradient(135deg, #0c4a6e 0%, #0369a1 55%, #0284c7 100%);
+  background: linear-gradient(130deg, var(--sidebar-bg) 0%, #241d13 55%, #1c1710 100%);
   margin-bottom: 24px;
-  box-shadow: 0 10px 30px rgba(3, 105, 161, .25);
+  box-shadow: var(--shadow-lg);
 }
 .tes-hero-glow {
   position: absolute; top: -60px; right: -40px;
   width: 260px; height: 260px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(125,211,252,.25), transparent 70%);
+  background: radial-gradient(circle, rgba(240,168,60,.18), transparent 70%);
   pointer-events: none;
 }
 .tes-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -395,7 +395,7 @@ onMounted(() => {
   background: rgba(255,255,255,.09); backdrop-filter: blur(4px);
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 12px; padding: 12px 14px;
-  cursor: pointer; transition: all .18s;
+  cursor: pointer; transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out);
 }
 .tes-kpi:hover { background: rgba(255,255,255,.16); transform: translateY(-2px); }
 .tes-kpi-warn { border-color: rgba(252,211,77,.3); }
@@ -428,7 +428,7 @@ onMounted(() => {
   padding: 14px 15px; border-radius: 13px;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface), .07);
-  cursor: pointer; transition: all .18s;
+  cursor: pointer; transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out), transform 180ms var(--ease-out);
 }
 .tes-card:hover {
   border-color: var(--ac);
@@ -443,7 +443,7 @@ onMounted(() => {
 .tes-card-body { flex: 1; min-width: 0; }
 .tes-card-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
 .tes-card-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface), .5); line-height: 1.35; }
-.tes-card-arrow { flex-shrink: 0; opacity: 0; transform: translateX(-4px); transition: all .18s; }
+.tes-card-arrow { flex-shrink: 0; opacity: 0; transform: translateX(-4px); transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
 .tes-card:hover .tes-card-arrow { opacity: 1; transform: translateX(0); }
 
 /* ═══ Paneles laterales ═══ */
@@ -457,10 +457,10 @@ onMounted(() => {
 .tes-panel-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .8px; color: rgba(var(--v-theme-on-surface), .6); }
 .tes-panel-link {
   border: none; background: transparent; cursor: pointer;
-  font-size: 11px; font-weight: 700; color: #0ea5e9;
-  padding: 2px 6px; border-radius: 6px; transition: background .15s;
+  font-size: 11px; font-weight: 700; color: var(--indigo);
+  padding: 2px 6px; border-radius: 6px; transition: background-color 150ms var(--ease-out);
 }
-.tes-panel-link:hover { background: rgba(14,165,233,.08); }
+.tes-panel-link:hover { background: var(--indigo-wash); }
 .tes-panel-loading { display: flex; justify-content: center; padding: 20px; }
 .tes-panel-empty {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -476,16 +476,16 @@ onMounted(() => {
 .tes-cta-info { min-width: 0; }
 .tes-cta-nombre { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tes-cta-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); margin-top: 1px; }
-.tes-cta-saldo { flex-shrink: 0; font-family: monospace; font-size: 12px; font-weight: 700; color: #059669; }
+.tes-cta-saldo { flex-shrink: 0; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; color: var(--success); }
 .tes-cta-total {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 8px; padding: 10px 10px 2px;
   border-top: 2px solid rgba(var(--v-theme-on-surface), .08);
   font-size: 11px; font-weight: 800; letter-spacing: .4px;
 }
-.tes-cta-total span:last-child { font-family: monospace; font-size: 13px; color: #059669; }
-.tes-neg { color: #ef4444 !important; }
-.tes-pos { color: #059669; }
+.tes-cta-total span:last-child { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--success); }
+.tes-neg { color: var(--error) !important; }
+.tes-pos { color: var(--success); }
 
 /* Separador tarjetas de crédito */
 .tes-tarjetas-header {
@@ -495,23 +495,23 @@ onMounted(() => {
   margin-top: 14px; padding: 8px 10px 4px;
   border-top: 1px dashed rgba(var(--v-theme-on-surface), .1);
 }
-.tes-cta-total-deuda span:last-child { color: #ef4444 !important; }
+.tes-cta-total-deuda span:last-child { color: var(--error) !important; }
 .tes-cta-neta {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 10px; padding: 10px 10px 2px;
   border-top: 2px solid rgba(var(--v-theme-on-surface), .12);
   font-size: 12px; font-weight: 900; letter-spacing: .4px;
 }
-.tes-cta-neta span:last-child { font-family: monospace; font-size: 14px; }
+.tes-cta-neta span:last-child { font-variant-numeric: tabular-nums; font-size: 14px; }
 
 /* Filas: ventas del mes */
 .tes-vta-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 10px; border-radius: 8px; transition: background .15s;
+  padding: 6px 10px; border-radius: 8px; transition: background-color 150ms var(--ease-out);
 }
 .tes-vta-row:hover { background: rgba(var(--v-theme-on-surface), .03); }
 .tes-vta-lbl { display: flex; align-items: center; font-size: 12px; color: rgba(var(--v-theme-on-surface), .65); }
-.tes-vta-val { font-family: monospace; font-size: 12px; font-weight: 700; }
+.tes-vta-val { font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; }
 .tes-vta-destacada { background: rgba(16,185,129,.06); }
 .tes-vta-destacada .tes-vta-lbl { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 .tes-vta-destacada .tes-vta-val { font-size: 13px; }

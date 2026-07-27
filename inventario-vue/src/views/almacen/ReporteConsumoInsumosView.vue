@@ -2,25 +2,11 @@
   <MainLayout>
     <div class="ci-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">ALMACÉN</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Consumo de Insumos</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="ci-header">
-        <div class="ci-header-icon">
-          <v-icon size="28" color="white">mdi-package-down</v-icon>
-        </div>
-        <div>
-          <h2 class="ci-title">Consumo de Insumos</h2>
-          <p class="ci-subtitle">Traslados desde Bodega Maestra en un período</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Consumo de Insumos"
+        description="Traslados desde Bodega Maestra en un período"
+        :crumbs="['Almacén', 'Reportes', 'Consumo de Insumos']"
+      />
 
       <!-- FILTROS -->
       <div class="ci-form-card">
@@ -52,7 +38,7 @@
 
           <div class="ci-field ci-field--btn">
             <v-btn
-              color="#ca8a04"
+              color="var(--gold)"
               variant="elevated"
               prepend-icon="mdi-magnify"
               :loading="loading"
@@ -84,28 +70,28 @@
         <!-- KPIs -->
         <div class="ci-kpis">
           <div class="ci-kpi">
-            <v-icon size="18" color="#ca8a04" class="mr-2">mdi-package-variant</v-icon>
+            <v-icon size="18" color="var(--gold)" class="mr-2">mdi-package-variant</v-icon>
             <div>
               <div class="ci-kpi-val">{{ filas.length }}</div>
               <div class="ci-kpi-lbl">Insumos</div>
             </div>
           </div>
           <div class="ci-kpi">
-            <v-icon size="18" color="#0891b2" class="mr-2">mdi-counter</v-icon>
+            <v-icon size="18" color="var(--indigo)" class="mr-2">mdi-counter</v-icon>
             <div>
               <div class="ci-kpi-val">{{ totalMovimientos }}</div>
               <div class="ci-kpi-lbl">Movimientos</div>
             </div>
           </div>
           <div class="ci-kpi">
-            <v-icon size="18" color="#ca8a04" class="mr-2">mdi-package-down</v-icon>
+            <v-icon size="18" color="var(--gold)" class="mr-2">mdi-package-down</v-icon>
             <div>
               <div class="ci-kpi-val">{{ formatNum(totalConsumido) }}</div>
               <div class="ci-kpi-lbl">Total Trasladado</div>
             </div>
           </div>
           <div class="ci-kpi ci-kpi--periodo">
-            <v-icon size="18" color="#64748b" class="mr-2">mdi-calendar-range</v-icon>
+            <v-icon size="18" color="var(--ink-400)" class="mr-2">mdi-calendar-range</v-icon>
             <div>
               <div class="ci-kpi-val" style="font-size:13px">{{ fmtFecha(fechaIni) }} → {{ fmtFecha(fechaFin) }}</div>
               <div class="ci-kpi-lbl">Bodega Maestra: {{ bodegaMaestra }}</div>
@@ -424,16 +410,6 @@ function exportarPDF() {
 <style scoped>
 .ci-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #ca8a04; text-transform: uppercase; letter-spacing: .5px; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface),.3); }
-.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface),.8); font-weight: 500; }
-
-.ci-header      { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
-.ci-header-icon { width: 52px; height: 52px; border-radius: 10px; background: linear-gradient(135deg,#f59e0b,#ca8a04); display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 14px rgba(202,138,4,.3); }
-.ci-title       { font-size: 20px; font-weight: 800; margin: 0; }
-.ci-subtitle    { font-size: 13px; color: rgba(var(--v-theme-on-surface),.55); margin: 2px 0 0; }
 
 .ci-form-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
 .ci-form-row  { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
@@ -457,18 +433,18 @@ function exportarPDF() {
 .th-nom { min-width: 200px; }
 .th-num { text-align: right !important; }
 
-.ci-grupo-row td { padding: 8px 12px 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #92400e; background: rgba(245,158,11,.05); }
+.ci-grupo-row td { padding: 8px 12px 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--gold-strong); background: rgba(245,158,11,.05); }
 .ci-prod-row td  { padding: 5px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); }
 .ci-prod-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
 .ci-total-row td { padding: 8px 12px; border-top: 2px solid rgba(var(--v-theme-on-surface),.1); background: rgba(var(--v-theme-on-surface),.03); font-size: 13px; }
 
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
-.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(202,138,4,.12); color:#92400e; font-weight:600; }
+.badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(202,138,4,.12); color:var(--gold-strong); font-weight:600; }
 .badge-mov { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; background:rgba(var(--v-theme-on-surface),.07); font-weight:600; }
 
 .td-nom       { font-weight: 500; }
 .td-num       { text-align: right !important; white-space: nowrap; }
-.num-consumido { color: #92400e; font-weight: 700; }
+.num-consumido { color: var(--gold-strong); font-weight: 700; }
 
 .ci-empty { text-align:center; padding:60px 24px; color:rgba(var(--v-theme-on-surface),.4); display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14px; }
 </style>
