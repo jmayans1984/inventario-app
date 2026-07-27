@@ -457,7 +457,7 @@ async function exportarExcel() {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   background: rgba(var(--v-theme-on-surface), 0.03);
   white-space: nowrap;
-  transition: all 0.18s;
+  transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), color 180ms var(--ease-out);
   user-select: none;
 }
 .toggle-proveedor:hover .toggle-proveedor-label {
@@ -579,7 +579,7 @@ async function exportarExcel() {
 .td-concepto { text-align: left; }
 .td-factura { text-align: center; }
 .td-total { text-align: right; }
-.total-bold { font-weight: 700; color: #667eea; font-family: 'Courier New', monospace; }
+.total-bold { font-weight: 700; color: #667eea; font-variant-numeric: tabular-nums; }
 .td-acciones { text-align: center; }
 .action-buttons { display: flex; gap: 0; justify-content: center; align-items: center; }
 .action-buttons :deep(.v-btn) { margin: 0 -2px; }
@@ -627,7 +627,7 @@ async function exportarExcel() {
   background: transparent;
   color: rgba(var(--v-theme-on-surface), 0.55);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 150ms var(--ease-out), background-color 150ms var(--ease-out), color 150ms var(--ease-out);
 }
 .page-size-btn:hover {
   border-color: rgba(var(--v-theme-on-surface), 0.3);
@@ -667,7 +667,7 @@ async function exportarExcel() {
 .badge-cc-dlg { background: rgba(8,145,178,0.12); color: #0891b2; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; }
 .tc { text-align: center !important; }
 .tr { text-align: right !important; }
-.fw { font-weight: 700; font-family: 'Courier New', monospace; }
+.fw { font-weight: 700; font-variant-numeric: tabular-nums; }
 .text-muted-sm { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
 .dlg-print-head { display: none; }
 </style>

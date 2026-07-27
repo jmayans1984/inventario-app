@@ -31,45 +31,10 @@
 
     <!-- KPI CARDS -->
     <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #667eea, #764ba2)">
-          <v-icon size="24" color="white">mdi-receipt-text-outline</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Total Gastos</p>
-          <p class="kpi-value">{{ store.totalGastos }}</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706)">
-          <v-icon size="24" color="white">mdi-currency-usd</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Valor Total</p>
-          <p class="kpi-value">{{ formatMoneda(store.valorTotal) }}</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #34d399, #10b981)">
-          <v-icon size="24" color="white">mdi-calculator</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Impuestos</p>
-          <p class="kpi-value">{{ formatMoneda(store.totalImpuestos) }}</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed)">
-          <v-icon size="24" color="white">mdi-calendar-month-outline</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Este Mes</p>
-          <p class="kpi-value">{{ formatMoneda(store.gastosMesActual) }}</p>
-        </div>
-      </div>
+      <KpiCard label="Total Gastos" :value="store.totalGastos" icon="mdi-receipt-text-outline" color="var(--accent-blue)" />
+      <KpiCard label="Valor Total" :value="formatMoneda(store.valorTotal)" icon="mdi-currency-usd" color="var(--accent-amber)" />
+      <KpiCard label="Impuestos" :value="formatMoneda(store.totalImpuestos)" icon="mdi-calculator" color="var(--accent-green)" />
+      <KpiCard label="Este Mes" :value="formatMoneda(store.gastosMesActual)" icon="mdi-calendar-month-outline" color="var(--accent-purple)" />
     </div>
 
     <!-- TABLA -->
@@ -94,6 +59,7 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useGestionGastosStore } from '../../stores/gestiongastos'
 import GestionGastosTable from '../../components/modules/contabilidad/GestionGastosTable.vue'
 import GestionGastosForm from '../../components/modules/contabilidad/GestionGastosForm.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { formatMoneda } from '../../utils/formatters'
 
 const store = useGestionGastosStore()
@@ -179,47 +145,6 @@ function handleGuardar(resultado) {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
   margin-bottom: 28px;
-}
-.kpi-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-}
-.kpi-card:hover {
-  border-color: rgba(var(--v-theme-on-surface), 0.12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.kpi-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.kpi-content {
-  flex: 1;
-}
-.kpi-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  margin: 0;
-}
-.kpi-value {
-  font-size: 20px;
-  font-weight: 800;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 4px 0 0;
 }
 
 .table-section {
