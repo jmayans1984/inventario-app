@@ -1,5 +1,6 @@
 <template>
   <span class="status-badge" :class="`status-badge--${tone}`" :style="customColor ? customStyle : null">
+    <span v-if="dot" class="status-dot" />
     {{ label }}
   </span>
 </template>
@@ -13,11 +14,13 @@ const props = defineProps({
   tone: { type: String, default: 'neutral' },
   /** Color hex custom, cuando ninguno de los tonos semánticos aplica (p.ej. badges de categoría) */
   color: { type: String, default: '' },
+  /** Punto de color a la izquierda (patrón "pill" tipo Linear) */
+  dot: { type: Boolean, default: false },
 })
 
 const customColor = computed(() => !!props.color)
 const customStyle = computed(() => ({
-  background: `color-mix(in srgb, ${props.color} 16%, transparent)`,
+  background: `color-mix(in srgb, ${props.color} 14%, transparent)`,
   color: props.color,
 }))
 </script>
@@ -26,17 +29,25 @@ const customStyle = computed(() => ({
 .status-badge {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   padding: 3px 9px;
-  border-radius: var(--radius-sm);
-  font-size: 11px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
   font-weight: 700;
   line-height: 1.4;
   white-space: nowrap;
 }
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
 
-.status-badge--success { background: rgba(var(--v-theme-success), 0.15); color: rgb(var(--v-theme-success)); }
-.status-badge--warning  { background: rgba(var(--v-theme-warning), 0.15); color: rgb(var(--v-theme-warning)); }
-.status-badge--error    { background: rgba(var(--v-theme-error), 0.15); color: rgb(var(--v-theme-error)); }
-.status-badge--info     { background: rgba(var(--v-theme-info), 0.15); color: rgb(var(--v-theme-info)); }
-.status-badge--neutral  { background: rgba(var(--v-theme-on-surface), 0.1); color: rgba(var(--v-theme-on-surface), 0.6); }
+.status-badge--success { background: var(--success-wash); color: var(--success); }
+.status-badge--warning  { background: var(--warning-wash); color: var(--warning); }
+.status-badge--error    { background: var(--error-wash); color: var(--error); }
+.status-badge--info     { background: var(--info-wash); color: var(--info); }
+.status-badge--neutral  { background: var(--surface-sunken); color: var(--ink-600); }
 </style>
