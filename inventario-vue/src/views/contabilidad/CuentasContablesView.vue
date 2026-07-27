@@ -1,75 +1,23 @@
 <template>
   <MainLayout>
-    <!-- BREADCRUMB -->
-    <div class="breadcrumb-bar mb-4">
-      <span class="bc-root">CONTABILIDAD</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-section">Configuración</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-item">Cuentas Contables</span>
-    </div>
-
-    <!-- HEADER -->
-    <div class="header-section mb-5">
-      <div class="header-left">
-        <h1 class="header-title">Cuentas Contables</h1>
-        <p class="header-desc">Administra tu catálogo de cuentas contables</p>
-      </div>
-      <div class="header-right">
-        <v-btn
-          color="primary"
-          variant="elevated"
-          size="large"
-          prepend-icon="mdi-plus"
-          @click="abrirFormulario()"
-          class="btn-crear"
-        >
-          Nueva Cuenta
+    <PageHeader
+      title="Cuentas Contables"
+      description="Administra tu catálogo de cuentas contables"
+      :crumbs="['Contabilidad', 'Configuración', 'Cuentas Contables']"
+    >
+      <template #actions>
+        <v-btn color="primary" variant="flat" size="large" prepend-icon="mdi-plus" @click="abrirFormulario()">
+          Nueva cuenta
         </v-btn>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- KPI CARDS -->
     <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #667eea, #764ba2)">
-          <v-icon size="24" color="white">mdi-calculator-variant</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Total Cuentas</p>
-          <p class="kpi-value">{{ store.totalCuentasContables }}</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #34d399, #10b981)">
-          <v-icon size="24" color="white">mdi-check-circle</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Activas</p>
-          <p class="kpi-value">{{ cuentasActivas }}</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706)">
-          <v-icon size="24" color="white">mdi-alert-circle</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Inactivas</p>
-          <p class="kpi-value">{{ cuentasInactivas }}</p>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed)">
-          <v-icon size="24" color="white">mdi-chart-line</v-icon>
-        </div>
-        <div class="kpi-content">
-          <p class="kpi-label">Grupos Gastos</p>
-          <p class="kpi-value">{{ gruposGastosUnicos }}</p>
-        </div>
-      </div>
+      <KpiCard :index="0" label="Total Cuentas" :value="store.totalCuentasContables" icon="mdi-calculator-variant" color="var(--indigo)" />
+      <KpiCard :index="1" label="Activas" :value="cuentasActivas" icon="mdi-check-circle" color="var(--success)" />
+      <KpiCard :index="2" label="Inactivas" :value="cuentasInactivas" icon="mdi-alert-circle" color="var(--warning)" />
+      <KpiCard :index="3" label="Grupos Gastos" :value="gruposGastosUnicos" icon="mdi-chart-line" color="var(--gold)" />
     </div>
 
     <!-- TABLA -->
@@ -94,6 +42,8 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useCuentasContablesStore } from '../../stores/cuentascontables'
 import CuentasContablesTable from '../../components/modules/contabilidad/CuentasContablesTable.vue'
 import CuentasContablesForm from '../../components/modules/contabilidad/CuentasContablesForm.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 
 const store = useCuentasContablesStore()
 const modalOpen = ref(false)
@@ -128,107 +78,12 @@ function handleGuardar(resultado) {
 </script>
 
 <style scoped>
-/* BREADCRUMB */
-.breadcrumb-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.bc-root {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  text-transform: uppercase;
-}
-.bc-sep {
-  color: rgba(var(--v-theme-on-surface), 0.25);
-}
-.bc-section {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-}
-.bc-item {
-  font-size: 11px;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-}
-
-/* HEADER */
-.header-section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-}
-.header-left {
-  flex: 1;
-}
-.header-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0 0 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.header-desc {
-  font-size: 13px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  margin: 0;
-}
-.header-right {
-  display: flex;
-  gap: 12px;
-}
-.btn-crear {
-  white-space: nowrap;
-}
-
 /* KPI CARDS */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
   margin-bottom: 28px;
-}
-.kpi-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-.kpi-card:hover {
-  border-color: rgba(var(--v-theme-on-surface), 0.12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.kpi-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.kpi-content {
-  flex: 1;
-}
-.kpi-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  margin: 0;
-}
-.kpi-value {
-  font-size: 28px;
-  font-weight: 800;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 4px 0 0;
 }
 
 .table-section {

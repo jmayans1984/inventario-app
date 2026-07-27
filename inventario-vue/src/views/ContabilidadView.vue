@@ -22,7 +22,7 @@
         <!-- KPIs -->
         <div class="cbl-kpi-row">
           <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#10b981">mdi-cash-plus</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#4ade80">mdi-cash-plus</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
                 <span v-if="!dashLoading">{{ fmt(kpis.ingresos.total) }}</span>
@@ -32,7 +32,7 @@
             </div>
           </div>
           <div class="cbl-kpi" @click="go('/contabilidad/procesos/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#f59e0b">mdi-factory</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#f0a83c">mdi-factory</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
                 <span v-if="!dashLoading">{{ fmt(kpis.comprasMP.total) }}</span>
@@ -42,7 +42,7 @@
             </div>
           </div>
           <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#ef4444">mdi-account-tie-outline</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#f87171">mdi-account-tie-outline</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
                 <span v-if="!dashLoading">{{ fmt(kpis.nomina.total) }}</span>
@@ -52,7 +52,7 @@
             </div>
           </div>
           <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#8b5cf6">mdi-chart-line</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#818cf8">mdi-chart-line</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
                 <span v-if="!dashLoading">{{ fmt(kpis.gastosGenerales.total) }}</span>
@@ -62,7 +62,7 @@
             </div>
           </div>
           <div class="cbl-kpi" @click="go('/contabilidad/reportes/gastos')">
-            <div class="cbl-kpi-icon"><v-icon size="18" color="#ec4899">mdi-calculator-variant</v-icon></div>
+            <div class="cbl-kpi-icon"><v-icon size="18" color="#f5b85c">mdi-calculator-variant</v-icon></div>
             <div>
               <div class="cbl-kpi-val">
                 <span v-if="!dashLoading">{{ fmt(kpis.impuestos.total) }}</span>
@@ -112,13 +112,13 @@
           <div class="cbl-panel">
             <div class="cbl-panel-header">
               <div class="cbl-panel-title">
-                <v-icon size="14" color="#8b5cf6">mdi-chart-pie</v-icon>
+                <v-icon size="14" color="var(--indigo)">mdi-chart-pie</v-icon>
                 MOVIMIENTOS DEL MES
               </div>
               <button class="cbl-panel-link" @click="go('/contabilidad/reportes/gastos')">Ver reporte</button>
             </div>
             <div v-if="dashLoading" class="cbl-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#8b5cf6" />
+              <v-progress-circular indeterminate size="20" width="2" color="var(--indigo)" />
             </div>
             <template v-else>
               <div v-if="pyg.length === 0" class="cbl-panel-empty">
@@ -131,7 +131,7 @@
                   <span class="cbl-pyg-val" :class="g.bold && 'cbl-pyg-val-bold'">{{ fmt(g.total) }}</span>
                 </div>
                 <div v-if="!g.bold && g.tipo !== 'utilidad'" class="cbl-pyg-bar-track">
-                  <div class="cbl-pyg-bar-fill" :style="{ width: barW(g.total) + '%', background: g.tipo === 'ingreso' ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#f59e0b,#d97706)' }"></div>
+                  <div class="cbl-pyg-bar-fill" :style="{ width: barW(g.total) + '%', background: g.tipo === 'ingreso' ? 'var(--success)' : 'var(--gold)' }"></div>
                 </div>
                 <div v-if="g.cantidad > 0" class="cbl-pyg-meta">{{ g.cantidad }} registro{{ g.cantidad !== 1 ? 's' : '' }}</div>
               </div>
@@ -142,13 +142,13 @@
           <div class="cbl-panel">
             <div class="cbl-panel-header">
               <div class="cbl-panel-title">
-                <v-icon size="14" color="#06b6d4">mdi-history</v-icon>
+                <v-icon size="14" color="var(--gold)">mdi-history</v-icon>
                 ÚLTIMOS GASTOS
               </div>
               <button class="cbl-panel-link" @click="go('/contabilidad/procesos/gastos')">Ver todos</button>
             </div>
             <div v-if="dashLoading" class="cbl-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#06b6d4" />
+              <v-progress-circular indeterminate size="20" width="2" color="var(--gold)" />
             </div>
             <template v-else>
               <div v-if="ultimosGastos.length === 0" class="cbl-panel-empty">
@@ -215,8 +215,8 @@ const secciones = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
-    color: '#8b5cf6',
-    iconBg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+    color: '#4F46E5',
+    iconBg: '#4F46E5',
     items: [
       { path: '/contabilidad/configuracion/proveedores',       icon: 'mdi-truck-outline',        title: 'Proveedores',       desc: 'Gestiona el catálogo de proveedores' },
       { path: '/contabilidad/configuracion/centros-costos',    icon: 'mdi-sitemap-outline',      title: 'Centros de Costo',  desc: 'Define y gestiona los centros de costo' },
@@ -227,8 +227,8 @@ const secciones = [
   {
     label: 'PROCESOS',
     icon: 'mdi-lightning-bolt-outline',
-    color: '#06b6d4',
-    iconBg: 'linear-gradient(135deg,#06b6d4,#0e7490)',
+    color: '#B8720B',
+    iconBg: '#B8720B',
     items: [
       { path: '/contabilidad/procesos/gastos', icon: 'mdi-receipt-text-outline', title: 'Gestión de Gastos', desc: 'Registro y control de gastos operativos' },
     ],
@@ -236,8 +236,8 @@ const secciones = [
   {
     label: 'REPORTES',
     icon: 'mdi-chart-box-outline',
-    color: '#f43f5e',
-    iconBg: 'linear-gradient(135deg,#f43f5e,#be123c)',
+    color: '#15803D',
+    iconBg: '#15803D',
     items: [
       { path: '/contabilidad/reportes/gastos', icon: 'mdi-file-chart-outline', title: 'Reporte de Gastos', desc: 'Análisis por período y centro de costo' },
       { path: '/contabilidad/reportes/estado-resultados', icon: 'mdi-chart-line-stacked', title: 'Estado de Resultados', desc: 'P&L por período y centro de costo' },
@@ -303,14 +303,14 @@ onMounted(() => {
 .cbl-hero {
   position: relative; overflow: hidden;
   border-radius: 18px; padding: 26px 28px 22px;
-  background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 55%, #7c3aed 100%);
+  background: linear-gradient(130deg, var(--sidebar-bg) 0%, #241d13 55%, #1c1710 100%);
   margin-bottom: 24px;
-  box-shadow: 0 10px 30px rgba(109, 40, 217, .25);
+  box-shadow: var(--shadow-lg);
 }
 .cbl-hero-glow {
   position: absolute; top: -60px; right: -40px;
   width: 260px; height: 260px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(196,181,253,.25), transparent 70%);
+  background: radial-gradient(circle, rgba(240,168,60,.18), transparent 70%);
   pointer-events: none;
 }
 .cbl-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -336,7 +336,7 @@ onMounted(() => {
   background: rgba(255,255,255,.09); backdrop-filter: blur(4px);
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 12px; padding: 12px 14px;
-  cursor: pointer; transition: all .18s;
+  cursor: pointer; transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out);
 }
 .cbl-kpi:hover { background: rgba(255,255,255,.16); transform: translateY(-2px); }
 .cbl-kpi-warn { border-color: rgba(252,211,77,.3); }
@@ -369,7 +369,7 @@ onMounted(() => {
   padding: 14px 15px; border-radius: 13px;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface), .07);
-  cursor: pointer; transition: all .18s;
+  cursor: pointer; transition: border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out), transform 180ms var(--ease-out);
 }
 .cbl-card:hover {
   border-color: var(--ac);
@@ -384,7 +384,7 @@ onMounted(() => {
 .cbl-card-body { flex: 1; min-width: 0; }
 .cbl-card-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
 .cbl-card-desc { font-size: 11px; color: rgba(var(--v-theme-on-surface), .5); line-height: 1.35; }
-.cbl-card-arrow { flex-shrink: 0; opacity: 0; transform: translateX(-4px); transition: all .18s; }
+.cbl-card-arrow { flex-shrink: 0; opacity: 0; transform: translateX(-4px); transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
 .cbl-card:hover .cbl-card-arrow { opacity: 1; transform: translateX(0); }
 
 /* ═══ Paneles laterales ═══ */
@@ -398,10 +398,10 @@ onMounted(() => {
 .cbl-panel-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .8px; color: rgba(var(--v-theme-on-surface), .6); }
 .cbl-panel-link {
   border: none; background: transparent; cursor: pointer;
-  font-size: 11px; font-weight: 700; color: #8b5cf6;
-  padding: 2px 6px; border-radius: 6px; transition: background .15s;
+  font-size: 11px; font-weight: 700; color: var(--indigo);
+  padding: 2px 6px; border-radius: 6px; transition: background-color 150ms var(--ease-out);
 }
-.cbl-panel-link:hover { background: rgba(139,92,246,.08); }
+.cbl-panel-link:hover { background: var(--indigo-wash); }
 .cbl-panel-loading { display: flex; justify-content: center; padding: 20px; }
 .cbl-panel-empty {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -412,9 +412,9 @@ onMounted(() => {
 .cbl-pyg-row { padding: 6px 4px 8px; }
 .cbl-pyg-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 8px; }
 .cbl-pyg-grupo { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cbl-pyg-val { font-family: monospace; font-size: 12px; font-weight: 700; color: #8b5cf6; flex-shrink: 0; }
+.cbl-pyg-val { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--indigo); flex-shrink: 0; }
 .cbl-pyg-bar-track { height: 6px; border-radius: 3px; background: rgba(var(--v-theme-on-surface), .06); overflow: hidden; }
-.cbl-pyg-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#8b5cf6,#d946ef); transition: width .3s; }
+.cbl-pyg-bar-fill { height: 100%; border-radius: 3px; background: var(--indigo); transition: width 300ms var(--ease-out); }
 .cbl-pyg-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .4); margin-top: 3px; }
 .cbl-pyg-bold {
   padding: 10px 8px 8px !important;
@@ -428,24 +428,24 @@ onMounted(() => {
   background: rgba(16,185,129,.12) !important;
   border-color: rgba(16,185,129,.25) !important;
 }
-.cbl-pyg-subtotal-ingreso .cbl-pyg-val-bold { color: #047857 !important; }
+.cbl-pyg-subtotal-ingreso .cbl-pyg-val-bold { color: var(--success) !important; }
 .cbl-pyg-subtotal-gasto {
   background: rgba(239,68,68,.12) !important;
   border-color: rgba(239,68,68,.25) !important;
   margin-top: 16px !important;
 }
-.cbl-pyg-subtotal-gasto .cbl-pyg-val-bold { color: #b91c1c !important; }
+.cbl-pyg-subtotal-gasto .cbl-pyg-val-bold { color: var(--error) !important; }
 .cbl-pyg-utilidad-pos { background: rgba(16,185,129,.12) !important; border-color: rgba(16,185,129,.25) !important; margin-top: 12px !important; }
-.cbl-pyg-utilidad-pos .cbl-pyg-val-bold { color: #047857 !important; }
+.cbl-pyg-utilidad-pos .cbl-pyg-val-bold { color: var(--success) !important; }
 .cbl-pyg-utilidad-neg { background: rgba(239,68,68,.12) !important; border-color: rgba(239,68,68,.25) !important; margin-top: 12px !important; }
-.cbl-pyg-utilidad-neg .cbl-pyg-val-bold { color: #b91c1c !important; }
+.cbl-pyg-utilidad-neg .cbl-pyg-val-bold { color: var(--error) !important; }
 .cbl-pyg-total {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 8px; padding: 10px 4px 2px;
   border-top: 2px solid rgba(var(--v-theme-on-surface), .08);
   font-size: 11px; font-weight: 800; letter-spacing: .4px;
 }
-.cbl-pyg-total span:last-child { font-family: monospace; font-size: 13px; color: #8b5cf6; }
+.cbl-pyg-total span:last-child { font-family: var(--font-mono); font-size: 13px; color: var(--indigo); }
 
 /* Últimos gastos */
 .cbl-gasto-row {
@@ -456,5 +456,5 @@ onMounted(() => {
 .cbl-gasto-info { min-width: 0; }
 .cbl-gasto-prov { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cbl-gasto-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.cbl-gasto-val { flex-shrink: 0; font-family: monospace; font-size: 12px; font-weight: 700; color: #06b6d4; }
+.cbl-gasto-val { flex-shrink: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--gold); }
 </style>

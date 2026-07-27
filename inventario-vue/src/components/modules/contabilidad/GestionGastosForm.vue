@@ -55,7 +55,7 @@
           <!-- ═══ PASO 1: COMPROBANTE ═══ -->
           <div v-show="step === 0" class="wiz-pane">
             <div class="wiz-pane-title">
-              <v-icon size="17" color="#667eea">mdi-file-document-outline</v-icon>
+              <v-icon size="17" color="var(--indigo)">mdi-file-document-outline</v-icon>
               Datos de la Factura
             </div>
 
@@ -144,7 +144,7 @@
                 <span class="dist-card-total">{{ formatMoneda(totalLinea(ln)) }}</span>
                 <v-btn
                   v-if="!esEdicion && form.lineas.length > 1"
-                  icon variant="text" size="x-small" color="#ef4444"
+                  icon variant="text" size="x-small" color="var(--error)"
                   title="Quitar línea"
                   @click="quitarLinea(idx)"
                 >
@@ -265,8 +265,8 @@
           <!-- ═══ PASO 3: CONFIRMAR ═══ -->
           <div v-show="step === 2" class="wiz-pane">
             <div class="wiz-pane-title">
-              <v-icon size="17" color="#764ba2" />
-              <v-icon size="17" color="#764ba2">mdi-clipboard-check-outline</v-icon>
+              <v-icon size="17" color="var(--gold)" />
+              <v-icon size="17" color="var(--gold)">mdi-clipboard-check-outline</v-icon>
               Revisar y Confirmar
             </div>
 
@@ -312,7 +312,7 @@
                   <td class="col-right">{{ formatMoneda(ln.impuestos) }}</td>
                   <td class="col-right font-weight-bold">{{ formatMoneda(totalLinea(ln)) }}</td>
                   <td class="col-center">
-                    <v-icon v-if="ln.materiaPrima?.items?.length" size="16" color="#f59e0b" title="Incluye entrada de almacén">
+                    <v-icon v-if="ln.materiaPrima?.items?.length" size="16" color="var(--gold)" title="Incluye entrada de almacén">
                       mdi-package-variant-plus
                     </v-icon>
                   </td>
@@ -400,7 +400,7 @@
     <v-dialog v-model="dlgFacturaDuplicada" max-width="480" persistent>
       <v-card rounded="lg">
         <div class="dlg-dup-header">
-          <v-icon size="22" color="#f59e0b" class="mr-2">mdi-alert-circle-outline</v-icon>
+          <v-icon size="22" color="var(--gold)" class="mr-2">mdi-alert-circle-outline</v-icon>
           Posible Factura Duplicada
         </div>
         <v-card-text class="pa-5">
@@ -423,7 +423,7 @@
         </v-card-text>
         <v-divider />
         <v-card-actions class="pa-4" style="flex-direction:column;gap:8px;align-items:stretch">
-          <v-btn color="#f59e0b" variant="elevated" prepend-icon="mdi-content-save-outline" :loading="guardando" @click="continuarGuardarDeTodosModos">
+          <v-btn color="var(--gold)" variant="elevated" prepend-icon="mdi-content-save-outline" :loading="guardando" @click="continuarGuardarDeTodosModos">
             Guardar Igualmente
           </v-btn>
           <v-btn variant="text" :disabled="guardando" @click="dlgFacturaDuplicada = false">Cancelar</v-btn>
@@ -436,7 +436,7 @@
     ═══════════════════════════════════════════════════════════════════ -->
     <v-dialog v-model="mpDialogOpen" max-width="800" scrollable>
       <v-card rounded="xl" class="wiz-card">
-        <div class="wiz-header" style="background: linear-gradient(135deg,#f59e0b,#d97706)">
+        <div class="wiz-header" style="background: linear-gradient(135deg,var(--gold),var(--gold-strong))">
           <div class="wiz-header-icon">
             <v-icon size="22" color="white">mdi-package-variant-plus</v-icon>
           </div>
@@ -455,7 +455,7 @@
               v-model="mpDraft.afectaInventario"
               density="compact"
               hide-details
-              color="#f59e0b"
+              color="var(--gold)"
             >
               <template #label>
                 <span class="mp-opt-lbl">
@@ -468,7 +468,7 @@
               v-model="mpDraft.actualizaCosto"
               density="compact"
               hide-details
-              color="#f59e0b"
+              color="var(--gold)"
             >
               <template #label>
                 <span class="mp-opt-lbl">
@@ -540,12 +540,12 @@
                 prefix="$"
               />
               <div class="mp-item-subtotal">{{ formatMoneda((item.cantidad || 0) * (item.costoUnit || 0)) }}</div>
-              <v-btn icon variant="text" size="x-small" color="#ef4444" @click="mpDraft.items.splice(i, 1)">
+              <v-btn icon variant="text" size="x-small" color="var(--error)" @click="mpDraft.items.splice(i, 1)">
                 <v-icon size="16">mdi-delete-outline</v-icon>
               </v-btn>
             </div>
 
-            <v-btn variant="tonal" color="#f59e0b" size="small" prepend-icon="mdi-plus" @click="agregarItemMp">
+            <v-btn variant="tonal" color="var(--gold)" size="small" prepend-icon="mdi-plus" @click="agregarItemMp">
               Agregar producto
             </v-btn>
           </div>
@@ -559,7 +559,7 @@
             v-if="mpLineaRef && Math.abs(totalItemsMp(mpDraft) - (mpLineaRef.subtotal || 0)) > 0.01 && mpDraft.items.length"
             class="mp-warn"
           >
-            <v-icon size="14" color="#f59e0b">mdi-alert-outline</v-icon>
+            <v-icon size="14" color="var(--gold)">mdi-alert-outline</v-icon>
             El total de productos no coincide con el subtotal de la línea ({{ formatMoneda(mpLineaRef.subtotal || 0) }})
           </div>
 
@@ -567,7 +567,7 @@
 
         <div class="wiz-footer">
           <v-btn variant="text" @click="mpDialogOpen = false">Cancelar</v-btn>
-          <v-btn color="#f59e0b" variant="elevated" prepend-icon="mdi-check" @click="confirmarMateriaPrima">
+          <v-btn color="var(--gold)" variant="elevated" prepend-icon="mdi-check" @click="confirmarMateriaPrima">
             Aceptar
           </v-btn>
         </div>
@@ -1040,7 +1040,7 @@ function cerrar() {
   align-items: center;
   gap: 14px;
   padding: 18px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--indigo) 0%, var(--gold) 100%);
 }
 .wiz-header-icon {
   width: 46px;
@@ -1123,10 +1123,10 @@ function cerrar() {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.wiz-step-active .wiz-step-num { background: #667eea; color: white; }
-.wiz-step-done .wiz-step-num { background: #10b981; color: white; }
+.wiz-step-active .wiz-step-num { background: var(--indigo); color: white; }
+.wiz-step-done .wiz-step-num { background: var(--success); color: white; }
 .wiz-step-title { font-size: 12.5px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-.wiz-step-active .wiz-step-title { color: #667eea; }
+.wiz-step-active .wiz-step-title { color: var(--indigo); }
 .wiz-step-sub {
   font-size: 10.5px; color: rgba(var(--v-theme-on-surface), 0.45);
   margin-top: 2px; line-height: 1.3;
@@ -1196,7 +1196,7 @@ function cerrar() {
   gap: 6px;
   border: 1px dashed rgba(245,158,11,0.5);
   background: rgba(245,158,11,0.06);
-  color: #d97706;
+  color: var(--gold-strong);
   border-radius: 18px;
   padding: 6px 14px;
   font-size: 12px;
@@ -1272,7 +1272,7 @@ function cerrar() {
   font-size: 17px;
   font-weight: 800;
 }
-.tot-val-final { color: #667eea; font-size: 20px; }
+.tot-val-final { color: var(--indigo); font-size: 20px; }
 .tot-nota {
   display: flex;
   align-items: center;
@@ -1306,7 +1306,7 @@ function cerrar() {
   font-family: monospace;
   font-size: 12.5px;
   font-weight: 800;
-  color: #d97706;
+  color: var(--gold-strong);
   min-width: 90px;
   text-align: right;
 }
@@ -1319,8 +1319,8 @@ function cerrar() {
   border-radius: 8px;
   text-transform: uppercase;
 }
-.mp-origen-tag.tag-prod { background: rgba(102,126,234,0.14); color: #667eea; }
-.mp-origen-tag.tag-art  { background: rgba(245,158,11,0.16); color: #d97706; }
+.mp-origen-tag.tag-prod { background: rgba(102,126,234,0.14); color: var(--indigo); }
+.mp-origen-tag.tag-art  { background: rgba(245,158,11,0.16); color: var(--gold-strong); }
 .mp-total-row {
   display: flex;
   align-items: center;
@@ -1331,13 +1331,13 @@ function cerrar() {
   font-weight: 800;
   letter-spacing: 0.4px;
 }
-.mp-total-val { font-family: monospace; font-size: 15px; color: #d97706; }
+.mp-total-val { font-family: monospace; font-size: 15px; color: var(--gold-strong); }
 .mp-warn {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
-  color: #d97706;
+  color: var(--gold-strong);
   background: rgba(245,158,11,0.07);
   border-radius: 8px;
   padding: 8px 12px;
@@ -1372,7 +1372,7 @@ function cerrar() {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.06);
 }
 .dup-item:last-child { border-bottom: none; }
-.dup-cod { font-family: monospace; font-weight: 700; color: #f59e0b; }
+.dup-cod { font-family: monospace; font-weight: 700; color: var(--gold); }
 .dup-fecha { color: rgba(var(--v-theme-on-surface),.6); }
 .dup-total { margin-left: auto; font-family: monospace; font-weight: 600; }
 
@@ -1387,7 +1387,7 @@ function cerrar() {
 }
 .wiz-footer-right { display: flex; gap: 10px; }
 .btn-save {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--indigo) 0%, var(--gold) 100%) !important;
   font-weight: 600;
   letter-spacing: 0.3px;
   min-width: 160px;

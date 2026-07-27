@@ -1,39 +1,25 @@
 <template>
   <MainLayout>
 
-    <!-- ── BREADCRUMB ─────────────────────────────────────────────── -->
-    <div class="breadcrumb-bar mb-4">
-      <span class="bc-root">CONTABILIDAD</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-section">Reportes</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-item">Reporte de Gastos</span>
-    </div>
-
-    <!-- ── HEADER ─────────────────────────────────────────────────── -->
-    <div class="page-header mb-5">
-      <div class="header-left">
-        <div class="header-icon">
-          <v-icon size="26" color="white">mdi-file-chart-outline</v-icon>
-        </div>
-        <div>
-          <h1 class="page-title">Reporte de Gastos</h1>
-          <p class="page-sub">Análisis detallado agrupado por cuenta contable</p>
-        </div>
-      </div>
-      <div class="header-actions">
+    <PageHeader
+      title="Reporte de Gastos"
+      description="Análisis detallado agrupado por cuenta contable"
+      :crumbs="['Contabilidad', 'Reportes', 'Reporte de Gastos']"
+    >
+      <template #actions>
         <v-btn
           v-if="gastos.length > 0"
           size="large"
-          class="btn-pdf"
+          color="error"
+          variant="flat"
           prepend-icon="mdi-file-pdf-box"
           :loading="generandoPdf"
           @click="generarPDF"
         >
           Generar PDF
         </v-btn>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- ── PANEL DE FILTROS ───────────────────────────────────────── -->
     <div class="filters-panel mb-5">
@@ -42,7 +28,7 @@
         <!-- Fechas -->
         <div class="filter-group dates-group">
           <div class="filter-label">
-            <v-icon size="14" color="#667eea">mdi-calendar-range</v-icon>
+            <v-icon size="14" color="var(--sidebar-accent)">mdi-calendar-range</v-icon>
             <span>Período</span>
           </div>
           <div class="dates-row">
@@ -55,7 +41,7 @@
         <!-- Proveedor -->
         <div class="filter-group">
           <div class="filter-label">
-            <v-icon size="14" color="#667eea">mdi-truck-outline</v-icon>
+            <v-icon size="14" color="var(--sidebar-accent)">mdi-truck-outline</v-icon>
             <span>Proveedor</span>
           </div>
           <select v-model="filtros.proveedor" class="filter-select">
@@ -69,7 +55,7 @@
         <!-- Cuenta Bancaria -->
         <div class="filter-group">
           <div class="filter-label">
-            <v-icon size="14" color="#667eea">mdi-bank-outline</v-icon>
+            <v-icon size="14" color="var(--sidebar-accent)">mdi-bank-outline</v-icon>
             <span>Cuenta Bancaria</span>
           </div>
           <select v-model="filtros.cuentaBancaria" class="filter-select">
@@ -83,7 +69,7 @@
         <!-- Cuenta Contable -->
         <div class="filter-group">
           <div class="filter-label">
-            <v-icon size="14" color="#667eea">mdi-book-outline</v-icon>
+            <v-icon size="14" color="var(--sidebar-accent)">mdi-book-outline</v-icon>
             <span>Cuenta Contable</span>
           </div>
           <select v-model="filtros.cuentaContable" class="filter-select">
@@ -108,33 +94,9 @@
 
     <!-- ── KPI CARDS ──────────────────────────────────────────────── -->
     <div v-if="gastos.length > 0" class="kpi-row mb-5">
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: rgba(102,126,234,0.15)">
-          <v-icon size="20" color="#667eea">mdi-receipt-text-outline</v-icon>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-val">{{ gastos.length }}</span>
-          <span class="kpi-label">Total Registros</span>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: rgba(16,185,129,0.15)">
-          <v-icon size="20" color="#10b981">mdi-cash-multiple</v-icon>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-val">{{ formatMoneda(totalGeneral) }}</span>
-          <span class="kpi-label">Total Período</span>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon" style="background: rgba(118,75,162,0.15)">
-          <v-icon size="20" color="#764ba2">mdi-book-outline</v-icon>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-val">{{ grupos.length }}</span>
-          <span class="kpi-label">Cuentas Contables</span>
-        </div>
-      </div>
+      <KpiCard :index="0" label="Total Registros" :value="gastos.length" icon="mdi-receipt-text-outline" color="var(--indigo)" />
+      <KpiCard :index="1" label="Total Período" :value="formatMoneda(totalGeneral)" icon="mdi-cash-multiple" color="var(--success)" />
+      <KpiCard :index="2" label="Cuentas Contables" :value="grupos.length" icon="mdi-book-outline" color="var(--gold)" />
     </div>
 
     <!-- ── PREVIEW DE DATOS ───────────────────────────────────────── -->
@@ -214,7 +176,7 @@
     <!-- ── INICIAL STATE ──────────────────────────────────────────── -->
     <div v-else-if="!consultado && !loading" class="initial-state">
       <div class="initial-card">
-        <v-icon size="48" color="#667eea" class="mb-3">mdi-filter-outline</v-icon>
+        <v-icon size="48" color="var(--gold)" class="mb-3">mdi-filter-outline</v-icon>
         <p class="initial-title">Selecciona los filtros y presiona <strong>Consultar</strong></p>
         <p class="initial-sub">El reporte se generará agrupado por cuenta contable</p>
       </div>
@@ -226,6 +188,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import { proveedoresService } from '../../services/proveedores.service'
 import { cuentasBancariasService } from '../../services/cuentasbancarias.service'
@@ -687,50 +651,12 @@ async function generarPDF() {
 </script>
 
 <style scoped>
-/* ── Breadcrumb ─────────────────────────────────────────────────── */
-.breadcrumb-bar { display: flex; align-items: center; gap: 6px; }
-.bc-root    { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: rgba(var(--v-theme-on-surface), 0.4); text-transform: uppercase; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface), 0.25); }
-.bc-section { font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-item    { font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-
-/* ── Page Header ────────────────────────────────────────────────── */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.header-icon {
-  width: 54px; height: 54px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.page-title { font-size: 22px; font-weight: 800; margin: 0; color: rgb(var(--v-theme-on-surface)); }
-.page-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
-
-.btn-pdf {
-  background: linear-gradient(135deg, #e53935, #c62828) !important;
-  color: white !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.3px;
-  box-shadow: 0 4px 15px rgba(229,57,53,0.35) !important;
-}
-
 /* ── Filtros ────────────────────────────────────────────────────── */
 .filters-panel {
-  background: linear-gradient(135deg, #1e1e2f 0%, #2a2a45 100%);
+  background: linear-gradient(135deg, var(--sidebar-bg) 0%, #241d13 100%);
   border-radius: 16px;
   padding: 22px 24px 18px;
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  border: 1px solid var(--gold-wash);
   box-shadow: 0 4px 24px rgba(0,0,0,0.15);
 }
 
@@ -763,7 +689,7 @@ async function generarPDF() {
 }
 .date-input {
   background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(102,126,234,0.35);
+  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 35%, transparent);
   border-radius: 8px;
   padding: 9px 10px;
   color: white;
@@ -775,14 +701,14 @@ async function generarPDF() {
   color-scheme: dark;
 }
 .date-input:focus {
-  border-color: #667eea;
-  background: rgba(102,126,234,0.12);
+  border-color: var(--sidebar-accent);
+  background: var(--gold-wash);
 }
 
 /* Select */
 .filter-select {
   background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(102,126,234,0.35);
+  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 35%, transparent);
   border-radius: 8px;
   padding: 9px 12px;
   color: white;
@@ -792,12 +718,12 @@ async function generarPDF() {
   transition: border 0.2s;
   width: 100%;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23667eea' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23f0a83c' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   padding-right: 30px;
 }
-.filter-select:focus { border-color: #667eea; background-color: rgba(102,126,234,0.12); }
+.filter-select:focus { border-color: var(--sidebar-accent); background-color: var(--gold-wash); }
 .filter-select option { background: #1e1e2f; color: white; }
 
 /* Botón consultar */
@@ -806,16 +732,16 @@ async function generarPDF() {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
+  background: var(--sidebar-accent);
+  color: var(--on-gold);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 11px 28px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.2s, transform 0.15s;
-  box-shadow: 0 4px 16px rgba(102,126,234,0.4);
+  box-shadow: 0 4px 16px var(--gold-wash);
 }
 .btn-consultar:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
 .btn-consultar:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -826,24 +752,6 @@ async function generarPDF() {
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
-.kpi-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px;
-  padding: 16px 18px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.kpi-icon {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.kpi-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.kpi-val  { font-size: 18px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); white-space: nowrap; }
-.kpi-label{ font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
 
 /* ── Preview Section ────────────────────────────────────────────── */
 .preview-section {
@@ -864,12 +772,12 @@ async function generarPDF() {
   align-items: center;
   justify-content: space-between;
   padding: 12px 18px;
-  background: linear-gradient(135deg, rgba(102,126,234,0.12), rgba(118,75,162,0.08));
+  background: var(--indigo-wash);
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07);
 }
 .grupo-header-left { display: flex; align-items: center; gap: 10px; }
 .cuenta-badge {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--indigo);
   color: white;
   font-size: 11px;
   font-weight: 800;
@@ -879,7 +787,7 @@ async function generarPDF() {
 }
 .cuenta-nombre { font-size: 14px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
 .grupo-count   { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.45); background: rgba(var(--v-theme-on-surface),0.05); padding: 2px 8px; border-radius: 20px; }
-.grupo-subtotal{ font-size: 16px; font-weight: 800; color: #667eea; font-family: 'Courier New', monospace; }
+.grupo-subtotal{ font-size: 16px; font-weight: 800; color: var(--indigo); font-variant-numeric: tabular-nums; }
 
 .grupo-table-wrap { overflow-x: auto; }
 
@@ -917,8 +825,8 @@ async function generarPDF() {
 .preview-table tfoot td { padding: 8px 12px; }
 
 .badge-cod {
-  background: rgba(102,126,234,0.12);
-  color: #667eea;
+  background: var(--indigo-wash);
+  color: var(--indigo);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
@@ -927,9 +835,9 @@ async function generarPDF() {
 .td-center   { text-align: center; }
 .td-right    { text-align: right; }
 .td-concepto { max-width: 200px; }
-.td-total    { font-weight: 700; color: #667eea; font-family: 'Courier New', monospace; }
+.td-total    { font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; }
 
-.subtotal-row { background: rgba(102,126,234,0.06); }
+.subtotal-row { background: var(--indigo-wash); }
 .subtotal-label {
   text-align: right;
   font-weight: 700;
@@ -941,19 +849,19 @@ async function generarPDF() {
   text-align: right;
   font-weight: 800;
   font-size: 13px;
-  color: #667eea;
-  font-family: 'Courier New', monospace;
+  color: var(--indigo);
+  font-variant-numeric: tabular-nums;
   padding: 8px 12px;
 }
 
 .total-general-bar {
-  background: linear-gradient(135deg, #1e1e2f, #2a2a45);
+  background: linear-gradient(135deg, var(--sidebar-bg), #241d13);
   border-radius: 12px;
   padding: 16px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid rgba(102,126,234,0.25);
+  border: 1px solid var(--gold-wash);
 }
 .tg-label {
   font-size: 13px;
@@ -964,8 +872,8 @@ async function generarPDF() {
 .tg-val {
   font-size: 22px;
   font-weight: 800;
-  color: #66ead8;
-  font-family: 'Courier New', monospace;
+  color: var(--sidebar-accent);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── States ─────────────────────────────────────────────────────── */
@@ -981,7 +889,7 @@ async function generarPDF() {
 .empty-sub, .initial-sub     { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.45); }
 .initial-card {
   background: rgb(var(--v-theme-surface));
-  border: 1px dashed rgba(102,126,234,0.3);
+  border: 1px dashed var(--gold-wash);
   border-radius: 16px;
   padding: 40px 60px;
   display: flex;

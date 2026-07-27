@@ -454,7 +454,7 @@ async function fetchProveedores() {
 }
 
 .codigo-col {
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
@@ -486,7 +486,7 @@ async function fetchProveedores() {
 }
 
 .telefono-col {
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .tel-link {

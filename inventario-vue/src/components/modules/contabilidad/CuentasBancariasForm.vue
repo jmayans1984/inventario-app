@@ -250,7 +250,7 @@ function cerrar() {
 .form-header-icon {
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--indigo), var(--gold));
   border-radius: 12px;
   display: flex;
   align-items: center;

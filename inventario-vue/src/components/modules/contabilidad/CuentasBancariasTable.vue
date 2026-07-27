@@ -307,7 +307,7 @@ async function recargar() {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 1px;
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Banco */
@@ -320,7 +320,7 @@ async function recargar() {
 .banco-icon {
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--indigo), var(--gold));
   border-radius: 7px;
   display: flex;
   align-items: center;
@@ -340,7 +340,7 @@ async function recargar() {
 
 /* Cheque */
 .cheque-num {
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   font-weight: 600;
   color: rgb(var(--v-theme-on-surface));

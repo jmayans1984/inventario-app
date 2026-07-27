@@ -380,7 +380,7 @@ function toggleSeleccion(id, val) {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 1px;
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .nombre-wrap {
@@ -401,7 +401,7 @@ function toggleSeleccion(id, val) {
 
 .location-id {
   font-size: 11px;
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
   color: rgba(var(--v-theme-on-surface), 0.6);
   background: rgba(var(--v-theme-on-surface), 0.05);
   padding: 2px 8px;
@@ -423,7 +423,7 @@ function toggleSeleccion(id, val) {
 .estado-toggle:disabled { opacity: .5; cursor: wait; }
 .estado-on  { background: rgba(34,197,94,.12);  color: #16a34a; border-color: rgba(34,197,94,.25); }
 .estado-on:hover  { background: rgba(34,197,94,.2); }
-.estado-off { background: rgba(148,163,184,.12); color: #94a3b8; border-color: rgba(148,163,184,.25); }
+.estado-off { background: rgba(148,163,184,.12); color: var(--ink-400); border-color: rgba(148,163,184,.25); }
 .estado-off:hover { background: rgba(148,163,184,.2); }
 
 .td-acciones { text-align: center !important; width: 100px !important; }

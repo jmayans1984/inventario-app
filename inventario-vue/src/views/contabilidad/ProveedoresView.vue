@@ -1,52 +1,21 @@
 <template>
   <MainLayout>
-    <!-- BREADCRUMB -->
-    <div class="breadcrumb-bar mb-4">
-      <span class="bc-root">CONTABILIDAD</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-section">Configuración</span>
-      <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-      <span class="bc-item">Proveedores</span>
-    </div>
-
-    <!-- HEADER CON BOTÓN CREAR -->
-    <div class="header-section mb-5">
-      <div class="header-left">
-        <h1 class="header-title">Gestión de Proveedores</h1>
-        <p class="header-desc">Administra el registro de proveedores de tu empresa</p>
-      </div>
-      <div class="header-right">
-        <v-btn
-          color="primary"
-          variant="elevated"
-          size="large"
-          prepend-icon="mdi-plus"
-          @click="abrirCrear"
-          class="btn-crear"
-        >
-          Nuevo Proveedor
+    <PageHeader
+      title="Gestión de Proveedores"
+      description="Administra el registro de proveedores de tu empresa"
+      :crumbs="['Contabilidad', 'Configuración', 'Proveedores']"
+    >
+      <template #actions>
+        <v-btn color="primary" variant="flat" size="large" prepend-icon="mdi-plus" @click="abrirCrear">
+          Nuevo proveedor
         </v-btn>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- KPI CARDS -->
-    <v-row class="mb-5" dense>
-      <v-col v-for="kpi in kpis" :key="kpi.label" cols="12" sm="6" lg="3">
-        <v-card elevation="0" rounded="lg" class="kpi-card" :style="{ borderTop: `3px solid ${kpi.color}` }">
-          <v-card-text class="pa-4">
-            <div class="d-flex justify-space-between align-start">
-              <div>
-                <p class="kpi-label">{{ kpi.label }}</p>
-                <p class="kpi-value" :style="{ color: kpi.color }">{{ kpi.value }}</p>
-              </div>
-              <div class="kpi-icon-wrap" :style="{ background: kpi.color + '18', color: kpi.color }">
-                <v-icon size="24">{{ kpi.icon }}</v-icon>
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+    <div class="kpi-grid mb-5">
+      <KpiCard v-for="(kpi, i) in kpis" :key="kpi.label" :index="i" :label="kpi.label" :value="kpi.value" :icon="kpi.icon" :color="kpi.color" :value-color="kpi.color" />
+    </div>
 
     <!-- TABLA DE PROVEEDORES -->
     <ProveedoresTable
@@ -83,6 +52,8 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import ProveedoresTable from '../../components/modules/contabilidad/ProveedoresTable.vue'
 import ProveedoresForm from '../../components/modules/contabilidad/ProveedoresForm.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { useProveedoresStore } from '../../stores/proveedores'
 
 const store = useProveedoresStore()
@@ -98,25 +69,25 @@ const kpis = computed(() => [
     label: 'Total Proveedores',
     value: formatEntero(store.totalProveedores),
     icon: 'mdi-truck-outline',
-    color: '#667eea',
+    color: 'var(--indigo)',
   },
   {
     label: 'Activos',
     value: formatEntero(store.proveedoresActivos.length),
     icon: 'mdi-check-circle-outline',
-    color: '#22c55e',
+    color: 'var(--success)',
   },
   {
     label: 'Inactivos',
     value: formatEntero(store.proveedoresInactivos.length),
     icon: 'mdi-minus-circle-outline',
-    color: '#f59e0b',
+    color: 'var(--ink-400)',
   },
   {
     label: 'Últimos 7 días',
     value: '3',
     icon: 'mdi-calendar-check-outline',
-    color: '#3b82f6',
+    color: 'var(--info)',
   },
 ])
 
@@ -168,131 +139,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* BREADCRUMB */
-.breadcrumb-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bc-root {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  text-transform: uppercase;
-}
-
-.bc-sep {
-  color: rgba(var(--v-theme-on-surface), 0.25);
-}
-
-.bc-section {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-}
-
-.bc-item {
-  font-size: 11px;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-}
-
-/* HEADER */
-.header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.header-left {
-  flex: 1;
-  min-width: 250px;
-}
-
-.header-title {
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
-  line-height: 1.1;
-}
-
-.header-desc {
-  font-size: 14px;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  margin-top: 6px;
-}
-
-.header-right {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.btn-crear {
-  min-width: 180px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
 /* KPI CARDS */
-.kpi-card {
-  background: rgb(var(--v-theme-surface));
-  transition: all 0.2s;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-}
-
-.kpi-card:hover {
-  transform: translateY(-2px);
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
-}
-
-.kpi-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-  margin: 0;
-}
-
-.kpi-value {
-  font-size: 28px;
-  font-weight: 900;
-  margin: 8px 0 0;
-  line-height: 1;
-}
-
-.kpi-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* RESPONSIVE */
-@media (max-width: 768px) {
-  .header-section {
-    flex-direction: column;
-  }
-
-  .header-title {
-    font-size: 20px;
-  }
-
-  .btn-crear {
-    width: 100%;
-  }
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 </style>

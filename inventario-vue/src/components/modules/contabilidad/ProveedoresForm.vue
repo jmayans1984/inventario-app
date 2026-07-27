@@ -347,7 +347,7 @@ function cerrar() {
 
 /* HEADER */
 .form-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--indigo) 0%, var(--gold) 100%);
   color: white;
   padding: 24px;
   display: flex;
@@ -394,7 +394,7 @@ function cerrar() {
 }
 
 .required {
-  color: #ef4444;
+  color: var(--error);
   margin-left: 2px;
 }
 

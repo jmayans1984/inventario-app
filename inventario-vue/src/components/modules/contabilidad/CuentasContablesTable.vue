@@ -310,7 +310,7 @@ async function exportarExcel() {
 
 .badge-codigo {
   background: rgba(102, 126, 234, 0.15);
-  color: #667eea;
+  color: var(--indigo);
   padding: 4px 8px;
   border-radius: 6px;
   font-weight: 600;
@@ -319,7 +319,7 @@ async function exportarExcel() {
 
 .badge-grupo {
   background: rgba(118, 75, 162, 0.15);
-  color: #764ba2;
+  color: var(--gold);
   padding: 4px 8px;
   border-radius: 6px;
   font-weight: 600;
