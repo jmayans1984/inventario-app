@@ -32,13 +32,13 @@
         <!-- KPI CARDS -->
         <div class="vm-kpis">
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:#8b5cf6"></div>
-            <div class="vm-kpi-icon" style="background:rgba(139,92,246,0.12)">
+            <div class="vm-kpi-accent" style="background:var(--indigo)"></div>
+            <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
               <v-icon size="20" color="primary">mdi-archive-outline</v-icon>
             </div>
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Inventario Inicial</div>
-              <div class="vm-kpi-val" style="color:#8b5cf6">{{ fmt(data.kpis.valorInicial) }}</div>
+              <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorInicial) }}</div>
               <div class="vm-kpi-sub">toma física al {{ fechaCorteInicialTxt }}</div>
             </div>
             <button class="vm-kpi-detail-btn" @click="showDetalleInicial = true" title="Ver detalle">
@@ -47,13 +47,13 @@
             </button>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:#0ea5e9"></div>
-            <div class="vm-kpi-icon" style="background:rgba(14,165,233,0.12)">
-              <v-icon size="20" color="#0ea5e9">mdi-truck-fast-outline</v-icon>
+            <div class="vm-kpi-accent" style="background:var(--indigo)"></div>
+            <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
+              <v-icon size="20" color="primary">mdi-truck-fast-outline</v-icon>
             </div>
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Compras del Mes</div>
-              <div class="vm-kpi-val" style="color:#0ea5e9">{{ fmt(data.kpis.compras) }}</div>
+              <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.compras) }}</div>
               <div class="vm-kpi-sub">cuenta materia prima · {{ data.gastosMP.length }} gastos</div>
             </div>
             <button class="vm-kpi-detail-btn" @click="showDetalleCompras = true" title="Ver detalle">
@@ -62,13 +62,13 @@
             </button>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:#8b5cf6"></div>
-            <div class="vm-kpi-icon" style="background:rgba(139,92,246,0.12)">
+            <div class="vm-kpi-accent" style="background:var(--indigo)"></div>
+            <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
               <v-icon size="20" color="primary">mdi-archive-check-outline</v-icon>
             </div>
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Inventario Final</div>
-              <div class="vm-kpi-val" style="color:#8b5cf6">{{ fmt(data.kpis.valorFinal) }}</div>
+              <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</div>
               <div class="vm-kpi-sub">toma física al {{ data.periodo.hasta }}</div>
             </div>
             <button class="vm-kpi-detail-btn" @click="showDetalleFinal = true" title="Ver detalle">
@@ -77,24 +77,24 @@
             </button>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:#f97316"></div>
-            <div class="vm-kpi-icon" style="background:rgba(249,115,22,0.12)">
-              <v-icon size="20" color="#f97316">mdi-fire</v-icon>
+            <div class="vm-kpi-accent" style="background:var(--gold)"></div>
+            <div class="vm-kpi-icon" style="background:var(--gold-wash)">
+              <v-icon size="20" color="warning">mdi-fire</v-icon>
             </div>
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Consumo Real MP</div>
-              <div class="vm-kpi-val" style="color:#f97316">{{ fmt(data.kpis.consumoReal) }}</div>
+              <div class="vm-kpi-val" style="color:var(--gold)">{{ fmt(data.kpis.consumoReal) }}</div>
               <div class="vm-kpi-sub">inicial + compras − final</div>
             </div>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" :style="{ background: data.kpis.itemsSinCosto > 0 ? '#ef4444' : '#22c55e' }"></div>
-            <div class="vm-kpi-icon" :style="{ background: data.kpis.itemsSinCosto > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)' }">
-              <v-icon size="20" :color="data.kpis.itemsSinCosto > 0 ? '#ef4444' : '#22c55e'">mdi-alert-outline</v-icon>
+            <div class="vm-kpi-accent" :style="{ background: data.kpis.itemsSinCosto > 0 ? 'var(--error)' : 'var(--success)' }"></div>
+            <div class="vm-kpi-icon" :style="{ background: data.kpis.itemsSinCosto > 0 ? 'color-mix(in srgb, var(--error) 10%, transparent)' : 'color-mix(in srgb, var(--success) 10%, transparent)' }">
+              <v-icon size="20" :color="data.kpis.itemsSinCosto > 0 ? 'var(--error)' : 'var(--success)'">mdi-alert-outline</v-icon>
             </div>
             <div class="vm-kpi-body">
               <div class="vm-kpi-lbl">Items Sin Costo</div>
-              <div class="vm-kpi-val" :style="{ color: data.kpis.itemsSinCosto > 0 ? '#ef4444' : '#22c55e' }">{{ data.kpis.itemsSinCosto }}</div>
+              <div class="vm-kpi-val" :style="{ color: data.kpis.itemsSinCosto > 0 ? 'var(--error)' : 'var(--success)' }">{{ data.kpis.itemsSinCosto }}</div>
               <div class="vm-kpi-sub">precio_costo = 0</div>
             </div>
           </div>
@@ -104,28 +104,28 @@
         <!-- Fórmula visual: Inv. Inicial + Compras − Inv. Final = Consumo Real -->
         <div class="vm-formula">
           <div class="vm-formula-item">
-            <div class="vm-formula-bar" style="background:#8b5cf6">
+            <div class="vm-formula-bar" style="background:var(--indigo)">
               <span class="vm-formula-val">{{ fmt(data.kpis.valorInicial) }}</span>
             </div>
             <div class="vm-formula-lbl">Inv. Inicial</div>
           </div>
           <div class="vm-formula-op">+</div>
           <div class="vm-formula-item">
-            <div class="vm-formula-bar" style="background:#0ea5e9">
+            <div class="vm-formula-bar" style="background:var(--indigo)">
               <span class="vm-formula-val">{{ fmt(data.kpis.compras) }}</span>
             </div>
             <div class="vm-formula-lbl">Compras</div>
           </div>
           <div class="vm-formula-op">−</div>
           <div class="vm-formula-item">
-            <div class="vm-formula-bar" style="background:#8b5cf6">
+            <div class="vm-formula-bar" style="background:var(--indigo)">
               <span class="vm-formula-val">{{ fmt(data.kpis.valorFinal) }}</span>
             </div>
             <div class="vm-formula-lbl">Inv. Final</div>
           </div>
           <div class="vm-formula-op">=</div>
           <div class="vm-formula-item vm-formula-result">
-            <div class="vm-formula-bar" style="background:#f97316">
+            <div class="vm-formula-bar" style="background:var(--gold)">
               <span class="vm-formula-val">{{ fmt(data.kpis.consumoReal) }}</span>
             </div>
             <div class="vm-formula-lbl">Consumo Real</div>
@@ -163,7 +163,7 @@
                 <tfoot>
                   <tr class="vm-tr-total">
                     <td class="font-weight-bold">TOTAL</td>
-                    <td class="tr font-weight-bold" style="color:#8b5cf6">{{ fmt(data.kpis.valorInicial) }}</td>
+                    <td class="tr font-weight-bold" style="color:var(--indigo)">{{ fmt(data.kpis.valorInicial) }}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -205,7 +205,7 @@
                 <tfoot>
                   <tr class="vm-tr-total">
                     <td class="font-weight-bold">TOTAL</td>
-                    <td class="tr font-weight-bold" style="color:#8b5cf6">{{ fmt(data.kpis.valorFinal) }}</td>
+                    <td class="tr font-weight-bold" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -220,7 +220,7 @@
         <v-dialog v-model="showDetalleCompras" max-width="850" scrollable>
           <v-card rounded="lg">
             <v-card-title class="d-flex align-center ga-2 pa-4" style="background:rgba(14,165,233,0.08)">
-              <v-icon color="#0ea5e9">mdi-truck-fast-outline</v-icon>
+              <v-icon color="primary">mdi-truck-fast-outline</v-icon>
               Detalle — Compras del Mes
             </v-card-title>
             <v-card-text class="pa-4">
@@ -253,7 +253,7 @@
                   <tfoot>
                     <tr class="vm-tr-total">
                       <td colspan="5" class="font-weight-bold">TOTAL COMPRAS MP</td>
-                      <td class="tr font-weight-bold" style="color:#0ea5e9">{{ fmt(data.kpis.compras) }}</td>
+                      <td class="tr font-weight-bold" style="color:var(--indigo)">{{ fmt(data.kpis.compras) }}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -262,7 +262,7 @@
             </v-card-text>
             <v-card-actions class="pa-4 pt-0">
               <v-spacer />
-              <v-btn variant="flat" color="#0ea5e9" @click="showDetalleCompras = false">Cerrar</v-btn>
+              <v-btn variant="flat" color="primary" @click="showDetalleCompras = false">Cerrar</v-btn>
             </v-card-actions>
           </v-card>
         </v-dialog>
@@ -299,7 +299,7 @@
                   </td>
                   <td class="tr">{{ fmt(c.ventas) }}</td>
                   <td class="tr">{{ c.incluidoEnAsignacion ? c.pctVentas.toFixed(1) + '%' : '—' }}</td>
-                  <td class="tr font-weight-bold" style="color:#f97316">{{ c.incluidoEnAsignacion ? fmt(c.consumoMP) : '—' }}</td>
+                  <td class="tr font-weight-bold" style="color:var(--gold)">{{ c.incluidoEnAsignacion ? fmt(c.consumoMP) : '—' }}</td>
                   <td class="tr font-weight-bold" :style="{ color: foodCostColor(c.foodCostPct) }">
                     {{ c.foodCostPct === null ? '—' : c.foodCostPct.toFixed(1) + '%' }}
                   </td>
@@ -310,7 +310,7 @@
                   <td class="font-weight-bold">TOTAL ASIGNADO</td>
                   <td class="tr font-weight-bold">{{ fmt(data.kpis.totalVentasBase) }}</td>
                   <td class="tr font-weight-bold">100%</td>
-                  <td class="tr font-weight-bold" style="color:#f97316">{{ fmt(data.kpis.consumoReal) }}</td>
+                  <td class="tr font-weight-bold" style="color:var(--gold)">{{ fmt(data.kpis.consumoReal) }}</td>
                   <td class="tr"></td>
                 </tr>
               </tfoot>
@@ -342,7 +342,7 @@
                   </td>
                   <td class="tr">{{ fmt(c.valorInicial) }}</td>
                   <td class="tr">{{ fmt(c.valorFinal) }}</td>
-                  <td class="tr font-weight-bold" :style="{ color: c.diferencia >= 0 ? '#22c55e' : '#ef4444' }">
+                  <td class="tr font-weight-bold" :style="{ color: c.diferencia >= 0 ? 'var(--success)' : 'var(--error)' }">
                     {{ c.diferencia >= 0 ? '+' : '' }}{{ fmt(c.diferencia) }}
                   </td>
                 </tr>
@@ -352,7 +352,7 @@
                   <td class="font-weight-bold">TOTAL EMPRESA</td>
                   <td class="tr font-weight-bold">{{ fmt(data.kpis.valorInicial) }}</td>
                   <td class="tr font-weight-bold">{{ fmt(data.kpis.valorFinal) }}</td>
-                  <td class="tr font-weight-bold" :style="{ color: (data.kpis.valorFinal - data.kpis.valorInicial) >= 0 ? '#22c55e' : '#ef4444' }">
+                  <td class="tr font-weight-bold" :style="{ color: (data.kpis.valorFinal - data.kpis.valorInicial) >= 0 ? 'var(--success)' : 'var(--error)' }">
                     {{ (data.kpis.valorFinal - data.kpis.valorInicial) >= 0 ? '+' : '' }}{{ fmt(data.kpis.valorFinal - data.kpis.valorInicial) }}
                   </td>
                 </tr>
@@ -364,7 +364,7 @@
         <!-- FILA 4: Detalle por producto (informativo) -->
         <div class="vm-card vm-card-full">
           <div class="vm-card-header">
-            <v-icon size="18" color="#f97316">mdi-table</v-icon>
+            <v-icon size="18" color="warning">mdi-table</v-icon>
             <span class="vm-card-title">Valorización por Producto — Toma Física</span>
             <input v-model="filtroProducto" placeholder="Buscar producto..." class="vm-search" />
           </div>
@@ -409,7 +409,7 @@
         <!-- FILA 5: Gastos incluidos en la cuenta de materia prima -->
         <div class="vm-card vm-card-full">
           <div class="vm-card-header">
-            <v-icon size="18" color="#0ea5e9">mdi-receipt-text-outline</v-icon>
+            <v-icon size="18" color="primary">mdi-receipt-text-outline</v-icon>
             <span class="vm-card-title">Gastos del Mes en Cuenta Materia Prima</span>
           </div>
           <div v-if="!data.gastosMP.length" class="vm-empty-inline">No hay gastos registrados en esta cuenta para el período seleccionado.</div>
@@ -523,9 +523,9 @@ function numFmt(v) {
 }
 function foodCostColor(v) {
   if (v === null || v === undefined) return '#94a3b8'
-  if (v > 40) return '#ef4444'
-  if (v > 30) return '#f97316'
-  return '#22c55e'
+  if (v > 40) return 'var(--error)'
+  if (v > 30) return 'var(--gold)'
+  return 'var(--success)'
 }
 
 // ── Carga ───────────────────────────────────────────────────────────────────
@@ -718,7 +718,7 @@ onMounted(cargar)
   background: rgba(139,92,246,0.12) !important; color: var(--indigo) !important; font-weight: 800;
 }
 .th-section-final {
-  background: rgba(34,197,94,0.12) !important; color: #22c55e !important; font-weight: 800;
+  background: color-mix(in srgb, var(--success) 10%, transparent) !important; color: var(--success) !important; font-weight: 800;
 }
 .th-stock-inicial, .th-valor-inicial {
   background: rgba(139,92,246,0.08) !important; border-bottom: 2px solid rgba(139,92,246,0.25) !important;
@@ -730,6 +730,6 @@ onMounted(cargar)
   background: rgba(139,92,246,0.04); color: var(--indigo); font-weight: 600;
 }
 .td-stock-final, .td-valor-final {
-  background: rgba(34,197,94,0.04); color: #22c55e; font-weight: 600;
+  background: color-mix(in srgb, var(--success) 5%, transparent); color: var(--success); font-weight: 600;
 }
 </style>

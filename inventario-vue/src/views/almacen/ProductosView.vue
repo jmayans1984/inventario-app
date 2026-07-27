@@ -15,51 +15,11 @@
       </PageHeader>
 
       <!-- KPI CARDS -->
-      <div class="prd-kpis">
-        <div class="prd-kpi-card" style="border-top:3px solid #0891b2">
-          <div class="kpi-top">
-            <div>
-              <p class="kpi-label">TOTAL PRODUCTOS</p>
-              <p class="kpi-value" style="color:#0891b2">{{ productos.length }}</p>
-            </div>
-            <div class="kpi-icon" style="background:#0891b218;color:#0891b2">
-              <v-icon size="22">mdi-package-variant</v-icon>
-            </div>
-          </div>
-        </div>
-        <div class="prd-kpi-card" style="border-top:3px solid #10b981">
-          <div class="kpi-top">
-            <div>
-              <p class="kpi-label">BODEGA MAESTRA</p>
-              <p class="kpi-value" style="color:#10b981">{{ conControl }}</p>
-            </div>
-            <div class="kpi-icon" style="background:#10b98118;color:#10b981">
-              <v-icon size="22">mdi-warehouse</v-icon>
-            </div>
-          </div>
-        </div>
-        <div class="prd-kpi-card" style="border-top:3px solid #f59e0b">
-          <div class="kpi-top">
-            <div>
-              <p class="kpi-label">PUNTO DE VENTA</p>
-              <p class="kpi-value" style="color:#f59e0b">{{ conPuntoVenta }}</p>
-            </div>
-            <div class="kpi-icon" style="background:#f59e0b18;color:#f59e0b">
-              <v-icon size="22">mdi-store-outline</v-icon>
-            </div>
-          </div>
-        </div>
-        <div class="prd-kpi-card" style="border-top:3px solid #8b5cf6">
-          <div class="kpi-top">
-            <div>
-              <p class="kpi-label">GRUPOS</p>
-              <p class="kpi-value" style="color:#8b5cf6">{{ grupos.length }}</p>
-            </div>
-            <div class="kpi-icon" style="background:#8b5cf618;color:#8b5cf6">
-              <v-icon size="22">mdi-folder-multiple-outline</v-icon>
-            </div>
-          </div>
-        </div>
+      <div class="kpi-grid">
+        <KpiCard :index="0" label="Total Productos" :value="String(productos.length)" icon="mdi-package-variant" color="var(--indigo)" />
+        <KpiCard :index="1" label="Bodega Maestra" :value="String(conControl)" icon="mdi-warehouse" color="var(--success)" hint="con control de inventario" />
+        <KpiCard :index="2" label="Punto de Venta" :value="String(conPuntoVenta)" icon="mdi-store-outline" color="var(--gold)" hint="habilitados para venta" />
+        <KpiCard :index="3" label="Grupos" :value="String(grupos.length)" icon="mdi-folder-multiple-outline" color="var(--indigo)" hint="categorías definidas" />
       </div>
 
       <!-- FILTROS -->
@@ -562,6 +522,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 import api from '../../services/api'
@@ -857,6 +818,8 @@ onMounted(cargar)
 </script>
 
 <style scoped>
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+
 .prd-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
 
 /* Breadcrumb */
@@ -873,13 +836,7 @@ onMounted(cargar)
 .prd-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .prd-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
-/* KPIs */
-.prd-kpis     { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.prd-kpi-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 12px; padding: 18px 20px; }
-.kpi-top      { display: flex; justify-content: space-between; align-items: flex-start; }
-.kpi-label    { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.5); margin: 0 0 6px; }
-.kpi-value    { font-size: 28px; font-weight: 800; margin: 0; line-height: 1; }
-.kpi-icon     { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* KPIs */
 
 /* Filtros */
 .prd-filtros      { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }

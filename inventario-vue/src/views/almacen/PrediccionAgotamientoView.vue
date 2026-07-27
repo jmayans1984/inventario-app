@@ -19,19 +19,10 @@
       </PageHeader>
 
       <!-- KPIs -->
-      <div class="pa-kpi-row">
-        <div class="pa-kpi" style="--kc:#dc2626">
-          <v-icon size="18" color="error">mdi-alert-circle-outline</v-icon>
-          <div><div class="kpi-val">{{ enPeligro }}</div><div class="kpi-lbl">EN PELIGRO (< 7 DÍAS)</div></div>
-        </div>
-        <div class="pa-kpi" style="--kc:#f59e0b">
-          <v-icon size="18" color="warning">mdi-alert-outline</v-icon>
-          <div><div class="kpi-val">{{ enAlerta }}</div><div class="kpi-lbl">EN ALERTA (7-14 DÍAS)</div></div>
-        </div>
-        <div class="pa-kpi" style="--kc:#10b981">
-          <v-icon size="18" color="success">mdi-check-circle-outline</v-icon>
-          <div><div class="kpi-val">{{ enOk }}</div><div class="kpi-lbl">SIN PELIGRO (> 14 DÍAS)</div></div>
-        </div>
+      <div class="kpi-grid">
+        <KpiCard :index="0" label="En Peligro" :value="String(enPeligro)" icon="mdi-alert-circle-outline" color="var(--error)" hint="agotamiento en menos de 7 días" />
+        <KpiCard :index="1" label="En Alerta" :value="String(enAlerta)" icon="mdi-alert-outline" color="var(--gold)" hint="entre 7 y 14 días de stock" />
+        <KpiCard :index="2" label="Sin Peligro" :value="String(enOk)" icon="mdi-check-circle-outline" color="var(--success)" hint="más de 14 días de stock" />
       </div>
 
       <!-- TABLA -->
@@ -242,7 +233,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import MainLayout from '../../components/layouts/MainLayout.vue'
-import PageHeader from '../../components/common/PageHeader.vue';
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue';
 import { useAuthStore } from '../../stores/auth';
 import { API_BASE } from '../../utils/constants';
 
@@ -408,6 +400,8 @@ function nombreDiaSemana(f) {
 </script>
 
 <style scoped>
+.kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+
 .pa-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
 /* Breadcrumb */
@@ -433,8 +427,6 @@ function nombreDiaSemana(f) {
 .pa-vent-btn.active { background: linear-gradient(135deg, var(--success), var(--success)); color: white; box-shadow: 0 2px 8px rgba(4, 120, 87, .3); }
 
 /* KPIs */
-.pa-kpi-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.pa-kpi { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), .08); border-left: 3px solid var(--kc); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; flex: 1; min-width: 140px; }
 .kpi-val { font-size: 22px; font-weight: 800; line-height: 1; }
 .kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface), .5); margin-top: 2px; }
 

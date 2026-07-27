@@ -18,23 +18,11 @@
       </PageHeader>
 
       <!-- KPIs -->
-      <div class="db-kpi-row">
-        <div class="db-kpi" style="--kc:#f59e0b">
-          <v-icon size="18" color="warning">mdi-clock-outline</v-icon>
-          <div><div class="kpi-val">{{ despachos.filter(d=>d.estado==='PENDIENTE').length }}</div><div class="kpi-lbl">PENDIENTES</div></div>
-        </div>
-        <div class="db-kpi" style="--kc:#3b82f6">
-          <v-icon size="18" color="primary">mdi-hand-pointing-right</v-icon>
-          <div><div class="kpi-val">{{ despachos.filter(d=>d.estado==='EN_PICKING'||d.estado==='EN_PACKING').length }}</div><div class="kpi-lbl">EN PROCESO</div></div>
-        </div>
-        <div class="db-kpi" style="--kc:#10b981">
-          <v-icon size="18" color="success">mdi-check-circle-outline</v-icon>
-          <div><div class="kpi-val">{{ despachos.filter(d=>d.estado==='COMPLETADO').length }}</div><div class="kpi-lbl">COMPLETADOS</div></div>
-        </div>
-        <div class="db-kpi" style="--kc:#0891b2">
-          <v-icon size="18" color="primary">mdi-package-variant-closed</v-icon>
-          <div><div class="kpi-val">{{ totalUnidades }}</div><div class="kpi-lbl">UNIDADES HOY</div></div>
-        </div>
+      <div class="kpi-grid">
+        <KpiCard :index="0" label="Pendientes" :value="String(despachos.filter(d=>d.estado==='PENDIENTE').length)" icon="mdi-clock-outline" color="var(--gold)" hint="órdenes por iniciar" />
+        <KpiCard :index="1" label="En Proceso" :value="String(despachos.filter(d=>d.estado==='EN_PICKING'||d.estado==='EN_PACKING').length)" icon="mdi-hand-pointing-right" color="var(--indigo)" hint="en picking / packing" />
+        <KpiCard :index="2" label="Completados" :value="String(despachos.filter(d=>d.estado==='COMPLETADO').length)" icon="mdi-check-circle-outline" color="var(--success)" hint="órdenes finalizadas" />
+        <KpiCard :index="3" label="Unidades Hoy" :value="String(totalUnidades)" icon="mdi-package-variant-closed" color="var(--indigo)" hint="total despachado" />
       </div>
 
       <!-- FILTROS -->
@@ -561,6 +549,7 @@ import { useTheme } from 'vuetify'
 import { useAuthStore } from '../../stores/auth'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import api from '../../services/api'
 
 const auth    = useAuthStore()
@@ -1310,6 +1299,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+
 .db-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
 
 /* Breadcrumb */
@@ -1327,10 +1318,6 @@ onMounted(async () => {
 .db-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
 /* KPIs */
-.db-kpi-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.db-kpi     { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-left: 3px solid var(--kc); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; flex: 1; min-width: 140px; }
-.kpi-val    { font-size: 22px; font-weight: 800; line-height: 1; }
-.kpi-lbl    { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 2px; }
 
 /* Filtros */
 .db-filtros { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
