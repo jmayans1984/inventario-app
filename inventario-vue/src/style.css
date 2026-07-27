@@ -1,46 +1,144 @@
-/* ══════════════════════════════════════════════════════════════
-   DESIGN TOKENS — paleta, spacing, radios y easing compartidos
-   por los componentes propios de la app (KpiCard, StatusBadge,
-   tablas custom, etc). Los colores de Vuetify (primary/success/
-   warning/error/info) siguen siendo la fuente de verdad para
-   botones y estados; estos tokens cubren los acentos que hoy
-   están sueltos como hex por cada vista.
-   ══════════════════════════════════════════════════════════════ */
-:root {
-  /* Acentos para KPIs / iconografía por módulo (paleta fija, no aleatoria) */
-  --accent-blue:   #667eea;
-  --accent-purple: #7c3aed;
-  --accent-green:  #10b981;
-  --accent-amber:  #f59e0b;
-  --accent-cyan:   #0891b2;
-  --accent-rose:   #f43f5e;
-  --accent-slate:  #94a3b8;
+/* ══════════════════════════════════════════════════════════════════════
+   RESTMANAGER PRO — SISTEMA DE DISEÑO
+   ──────────────────────────────────────────────────────────────────────
+   Dirección: un dúo oro/bronce (moneda, ledger dorado) + índigo, sobre
+   superficies cálidas tipo papel — no el típico azul/púrpura "tech SaaS"
+   genérico. La barra lateral se mantiene siempre oscura (tinte cacao,
+   no negro puro) como "chrome" fijo del producto, igual que
+   Linear/Vercel/Notion; el área de contenido sigue el tema claro/oscuro
+   que el usuario elige.
+   ══════════════════════════════════════════════════════════════════════ */
 
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
+:root {
+  /* ── Tipografía ── */
+  --font-sans: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+
+  /* ── Spacing (escala 4px) ── */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
 
-  /* Radios */
+  /* ── Radios ── */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
 
-  /* Easing (emil-design-eng: ease-out fuerte para entradas/hover) */
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* ── Motion (Emil Kowalski: ease-out fuerte, <300ms, exit más rápido) ── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
+  --dur-modal: 220ms;
+  --dur-exit: 140ms;
+
+  /* ── Paleta — modo claro (default) ── */
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --surface-sunken: #f2f0e9;
+  --surface-hover: #ede9df;
+  --ink-900: #1b1815;
+  --ink-700: #433d34;
+  --ink-600: #6b6459;
+  --ink-400: #a39c8e;
+  --border: #e8e4da;
+  --border-strong: #d9d3c4;
+
+  --gold: #b8720b;
+  --gold-strong: #955c08;
+  --gold-soft: #d9880f;
+  --on-gold: #1b1815;
+  --gold-wash: rgba(184, 114, 11, 0.1);
+
+  --indigo: #4f46e5;
+  --indigo-wash: rgba(79, 70, 229, 0.1);
+
+  --success: #15803d;
+  --success-wash: rgba(21, 128, 61, 0.12);
+  --warning: #b45309;
+  --warning-wash: rgba(180, 83, 9, 0.12);
+  --error: #dc2626;
+  --error-wash: rgba(220, 38, 38, 0.12);
+  --info: #0284c7;
+  --info-wash: rgba(2, 132, 199, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(27, 24, 21, 0.06);
+  --shadow-md: 0 6px 16px rgba(27, 24, 21, 0.07), 0 1px 3px rgba(27, 24, 21, 0.06);
+  --shadow-lg: 0 16px 40px rgba(27, 24, 21, 0.12), 0 3px 8px rgba(27, 24, 21, 0.08);
+
+  /* ── Sidebar — chrome fijo, siempre oscuro (cacao, no negro puro) ── */
+  --sidebar-bg: #17130e;
+  --sidebar-surface: #201a12;
+  --sidebar-border: rgba(245, 241, 232, 0.08);
+  --sidebar-text: rgba(245, 241, 232, 0.5);
+  --sidebar-text-hover: rgba(245, 241, 232, 0.85);
+  --sidebar-text-active: #f5f1e8;
+  --sidebar-accent: #f0a83c;
+}
+
+.v-theme--dark {
+  --bg: #14120f;
+  --surface: #1d1a15;
+  --surface-sunken: #100e0b;
+  --surface-hover: #262019;
+  --ink-900: #f5f1e8;
+  --ink-700: #d8d1c1;
+  --ink-600: #b3aa9a;
+  --ink-400: #756c5c;
+  --border: #332d24;
+  --border-strong: #443c2e;
+
+  --gold: #f0a83c;
+  --gold-strong: #f5b85c;
+  --gold-soft: #e0952a;
+  --on-gold: #1b1508;
+  --gold-wash: rgba(240, 168, 60, 0.14);
+
+  --indigo: #818cf8;
+  --indigo-wash: rgba(129, 140, 248, 0.16);
+
+  --success: #4ade80;
+  --success-wash: rgba(74, 222, 128, 0.14);
+  --warning: #fbbf24;
+  --warning-wash: rgba(251, 191, 36, 0.14);
+  --error: #f87171;
+  --error-wash: rgba(248, 113, 113, 0.14);
+  --info: #38bdf8;
+  --info-wash: rgba(56, 189, 248, 0.14);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.5);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Números tabulares para montos/cantidades en toda la app ── */
-.num-tabular {
+/* ── Números tabulares (ledger) — montos, cantidades, fechas en columnas ── */
+.num-tabular, .num-mono {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
 }
@@ -52,8 +150,6 @@ textarea,
 .v-select__selection-text {
   text-transform: uppercase;
 }
-
-/* Placeholder en minúsculas para que sea legible */
 input::placeholder,
 textarea::placeholder,
 .v-field__input::placeholder {
@@ -62,26 +158,63 @@ textarea::placeholder,
 }
 
 /* ── SCROLLBAR ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.7); }
+::-webkit-scrollbar-thumb { background: rgba(107, 100, 89, 0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(107, 100, 89, 0.5); }
 
-/* ── APP ── */
 #app { width: 100%; min-height: 100vh; }
 
-/* ── Vuetify overrides ── */
-.v-application { font-family: 'Inter', 'Segoe UI', sans-serif !important; }
-.v-list-item-title { font-family: 'Inter', sans-serif !important; }
-.v-btn { font-family: 'Inter', sans-serif !important; letter-spacing: 0.5px !important; }
+/* ── Vuetify overrides tipográficos ── */
+.v-application { font-family: var(--font-sans) !important; }
+.v-list-item-title { font-family: var(--font-sans) !important; }
+.v-btn {
+  font-family: var(--font-sans) !important;
+  letter-spacing: 0.2px !important;
+  text-transform: none !important;
+  border-radius: var(--radius-md) !important;
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-base) ease, box-shadow var(--dur-base) ease !important;
+}
+.v-card { border-radius: var(--radius-lg) !important; }
+.v-field { border-radius: var(--radius-md) !important; }
 
-/* Feedback de presión en botones (emil-design-eng) */
+/* Feedback de presión (emil-design-eng / ui-ux-pro-max §7 scale-feedback) */
 @media (hover: hover) and (pointer: fine) {
   .v-btn:not(.v-btn--disabled):active { transform: scale(0.97); }
 }
-.v-btn { transition: transform 160ms var(--ease-out), background-color 160ms ease, box-shadow 160ms ease; }
 
 @media (prefers-reduced-motion: reduce) {
-  .v-btn { transition: none; }
-  .v-btn:active { transform: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Entrada escalonada (dashboard widgets, listas) ── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stagger-in {
+  animation: fade-in-up var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--stagger-index, 0) * 45ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in { animation: none; }
+}
+
+/* ── Skeleton loader ── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.skeleton {
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; opacity: 0.7; }
 }

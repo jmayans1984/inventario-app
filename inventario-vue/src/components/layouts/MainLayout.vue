@@ -5,13 +5,14 @@
       v-model="drawer"
       :permanent="!isMobile"
       :temporary="isMobile"
-      :width="isMobile ? 300 : 270"
+      :width="isMobile ? 300 : (collapsed ? 76 : 264)"
       class="sidebar"
+      :class="{ 'sidebar--collapsed': !isMobile && collapsed }"
     >
       <!-- Mobile: cabecera del drawer con usuario -->
       <div v-if="isMobile" class="drawer-mobile-header">
         <div class="drawer-mobile-user">
-          <v-avatar color="#F5A623" size="40">
+          <v-avatar color="var(--sidebar-accent)" size="40">
             <span style="font-size:14px;font-weight:800;color:#111">{{ avatarInitials }}</span>
           </v-avatar>
           <div class="drawer-mobile-user-info">
@@ -27,11 +28,13 @@
       <!-- Desktop: logo -->
       <div v-else class="sidebar-logo">
         <img :src="logoSrc" class="sidebar-logo-img" alt="Logo" />
-        <div>
+        <div v-if="!collapsed" class="sidebar-logo-text">
           <div class="sidebar-logo-title">RestManager Pro</div>
-          <div class="sidebar-logo-sub">Sistema ERP</div>
-          <div class="sidebar-logo-version">v{{ APP_VERSION }}</div>
+          <div class="sidebar-logo-sub">Sistema ERP · v{{ APP_VERSION }}</div>
         </div>
+        <button class="sidebar-collapse-btn" :class="{ 'sidebar-collapse-btn--collapsed': collapsed }" @click="toggleCollapsed" :title="collapsed ? 'Expandir menú' : 'Colapsar menú'">
+          <v-icon size="16">mdi-chevron-left</v-icon>
+        </button>
       </div>
 
       <v-divider color="white" opacity="0.1" class="mb-1"></v-divider>
@@ -68,11 +71,13 @@
               <div
                 class="menu-item"
                 :class="{ 'menu-item-active': isActive, 'menu-item-open': openModules[mod.id] }"
-                @click="navigate"
+                :title="collapsed ? mod.name : null"
+                @click="onModuleClick(mod, navigate)"
               >
                 <v-icon size="17" class="menu-icon">{{ mod.icon }}</v-icon>
-                <span class="menu-label">{{ mod.name }}</span>
+                <span v-if="!collapsed" class="menu-label">{{ mod.name }}</span>
                 <v-icon
+                  v-if="!collapsed"
                   size="14"
                   class="menu-chevron"
                   :class="{ rotated: openModules[mod.id] }"
@@ -84,7 +89,7 @@
             </router-link>
 
             <!-- Categorías (nivel 2) -->
-            <div v-show="openModules[mod.id]">
+            <div v-show="openModules[mod.id] && !collapsed">
               <div v-for="cat in mod.children" :key="cat.name">
                 <div
                   class="menu-cat"
@@ -128,11 +133,11 @@
       <template #append>
         <v-divider color="white" opacity="0.1"></v-divider>
         <!-- Desktop footer con usuario -->
-        <div v-if="!isMobile" class="sidebar-footer">
-          <v-avatar color="#F5A623" size="32">
-            <span style="font-size:12px;font-weight:800;color:#111">{{ avatarInitials }}</span>
+        <div v-if="!isMobile" class="sidebar-footer" :title="collapsed ? authStore.userName : null">
+          <v-avatar color="var(--sidebar-accent)" size="32">
+            <span style="font-size:12px;font-weight:800;color:#1b1508">{{ avatarInitials }}</span>
           </v-avatar>
-          <div class="sidebar-footer-info">
+          <div v-if="!collapsed" class="sidebar-footer-info">
             <div class="sidebar-footer-user">{{ authStore.userName }}</div>
             <div class="sidebar-footer-empresa">{{ authStore.empresaNombre }}</div>
           </div>
@@ -276,7 +281,7 @@
               <span class="header-username">{{ authStore.userName }}</span>
               <span class="header-empresa">{{ authStore.empresaNombre || 'Sin empresa' }}</span>
             </div>
-            <v-avatar color="#F5A623" size="38">
+            <v-avatar color="var(--sidebar-accent)" size="38">
               <span style="font-size:14px;font-weight:800;color:#111">{{ avatarInitials }}</span>
             </v-avatar>
           </div>
@@ -400,6 +405,11 @@ const display = useDisplay()
 
 const isMobile = computed(() => display.mobile.value)
 const drawer = ref(true)
+const collapsed = ref(localStorage.getItem('_sidebarCollapsed') === '1')
+function toggleCollapsed() {
+  collapsed.value = !collapsed.value
+  localStorage.setItem('_sidebarCollapsed', collapsed.value ? '1' : '0')
+}
 
 // En mobile el drawer empieza cerrado
 watch(isMobile, (val) => {
@@ -437,6 +447,17 @@ const openCats = reactive({})
 
 const toggleModule = (id) => { openModules[id] = !openModules[id] }
 const toggleCat = (key) => { openCats[key] = !openCats[key] }
+
+function onModuleClick(mod, navigate) {
+  if (collapsed.value) {
+    // En modo colapsado, un click expande el sidebar y abre el módulo en vez de navegar de inmediato
+    collapsed.value = false
+    localStorage.setItem('_sidebarCollapsed', '0')
+    openModules[mod.id] = true
+    return
+  }
+  navigate()
+}
 
 const currentModuleTitle = computed(() => {
   const found = MODULES.find(m => route.path === m.path || route.path.startsWith(m.path + '/'))
@@ -628,8 +649,13 @@ const handleLogout = () => {
 <style scoped>
 /* ─── SIDEBAR ─── */
 .sidebar {
-  background: #0D0D0D !important;
-  border-right: 1px solid rgba(255,255,255,0.05) !important;
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--sidebar-border) !important;
+  transition: width var(--dur-slow) var(--ease-out) !important;
+  overflow-x: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none !important; }
 }
 
 /* Mobile: header del drawer */
@@ -673,36 +699,54 @@ const handleLogout = () => {
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 14px 14px;
+  gap: 10px;
+  padding: 18px 12px 14px;
+  position: relative;
 }
 .sidebar-logo-img {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
   object-fit: cover;
-  box-shadow: 0 0 0 1px rgba(245,166,35,0.2), 0 4px 12px rgba(245,166,35,0.15);
+  box-shadow: 0 0 0 1px var(--gold-wash), 0 4px 12px rgba(240,168,60,0.15);
 }
+.sidebar-logo-text { flex: 1; min-width: 0; }
 .sidebar-logo-title {
-  color: white;
-  font-size: 15px;
+  color: var(--sidebar-text-active);
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.3px;
-  line-height: 1.2;
+  letter-spacing: 0.2px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar-logo-sub {
-  color: rgba(255,255,255,0.4);
+  color: var(--sidebar-text);
   font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.sidebar-logo-version {
-  color: rgba(255,255,255,0.3);
-  font-size: 9px;
-  letter-spacing: 0.5px;
-  margin-top: 2px;
+.sidebar-collapse-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--sidebar-border);
+  background: var(--sidebar-surface);
+  color: var(--sidebar-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform var(--dur-base) var(--ease-out), color var(--dur-base) ease, background-color var(--dur-base) ease;
 }
+.sidebar-collapse-btn:hover { color: var(--sidebar-text-active); background: var(--surface-hover); }
+.sidebar-collapse-btn--collapsed { transform: rotate(180deg); }
+
 
 /* ─── MENÚ ─── */
 .sidebar-menu {
@@ -717,25 +761,27 @@ const handleLogout = () => {
   align-items: center;
   gap: 9px;
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  color: rgba(255,255,255,0.5);
+  color: var(--sidebar-text);
   margin-bottom: 2px;
-  transition: all 0.18s;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
   user-select: none;
-  min-height: 42px;
+  min-height: 40px;
   border-left: 3px solid transparent;
 }
+.sidebar--collapsed .menu-item { justify-content: center; padding-inline: 0; }
 .menu-item:hover {
-  background: rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.9);
+  background: var(--sidebar-surface);
+  color: var(--sidebar-text-hover);
 }
 .menu-item-active {
-  background: linear-gradient(90deg, rgba(245,166,35,0.15) 0%, rgba(245,166,35,0.03) 100%);
-  color: rgba(255,255,255,0.95);
-  border-left-color: #F5A623;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sidebar-accent) 15%, transparent) 0%, transparent 100%);
+  color: var(--sidebar-text-active);
+  border-left-color: var(--sidebar-accent);
   padding-left: 7px;
 }
+.sidebar--collapsed .menu-item-active { padding-left: 0; border-left-color: transparent; box-shadow: inset 3px 0 0 var(--sidebar-accent); }
 .menu-item-open { color: rgba(255,255,255,0.85); border-left-color: var(--mod-color, rgba(255,255,255,0.25)); }
 .menu-icon { flex-shrink: 0; }
 .menu-label {
@@ -768,7 +814,7 @@ const handleLogout = () => {
   color: rgba(255,255,255,0.6);
   margin-bottom: 1px;
   margin-top: 6px;
-  transition: all 0.15s;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), opacity 150ms var(--ease-out);
   user-select: none;
   min-height: 30px;
   border-left: 3px solid var(--mod-color, rgba(255,255,255,0.2));
@@ -799,7 +845,7 @@ const handleLogout = () => {
   cursor: pointer;
   color: rgba(255,255,255,0.42);
   margin-bottom: 1px;
-  transition: all 0.15s;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), opacity 150ms var(--ease-out);
   user-select: none;
   min-height: 34px;
   border-left: 2px solid var(--mod-color, rgba(255,255,255,0.1));
@@ -826,7 +872,7 @@ const handleLogout = () => {
   border-radius: 50%;
   background: rgba(255,255,255,0.25);
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: background-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
 }
 .leaf-label {
   font-size: 11px;
@@ -992,7 +1038,7 @@ const handleLogout = () => {
 }
 .header-empresa {
   font-size: 11px;
-  color: #F5A623;
+  color: var(--gold);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1000,9 +1046,8 @@ const handleLogout = () => {
 
 /* Línea separadora */
 .header-divider {
-  height: 2px;
-  background: #F5A623;
-  opacity: 0.85;
+  height: 1px;
+  background: var(--border);
 }
 
 /* ─── CONTENT ─── */
@@ -1029,7 +1074,7 @@ const handleLogout = () => {
   bottom: 0;
   z-index: 20;
   display: flex;
-  background: #0D0D0D;
+  background: var(--sidebar-bg);
   border-top: 1px solid rgba(255,255,255,0.06);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -1048,7 +1093,7 @@ const handleLogout = () => {
   min-width: 0;
 }
 .bn-btn:active { background: rgba(255,255,255,0.05); }
-.bn-btn-active { color: var(--bn-color, #F5A623); }
+.bn-btn-active { color: var(--bn-color, var(--sidebar-accent)); }
 .bn-label {
   font-size: 9.5px;
   font-weight: 700;
@@ -1175,7 +1220,7 @@ const handleLogout = () => {
 .sheet-item:active { background: rgba(var(--v-theme-on-surface), 0.06); }
 .sheet-item-active {
   background: rgba(245,166,35,0.1) !important;
-  color: #F5A623 !important;
+  color: var(--gold) !important;
   font-weight: 700;
 }
 

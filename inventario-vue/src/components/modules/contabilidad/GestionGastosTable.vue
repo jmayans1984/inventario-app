@@ -17,7 +17,7 @@
         <label class="toggle-proveedor" :title="soloConProveedor ? 'Mostrando solo gastos ingresados por usuario. Activa para ver todos.' : 'Mostrando todos los registros incluyendo los automáticos'">
           <input type="checkbox" v-model="soloConProveedor" @change="currentPage = 1" />
           <span class="toggle-proveedor-label">
-            <v-icon size="13" :color="soloConProveedor ? '#94a3b8' : '#f59e0b'" class="mr-1">{{ soloConProveedor ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}</v-icon>
+            <v-icon size="13" :color="soloConProveedor ? 'var(--ink-400)' : 'var(--gold)'" class="mr-1">{{ soloConProveedor ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}</v-icon>
             {{ soloConProveedor ? 'Ocultar automáticos' : 'Mostrar todos' }}
           </span>
         </label>
@@ -107,7 +107,7 @@
                   icon="mdi-package-down"
                   size="x-small"
                   variant="text"
-                  :color="gastosConEntradas.has(gasto.codigo) ? '#0891b2' : undefined"
+                  :color="gastosConEntradas.has(gasto.codigo) ? 'var(--indigo)' : undefined"
                   :style="gastosConEntradas.has(gasto.codigo) ? '' : 'opacity:0.25;cursor:default'"
                   @click="gastosConEntradas.has(gasto.codigo) && verEntradas(gasto)"
                   :title="gastosConEntradas.has(gasto.codigo) ? 'Ver entradas de almacén' : 'Sin entradas de almacén'"
@@ -176,7 +176,7 @@
         </div>
 
         <div v-if="loadingEntradas" class="dlg-loading">
-          <v-progress-circular indeterminate color="#0891b2" size="32" />
+          <v-progress-circular indeterminate color="var(--indigo)" size="32" />
           <span>Cargando...</span>
         </div>
         <div v-else-if="entradasDlg.length === 0" class="dlg-empty">
@@ -205,7 +205,7 @@
               <td class="tc text-muted-sm">{{ e.und || '-' }}</td>
               <td class="tr fw">{{ formatNum(e.cantidad) }}</td>
               <td class="tr text-muted-sm">{{ formatMoneda(e.precio_unitario) }}</td>
-              <td class="tr fw" style="color:#0891b2">{{ formatMoneda(e.subtotal) }}</td>
+              <td class="tr fw" style="color:var(--indigo)">{{ formatMoneda(e.subtotal) }}</td>
             </tr>
           </tbody>
         </table>
@@ -405,9 +405,9 @@ async function exportarExcel() {
 <style scoped>
 /* ── Contenedor ── */
 .table-container {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 12px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
   overflow: hidden;
 }
 
@@ -519,7 +519,7 @@ async function exportarExcel() {
 .col-acciones .th-inner { cursor: default; }
 .col-acciones .th-inner:hover { background: none; }
 
-.sort-icon { color: #667eea; }
+.sort-icon { color: var(--indigo); }
 .sort-icon-inactive { color: rgba(var(--v-theme-on-surface), 0.2); }
 
 /* ── FILAS ── */
@@ -549,8 +549,8 @@ async function exportarExcel() {
 /* Celdas específicas */
 .td-codigo { text-align: center; }
 .badge-codigo {
-  background: rgba(102, 126, 234, 0.15);
-  color: #667eea;
+  background: var(--indigo-wash);
+  color: var(--indigo);
   padding: 3px 8px;
   border-radius: 6px;
   font-weight: 600;
@@ -560,8 +560,8 @@ async function exportarExcel() {
 .td-proveedor { text-align: left; }
 .td-centro { text-align: center; }
 .badge-centro {
-  background: rgba(118, 75, 162, 0.15);
-  color: #764ba2;
+  background: var(--gold-wash);
+  color: var(--gold);
   padding: 3px 8px;
   border-radius: 6px;
   font-weight: 600;
@@ -569,8 +569,8 @@ async function exportarExcel() {
 }
 .td-forma-pago { text-align: center; }
 .badge-forma-pago {
-  background: rgba(76, 175, 80, 0.15);
-  color: #4caf50;
+  background: var(--success-wash);
+  color: var(--success);
   padding: 3px 8px;
   border-radius: 6px;
   font-weight: 600;
@@ -579,7 +579,7 @@ async function exportarExcel() {
 .td-concepto { text-align: left; }
 .td-factura { text-align: center; }
 .td-total { text-align: right; }
-.total-bold { font-weight: 700; color: #667eea; font-variant-numeric: tabular-nums; }
+.total-bold { font-weight: 700; color: var(--ink-900); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .td-acciones { text-align: center; }
 .action-buttons { display: flex; gap: 0; justify-content: center; align-items: center; }
 .action-buttons :deep(.v-btn) { margin: 0 -2px; }
@@ -635,8 +635,8 @@ async function exportarExcel() {
   background: rgba(var(--v-theme-on-surface), 0.04);
 }
 .page-size-btn--active {
-  background: #0891b2;
-  border-color: #0891b2;
+  background: var(--indigo);
+  border-color: var(--indigo);
   color: #fff;
 }
 
@@ -644,7 +644,7 @@ async function exportarExcel() {
 .dlg-card { border-radius: 14px !important; overflow: hidden; }
 .dlg-header {
   display: flex; align-items: center; gap: 12px; padding: 16px 20px;
-  background: linear-gradient(135deg, #0c4a6e 0%, #0891b2 100%);
+  background: linear-gradient(135deg, var(--sidebar-bg) 0%, var(--indigo) 150%);
 }
 .dlg-header-icon {
   width: 38px; height: 38px; border-radius: 10px;
@@ -664,7 +664,7 @@ async function exportarExcel() {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); text-align: center;
 }
 .dlg-table td { padding: 9px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); color: rgb(var(--v-theme-on-surface)); }
-.badge-cc-dlg { background: rgba(8,145,178,0.12); color: #0891b2; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+.badge-cc-dlg { background: var(--indigo-wash); color: var(--indigo); padding: 2px 7px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; }
 .tc { text-align: center !important; }
 .tr { text-align: right !important; }
 .fw { font-weight: 700; font-variant-numeric: tabular-nums; }

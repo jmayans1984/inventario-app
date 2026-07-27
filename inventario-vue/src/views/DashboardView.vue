@@ -70,11 +70,11 @@
            KPIs FINANCIEROS CON TENDENCIA
       ══════════════════════════════════════════════════════ -->
       <div class="dx-kpis">
-        <div class="dx-kpi" style="--kc:#10b981" @click="irA('/tesoreria/reportes/ventas-periodo')">
+        <div class="dx-kpi stagger-in" style="--kc:var(--success); --stagger-index:0" @click="irA('/tesoreria/reportes/ventas-periodo')">
           <div class="dx-kpi-head">
             <span class="dx-kpi-lbl">VENTAS DEL MES</span>
-            <div class="dx-kpi-ic" style="background:rgba(16,185,129,.12)">
-              <v-icon size="17" color="#10b981">mdi-cash-register</v-icon>
+            <div class="dx-kpi-ic" style="background:var(--success-wash)">
+              <v-icon size="17" color="var(--success)">mdi-cash-register</v-icon>
             </div>
           </div>
           <div class="dx-kpi-val">
@@ -87,11 +87,11 @@
           </div>
         </div>
 
-        <div class="dx-kpi" style="--kc:#ef4444" @click="irA('/contabilidad/procesos/gastos')">
+        <div class="dx-kpi stagger-in" style="--kc:var(--error); --stagger-index:1" @click="irA('/contabilidad/procesos/gastos')">
           <div class="dx-kpi-head">
             <span class="dx-kpi-lbl">GASTOS DEL MES</span>
-            <div class="dx-kpi-ic" style="background:rgba(239,68,68,.1)">
-              <v-icon size="17" color="#ef4444">mdi-cart-arrow-down</v-icon>
+            <div class="dx-kpi-ic" style="background:var(--error-wash)">
+              <v-icon size="17" color="var(--error)">mdi-cart-arrow-down</v-icon>
             </div>
           </div>
           <div class="dx-kpi-val">
@@ -104,11 +104,11 @@
           </div>
         </div>
 
-        <div class="dx-kpi" style="--kc:#0ea5e9" @click="irA('/tesoreria/procesos/movimientos-bancarios')">
+        <div class="dx-kpi stagger-in" style="--kc:var(--indigo); --stagger-index:2" @click="irA('/tesoreria/procesos/movimientos-bancarios')">
           <div class="dx-kpi-head">
             <span class="dx-kpi-lbl">SALDO BANCARIO</span>
-            <div class="dx-kpi-ic" style="background:rgba(14,165,233,.1)">
-              <v-icon size="17" color="#0ea5e9">mdi-bank-outline</v-icon>
+            <div class="dx-kpi-ic" style="background:var(--indigo-wash)">
+              <v-icon size="17" color="var(--indigo)">mdi-bank-outline</v-icon>
             </div>
           </div>
           <div class="dx-kpi-val">
@@ -121,11 +121,11 @@
           </div>
         </div>
 
-        <div class="dx-kpi" style="--kc:#f59e0b" @click="irA('/tesoreria/procesos/facturas-venta')">
+        <div class="dx-kpi stagger-in" style="--kc:var(--gold); --stagger-index:3" @click="irA('/tesoreria/procesos/facturas-venta')">
           <div class="dx-kpi-head">
             <span class="dx-kpi-lbl">FACTURAS PENDIENTES</span>
-            <div class="dx-kpi-ic" style="background:rgba(245,158,11,.12)">
-              <v-icon size="17" color="#f59e0b">mdi-file-clock-outline</v-icon>
+            <div class="dx-kpi-ic" style="background:var(--gold-wash)">
+              <v-icon size="17" color="var(--gold)">mdi-file-clock-outline</v-icon>
             </div>
           </div>
           <div class="dx-kpi-val">
@@ -147,7 +147,7 @@
         <div class="dx-panel dx-alerts">
           <div class="dx-panel-header">
             <div class="dx-panel-title">
-              <div class="dx-panel-title-ic" style="background:rgba(239,68,68,.1)">
+              <div class="dx-panel-title-ic" style="background:var(--error-wash)">
                 <v-icon size="15" color="#ef4444">mdi-bell-ring-outline</v-icon>
               </div>
               CENTRO DE ALERTAS
@@ -464,16 +464,19 @@ async function eliminarAlerta(idx) {
 }
 
 // ── Accesos directos a módulos ────────────────────────────────
+// Paleta curada de acentos por módulo — deriva del dúo oro/índigo de marca
+// en vez de tonos aleatorios; cada módulo mantiene su identidad visual
+// para navegación rápida, sin romper la coherencia general.
 const modulos = [
-  { nombre: 'Contabilidad',  path: '/contabilidad', icono: 'mdi-calculator-variant',     color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)' },
-  { nombre: 'Tesorería',     path: '/tesoreria',    icono: 'mdi-bank-transfer',          color: '#0ea5e9', bg: 'linear-gradient(135deg,#0ea5e9,#0369a1)' },
-  { nombre: 'Almacén',       path: '/almacen',      icono: 'mdi-warehouse',              color: '#10b981', bg: 'linear-gradient(135deg,#10b981,#047857)' },
-  { nombre: 'Proveeduría',   path: '/produccion',   icono: 'mdi-factory',                color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b,#d97706)' },
-  { nombre: 'Recetas',       path: '/recetas',      icono: 'mdi-chef-hat',               color: '#ec4899', bg: 'linear-gradient(135deg,#ec4899,#be185d)' },
-  { nombre: 'Nómina',        path: '/nomina',       icono: 'mdi-account-group-outline',  color: '#06b6d4', bg: 'linear-gradient(135deg,#06b6d4,#0e7490)' },
-  { nombre: 'Gerencia',      path: '/gerencia',     icono: 'mdi-chart-areaspline',       color: '#14b8a6', bg: 'linear-gradient(135deg,#14b8a6,#0d9488)' },
-  { nombre: 'Formatos/Docs', path: '/formatos',     icono: 'mdi-file-document-outline',  color: '#a78bfa', bg: 'linear-gradient(135deg,#a78bfa,#8b5cf6)' },
-  { nombre: 'Configuración', path: '/configuracion',icono: 'mdi-cog-outline',            color: '#64748b', bg: 'linear-gradient(135deg,#64748b,#475569)' },
+  { nombre: 'Contabilidad',  path: '/contabilidad', icono: 'mdi-calculator-variant',     color: '#4F46E5', bg: '#4F46E5' },
+  { nombre: 'Tesorería',     path: '/tesoreria',    icono: 'mdi-bank-transfer',          color: '#B8720B', bg: '#B8720B' },
+  { nombre: 'Almacén',       path: '/almacen',      icono: 'mdi-warehouse',              color: '#15803D', bg: '#15803D' },
+  { nombre: 'Proveeduría',   path: '/produccion',   icono: 'mdi-factory',                color: '#B45309', bg: '#B45309' },
+  { nombre: 'Recetas',       path: '/recetas',      icono: 'mdi-chef-hat',               color: '#BE185D', bg: '#BE185D' },
+  { nombre: 'Nómina',        path: '/nomina',       icono: 'mdi-account-group-outline',  color: '#0284C7', bg: '#0284C7' },
+  { nombre: 'Gerencia',      path: '/gerencia',     icono: 'mdi-chart-areaspline',       color: '#0F766E', bg: '#0F766E' },
+  { nombre: 'Formatos/Docs', path: '/formatos',     icono: 'mdi-file-document-outline',  color: '#7C3AED', bg: '#7C3AED' },
+  { nombre: 'Configuración', path: '/configuracion',icono: 'mdi-cog-outline',            color: '#6B6459', bg: '#6B6459' },
 ]
 
 onMounted(() => {
@@ -504,15 +507,15 @@ function fmtFecha(f) {
 /* ══ HERO ═══════════════════════════════════════════════════ */
 .dx-hero {
   position: relative; overflow: hidden;
-  background: linear-gradient(130deg, #0b1220 0%, #101c33 55%, #0d2137 100%);
-  border-radius: 20px;
+  background: linear-gradient(130deg, var(--sidebar-bg) 0%, #241d13 55%, #1c1710 100%);
+  border-radius: var(--radius-xl);
   padding: 26px 30px 20px;
-  box-shadow: 0 12px 34px rgba(2, 8, 23, .35);
+  box-shadow: var(--shadow-lg);
 }
 .dx-hero-glow {
   position: absolute; top: -90px; right: -50px;
   width: 340px; height: 340px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(6,182,212,.22), transparent 65%);
+  background: radial-gradient(circle, rgba(240,168,60,.18), transparent 65%);
   pointer-events: none;
 }
 .dx-hero-grid {
@@ -535,7 +538,7 @@ function fmtFecha(f) {
 .dx-greet-emoji { font-size: 40px; line-height: 1; filter: drop-shadow(0 2px 10px rgba(0,0,0,.4)); }
 .dx-greet-lbl { font-size: 13px; font-weight: 500; color: rgba(255,255,255,.5); letter-spacing: .3px; }
 .dx-greet-name { font-size: 26px; font-weight: 900; color: white; letter-spacing: -.3px; line-height: 1.15; }
-.dx-greet-empresa { font-size: 11px; font-weight: 700; color: #22d3ee; letter-spacing: .8px; text-transform: uppercase; margin-top: 2px; }
+.dx-greet-empresa { font-size: 11px; font-weight: 700; color: var(--sidebar-accent); letter-spacing: .8px; text-transform: uppercase; margin-top: 2px; }
 
 /* Reloj */
 .dx-clock { text-align: center; }
@@ -586,10 +589,10 @@ function fmtFecha(f) {
 .dx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
 .dx-kpi {
   position: relative;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), .07);
-  border-radius: 15px; padding: 16px 18px;
-  cursor: pointer; transition: all .18s;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  cursor: pointer; transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms var(--ease-out);
   overflow: hidden;
 }
 .dx-kpi::before {
@@ -602,8 +605,8 @@ function fmtFecha(f) {
 .dx-kpi-ic { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
 .dx-kpi-val { font-size: 24px; font-weight: 800; letter-spacing: -.5px; line-height: 1; margin-bottom: 8px; }
 .dx-kpi-trend { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; }
-.dx-trend-up   { color: #10b981; }
-.dx-trend-down { color: #ef4444; }
+.dx-trend-up   { color: var(--success); }
+.dx-trend-down { color: var(--error); }
 .dx-trend-neutral { color: rgba(var(--v-theme-on-surface), .45); }
 .dx-skel {
   display: inline-block; width: 90px; height: 22px; border-radius: 5px;
@@ -618,8 +621,8 @@ function fmtFecha(f) {
 .dx-right { display: flex; flex-direction: column; gap: 16px; }
 
 .dx-panel {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), .07);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 16px; padding: 18px;
 }
 .dx-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -631,16 +634,16 @@ function fmtFecha(f) {
 .dx-panel-title-ic { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .dx-panel-link {
   border: none; background: transparent; cursor: pointer;
-  font-size: 11px; font-weight: 700; color: #06b6d4;
+  font-size: 11px; font-weight: 700; color: var(--indigo);
   padding: 2px 6px; border-radius: 6px; transition: background .15s;
 }
-.dx-panel-link:hover { background: rgba(6,182,212,.08); }
+.dx-panel-link:hover { background: var(--indigo-wash); }
 .dx-panel-loading { display: flex; justify-content: center; padding: 18px; }
 .dx-panel-empty { text-align: center; padding: 14px 0; font-size: 12px; color: rgba(var(--v-theme-on-surface), .4); }
 
 /* ── Alertas ── */
 .dx-alert-count {
-  background: linear-gradient(135deg,#ef4444,#dc2626); color: white;
+  background: var(--error); color: white;
   min-width: 22px; text-align: center;
   padding: 2px 8px; border-radius: 11px;
   font-size: 11px; font-weight: 900;
@@ -652,7 +655,7 @@ function fmtFecha(f) {
   background: color-mix(in srgb, var(--cc) 7%, transparent);
   border-radius: 20px; padding: 5px 11px;
   font-size: 11px; font-weight: 700; color: var(--cc);
-  cursor: pointer; transition: all .15s;
+  cursor: pointer; transition: background-color 150ms var(--ease-out), transform 150ms var(--ease-out);
 }
 .dx-chip:hover { background: color-mix(in srgb, var(--cc) 15%, transparent); transform: translateY(-1px); }
 .dx-chip-num {
@@ -665,7 +668,7 @@ function fmtFecha(f) {
 .dx-alerts-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 32px 0; }
 .dx-alerts-empty-ic {
   width: 52px; height: 52px; border-radius: 50%;
-  background: rgba(16,185,129,.1);
+  background: var(--success-wash);
   display: flex; align-items: center; justify-content: center; margin-bottom: 6px;
 }
 .dx-alerts-empty-title { font-size: 14px; font-weight: 800; }
@@ -691,10 +694,10 @@ function fmtFecha(f) {
   border: none; border-radius: 7px; background: transparent;
   color: rgba(var(--v-theme-on-surface), .3);
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: all .15s; padding: 0;
+  opacity: 0; transition: opacity 150ms var(--ease-out), background-color 150ms var(--ease-out), color 150ms var(--ease-out); padding: 0;
 }
 .dx-alert-row:hover .dx-alert-x { opacity: 1; }
-.dx-alert-x:hover { background: rgba(239,68,68,.1); color: #ef4444; }
+.dx-alert-x:hover { background: var(--error-wash); color: var(--error); }
 .dx-alert-more {
   display: flex; align-items: center; justify-content: center; gap: 4px;
   border: none; background: rgba(var(--v-theme-on-surface), .04);
@@ -708,9 +711,9 @@ function fmtFecha(f) {
 .dx-mods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .dx-mod {
   display: flex; flex-direction: column; align-items: center; gap: 7px;
-  padding: 14px 6px; border-radius: 13px;
-  border: 1px solid rgba(var(--v-theme-on-surface), .06);
-  cursor: pointer; transition: all .18s;
+  padding: 14px 6px; border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  cursor: pointer; transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms var(--ease-out);
 }
 .dx-mod:hover { border-color: var(--mc); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.07); }
 .dx-mod-ic {
@@ -729,5 +732,5 @@ function fmtFecha(f) {
 .dx-gasto-info { min-width: 0; }
 .dx-gasto-prov { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dx-gasto-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.dx-gasto-val { flex-shrink: 0; font-family: monospace; font-size: 12px; font-weight: 700; color: #8b5cf6; }
+.dx-gasto-val { flex-shrink: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--gold); }
 </style>
