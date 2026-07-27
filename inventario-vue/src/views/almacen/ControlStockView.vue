@@ -362,6 +362,8 @@ onMounted(cargar)
 </script>
 
 <style scoped>
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+
 .cst-container { padding: 24px; max-width: 1600px; margin: 0 auto; }
 
 .cst-controles { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }

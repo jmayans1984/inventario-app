@@ -580,16 +580,7 @@ onMounted(cargar)
 <style scoped>
 .pg-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),.45); }
-.bc-root { color: var(--success); }
-.bc-sep  { color: rgba(var(--v-theme-on-surface),.25) !important; }
-.bc-current { color: rgba(var(--v-theme-on-surface),.7); }
 
-.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-.header-left { display: flex; align-items: center; gap: 14px; }
-.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,var(--success),var(--success)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.page-title { font-size: 17px; font-weight: 800; letter-spacing: .5px; margin: 0; color: rgb(var(--v-theme-on-surface)); }
-.page-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .search-wrap { display: flex; align-items: center; gap: 8px; flex: 1; padding: 8px 12px; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.1); border-radius: 8px; }

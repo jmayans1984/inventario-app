@@ -3,9 +3,9 @@
     <div class="ci-container">
 
       <PageHeader
-        title="Consumo de Insumos"
+        title="Consumo de Productos"
         description="Traslados desde Bodega Maestra en un período"
-        :crumbs="['Almacén', 'Reportes', 'Consumo de Insumos']"
+        :crumbs="['Almacén', 'Reportes', 'Consumo de Productos']"
       />
 
       <!-- FILTROS -->

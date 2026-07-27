@@ -32,71 +32,63 @@
         <!-- KPI CARDS -->
         <div class="vm-kpis">
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:var(--indigo)"></div>
-            <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
-              <v-icon size="20" color="primary">mdi-archive-outline</v-icon>
+            <div class="vm-kpi-top">
+              <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
+                <v-icon size="20" color="primary">mdi-archive-outline</v-icon>
+              </div>
+              <button class="vm-kpi-detail-btn" @click="showDetalleInicial = true">
+                <v-icon size="13">mdi-eye-outline</v-icon><span>Detalle</span>
+              </button>
             </div>
-            <div class="vm-kpi-body">
-              <div class="vm-kpi-lbl">Inventario Inicial</div>
-              <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorInicial) }}</div>
-              <div class="vm-kpi-sub">toma física al {{ fechaCorteInicialTxt }}</div>
-            </div>
-            <button class="vm-kpi-detail-btn" @click="showDetalleInicial = true" title="Ver detalle">
-              <v-icon size="16">mdi-eye-outline</v-icon>
-              <span>Detalles</span>
-            </button>
+            <div class="vm-kpi-lbl">Inventario Inicial</div>
+            <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorInicial) }}</div>
+            <div class="vm-kpi-sub">toma física al {{ fechaCorteInicialTxt }}</div>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:var(--indigo)"></div>
-            <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
-              <v-icon size="20" color="primary">mdi-truck-fast-outline</v-icon>
+            <div class="vm-kpi-top">
+              <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
+                <v-icon size="20" color="primary">mdi-truck-fast-outline</v-icon>
+              </div>
+              <button class="vm-kpi-detail-btn" @click="showDetalleCompras = true">
+                <v-icon size="13">mdi-eye-outline</v-icon><span>Detalle</span>
+              </button>
             </div>
-            <div class="vm-kpi-body">
-              <div class="vm-kpi-lbl">Compras del Mes</div>
-              <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.compras) }}</div>
-              <div class="vm-kpi-sub">cuenta materia prima · {{ data.gastosMP.length }} gastos</div>
-            </div>
-            <button class="vm-kpi-detail-btn" @click="showDetalleCompras = true" title="Ver detalle">
-              <v-icon size="16">mdi-eye-outline</v-icon>
-              <span>Detalles</span>
-            </button>
+            <div class="vm-kpi-lbl">Compras del Mes</div>
+            <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.compras) }}</div>
+            <div class="vm-kpi-sub">cuenta materia prima · {{ data.gastosMP.length }} gastos</div>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:var(--indigo)"></div>
-            <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
-              <v-icon size="20" color="primary">mdi-archive-check-outline</v-icon>
+            <div class="vm-kpi-top">
+              <div class="vm-kpi-icon" style="background:var(--indigo-wash)">
+                <v-icon size="20" color="primary">mdi-archive-check-outline</v-icon>
+              </div>
+              <button class="vm-kpi-detail-btn" @click="showDetalleFinal = true">
+                <v-icon size="13">mdi-eye-outline</v-icon><span>Detalle</span>
+              </button>
             </div>
-            <div class="vm-kpi-body">
-              <div class="vm-kpi-lbl">Inventario Final</div>
-              <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</div>
-              <div class="vm-kpi-sub">toma física al {{ data.periodo.hasta }}</div>
-            </div>
-            <button class="vm-kpi-detail-btn" @click="showDetalleFinal = true" title="Ver detalle">
-              <v-icon size="16">mdi-eye-outline</v-icon>
-              <span>Detalles</span>
-            </button>
+            <div class="vm-kpi-lbl">Inventario Final</div>
+            <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</div>
+            <div class="vm-kpi-sub">toma física al {{ data.periodo.hasta }}</div>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" style="background:var(--gold)"></div>
-            <div class="vm-kpi-icon" style="background:var(--gold-wash)">
-              <v-icon size="20" color="warning">mdi-fire</v-icon>
+            <div class="vm-kpi-top">
+              <div class="vm-kpi-icon" style="background:var(--gold-wash)">
+                <v-icon size="20" color="warning">mdi-fire</v-icon>
+              </div>
             </div>
-            <div class="vm-kpi-body">
-              <div class="vm-kpi-lbl">Consumo Real MP</div>
-              <div class="vm-kpi-val" style="color:var(--gold)">{{ fmt(data.kpis.consumoReal) }}</div>
-              <div class="vm-kpi-sub">inicial + compras − final</div>
-            </div>
+            <div class="vm-kpi-lbl">Consumo Real MP</div>
+            <div class="vm-kpi-val" style="color:var(--gold)">{{ fmt(data.kpis.consumoReal) }}</div>
+            <div class="vm-kpi-sub">inicial + compras − final</div>
           </div>
           <div class="vm-kpi">
-            <div class="vm-kpi-accent" :style="{ background: data.kpis.itemsSinCosto > 0 ? 'var(--error)' : 'var(--success)' }"></div>
-            <div class="vm-kpi-icon" :style="{ background: data.kpis.itemsSinCosto > 0 ? 'color-mix(in srgb, var(--error) 10%, transparent)' : 'color-mix(in srgb, var(--success) 10%, transparent)' }">
-              <v-icon size="20" :color="data.kpis.itemsSinCosto > 0 ? 'var(--error)' : 'var(--success)'">mdi-alert-outline</v-icon>
+            <div class="vm-kpi-top">
+              <div class="vm-kpi-icon" :style="{ background: data.kpis.itemsSinCosto > 0 ? 'color-mix(in srgb, var(--error) 10%, transparent)' : 'color-mix(in srgb, var(--success) 10%, transparent)' }">
+                <v-icon size="20" :color="data.kpis.itemsSinCosto > 0 ? 'error' : 'success'">mdi-alert-outline</v-icon>
+              </div>
             </div>
-            <div class="vm-kpi-body">
-              <div class="vm-kpi-lbl">Items Sin Costo</div>
-              <div class="vm-kpi-val" :style="{ color: data.kpis.itemsSinCosto > 0 ? 'var(--error)' : 'var(--success)' }">{{ data.kpis.itemsSinCosto }}</div>
-              <div class="vm-kpi-sub">precio_costo = 0</div>
-            </div>
+            <div class="vm-kpi-lbl">Items Sin Costo</div>
+            <div class="vm-kpi-val" :style="{ color: data.kpis.itemsSinCosto > 0 ? 'var(--error)' : 'var(--success)' }">{{ data.kpis.itemsSinCosto }}</div>
+            <div class="vm-kpi-sub">precio_costo = 0</div>
           </div>
         </div>
 
@@ -603,17 +595,12 @@ onMounted(cargar)
 
 /* KPIs */
 .vm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
-.vm-kpi {
-  position: relative; display: flex; align-items: center; gap: 14px;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  border-radius: 12px; padding: 16px 18px; overflow: hidden;
-}
-.vm-kpi-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
-.vm-kpi-icon { width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.vm-kpi-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.45); }
-.vm-kpi-val { font-size: 19px; font-weight: 800; line-height: 1.2; margin: 2px 0; }
-.vm-kpi-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.4); }
+.vm-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-md); }
+.vm-kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); }
+.vm-kpi-icon { width: 40px; height: 40px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.vm-kpi-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-600); }
+.vm-kpi-val { font-size: var(--text-2xl); font-weight: 700; line-height: 1.2; margin: 4px 0; font-variant-numeric: tabular-nums; }
+.vm-kpi-sub { font-size: 11px; color: var(--ink-400); }
 
 /* CARDS */
 .vm-card {
@@ -672,17 +659,15 @@ onMounted(cargar)
 
 /* KPI DETAIL BUTTON */
 .vm-kpi-detail-btn {
-  position: absolute; top: 8px; right: 8px;
-  display: flex; align-items: center; gap: 4px;
-  background: rgba(var(--v-theme-on-surface), 0.06);
-  border: none; border-radius: 8px; padding: 4px 10px;
-  font-size: 11px; font-weight: 700; cursor: pointer;
-  color: rgba(var(--v-theme-on-surface), 0.5);
-  transition: all 0.15s ease;
+  display: flex; align-items: center; gap: 3px;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  border: none; border-radius: 8px; padding: 4px 8px;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  color: var(--ink-400); transition: all 0.15s ease;
 }
 .vm-kpi-detail-btn:hover {
-  background: rgba(var(--v-theme-on-surface), 0.12);
-  color: rgba(var(--v-theme-on-surface), 0.8);
+  background: rgba(var(--v-theme-on-surface), 0.10);
+  color: var(--ink-700);
 }
 
 .chart-area { min-height: 340px; }

@@ -246,7 +246,7 @@ const seccionesBase = [
     items: [
       { path: '/almacen/reportes/kardex',                 icon: 'mdi-file-chart-outline',  title: 'Kardex',                  desc: 'Movimientos históricos por producto' },
       { path: '/almacen/reportes/consumos',               icon: 'mdi-chart-bar',           title: 'Reporte de Consumos',     desc: 'Consumo de productos por período' },
-      { path: '/almacen/reportes/consumo-insumos',        icon: 'mdi-package-down',        title: 'Consumo de Insumos',      desc: 'Traslados desde bodega maestra' },
+      { path: '/almacen/reportes/consumo-insumos',        icon: 'mdi-package-down',        title: 'Consumo de Productos',      desc: 'Traslados desde bodega maestra' },
       { path: '/almacen/reportes/movimiento-producto',    icon: 'mdi-swap-vertical-bold',  title: 'Movimiento por Producto', desc: 'Detalle día a día por rango y CC' },
       { path: '/almacen/reportes/kardex-consolidado',     icon: 'mdi-table-multiple',      title: 'Kardex Consolidado',      desc: 'Stock actual por centro de costos' },
       { path: '/almacen/reportes/prediccion-agotamiento', icon: 'mdi-chart-box-outline',   title: 'Predicción Agotamiento',  desc: 'Cuándo se acabará el stock' },
