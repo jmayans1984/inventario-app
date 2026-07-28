@@ -135,30 +135,60 @@
           </button>
         </form>
 
-        <section v-if="showEmpresaSelector" class="emp-list" aria-label="Seleccionar empresa">
-          <div class="emp-head">
-            <p class="emp-title">Selecciona tu empresa</p>
-            <span>{{ empresas.length }}</span>
-          </div>
-          <button
-            v-for="emp in empresas"
-            :key="emp.empresa"
-            class="emp-item"
-            type="button"
-            @click="selectEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)"
-          >
-            <span class="emp-icon">
-              <v-icon size="18">mdi-domain</v-icon>
-            </span>
-            <span class="emp-copy">
-              <strong>{{ emp.empresa_nombre }}</strong>
-              <small>NIT: {{ emp.empresa }}</small>
-            </span>
-            <v-icon size="18" class="emp-arrow">mdi-chevron-right</v-icon>
-          </button>
-        </section>
       </div>
     </main>
+
+    <Teleport to="body">
+      <Transition name="empresa-modal">
+        <div
+          v-if="showEmpresaSelector"
+          :class="['empresa-overlay', isDarkMode ? 'dark' : 'light']"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="empresa-title"
+        >
+          <section class="empresa-dialog">
+            <header class="empresa-dialog-head">
+              <span class="empresa-dialog-icon">
+                <v-icon size="22">mdi-domain</v-icon>
+              </span>
+              <div>
+                <p class="empresa-eyebrow">Acceso multiempresa</p>
+                <h3 id="empresa-title">Selecciona tu empresa</h3>
+                <p>Elige con que operacion quieres trabajar en esta sesion.</p>
+              </div>
+              <span class="empresa-count">{{ empresas.length }}</span>
+            </header>
+
+            <div class="empresa-list">
+              <button
+                v-for="emp in empresas"
+                :key="emp.empresa"
+                class="empresa-item"
+                type="button"
+                @click="selectEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)"
+              >
+                <span class="empresa-item-icon">
+                  <v-icon size="19">mdi-store-outline</v-icon>
+                </span>
+                <span class="empresa-copy">
+                  <strong>{{ emp.empresa_nombre }}</strong>
+                  <small>NIT: {{ emp.empresa }}</small>
+                </span>
+                <v-icon size="18" class="empresa-arrow">mdi-arrow-right</v-icon>
+              </button>
+            </div>
+
+            <footer class="empresa-dialog-foot">
+              <button type="button" class="empresa-back" @click="cancelEmpresaSelection">
+                <v-icon size="17">mdi-arrow-left</v-icon>
+                <span>Cambiar usuario</span>
+              </button>
+            </footer>
+          </section>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -228,6 +258,13 @@ const handleLogin = async () => {
 const selectEmpresa = (cod, nombre, tipo = null) => {
   authStore.setEmpresa(cod, nombre, tipo)
   redirectToMain()
+}
+
+const cancelEmpresaSelection = () => {
+  showEmpresaSelector.value = false
+  empresas.value = []
+  formData.value.clave = ''
+  authStore.logout()
 }
 
 const redirectToMain = () => router.push('/')
@@ -685,96 +722,219 @@ const toggleTema = () => {
   animation: loader-sweep 850ms var(--ease-out) infinite;
 }
 
-.emp-list {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--login-line);
-  animation: login-panel-in var(--dur-slow) var(--ease-out) both;
+.empresa-overlay {
+  --modal-accent: #b8720b;
+  --modal-accent-strong: #8f5708;
+  --modal-ink: #1b1815;
+  --modal-muted: #736a5d;
+  --modal-line: #e7e1d4;
+  --modal-panel: #fffdfa;
+  --modal-field: #f7f3eb;
+
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(18, 15, 11, 0.58);
+  backdrop-filter: blur(10px);
 }
 
-.emp-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  color: var(--login-muted);
+.empresa-overlay.dark {
+  --modal-accent: #f0a83c;
+  --modal-accent-strong: #f5b85c;
+  --modal-ink: #f5f1e8;
+  --modal-muted: #b3aa9a;
+  --modal-line: #332d24;
+  --modal-panel: #14120f;
+  --modal-field: #1d1a15;
 }
 
-.emp-head span {
+.empresa-dialog {
+  width: min(100%, 520px);
+  max-height: min(680px, calc(100vh - 44px));
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--modal-panel);
+  color: var(--modal-ink);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--modal-line) 92%, transparent),
+    0 30px 80px rgba(0, 0, 0, 0.34);
+}
+
+.empresa-dialog-head {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  gap: 14px;
+  align-items: start;
+  padding: 22px 22px 18px;
+  border-bottom: 1px solid var(--modal-line);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--modal-accent) 10%, transparent), transparent 58%),
+    var(--modal-panel);
+}
+
+.empresa-dialog-icon,
+.empresa-item-icon {
   display: inline-grid;
   place-items: center;
-  min-width: 24px;
-  height: 24px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--login-accent) 13%, transparent);
-  color: var(--login-accent);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 800;
+  background: color-mix(in srgb, var(--modal-accent) 13%, transparent);
+  color: var(--modal-accent);
 }
 
-.emp-item {
+.empresa-dialog-icon {
+  width: 46px;
+  height: 46px;
+}
+
+.empresa-eyebrow {
+  margin: 0 0 5px;
+  color: var(--modal-accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.empresa-dialog h3 {
+  margin: 0;
+  color: var(--modal-ink);
+  font-size: 22px;
+  line-height: 1.12;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.empresa-dialog p {
+  margin: 6px 0 0;
+  color: var(--modal-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.empresa-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--modal-accent) 14%, transparent);
+  color: var(--modal-accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.empresa-list {
   display: grid;
-  grid-template-columns: 38px 1fr 22px;
+  gap: 9px;
+  max-height: min(420px, calc(100vh - 250px));
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.empresa-item {
+  display: grid;
+  grid-template-columns: 42px 1fr 34px;
   align-items: center;
   gap: 12px;
   width: 100%;
-  min-height: 62px;
-  margin-bottom: 9px;
+  min-height: 66px;
   padding: 10px 12px;
-  border: 1px solid var(--login-line);
+  border: 1px solid var(--modal-line);
   border-radius: 8px;
-  background: var(--login-field);
-  color: var(--login-ink);
+  background: var(--modal-field);
+  color: var(--modal-ink);
   text-align: left;
   cursor: pointer;
   transition:
     transform var(--dur-fast) var(--ease-out),
     border-color var(--dur-base) var(--ease-out),
-    background-color var(--dur-base) var(--ease-out);
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
 
-.emp-item:hover {
-  border-color: var(--login-accent);
-  background: color-mix(in srgb, var(--login-field) 88%, var(--login-accent) 12%);
+.empresa-item:hover {
+  border-color: color-mix(in srgb, var(--modal-accent) 70%, var(--modal-line));
+  background: color-mix(in srgb, var(--modal-field) 88%, var(--modal-accent) 12%);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--modal-accent) 12%, transparent);
   transform: translateY(-1px);
 }
 
-.emp-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--login-accent) 13%, transparent);
-  color: var(--login-accent);
+.empresa-item:active,
+.empresa-back:active {
+  transform: scale(0.98);
 }
 
-.emp-copy {
+.empresa-item-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.empresa-copy {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
 
-.emp-copy strong,
-.emp-copy small {
+.empresa-copy strong,
+.empresa-copy small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.emp-copy strong {
+.empresa-copy strong {
+  color: var(--modal-ink);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
-.emp-copy small {
-  color: var(--login-muted);
+.empresa-copy small {
+  color: var(--modal-muted);
   font-size: 11px;
 }
 
-.emp-arrow {
-  color: var(--login-muted);
+.empresa-arrow {
+  justify-self: end;
+  color: var(--modal-muted);
+}
+
+.empresa-dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 14px;
+  border-top: 1px solid var(--modal-line);
+}
+
+.empresa-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--modal-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--modal-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out);
+}
+
+.empresa-back:hover {
+  border-color: var(--modal-accent);
+  background: color-mix(in srgb, var(--modal-accent) 10%, transparent);
+  color: var(--modal-accent);
 }
 
 @keyframes login-enter {
@@ -790,6 +950,31 @@ const toggleTema = () => {
 @keyframes loader-sweep {
   from { background-position: -45% 0, 0 0; }
   to { background-position: 145% 0, 0 0; }
+}
+
+.empresa-modal-enter-active,
+.empresa-modal-leave-active {
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.empresa-modal-enter-active .empresa-dialog,
+.empresa-modal-leave-active .empresa-dialog {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    opacity var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out);
+}
+
+.empresa-modal-enter-from,
+.empresa-modal-leave-to {
+  opacity: 0;
+}
+
+.empresa-modal-enter-from .empresa-dialog,
+.empresa-modal-leave-to .empresa-dialog {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  filter: blur(4px);
 }
 
 @media (max-width: 920px) {
@@ -832,6 +1017,26 @@ const toggleTema = () => {
   .btn-submit {
     min-width: 0;
   }
+
+  .empresa-overlay {
+    padding: 12px;
+    place-items: end center;
+  }
+
+  .empresa-dialog {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+  }
+
+  .empresa-dialog-head {
+    grid-template-columns: 40px 1fr auto;
+    padding: 18px;
+  }
+
+  .empresa-dialog-icon {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -839,14 +1044,15 @@ const toggleTema = () => {
   .module-showcase,
   .stage-footer,
   .panel-shell,
-  .emp-list,
+  .empresa-dialog,
   .loader-line {
     animation: none !important;
   }
 
   .theme-btn,
   .btn-submit,
-  .emp-item,
+  .empresa-item,
+  .empresa-back,
   .password-btn {
     transition-duration: 0.01ms !important;
   }
