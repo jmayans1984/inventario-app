@@ -2,35 +2,44 @@
   <div :class="['login-page', isDarkMode ? 'dark' : 'light']">
     <section class="login-stage" aria-label="RestManager Pro">
       <div class="brand-composition">
+        <div class="brand-status">
+          <span class="brand-status-dot"></span>
+          <span>Suite operativa</span>
+        </div>
+
         <div class="brand-emblem">
           <img :src="logoSrc" class="brand-logo" alt="RestManager Pro" />
         </div>
 
         <div class="brand-copy">
           <p class="brand-kicker">RestManager Pro</p>
-          <h1 class="brand-title">Gestiona tu operación desde un solo lugar.</h1>
+          <h1 class="brand-title">Control total para restaurantes.</h1>
           <p class="brand-subtitle">
-            Inventario, tesorería, nómina y reportes conectados para trabajar con claridad.
+            Caja, inventario, tesoreria y reportes conectados en una sola plataforma.
           </p>
         </div>
       </div>
 
       <div class="module-showcase" aria-hidden="true">
         <div class="module-card module-card--active">
-          <v-icon size="20">mdi-view-dashboard-outline</v-icon>
-          <span>Gerencia</span>
+          <span class="module-index">01</span>
+          <v-icon size="19">mdi-cash-register</v-icon>
+          <span>Ventas y caja</span>
         </div>
         <div class="module-card">
-          <v-icon size="20">mdi-bank-outline</v-icon>
-          <span>Tesorería</span>
+          <span class="module-index">02</span>
+          <v-icon size="19">mdi-bank-outline</v-icon>
+          <span>Tesoreria</span>
         </div>
         <div class="module-card">
-          <v-icon size="20">mdi-warehouse</v-icon>
-          <span>Almacén</span>
+          <span class="module-index">03</span>
+          <v-icon size="19">mdi-warehouse</v-icon>
+          <span>Inventario</span>
         </div>
         <div class="module-card">
-          <v-icon size="20">mdi-account-group-outline</v-icon>
-          <span>Nómina</span>
+          <span class="module-index">04</span>
+          <v-icon size="19">mdi-chart-line</v-icon>
+          <span>Reportes</span>
         </div>
       </div>
 
@@ -284,9 +293,9 @@ const toggleTema = () => {
   --login-line: #e7e1d4;
   --login-panel: #fffdfa;
   --login-field: #f7f3eb;
-  --login-stage: #17130e;
-  --login-stage-soft: #241c12;
-  --login-stage-text: #f5f1e8;
+  --login-stage: #0d0c09;
+  --login-stage-soft: #1b160d;
+  --login-stage-text: #fff8df;
   --login-success: #15803d;
   --login-warning: #b45309;
 
@@ -306,8 +315,8 @@ const toggleTema = () => {
   --login-line: #332d24;
   --login-panel: #14120f;
   --login-field: #1d1a15;
-  --login-stage: #100e0b;
-  --login-stage-soft: #1d1710;
+  --login-stage: #090806;
+  --login-stage-soft: #19130a;
   --login-stage-text: #f5f1e8;
   --login-success: #4ade80;
   --login-warning: #fbbf24;
@@ -319,35 +328,40 @@ const toggleTema = () => {
   flex-direction: column;
   justify-content: space-between;
   min-height: 100vh;
-  padding: 44px;
+  padding: 46px;
   overflow: hidden;
   color: var(--login-stage-text);
   background:
-    linear-gradient(140deg, rgba(240, 168, 60, 0.13) 0 1px, transparent 1px 100%),
-    radial-gradient(circle at 18% 18%, rgba(240, 168, 60, 0.14), transparent 34%),
-    linear-gradient(145deg, #120f0b 0%, var(--login-stage) 46%, var(--login-stage-soft) 100%);
-  background-size: auto, auto, auto;
+    linear-gradient(90deg, rgba(255, 193, 61, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 193, 61, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 16% 18%, rgba(255, 183, 32, 0.26), transparent 31%),
+    radial-gradient(circle at 82% 72%, rgba(255, 200, 71, 0.13), transparent 34%),
+    linear-gradient(145deg, #050504 0%, var(--login-stage) 54%, var(--login-stage-soft) 100%);
+  background-size: 38px 38px, 38px 38px, auto, auto, auto;
 }
 
 .login-stage::before {
   content: '';
   position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 74px;
-  width: 118px;
-  background: linear-gradient(180deg, transparent, rgba(240, 168, 60, 0.28), transparent);
-  transform: skewX(-14deg);
-  opacity: 0.75;
+  top: -12%;
+  right: -70px;
+  width: 210px;
+  height: 124%;
+  background:
+    linear-gradient(180deg, transparent, rgba(255, 189, 46, 0.42), transparent),
+    linear-gradient(90deg, transparent, rgba(255, 229, 160, 0.16), transparent);
+  transform: skewX(-12deg);
+  opacity: 0.88;
   pointer-events: none;
 }
 
 .login-stage::after {
   content: '';
   position: absolute;
-  inset: 28px;
-  border: 1px solid rgba(245, 241, 232, 0.07);
+  inset: 24px;
+  border: 1px solid rgba(255, 207, 92, 0.12);
   border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
   pointer-events: none;
 }
 
@@ -361,36 +375,63 @@ const toggleTema = () => {
 .brand-composition {
   display: grid;
   align-content: start;
-  gap: 28px;
+  gap: 22px;
   max-width: 520px;
   animation: login-enter var(--dur-slow) var(--ease-out) both;
+}
+
+.brand-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: fit-content;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 199, 72, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 193, 61, 0.08);
+  color: rgba(255, 248, 223, 0.78);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.brand-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ffc13d;
+  box-shadow: 0 0 0 5px rgba(255, 193, 61, 0.15);
 }
 
 .brand-emblem {
   display: inline-grid;
   place-items: center;
-  width: 104px;
-  height: 104px;
+  width: 122px;
+  height: 122px;
   border-radius: 8px;
   background:
-    linear-gradient(145deg, rgba(245, 241, 232, 0.13), rgba(245, 241, 232, 0.03));
+    linear-gradient(145deg, rgba(255, 198, 45, 0.98), rgba(226, 135, 0, 0.96));
   box-shadow:
-    inset 0 0 0 1px rgba(245, 241, 232, 0.12),
-    0 24px 54px rgba(0, 0, 0, 0.30);
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.16),
+    0 26px 58px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 228, 150, 0.20);
+  transform: rotate(-2deg);
 }
 
 .brand-logo {
-  width: 76px;
-  height: 76px;
-  border-radius: 8px;
-  object-fit: cover;
-  box-shadow: 0 0 0 1px rgba(245, 241, 232, 0.12);
+  width: 104px;
+  height: 104px;
+  border-radius: 7px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
 }
 
 .brand-kicker,
 .form-eyebrow,
-.stage-label,
-.emp-title {
+.stage-label {
   margin: 0;
   color: color-mix(in srgb, currentColor 58%, transparent);
   font-size: 11px;
@@ -401,9 +442,9 @@ const toggleTema = () => {
 
 .brand-title {
   max-width: 500px;
-  margin: 8px 0 0;
-  font-size: clamp(36px, 4.7vw, 58px);
-  line-height: 0.98;
+  margin: 10px 0 0;
+  font-size: clamp(38px, 4.8vw, 60px);
+  line-height: 0.96;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -411,42 +452,63 @@ const toggleTema = () => {
 .brand-subtitle {
   max-width: 420px;
   margin: 18px 0 0;
-  color: rgba(245, 241, 232, 0.56);
+  color: rgba(255, 248, 223, 0.62);
   font-size: 15px;
   line-height: 1.55;
 }
 
 .module-showcase {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: min(100%, 420px);
-  margin: 34px 0 auto;
+  gap: 8px;
+  width: min(100%, 430px);
+  margin: 38px 0 auto;
   animation: login-enter var(--dur-slow) var(--ease-out) 70ms both;
 }
 
 .module-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px 30px 1fr;
   align-items: center;
   gap: 10px;
-  min-height: 58px;
-  padding: 0 14px;
+  min-height: 52px;
+  padding: 0 12px;
   border-radius: 8px;
-  color: rgba(245, 241, 232, 0.68);
-  background: rgba(245, 241, 232, 0.06);
+  color: rgba(255, 248, 223, 0.72);
+  background: rgba(255, 248, 223, 0.045);
   box-shadow:
-    inset 0 0 0 1px rgba(245, 241, 232, 0.08),
-    0 12px 28px rgba(0, 0, 0, 0.10);
+    inset 0 0 0 1px rgba(255, 248, 223, 0.075),
+    0 12px 28px rgba(0, 0, 0, 0.12);
   font-size: 13px;
   font-weight: 800;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+
+.module-card:hover {
+  color: rgba(255, 248, 223, 0.92);
+  background: rgba(255, 248, 223, 0.075);
+  transform: translateX(4px);
+}
+
+.module-index {
+  color: rgba(255, 193, 61, 0.66);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .module-card--active {
-  color: #1b1508;
-  background: linear-gradient(135deg, var(--login-accent), var(--login-accent-strong));
+  color: #1a1304;
+  background: linear-gradient(135deg, #ffc13d, #d98200);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.26),
-    0 20px 38px rgba(0, 0, 0, 0.22);
+    0 20px 38px rgba(0, 0, 0, 0.24);
+}
+
+.module-card--active .module-index {
+  color: rgba(26, 19, 4, 0.58);
 }
 
 .stage-footer {
@@ -454,7 +516,7 @@ const toggleTema = () => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
   gap: 12px;
-  color: rgba(245, 241, 232, 0.82);
+  color: rgba(255, 248, 223, 0.82);
   animation: login-enter var(--dur-slow) var(--ease-out) 110ms both;
 }
 
@@ -462,7 +524,7 @@ const toggleTema = () => {
   display: grid;
   gap: 4px;
   padding-top: 14px;
-  border-top: 1px solid rgba(245, 241, 232, 0.10);
+  border-top: 1px solid rgba(255, 193, 61, 0.16);
 }
 
 .stage-footer strong {
@@ -532,7 +594,8 @@ const toggleTema = () => {
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  object-fit: cover;
+  object-fit: contain;
+  background: linear-gradient(145deg, #ffc13d, #d98200);
 }
 
 .form-head {
