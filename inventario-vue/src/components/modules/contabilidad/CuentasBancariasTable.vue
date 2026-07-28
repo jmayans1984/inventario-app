@@ -165,7 +165,7 @@ const store = useCuentasBancariasStore()
 const emit  = defineEmits(['editar'])
 
 const busqueda    = ref('')
-const filtroEstado = ref('INACTIVA')
+const filtroEstado = ref('ACTIVA')
 const toggleLoading = ref(null)
 
 const columnas = [
