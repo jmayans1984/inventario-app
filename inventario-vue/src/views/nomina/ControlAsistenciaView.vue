@@ -2,29 +2,18 @@
   <MainLayout>
     <div class="ca-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">NÓMINA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Control de Asistencia</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="ca-header">
-        <div class="ca-header-icon">
-          <v-icon size="28" color="white">mdi-qrcode-scan</v-icon>
-        </div>
-        <div class="ca-header-text">
-          <h2 class="ca-title">Control de Asistencia Anti-Fraude</h2>
-          <p class="ca-subtitle">Marcaje de entrada/salida por Centro de Costo con detección automática de suplantación</p>
-        </div>
-        <div class="ca-badge">
-          <v-icon size="14" color="#f59e0b">mdi-hammer-wrench</v-icon>
-          EN ELABORACIÓN
-        </div>
-      </div>
+      <PageHeader
+        title="Control de Asistencia Anti-Fraude"
+        description="Marcaje de entrada/salida por Centro de Costo con detección automática de suplantación"
+        :crumbs="['Nómina', 'Configuración', 'Control de Asistencia']"
+      >
+        <template #actions>
+          <div class="ca-badge">
+            <v-icon size="14" color="warning">mdi-hammer-wrench</v-icon>
+            EN ELABORACIÓN
+          </div>
+        </template>
+      </PageHeader>
 
       <!-- RESUMEN -->
       <div class="ca-intro">
@@ -39,7 +28,7 @@
       <!-- FLUJO DE FUNCIONAMIENTO -->
       <div class="ca-section">
         <div class="ca-section-title">
-          <v-icon size="18" color="#be185d">mdi-sitemap-outline</v-icon>
+          <v-icon size="18" color="secondary">mdi-sitemap-outline</v-icon>
           Cómo funcionará
         </div>
 
@@ -112,7 +101,7 @@
       <!-- LIMITACIONES -->
       <div class="ca-section">
         <div class="ca-section-title">
-          <v-icon size="18" color="#f59e0b">mdi-alert-outline</v-icon>
+          <v-icon size="18" color="warning">mdi-alert-outline</v-icon>
           Limitaciones conocidas
         </div>
         <ul class="ca-list">
@@ -129,7 +118,7 @@
 
       <!-- ESTADO ACTUAL -->
       <div class="ca-status">
-        <v-icon size="20" color="#f59e0b">mdi-progress-clock</v-icon>
+        <v-icon size="20" color="warning">mdi-progress-clock</v-icon>
         <div>
           <div class="ca-status-title">Próximos pasos</div>
           <div class="ca-status-desc">
@@ -147,32 +136,17 @@
 
 <script setup>
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 </script>
 
 <style scoped>
 .ca-container { padding: 0 0 32px; }
 
-/* BREADCRUMB */
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: rgba(var(--v-theme-on-surface), 0.4); text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.25); }
-.bc-cat { font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 11px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-
-/* HEADER */
-.ca-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
-.ca-header-icon {
-  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(135deg, #be185d, #831843);
-  display: flex; align-items: center; justify-content: center;
-}
-.ca-header-text { flex: 1; }
-.ca-title { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: rgb(var(--v-theme-on-surface)); text-transform: uppercase; }
-.ca-subtitle { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 0; }
+/* BADGE */
 .ca-badge {
   display: flex; align-items: center; gap: 6px;
-  background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 11px;
@@ -212,12 +186,12 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 .ca-flow-step { display: flex; gap: 14px; }
 .ca-flow-num {
   width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(190, 24, 93, 0.12); color: #be185d;
+  background: color-mix(in srgb, var(--indigo) 12%, transparent); color: var(--indigo);
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 800;
 }
-.ca-flow-num--alert { background: rgba(239, 68, 68, 0.14); color: #ef4444; }
-.ca-flow-step--alert .ca-flow-title { color: #ef4444; }
+.ca-flow-num--alert { background: color-mix(in srgb, var(--error) 14%, transparent); color: var(--error); }
+.ca-flow-step--alert .ca-flow-title { color: var(--error); }
 .ca-flow-body { flex: 1; }
 .ca-flow-title { font-size: 13.5px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); margin-bottom: 3px; }
 .ca-flow-desc { font-size: 13px; line-height: 1.55; color: rgba(var(--v-theme-on-surface), 0.6); }
@@ -230,11 +204,11 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 /* STATUS */
 .ca-status {
   display: flex; gap: 14px; align-items: flex-start;
-  background: rgba(245, 158, 11, 0.06);
-  border: 1px dashed rgba(245, 158, 11, 0.35);
+  background: color-mix(in srgb, var(--warning) 6%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--warning) 35%, transparent);
   border-radius: 12px;
   padding: 18px 22px;
 }
-.ca-status-title { font-size: 13.5px; font-weight: 800; color: #f59e0b; margin-bottom: 4px; }
+.ca-status-title { font-size: 13.5px; font-weight: 800; color: var(--warning); margin-bottom: 4px; }
 .ca-status-desc { font-size: 13px; line-height: 1.6; color: rgba(var(--v-theme-on-surface), 0.65); }
 </style>

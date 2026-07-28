@@ -1,19 +1,20 @@
 <template>
   <MainLayout>
     <div class="nom-wrap">
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-clock-outline</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">PLANTILLAS DE HORARIO</h1>
-          <p class="nom-sub">Configura los horarios base por día de la semana</p>
-        </div>
-        <v-btn color="#06b6d4" variant="flat" size="small" prepend-icon="mdi-plus" @click="abrirNuevo">
-          Nueva Plantilla
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Plantillas de Horario"
+        description="Configura los horarios base por día de la semana"
+        :crumbs="['Nómina', 'Configuración', 'Config. Horario']"
+      >
+        <template #actions>
+          <v-btn color="secondary" variant="flat" size="small" prepend-icon="mdi-plus" @click="abrirNuevo">
+            Nueva Plantilla
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <div v-if="cargando" class="nom-card" style="padding:24px">
-        <v-progress-circular indeterminate color="#06b6d4" size="24"/>
+        <v-progress-circular indeterminate color="secondary" size="24"/>
       </div>
 
       <div v-for="config in configs" :key="config.id" class="nom-card">
@@ -22,7 +23,7 @@
             <div style="font-weight:700;font-size:14px">{{ config.nombre }}</div>
             <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4)">{{ config.descripcion }}</div>
           </div>
-          <v-btn size="x-small" variant="text" color="#8b5cf6" @click="editar(config)">
+          <v-btn size="x-small" variant="text" color="secondary" @click="editar(config)">
             <v-icon size="14">mdi-pencil</v-icon> Editar
           </v-btn>
         </div>
@@ -80,11 +81,11 @@
           </div>
 
           <!-- RESUMEN TOTAL DE HORAS -->
-          <div style="margin-top:20px;padding:16px;background:rgba(6,182,212,0.08);border-radius:8px;border:1px solid rgba(6,182,212,0.2);text-align:center">
+          <div style="margin-top:20px;padding:16px;background:color-mix(in srgb, var(--indigo) 8%, transparent);border-radius:8px;border:1px solid color-mix(in srgb, var(--indigo) 20%, transparent);text-align:center">
             <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:8px;text-transform:uppercase">
               TOTAL TRABAJADO
             </div>
-            <div style="font-size:32px;font-weight:900;color:#06b6d4;line-height:1.2">
+            <div style="font-size:32px;font-weight:900;color:var(--indigo);line-height:1.2">
               {{ totalHorasSemana.toFixed(2) }}
             </div>
             <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5);font-weight:600;margin-top:6px;text-transform:uppercase">
@@ -95,7 +96,7 @@
         <v-card-actions class="pa-4">
           <v-spacer/>
           <v-btn variant="text" @click="dlg=false">Cancelar</v-btn>
-          <v-btn color="#06b6d4" variant="flat" :loading="guardando" @click="guardar">Guardar</v-btn>
+          <v-btn color="secondary" variant="flat" :loading="guardando" @click="guardar">Guardar</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -104,6 +105,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 const authStore = useAuthStore()
@@ -212,10 +214,6 @@ onMounted(cargar)
 </script>
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 16px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#0c2340,#0f4f6e); border-radius: 14px; padding: 20px 24px; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(6,182,212,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.45); margin: 0; }
 .flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; overflow: hidden; }
 .cfg-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.07); }
@@ -223,9 +221,9 @@ onMounted(cargar)
 .cfg-dia { padding: 12px 8px; text-align: center; border-right: 1px solid rgba(var(--v-theme-on-surface),0.06); }
 .cfg-dia:last-child { border-right: none; }
 .cfg-dia-nombre { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.45); text-transform: uppercase; margin-bottom: 6px; }
-.cfg-dia-horas { font-size: 11px; font-weight: 600; color: #06b6d4; }
+.cfg-dia-horas { font-size: 11px; font-weight: 600; color: var(--indigo); }
 .cfg-dia-hrs { font-size: 10px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
-.cfg-midnight { font-size: 9px; background: rgba(245,158,11,0.15); color: #f59e0b; padding: 1px 4px; border-radius: 3px; margin-left: 3px; }
+.cfg-midnight { font-size: 9px; background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); padding: 1px 4px; border-radius: 3px; margin-left: 3px; }
 .cfg-dia-libre { font-size: 10px; color: rgba(var(--v-theme-on-surface),0.25); }
 .cfg-section-title { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: rgba(var(--v-theme-on-surface),0.45); text-transform: uppercase; }
 .mb-2 { margin-bottom: 8px; } .mb-4 { margin-bottom: 16px; }
@@ -233,7 +231,7 @@ onMounted(cargar)
 .drw-field { display: flex; flex-direction: column; gap: 4px; }
 .drw-field label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase; }
 .drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; }
-.drw-input:focus { border-color: #06b6d4; }
+.drw-input:focus { border-color: var(--indigo); }
 .cfg-edit-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.06); flex-wrap: wrap; }
 .cfg-edit-dia { width: 80px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
 .cfg-edit-check { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }

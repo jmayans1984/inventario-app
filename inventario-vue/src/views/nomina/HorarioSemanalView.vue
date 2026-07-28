@@ -2,41 +2,41 @@
   <MainLayout>
     <div class="nom-wrap">
       <!-- HEADER -->
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-calendar-week</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">HORARIO SEMANAL</h1>
-          <p class="nom-sub" v-if="semanaActual">
+      <PageHeader
+        title="Horario Semanal"
+        description="Asignación y edición del horario semanal de empleados por centro de costo"
+        :crumbs="['Nómina', 'Procesos', 'Horario Semanal']"
+      >
+        <template #actions>
+          <div v-if="semanaActual" class="hs-semana-info">
             {{ fmtFecha(semanaActual.semana_inicio) }} — {{ fmtFecha(semanaActual.semana_fin) }}
             <span class="estado-badge" :class="`estado-${semanaActual.estado?.toLowerCase()}`">
               {{ semanaActual.estado }}
             </span>
-          </p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          </div>
           <select v-model="semanaSelId" class="drw-select" @change="cargarDetalle" style="width:210px">
             <option value="">— Seleccionar semana —</option>
             <option v-for="s in semanas" :key="s.id" :value="s.id">
               {{ fmtFecha(s.semana_inicio) }} al {{ fmtFecha(s.semana_fin) }}
             </option>
           </select>
-          <v-btn size="small" variant="outlined" color="#06b6d4" @click="dlgNuevaSemana=true">
+          <v-btn size="small" variant="outlined" color="secondary" @click="dlgNuevaSemana=true">
             <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva Semana
           </v-btn>
           <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'"
-                 size="small" color="#f59e0b" variant="flat" @click="publicar">
+                 size="small" color="warning" variant="flat" @click="publicar">
             <v-icon size="14" class="mr-1">mdi-send</v-icon> Publicar
           </v-btn>
-          <v-btn v-if="semanaActual" size="small" color="#8b5cf6" variant="flat"
+          <v-btn v-if="semanaActual" size="small" color="secondary" variant="flat"
                  @click="abrirDialogImprimir">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
           </v-btn>
-          <v-btn v-if="semanaActual" size="small" color="#ef4444" variant="outlined"
+          <v-btn v-if="semanaActual" size="small" color="error" variant="outlined"
                  :loading="borrando" @click="borrarSemana">
             <v-icon size="14" class="mr-1">mdi-trash-can</v-icon> Eliminar Semana
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- UN GRID POR CADA CENTRO DE COSTOS -->
       <template v-if="semanaActual && semanaActual.semana_inicio">
@@ -52,16 +52,16 @@
               <span>{{ totalHorasCcosto(cc.codigo) }}h esta semana</span>
             </div>
             <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-              <v-btn v-if="horarioConfigs.length > 1" size="x-small" variant="outlined" color="#8b5cf6" @click="abrirDialogPlantillaParaCC(cc)">
+              <v-btn v-if="horarioConfigs.length > 1" size="x-small" variant="outlined" color="secondary" @click="abrirDialogPlantillaParaCC(cc)">
                 <v-icon size="12" class="mr-1">mdi-file-document</v-icon> Plantilla
               </v-btn>
-              <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="#06b6d4" :loading="copiando" @click="copiarSemanaAnteriorPorCC(cc.codigo)">
+              <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="secondary" :loading="copiando" @click="copiarSemanaAnteriorPorCC(cc.codigo)">
                 <v-icon size="12" class="mr-1">mdi-content-copy</v-icon> Copiar
               </v-btn>
-              <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="#ef4444" @click="limpiarHorariosPorCC(cc.codigo)">
+              <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="error" @click="limpiarHorariosPorCC(cc.codigo)">
                 <v-icon size="12" class="mr-1">mdi-trash-can</v-icon> Limpiar
               </v-btn>
-              <v-btn size="x-small" variant="outlined" color="#06b6d4" @click="abrirAgregarEmp(cc.codigo)">
+              <v-btn size="x-small" variant="outlined" color="secondary" @click="abrirAgregarEmp(cc.codigo)">
                 <v-icon size="12" class="mr-1">mdi-account-plus</v-icon> Empleado
               </v-btn>
             </div>
@@ -77,7 +77,7 @@
               <div v-for="d in DIAS" :key="d.offset" class="sg-header-dia">
                 <div style="display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap">
                   <div style="font-size:12px;font-weight:700">{{ d.label }} {{ fmtDiaMes(semanaActual.semana_inicio, d.offset).split('-')[0] }}</div>
-                  <v-icon size="14" style="cursor:pointer;color:#8b5cf6" @click="abrirEditarDiaMasivo(cc.codigo, d.offset, d.label)">mdi-pencil</v-icon>
+                  <v-icon size="14" style="cursor:pointer;color:var(--indigo)" @click="abrirEditarDiaMasivo(cc.codigo, d.offset, d.label)">mdi-pencil</v-icon>
                 </div>
               </div>
 
@@ -126,7 +126,7 @@
       <!-- RESUMEN TOTAL DE HORAS -->
       <div v-if="semanaActual && resumenEmpleados.length" class="nom-card resumen-card">
         <div class="resumen-titulo">
-          <v-icon size="16" color="#8b5cf6" class="mr-1">mdi-chart-bar</v-icon>
+          <v-icon size="16" color="secondary" class="mr-1">mdi-chart-bar</v-icon>
           WEEKLY SUMMARY — TOTAL HOURS PER EMPLOYEE
         </div>
         <table class="resumen-tabla">
@@ -173,10 +173,10 @@
             <tr class="resumen-footer">
               <td colspan="3"><strong>COMPANY TOTAL</strong></td>
               <td class="ta-c"><strong>{{ resumenTotales.regular.toFixed(2) }}h</strong></td>
-              <td class="ta-c"><strong style="color:#ef4444">{{ resumenTotales.overtime.toFixed(2) }}h OT</strong></td>
+              <td class="ta-c"><strong style="color:var(--error)">{{ resumenTotales.overtime.toFixed(2) }}h OT</strong></td>
               <td class="ta-c"><strong>{{ resumenTotales.total.toFixed(2) }}h</strong></td>
               <td></td>
-              <td class="ta-c"><strong style="color:#10b981;font-size:14px">{{ fmtMoney(resumenTotales.totalPagar) }}</strong></td>
+              <td class="ta-c"><strong style="color:var(--success);font-size:14px">{{ fmtMoney(resumenTotales.totalPagar) }}</strong></td>
             </tr>
           </tfoot>
         </table>
@@ -208,7 +208,7 @@
         <v-card-actions class="pa-4">
           <v-spacer/>
           <v-btn variant="text" @click="dlgNuevaSemana=false">Cancelar</v-btn>
-          <v-btn color="#06b6d4" variant="flat" :loading="creandoSemana" @click="crearSemana">Crear</v-btn>
+          <v-btn color="secondary" variant="flat" :loading="creandoSemana" @click="crearSemana">Crear</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -268,7 +268,7 @@
               </div>
             </div>
             <div v-if="turnoEdit.real_horas > 0" class="horas-calculadas mt-2">
-              <v-icon size="14" color="#10b981">mdi-clock-check</v-icon>
+              <v-icon size="14" color="success">mdi-clock-check</v-icon>
               <span>{{ fmtHoras(turnoEdit.real_horas) }} horas calculadas</span>
             </div>
           </template>
@@ -290,13 +290,13 @@
           </div>
         </v-card-text>
         <v-card-actions class="pa-4 pt-0">
-          <v-btn v-if="turnoEdit.id" color="#ef4444" variant="text" size="small"
+          <v-btn v-if="turnoEdit.id" color="error" variant="text" size="small"
                  :loading="eliminandoTurno" @click="eliminarTurno">
             <v-icon size="14" class="mr-1">mdi-delete</v-icon> Eliminar
           </v-btn>
           <v-spacer/>
           <v-btn variant="text" @click="dlgEditar=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :loading="guardandoTurno" @click="guardarTurno">Guardar</v-btn>
+          <v-btn color="secondary" variant="flat" :loading="guardandoTurno" @click="guardarTurno">Guardar</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -329,7 +329,7 @@
         <v-card-actions class="pa-4">
           <v-spacer/>
           <v-btn variant="text" @click="dlgEditarDiaMasivo=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :loading="guardandoDiaMasivo" @click="guardarEditarDiaMasivo">Guardar</v-btn>
+          <v-btn color="secondary" variant="flat" :loading="guardandoDiaMasivo" @click="guardarEditarDiaMasivo">Guardar</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -350,7 +350,7 @@
             <label v-for="cc in ccostos" :key="cc.codigo"
                    style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
               <input type="checkbox" :value="cc.codigo" v-model="imprimirCCSeleccionados"
-                     style="width:15px;height:15px;accent-color:#8b5cf6;cursor:pointer" />
+                     style="width:15px;height:15px;accent-color:var(--indigo);cursor:pointer" />
               <span>{{ cc.nombre }}</span>
               <span style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4)">{{ cc.codigo }}</span>
             </label>
@@ -362,19 +362,19 @@
           </div>
           <div style="display:flex;gap:10px;margin-bottom:18px">
             <div @click="imprimirModo='detalle'"
-                 :style="imprimirModo==='detalle' ? 'border-color:#8b5cf6;background:rgba(139,92,246,0.08)' : ''"
+                 :style="imprimirModo==='detalle' ? 'border-color:var(--indigo);background:var(--indigo-wash)' : ''"
                  style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
               <div style="font-size:12px;font-weight:700;margin-bottom:4px">
-                <v-icon size="14" :color="imprimirModo==='detalle'?'#8b5cf6':''" class="mr-1">mdi-clock-outline</v-icon>
+                <v-icon size="14" :color="imprimirModo==='detalle'?'secondary':''" class="mr-1">mdi-clock-outline</v-icon>
                 Detalle
               </div>
               <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Muestra horario de entrada/salida y horas trabajadas</div>
             </div>
             <div @click="imprimirModo='verde'"
-                 :style="imprimirModo==='verde' ? 'border-color:#10b981;background:rgba(16,185,129,0.08)' : ''"
+                 :style="imprimirModo==='verde' ? 'border-color:var(--success);background:var(--success-wash)' : ''"
                  style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
               <div style="font-size:12px;font-weight:700;margin-bottom:4px">
-                <v-icon size="14" :color="imprimirModo==='verde'?'#10b981':''" class="mr-1">mdi-format-color-fill</v-icon>
+                <v-icon size="14" :color="imprimirModo==='verde'?'success':''" class="mr-1">mdi-format-color-fill</v-icon>
                 Solo color
               </div>
               <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Pinta de verde el día que trabaja, sin mostrar horas</div>
@@ -387,19 +387,19 @@
           </div>
           <div style="display:flex;gap:10px;margin-bottom:18px">
             <div @click="imprimirSeparacion='cc'"
-                 :style="imprimirSeparacion==='cc' ? 'border-color:#06b6d4;background:rgba(6,182,212,0.08)' : ''"
+                 :style="imprimirSeparacion==='cc' ? 'border-color:var(--indigo);background:var(--indigo-wash)' : ''"
                  style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
               <div style="font-size:12px;font-weight:700;margin-bottom:4px">
-                <v-icon size="14" :color="imprimirSeparacion==='cc'?'#06b6d4':''" class="mr-1">mdi-file-multiple</v-icon>
+                <v-icon size="14" :color="imprimirSeparacion==='cc'?'secondary':''" class="mr-1">mdi-file-multiple</v-icon>
                 Por Centro de Costo
               </div>
               <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Cada centro en página separada</div>
             </div>
             <div @click="imprimirSeparacion='todo'"
-                 :style="imprimirSeparacion==='todo' ? 'border-color:#06b6d4;background:rgba(6,182,212,0.08)' : ''"
+                 :style="imprimirSeparacion==='todo' ? 'border-color:var(--indigo);background:var(--indigo-wash)' : ''"
                  style="flex:1;border:2px solid rgba(var(--v-theme-on-surface),0.15);border-radius:10px;padding:12px;cursor:pointer;transition:all 0.15s">
               <div style="font-size:12px;font-weight:700;margin-bottom:4px">
-                <v-icon size="14" :color="imprimirSeparacion==='todo'?'#06b6d4':''" class="mr-1">mdi-file-document</v-icon>
+                <v-icon size="14" :color="imprimirSeparacion==='todo'?'secondary':''" class="mr-1">mdi-file-document</v-icon>
                 Todo junto
               </div>
               <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Sin separación entre centros</div>
@@ -412,7 +412,7 @@
           </div>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
             <input type="checkbox" v-model="imprimirGridResumen"
-                   style="width:15px;height:15px;accent-color:#8b5cf6;cursor:pointer" />
+                   style="width:15px;height:15px;accent-color:var(--indigo);cursor:pointer" />
             <div>
               <div style="font-weight:600">Incluir grid de resumen</div>
               <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">Tabla al final: empleado × día → centro de costo</div>
@@ -422,7 +422,7 @@
         <v-card-actions class="pa-4">
           <v-spacer/>
           <v-btn variant="text" @click="dlgImprimir=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :disabled="!imprimirCCSeleccionados.length" @click="confirmarImprimir">
+          <v-btn color="secondary" variant="flat" :disabled="!imprimirCCSeleccionados.length" @click="confirmarImprimir">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
           </v-btn>
         </v-card-actions>
@@ -440,8 +440,8 @@
           <div style="display:flex;flex-direction:column;gap:8px">
             <label v-for="cfg in horarioConfigs" :key="cfg.id"
                    style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px;border:2px solid rgba(var(--v-theme-on-surface),0.1);border-radius:8px;transition:all 0.15s"
-                   :style="plantillaSeleccionadaId === cfg.id ? 'border-color:#8b5cf6;background:rgba(139,92,246,0.08)' : ''">
-              <input type="radio" :value="cfg.id" v-model="plantillaSeleccionadaId" style="width:16px;height:16px;cursor:pointer;accent-color:#8b5cf6" />
+                   :style="plantillaSeleccionadaId === cfg.id ? 'border-color:var(--indigo);background:var(--indigo-wash)' : ''">
+              <input type="radio" :value="cfg.id" v-model="plantillaSeleccionadaId" style="width:16px;height:16px;cursor:pointer;accent-color:var(--indigo)" />
               <div>
                 <div style="font-size:13px;font-weight:700">{{ cfg.nombre || 'Plantilla ' + cfg.id }}</div>
                 <div v-if="cfg.descripcion" style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.5)">{{ cfg.descripcion }}</div>
@@ -452,7 +452,7 @@
         <v-card-actions class="pa-4">
           <v-spacer/>
           <v-btn variant="text" @click="dlgSeleccionarPlantilla=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :disabled="!plantillaSeleccionadaId" @click="confirmarGenerarHorario(plantillaSeleccionadaId)">
+          <v-btn color="secondary" variant="flat" :disabled="!plantillaSeleccionadaId" @click="confirmarGenerarHorario(plantillaSeleccionadaId)">
             <v-icon size="14" class="mr-1">mdi-check</v-icon> Generar
           </v-btn>
         </v-card-actions>
@@ -482,6 +482,7 @@
 import { ref, computed, watch, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
@@ -1191,17 +1192,13 @@ onMounted(cargarSemanas)
 
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 12px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#0c2340,#1a3a6e); border-radius: 14px; padding: 20px 24px; flex-wrap: wrap; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(6,182,212,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.5); margin: 0; display: flex; align-items: center; gap: 8px; }
-.flex-1 { flex: 1; }
+.hs-semana-info { font-size: 12px; color: rgba(var(--v-theme-on-surface),0.6); display: flex; align-items: center; gap: 8px; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 0 0 12px 12px; overflow: hidden; }
 
 .estado-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
-.estado-borrador  { background: rgba(148,163,184,0.15); color: #94a3b8; }
-.estado-publicado { background: rgba(16,185,129,0.15); color: #10b981; }
-.estado-cerrado   { background: rgba(239,68,68,0.15); color: #ef4444; }
+.estado-borrador  { background: rgba(var(--v-theme-on-surface),0.12); color: rgba(var(--v-theme-on-surface),0.5); }
+.estado-publicado { background: var(--success-wash); color: var(--success); }
+.estado-cerrado   { background: var(--error-wash); color: var(--error); }
 
 /* Bloque por ccosto */
 .ccosto-bloque { display: flex; flex-direction: column; gap: 0 !important; margin-bottom: 20px; }
@@ -1213,7 +1210,7 @@ onMounted(cargarSemanas)
   border-bottom: none;
   border-radius: 12px 12px 0 0;
 }
-.ccosto-dot { width: 8px; height: 8px; border-radius: 50%; background: #06b6d4; flex-shrink: 0; }
+.ccosto-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--indigo); flex-shrink: 0; }
 .ccosto-nombre { font-size: 13px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); }
 .ccosto-codigo { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.35); background: rgba(var(--v-theme-on-surface),0.06); padding: 2px 6px; border-radius: 4px; }
 .ccosto-resumen { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.4); margin-left: auto; }
@@ -1241,8 +1238,8 @@ onMounted(cargarSemanas)
 }
 .sg-emp-nombre { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sg-emp-badge  { font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 3px; margin-top: 2px; align-self: flex-start; }
-.badge-w2   { background: rgba(139,92,246,0.15); color: #8b5cf6; }
-.badge-1099 { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.badge-w2   { background: var(--indigo-wash); color: var(--indigo); }
+.badge-1099 { background: var(--gold-wash); color: var(--gold); }
 .sg-turno-cell {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.06);
   border-right: 1px solid rgba(var(--v-theme-on-surface),0.06);
@@ -1250,10 +1247,10 @@ onMounted(cargarSemanas)
   transition: background 0.12s; min-height: 52px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-.sg-turno-cell:hover { background: rgba(139,92,246,0.06); }
-.sg-turno-horas { font-size: 9px; font-weight: 600; color: #06b6d4; line-height: 1.3; }
+.sg-turno-cell:hover { background: var(--indigo-wash); }
+.sg-turno-horas { font-size: 9px; font-weight: 600; color: var(--indigo); line-height: 1.3; }
 .sg-turno-total { font-size: 11px; font-weight: 700; margin-top: 1px; }
-.ajustado { color: #f59e0b; }
+.ajustado { color: var(--warning); }
 .sg-libre     { font-size: 10px; color: rgba(var(--v-theme-on-surface),0.3); }
 .sg-sin-turno { font-size: 20px; color: rgba(var(--v-theme-on-surface),0.12); }
 
@@ -1267,7 +1264,7 @@ onMounted(cargarSemanas)
   padding: 10px 12px; border-radius: 8px; cursor: pointer;
   border: 1px solid rgba(var(--v-theme-on-surface),0.08); transition: background 0.12s;
 }
-.emp-list-item:hover { background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.3); }
+.emp-list-item:hover { background: var(--indigo-wash); border-color: var(--indigo); }
 
 .drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; }
 .drw-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -1276,7 +1273,7 @@ onMounted(cargarSemanas)
 .drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; box-sizing: border-box; }
 .mt-3 { margin-top: 12px; } .mb-3 { margin-bottom: 12px; } .mt-2 { margin-top: 8px; } .pt-2 { padding-top: 8px !important; } .pb-2 { padding-bottom: 8px !important; } .pt-0 { padding-top: 0 !important; }
 .cfg-edit-check { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
-.horas-calculadas { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #10b981; font-weight: 700; padding: 6px 10px; background: rgba(16,185,129,0.08); border-radius: 8px; }
+.horas-calculadas { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--success); font-weight: 700; padding: 6px 10px; background: var(--success-wash); border-radius: 8px; }
 /* Resumen de horas */
 .resumen-card { border-radius: 14px !important; overflow: hidden; }
 .resumen-titulo { padding: 14px 18px; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.5); border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.07); display: flex; align-items: center; }
@@ -1284,16 +1281,16 @@ onMounted(cargarSemanas)
 .resumen-tabla th { padding: 8px 12px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; background: rgba(var(--v-theme-on-surface),0.03); border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.07); }
 .resumen-tabla td { padding: 10px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); }
 .resumen-tabla tbody tr:hover { background: rgba(var(--v-theme-on-surface),0.03); }
-.row-ot { background: rgba(239,68,68,0.03) !important; }
+.row-ot { background: var(--error-wash) !important; }
 .resumen-nombre { font-weight: 600; }
 .resumen-empresa { font-size: 10px; color: rgba(var(--v-theme-on-surface),0.4); margin-left: 6px; font-weight: 400; }
-.resumen-reg   { color: #10b981; font-weight: 700; }
+.resumen-reg   { color: var(--success); font-weight: 700; }
 .resumen-total { font-weight: 700; }
 .resumen-rate  { color: rgba(var(--v-theme-on-surface),0.6); font-size: 11px; }
-.resumen-fijo  { font-size: 10px; background: rgba(139,92,246,0.1); color: #8b5cf6; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
-.resumen-pagar { font-weight: 800; color: #10b981; font-size: 13px; }
+.resumen-fijo  { font-size: 10px; background: var(--indigo-wash); color: var(--indigo); padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+.resumen-pagar { font-weight: 800; color: var(--success); font-size: 13px; }
 .ta-c { text-align: center; }
-.ot-badge { background: rgba(239,68,68,0.12); color: #ef4444; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 5px; }
+.ot-badge { background: var(--error-wash); color: var(--error); font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 5px; }
 .ccosto-chip { display: inline-block; font-size: 9px; font-weight: 700; background: rgba(var(--v-theme-on-surface),0.08); color: rgba(var(--v-theme-on-surface),0.5); padding: 1px 5px; border-radius: 3px; margin: 1px 2px; }
 .resumen-footer td { padding: 10px 12px; font-size: 12px; background: rgba(var(--v-theme-on-surface),0.04); border-top: 2px solid rgba(var(--v-theme-on-surface),0.1); }
 

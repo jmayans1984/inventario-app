@@ -2,48 +2,44 @@
   <MainLayout>
     <div class="nom-wrap">
 
-      <!-- ── HEADER ── -->
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-calculator-variant</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">LIQUIDACIÓN DE NÓMINA</h1>
-          <p class="nom-sub" v-if="liqActual">
-            {{ fmtFecha(liqActual.semana_inicio) }} — {{ fmtFecha(liqActual.semana_fin) }}
-            <span class="estado-badge" :class="`estado-${liqActual.estado?.toLowerCase()}`">{{ liqActual.estado }}</span>
-          </p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <PageHeader
+        title="Liquidación de Nómina"
+        :description="liqActual ? `${fmtFecha(liqActual.semana_inicio)} — ${fmtFecha(liqActual.semana_fin)}` : ''"
+        :crumbs="['Nómina', 'Procesos', 'Liquidación de Nómina']"
+      >
+        <template #actions>
+          <span v-if="liqActual" class="estado-badge" :class="`estado-${liqActual.estado?.toLowerCase()}`">{{ liqActual.estado }}</span>
           <select v-model="liqSelId" class="drw-select" @change="cargarDetalle" style="width:230px">
             <option value="">— Seleccionar nómina —</option>
             <option v-for="l in liquidaciones" :key="l.id" :value="l.id">
               {{ fmtFecha(l.semana_inicio) }} · {{ l.estado }}
             </option>
           </select>
-          <v-btn size="small" color="#8b5cf6" variant="outlined" @click="dlgNueva=true">
+          <v-btn size="small" color="secondary" variant="outlined" @click="dlgNueva=true">
             <v-icon size="14" class="mr-1">mdi-plus</v-icon> Nueva Nómina
           </v-btn>
-          <v-btn v-if="liqActual?.estado==='BORRADOR'" size="small" color="#8b5cf6" variant="flat"
+          <v-btn v-if="liqActual?.estado==='BORRADOR'" size="small" color="secondary" variant="flat"
                  :loading="calculando" @click="calcular">
             <v-icon size="14" class="mr-1">mdi-calculator</v-icon> Calcular
           </v-btn>
           <v-btn v-if="liqActual?.estado==='BORRADOR' && lineas.length"
-                 size="small" color="#10b981" variant="flat" @click="abrirAprobar">
+                 size="small" color="success" variant="flat" @click="abrirAprobar">
             <v-icon size="14" class="mr-1">mdi-check-circle</v-icon> Aprobar
           </v-btn>
-          <v-btn v-if="liqActual?.estado==='APROBADA'" size="small" color="#06b6d4" variant="flat"
+          <v-btn v-if="liqActual?.estado==='APROBADA'" size="small" color="secondary" variant="flat"
                  @click="$router.push('/nomina/reportes/recibos')">
             <v-icon size="14" class="mr-1">mdi-file-document</v-icon> Ver Recibos
           </v-btn>
-          <v-btn v-if="liqActual?.estado==='APROBADA'" size="small" color="#f59e0b" variant="outlined"
+          <v-btn v-if="liqActual?.estado==='APROBADA'" size="small" color="warning" variant="outlined"
                  @click="dlgDesaprobar=true">
             <v-icon size="14" class="mr-1">mdi-undo-variant</v-icon> Desaprobar
           </v-btn>
-          <v-btn v-if="liqActual?.estado==='BORRADOR'" size="small" color="#ef4444" variant="text"
+          <v-btn v-if="liqActual?.estado==='BORRADOR'" size="small" color="error" variant="text"
                  :loading="borrando" @click="borrarLiq">
             <v-icon size="14">mdi-trash-can</v-icon>
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- ── FLUJO DE PASOS ── -->
       <div v-if="liqActual" class="pasos-bar">
@@ -61,49 +57,13 @@
       </div>
 
       <!-- ── KPI CARDS ── -->
-      <div v-if="liqActual && lineas.length" class="liq-kpis">
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(139,92,246,0.1)"><v-icon size="18" color="#8b5cf6">mdi-cash-multiple</v-icon></div>
-          <div>
-            <div class="lkpi-label">Bruto Total</div>
-            <div class="lkpi-val" style="color:#8b5cf6">{{ fmtMoney(liqActual.total_bruto) }}</div>
-          </div>
-        </div>
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(239,68,68,0.1)"><v-icon size="18" color="#ef4444">mdi-minus-circle</v-icon></div>
-          <div>
-            <div class="lkpi-label">Deducciones Emp.</div>
-            <div class="lkpi-val" style="color:#ef4444">{{ fmtMoney(liqActual.total_deducciones_emp) }}</div>
-          </div>
-        </div>
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(16,185,129,0.1)"><v-icon size="18" color="#10b981">mdi-cash-check</v-icon></div>
-          <div>
-            <div class="lkpi-label">Neto a Pagar</div>
-            <div class="lkpi-val" style="color:#10b981">{{ fmtMoney(liqActual.total_neto) }}</div>
-          </div>
-        </div>
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(245,158,11,0.1)"><v-icon size="18" color="#f59e0b">mdi-office-building</v-icon></div>
-          <div>
-            <div class="lkpi-label">Aportes Empleador</div>
-            <div class="lkpi-val" style="color:#f59e0b">{{ fmtMoney(liqActual.total_aportes_er) }}</div>
-          </div>
-        </div>
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(6,182,212,0.1)"><v-icon size="18" color="#06b6d4">mdi-domain</v-icon></div>
-          <div>
-            <div class="lkpi-label">Costo Total Empresa</div>
-            <div class="lkpi-val" style="color:#06b6d4">{{ fmtMoney(parseFloat(liqActual.total_bruto||0)+parseFloat(liqActual.total_aportes_er||0)) }}</div>
-          </div>
-        </div>
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(var(--v-theme-on-surface),0.06)"><v-icon size="18">mdi-account-group</v-icon></div>
-          <div>
-            <div class="lkpi-label">Empleados</div>
-            <div class="lkpi-val">{{ lineas.length }}</div>
-          </div>
-        </div>
+      <div v-if="liqActual && lineas.length" class="kpi-grid">
+        <KpiCard :index="0" label="Bruto Total" :value="fmtMoney(liqActual.total_bruto)" icon="mdi-cash-multiple" color="var(--indigo)" value-color="var(--indigo)" />
+        <KpiCard :index="1" label="Deducciones Emp." :value="fmtMoney(liqActual.total_deducciones_emp)" icon="mdi-minus-circle" color="var(--error)" value-color="var(--error)" />
+        <KpiCard :index="2" label="Neto a Pagar" :value="fmtMoney(liqActual.total_neto)" icon="mdi-cash-check" color="var(--success)" value-color="var(--success)" />
+        <KpiCard :index="3" label="Aportes Empleador" :value="fmtMoney(liqActual.total_aportes_er)" icon="mdi-office-building" color="var(--gold)" value-color="var(--gold)" />
+        <KpiCard :index="4" label="Costo Total Empresa" :value="fmtMoney(parseFloat(liqActual.total_bruto||0)+parseFloat(liqActual.total_aportes_er||0))" icon="mdi-domain" color="var(--indigo)" value-color="var(--indigo)" />
+        <KpiCard :index="5" label="Empleados" :value="String(lineas.length)" icon="mdi-account-group" color="var(--gold)" />
       </div>
 
       <!-- ── TABLA DE LÍNEAS ── -->
@@ -151,7 +111,7 @@
                   {{ parseFloat(l.bruto_overtime)>0 ? fmtMoney(l.bruto_overtime) : '—' }}
                 </td>
                 <td class="ta-r bold">{{ fmtMoney(l.total_bruto) }}</td>
-                <td class="ta-r" style="color:#ef4444">-{{ fmtMoney(l.total_deducciones) }}</td>
+                <td class="ta-r" style="color:var(--error)">-{{ fmtMoney(l.total_deducciones) }}</td>
                 <td class="ta-r neto">{{ fmtMoney(l.total_neto) }}</td>
                 <td class="ta-r dim">{{ fmtMoney(parseFloat(l.total_bruto||0)+parseFloat(l.total_aportes_er||0)) }}</td>
               </tr>
@@ -241,7 +201,7 @@
                     <div class="expand-section resumen">
                       <div class="expand-titulo">RESUMEN</div>
                       <div class="expand-item"><span>Bruto</span><span>{{ fmtMoney(l.total_bruto) }}</span></div>
-                      <div class="expand-item" style="color:#ef4444"><span>Deducciones</span><span>-{{ fmtMoney(l.total_deducciones) }}</span></div>
+                      <div class="expand-item" style="color:var(--error)"><span>Deducciones</span><span>-{{ fmtMoney(l.total_deducciones) }}</span></div>
                       <div class="expand-item neto-resumen"><span>NETO A PAGAR</span><span>{{ fmtMoney(l.total_neto) }}</span></div>
                       <div class="expand-item" style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:4px">
                         <span>YTD Bruto acumulado</span><span>{{ fmtMoney(l.ytd_bruto) }}</span>
@@ -276,7 +236,7 @@
     <v-dialog v-model="dlgAprobar" max-width="480">
       <v-card rounded="lg">
         <v-card-title class="pa-4 pb-2" style="font-size:15px;font-weight:700">
-          <v-icon size="18" color="#10b981" class="mr-2">mdi-check-circle</v-icon>
+          <v-icon size="18" color="success" class="mr-2">mdi-check-circle</v-icon>
           Aprobar Nómina
         </v-card-title>
         <v-card-text class="pa-4 pt-2">
@@ -285,13 +245,13 @@
             <div class="aprobar-item"><span>Período</span><span>{{ fmtFecha(liqActual?.semana_inicio) }} — {{ fmtFecha(liqActual?.semana_fin) }}</span></div>
             <div class="aprobar-item"><span>Bruto empleados</span><span>{{ fmtMoney(liqActual?.total_bruto) }}</span></div>
             <div class="aprobar-item"><span>Aportes empleador</span><span>{{ fmtMoney(liqActual?.total_aportes_er) }}</span></div>
-            <div class="aprobar-item bold"><span>Costo total empresa</span><span style="color:#8b5cf6">{{ fmtMoney(parseFloat(liqActual?.total_bruto||0)+parseFloat(liqActual?.total_aportes_er||0)) }}</span></div>
+            <div class="aprobar-item bold"><span>Costo total empresa</span><span style="color:var(--indigo)">{{ fmtMoney(parseFloat(liqActual?.total_bruto||0)+parseFloat(liqActual?.total_aportes_er||0)) }}</span></div>
             <div class="aprobar-item neto"><span>NETO A PAGAR empleados</span><span>{{ fmtMoney(liqActual?.total_neto) }}</span></div>
           </div>
 
           <!-- Info prorrateo si cruza meses -->
           <div v-if="cruzaMeses" class="prorate-info mt-3">
-            <v-icon size="14" color="#f59e0b">mdi-information</v-icon>
+            <v-icon size="14" color="warning">mdi-information</v-icon>
             <span>Esta semana cruza dos meses. El gasto se prorrateará en dos asientos contables.</span>
           </div>
 
@@ -335,14 +295,14 @@
           </div>
 
           <div class="aprobar-advertencia mt-3">
-            <v-icon size="14" color="#ef4444">mdi-alert</v-icon>
+            <v-icon size="14" color="error">mdi-alert</v-icon>
             <span>Al aprobar: se creará el gasto en contabilidad, se cerrará la semana del horario y no se podrá modificar la nómina.</span>
           </div>
         </v-card-text>
         <v-card-actions class="pa-4 pt-0">
           <v-spacer/>
           <v-btn variant="text" @click="dlgAprobar=false">Cancelar</v-btn>
-          <v-btn color="#10b981" variant="flat" :loading="aprobando" @click="confirmarAprobar">
+          <v-btn color="success" variant="flat" :loading="aprobando" @click="confirmarAprobar">
             <v-icon size="14" class="mr-1">mdi-check-circle</v-icon> Confirmar y Aprobar
           </v-btn>
         </v-card-actions>
@@ -353,17 +313,17 @@
     <v-dialog v-model="dlgDesaprobar" max-width="460">
       <v-card rounded="lg">
         <v-card-title class="pa-4 pb-2" style="font-size:15px;font-weight:700">
-          <v-icon size="18" color="#f59e0b" class="mr-2">mdi-undo-variant</v-icon>
+          <v-icon size="18" color="warning" class="mr-2">mdi-undo-variant</v-icon>
           Desaprobar Nómina
         </v-card-title>
         <v-card-text class="pa-4 pt-2">
           <div class="aprobar-resumen">
             <div class="aprobar-item"><span>Período</span><span>{{ fmtFecha(liqActual?.semana_inicio) }} — {{ fmtFecha(liqActual?.semana_fin) }}</span></div>
-            <div class="aprobar-item"><span>Estado actual</span><span style="color:#10b981;font-weight:700">APROBADA</span></div>
-            <div class="aprobar-item bold"><span>Estado resultante</span><span style="color:#f59e0b">BORRADOR</span></div>
+            <div class="aprobar-item"><span>Estado actual</span><span style="color:var(--success);font-weight:700">APROBADA</span></div>
+            <div class="aprobar-item bold"><span>Estado resultante</span><span style="color:var(--warning)">BORRADOR</span></div>
           </div>
-          <div class="aprobar-advertencia mt-3" style="border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.07)">
-            <v-icon size="14" color="#f59e0b">mdi-alert</v-icon>
+          <div class="aprobar-advertencia mt-3" style="border-color:color-mix(in srgb, var(--warning) 35%, transparent);background:color-mix(in srgb, var(--warning) 7%, transparent)">
+            <v-icon size="14" color="warning">mdi-alert</v-icon>
             <span>Esta acción:</span>
           </div>
           <ul style="font-size:12px;margin:8px 0 0 18px;line-height:1.8;color:rgba(var(--v-theme-on-surface),.7)">
@@ -376,7 +336,7 @@
         <v-card-actions class="pa-4 pt-0">
           <v-spacer/>
           <v-btn variant="text" @click="dlgDesaprobar=false">Cancelar</v-btn>
-          <v-btn color="#f59e0b" variant="flat" :loading="desaprobando" @click="confirmarDesaprobar">
+          <v-btn color="warning" variant="flat" :loading="desaprobando" @click="confirmarDesaprobar">
             <v-icon size="14" class="mr-1">mdi-undo-variant</v-icon> Confirmar
           </v-btn>
         </v-card-actions>
@@ -399,7 +359,7 @@
                 {{ fmtFecha(s.semana_inicio) }} — {{ fmtFecha(s.semana_fin) }} · {{ s.estado }}
               </option>
             </select>
-            <span v-if="nuevaLiqSemanaId" style="font-size:10px;color:#10b981;margin-top:4px">
+            <span v-if="nuevaLiqSemanaId" style="font-size:10px;color:var(--success);margin-top:4px">
               ✅ Las horas se tomarán del horario seleccionado
             </span>
           </div>
@@ -415,14 +375,14 @@
             </div>
           </div>
           <div v-if="nuevaLiqInicio && nuevaLiqFin" class="periodo-preview">
-            <v-icon size="14" color="#8b5cf6">mdi-calendar-range</v-icon>
+            <v-icon size="14" color="secondary">mdi-calendar-range</v-icon>
             {{ fmtFecha(nuevaLiqInicio) }} — {{ fmtFecha(nuevaLiqFin) }}
           </div>
         </v-card-text>
         <v-card-actions class="pa-4 pt-0">
           <v-spacer/>
           <v-btn variant="text" @click="dlgNueva=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :loading="creandoLiq"
+          <v-btn color="secondary" variant="flat" :loading="creandoLiq"
                  :disabled="!nuevaLiqInicio || !nuevaLiqFin"
                  @click="crearLiq">Crear Nómina</v-btn>
         </v-card-actions>
@@ -434,6 +394,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
@@ -621,48 +583,39 @@ onMounted(cargar)
 
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 14px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#1a0a2e,#3b1a5e); border-radius: 14px; padding: 20px 24px; flex-wrap: wrap; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(139,92,246,0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.5); margin: 0; display: flex; align-items: center; gap: 8px; }
-.flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; }
 
 /* Pasos */
 .pasos-bar { display: flex; align-items: center; gap: 0; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 12px; padding: 12px 20px; }
 .paso { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.3); }
 .paso.activo { color: rgba(var(--v-theme-on-surface),0.6); }
-.paso.completado { color: #10b981; }
+.paso.completado { color: var(--success); }
 .paso-linea { flex: 1; height: 1px; background: rgba(var(--v-theme-on-surface),0.1); margin: 0 12px; }
 
 /* Estado badges */
 .estado-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
-.estado-borrador { background: rgba(148,163,184,0.15); color: #94a3b8; }
-.estado-aprobada { background: rgba(16,185,129,0.15); color: #10b981; }
-.estado-pagada   { background: rgba(6,182,212,0.15); color: #06b6d4; }
+.estado-borrador { background: color-mix(in srgb, #94a3b8 15%, transparent); color: #94a3b8; }
+.estado-aprobada { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.estado-pagada   { background: color-mix(in srgb, var(--indigo) 15%, transparent); color: var(--indigo); }
 
 /* KPI */
-.liq-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 10px; }
-.lkpi { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
-.lkpi-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.lkpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.4); margin-bottom: 4px; }
-.lkpi-val { font-size: 18px; font-weight: 800; }
+.kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 24px; }
 
 /* Tabla */
 .nom-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .nom-table thead { background: rgba(var(--v-theme-on-surface),0.04); }
 .nom-table th { padding: 9px 10px; text-align: left; font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); white-space: nowrap; }
 .nom-row td { padding: 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); transition: background 0.1s; }
-.nom-row:hover td { background: rgba(139,92,246,0.04); }
+.nom-row:hover td { background: color-mix(in srgb, var(--indigo) 4%, transparent); }
 .ta-r { text-align: right !important; }
 .ta-c { text-align: center !important; }
 .bold { font-weight: 700; }
 .dim  { color: rgba(var(--v-theme-on-surface),0.5); }
-.neto { color: #10b981; font-weight: 800; }
-.ot-hrs { color: #ef4444; font-weight: 700; }
+.neto { color: var(--success); font-weight: 800; }
+.ot-hrs { color: var(--error); font-weight: 700; }
 .nom-badge { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
-.badge-w2   { background: rgba(139,92,246,0.15); color: #8b5cf6; }
-.badge-1099 { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.badge-w2   { background: color-mix(in srgb, var(--indigo) 15%, transparent); color: var(--indigo); }
+.badge-1099 { background: color-mix(in srgb, var(--gold) 15%, transparent); color: var(--gold); }
 .footer-row td { background: rgba(var(--v-theme-on-surface),0.04); border-top: 2px solid rgba(var(--v-theme-on-surface),0.1); padding: 8px 10px; }
 
 /* Expandido */
@@ -673,7 +626,7 @@ onMounted(cargar)
 .expand-titulo { font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.35); text-transform: uppercase; margin-bottom: 8px; }
 .expand-item { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.04); }
 .expand-item span:last-child { font-weight: 600; }
-.neto-resumen { font-weight: 800 !important; color: #10b981; border-top: 1px solid rgba(var(--v-theme-on-surface),0.1); margin-top: 4px; padding-top: 6px; }
+.neto-resumen { font-weight: 800 !important; color: var(--success); border-top: 1px solid rgba(var(--v-theme-on-surface),0.1); margin-top: 4px; padding-top: 6px; }
 .expand-total { font-weight: 800 !important; border-top: 1px solid rgba(var(--v-theme-on-surface),0.1); margin-top: 4px; padding-top: 6px; color: rgba(var(--v-theme-on-surface),0.8); }
 .resumen .expand-item { font-size: 12px; }
 
@@ -687,13 +640,13 @@ onMounted(cargar)
 .drw-field label { font-size: 10px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.5); text-transform: uppercase; }
 .drw-input { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; width: 100%; box-sizing: border-box; }
 .mb-3 { margin-bottom: 12px; } .mt-3 { margin-top: 12px; } .pt-2 { padding-top: 8px !important; } .pa-4 { padding: 16px; } .pb-2 { padding-bottom: 8px !important; } .pt-0 { padding-top: 0 !important; }
-.periodo-preview { margin-top: 10px; font-size: 12px; font-weight: 700; color: #8b5cf6; display: flex; align-items: center; gap: 6px; }
+.periodo-preview { margin-top: 10px; font-size: 12px; font-weight: 700; color: var(--indigo); display: flex; align-items: center; gap: 6px; }
 /* Dialog aprobar */
 .aprobar-resumen { background: rgba(var(--v-theme-on-surface),0.03); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 .aprobar-item { display: flex; justify-content: space-between; font-size: 12px; }
 .aprobar-item span:last-child { font-weight: 600; }
 .aprobar-item.bold { border-top: 1px solid rgba(var(--v-theme-on-surface),0.08); padding-top: 6px; margin-top: 2px; font-weight: 700; }
-.aprobar-item.neto span { color: #10b981; font-weight: 800; font-size: 13px; }
-.prorate-info { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #f59e0b; background: rgba(245,158,11,0.08); padding: 8px 12px; border-radius: 8px; }
-.aprobar-advertencia { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; color: rgba(var(--v-theme-on-surface),0.5); background: rgba(239,68,68,0.05); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.1); }
+.aprobar-item.neto span { color: var(--success); font-weight: 800; font-size: 13px; }
+.prorate-info { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--warning); background: color-mix(in srgb, var(--warning) 8%, transparent); padding: 8px 12px; border-radius: 8px; }
+.aprobar-advertencia { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; color: rgba(var(--v-theme-on-surface),0.5); background: color-mix(in srgb, var(--error) 5%, transparent); padding: 8px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--error) 10%, transparent); }
 </style>

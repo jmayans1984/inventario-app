@@ -2,25 +2,11 @@
   <MainLayout>
     <div class="rn-container">
 
-      <!-- BREADCRUMB -->
-      <div class="rn-breadcrumb">
-        <span class="bc-root">NÓMINA</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Reporte de Nómina</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rn-header">
-        <div class="rn-header-left">
-          <div class="rn-icon-wrap"><v-icon size="22" color="white">mdi-chart-bar</v-icon></div>
-          <div>
-            <h1 class="rn-title">REPORTE DE NÓMINA</h1>
-            <p class="rn-sub">Análisis de costos por período, empleado, centro de costo e impuestos</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Reporte de Nómina"
+        description="Análisis de costos por período, empleado, centro de costo e impuestos"
+        :crumbs="['Nómina', 'Reportes', 'Reporte de Nómina']"
+      />
 
       <!-- FILTROS -->
       <div class="rn-filters-card">
@@ -35,62 +21,26 @@
             <v-text-field v-model="filtros.fechaFin" type="date" variant="outlined" density="compact"
               hide-details style="min-width:160px" />
           </div>
-          <v-btn color="#ec4899" variant="flat" rounded="lg" :loading="cargando" @click="cargar" height="40">
+          <v-btn color="secondary" variant="flat" rounded="lg" :loading="cargando" @click="cargar" height="40">
             <v-icon start>mdi-magnify</v-icon>Generar Reporte
           </v-btn>
           <v-spacer />
-          <v-btn v-if="kpis" variant="flat" color="#ec4899" rounded="lg" height="40" :loading="generandoPDF" @click="exportarPDF">
+          <v-btn v-if="kpis" variant="flat" color="secondary" rounded="lg" height="40" :loading="generandoPDF" @click="exportarPDF">
             <v-icon start>mdi-file-pdf-box</v-icon>Exportar PDF
           </v-btn>
         </div>
       </div>
 
-      <v-progress-linear v-if="cargando" indeterminate color="#ec4899" height="3" class="mb-4" />
+      <v-progress-linear v-if="cargando" indeterminate color="secondary" height="3" class="mb-4" />
 
       <!-- KPIs -->
-      <div v-if="kpis" class="rn-kpi-grid">
-        <div class="rn-kpi" style="--kc:#ec4899">
-          <div class="kpi-icon"><v-icon size="18" color="#ec4899">mdi-cash-multiple</v-icon></div>
-          <div class="kpi-body">
-            <div class="kpi-lbl">BRUTO PAGADO</div>
-            <div class="kpi-val">{{ fmt(kpis.total_bruto) }}</div>
-          </div>
-        </div>
-        <div class="rn-kpi" style="--kc:#ef4444">
-          <div class="kpi-icon"><v-icon size="18" color="#ef4444">mdi-minus-circle-outline</v-icon></div>
-          <div class="kpi-body">
-            <div class="kpi-lbl">DEDUCCIONES EMP.</div>
-            <div class="kpi-val" style="color:#ef4444">{{ fmt(kpis.total_deducciones) }}</div>
-          </div>
-        </div>
-        <div class="rn-kpi" style="--kc:#22c55e">
-          <div class="kpi-icon"><v-icon size="18" color="#22c55e">mdi-bank-transfer-out</v-icon></div>
-          <div class="kpi-body">
-            <div class="kpi-lbl">NETO PAGADO</div>
-            <div class="kpi-val" style="color:#22c55e">{{ fmt(kpis.total_neto) }}</div>
-          </div>
-        </div>
-        <div class="rn-kpi" style="--kc:#f59e0b">
-          <div class="kpi-icon"><v-icon size="18" color="#f59e0b">mdi-office-building-outline</v-icon></div>
-          <div class="kpi-body">
-            <div class="kpi-lbl">APORTES EMPLEADOR</div>
-            <div class="kpi-val" style="color:#f59e0b">{{ fmt(kpis.total_aportes_er) }}</div>
-          </div>
-        </div>
-        <div class="rn-kpi" style="--kc:#8b5cf6">
-          <div class="kpi-icon"><v-icon size="18" color="#8b5cf6">mdi-domain</v-icon></div>
-          <div class="kpi-body">
-            <div class="kpi-lbl">COSTO TOTAL EMPRESA</div>
-            <div class="kpi-val" style="color:#8b5cf6">{{ fmt(kpis.costo_total_empresa) }}</div>
-          </div>
-        </div>
-        <div class="rn-kpi" style="--kc:#06b6d4">
-          <div class="kpi-icon"><v-icon size="18" color="#06b6d4">mdi-account-group-outline</v-icon></div>
-          <div class="kpi-body">
-            <div class="kpi-lbl">NÓMINAS / EMPLEADOS</div>
-            <div class="kpi-val" style="color:#06b6d4">{{ kpis.total_nominas }} / {{ kpis.total_empleados }}</div>
-          </div>
-        </div>
+      <div v-if="kpis" class="kpi-grid">
+        <KpiCard :index="0" label="Bruto Pagado" :value="fmt(kpis.total_bruto)" icon="mdi-cash-multiple" color="var(--indigo)" />
+        <KpiCard :index="1" label="Deducciones Emp." :value="fmt(kpis.total_deducciones)" icon="mdi-minus-circle-outline" color="var(--error)" value-color="var(--error)" />
+        <KpiCard :index="2" label="Neto Pagado" :value="fmt(kpis.total_neto)" icon="mdi-bank-transfer-out" color="var(--success)" value-color="var(--success)" />
+        <KpiCard :index="3" label="Aportes Empleador" :value="fmt(kpis.total_aportes_er)" icon="mdi-office-building-outline" color="var(--gold)" value-color="var(--gold)" />
+        <KpiCard :index="4" label="Costo Total Empresa" :value="fmt(kpis.costo_total_empresa)" icon="mdi-domain" color="var(--indigo)" value-color="var(--indigo)" />
+        <KpiCard :index="5" label="Nóminas / Empleados" :value="`${kpis.total_nominas} / ${kpis.total_empleados}`" icon="mdi-account-group-outline" color="var(--indigo)" value-color="var(--indigo)" />
       </div>
 
       <!-- TABS DE VISTA -->
@@ -299,6 +249,8 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth.js'
 import { formatFecha } from '../../utils/formatters'
@@ -602,17 +554,6 @@ onMounted(cargar)
 
 <style scoped>
 .rn-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.rn-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #ec4899; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-.rn-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.rn-header-left { display: flex; align-items: center; gap: 16px; }
-.rn-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#ec4899,#be185d); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(236,72,153,.35); }
-.rn-title { font-size: 20px; font-weight: 800; margin: 0; }
-.rn-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
 
 .rn-filters-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; }
 .rn-filters-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
@@ -620,18 +561,14 @@ onMounted(cargar)
 .filter-label { font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.4); }
 
 /* KPIs */
-.rn-kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 12px; margin-bottom: 20px; }
-.rn-kpi { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 12px; border-left: 3px solid var(--kc); }
-.kpi-icon { width: 36px; height: 36px; border-radius: 9px; background: rgba(var(--v-theme-on-surface),.05); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.kpi-lbl { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.45); margin-bottom: 2px; }
-.kpi-val { font-size: 16px; font-weight: 800; font-family: monospace; color: rgb(var(--v-theme-on-surface)); }
+.kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 24px; }
 
 /* Tabs */
 .rn-tabs-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 14px; overflow: hidden; }
 .rn-tabs-header { display: flex; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); overflow-x: auto; }
 .rn-tab { display: flex; align-items: center; padding: 12px 18px; font-size: 12px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.5); background: none; border: none; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all .15s; }
-.rn-tab:hover { color: #ec4899; background: rgba(236,72,153,.04); }
-.rn-tab--active { color: #ec4899; border-bottom-color: #ec4899; background: rgba(236,72,153,.05); }
+.rn-tab:hover { color: var(--indigo); background: color-mix(in srgb, var(--indigo) 4%, transparent); }
+.rn-tab--active { color: var(--indigo); border-bottom-color: var(--indigo); background: color-mix(in srgb, var(--indigo) 5%, transparent); }
 
 .rn-empty { padding: 48px 24px; text-align: center; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; display: flex; flex-direction: column; align-items: center; }
 
@@ -649,18 +586,18 @@ onMounted(cargar)
 .font-mono { font-family: 'Courier New', monospace; }
 .font-weight-medium { font-weight: 500; }
 .font-weight-bold { font-weight: 700; }
-.text-error { color: #ef4444; }
-.text-success { color: #22c55e; }
-.text-warning { color: #f59e0b; }
-.text-purple { color: #8b5cf6; }
+.text-error { color: var(--error); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-purple { color: var(--indigo); }
 
 .periodo-label { font-weight: 600; font-size: 12px; }
 .periodo-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface),.45); }
 
-.badge-w2 { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(139,92,246,.12); color: #7c3aed; }
-.badge-1099 { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(245,158,11,.12); color: #b45309; }
+.badge-w2 { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: color-mix(in srgb, var(--indigo) 12%, transparent); color: var(--indigo); }
+.badge-1099 { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--gold); }
 
 .pct-bar-wrap { display: flex; align-items: center; gap: 6px; }
-.pct-bar { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #ec4899, #8b5cf6); min-width: 2px; }
+.pct-bar { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--indigo), var(--gold)); min-width: 2px; }
 .pct-label { font-size: 11px; color: rgba(var(--v-theme-on-surface),.6); white-space: nowrap; }
 </style>

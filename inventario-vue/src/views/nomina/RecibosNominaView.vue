@@ -2,31 +2,28 @@
   <MainLayout>
     <div class="nom-wrap">
       <!-- HEADER -->
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-file-document-outline</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">RECIBOS DE PAGO — PAY STUBS</h1>
-          <p class="nom-sub" v-if="liqActual">
-            {{ fmtFecha(liqActual.semana_inicio) }} — {{ fmtFecha(liqActual.semana_fin) }}
-            <span class="estado-badge" :class="`estado-${liqActual.estado?.toLowerCase()}`">{{ liqActual.estado }}</span>
-          </p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <PageHeader
+        title="Recibos de Pago — Pay Stubs"
+        :description="liqActual ? `${fmtFecha(liqActual.semana_inicio)} — ${fmtFecha(liqActual.semana_fin)}` : ''"
+        :crumbs="['Nómina', 'Reportes', 'Recibos de Pago']"
+      >
+        <template #actions>
+          <span v-if="liqActual" class="estado-badge" :class="`estado-${liqActual.estado?.toLowerCase()}`">{{ liqActual.estado }}</span>
           <select v-model="liqSelId" class="drw-select" style="width:220px" @change="cargarLineas">
             <option value="">— Seleccionar nómina —</option>
             <option v-for="l in liquidaciones" :key="l.id" :value="l.id">
               {{ fmtFecha(l.semana_inicio) }} · {{ l.estado }}
             </option>
           </select>
-          <v-btn v-if="lineas.length" size="small" color="#8b5cf6" variant="flat" @click="imprimirTodos">
+          <v-btn v-if="lineas.length" size="small" color="secondary" variant="flat" @click="imprimirTodos">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir Todos
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- GRID DE RECIBOS (preview en pantalla) -->
       <div v-if="cargando" class="nom-card" style="padding:32px;text-align:center">
-        <v-progress-circular indeterminate color="#8b5cf6" size="28"/>
+        <v-progress-circular indeterminate color="secondary" size="28"/>
       </div>
 
       <div v-else-if="liqActual && lineas.length" class="recibos-grid">
@@ -118,7 +115,7 @@
                 </tr>
                 <tr class="rec-total-row">
                   <td><strong>Total Deductions</strong></td>
-                  <td class="ta-r" style="color:#ef4444"><strong>-{{ fmtMoney(l.total_deducciones) }}</strong></td>
+                  <td class="ta-r" style="color:var(--error)"><strong>-{{ fmtMoney(l.total_deducciones) }}</strong></td>
                 </tr>
               </tbody>
             </table>
@@ -170,6 +167,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
@@ -457,27 +455,23 @@ onMounted(cargar)
 
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 16px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#1a0a2e,#2d1b69); border-radius: 14px; padding: 20px 24px; flex-wrap: wrap; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(139,92,246,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.5); margin: 0; display: flex; align-items: center; gap: 8px; }
 .flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; }
 .drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.2); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; }
 
 .estado-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
 .estado-borrador  { background: rgba(148,163,184,0.15); color: #94a3b8; }
-.estado-aprobada  { background: rgba(16,185,129,0.15);  color: #10b981; }
-.estado-pagada    { background: rgba(6,182,212,0.15);   color: #06b6d4; }
+.estado-aprobada  { background: var(--success-wash);  color: var(--success); }
+.estado-pagada    { background: var(--info-wash);   color: var(--info); }
 
 .recibos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(390px,1fr)); gap: 16px; }
 .recibo { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.1); border-radius: 12px; overflow: hidden; }
 
-.rec-header-container { display: flex; align-items: flex-start; justify-content: space-between; background: #1e3a5f; padding: 12px 16px; gap: 8px; }
+.rec-header-container { display: flex; align-items: flex-start; justify-content: space-between; background: var(--indigo); padding: 12px 16px; gap: 8px; }
 .rec-header { flex: 1; }
 .rec-print-btn { flex-shrink: 0; }
 
-.rec-header { background: #1e3a5f; padding: 0; }
+.rec-header { background: var(--indigo); padding: 0; }
 .rec-empresa { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.8px; }
 .rec-titulo  { font-size: 15px; font-weight: 800; color: #fff; margin: 2px 0; }
 .rec-periodo { font-size: 11px; color: rgba(255,255,255,0.55); }
@@ -486,9 +480,9 @@ onMounted(cargar)
 .rec-emp-nombre { font-size: 14px; font-weight: 700; }
 .rec-emp-tipo { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.5); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 .rec-badge { font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 3px; }
-.badge-w2   { background: rgba(139,92,246,0.15); color: #8b5cf6; }
-.badge-1099 { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.rec-neto-big { text-align: right; font-size: 22px; font-weight: 800; color: #10b981; }
+.badge-w2   { background: var(--indigo-wash); color: var(--indigo); }
+.badge-1099 { background: var(--gold-wash); color: var(--gold); }
+.rec-neto-big { text-align: right; font-size: 22px; font-weight: 800; color: var(--success); }
 
 .rec-section-title { font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.45); text-transform: uppercase; padding: 6px 16px 3px; }
 .rec-table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -497,10 +491,10 @@ onMounted(cargar)
 .rec-total-row td { background: rgba(var(--v-theme-on-surface),0.04); font-size: 12px; padding: 6px 10px; border-top: 1px solid rgba(var(--v-theme-on-surface),0.1); }
 .ta-r { text-align: right !important; }
 
-.rec-net-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(16,185,129,0.06); border-top: 1px solid rgba(16,185,129,0.15); }
+.rec-net-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: color-mix(in srgb, var(--success) 6%, transparent); border-top: 1px solid color-mix(in srgb, var(--success) 15%, transparent); }
 .rec-ytd-label { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.45); text-transform: uppercase; letter-spacing: 0.5px; }
 .rec-ytd-val   { font-size: 13px; font-weight: 700; }
-.rec-net-amount { font-size: 20px; font-weight: 800; color: #10b981; text-align: right; }
+.rec-net-amount { font-size: 20px; font-weight: 800; color: var(--success); text-align: right; }
 
 .estado-vacio { padding: 40px; text-align: center; display: flex; flex-direction: column; align-items: center; }
 </style>

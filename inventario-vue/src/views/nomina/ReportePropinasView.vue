@@ -2,14 +2,11 @@
   <MainLayout>
     <div class="nom-wrap">
 
-      <!-- ── HEADER ── -->
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-cash-fast</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">REPORTE DE PROPINAS PAGADAS</h1>
-          <p class="nom-sub">Propinas pagadas a empleados por período o rango de tiempo</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Reporte de Propinas Pagadas"
+        description="Propinas pagadas a empleados por período o rango de tiempo"
+        :crumbs="['Nómina', 'Reportes', 'Reporte de Propinas']"
+      />
 
       <!-- ── FILTROS ── -->
       <div class="nom-card" style="padding:14px 18px">
@@ -29,39 +26,21 @@
               <option v-for="e in empleados" :key="e.id" :value="e.id">{{ e.apellido }}, {{ e.nombre }}</option>
             </select>
           </div>
-          <v-btn size="small" color="#8b5cf6" variant="flat" :loading="cargando" @click="cargar">
+          <v-btn size="small" color="secondary" variant="flat" :loading="cargando" @click="cargar">
             <v-icon size="14" class="mr-1">mdi-magnify</v-icon> Generar Reporte
           </v-btn>
           <v-spacer />
-          <v-btn v-if="empleadosAgrupados.length" size="small" color="#06b6d4" variant="outlined" @click="imprimirTodos">
+          <v-btn v-if="empleadosAgrupados.length" size="small" color="secondary" variant="outlined" @click="imprimirTodos">
             <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir Todos
           </v-btn>
         </div>
       </div>
 
       <!-- ── KPIs ── -->
-      <div v-if="cargado" class="liq-kpis">
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(16,185,129,0.1)"><v-icon size="18" color="#10b981">mdi-cash-multiple</v-icon></div>
-          <div>
-            <div class="lkpi-label">Total Propinas Pagadas</div>
-            <div class="lkpi-val" style="color:#10b981">{{ fmtMoney(totalGeneral) }}</div>
-          </div>
-        </div>
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(6,182,212,0.1)"><v-icon size="18" color="#06b6d4">mdi-clock-outline</v-icon></div>
-          <div>
-            <div class="lkpi-label">Total Horas</div>
-            <div class="lkpi-val" style="color:#06b6d4">{{ fmtNum(totalHorasGeneral) }}h</div>
-          </div>
-        </div>
-        <div class="lkpi">
-          <div class="lkpi-icon" style="background:rgba(139,92,246,0.1)"><v-icon size="18" color="#8b5cf6">mdi-account-group</v-icon></div>
-          <div>
-            <div class="lkpi-label">Empleados</div>
-            <div class="lkpi-val" style="color:#8b5cf6">{{ empleadosAgrupados.length }}</div>
-          </div>
-        </div>
+      <div v-if="cargado" class="kpi-grid">
+        <KpiCard :index="0" label="Total Propinas Pagadas" :value="fmtMoney(totalGeneral)" icon="mdi-cash-multiple" color="var(--success)" />
+        <KpiCard :index="1" label="Total Horas" :value="fmtNum(totalHorasGeneral) + 'h'" icon="mdi-clock-outline" color="var(--indigo)" />
+        <KpiCard :index="2" label="Empleados" :value="String(empleadosAgrupados.length)" icon="mdi-account-group" color="var(--indigo)" />
       </div>
 
       <!-- ── TABLA POR EMPLEADO ── -->
@@ -88,9 +67,9 @@
                 <td style="font-weight:700;font-size:12px">{{ emp.empleado_nombre }}</td>
                 <td class="ta-r">{{ emp.periodos.length }}</td>
                 <td class="ta-r">{{ fmtNum(emp.total_horas) }}h</td>
-                <td class="ta-r bold" style="color:#10b981">{{ fmtMoney(emp.total_propinas) }}</td>
+                <td class="ta-r bold" style="color:var(--success)">{{ fmtMoney(emp.total_propinas) }}</td>
                 <td class="ta-c">
-                  <v-btn size="x-small" icon="mdi-printer" variant="text" color="#06b6d4"
+                  <v-btn size="x-small" icon="mdi-printer" variant="text" color="secondary"
                          title="Imprimir reporte de este empleado" @click.stop="imprimirEmpleado(emp)" />
                 </td>
               </tr>
@@ -126,7 +105,7 @@
             <tr class="footer-row">
               <td colspan="3" style="font-weight:800;font-size:12px">TOTAL GENERAL</td>
               <td class="ta-r bold">{{ fmtNum(totalHorasGeneral) }}h</td>
-              <td class="ta-r bold" style="color:#10b981">{{ fmtMoney(totalGeneral) }}</td>
+              <td class="ta-r bold" style="color:var(--success)">{{ fmtMoney(totalGeneral) }}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -155,6 +134,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 
@@ -321,36 +302,28 @@ cargarEmpleados()
 
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 14px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#1a0a2e,#3b1a5e); border-radius: 14px; padding: 20px 24px; flex-wrap: wrap; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(139,92,246,0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.5); margin: 0; }
 .flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; }
 
-.liq-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 10px; }
-.lkpi { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
-.lkpi-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.lkpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.4); margin-bottom: 4px; }
-.lkpi-val { font-size: 18px; font-weight: 800; }
+.kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
 
 .nom-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .nom-table thead { background: rgba(var(--v-theme-on-surface),0.04); }
 .nom-table th { padding: 9px 10px; text-align: left; font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: rgba(var(--v-theme-on-surface),0.4); text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); white-space: nowrap; }
 .nom-row td { padding: 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); transition: background 0.1s; }
-.nom-row:hover td { background: rgba(139,92,246,0.04); }
+.nom-row:hover td { background: color-mix(in srgb, var(--indigo) 4%, transparent); }
 .ta-r { text-align: right !important; }
 .ta-c { text-align: center !important; }
 .bold { font-weight: 700; }
 .dim  { color: rgba(var(--v-theme-on-surface),0.5); }
-.neto { color: #10b981; font-weight: 800; }
+.neto { color: var(--success); font-weight: 800; }
 .footer-row td { background: rgba(var(--v-theme-on-surface),0.04); border-top: 2px solid rgba(var(--v-theme-on-surface),0.1); padding: 8px 10px; }
 
 .expand-row td { padding: 0; background: rgba(var(--v-theme-on-surface),0.02); border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.06); }
 
 .estado-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
 .estado-borrador { background: rgba(148,163,184,0.15); color: #94a3b8; }
-.estado-pagado   { background: rgba(16,185,129,0.15); color: #10b981; }
+.estado-pagado   { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
 
 .estado-vacio { padding: 48px; text-align: center; display: flex; flex-direction: column; align-items: center; }
 

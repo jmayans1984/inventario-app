@@ -22,7 +22,7 @@
         <!-- KPIs -->
         <div class="nom-kpi-row">
           <div class="nom-kpi" @click="go('/nomina/configuracion/empleados')">
-            <div class="nom-kpi-icon"><v-icon size="18" color="#f9a8d4">mdi-account-check-outline</v-icon></div>
+            <div class="nom-kpi-icon"><v-icon size="18" color="white">mdi-account-check-outline</v-icon></div>
             <div>
               <div class="nom-kpi-val">
                 <span v-if="!empLoading">{{ equipo.total }}</span>
@@ -32,7 +32,7 @@
             </div>
           </div>
           <div class="nom-kpi" @click="go('/nomina/configuracion/empleados')">
-            <div class="nom-kpi-icon"><v-icon size="18" color="#93c5fd">mdi-badge-account-outline</v-icon></div>
+            <div class="nom-kpi-icon"><v-icon size="18" color="white">mdi-badge-account-outline</v-icon></div>
             <div>
               <div class="nom-kpi-val">
                 <span v-if="!empLoading">{{ equipo.w2 }}</span>
@@ -42,7 +42,7 @@
             </div>
           </div>
           <div class="nom-kpi" @click="go('/nomina/configuracion/empleados')">
-            <div class="nom-kpi-icon"><v-icon size="18" color="#c4b5fd">mdi-account-hard-hat-outline</v-icon></div>
+            <div class="nom-kpi-icon"><v-icon size="18" color="white">mdi-account-hard-hat-outline</v-icon></div>
             <div>
               <div class="nom-kpi-val">
                 <span v-if="!empLoading">{{ equipo.c1099 }}</span>
@@ -52,7 +52,7 @@
             </div>
           </div>
           <div class="nom-kpi" @click="go('/nomina/procesos/horario')">
-            <div class="nom-kpi-icon"><v-icon size="18" color="#6ee7b7">mdi-clock-outline</v-icon></div>
+            <div class="nom-kpi-icon"><v-icon size="18" color="white">mdi-clock-outline</v-icon></div>
             <div>
               <div class="nom-kpi-val">
                 <span v-if="!horasLoading">{{ totalHoras.toFixed(1) }}h</span>
@@ -102,13 +102,13 @@
           <div class="nom-panel">
             <div class="nom-panel-header">
               <div class="nom-panel-title">
-                <v-icon size="14" color="#ec4899">mdi-account-group-outline</v-icon>
+                <v-icon size="14" color="secondary">mdi-account-group-outline</v-icon>
                 EQUIPO ACTIVO
               </div>
               <button class="nom-panel-link" @click="go('/nomina/configuracion/empleados')">Ver empleados</button>
             </div>
             <div v-if="empLoading" class="nom-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#ec4899" />
+              <v-progress-circular indeterminate size="20" width="2" color="secondary" />
             </div>
             <template v-else>
               <div v-if="equipo.total === 0" class="nom-panel-empty">
@@ -149,13 +149,13 @@
           <div class="nom-panel">
             <div class="nom-panel-header">
               <div class="nom-panel-title">
-                <v-icon size="14" color="#8b5cf6">mdi-clock-outline</v-icon>
+                <v-icon size="14" color="secondary">mdi-clock-outline</v-icon>
                 HORAS DE LA SEMANA
               </div>
               <button class="nom-panel-link" @click="go('/nomina/procesos/horario')">Ir a horario</button>
             </div>
             <div v-if="horasLoading" class="nom-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#8b5cf6" />
+              <v-progress-circular indeterminate size="20" width="2" color="secondary" />
             </div>
             <template v-else>
               <div v-if="semanaInfo" class="nom-hr-semana">
@@ -214,8 +214,8 @@ const secciones = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
-    color: '#ec4899',
-    iconBg: 'linear-gradient(135deg,#ec4899,#be185d)',
+    color: 'var(--indigo)',
+    iconBg: 'linear-gradient(135deg,var(--indigo),color-mix(in srgb, var(--indigo) 70%, black))',
     items: [
       { path: '/nomina/configuracion/empleados',      icon: 'mdi-account-tie-outline', title: 'Empleados',       desc: 'Gestiona la plantilla, W2 y 1099' },
       { path: '/nomina/configuracion/cargos',         icon: 'mdi-briefcase-outline',   title: 'Cargos',          desc: 'Define los cargos y posiciones' },
@@ -226,8 +226,8 @@ const secciones = [
   {
     label: 'PROCESOS',
     icon: 'mdi-lightning-bolt-outline',
-    color: '#8b5cf6',
-    iconBg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+    color: 'var(--gold)',
+    iconBg: 'linear-gradient(135deg,var(--gold),color-mix(in srgb, var(--gold) 70%, black))',
     items: [
       { path: '/nomina/procesos/horario',     icon: 'mdi-calendar-week-outline', title: 'Horario Semanal',       desc: 'Registro de horas trabajadas por semana' },
       { path: '/nomina/procesos/liquidacion', icon: 'mdi-calculator',            title: 'Liquidación de Nómina', desc: 'Calcula y aprueba nóminas' },
@@ -237,8 +237,8 @@ const secciones = [
   {
     label: 'REPORTES',
     icon: 'mdi-chart-box-outline',
-    color: '#f59e0b',
-    iconBg: 'linear-gradient(135deg,#f59e0b,#d97706)',
+    color: 'var(--success)',
+    iconBg: 'linear-gradient(135deg,var(--success),color-mix(in srgb, var(--success) 70%, black))',
     items: [
       { path: '/nomina/reportes/nomina',  icon: 'mdi-chart-bar',              title: 'Reporte de Nómina',  desc: 'Costos por período, empleado y CC' },
       { path: '/nomina/reportes/horario', icon: 'mdi-calendar-clock-outline', title: 'Reporte de Horario', desc: 'Horas trabajadas por empleado' },
@@ -328,14 +328,14 @@ onMounted(() => {
 .nom-hero {
   position: relative; overflow: hidden;
   border-radius: 18px; padding: 26px 28px 22px;
-  background: linear-gradient(135deg, #831843 0%, #be185d 55%, #db2777 100%);
+  background: linear-gradient(135deg, var(--indigo) 0%, color-mix(in srgb, var(--indigo) 70%, black) 100%);
   margin-bottom: 24px;
-  box-shadow: 0 10px 30px rgba(190, 24, 93, .25);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--indigo) 25%, transparent);
 }
 .nom-hero-glow {
   position: absolute; top: -60px; right: -40px;
   width: 260px; height: 260px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(249,168,212,.25), transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, white 25%, transparent), transparent 70%);
   pointer-events: none;
 }
 .nom-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -421,10 +421,10 @@ onMounted(() => {
 .nom-panel-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .8px; color: rgba(var(--v-theme-on-surface), .6); }
 .nom-panel-link {
   border: none; background: transparent; cursor: pointer;
-  font-size: 11px; font-weight: 700; color: #ec4899;
+  font-size: 11px; font-weight: 700; color: var(--indigo);
   padding: 2px 6px; border-radius: 6px; transition: background .15s;
 }
-.nom-panel-link:hover { background: rgba(236,72,153,.08); }
+.nom-panel-link:hover { background: color-mix(in srgb, var(--indigo) 8%, transparent); }
 .nom-panel-loading { display: flex; justify-content: center; padding: 20px; }
 .nom-panel-empty {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -437,15 +437,15 @@ onMounted(() => {
   display: flex; flex-direction: column; align-items: center; gap: 1px;
   padding: 10px 6px; border-radius: 10px;
 }
-.nom-eq-w2    { background: rgba(59,130,246,.08);  }
-.nom-eq-1099  { background: rgba(139,92,246,.08);  }
-.nom-eq-horas { background: rgba(16,185,129,.08);  }
-.nom-eq-fijo  { background: rgba(245,158,11,.08);  }
+.nom-eq-w2    { background: var(--indigo-wash);  }
+.nom-eq-1099  { background: var(--indigo-wash);  }
+.nom-eq-horas { background: var(--success-wash);  }
+.nom-eq-fijo  { background: var(--gold-wash);  }
 .nom-eq-chip-val { font-size: 18px; font-weight: 800; line-height: 1; }
-.nom-eq-w2 .nom-eq-chip-val    { color: #3b82f6; }
-.nom-eq-1099 .nom-eq-chip-val  { color: #8b5cf6; }
-.nom-eq-horas .nom-eq-chip-val { color: #059669; }
-.nom-eq-fijo .nom-eq-chip-val  { color: #d97706; }
+.nom-eq-w2 .nom-eq-chip-val    { color: var(--indigo); }
+.nom-eq-1099 .nom-eq-chip-val  { color: var(--indigo); }
+.nom-eq-horas .nom-eq-chip-val { color: var(--success); }
+.nom-eq-fijo .nom-eq-chip-val  { color: var(--gold); }
 .nom-eq-chip-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface), .5); }
 
 .nom-eq-sub { font-size: 9px; font-weight: 800; letter-spacing: .8px; color: rgba(var(--v-theme-on-surface), .4); margin: 4px 0 6px; }
@@ -458,7 +458,7 @@ onMounted(() => {
 .nom-eq-count {
   flex-shrink: 0; min-width: 24px; text-align: center;
   padding: 2px 8px; border-radius: 10px;
-  background: rgba(236,72,153,.1); color: #db2777;
+  background: var(--indigo-wash); color: var(--indigo);
   font-size: 11px; font-weight: 800;
 }
 
@@ -471,9 +471,9 @@ onMounted(() => {
 .nom-hr-row { padding: 6px 4px 8px; }
 .nom-hr-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .nom-hr-cc { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nom-hr-val { font-family: monospace; font-size: 12px; font-weight: 700; color: #8b5cf6; flex-shrink: 0; }
+.nom-hr-val { font-family: monospace; font-size: 12px; font-weight: 700; color: var(--indigo); flex-shrink: 0; }
 .nom-hr-bar-track { height: 6px; border-radius: 3px; background: rgba(var(--v-theme-on-surface), .06); overflow: hidden; }
-.nom-hr-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#8b5cf6,#d946ef); transition: width .3s; }
+.nom-hr-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg,var(--indigo),var(--gold)); transition: width .3s; }
 .nom-hr-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .4); margin-top: 3px; }
 .nom-hr-total {
   display: flex; align-items: center; justify-content: space-between;
@@ -481,5 +481,5 @@ onMounted(() => {
   border-top: 2px solid rgba(var(--v-theme-on-surface), .08);
   font-size: 11px; font-weight: 800; letter-spacing: .4px;
 }
-.nom-hr-total span:last-child { font-family: monospace; font-size: 13px; color: #8b5cf6; }
+.nom-hr-total span:last-child { font-family: monospace; font-size: 13px; color: var(--indigo); }
 </style>

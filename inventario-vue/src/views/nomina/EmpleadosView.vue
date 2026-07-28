@@ -2,29 +2,27 @@
   <MainLayout>
     <div class="nom-wrap">
 
-      <!-- HEADER -->
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="22" color="white">mdi-account-tie-outline</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">GESTIÓN DE EMPLEADOS</h1>
-          <p class="nom-sub">{{ empleados.length }} empleados · Florida, USA</p>
-        </div>
-        <div class="nom-header-actions">
-          <v-btn-toggle v-model="filtroEstado" mandatory density="compact" color="#8b5cf6">
+      <PageHeader
+        title="Gestión de Empleados"
+        :description="`${empleados.length} empleados · Florida, USA`"
+        :crumbs="['Nómina', 'Configuración', 'Empleados']"
+      >
+        <template #actions>
+          <v-btn-toggle v-model="filtroEstado" mandatory density="compact" color="secondary">
             <v-btn value="TODOS"    size="small">TODOS</v-btn>
             <v-btn value="ACTIVO"   size="small">ACTIVOS</v-btn>
             <v-btn value="INACTIVO" size="small">INACTIVOS</v-btn>
           </v-btn-toggle>
-          <v-btn color="#8b5cf6" variant="flat" size="small" prepend-icon="mdi-plus" @click="nuevo">
+          <v-btn color="secondary" variant="flat" size="small" prepend-icon="mdi-plus" @click="nuevo">
             NUEVO EMPLEADO
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- TABLA -->
       <div class="nom-card">
         <div v-if="cargando" class="nom-loading">
-          <v-progress-circular indeterminate color="#8b5cf6" size="28" /><span>CARGANDO...</span>
+          <v-progress-circular indeterminate color="secondary" size="28" /><span>CARGANDO...</span>
         </div>
         <table v-else class="nom-table">
           <thead>
@@ -70,7 +68,7 @@
                   </span>
                 </td>
                 <td @click.stop>
-                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="#8b5cf6" @click="editar(e)" />
+                  <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="secondary" @click="editar(e)" />
                 </td>
               </tr>
             </template>
@@ -95,7 +93,7 @@
               <div class="drw-foto-wrap">
                 <img v-if="fotoPreview" :src="fotoPreview" class="drw-foto" />
                 <div v-else class="drw-foto-empty"><v-icon size="28" color="rgba(255,255,255,0.2)">mdi-account-circle</v-icon></div>
-                <v-btn size="x-small" variant="flat" color="#8b5cf6" class="drw-foto-btn" @click="$refs.fotoInput.click()">
+                <v-btn size="x-small" variant="flat" color="secondary" class="drw-foto-btn" @click="$refs.fotoInput.click()">
                   <v-icon size="11">mdi-camera</v-icon>
                 </v-btn>
                 <input ref="fotoInput" type="file" accept="image/*" hidden @change="onFoto" />
@@ -202,11 +200,11 @@
                 </div>
               </div>
               <div v-if="form.tipo_pago==='FIJO_MAS_HORAS'" class="drw-info-box">
-                <v-icon size="13" color="#8b5cf6">mdi-information-outline</v-icon>
+                <v-icon size="13" color="secondary">mdi-information-outline</v-icon>
                 EL SISTEMA PAGARÁ EL SALARIO FIJO SEMANAL MÁS LAS HORAS REGISTRADAS EN EL HORARIO MULTIPLICADAS POR LA TARIFA ADICIONAL. SI SUPERA 40H SE APLICA OVERTIME (×1.5) SOBRE LAS HORAS EXTRA.
               </div>
               <div v-if="form.tipo_pago==='DIA_LABORADO'" class="drw-info-box">
-                <v-icon size="13" color="#f59e0b">mdi-information-outline</v-icon>
+                <v-icon size="13" color="warning">mdi-information-outline</v-icon>
                 EL SISTEMA CONTARÁ LOS DÍAS DISTINTOS QUE APAREZCAN EN EL HORARIO SEMANAL Y MULTIPLICARÁ POR EL VALOR POR DÍA.
               </div>
             </div>
@@ -215,7 +213,7 @@
               <template v-if="form.tipo_empleado==='W2'">
                 <div class="drw-section-title">INFORMACIÓN W-4 (RETENCIÓN FEDERAL)</div>
                 <div class="drw-w4-note">
-                  <v-icon size="14" color="#f59e0b">mdi-information-outline</v-icon>
+                  <v-icon size="14" color="warning">mdi-information-outline</v-icon>
                   FLORIDA NO TIENE IMPUESTO ESTATAL. LOS DATOS SOLICITADOS SON DEL FORMULARIO W-4 FEDERAL 2024.
                 </div>
                 <div class="drw-grid-2">
@@ -270,7 +268,7 @@
 
         <div class="drw-footer">
           <v-btn variant="text" color="#94a3b8" @click="drawer=false">CANCELAR</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :loading="guardando" @click="guardar">
+          <v-btn color="secondary" variant="flat" :loading="guardando" @click="guardar">
             <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
             {{ editando?.id ? 'ACTUALIZAR' : 'REGISTRAR' }}
           </v-btn>
@@ -279,7 +277,7 @@
     </v-navigation-drawer>
 
     <!-- Snackbar -->
-    <v-snackbar v-model="snack" color="#10b981" timeout="3000" location="bottom right">
+    <v-snackbar v-model="snack" color="success" timeout="3000" location="bottom right">
       <v-icon class="mr-2">mdi-check-circle</v-icon> {{ snackMsg }}
     </v-snackbar>
 
@@ -289,6 +287,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
@@ -537,21 +536,6 @@ onMounted(cargar)
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 16px; }
 
-.nom-header {
-  display: flex; align-items: center; gap: 14px;
-  background: linear-gradient(135deg,#1e1b4b,#2d1b69);
-  border-radius: 14px; padding: 20px 24px;
-}
-.nom-header-icon {
-  width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
-  background: rgba(139,92,246,0.3);
-  display: flex; align-items: center; justify-content: center;
-}
-.nom-title { font-size: 18px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.45); margin: 2px 0 0; }
-.nom-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.flex-1 { flex: 1; }
-
 .nom-card {
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface),0.07);
@@ -568,7 +552,7 @@ onMounted(cargar)
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08);
 }
 .nom-row { cursor: pointer; transition: background 0.12s; }
-.nom-row:hover td { background: rgba(139,92,246,0.05) !important; }
+.nom-row:hover td { background: color-mix(in srgb, var(--indigo) 5%, transparent) !important; }
 .nom-row td { padding: 12px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.05); }
 .nom-row:last-child td { border-bottom: none; }
 .nom-id    { font-weight: 700; color: rgba(var(--v-theme-on-surface),0.4); font-size: 12px; }
@@ -576,18 +560,18 @@ onMounted(cargar)
 .nom-email  { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
 .nom-cargo  { font-size: 12px; color: rgba(var(--v-theme-on-surface),0.6); }
 .nom-cc     { font-size: 12px; color: rgba(var(--v-theme-on-surface),0.6); }
-.nom-rate   { font-weight: 700; color: #10b981; font-size: 13px; }
+.nom-rate   { font-weight: 700; color: var(--success); font-size: 13px; }
 .nom-empty  { padding: 32px; text-align: center; color: rgba(var(--v-theme-on-surface),0.3); }
-.nom-group-header td { padding: 7px 14px; background: rgba(139,92,246,0.07); color: rgba(var(--v-theme-on-surface),0.55); font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); border-top: 1px solid rgba(var(--v-theme-on-surface),0.06); }
-.nom-group-count { display: inline-flex; align-items: center; justify-content: center; background: rgba(139,92,246,0.18); color: #a78bfa; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; margin-left: 7px; vertical-align: middle; }
+.nom-group-header td { padding: 7px 14px; background: color-mix(in srgb, var(--indigo) 7%, transparent); color: rgba(var(--v-theme-on-surface),0.55); font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.08); border-top: 1px solid rgba(var(--v-theme-on-surface),0.06); }
+.nom-group-count { display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--indigo) 18%, transparent); color: var(--indigo); font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; margin-left: 7px; vertical-align: middle; }
 
 .nom-badge { font-size: 9px; font-weight: 800; padding: 3px 7px; border-radius: 5px; letter-spacing: 0.5px; }
-.badge-w2   { background: rgba(139,92,246,0.15); color: #8b5cf6; }
-.badge-1099 { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.badge-w2   { background: color-mix(in srgb, var(--indigo) 15%, transparent); color: var(--indigo); }
+.badge-1099 { background: color-mix(in srgb, var(--gold) 15%, transparent); color: var(--gold); }
 
 .nom-estado { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
-.estado-activo   { background: rgba(16,185,129,0.12); color: #10b981; }
-.estado-inactivo { background: rgba(239,68,68,0.12); color: #ef4444; }
+.estado-activo   { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.estado-inactivo { background: color-mix(in srgb, var(--error) 12%, transparent); color: var(--error); }
 
 /* DRAWER */
 .drw-wrap { display: flex; flex-direction: column; height: 100%; background: rgb(var(--v-theme-surface)); }
@@ -626,8 +610,8 @@ onMounted(cargar)
   border-radius: 8px; margin: 0 6px; transition: all 0.15s;
   text-align: center;
 }
-.drw-nav-btn:hover { background: rgba(139,92,246,0.08); color: #8b5cf6; }
-.drw-nav-btn.active { background: rgba(139,92,246,0.12); color: #8b5cf6; font-weight: 800; }
+.drw-nav-btn:hover { background: color-mix(in srgb, var(--indigo) 8%, transparent); color: var(--indigo); }
+.drw-nav-btn.active { background: color-mix(in srgb, var(--indigo) 12%, transparent); color: var(--indigo); font-weight: 800; }
 
 /* Content area */
 .drw-content { flex: 1; overflow-y: auto; padding: 16px 18px; }
@@ -635,8 +619,8 @@ onMounted(cargar)
 /* Foto */
 .drw-foto-wrap {
   width: 68px; height: 68px; border-radius: 50%;
-  border: 2px solid rgba(139,92,246,0.4); position: relative; overflow: hidden;
-  background: rgba(139,92,246,0.1);
+  border: 2px solid color-mix(in srgb, var(--indigo) 40%, transparent); position: relative; overflow: hidden;
+  background: color-mix(in srgb, var(--indigo) 10%, transparent);
   display: flex; align-items: center; justify-content: center;
 }
 .drw-foto { width: 100%; height: 100%; object-fit: cover; }
@@ -663,7 +647,7 @@ onMounted(cargar)
   color: rgb(var(--v-theme-on-surface)); font-size: 12px;
   outline: none; transition: border-color 0.15s;
 }
-.drw-input:focus { border-color: #8b5cf6; background: rgba(var(--v-theme-on-surface),0.08); }
+.drw-input:focus { border-color: var(--indigo); background: rgba(var(--v-theme-on-surface),0.08); }
 
 :deep(.drw-field .v-select) { font-size: 12px !important; }
 :deep(.drw-field .v-select .v-field__input) { font-size: 12px !important; padding: 0 10px !important; min-height: 34px !important; }
@@ -678,18 +662,18 @@ onMounted(cargar)
 }
 
 .drw-check-row { display: flex; align-items: center; gap: 8px; }
-.drw-check { width: 16px; height: 16px; cursor: pointer; accent-color: #8b5cf6; }
+.drw-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--indigo); }
 
 .drw-w4-note {
   display: flex; align-items: center; gap: 6px;
-  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+  background: color-mix(in srgb, var(--warning) 8%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
   border-radius: 8px; padding: 8px 12px; font-size: 11px; color: rgba(var(--v-theme-on-surface),0.7);
 }
 .drw-info-box {
   display: flex; align-items: flex-start; gap: 6px;
-  background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.15);
+  background: color-mix(in srgb, var(--warning) 6%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 15%, transparent);
   border-radius: 8px; padding: 8px 12px; font-size: 11px; color: rgba(var(--v-theme-on-surface),0.6);
   margin-top: 4px;
 }
-.drw-error { color: #ef4444; font-size: 12px; font-weight: 600; margin-top: 8px; }
+.drw-error { color: var(--error); font-size: 12px; font-weight: 600; margin-top: 8px; }
 </style>

@@ -2,28 +2,29 @@
   <MainLayout>
     <div class="nom-wrap">
       <!-- HEADER (oculto al imprimir) -->
-      <div class="nom-header no-print">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-calendar-clock</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">HORARIO SEMANAL — PARA PUBLICAR</h1>
-          <p class="nom-sub">Una hoja por centro de costo al imprimir PDF</p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select v-model="semanaSelId" class="drw-select" style="width:220px" @change="cargarDetalle">
-            <option value="">— Seleccionar semana —</option>
-            <option v-for="s in semanas" :key="s.id" :value="s.id">
-              {{ fmtFecha(s.semana_inicio) }} — {{ s.estado }}
-            </option>
-          </select>
-          <v-btn color="#06b6d4" variant="outlined" size="small" :disabled="!semanaActual"
-                 @click="irAEditarNomina">
-            <v-icon size="14" class="mr-1">mdi-pencil</v-icon> Editar Nómina
-          </v-btn>
-          <v-btn color="#8b5cf6" variant="flat" size="small" :disabled="!semanaActual"
-                 @click="imprimirPDF">
-            <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
-          </v-btn>
-        </div>
+      <div class="no-print">
+        <PageHeader
+          title="Horario Semanal — Para Publicar"
+          description="Una hoja por centro de costo al imprimir PDF"
+          :crumbs="['Nómina', 'Reportes', 'Reporte de Horario']"
+        >
+          <template #actions>
+            <select v-model="semanaSelId" class="drw-select" style="width:220px" @change="cargarDetalle">
+              <option value="">— Seleccionar semana —</option>
+              <option v-for="s in semanas" :key="s.id" :value="s.id">
+                {{ fmtFecha(s.semana_inicio) }} — {{ s.estado }}
+              </option>
+            </select>
+            <v-btn color="secondary" variant="outlined" size="small" :disabled="!semanaActual"
+                   @click="irAEditarNomina">
+              <v-icon size="14" class="mr-1">mdi-pencil</v-icon> Editar Nómina
+            </v-btn>
+            <v-btn color="secondary" variant="flat" size="small" :disabled="!semanaActual"
+                   @click="imprimirPDF">
+              <v-icon size="14" class="mr-1">mdi-printer</v-icon> Imprimir
+            </v-btn>
+          </template>
+        </PageHeader>
       </div>
 
       <!-- REPORTE: UN BLOQUE POR CENTRO DE COSTOS -->
@@ -139,6 +140,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import { formatFecha } from '../../utils/formatters'
@@ -496,10 +498,6 @@ onMounted(cargarSemanas)
 
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 16px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#0c2340,#1a3a6e); border-radius: 14px; padding: 20px 24px; flex-wrap: wrap; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(6,182,212,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.45); margin: 0; }
 .flex-1 { flex: 1; }
 .drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.2); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 12px; outline: none; }
 
@@ -515,13 +513,13 @@ onMounted(cargarSemanas)
 
 .rh-encabezado { text-align: center; margin-bottom: 16px; }
 .rh-titulo     { font-size: 22px; font-weight: 900; letter-spacing: 1.5px; color: rgb(var(--v-theme-on-surface)); margin-bottom: 4px; }
-.rh-ccosto-nombre { font-size: 15px; font-weight: 800; color: #06b6d4; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.8px; }
+.rh-ccosto-nombre { font-size: 15px; font-weight: 800; color: var(--indigo); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.8px; }
 .rh-periodo    { font-size: 12px; color: rgba(var(--v-theme-on-surface),0.5); }
 .rh-sin-emp    { padding: 20px; text-align: center; color: rgba(var(--v-theme-on-surface),0.4); font-size: 12px; }
 
 /* Tabla */
 .rh-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; table-layout: fixed; }
-.rh-table th { background: #1e3a5f; color: #fff; padding: 7px 6px; text-align: center; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); }
+.rh-table th { background: var(--indigo); color: #fff; padding: 7px 6px; text-align: center; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.15); }
 .th-emp { text-align: left !important; width: 270px; padding-left: 10px !important; }
 .th-total { min-width: 60px; }
 .rh-fecha { font-size: 8px; font-weight: 400; opacity: 0.75; }
@@ -531,18 +529,18 @@ onMounted(cargarSemanas)
 .rh-emp-sub { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.4); margin-top: 2px; }
 
 .rh-turno { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; padding: 6px 4px; vertical-align: middle; }
-.rh-verde { background: #d1fae5 !important; }
-.rh-verde-check { font-size: 16px; color: #059669; font-weight: 900; }
-.rh-horas { font-size: 10px; font-weight: 700; color: #06b6d4; line-height: 1.3; }
+.rh-verde { background: var(--success-wash) !important; }
+.rh-verde-check { font-size: 16px; color: var(--success); font-weight: 900; }
+.rh-horas { font-size: 10px; font-weight: 700; color: var(--indigo); line-height: 1.3; }
 .rh-h     { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.45); margin-top: 1px; }
 .rh-libre { font-size: 9px; color: rgba(var(--v-theme-on-surface),0.3); text-transform: uppercase; font-style: italic; }
 .rh-vacio { font-size: 11px; color: rgba(var(--v-theme-on-surface),0.15); }
 .rh-otro-cc { font-size: 8px; color: rgba(var(--v-theme-on-surface),0.4); font-weight: 600; line-height: 1.2; display: block; }
-.rh-otro-cc-bg { background: #fef9c3 !important; color: #000 !important; }
+.rh-otro-cc-bg { background: var(--gold-wash) !important; color: #000 !important; }
 .rh-grid-cc { font-size: 8px; font-weight: 700; color: #000; line-height: 1.2; display: block; }
 
 .rh-total { border: 1px solid rgba(var(--v-theme-on-surface),0.1); text-align: center; font-weight: 800; font-size: 12px; padding: 6px 4px; white-space: nowrap; }
-.rh-ot    { display: block; font-size: 8px; background: rgba(239,68,68,0.15); color: #ef4444; padding: 1px 4px; border-radius: 3px; margin-top: 2px; font-weight: 800; }
+.rh-ot    { display: block; font-size: 8px; background: var(--error-wash); color: var(--error); padding: 1px 4px; border-radius: 3px; margin-top: 2px; font-weight: 800; }
 .ta-c     { text-align: center !important; }
 
 /* Fila de totales del centro */

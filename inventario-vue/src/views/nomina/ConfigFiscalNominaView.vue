@@ -1,21 +1,20 @@
 <template>
   <MainLayout>
     <div class="nom-wrap">
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-bank-outline</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">CONFIGURACIÓN FISCAL</h1>
-          <p class="nom-sub">Tasas federales y de Florida · IRS Publication 15-T</p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
+      <PageHeader
+        title="Configuración Fiscal"
+        description="Tasas federales y de Florida · IRS Publication 15-T"
+        :crumbs="['Nómina', 'Configuración', 'Config. Fiscal']"
+      >
+        <template #actions>
           <select v-model="anio" class="drw-select" @change="cargar" style="width:90px">
             <option v-for="a in anios" :key="a" :value="a">{{ a }}</option>
           </select>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <div class="nom-card pa-6">
-        <div v-if="cargando" class="nom-loading"><v-progress-circular indeterminate color="#06b6d4" size="24"/></div>
+        <div v-if="cargando" class="nom-loading"><v-progress-circular indeterminate color="secondary" size="24"/></div>
         <div v-else>
           <!-- FICA -->
           <div class="cfg-section">
@@ -52,7 +51,7 @@
           <!-- FUTA / SUTA -->
           <div class="cfg-section">
             <div class="cfg-section-title">FUTA — FEDERAL UNEMPLOYMENT TAX (solo empleador)</div>
-            <div class="cfg-info"><v-icon size="13" color="#06b6d4">mdi-information-outline</v-icon>
+            <div class="cfg-info"><v-icon size="13" color="secondary">mdi-information-outline</v-icon>
               Tasa bruta 6.0%, pero con crédito estatal efectiva es 0.6% en Florida.
             </div>
             <div class="cfg-row">
@@ -70,7 +69,7 @@
 
           <div class="cfg-section">
             <div class="cfg-section-title">SUTA — FL REEMPLOYMENT TAX (solo empleador)</div>
-            <div class="cfg-info"><v-icon size="13" color="#f59e0b">mdi-information-outline</v-icon>
+            <div class="cfg-info"><v-icon size="13" color="warning">mdi-information-outline</v-icon>
               Florida Reemployment Tax. Nuevos empleadores: 2.7%. Varía según historial de la empresa.
             </div>
             <div class="cfg-row">
@@ -89,7 +88,7 @@
           <!-- CUENTA CONTABLE NÓMINA -->
           <div class="cfg-section">
             <div class="cfg-section-title">CONTABILIDAD — CUENTA DE GASTOS DE NÓMINA</div>
-            <div class="cfg-info"><v-icon size="13" color="#8b5cf6">mdi-information-outline</v-icon>
+            <div class="cfg-info"><v-icon size="13" color="secondary">mdi-information-outline</v-icon>
               Selecciona la cuenta contable a la que se cargará el gasto de nómina al aprobar.
               Esta cuenta aparecerá en tu estado de pérdidas y ganancias.
             </div>
@@ -125,8 +124,8 @@
                     </span>
                   </template>
                 </v-select>
-                <div v-if="cfg.cuenta_nomina" style="margin-top:6px;font-size:11px;color:#10b981;display:flex;align-items:center;gap:4px">
-                  <v-icon size="12" color="#10b981">mdi-check-circle</v-icon>
+                <div v-if="cfg.cuenta_nomina" style="margin-top:6px;font-size:11px;color:var(--success);display:flex;align-items:center;gap:4px">
+                  <v-icon size="12" color="success">mdi-check-circle</v-icon>
                   Al aprobar nóminas se usará: <strong>{{ cfg.cuenta_nomina }}</strong>
                 </div>
               </div>
@@ -136,7 +135,7 @@
           <!-- FIT TABLES -->
           <div class="cfg-section">
             <div class="cfg-section-title">FIT — TABLAS DE RETENCIÓN FEDERAL (IRS PUB. 15-T)</div>
-            <div class="cfg-info"><v-icon size="13" color="#6366f1">mdi-information-outline</v-icon>
+            <div class="cfg-info"><v-icon size="13" color="secondary">mdi-information-outline</v-icon>
               Actualiza estos valores cada enero cuando el IRS publique las tablas del nuevo año.
               Las tasas (10%, 12%, 22%…) son fijas en la ley; solo cambian los límites y las deducciones estándar.
             </div>
@@ -225,10 +224,10 @@
           </div>
 
           <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px">
-            <span v-if="saved" style="font-size:12px;color:#10b981;display:flex;align-items:center;gap:4px">
-              <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado
+            <span v-if="saved" style="font-size:12px;color:var(--success);display:flex;align-items:center;gap:4px">
+              <v-icon size="14" color="success">mdi-check-circle</v-icon> Guardado
             </span>
-            <v-btn color="#06b6d4" variant="flat" size="small" :loading="guardando" @click="guardar">
+            <v-btn color="secondary" variant="flat" size="small" :loading="guardando" @click="guardar">
               <v-icon size="14" class="mr-1">mdi-content-save-outline</v-icon> Guardar Configuración
             </v-btn>
           </div>
@@ -240,6 +239,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 const authStore = useAuthStore()
@@ -302,10 +302,6 @@ onMounted(cargar)
 </script>
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 16px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#0f172a,#1e3a5f); border-radius: 14px; padding: 20px 24px; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(6,182,212,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.45); margin: 0; }
 .drw-select-full { width: 100%; height: 36px; }
 .flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; }
@@ -319,7 +315,7 @@ onMounted(cargar)
 .cfg-item label { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface),0.65); }
 .cfg-hint { font-size: 10px; color: rgba(var(--v-theme-on-surface),0.35); }
 .drw-input { height: 34px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgba(var(--v-theme-on-surface),0.03); color: rgb(var(--v-theme-on-surface)); font-size: 13px; outline: none; width: 100%; }
-.drw-input:focus { border-color: #06b6d4; }
+.drw-input:focus { border-color: var(--indigo); }
 .drw-select { height: 34px; padding: 0 8px; border-radius: 7px; border: 1px solid rgba(var(--v-theme-on-surface),0.15); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 13px; outline: none; }
 .fit-sub-title { font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:rgba(var(--v-theme-on-surface),0.5); margin-bottom:8px; }
 .fit-brackets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:20px; }
@@ -328,7 +324,7 @@ onMounted(cargar)
 .fit-br-head { display:grid; grid-template-columns:56px 1fr; gap:8px; padding:6px 10px; background:rgba(var(--v-theme-on-surface),0.04); font-size:10px; font-weight:700; color:rgba(var(--v-theme-on-surface),0.45); text-transform:uppercase; letter-spacing:.5px; }
 .fit-br-row { display:grid; grid-template-columns:56px 1fr; gap:8px; align-items:center; padding:5px 10px; border-top:1px solid rgba(var(--v-theme-on-surface),0.06); }
 .fit-br-last { background:rgba(var(--v-theme-on-surface),0.02); }
-.fit-rate { font-size:11px; font-weight:800; color:#6366f1; font-family:monospace; }
+.fit-rate { font-size:11px; font-weight:800; color:var(--indigo); font-family:monospace; }
 .fit-br-input { max-width:130px !important; height:28px !important; font-size:12px !important; }
 .fit-br-inf { font-size:11px; color:rgba(var(--v-theme-on-surface),0.35); font-style:italic; }
 </style>

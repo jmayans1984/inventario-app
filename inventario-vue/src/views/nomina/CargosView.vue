@@ -1,16 +1,17 @@
 <template>
   <MainLayout>
     <div class="nom-wrap">
-      <div class="nom-header">
-        <div class="nom-header-icon"><v-icon size="20" color="white">mdi-briefcase-outline</v-icon></div>
-        <div class="flex-1">
-          <h1 class="nom-title">CARGOS Y POSICIONES</h1>
-          <p class="nom-sub">Catálogo de cargos para empleados</p>
-        </div>
-        <v-btn color="#8b5cf6" variant="flat" size="small" prepend-icon="mdi-plus" @click="abrirNuevo">
-          Nuevo Cargo
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Cargos y Posiciones"
+        description="Catálogo de cargos para empleados"
+        :crumbs="['Nómina', 'Configuración', 'Cargos']"
+      >
+        <template #actions>
+          <v-btn color="secondary" variant="flat" size="small" prepend-icon="mdi-plus" @click="abrirNuevo">
+            Nuevo Cargo
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <div class="nom-card">
         <table class="nom-table">
@@ -21,7 +22,7 @@
               <td><strong>{{ c.nombre }}</strong></td>
               <td style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5)">{{ c.descripcion || '—' }}</td>
               <td>
-                <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="#ef4444"
+                <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
                        @click="eliminar(c.id)" />
               </td>
             </tr>
@@ -40,7 +41,7 @@
         <v-card-actions class="pa-4">
           <v-spacer />
           <v-btn variant="text" @click="dlg=false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" @click="guardar">Guardar</v-btn>
+          <v-btn color="secondary" variant="flat" @click="guardar">Guardar</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -49,6 +50,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 const authStore = useAuthStore()
@@ -75,10 +77,6 @@ onMounted(cargar)
 </script>
 <style scoped>
 .nom-wrap { display: flex; flex-direction: column; gap: 16px; }
-.nom-header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#1e1b4b,#2d1b69); border-radius: 14px; padding: 20px 24px; }
-.nom-header-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(139,92,246,0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.nom-title { font-size: 17px; font-weight: 800; color: #fff; margin: 0; }
-.nom-sub   { font-size: 12px; color: rgba(255,255,255,0.45); margin: 0; }
 .flex-1 { flex: 1; }
 .nom-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),0.07); border-radius: 14px; overflow: hidden; }
 .nom-table { width: 100%; border-collapse: collapse; font-size: 13px; }
