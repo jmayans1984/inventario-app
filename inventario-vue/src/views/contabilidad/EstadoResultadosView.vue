@@ -232,22 +232,14 @@ async function generarPDF() {
     const ML = 10
     const MR = 10
     const TW = PW - ML - MR
-    const HDR_H = 22
+    const HDR_H = 29
     const FTR_H = 9
 
-    const C_INDIGO  = [30, 27, 75]
-    const C_IND2    = [79, 70, 229]
-    const C_IND3    = [99, 102, 241]
-    const C_IND_BG  = [238, 240, 255]
-    const C_EMERALD = [16, 185, 129]
-    const C_RED     = [239, 68, 68]
-    const C_DARK    = [30, 27, 75]
-    const C_BODY    = [55, 65, 81]
-    const C_MID     = [107, 114, 128]
-    const C_GREY    = [156, 163, 175]
-    const C_LGREY   = [209, 213, 219]
-    const C_ALTROW  = [249, 250, 255]
-    const C_WHITE   = [255, 255, 255]
+    const C_BLACK = [0, 0, 0]
+    const C_TEXT = [22, 22, 22]
+    const C_MUTED = [72, 72, 72]
+    const C_RULE = [0, 0, 0]
+    const C_RULE_SOFT = [115, 115, 115]
 
     const emp = empresaInfo.value
     const empNombre = (emp.nombre || authStore.empresaNombre || 'EMPRESA').toUpperCase()
@@ -261,12 +253,12 @@ async function generarPDF() {
       const pg = doc.internal.getCurrentPageInfo().pageNumber
       const yL = PH - FTR_H + 2
       const yTx = PH - FTR_H + 6
-      doc.setDrawColor(...C_LGREY)
-      doc.setLineWidth(0.3)
+      doc.setDrawColor(...C_RULE_SOFT)
+      doc.setLineWidth(0.18)
       doc.line(ML, yL, PW - MR, yL)
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6)
-      doc.setTextColor(...C_GREY)
+      doc.setTextColor(...C_MUTED)
       doc.text(`Informe generado por ${usuario} el ${fechaHoraGen}`, ML, yTx)
       doc.text(`Pagina ${pg} de ${TOTAL_PGS}`, PW - MR, yTx, { align: 'right' })
     }
@@ -275,31 +267,38 @@ async function generarPDF() {
     const ccostoTitulo = ccostoSel.value ? ccostoNombre.value : 'TODA LA EMPRESA'
 
     function drawHeader() {
-      const MT = 5
-      doc.setFillColor(...C_INDIGO)
-      doc.rect(ML, MT, TW, HDR_H - MT, 'F')
-      doc.setFillColor(...C_IND3)
-      doc.rect(ML, MT + (HDR_H - MT) - 2, TW, 2, 'F')
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.setTextColor(...C_WHITE)
-      doc.text(empNombre, ML + 5, MT + 7)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.5)
-      doc.setTextColor(180, 190, 230)
-      doc.text(ccostoTitulo, ML + 5, MT + 12.5)
+      const MT = 8
+      doc.setDrawColor(...C_RULE)
+      doc.setLineWidth(0.45)
+      doc.line(ML, MT, PW - MR, MT)
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(11)
-      doc.setTextColor(...C_WHITE)
-      doc.text('ESTADO DE RESULTADOS', ML + TW - 5, MT + 7, { align: 'right' })
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7.5)
-      doc.setTextColor(200, 210, 255)
-      doc.text(periodoTitulo, ML + TW - 5, MT + 12.5, { align: 'right' })
+      doc.setTextColor(...C_BLACK)
+      doc.text(empNombre, ML, MT + 6)
 
-      y = HDR_H + 5
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...C_BLACK)
+      doc.text('ESTADO DE RESULTADOS', PW - MR, MT + 6, { align: 'right' })
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(...C_TEXT)
+      doc.text(ccostoTitulo, ML, MT + 11.5)
+      doc.text(periodoTitulo, PW - MR, MT + 11.5, { align: 'right' })
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6)
+      doc.setTextColor(...C_MUTED)
+      doc.text(`Generado: ${fechaHoraGen}`, ML, MT + 16)
+      doc.text(`Usuario: ${usuario}`, PW - MR, MT + 16, { align: 'right' })
+
+      doc.setDrawColor(...C_RULE)
+      doc.setLineWidth(0.32)
+      doc.line(ML, MT + 19, PW - MR, MT + 19)
+
+      y = HDR_H + 3
     }
 
     const headerPages = new Set()
@@ -322,7 +321,7 @@ async function generarPDF() {
 
     const columnStyles = { 0: { cellWidth: colCuenta } }
     for (let i = 1; i < pctColIdx; i++) columnStyles[i] = { cellWidth: colValor, halign: 'right' }
-    columnStyles[pctColIdx] = { cellWidth: colPct, halign: 'right', fontSize: PCT_FONT, textColor: C_MID }
+    columnStyles[pctColIdx] = { cellWidth: colPct, halign: 'right', fontSize: PCT_FONT, textColor: C_TEXT }
 
     const head = [['CUENTA', ...d.periodos.map(p => p.label), ...(anual ? ['TOTAL'] : []), '% VTA']]
     const body = []
@@ -333,14 +332,21 @@ async function generarPDF() {
     for (const g of d.grupos) {
       body.push([{
         content: g.nombre, colSpan: nCols,
-        styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: 6.8,
-                  cellPadding: { top: 4.5, right: 2, bottom: 1, left: 2 } }
+        styles: {
+          fontStyle: 'bold',
+          fillColor: false,
+          textColor: C_BLACK,
+          fontSize: 6.9,
+          cellPadding: { top: 4.5, right: 2, bottom: 1.2, left: 0 },
+          lineWidth: { bottom: 0.18 },
+          lineColor: C_RULE_SOFT,
+        }
       }])
       const cuentasList = g.cuentas.length ? g.cuentas : [{ nombre: 'Sin movimientos', valores: new Array(nPeriodos).fill(0), total: 0 }]
       for (const c of cuentasList) {
         body.push([
           { content: c.nombre, styles: { fillColor: false, cellPadding: indentPad } },
-          ...c.valores.map(v => ({ content: v === 0 ? '—' : fmt(v), styles: { fillColor: false } })),
+          ...c.valores.map(v => ({ content: v === 0 ? '-' : fmt(v), styles: { fillColor: false } })),
           ...(anual ? [{ content: fmt(c.total), styles: { fontStyle: 'bold', fillColor: false } }] : []),
           { content: '', styles: { fillColor: false } }
         ])
@@ -348,19 +354,20 @@ async function generarPDF() {
       subtotalRows.add(body.length)
       const pctSub = anual ? g.totalPct : g.subtotalesPct[0]
       body.push([
-        { content: '', styles: { fillColor: false, lineWidth: subLine, lineColor: C_LGREY } },
-        ...g.subtotales.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: subLine, lineColor: C_LGREY } })),
-        ...(anual ? [{ content: fmt(g.total), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: subLine, lineColor: C_LGREY } }] : []),
-        { content: fmtPct(pctSub), styles: { fontStyle: 'bold', fillColor: false, textColor: C_IND2, fontSize: PCT_FONT, cellPadding: { top: 1.2, right: 2, bottom: 1.2, left: 2 }, lineWidth: subLine, lineColor: C_LGREY } }
+        { content: '', styles: { fillColor: false, lineWidth: subLine, lineColor: C_RULE } },
+        ...g.subtotales.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fillColor: false, textColor: C_BLACK, cellPadding: { top: 1.25, right: 2, bottom: 1.25, left: 2 }, lineWidth: subLine, lineColor: C_RULE } })),
+        ...(anual ? [{ content: fmt(g.total), styles: { fontStyle: 'bold', fillColor: false, textColor: C_BLACK, cellPadding: { top: 1.25, right: 2, bottom: 1.25, left: 2 }, lineWidth: subLine, lineColor: C_RULE } }] : []),
+        { content: fmtPct(pctSub), styles: { fontStyle: 'bold', fillColor: false, textColor: C_BLACK, fontSize: PCT_FONT, cellPadding: { top: 1.25, right: 2, bottom: 1.25, left: 2 }, lineWidth: subLine, lineColor: C_RULE } }
       ])
     }
 
     const utilPct = d.kpis.ventasNetas > 0 ? (d.kpis.utilidadNeta / d.kpis.ventasNetas) * 100 : null
+    const totalLine = { top: 0.45, bottom: 0.45, left: 0, right: 0 }
     body.push([
-      { content: 'UTILIDAD NETA', styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: C_WHITE } },
-      ...d.utilidadPorPeriodo.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: v >= 0 ? C_EMERALD : [252,165,165] } })),
-      ...(anual ? [{ content: fmt(d.kpis.utilidadNeta), styles: { fontStyle: 'bold', fontSize: 8, fillColor: C_INDIGO, textColor: d.kpis.utilidadNeta >= 0 ? C_EMERALD : [252,165,165] } }] : []),
-      { content: fmtPct(utilPct), styles: { fontStyle: 'bold', fontSize: 6, fillColor: C_INDIGO, textColor: C_WHITE } }
+      { content: 'UTILIDAD NETA', styles: { fontStyle: 'bold', fontSize: 8, fillColor: false, textColor: C_BLACK, lineWidth: totalLine, lineColor: C_RULE, cellPadding: { top: 1.8, right: 2, bottom: 1.8, left: 0 } } },
+      ...d.utilidadPorPeriodo.map(v => ({ content: fmt(v), styles: { fontStyle: 'bold', fontSize: 8, fillColor: false, textColor: C_BLACK, lineWidth: totalLine, lineColor: C_RULE, cellPadding: { top: 1.8, right: 2, bottom: 1.8, left: 2 } } })),
+      ...(anual ? [{ content: fmt(d.kpis.utilidadNeta), styles: { fontStyle: 'bold', fontSize: 8, fillColor: false, textColor: C_BLACK, lineWidth: totalLine, lineColor: C_RULE, cellPadding: { top: 1.8, right: 2, bottom: 1.8, left: 2 } } }] : []),
+      { content: fmtPct(utilPct), styles: { fontStyle: 'bold', fontSize: 6, fillColor: false, textColor: C_BLACK, lineWidth: totalLine, lineColor: C_RULE, cellPadding: { top: 1.8, right: 2, bottom: 1.8, left: 2 } } }
     ])
 
     autoTable(doc, {
@@ -369,11 +376,13 @@ async function generarPDF() {
       head,
       body,
       theme: 'plain',
-      styles: { fontSize: 6.5, cellPadding: { top: 0.9, right: 2, bottom: 0.9, left: 2 }, halign: 'right', lineWidth: 0 },
-      headStyles: { fillColor: C_INDIGO, textColor: C_WHITE, fontSize: 6, halign: 'right', lineWidth: { bottom: 0.3 }, lineColor: C_INDIGO },
+      styles: { font: 'helvetica', fontSize: 6.5, textColor: C_TEXT, fillColor: false, cellPadding: { top: 0.9, right: 2, bottom: 0.9, left: 2 }, halign: 'right', lineWidth: 0 },
+      headStyles: { fillColor: false, textColor: C_BLACK, fontStyle: 'bold', fontSize: 6, halign: 'right', lineWidth: { top: 0.25, bottom: 0.35 }, lineColor: C_RULE, cellPadding: { top: 1.4, right: 2, bottom: 1.4, left: 2 } },
       columnStyles,
       tableLineWidth: 0,
       didParseCell: (hd) => {
+        hd.cell.styles.fillColor = false
+        if (hd.column.index === 0 && hd.section === 'head') hd.cell.styles.halign = 'left'
         if (hd.column.index === 0 && hd.section === 'body' && !subtotalRows.has(hd.row.index)) hd.cell.styles.halign = 'left'
       },
       didDrawPage: () => { ensureHeader(); drawFooter() },
