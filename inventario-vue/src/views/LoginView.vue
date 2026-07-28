@@ -1,44 +1,50 @@
 <template>
   <div :class="['login-page', isDarkMode ? 'dark' : 'light']">
     <section class="login-stage" aria-label="RestManager Pro">
-      <div class="brand-mark">
-        <img :src="logoSrc" class="brand-logo" alt="RestManager Pro" />
-        <div>
+      <div class="brand-composition">
+        <div class="brand-emblem">
+          <img :src="logoSrc" class="brand-logo" alt="RestManager Pro" />
+        </div>
+
+        <div class="brand-copy">
           <p class="brand-kicker">RestManager Pro</p>
-          <h1 class="brand-title">Control operativo para cada turno.</h1>
+          <h1 class="brand-title">Gestiona tu operación desde un solo lugar.</h1>
+          <p class="brand-subtitle">
+            Inventario, tesorería, nómina y reportes conectados para trabajar con claridad.
+          </p>
         </div>
       </div>
 
-      <div class="operation-board" aria-hidden="true">
-        <div class="board-row board-row--head">
-          <span>Caja</span>
-          <span>Estado</span>
-          <span>Cierre</span>
+      <div class="module-showcase" aria-hidden="true">
+        <div class="module-card module-card--active">
+          <v-icon size="20">mdi-view-dashboard-outline</v-icon>
+          <span>Gerencia</span>
         </div>
-        <div class="board-row">
-          <span>Ventas</span>
-          <span class="status-dot status-dot--ok">Activo</span>
-          <strong>$ 8,420</strong>
-        </div>
-        <div class="board-row">
+        <div class="module-card">
+          <v-icon size="20">mdi-bank-outline</v-icon>
           <span>Tesorería</span>
-          <span class="status-dot status-dot--warn">Revisión</span>
-          <strong>$ 2,180</strong>
         </div>
-        <div class="board-row">
-          <span>Inventario</span>
-          <span class="status-dot status-dot--ok">Listo</span>
-          <strong>96%</strong>
+        <div class="module-card">
+          <v-icon size="20">mdi-warehouse</v-icon>
+          <span>Almacén</span>
+        </div>
+        <div class="module-card">
+          <v-icon size="20">mdi-account-group-outline</v-icon>
+          <span>Nómina</span>
         </div>
       </div>
 
       <div class="stage-footer">
         <div>
-          <span class="stage-label">Sesión segura</span>
+          <span class="stage-label">Acceso</span>
+          <strong>Seguro</strong>
+        </div>
+        <div>
+          <span class="stage-label">Modo</span>
           <strong>Multiempresa</strong>
         </div>
         <div>
-          <span class="stage-label">Versión</span>
+          <span class="stage-label">Version</span>
           <strong>2.0</strong>
         </div>
       </div>
@@ -280,45 +286,68 @@ const toggleTema = () => {
   overflow: hidden;
   color: var(--login-stage-text);
   background:
-    linear-gradient(90deg, rgba(245, 241, 232, 0.055) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(245, 241, 232, 0.045) 1px, transparent 1px),
-    linear-gradient(145deg, var(--login-stage) 0%, var(--login-stage-soft) 68%, #2d2112 100%);
-  background-size: 44px 44px, 44px 44px, auto;
+    linear-gradient(140deg, rgba(240, 168, 60, 0.13) 0 1px, transparent 1px 100%),
+    radial-gradient(circle at 18% 18%, rgba(240, 168, 60, 0.14), transparent 34%),
+    linear-gradient(145deg, #120f0b 0%, var(--login-stage) 46%, var(--login-stage-soft) 100%);
+  background-size: auto, auto, auto;
 }
 
 .login-stage::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(118deg, transparent 0 56%, rgba(240, 168, 60, 0.16) 56% 56.35%, transparent 56.35%),
-    linear-gradient(118deg, transparent 0 68%, rgba(245, 241, 232, 0.10) 68% 68.18%, transparent 68.18%);
+  top: 0;
+  bottom: 0;
+  right: 74px;
+  width: 118px;
+  background: linear-gradient(180deg, transparent, rgba(240, 168, 60, 0.28), transparent);
+  transform: skewX(-14deg);
+  opacity: 0.75;
   pointer-events: none;
 }
 
-.brand-mark,
-.operation-board,
+.login-stage::after {
+  content: '';
+  position: absolute;
+  inset: 28px;
+  border: 1px solid rgba(245, 241, 232, 0.07);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.brand-composition,
+.module-showcase,
 .stage-footer {
   position: relative;
   z-index: 1;
 }
 
-.brand-mark {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  max-width: 470px;
+.brand-composition {
+  display: grid;
+  align-content: start;
+  gap: 28px;
+  max-width: 520px;
   animation: login-enter var(--dur-slow) var(--ease-out) both;
 }
 
+.brand-emblem {
+  display: inline-grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(245, 241, 232, 0.13), rgba(245, 241, 232, 0.03));
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 241, 232, 0.12),
+    0 24px 54px rgba(0, 0, 0, 0.30);
+}
+
 .brand-logo {
-  width: 64px;
-  height: 64px;
+  width: 76px;
+  height: 76px;
   border-radius: 8px;
   object-fit: cover;
-  box-shadow:
-    0 0 0 1px rgba(245, 241, 232, 0.12),
-    0 14px 32px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 1px rgba(245, 241, 232, 0.12);
 }
 
 .brand-kicker,
@@ -334,77 +363,60 @@ const toggleTema = () => {
 }
 
 .brand-title {
-  max-width: 440px;
-  margin: 4px 0 0;
-  font-size: 34px;
-  line-height: 1.04;
+  max-width: 500px;
+  margin: 8px 0 0;
+  font-size: clamp(36px, 4.7vw, 58px);
+  line-height: 0.98;
   font-weight: 900;
   letter-spacing: 0;
 }
 
-.operation-board {
-  width: min(100%, 560px);
-  margin: auto 0;
-  border-radius: 8px;
-  background: rgba(245, 241, 232, 0.075);
-  box-shadow:
-    inset 0 0 0 1px rgba(245, 241, 232, 0.09),
-    0 24px 60px rgba(0, 0, 0, 0.26);
-  backdrop-filter: blur(8px);
+.brand-subtitle {
+  max-width: 420px;
+  margin: 18px 0 0;
+  color: rgba(245, 241, 232, 0.56);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.module-showcase {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: min(100%, 420px);
+  margin: 34px 0 auto;
   animation: login-enter var(--dur-slow) var(--ease-out) 70ms both;
 }
 
-.board-row {
-  display: grid;
-  grid-template-columns: 1fr 0.8fr 0.75fr;
-  gap: 16px;
+.module-card {
+  display: flex;
   align-items: center;
+  gap: 10px;
   min-height: 58px;
-  padding: 0 18px;
-  border-bottom: 1px solid rgba(245, 241, 232, 0.08);
-  color: rgba(245, 241, 232, 0.78);
+  padding: 0 14px;
+  border-radius: 8px;
+  color: rgba(245, 241, 232, 0.68);
+  background: rgba(245, 241, 232, 0.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 241, 232, 0.08),
+    0 12px 28px rgba(0, 0, 0, 0.10);
   font-size: 13px;
-}
-
-.board-row:last-child { border-bottom: 0; }
-.board-row strong {
-  justify-self: end;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  color: #fff;
-}
-.board-row--head {
-  min-height: 42px;
-  color: rgba(245, 241, 232, 0.38);
-  font-size: 10.5px;
   font-weight: 800;
-  text-transform: uppercase;
 }
 
-.status-dot {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: rgba(245, 241, 232, 0.72);
+.module-card--active {
+  color: #1b1508;
+  background: linear-gradient(135deg, var(--login-accent), var(--login-accent-strong));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 20px 38px rgba(0, 0, 0, 0.22);
 }
-
-.status-dot::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.status-dot--ok::before { background: var(--login-success); }
-.status-dot--warn::before { background: var(--login-warning); }
 
 .stage-footer {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 12px;
   color: rgba(245, 241, 232, 0.82);
   animation: login-enter var(--dur-slow) var(--ease-out) 110ms both;
 }
@@ -412,6 +424,8 @@ const toggleTema = () => {
 .stage-footer div {
   display: grid;
   gap: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(245, 241, 232, 0.10);
 }
 
 .stage-footer strong {
@@ -814,7 +828,6 @@ const toggleTema = () => {
     font-size: 27px;
   }
 
-  .board-row,
   .field-wrap,
   .btn-submit {
     min-width: 0;
@@ -822,8 +835,8 @@ const toggleTema = () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-mark,
-  .operation-board,
+  .brand-composition,
+  .module-showcase,
   .stage-footer,
   .panel-shell,
   .emp-list,
