@@ -458,7 +458,7 @@ textarea::placeholder,
 
 /* Grids de Contabilidad: libro mayor limpio, profesional y animado */
 .accounting-module {
-  --acc-grid-accent: var(--indigo);
+  --acc-grid-accent: var(--gold);
   --acc-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, var(--acc-grid-accent) 4%);
   --acc-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 90%, var(--acc-grid-accent) 10%);
   --acc-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 88%, var(--acc-grid-accent) 12%);
