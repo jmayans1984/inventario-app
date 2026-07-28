@@ -2927,17 +2927,24 @@ async function ensureOrdenProduccionTables() {
             notas           TEXT,
             created_at      TIMESTAMP DEFAULT NOW()
         )`);
-    // Migración: si la tabla existía sin columna 'id', agregarla
-    await pool.query(`
-        DO $$ BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'orden_produccion' AND column_name = 'id'
-            ) THEN
-                ALTER TABLE orden_produccion ADD COLUMN id SERIAL;
-                ALTER TABLE orden_produccion ADD PRIMARY KEY (id);
-            END IF;
-        END $$`);
+    // Migración: agregar columnas faltantes si la tabla existía con esquema viejo
+    const colsMigration = [
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS empresa         VARCHAR(20)`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS fecha           DATE DEFAULT CURRENT_DATE`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS receta          VARCHAR(50)`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS receta_nombre   VARCHAR(200)`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS und             VARCHAR(30)`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS cantidad        NUMERIC DEFAULT 0`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS dias_ventana    INT DEFAULT 15`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS consumo_periodo NUMERIC DEFAULT 0`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS costo_total     NUMERIC DEFAULT 0`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS estado          VARCHAR(20) DEFAULT 'PENDIENTE'`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS notas           TEXT`,
+        `ALTER TABLE orden_produccion ADD COLUMN IF NOT EXISTS created_at      TIMESTAMP DEFAULT NOW()`,
+    ];
+    for (const sql of colsMigration) {
+        try { await pool.query(sql); } catch (e) { /* columna ya existe o tipo distinto, ignorar */ }
+    }
     await pool.query(`
         CREATE TABLE IF NOT EXISTS orden_produccion_detalle (
             id            SERIAL PRIMARY KEY,
