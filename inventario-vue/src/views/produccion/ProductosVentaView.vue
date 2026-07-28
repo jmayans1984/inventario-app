@@ -2,30 +2,17 @@
   <MainLayout>
     <div class="pg-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">PROVEEDURÍA</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Productos para Venta</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon">
-            <v-icon size="24" color="white">mdi-package-variant</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">PRODUCTOS PARA VENTA</h1>
-            <p class="page-sub">Catálogo de precios de costo y venta — productos.para_venta = 'SI'</p>
-          </div>
-        </div>
-        <v-btn color="#8b5cf6" variant="flat" prepend-icon="mdi-cog-outline" @click="abrirMargenes">
-          Márgenes de Venta
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Productos para Venta"
+        description="Catálogo de precios de costo y venta"
+        :crumbs="['Proveeduría', 'Configuración', 'Productos para Venta']"
+      >
+        <template #actions>
+          <v-btn color="secondary" variant="flat" prepend-icon="mdi-cog-outline" @click="abrirMargenes">
+            Márgenes de Venta
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- KPIs -->
       <div class="kpi-row">
@@ -89,7 +76,7 @@
       <!-- TABLA AGRUPADA (solo lectura) -->
       <div class="tabla-card">
         <div v-if="loading" class="loading-wrap">
-          <v-progress-circular indeterminate color="#06b6d4" size="36" />
+          <v-progress-circular indeterminate color="primary" size="36" />
         </div>
         <table v-else class="crud-table">
           <thead>
@@ -182,6 +169,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 
 const productos    = ref([])
@@ -303,16 +291,7 @@ onMounted(async () => {
 <style scoped>
 .pg-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),.45); }
-.bc-root { color: #06b6d4; }
-.bc-sep  { color: rgba(var(--v-theme-on-surface),.25) !important; }
-.bc-current { color: rgba(var(--v-theme-on-surface),.7); }
 
-.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-.header-left { display: flex; align-items: center; gap: 14px; }
-.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.page-title { font-size: 17px; font-weight: 800; letter-spacing: .5px; margin: 0; color: rgb(var(--v-theme-on-surface)); }
-.page-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
 .kpi-row { display: flex; gap: 12px; margin-bottom: 20px; }
 .kpi-card { flex: 1; min-width: 140px; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
@@ -359,6 +338,6 @@ onMounted(async () => {
 .field-group { margin-bottom: 14px; }
 .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 5px; }
 .field-input { width: 100%; padding: 9px 12px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; font-size: 13px; background: rgba(var(--v-theme-on-surface),.03); color: rgb(var(--v-theme-on-surface)); outline: none; transition: border-color .2s; box-sizing: border-box; }
-.field-input:focus { border-color: #8b5cf6; }
+.field-input:focus { border-color: rgb(var(--v-theme-secondary)); }
 .api-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #ef4444; margin-top: 8px; }
 </style>

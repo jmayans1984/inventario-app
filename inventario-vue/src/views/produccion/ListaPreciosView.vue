@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <MainLayout>
     <div class="pg-container">
 
@@ -22,7 +22,7 @@
             <p class="page-sub">Configuración de listas de precios y condiciones de crédito</p>
           </div>
         </div>
-        <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
+        <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="abrirModal()">
           Nueva Lista
         </v-btn>
       </div>
@@ -39,7 +39,7 @@
       <!-- TABLA -->
       <div class="tabla-card">
         <div v-if="loading" class="loading-wrap">
-          <v-progress-circular indeterminate color="#06b6d4" size="36" />
+          <v-progress-circular indeterminate color="primary" size="36" />
         </div>
         <table v-else class="crud-table">
           <thead>
@@ -87,7 +87,7 @@
       <v-dialog v-model="modal" max-width="440" persistent>
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#06b6d4" class="mr-2">mdi-list-box-outline</v-icon>
+            <v-icon color="primary" class="mr-2">mdi-list-box-outline</v-icon>
             <span>{{ editando ? 'Editar Lista' : 'Nueva Lista de Precios' }}</span>
             <v-spacer />
             <v-btn icon="mdi-close" size="small" variant="text" @click="modal = false" />
@@ -135,7 +135,7 @@
           </div>
           <div class="modal-footer">
             <v-btn variant="text" @click="modal = false">Cancelar</v-btn>
-            <v-btn color="#06b6d4" variant="flat" :loading="guardando" @click="guardar">
+            <v-btn color="primary" variant="flat" :loading="guardando" @click="guardar">
               {{ editando ? 'Guardar Cambios' : 'Crear Lista' }}
             </v-btn>
           </div>
@@ -166,6 +166,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 
@@ -305,7 +306,7 @@ onMounted(cargar)
 .field-group { margin-bottom: 16px; }
 .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.5); margin-bottom: 6px; }
 .field-input { width: 100%; padding: 9px 12px; border: 1px solid rgba(var(--v-theme-on-surface),.15); border-radius: 8px; font-size: 13px; background: rgba(var(--v-theme-on-surface),.03); color: rgb(var(--v-theme-on-surface)); outline: none; transition: border-color .2s; box-sizing: border-box; }
-.field-input:focus { border-color: #06b6d4; }
+.field-input:focus { border-color: rgb(var(--v-theme-primary)); }
 .field-input.field-error { border-color: #ef4444; }
 .error-txt { font-size: 11px; color: #ef4444; margin-top: 3px; display: block; }
 .hint-txt { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-top: 3px; display: block; }
@@ -313,5 +314,5 @@ onMounted(cargar)
 
 .radio-group { display: flex; gap: 20px; }
 .radio-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: rgb(var(--v-theme-on-surface)); }
-.radio-opt input[type="radio"] { accent-color: #06b6d4; width: 15px; height: 15px; }
+.radio-opt input[type="radio"] { accent-color: rgb(var(--v-theme-primary)); width: 15px; height: 15px; }
 </style>

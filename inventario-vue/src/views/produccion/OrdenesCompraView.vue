@@ -1,31 +1,18 @@
-﻿<template>
+<template>
   <MainLayout>
     <div class="oc-container">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">PROVEEDURÍA</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="12" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Órdenes de Compra Recibidas</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="page-header">
-        <div class="header-left">
-          <div class="header-icon">
-            <v-icon size="24" color="white">mdi-clipboard-list-outline</v-icon>
-          </div>
-          <div>
-            <h1 class="page-title">ÓRDENES DE COMPRA RECIBIDAS</h1>
-            <p class="page-sub">Órdenes de todas las empresas cliente</p>
-          </div>
-        </div>
-        <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
-          Actualizar
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Órdenes de Compra Recibidas"
+        description="Órdenes de todas las empresas cliente"
+        :crumbs="['Proveeduría', 'Procesos', 'Órdenes de Compra']"
+      >
+        <template #actions>
+          <v-btn color="primary" variant="flat" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
+            Actualizar
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- KPI CARDS -->
       <div class="kpi-row">
@@ -58,7 +45,7 @@
         </div>
         <div class="kpi-card">
           <div class="kpi-icon" style="background:rgba(34,197,94,.15)">
-            <v-icon color="#16a34a">mdi-receipt-text-check-outline</v-icon>
+            <v-icon color="success">mdi-receipt-text-check-outline</v-icon>
           </div>
           <div>
             <div class="kpi-val">{{ kpiFacturadas }}</div>
@@ -102,7 +89,7 @@
       <!-- TABLA -->
       <div class="tabla-card">
         <div v-if="loading" class="loading-wrap">
-          <v-progress-circular indeterminate color="#06b6d4" size="36" />
+          <v-progress-circular indeterminate color="primary" size="36" />
         </div>
         <div v-else-if="filasFiltradas.length === 0" class="empty-wrap">
           <v-icon size="48" color="rgba(var(--v-theme-on-surface),.15)">mdi-clipboard-off-outline</v-icon>
@@ -144,7 +131,7 @@
               </td>
               <td class="col-acc">
                 <!-- Ver detalle -->
-                <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="#06b6d4"
+                <v-btn icon="mdi-eye-outline" size="x-small" variant="text" color="primary"
                        @click="verDetalle(oc)" />
                 <!-- Generar Factura (solo ENTREGADA) -->
                 <v-tooltip v-if="oc.estado === 'ENTREGADA'" :text="parseInt(oc.soportes_count) === 0 ? 'Debe tener al menos 1 soporte de entrega' : 'Generar Factura'" location="top">
@@ -168,7 +155,7 @@
       <v-dialog v-model="modalVer" max-width="640" scrollable>
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#06b6d4" class="mr-2">mdi-clipboard-text-outline</v-icon>
+            <v-icon color="primary" class="mr-2">mdi-clipboard-text-outline</v-icon>
             <span>Detalle — {{ ocActual?.codigo }}</span>
             <v-spacer />
             <v-btn icon="mdi-close" size="small" variant="text" @click="modalVer = false" />
@@ -210,7 +197,7 @@
             <div class="prod-section">
               <div class="prod-header">Productos de la Orden</div>
               <div v-if="loadingDetalles" class="loading-wrap-sm">
-                <v-progress-circular indeterminate color="#06b6d4" size="24" />
+                <v-progress-circular indeterminate color="primary" size="24" />
               </div>
               <table v-else class="prod-table">
                 <thead>
@@ -250,7 +237,7 @@
                 <span v-if="!loadingSoportes" class="soporte-count">{{ soportesEntrega.length }}</span>
               </div>
               <div v-if="loadingSoportes" class="loading-wrap-sm">
-                <v-progress-circular indeterminate color="#06b6d4" size="24" />
+                <v-progress-circular indeterminate color="primary" size="24" />
               </div>
               <div v-else-if="soportesEntrega.length === 0" class="soporte-empty">
                 <v-icon size="28" color="rgba(var(--v-theme-on-surface),.2)">mdi-image-off-outline</v-icon>
@@ -270,7 +257,7 @@
                     class="thumb-img"
                   />
                   <div v-else class="thumb-pdf">
-                    <v-icon size="32" color="#ef4444">mdi-file-pdf-box</v-icon>
+                    <v-icon size="32" color="error">mdi-file-pdf-box</v-icon>
                   </div>
                   <div class="thumb-info">
                     <span class="thumb-num">Soporte #{{ s.numero_soporte || s.id }}</span>
@@ -287,7 +274,7 @@
                        location="top">
               <template #activator="{ props }">
                 <span v-bind="props">
-                  <v-btn color="#16a34a" variant="flat"
+                  <v-btn color="success" variant="flat"
                          prepend-icon="mdi-receipt-text-plus-outline"
                          :disabled="parseInt(ocActual?.soportes_count) === 0"
                          @click="modalVer = false; confirmarFactura(ocActual)">
@@ -304,7 +291,7 @@
       <v-dialog v-model="modalFactura" max-width="460" persistent>
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#16a34a" class="mr-2">mdi-receipt-text-plus-outline</v-icon>
+            <v-icon color="success" class="mr-2">mdi-receipt-text-plus-outline</v-icon>
             <span>Generar Factura de Venta</span>
             <v-spacer />
             <v-btn icon="mdi-close" size="small" variant="text" @click="modalFactura = false" />
@@ -330,14 +317,14 @@
               <p class="sub-note">La orden quedará marcada como <span class="chip-facturada">FACTURADA</span>. El cliente podrá ver y pagar esta factura desde su módulo de Tesorería.</p>
             </div>
             <div v-if="facturaGenerada" class="success-box">
-              <v-icon color="#16a34a" size="20">mdi-check-circle</v-icon>
+              <v-icon color="success" size="20">mdi-check-circle</v-icon>
               Factura <strong>{{ facturaGenerada }}</strong> generada exitosamente
             </div>
             <div v-if="errFactura" class="api-error mt-3">{{ errFactura }}</div>
           </div>
           <div class="modal-footer">
             <v-btn variant="text" @click="cerrarModalFactura">{{ facturaGenerada ? 'Cerrar' : 'Cancelar' }}</v-btn>
-            <v-btn v-if="!facturaGenerada" color="#16a34a" variant="flat" :loading="guardandoFactura" @click="ejecutarFactura">
+            <v-btn v-if="!facturaGenerada" color="success" variant="flat" :loading="guardandoFactura" @click="ejecutarFactura">
               Generar Factura
             </v-btn>
           </div>
@@ -348,7 +335,7 @@
       <v-dialog v-model="modalSoporte" max-width="720">
         <v-card class="modal-card">
           <div class="modal-header">
-            <v-icon color="#06b6d4" class="mr-2">mdi-image-outline</v-icon>
+            <v-icon color="primary" class="mr-2">mdi-image-outline</v-icon>
             <span>{{ soporteActual?.nombre_archivo }}</span>
             <v-spacer />
             <span class="soporte-num-badge" v-if="soporteActual">Soporte #{{ soporteActual.numero_soporte || soporteActual.id }}</span>
@@ -362,7 +349,7 @@
               class="soporte-full-img"
             />
             <div v-else class="soporte-pdf-msg">
-              <v-icon size="64" color="#ef4444">mdi-file-pdf-box</v-icon>
+              <v-icon size="64" color="error">mdi-file-pdf-box</v-icon>
               <p>Archivo PDF — no se puede previsualizar</p>
             </div>
             <div class="soporte-meta">
@@ -382,6 +369,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 
 // ── Estado principal ──────────────────────────────────────────────
@@ -548,17 +536,10 @@ onMounted(cargar)
 .oc-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
 
 /* Breadcrumb */
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); }
-.bc-root { color: #06b6d4; }
-.bc-sep { color: rgba(var(--v-theme-on-surface),.25) !important; }
-.bc-current { color: rgba(var(--v-theme-on-surface),.7); }
+
 
 /* Header */
-.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-.header-left { display: flex; align-items: center; gap: 14px; }
-.header-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#06b6d4,#0891b2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.page-title { font-size: 17px; font-weight: 800; letter-spacing: .5px; margin: 0; color: rgb(var(--v-theme-on-surface)); }
-.page-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
+
 
 /* KPI Cards */
 .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
