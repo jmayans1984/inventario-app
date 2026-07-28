@@ -372,20 +372,9 @@ const toggleTema = () => {
 .brand-composition {
   display: grid;
   align-content: start;
-  gap: 24px;
+  gap: 26px;
   width: min(100%, 500px);
-  min-height: 560px;
-  padding: 34px;
-  border-radius: 8px;
-  color: #130f05;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.30), transparent 35%),
-    linear-gradient(145deg, #ffd05a 0%, #ffb21f 48%, #d87d00 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
-    0 34px 90px rgba(0, 0, 0, 0.52),
-    0 0 0 1px rgba(255, 212, 106, 0.24);
+  color: var(--login-stage-text);
   animation: login-enter var(--dur-slow) var(--ease-out) both;
 }
 
@@ -396,10 +385,10 @@ const toggleTema = () => {
   width: fit-content;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid rgba(19, 15, 5, 0.18);
+  border: 1px solid rgba(255, 199, 72, 0.24);
   border-radius: 8px;
-  background: rgba(19, 15, 5, 0.08);
-  color: rgba(19, 15, 5, 0.70);
+  background: rgba(255, 193, 61, 0.08);
+  color: rgba(255, 248, 223, 0.76);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0;
@@ -410,8 +399,8 @@ const toggleTema = () => {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #171105;
-  box-shadow: 0 0 0 5px rgba(19, 15, 5, 0.12);
+  background: #ffc13d;
+  box-shadow: 0 0 0 5px rgba(255, 193, 61, 0.13);
 }
 
 .brand-emblem {
@@ -420,10 +409,12 @@ const toggleTema = () => {
   width: 122px;
   height: 122px;
   border-radius: 8px;
-  background: #050505;
+  background:
+    linear-gradient(145deg, rgba(255, 193, 61, 0.14), rgba(255, 193, 61, 0.03)),
+    rgba(255, 255, 255, 0.04);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 22px 38px rgba(0, 0, 0, 0.26);
+    inset 0 0 0 1px rgba(255, 248, 223, 0.10),
+    0 24px 54px rgba(0, 0, 0, 0.32);
 }
 
 .brand-logo {
@@ -457,7 +448,7 @@ const toggleTema = () => {
 .brand-subtitle {
   max-width: 420px;
   margin: 18px 0 0;
-  color: rgba(19, 15, 5, 0.70);
+  color: rgba(255, 248, 223, 0.62);
   font-size: 15px;
   line-height: 1.55;
 }
