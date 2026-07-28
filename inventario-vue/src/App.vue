@@ -15,6 +15,7 @@ const lastFocused  = ref(null)
 const appClasses = computed(() => ({
   'treasury-module': route.path.startsWith('/tesoreria'),
   'accounting-module': route.path.startsWith('/contabilidad'),
+  'warehouse-module': route.path.startsWith('/almacen'),
 }))
 
 function onFocusIn(e) {

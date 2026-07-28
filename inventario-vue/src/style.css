@@ -722,3 +722,370 @@ textarea::placeholder,
     filter: none !important;
   }
 }
+
+/* Grids de Almacen: misma tipografia y lenguaje visual de la app */
+.warehouse-module {
+  --alm-grid-accent: var(--gold);
+  --alm-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, var(--alm-grid-accent) 4%);
+  --alm-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 90%, var(--alm-grid-accent) 10%);
+  --alm-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 88%, var(--alm-grid-accent) 12%);
+  --alm-grid-rule: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 10%, transparent);
+  --alm-grid-rule-soft: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 6%, transparent);
+  --alm-grid-shadow:
+    0 0 0 1px rgba(27, 24, 21, 0.06),
+    0 1px 2px -1px rgba(27, 24, 21, 0.08),
+    0 10px 28px rgba(27, 24, 21, 0.07);
+}
+
+.v-theme--dark.warehouse-module {
+  --alm-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, var(--alm-grid-accent) 6%);
+  --alm-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 86%, var(--alm-grid-accent) 14%);
+  --alm-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 82%, var(--alm-grid-accent) 18%);
+  --alm-grid-shadow:
+    0 0 0 1px rgba(245, 241, 232, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.26),
+    0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.warehouse-module .prd-tabla-wrap,
+.warehouse-module .prx-table-wrap,
+.warehouse-module .gi-grid-card,
+.warehouse-module .tf-grid-card,
+.warehouse-module .tabla-card,
+.warehouse-module .table-card,
+.warehouse-module .doc-wrapper,
+.warehouse-module .res-card,
+.warehouse-module .as-results-card,
+.warehouse-module .pa-card,
+.warehouse-module .oc-card,
+.warehouse-module .db-card,
+.warehouse-module .vm-card,
+.warehouse-module .op-card {
+  background: var(--alm-grid-surface) !important;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--alm-grid-shadow) !important;
+  overflow: hidden !important;
+}
+
+.warehouse-module .prd-tabla-wrap,
+.warehouse-module .prx-table-wrap,
+.warehouse-module .gi-grid-card,
+.warehouse-module .tf-table-wrap,
+.warehouse-module .rc-table-wrap,
+.warehouse-module .mp-table-wrap,
+.warehouse-module .ea-table-wrap,
+.warehouse-module .doc-tabla-wrap,
+.warehouse-module .vm-table-wrap,
+.warehouse-module .op-table-wrap,
+.warehouse-module .tabla-card,
+.warehouse-module .bcv-lista-wrap {
+  scrollbar-color: color-mix(in srgb, var(--alm-grid-accent) 42%, transparent) transparent;
+}
+
+.warehouse-module .prd-table,
+.warehouse-module .prx-table,
+.warehouse-module .gi-table,
+.warehouse-module .ocr-table,
+.warehouse-module .tf-table,
+.warehouse-module .rc-table,
+.warehouse-module .ci-table,
+.warehouse-module .mp-table,
+.warehouse-module .ea-table,
+.warehouse-module .kx-table,
+.warehouse-module .doc-tabla,
+.warehouse-module .as-table,
+.warehouse-module .pa-table,
+.warehouse-module .dt-tabla,
+.warehouse-module .oc-table,
+.warehouse-module .det-table,
+.warehouse-module .op-table,
+.warehouse-module .crud-table,
+.warehouse-module .db-table,
+.warehouse-module .prod-grid,
+.warehouse-module .ventas-dlg-table,
+.warehouse-module .detalle-table,
+.warehouse-module .ana-table,
+.warehouse-module .vm-table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: var(--text-sm) !important;
+  line-height: 1.35;
+}
+
+.warehouse-module .prd-table thead,
+.warehouse-module .prd-table thead tr,
+.warehouse-module .prx-table thead,
+.warehouse-module .prx-table thead tr,
+.warehouse-module .gi-table thead,
+.warehouse-module .gi-table thead tr,
+.warehouse-module .ocr-table thead,
+.warehouse-module .ocr-table thead tr,
+.warehouse-module .tf-table thead,
+.warehouse-module .tf-table thead tr,
+.warehouse-module .rc-table thead,
+.warehouse-module .rc-table thead tr,
+.warehouse-module .ci-table thead,
+.warehouse-module .ci-table thead tr,
+.warehouse-module .mp-table thead,
+.warehouse-module .mp-table thead tr,
+.warehouse-module .ea-table thead,
+.warehouse-module .ea-table thead tr,
+.warehouse-module .kx-table thead,
+.warehouse-module .kx-table thead tr,
+.warehouse-module .doc-tabla thead,
+.warehouse-module .doc-tabla thead tr,
+.warehouse-module .as-table thead,
+.warehouse-module .as-table thead tr,
+.warehouse-module .pa-table thead,
+.warehouse-module .pa-table thead tr,
+.warehouse-module .dt-tabla thead,
+.warehouse-module .dt-tabla thead tr,
+.warehouse-module .oc-table thead,
+.warehouse-module .oc-table thead tr,
+.warehouse-module .det-table thead,
+.warehouse-module .det-table thead tr,
+.warehouse-module .op-table thead,
+.warehouse-module .op-table thead tr,
+.warehouse-module .crud-table thead,
+.warehouse-module .crud-table thead tr,
+.warehouse-module .db-table thead,
+.warehouse-module .db-table thead tr,
+.warehouse-module .prod-grid thead,
+.warehouse-module .prod-grid thead tr,
+.warehouse-module .ventas-dlg-table thead,
+.warehouse-module .ventas-dlg-table thead tr,
+.warehouse-module .detalle-table thead,
+.warehouse-module .detalle-table thead tr,
+.warehouse-module .ana-table thead,
+.warehouse-module .ana-table thead tr,
+.warehouse-module .vm-table thead,
+.warehouse-module .vm-table thead tr {
+  background: var(--alm-grid-head) !important;
+}
+
+.warehouse-module .prd-table thead th,
+.warehouse-module .prx-table thead th,
+.warehouse-module .gi-table thead th,
+.warehouse-module .ocr-table thead th,
+.warehouse-module .tf-table thead th,
+.warehouse-module .rc-table thead th,
+.warehouse-module .ci-table thead th,
+.warehouse-module .mp-table thead th,
+.warehouse-module .ea-table thead th,
+.warehouse-module .kx-table thead th,
+.warehouse-module .doc-tabla thead th,
+.warehouse-module .as-table thead th,
+.warehouse-module .pa-table thead th,
+.warehouse-module .dt-tabla thead th,
+.warehouse-module .oc-table thead th,
+.warehouse-module .det-table thead th,
+.warehouse-module .op-table thead th,
+.warehouse-module .crud-table thead th,
+.warehouse-module .db-table thead th,
+.warehouse-module .prod-grid thead th,
+.warehouse-module .ventas-dlg-table thead th,
+.warehouse-module .detalle-table thead th,
+.warehouse-module .ana-table thead th,
+.warehouse-module .vm-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 14px !important;
+  background: var(--alm-grid-head) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--alm-grid-rule) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 62%, transparent) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.warehouse-module .prd-table tbody tr,
+.warehouse-module .prx-table tbody tr,
+.warehouse-module .gi-table tbody tr,
+.warehouse-module .ocr-table tbody tr,
+.warehouse-module .tf-table tbody tr,
+.warehouse-module .rc-table tbody tr,
+.warehouse-module .ci-table tbody tr,
+.warehouse-module .mp-table tbody tr,
+.warehouse-module .ea-table tbody tr,
+.warehouse-module .kx-table tbody tr,
+.warehouse-module .doc-tabla tbody tr,
+.warehouse-module .as-table tbody tr,
+.warehouse-module .pa-table tbody tr,
+.warehouse-module .dt-tabla tbody tr,
+.warehouse-module .oc-table tbody tr,
+.warehouse-module .det-table tbody tr,
+.warehouse-module .op-table tbody tr,
+.warehouse-module .crud-table tbody tr,
+.warehouse-module .db-table tbody tr,
+.warehouse-module .prod-grid tbody tr,
+.warehouse-module .ventas-dlg-table tbody tr,
+.warehouse-module .detalle-table tbody tr,
+.warehouse-module .ana-table tbody tr,
+.warehouse-module .vm-table tbody tr {
+  border-bottom: 0 !important;
+  transform: translateY(0);
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.warehouse-module .prd-table tbody td,
+.warehouse-module .prx-table tbody td,
+.warehouse-module .gi-table tbody td,
+.warehouse-module .ocr-table tbody td,
+.warehouse-module .tf-table tbody td,
+.warehouse-module .rc-table tbody td,
+.warehouse-module .ci-table tbody td,
+.warehouse-module .mp-table tbody td,
+.warehouse-module .ea-table tbody td,
+.warehouse-module .kx-table tbody td,
+.warehouse-module .doc-tabla tbody td,
+.warehouse-module .as-table tbody td,
+.warehouse-module .pa-table tbody td,
+.warehouse-module .dt-tabla tbody td,
+.warehouse-module .oc-table tbody td,
+.warehouse-module .det-table tbody td,
+.warehouse-module .op-table tbody td,
+.warehouse-module .crud-table tbody td,
+.warehouse-module .db-table tbody td,
+.warehouse-module .prod-grid tbody td,
+.warehouse-module .ventas-dlg-table tbody td,
+.warehouse-module .detalle-table tbody td,
+.warehouse-module .ana-table tbody td,
+.warehouse-module .vm-table tbody td {
+  padding: 11px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--alm-grid-rule-soft) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 86%, transparent) !important;
+  vertical-align: middle;
+}
+
+.warehouse-module .prd-table tbody tr:hover,
+.warehouse-module .prx-table tbody tr:hover,
+.warehouse-module .gi-table tbody tr:hover,
+.warehouse-module .ocr-table tbody tr:hover,
+.warehouse-module .tf-table tbody tr:hover,
+.warehouse-module .rc-table tbody tr:hover,
+.warehouse-module .ci-table tbody tr:hover,
+.warehouse-module .mp-table tbody tr:hover,
+.warehouse-module .ea-table tbody tr:hover,
+.warehouse-module .kx-table tbody tr:hover,
+.warehouse-module .doc-tabla tbody tr:hover,
+.warehouse-module .as-table tbody tr:hover,
+.warehouse-module .pa-table tbody tr:hover,
+.warehouse-module .dt-tabla tbody tr:hover,
+.warehouse-module .oc-table tbody tr:hover,
+.warehouse-module .det-table tbody tr:hover,
+.warehouse-module .op-table tbody tr:hover,
+.warehouse-module .crud-table tbody tr:hover,
+.warehouse-module .db-table tbody tr:hover,
+.warehouse-module .prod-grid tbody tr:hover,
+.warehouse-module .ventas-dlg-table tbody tr:hover,
+.warehouse-module .detalle-table tbody tr:hover,
+.warehouse-module .ana-table tbody tr:hover,
+.warehouse-module .vm-table tbody tr:hover {
+  background: var(--alm-grid-hover) !important;
+  box-shadow: inset 3px 0 0 var(--alm-grid-accent);
+  transform: translateY(-1px);
+}
+
+.warehouse-module table tbody tr:hover td {
+  background: transparent !important;
+}
+
+.warehouse-module table tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+.warehouse-module table tbody tr:not(.empty-row):not(.tot-row):not(.subtotal-row) {
+  animation: warehouse-row-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(min(var(--row-index, 0), 8) * 22ms);
+}
+
+.warehouse-module table tbody tr:nth-child(1) { --row-index: 1; }
+.warehouse-module table tbody tr:nth-child(2) { --row-index: 2; }
+.warehouse-module table tbody tr:nth-child(3) { --row-index: 3; }
+.warehouse-module table tbody tr:nth-child(4) { --row-index: 4; }
+.warehouse-module table tbody tr:nth-child(n+5) { --row-index: 5; }
+
+@keyframes warehouse-row-in {
+  from { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.warehouse-module th.sortable,
+.warehouse-module .sortable,
+.warehouse-module th[class^="col-"],
+.warehouse-module th[class*=" col-"] {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+.warehouse-module th.sortable:hover,
+.warehouse-module .sortable:hover,
+.warehouse-module th[class^="col-"]:hover,
+.warehouse-module th[class*=" col-"]:hover {
+  background: color-mix(in srgb, var(--alm-grid-head) 72%, var(--alm-grid-accent) 28%) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.warehouse-module .codigo-badge,
+.warehouse-module .badge-codigo,
+.warehouse-module .code-badge,
+.warehouse-module .sku-badge,
+.warehouse-module .badge-tipo,
+.warehouse-module .badge-prod,
+.warehouse-module .stock-badge,
+.warehouse-module .lote-badge {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.warehouse-module .td-num,
+.warehouse-module .td-total,
+.warehouse-module .td-cant,
+.warehouse-module .td-stock,
+.warehouse-module .total-bold,
+.warehouse-module .amount-value,
+.warehouse-module .stock-val,
+.warehouse-module .cost-val,
+.warehouse-module .tr,
+.warehouse-module .ta-r {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.warehouse-module .table-empty,
+.warehouse-module .empty-state,
+.warehouse-module .prod-grid-empty,
+.warehouse-module .initial-state {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--alm-grid-accent) 7%, transparent), transparent 58%),
+    var(--alm-grid-surface) !important;
+}
+
+.warehouse-module tfoot td,
+.warehouse-module .tot-row td,
+.warehouse-module .subtotal-row td,
+.warehouse-module .total-row td {
+  background: color-mix(in srgb, var(--alm-grid-head) 78%, var(--alm-grid-accent) 22%) !important;
+  border-top: 1px solid var(--alm-grid-rule) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warehouse-module table tbody tr {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
