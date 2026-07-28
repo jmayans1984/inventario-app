@@ -2,28 +2,17 @@
   <MainLayout>
     <div class="ga-container">
 
-      <!-- BREADCRUMB -->
-      <div class="ga-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Grupos de Artículos</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="ga-header">
-        <div class="ga-header-left">
-          <div class="ga-icon-wrap"><v-icon size="22" color="white">mdi-tag-multiple-outline</v-icon></div>
-          <div>
-            <h1 class="ga-title">GRUPOS DE ARTÍCULOS</h1>
-            <p class="ga-sub">Administra las categorías de artículos e insumos</p>
-          </div>
-        </div>
-        <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevo">
-          <v-icon start>mdi-plus</v-icon> Nuevo Grupo
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Grupos de Artículos"
+        description="Administra las categorías de artículos e insumos"
+        :crumbs="['Recetas', 'Configuración', 'Grupos de Artículos']"
+      >
+        <template #actions>
+          <v-btn color="warning" variant="flat" rounded="lg" @click="abrirNuevo">
+            <v-icon start>mdi-plus</v-icon> Nuevo Grupo
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- BUSCADOR -->
       <div class="ga-filters">
@@ -113,7 +102,7 @@
         <v-divider />
         <v-card-actions class="pa-4 justify-end gap-2">
           <v-btn variant="text" @click="dlg = false">Cancelar</v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardando" @click="guardar">
+          <v-btn color="warning" variant="flat" rounded="lg" :loading="guardando" @click="guardar">
             <v-icon start>mdi-content-save-outline</v-icon>
             {{ editando ? 'Guardar' : 'Crear' }}
           </v-btn>
@@ -149,6 +138,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const grupos  = ref([])
@@ -271,18 +261,6 @@ onMounted(cargar)
 
 <style scoped>
 .ga-container { padding: 24px; max-width: 900px; margin: 0 auto; }
-
-.ga-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-.ga-header      { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.ga-header-left { display: flex; align-items: center; gap: 16px; }
-.ga-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,.35); flex-shrink: 0; }
-.ga-title  { font-size: 20px; font-weight: 800; margin: 0; }
-.ga-sub    { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
 .ga-filters { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 .ga-hint    { display: flex; align-items: center; gap: 4px; }

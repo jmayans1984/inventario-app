@@ -2,31 +2,18 @@
   <MainLayout>
     <div class="rg-container">
 
-      <!-- BREADCRUMB -->
-      <div class="rg-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Gestión de Costos</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rg-header">
-        <div class="rg-header-left">
-          <div class="rg-icon-wrap"><v-icon size="22" color="white">mdi-calculator-variant-outline</v-icon></div>
-          <div>
-            <h1 class="rg-title">GESTIÓN DE COSTOS</h1>
-            <p class="rg-sub">Recalcula los costos de tus recetas según los precios actuales de artículos</p>
-          </div>
-        </div>
-        <div class="d-flex gap-3 flex-wrap">
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="recalculandoTodos"
+      <PageHeader
+        title="Gestión de Costos"
+        description="Recalcula los costos de tus recetas según los precios actuales de artículos"
+        :crumbs="['Recetas', 'Procesos', 'Gestión de Costos']"
+      >
+        <template #actions>
+          <v-btn color="warning" variant="flat" rounded="lg" :loading="recalculandoTodos"
             @click="recalcularTodos">
             <v-icon start>mdi-refresh</v-icon> Recalcular TODOS
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- EXPLICACIÓN -->
       <v-alert type="warning" variant="tonal" density="compact" class="mb-4" icon="mdi-information-outline">
@@ -126,7 +113,7 @@
           <template #item.acciones="{ item }">
             <v-tooltip text="Recalcular costo de esta receta">
               <template #activator="{ props }">
-                <v-btn v-bind="props" icon size="x-small" variant="tonal" color="#f59e0b"
+                <v-btn v-bind="props" icon size="x-small" variant="tonal" color="warning"
                   :loading="recalculando[item.codigo]"
                   @click="recalcularUna(item)">
                   <v-icon size="16">mdi-refresh</v-icon>
@@ -166,7 +153,7 @@
           </div>
         </v-card-text>
         <v-card-actions v-if="recalcDone" class="pa-4 justify-end">
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="dlgRecalcular=false">
+          <v-btn color="warning" variant="flat" rounded="lg" @click="dlgRecalcular=false">
             <v-icon start>mdi-check</v-icon>Cerrar
           </v-btn>
         </v-card-actions>
@@ -182,6 +169,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const recetas     = ref([])
@@ -327,16 +315,6 @@ onMounted(cargar)
 
 <style scoped>
 .rg-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.rg-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-.rg-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.rg-header-left { display: flex; align-items: center; gap: 16px; }
-.rg-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,0.35); }
-.rg-title { font-size: 20px; font-weight: 800; margin: 0; }
-.rg-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
 .rg-kpi-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .rg-kpi { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 14px; padding: 14px 20px; display: flex; flex-direction: column; align-items: center; min-width: 120px; gap: 2px; }
 .kpi-val { font-size: 24px; font-weight: 800; line-height: 1; }

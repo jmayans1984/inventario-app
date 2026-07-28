@@ -2,36 +2,23 @@
   <MainLayout>
     <div class="rcv-container">
 
-      <!-- BREADCRUMB -->
-      <div class="rcv-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Resumen de Costos</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rcv-header">
-        <div class="rcv-header-left">
-          <div class="rcv-icon-wrap"><v-icon size="22" color="white">mdi-file-chart-outline</v-icon></div>
-          <div>
-            <h1 class="rcv-title">RESUMEN DE COSTOS</h1>
-            <p class="rcv-sub">Análisis de costos, márgenes y porcentajes por receta</p>
-          </div>
-        </div>
-        <div class="d-flex gap-3 flex-wrap">
+      <PageHeader
+        title="Resumen de Costos"
+        description="Análisis de costos, márgenes y porcentajes por receta"
+        :crumbs="['Recetas', 'Procesos', 'Gestión de Costos']"
+      >
+        <template #actions>
           <v-select v-model="filtroTipo" :items="tiposFiltro" item-title="label" item-value="val"
             variant="outlined" density="compact" hide-details style="width:200px" />
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="loading" @click="cargar">
+          <v-btn color="warning" variant="flat" rounded="lg" :loading="loading" @click="cargar">
             <v-icon start>mdi-refresh</v-icon>Actualizar
           </v-btn>
           <v-btn color="#ef4444" variant="flat" rounded="lg" :disabled="!recetas.length"
             @click="exportarPDF">
             <v-icon start>mdi-file-pdf-box</v-icon>PDF
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- KPI CARDS -->
       <div class="rcv-kpi-row" v-if="totals">
@@ -112,6 +99,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const recetas    = ref([])
@@ -260,16 +248,6 @@ onMounted(cargar)
 
 <style scoped>
 .rcv-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.rcv-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-.rcv-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.rcv-header-left { display: flex; align-items: center; gap: 16px; }
-.rcv-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,0.35); }
-.rcv-title { font-size: 20px; font-weight: 800; margin: 0; }
-.rcv-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
 .rcv-kpi-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .rcv-kpi { border-radius: 14px; padding: 14px 20px; display: flex; flex-direction: column; align-items: center; min-width: 140px; flex: 1; }
 .kpi-val { font-size: 20px; font-weight: 800; color: #fff; line-height: 1.2; text-align: center; }

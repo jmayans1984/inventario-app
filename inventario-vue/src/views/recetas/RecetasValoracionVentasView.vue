@@ -2,28 +2,17 @@
   <MainLayout>
     <div class="vv-container">
 
-      <!-- BREADCRUMB -->
-      <div class="vv-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Valoración por Ventas</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="vv-header">
-        <div class="vv-header-left">
-          <div class="vv-icon-wrap"><v-icon size="22" color="white">mdi-chart-bar</v-icon></div>
-          <div>
-            <h1 class="vv-title">VALORACIÓN DE RECETAS POR VENTAS</h1>
-            <p class="vv-sub">Costo real ponderado de materia prima según lo que se vendió en el período</p>
-          </div>
-        </div>
-        <v-btn v-if="consultado" color="grey" variant="tonal" rounded="lg" @click="exportarPDF" :loading="generandoPdf">
-          <v-icon start>mdi-file-pdf-box</v-icon>PDF
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Valoración de Recetas por Ventas"
+        description="Costo real ponderado de materia prima según lo que se vendió en el período"
+        :crumbs="['Recetas', 'Reportes', 'Valoración por Ventas']"
+      >
+        <template #actions>
+          <v-btn v-if="consultado" color="grey" variant="tonal" rounded="lg" @click="exportarPDF" :loading="generandoPdf">
+            <v-icon start>mdi-file-pdf-box</v-icon>PDF
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- FILTROS -->
       <div class="vv-filtros-card">
@@ -62,7 +51,7 @@
           </div>
           <div class="filtro-group">
             <label class="filtro-label">&nbsp;</label>
-            <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="loading"
+            <v-btn color="warning" variant="flat" rounded="lg" :loading="loading"
               :disabled="!fechaInicio || !fechaFin" @click="consultar" size="large">
               <v-icon start>mdi-magnify</v-icon>Consultar
             </v-btn>
@@ -221,6 +210,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { fechaInputLocal } from '../../utils/formatters'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
@@ -397,18 +387,6 @@ onMounted(fetchCcostos)
 
 <style scoped>
 .vv-container { padding: 24px; max-width: 1500px; margin: 0 auto; }
-
-.vv-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-.vv-header      { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.vv-header-left { display: flex; align-items: center; gap: 16px; }
-.vv-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,.35); flex-shrink: 0; }
-.vv-title  { font-size: 18px; font-weight: 800; margin: 0; }
-.vv-sub    { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
 /* filtros */
 .vv-filtros-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; }

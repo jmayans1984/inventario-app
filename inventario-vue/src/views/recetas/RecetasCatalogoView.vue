@@ -2,29 +2,20 @@
   <MainLayout>
     <div class="rc-container">
 
-      <div class="rc-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Catálogo de Recetas</span>
-      </div>
-
-      <div class="rc-header">
-        <div class="rc-header-left">
-          <div class="rc-icon-wrap"><v-icon size="22" color="white">mdi-book-open-variant-outline</v-icon></div>
-          <div>
-            <h1 class="rc-title">CATÁLOGO DE RECETAS</h1>
-            <p class="rc-sub">Crea, edita y gestiona las recetas con sus ingredientes</p>
-          </div>
-        </div>
-        <v-btn color="teal" variant="flat" rounded="lg" :loading="recalculando" @click="recalcularTodos">
-          <v-icon start>mdi-refresh</v-icon> Recalcular Costos
-        </v-btn>
-        <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevaReceta">
-          <v-icon start>mdi-plus</v-icon> Nueva Receta
-        </v-btn>
-      </div>
+      <PageHeader
+        title="Catálogo de Recetas"
+        description="Crea, edita y gestiona las recetas con sus ingredientes"
+        :crumbs="['Recetas', 'Procesos', 'Catálogo de Recetas']"
+      >
+        <template #actions>
+          <v-btn color="primary" variant="flat" rounded="lg" :loading="recalculando" @click="recalcularTodos">
+            <v-icon start>mdi-refresh</v-icon> Recalcular Costos
+          </v-btn>
+          <v-btn color="warning" variant="flat" rounded="lg" @click="abrirNuevaReceta">
+            <v-icon start>mdi-plus</v-icon> Nueva Receta
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- FILTROS -->
       <div class="rc-filters">
@@ -32,7 +23,7 @@
           variant="outlined" density="compact" hide-details clearable style="max-width:320px" />
         <v-select v-model="filtroGrupo" :items="gruposFilter" item-title="label" item-value="val"
           variant="outlined" density="compact" hide-details style="max-width:200px" />
-        <v-btn-toggle v-model="filtroSubprod" density="compact" rounded="lg" color="#f59e0b">
+        <v-btn-toggle v-model="filtroSubprod" density="compact" rounded="lg" color="warning">
           <v-btn value="TODOS" size="small">Todas</v-btn>
           <v-btn value="NO" size="small">Recetas</v-btn>
           <v-btn value="SI" size="small">Subproductos</v-btn>
@@ -151,7 +142,7 @@
                           {{ ingredientes.length }} ingrediente{{ ingredientes.length !== 1 ? 's' : '' }}
                         </v-chip>
                       </div>
-                      <v-btn icon size="x-small" variant="text" color="#f59e0b" title="Imprimir receta" @click="imprimirReceta">
+                      <v-btn icon size="x-small" variant="text" color="warning" title="Imprimir receta" @click="imprimirReceta">
                         <v-icon size="16">mdi-printer-outline</v-icon>
                       </v-btn>
                     </div>
@@ -159,7 +150,7 @@
                     <!-- Agregar ingrediente -->
                     <div class="exp-panel" style="padding-bottom:8px">
                       <div class="exp-add-bar">
-                        <v-btn-toggle v-model="tipoIngredienteNuevo" rounded="lg" density="compact" color="#f59e0b" style="flex-shrink:0">
+                        <v-btn-toggle v-model="tipoIngredienteNuevo" rounded="lg" density="compact" color="warning" style="flex-shrink:0">
                           <v-btn value="ARTICULO" size="small"><v-icon size="14" class="mr-1">mdi-food-apple-outline</v-icon>Artículo</v-btn>
                           <v-btn value="RECETA"   size="small"><v-icon size="14" class="mr-1">mdi-link-variant</v-icon>Subreceta</v-btn>
                         </v-btn-toggle>
@@ -188,7 +179,7 @@
                         <v-text-field ref="refCantidadAdd" v-model="ingNuevo.cantidad" label="Cant." type="number" min="0.001"
                           variant="outlined" density="compact" hide-details style="width:90px;flex-shrink:0"
                           @keydown.enter.prevent="onCantidadEnterAdd" />
-                        <v-btn ref="refAgregarBtn" color="#f59e0b" variant="flat" size="small" height="36"
+                        <v-btn ref="refAgregarBtn" color="warning" variant="flat" size="small" height="36"
                           :disabled="(tipoIngredienteNuevo==='ARTICULO' && !articuloSeleccionado)||(tipoIngredienteNuevo==='RECETA' && !recetaSeleccionada)||!ingNuevo.cantidad"
                           @click="agregarIngrediente">
                           <v-icon size="15" class="mr-1">mdi-plus</v-icon>Agregar
@@ -280,7 +271,7 @@
                       <div class="resumen-item"><span class="resumen-lbl">% COSTO</span><span class="resumen-val" :style="{ color: colorPctStr(pctCosto) }">{{ pctCosto.toFixed(1) }}%</span></div>
                     </div>
                     <div class="ing-dlg-footer">
-                      <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoIng" @click="guardarIngredientes">
+                      <v-btn color="warning" variant="flat" rounded="lg" :loading="guardandoIng" @click="guardarIngredientes">
                         <v-icon start size="16">mdi-content-save-outline</v-icon>Guardar Ingredientes
                       </v-btn>
                     </div>
@@ -436,7 +427,7 @@
           <v-btn variant="flat" color="#ef4444" @click="dlgReceta=false">
             <v-icon start size="16">mdi-close</v-icon>Cancelar
           </v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardando" @click="guardarReceta">
+          <v-btn color="warning" variant="flat" rounded="lg" :loading="guardando" @click="guardarReceta">
             <v-icon start size="16">mdi-content-save-outline</v-icon>
             {{ editando ? 'Guardar Cambios' : 'Crear Receta' }}
           </v-btn>
@@ -508,6 +499,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -1172,16 +1164,6 @@ onMounted(() => { cargarRecetas(); cargarArticulos() })
 
 <style scoped>
 .rc-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.rc-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-.rc-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.rc-header-left { display: flex; align-items: center; gap: 16px; }
-.rc-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,0.35); }
-.rc-title { font-size: 20px; font-weight: 800; margin: 0; }
-.rc-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
 .rc-filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
 .rc-kpi-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
 .rc-kpi { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 16px; padding: 18px 32px; display: flex; flex-direction: column; align-items: center; min-width: 140px; gap: 3px; }

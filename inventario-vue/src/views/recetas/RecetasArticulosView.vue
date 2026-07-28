@@ -2,36 +2,23 @@
   <MainLayout>
     <div class="ra-container">
 
-      <!-- BREADCRUMB -->
-      <div class="ra-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Artículos e Insumos</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="ra-header">
-        <div class="ra-header-left">
-          <div class="ra-icon-wrap"><v-icon size="22" color="white">mdi-food-apple-outline</v-icon></div>
-          <div>
-            <h1 class="ra-title">ARTÍCULOS E INSUMOS</h1>
-            <p class="ra-sub">Gestiona los ingredientes · Edita el precio y navega con <kbd>Enter</kbd> o <kbd>↓↑</kbd></p>
-          </div>
-        </div>
-        <div class="d-flex gap-2 align-center">
+      <PageHeader
+        title="Artículos e Insumos"
+        description="Gestiona los ingredientes · Edita el precio y navega con Enter o ↓↑"
+        :crumbs="['Recetas', 'Configuración', 'Artículos e Insumos']"
+      >
+        <template #actions>
           <v-btn v-if="pendientes.size > 0"
             color="success" variant="flat" rounded="lg"
             :loading="guardandoTodos" @click="guardarTodosPendientes">
             <v-icon start>mdi-content-save-outline</v-icon>
             Guardar {{ pendientes.size }} precio{{ pendientes.size > 1 ? 's' : '' }}
           </v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" @click="abrirNuevo">
+          <v-btn color="warning" variant="flat" rounded="lg" @click="abrirNuevo">
             <v-icon start>mdi-plus</v-icon> Nuevo Artículo
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- ALERTA INFO -->
       <v-alert type="info" variant="tonal" density="compact" class="mb-4" icon="mdi-lightbulb-outline">
@@ -383,7 +370,7 @@
         <v-divider />
         <v-card-actions class="pa-4 justify-end gap-2">
           <v-btn variant="text" @click="dlg=false">Cancelar</v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardando" @click="guardar">
+          <v-btn color="warning" variant="flat" rounded="lg" :loading="guardando" @click="guardar">
             <v-icon start>mdi-content-save-outline</v-icon>
             {{ editando ? 'Guardar' : 'Crear' }}
           </v-btn>
@@ -413,7 +400,7 @@
         <v-divider />
         <v-card-actions class="pa-4 justify-end gap-2">
           <v-btn variant="text" @click="dlgPrecio=false">Cancelar</v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoPrecio" @click="guardarPrecio">
+          <v-btn color="warning" variant="flat" rounded="lg" :loading="guardandoPrecio" @click="guardarPrecio">
             <v-icon start>mdi-check</v-icon>Actualizar
           </v-btn>
         </v-card-actions>
@@ -449,6 +436,7 @@
 import { ref, computed, reactive, nextTick, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 // Header de empresa: el backend resuelve el costo (valor) por empresa
@@ -770,16 +758,6 @@ onMounted(cargar)
 
 <style scoped>
 .ra-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.ra-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-.ra-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.ra-header-left { display: flex; align-items: center; gap: 16px; }
-.ra-icon-wrap { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,.35); }
-.ra-title { font-size: 20px; font-weight: 800; margin: 0; }
-.ra-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 .ra-filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .ra-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
 .font-mono { font-family: monospace; font-size: 13px; }

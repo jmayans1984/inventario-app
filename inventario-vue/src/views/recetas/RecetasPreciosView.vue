@@ -2,37 +2,24 @@
   <MainLayout>
     <div class="rp-container">
 
-      <!-- BREADCRUMB -->
-      <div class="rp-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Configuración</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Precios de Venta</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rp-header">
-        <div class="rp-header-left">
-          <div class="rp-icon-wrap"><v-icon size="22" color="white">mdi-tag-edit-outline</v-icon></div>
-          <div>
-            <h1 class="rp-title">PRECIOS DE VENTA</h1>
-            <p class="rp-sub">Actualiza los precios de venta · Navega con <kbd>Enter</kbd> o <kbd>↓↑</kbd></p>
-          </div>
-        </div>
-        <div class="d-flex gap-3 flex-wrap align-center">
+      <PageHeader
+        title="Precios de Venta"
+        description="Actualiza los precios de venta · Navega con Enter o ↓↑"
+        :crumbs="['Recetas', 'Configuración', 'Precios de Venta']"
+      >
+        <template #actions>
           <v-chip v-if="pendientes.size" color="#f59e0b" variant="tonal" size="small" prepend-icon="mdi-circle-edit-outline">
             {{ pendientes.size }} cambio{{ pendientes.size > 1 ? 's' : '' }} sin guardar
           </v-chip>
           <v-btn color="grey" variant="tonal" rounded="lg" :disabled="!pendientes.size" @click="descartarTodo">
             <v-icon start>mdi-close</v-icon>Descartar
           </v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg" :loading="guardandoTodo"
+          <v-btn color="warning" variant="flat" rounded="lg" :loading="guardandoTodo"
             :disabled="!pendientes.size" @click="guardarTodo">
             <v-icon start>mdi-content-save-all-outline</v-icon>Guardar Todo
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- FILTROS -->
       <div class="rp-filters">
@@ -40,7 +27,7 @@
           variant="outlined" density="compact" hide-details clearable style="max-width:300px" />
         <v-select v-model="filtroGrupo" :items="gruposFilter" item-title="label" item-value="val"
           variant="outlined" density="compact" hide-details style="max-width:200px" />
-        <v-btn-toggle v-model="filtroTipo" density="compact" rounded="lg" color="#f59e0b">
+        <v-btn-toggle v-model="filtroTipo" density="compact" rounded="lg" color="warning">
           <v-btn value="TODOS" size="small">Todas</v-btn>
           <v-btn value="NO"   size="small">Recetas</v-btn>
           <v-btn value="SI"   size="small">Subproductos</v-btn>
@@ -177,6 +164,7 @@
 import { ref, computed, reactive, onMounted, nextTick } from 'vue'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const theme = useTheme()
@@ -380,21 +368,6 @@ onMounted(cargar)
 
 <style scoped>
 .rp-container { padding: 24px; max-width: 1300px; margin: 0 auto; }
-
-/* breadcrumb */
-.rp-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root    { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep     { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat     { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-/* header */
-.rp-header      { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.rp-header-left { display: flex; align-items: center; gap: 16px; }
-.rp-icon-wrap   { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,0.35); flex-shrink: 0; }
-.rp-title  { font-size: 20px; font-weight: 800; margin: 0; }
-.rp-sub    { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); margin: 2px 0 0; }
-kbd { background: rgba(var(--v-theme-on-surface),.1); border-radius: 4px; padding: 1px 5px; font-size: 11px; font-family: monospace; }
 
 /* filtros */
 .rp-filters { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }

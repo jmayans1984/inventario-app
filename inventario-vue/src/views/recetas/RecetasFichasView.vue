@@ -2,36 +2,23 @@
   <MainLayout>
     <div class="rf-container">
 
-      <!-- BREADCRUMB -->
-      <div class="rf-breadcrumb">
-        <span class="bc-root">RECETAS</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Reportes</span>
-        <v-icon size="13" class="bc-sep">mdi-chevron-right</v-icon>
-        <span class="bc-current">Fichas Técnicas</span>
-      </div>
-
-      <!-- HEADER -->
-      <div class="rf-header">
-        <div class="rf-header-left">
-          <div class="rf-icon-wrap"><v-icon size="22" color="white">mdi-file-document-outline</v-icon></div>
-          <div>
-            <h1 class="rf-title">FICHAS TÉCNICAS</h1>
-            <p class="rf-sub">Selecciona las recetas y genera las fichas técnicas en PDF</p>
-          </div>
-        </div>
-        <div class="rf-header-actions">
+      <PageHeader
+        title="Fichas Técnicas"
+        description="Selecciona las recetas y genera las fichas técnicas en PDF"
+        :crumbs="['Recetas', 'Reportes', 'Fichas Técnicas']"
+      >
+        <template #actions>
           <v-btn color="blue-grey" variant="tonal" rounded="lg" size="small" @click="seleccionarTodas">
             {{ seleccionadas.length === recetasFiltradas.length && recetasFiltradas.length > 0
                ? 'Deseleccionar todo' : 'Seleccionar todo' }}
           </v-btn>
-          <v-btn color="#f59e0b" variant="flat" rounded="lg"
+          <v-btn color="warning" variant="flat" rounded="lg"
             :disabled="seleccionadas.length === 0" :loading="generando" @click="exportarPDF">
             <v-icon start>mdi-file-pdf-box</v-icon>
             Generar PDF ({{ seleccionadas.length }})
           </v-btn>
-        </div>
-      </div>
+        </template>
+      </PageHeader>
 
       <!-- FILTROS -->
       <div class="rf-filters">
@@ -181,6 +168,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -426,18 +414,6 @@ onMounted(cargar)
 
 <style scoped>
 .rf-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.rf-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 12px; font-weight: 700; color: #f59e0b; text-transform: uppercase; }
-.bc-sep { color: rgba(var(--v-theme-on-surface), 0.3); }
-.bc-cat { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.bc-current { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.8); font-weight: 500; }
-
-.rf-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.rf-header-left { display: flex; align-items: center; gap: 14px; }
-.rf-icon-wrap { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#f59e0b,#d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245,158,11,.3); flex-shrink: 0; }
-.rf-title { font-size: 18px; font-weight: 800; margin: 0; }
-.rf-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
-.rf-header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 .rf-filters { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
 .sel-badge { font-size: 12px; font-weight: 700; color: #f59e0b; background: rgba(245,158,11,.1); padding: 4px 10px; border-radius: 20px; }
