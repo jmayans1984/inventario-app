@@ -268,6 +268,122 @@ function formatNum(v) {
 }
 
 function imprimirEntradas() {
+  const win = window.open('', '_blank', 'width=800,height=600')
+  if (!win) return
+
+  const gasto = gastoDlg.value || {}
+  const empresaNombre = (auth.empresaNombre || auth.empresa || 'EMPRESA').toUpperCase()
+  const fechaImpresion = new Date().toLocaleString('es-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const totalEntradas = entradasDlg.value.reduce((sum, e) => sum + (parseFloat(e.subtotal) || 0), 0)
+  const diferencia = (parseFloat(gasto.total) || 0) - totalEntradas
+  const esc = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+  const rows = entradasDlg.value.map((e, idx) => `
+    <tr>
+      <td class="tc">${idx + 1}</td>
+      <td class="tc">${esc(formatFecha(e.fecha))}</td>
+      <td class="tc strong">${esc(e.entrada_codigo)}</td>
+      <td class="tc">${esc(e.producto_codigo)}</td>
+      <td>${esc(e.producto_nombre)}</td>
+      <td class="tc">${esc(e.und || '-')}</td>
+      <td class="tr strong">${esc(formatNum(e.cantidad))}</td>
+      <td class="tr">${esc(formatMoneda(e.precio_unitario))}</td>
+      <td class="tr strong">${esc(formatMoneda(e.subtotal))}</td>
+    </tr>`).join('')
+
+  win.document.write(`<!DOCTYPE html><html><head><title>Reporte contable de entradas</title>
+<style>
+  @page { size: letter landscape; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #111; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; line-height: 1.35; }
+  .report { width: 100%; }
+  .top-rule { border-top: 2px solid #111; margin-bottom: 8px; }
+  .header { display: grid; grid-template-columns: 1fr 280px; gap: 24px; border-bottom: 1px solid #111; padding-bottom: 8px; }
+  .company { font-size: 16px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+  .subtitle, .report-code, .footer { color: #333; font-size: 8.5px; }
+  .subtitle { margin-top: 3px; text-transform: uppercase; letter-spacing: .08em; }
+  .title-box { text-align: right; }
+  .report-title { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .report-code { margin-top: 3px; }
+  .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #111; border-left: 1px solid #111; margin-top: 12px; }
+  .meta-cell { min-height: 36px; padding: 7px 8px; border-right: 1px solid #111; border-bottom: 1px solid #111; }
+  .wide { grid-column: span 2; }
+  .label { display: block; margin-bottom: 3px; font-size: 7.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+  .value { font-size: 10.5px; font-weight: 600; }
+  .section-title { margin-top: 14px; padding-bottom: 4px; border-bottom: 1px solid #111; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th { padding: 6px 5px; border-top: 1px solid #111; border-bottom: 1.5px solid #111; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; text-align: left; }
+  td { padding: 6px 5px; border-bottom: 1px solid #999; vertical-align: top; }
+  .tc { text-align: center; }
+  .tr { text-align: right; }
+  .strong { font-weight: 800; }
+  .total-row td { border-top: 1.5px solid #111; border-bottom: 2px solid #111; font-weight: 800; font-size: 11px; }
+  .notes { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 16px; }
+  .note-box { min-height: 58px; border: 1px solid #111; padding: 8px; }
+  .signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 28px; }
+  .signature { padding-top: 24px; border-top: 1px solid #111; text-align: center; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+  .footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 16px; padding-top: 6px; border-top: 1px solid #111; }
+</style></head><body>
+  <main class="report">
+    <div class="top-rule"></div>
+    <section class="header">
+      <div>
+        <div class="company">${esc(empresaNombre)}</div>
+        <div class="subtitle">Modulo de contabilidad | Gestion de gastos</div>
+      </div>
+      <div class="title-box">
+        <div class="report-title">Reporte contable de entradas</div>
+        <div class="report-code">Gasto No. ${esc(gasto.codigo || '')}</div>
+      </div>
+    </section>
+    <section class="meta-grid">
+      <div class="meta-cell"><span class="label">Fecha gasto</span><span class="value">${esc(formatFecha(gasto.fecha))}</span></div>
+      <div class="meta-cell"><span class="label">Factura</span><span class="value">${esc(gasto.factura || '-')}</span></div>
+      <div class="meta-cell"><span class="label">Forma pago</span><span class="value">${esc(gasto.forma_pago_nombre || gasto.forma_pago || '-')}</span></div>
+      <div class="meta-cell"><span class="label">Total gasto</span><span class="value">${esc(formatMoneda(gasto.total))}</span></div>
+      <div class="meta-cell wide"><span class="label">Proveedor</span><span class="value">${esc(gasto.proveedor_nombre || gasto.proveedor || '-')}</span></div>
+      <div class="meta-cell"><span class="label">Centro costo</span><span class="value">${esc(gasto.ccosto_nombre || gasto.ccosto || '-')}</span></div>
+      <div class="meta-cell"><span class="label">Cuenta contable</span><span class="value">${esc(gasto.cuenta_nombre || gasto.cuenta || '-')}</span></div>
+      <div class="meta-cell wide"><span class="label">Concepto</span><span class="value">${esc(gasto.concepto || '-')}</span></div>
+      <div class="meta-cell"><span class="label">Registros almacen</span><span class="value">${entradasDlg.value.length}</span></div>
+      <div class="meta-cell"><span class="label">Fecha impresion</span><span class="value">${esc(fechaImpresion)}</span></div>
+    </section>
+    <div class="section-title">Detalle de entradas asociadas</div>
+    <table>
+      <thead><tr><th class="tc">Item</th><th class="tc">Fecha</th><th class="tc">Entrada</th><th class="tc">Codigo</th><th>Producto</th><th class="tc">Und</th><th class="tr">Cantidad</th><th class="tr">P. unit</th><th class="tr">Subtotal</th></tr></thead>
+      <tbody>
+        ${rows || '<tr><td colspan="9" class="tc">No hay entradas de almacen registradas.</td></tr>'}
+        <tr class="total-row"><td colspan="8" class="tr">TOTAL ENTRADAS DE ALMACEN</td><td class="tr">${esc(formatMoneda(totalEntradas))}</td></tr>
+      </tbody>
+    </table>
+    <section class="notes">
+      <div class="note-box"><span class="label">Observaciones contables</span>Documento generado desde el gasto registrado. Verificar cantidades, costo unitario y cuenta contable antes del cierre.</div>
+      <div class="note-box"><span class="label">Conciliacion</span>Diferencia gasto vs entradas: ${esc(formatMoneda(diferencia))}</div>
+    </section>
+    <section class="signatures">
+      <div class="signature">Elaborado por</div>
+      <div class="signature">Revisado por almacen</div>
+      <div class="signature">Aprobado contabilidad</div>
+    </section>
+    <footer class="footer"><span>Usuario: ${esc(auth.userName || auth.userNombre || 'Usuario')}</span><span>Pagina 1 de 1</span></footer>
+  </main>
+</body></html>`)
+  win.document.close()
+  win.focus()
+  setTimeout(() => { win.print(); win.close() }, 400)
+}
+
+function imprimirEntradasLegacy() {
   const el = dlgPrintRef.value?.$el || dlgPrintRef.value
   if (!el) return window.print()
   const win = window.open('', '_blank', 'width=800,height=600')
