@@ -285,7 +285,7 @@ import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatFecha } from '../../utils/formatters'
-import { detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -424,7 +424,8 @@ function exportarPDF() {
       body: datos.value.movimientos.map(m => [fmtFecha(m.fecha), m.concepto || '', m.beneficiario || '-', Number(m.ingreso) > 0 ? fmt(m.ingreso) : '-', Number(m.egreso) > 0 ? fmt(m.egreso) : '-']),
       foot: [['', '', 'TOTALES', fmt(datos.value.totalIngresosPend), fmt(datos.value.totalEgresosPend)]],
       ...detailTableOptions(ML),
-      columnStyles: { 0: { cellWidth: 24 }, 3: { halign: 'right', cellWidth: 34 }, 4: { halign: 'right', cellWidth: 34 } },
+      columnStyles: { 0: { cellWidth: 24 }, 2: { cellWidth: 36 }, 3: { halign: 'right', cellWidth: 34 }, 4: { halign: 'right', cellWidth: 34 } },
+      didParseCell: (data) => alignReportCell(data, { 0: 'left', 1: 'left', 2: 'left', 3: 'right', 4: 'right' }),
       didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
     })
     doc.save(`conciliacion-${nombreCuenta.replace(/\s+/g, '-')}.pdf`)

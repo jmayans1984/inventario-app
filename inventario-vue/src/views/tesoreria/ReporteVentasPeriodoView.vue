@@ -230,7 +230,7 @@ import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatFecha } from '../../utils/formatters'
-import { detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -388,6 +388,7 @@ function exportarPDF() {
       foot: [['TOTALES', fmt(totals.value.ventas_brutas), fmt(totals.value.devoluciones), fmt(totals.value.descuentos), fmt(totals.value.ventas_netas), fmt(totals.value.impuestos), fmt(totals.value.propinas), fmt(totals.value.comisiones), fmt(totals.value.tarjetas), fmt(totals.value.efectivo), fmt(totals.value.otros)]],
       ...detailTableOptions(ML),
       columnStyles: { 0: { cellWidth: 24 }, 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' } },
+      didParseCell: (data) => alignReportCell(data, { 0: 'left', 1: 'right', 2: 'right', 3: 'right', 4: 'right', 5: 'right', 6: 'right', 7: 'right', 8: 'right', 9: 'right', 10: 'right' }),
       didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
     })
 

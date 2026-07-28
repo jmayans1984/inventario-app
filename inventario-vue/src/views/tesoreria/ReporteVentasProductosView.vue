@@ -201,7 +201,7 @@ import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatFecha } from '../../utils/formatters'
-import { detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -353,6 +353,7 @@ function exportarPDF() {
       foot: [['TOTALES', '', fmtNum(totals.value.total_cant), '', fmt(totals.value.total_valor), '100%']],
       ...detailTableOptions(ML),
       columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 22, halign: 'right' }, 3: { cellWidth: 25, halign: 'right' }, 4: { cellWidth: 28, halign: 'right' }, 5: { cellWidth: 18, halign: 'right' } },
+      didParseCell: (data) => alignReportCell(data, { 0: 'center', 1: 'left', 2: 'right', 3: 'right', 4: 'right', 5: 'right' }),
       didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
     })
 

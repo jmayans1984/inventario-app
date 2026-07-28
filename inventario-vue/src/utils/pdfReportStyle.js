@@ -82,7 +82,7 @@ export function summaryTableOptions(margin = 10) {
       fontSize: 7.5,
       textColor: PDF_COLORS.text,
       fillColor: false,
-      halign: 'right',
+      halign: 'center',
       cellPadding: { top: 1.4, right: 2, bottom: 1.4, left: 2 },
       lineWidth: 0,
     },
@@ -95,11 +95,17 @@ export function summaryTableOptions(margin = 10) {
       lineWidth: { top: 0.25, bottom: 0.35 },
       lineColor: PDF_COLORS.rule,
     },
-    bodyStyles: { fontStyle: 'bold' },
+    bodyStyles: { fontStyle: 'bold', halign: 'center' },
     didParseCell: (data) => {
       data.cell.styles.fillColor = false
     },
   }
+}
+
+export function alignReportCell(data, alignments = {}) {
+  data.cell.styles.fillColor = false
+  const align = alignments[data.column.index]
+  if (align) data.cell.styles.halign = align
 }
 
 export function detailTableOptions(margin = 10) {
