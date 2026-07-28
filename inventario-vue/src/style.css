@@ -1089,3 +1089,300 @@ textarea::placeholder,
     filter: none !important;
   }
 }
+
+/* Grids de Proveeduria, Recetas y Nomina: continuidad visual de la app */
+.production-module,
+.recipes-module,
+.payroll-module {
+  --ops-grid-accent: var(--gold);
+  --ops-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, var(--ops-grid-accent) 4%);
+  --ops-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 90%, var(--ops-grid-accent) 10%);
+  --ops-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 88%, var(--ops-grid-accent) 12%);
+  --ops-grid-rule: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 10%, transparent);
+  --ops-grid-rule-soft: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 6%, transparent);
+  --ops-grid-shadow:
+    0 0 0 1px rgba(27, 24, 21, 0.06),
+    0 1px 2px -1px rgba(27, 24, 21, 0.08),
+    0 10px 28px rgba(27, 24, 21, 0.07);
+}
+
+.v-theme--dark.production-module,
+.v-theme--dark.recipes-module,
+.v-theme--dark.payroll-module {
+  --ops-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, var(--ops-grid-accent) 6%);
+  --ops-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 86%, var(--ops-grid-accent) 14%);
+  --ops-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 82%, var(--ops-grid-accent) 18%);
+  --ops-grid-shadow:
+    0 0 0 1px rgba(245, 241, 232, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.26),
+    0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .tabla-card,
+  .rp-grid-card,
+  .pcv-grid-card,
+  .vv-table-card,
+  .ra-table-card,
+  .nom-card,
+  .resumen-card,
+  .info-card,
+  .v-table,
+  .v-data-table
+) {
+  background: var(--ops-grid-surface) !important;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--ops-grid-shadow) !important;
+  overflow: hidden !important;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .tabla-card,
+  .rp-grid-scroll,
+  .pcv-grid-scroll,
+  .vv-table-card,
+  .ra-table-card,
+  .nom-card,
+  .v-table__wrapper
+) {
+  scrollbar-color: color-mix(in srgb, var(--ops-grid-accent) 42%, transparent) transparent;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .crud-table,
+  .prod-table,
+  .rp-grid,
+  .pcv-grid,
+  .vv-table,
+  .ga-table,
+  .ra-table,
+  .rec-list-table,
+  .nom-table,
+  .rn-table,
+  .rh-table,
+  .resumen-tabla,
+  .rec-table,
+  .v-table table
+) {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-sm) !important;
+  line-height: 1.35;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .crud-table,
+  .prod-table,
+  .rp-grid,
+  .pcv-grid,
+  .vv-table,
+  .ga-table,
+  .ra-table,
+  .rec-list-table,
+  .nom-table,
+  .rn-table,
+  .rh-table,
+  .resumen-tabla,
+  .rec-table,
+  .v-table table
+) thead,
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .crud-table,
+  .prod-table,
+  .rp-grid,
+  .pcv-grid,
+  .vv-table,
+  .ga-table,
+  .ra-table,
+  .rec-list-table,
+  .nom-table,
+  .rn-table,
+  .rh-table,
+  .resumen-tabla,
+  .rec-table,
+  .v-table table
+) thead tr {
+  background: var(--ops-grid-head) !important;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .crud-table,
+  .prod-table,
+  .rp-grid,
+  .pcv-grid,
+  .vv-table,
+  .ga-table,
+  .ra-table,
+  .rec-list-table,
+  .nom-table,
+  .rn-table,
+  .rh-table,
+  .resumen-tabla,
+  .rec-table,
+  .v-table table
+) thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 14px !important;
+  background: var(--ops-grid-head) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ops-grid-rule) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 62%, transparent) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .crud-table,
+  .prod-table,
+  .rp-grid,
+  .pcv-grid,
+  .vv-table,
+  .ga-table,
+  .ra-table,
+  .rec-list-table,
+  .nom-table,
+  .rn-table,
+  .rh-table,
+  .resumen-tabla,
+  .rec-table,
+  .v-table table
+) tbody tr {
+  border-bottom: 0 !important;
+  transform: translateY(0);
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .crud-table,
+  .prod-table,
+  .rp-grid,
+  .pcv-grid,
+  .vv-table,
+  .ga-table,
+  .ra-table,
+  .rec-list-table,
+  .nom-table,
+  .rn-table,
+  .rh-table,
+  .resumen-tabla,
+  .rec-table,
+  .v-table table
+) tbody td {
+  padding: 11px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ops-grid-rule-soft) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 86%, transparent) !important;
+  vertical-align: middle;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .crud-table,
+  .prod-table,
+  .rp-grid,
+  .pcv-grid,
+  .vv-table,
+  .ga-table,
+  .ra-table,
+  .rec-list-table,
+  .nom-table,
+  .rn-table,
+  .rh-table,
+  .resumen-tabla,
+  .rec-table,
+  .v-table table
+) tbody tr:hover {
+  background: var(--ops-grid-hover) !important;
+  box-shadow: inset 3px 0 0 var(--ops-grid-accent);
+  transform: translateY(-1px);
+}
+
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:hover td {
+  background: transparent !important;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:not(.empty-row):not(.total):not(.tot-row) {
+  animation: ops-row-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(min(var(--row-index, 0), 8) * 22ms);
+}
+
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:nth-child(1) { --row-index: 1; }
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:nth-child(2) { --row-index: 2; }
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:nth-child(3) { --row-index: 3; }
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:nth-child(4) { --row-index: 4; }
+:is(.production-module, .recipes-module, .payroll-module) table tbody tr:nth-child(n+5) { --row-index: 5; }
+
+@keyframes ops-row-in {
+  from { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .codigo-badge,
+  .badge-codigo,
+  .code-badge,
+  .sku-badge,
+  .badge,
+  .status-chip
+) {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(
+  .td-num,
+  .td-total,
+  .col-num,
+  .total-bold,
+  .amount-value,
+  .ta-r,
+  .tr
+) {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.production-module, .recipes-module, .payroll-module) :is(tfoot td, .total td, .tot-row td) {
+  background: color-mix(in srgb, var(--ops-grid-head) 78%, var(--ops-grid-accent) 22%) !important;
+  border-top: 1px solid var(--ops-grid-rule) !important;
+}
+
+.payroll-module .semana-grid,
+.payroll-module .cfg-dias-grid,
+.payroll-module .fit-br-table {
+  background: var(--ops-grid-surface) !important;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--ops-grid-shadow) !important;
+  overflow: hidden !important;
+}
+
+.payroll-module :is(.sg-head, .fit-br-head) {
+  background: var(--ops-grid-head) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 62%, transparent) !important;
+  letter-spacing: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.production-module, .recipes-module, .payroll-module) table tbody tr {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}

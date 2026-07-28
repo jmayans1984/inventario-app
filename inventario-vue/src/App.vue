@@ -16,6 +16,9 @@ const appClasses = computed(() => ({
   'treasury-module': route.path.startsWith('/tesoreria'),
   'accounting-module': route.path.startsWith('/contabilidad'),
   'warehouse-module': route.path.startsWith('/almacen'),
+  'production-module': route.path.startsWith('/produccion'),
+  'recipes-module': route.path.startsWith('/recetas'),
+  'payroll-module': route.path.startsWith('/nomina'),
 }))
 
 function onFocusIn(e) {
