@@ -1,5 +1,6 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useAppStore } from './stores/app'
 import MiniCalculadora from './components/MiniCalculadora.vue'
@@ -7,9 +8,13 @@ import { useCalculadora } from './composables/useCalculadora'
 
 const authStore = useAuthStore()
 const appStore  = useAppStore()
+const route = useRoute()
 
 const { openCalc } = useCalculadora()
 const lastFocused  = ref(null)
+const appClasses = computed(() => ({
+  'treasury-module': route.path.startsWith('/tesoreria'),
+}))
 
 function onFocusIn(e) {
   const el = e.target
@@ -40,7 +45,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <v-app :theme="appStore.tema">
+  <v-app :theme="appStore.tema" :class="appClasses">
     <router-view />
     <MiniCalculadora />
   </v-app>

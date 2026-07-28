@@ -218,3 +218,240 @@ textarea::placeholder,
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; opacity: 0.7; }
 }
+
+/* Grids de Tesoreria: estilo sobrio de ledger moderno */
+.treasury-module {
+  --tes-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, var(--gold) 4%);
+  --tes-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 90%, var(--gold) 10%);
+  --tes-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 88%, var(--gold) 12%);
+  --tes-grid-rule: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 10%, transparent);
+  --tes-grid-rule-soft: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 6%, transparent);
+  --tes-grid-shadow:
+    0 0 0 1px rgba(27, 24, 21, 0.06),
+    0 1px 2px -1px rgba(27, 24, 21, 0.08),
+    0 10px 28px rgba(27, 24, 21, 0.07);
+}
+
+.v-theme--dark.treasury-module {
+  --tes-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, var(--gold) 6%);
+  --tes-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 86%, var(--gold) 14%);
+  --tes-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 82%, var(--gold) 18%);
+  --tes-grid-shadow:
+    0 0 0 1px rgba(245, 241, 232, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.26),
+    0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.treasury-module .tabla-container,
+.treasury-module .table-wrap,
+.treasury-module .rm-table-card,
+.treasury-module .rc-table-card {
+  background: var(--tes-grid-surface) !important;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--tes-grid-shadow) !important;
+  overflow: hidden !important;
+}
+
+.treasury-module .tabla-wrapper,
+.treasury-module .table-wrap,
+.treasury-module .rm-tabla-wrap,
+.treasury-module .rc-tabla-wrap,
+.treasury-module .art-tabla-wrap {
+  scrollbar-color: color-mix(in srgb, var(--gold) 42%, transparent) transparent;
+}
+
+.treasury-module .data-table,
+.treasury-module .vp-table,
+.treasury-module .rm-tabla,
+.treasury-module .rc-tabla,
+.treasury-module .art-tabla {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: var(--text-sm) !important;
+  line-height: 1.35;
+}
+
+.treasury-module .data-table thead,
+.treasury-module .data-table thead tr,
+.treasury-module .vp-table thead,
+.treasury-module .vp-table thead tr,
+.treasury-module .rm-tabla thead,
+.treasury-module .rm-tabla thead tr,
+.treasury-module .rc-tabla thead,
+.treasury-module .rc-tabla thead tr,
+.treasury-module .art-tabla thead,
+.treasury-module .art-tabla thead tr {
+  background: var(--tes-grid-head) !important;
+}
+
+.treasury-module .data-table thead th,
+.treasury-module .vp-table thead th,
+.treasury-module .rm-tabla thead th,
+.treasury-module .rc-tabla thead th,
+.treasury-module .art-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 14px !important;
+  background: var(--tes-grid-head) !important;
+  border-bottom: 1px solid var(--tes-grid-rule) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 62%, transparent) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.treasury-module .data-table tbody tr,
+.treasury-module .vp-table tbody tr,
+.treasury-module .rm-tabla tbody tr,
+.treasury-module .rc-tabla tbody tr,
+.treasury-module .art-tabla tbody tr {
+  border-bottom: 0 !important;
+  transform: translateY(0);
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.treasury-module .data-table tbody td,
+.treasury-module .vp-table tbody td,
+.treasury-module .rm-tabla tbody td,
+.treasury-module .rc-tabla tbody td,
+.treasury-module .art-tabla tbody td {
+  padding: 11px 14px !important;
+  border-bottom: 1px solid var(--tes-grid-rule-soft) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 86%, transparent) !important;
+  vertical-align: middle;
+}
+
+.treasury-module .data-table tbody tr:hover,
+.treasury-module .vp-table tbody tr:hover,
+.treasury-module .rm-tabla tbody tr:hover,
+.treasury-module .rc-tabla tbody tr:hover,
+.treasury-module .art-tabla tbody tr:hover {
+  background: var(--tes-grid-hover) !important;
+  box-shadow: inset 3px 0 0 var(--gold);
+  transform: translateY(-1px);
+}
+
+.treasury-module .data-table tbody tr:hover td,
+.treasury-module .vp-table tbody tr:hover td,
+.treasury-module .rm-tabla tbody tr:hover td,
+.treasury-module .rc-tabla tbody tr:hover td,
+.treasury-module .art-tabla tbody tr:hover td {
+  background: transparent !important;
+}
+
+.treasury-module .data-table tbody tr:last-child td,
+.treasury-module .vp-table tbody tr:last-child td,
+.treasury-module .rm-tabla tbody tr:last-child td,
+.treasury-module .rc-tabla tbody tr:last-child td,
+.treasury-module .art-tabla tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+.treasury-module .data-table tbody tr:not(.tabla-footer),
+.treasury-module .vp-table tbody tr:not(.tr-total),
+.treasury-module .rm-tabla tbody tr,
+.treasury-module .rc-tabla tbody tr,
+.treasury-module .art-tabla tbody tr:not(.tr-total):not(.tr-subtotal) {
+  animation: treasury-row-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(min(var(--row-index, 0), 8) * 22ms);
+}
+
+.treasury-module .data-table tbody tr:nth-child(1),
+.treasury-module .vp-table tbody tr:nth-child(1),
+.treasury-module .rm-tabla tbody tr:nth-child(1),
+.treasury-module .rc-tabla tbody tr:nth-child(1),
+.treasury-module .art-tabla tbody tr:nth-child(1) { --row-index: 1; }
+.treasury-module .data-table tbody tr:nth-child(2),
+.treasury-module .vp-table tbody tr:nth-child(2),
+.treasury-module .rm-tabla tbody tr:nth-child(2),
+.treasury-module .rc-tabla tbody tr:nth-child(2),
+.treasury-module .art-tabla tbody tr:nth-child(2) { --row-index: 2; }
+.treasury-module .data-table tbody tr:nth-child(3),
+.treasury-module .vp-table tbody tr:nth-child(3),
+.treasury-module .rm-tabla tbody tr:nth-child(3),
+.treasury-module .rc-tabla tbody tr:nth-child(3),
+.treasury-module .art-tabla tbody tr:nth-child(3) { --row-index: 3; }
+.treasury-module .data-table tbody tr:nth-child(4),
+.treasury-module .vp-table tbody tr:nth-child(4),
+.treasury-module .rm-tabla tbody tr:nth-child(4),
+.treasury-module .rc-tabla tbody tr:nth-child(4),
+.treasury-module .art-tabla tbody tr:nth-child(4) { --row-index: 4; }
+.treasury-module .data-table tbody tr:nth-child(n+5),
+.treasury-module .vp-table tbody tr:nth-child(n+5),
+.treasury-module .rm-tabla tbody tr:nth-child(n+5),
+.treasury-module .rc-tabla tbody tr:nth-child(n+5),
+.treasury-module .art-tabla tbody tr:nth-child(n+5) { --row-index: 5; }
+
+@keyframes treasury-row-in {
+  from { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.treasury-module .data-table th.sortable,
+.treasury-module .vp-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+.treasury-module .data-table th.sortable:hover,
+.treasury-module .vp-table th.sortable:hover {
+  background: color-mix(in srgb, var(--tes-grid-head) 72%, var(--gold) 28%) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.treasury-module .numero-badge,
+.treasury-module .codigo-badge,
+.treasury-module .badge-ccosto {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.treasury-module .col-num,
+.treasury-module .td-num,
+.treasury-module .td-monto,
+.treasury-module .monto-text,
+.treasury-module .pagado-text,
+.treasury-module .pendiente-text,
+.treasury-module .ingreso-text,
+.treasury-module .egreso-text,
+.treasury-module .total-val,
+.treasury-module .tr-total td {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.treasury-module .tabla-empty {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--gold) 7%, transparent), transparent 58%),
+    var(--tes-grid-surface) !important;
+}
+
+.treasury-module .tabla-footer td,
+.treasury-module .tr-total td,
+.treasury-module .tr-subtotal td {
+  background: color-mix(in srgb, var(--tes-grid-head) 78%, var(--gold) 22%) !important;
+  border-top: 1px solid var(--tes-grid-rule) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .treasury-module .data-table tbody tr,
+  .treasury-module .vp-table tbody tr,
+  .treasury-module .rm-tabla tbody tr,
+  .treasury-module .rc-tabla tbody tr,
+  .treasury-module .art-tabla tbody tr {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
