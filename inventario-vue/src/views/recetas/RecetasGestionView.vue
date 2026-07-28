@@ -31,27 +31,11 @@
       </v-expand-transition>
 
       <!-- KPI MINI -->
-      <div class="rg-kpi-row">
-        <div class="rg-kpi" :style="{ borderColor: '#f59e0b' }">
-          <v-icon size="20" color="#f59e0b" class="mb-1">mdi-chef-hat</v-icon>
-          <span class="kpi-val amber">{{ kpis.total }}</span>
-          <span class="kpi-lbl">Total Recetas</span>
-        </div>
-        <div class="rg-kpi" :style="{ borderColor: '#06b6d4' }">
-          <v-icon size="20" color="#06b6d4" class="mb-1">mdi-food-apple-outline</v-icon>
-          <span class="kpi-val cyan">{{ kpis.articulos }}</span>
-          <span class="kpi-lbl">Artículos</span>
-        </div>
-        <div class="rg-kpi" :style="{ borderColor: '#8b5cf6' }">
-          <v-icon size="20" color="#8b5cf6" class="mb-1">mdi-link-variant</v-icon>
-          <span class="kpi-val purple">{{ kpis.subrecetas }}</span>
-          <span class="kpi-lbl">Subrecetas</span>
-        </div>
-        <div class="rg-kpi" :style="{ borderColor: '#22c55e' }">
-          <v-icon size="20" color="#22c55e" class="mb-1">mdi-percent</v-icon>
-          <span class="kpi-val green">{{ kpis.pctPromedio }}%</span>
-          <span class="kpi-lbl">% Costo Prom.</span>
-        </div>
+      <div class="kpi-grid">
+        <KpiCard :index="0" label="Total Recetas" :value="String(kpis.total)" icon="mdi-chef-hat" color="var(--gold)" />
+        <KpiCard :index="1" label="Artículos" :value="String(kpis.articulos)" icon="mdi-food-apple-outline" color="var(--indigo)" />
+        <KpiCard :index="2" label="Subrecetas" :value="String(kpis.subrecetas)" icon="mdi-link-variant" color="var(--indigo)" />
+        <KpiCard :index="3" label="% Costo Prom." :value="`${kpis.pctPromedio}%`" icon="mdi-percent" color="var(--success)" />
       </div>
 
       <!-- TABLA RECETAS CON COSTOS -->
@@ -170,6 +154,7 @@
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const recetas     = ref([])
@@ -315,14 +300,7 @@ onMounted(cargar)
 
 <style scoped>
 .rg-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.rg-kpi-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.rg-kpi { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 14px; padding: 14px 20px; display: flex; flex-direction: column; align-items: center; min-width: 120px; gap: 2px; }
-.kpi-val { font-size: 24px; font-weight: 800; line-height: 1; }
-.kpi-val.amber { color: #f59e0b; }
-.kpi-val.cyan  { color: #06b6d4; }
-.kpi-val.purple{ color: #8b5cf6; }
-.kpi-val.green { color: #22c55e; }
-.kpi-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 .rg-table-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
 .rg-table-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 0; gap: 12px; flex-wrap: wrap; }
 .rg-table-title { font-size: 14px; font-weight: 700; }

@@ -8,7 +8,7 @@
         :crumbs="['Recetas', 'Configuración', 'Precios de Venta']"
       >
         <template #actions>
-          <v-chip v-if="pendientes.size" color="#f59e0b" variant="tonal" size="small" prepend-icon="mdi-circle-edit-outline">
+          <v-chip v-if="pendientes.size" color="warning" variant="tonal" size="small" prepend-icon="mdi-circle-edit-outline">
             {{ pendientes.size }} cambio{{ pendientes.size > 1 ? 's' : '' }} sin guardar
           </v-chip>
           <v-btn color="grey" variant="tonal" rounded="lg" :disabled="!pendientes.size" @click="descartarTodo">
@@ -40,23 +40,11 @@
       </div>
 
       <!-- KPI MINI -->
-      <div class="rp-kpi-row">
-        <div class="rp-kpi" style="border-color:#f59e0b">
-          <span class="kpi-val" style="color:#f59e0b">{{ recetasFiltradas.length }}</span>
-          <span class="kpi-lbl">Recetas visibles</span>
-        </div>
-        <div class="rp-kpi" style="border-color:#22c55e">
-          <span class="kpi-val" style="color:#22c55e">{{ conPrecio }}</span>
-          <span class="kpi-lbl">Con precio</span>
-        </div>
-        <div class="rp-kpi" style="border-color:#ef4444">
-          <span class="kpi-val" style="color:#ef4444">{{ sinPrecio }}</span>
-          <span class="kpi-lbl">Sin precio</span>
-        </div>
-        <div class="rp-kpi" style="border-color:#f59e0b">
-          <span class="kpi-val" style="color:#f59e0b">{{ pendientes.size }}</span>
-          <span class="kpi-lbl">Pendientes</span>
-        </div>
+      <div class="kpi-grid">
+        <KpiCard :index="0" label="Recetas visibles" :value="String(recetasFiltradas.length)" icon="mdi-book-open-variant-outline" color="var(--gold)" />
+        <KpiCard :index="1" label="Con precio" :value="String(conPrecio)" icon="mdi-tag-check-outline" color="var(--success)" />
+        <KpiCard :index="2" label="Sin precio" :value="String(sinPrecio)" icon="mdi-tag-off-outline" color="var(--error)" />
+        <KpiCard :index="3" label="Pendientes" :value="String(pendientes.size)" icon="mdi-circle-edit-outline" color="var(--gold)" />
       </div>
 
       <!-- GRID -->
@@ -165,6 +153,7 @@ import { ref, computed, reactive, onMounted, nextTick } from 'vue'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const theme = useTheme()
@@ -374,10 +363,7 @@ onMounted(cargar)
 .rp-hint    { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); }
 
 /* kpis */
-.rp-kpi-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-.rp-kpi     { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 12px; padding: 10px 18px; display: flex; flex-direction: column; align-items: center; min-width: 110px; flex: 1; }
-.kpi-val    { font-size: 22px; font-weight: 800; line-height: 1; }
-.kpi-lbl    { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; margin-top: 2px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 
 /* grid card */
 .rp-grid-card   { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }

@@ -60,29 +60,12 @@
       </div>
 
       <!-- KPIs (solo cuando hay datos) -->
-      <div v-if="consultado && rows.length > 0" class="vv-kpi-row">
-        <div class="vv-kpi" style="border-color:#3b82f6">
-          <span class="kpi-val" style="color:#3b82f6">{{ kpi.num_recetas }}</span>
-          <span class="kpi-lbl">Recetas{{ filtroGrupo !== 'TODOS' || busqueda ? ' (filtradas)' : ' vendidas' }}</span>
-        </div>
-        <div class="vv-kpi" style="border-color:#22c55e">
-          <span class="kpi-val" style="color:#22c55e">{{ fmtM(kpi.total_ventas) }}</span>
-          <span class="kpi-lbl">Total ventas</span>
-        </div>
-        <div class="vv-kpi" style="border-color:#ef4444">
-          <span class="kpi-val" style="color:#ef4444">{{ fmtM(kpi.total_costo_mp) }}</span>
-          <span class="kpi-lbl">Costo MP total</span>
-        </div>
-        <div class="vv-kpi" :style="{ borderColor: colorPct(kpi.pct_costo_real) }">
-          <span class="kpi-val" :style="{ color: colorPct(kpi.pct_costo_real) }">
-            {{ kpi.pct_costo_real.toFixed(1) }}%
-          </span>
-          <span class="kpi-lbl">% costo MP real ponderado</span>
-        </div>
-        <div class="vv-kpi" style="border-color:#8b5cf6">
-          <span class="kpi-val" style="color:#8b5cf6">{{ kpi.pct_simple.toFixed(1) }}%</span>
-          <span class="kpi-lbl">% costo MP promedio simple</span>
-        </div>
+      <div v-if="consultado && rows.length > 0" class="kpi-grid kpi-grid-5">
+        <KpiCard :index="0" :label="`Recetas${filtroGrupo !== 'TODOS' || busqueda ? ' (filtradas)' : ' vendidas'}`" :value="String(kpi.num_recetas)" icon="mdi-book-open-variant-outline" color="var(--indigo)" />
+        <KpiCard :index="1" label="Total ventas" :value="fmtM(kpi.total_ventas)" icon="mdi-cash-multiple" color="var(--success)" />
+        <KpiCard :index="2" label="Costo MP total" :value="fmtM(kpi.total_costo_mp)" icon="mdi-basket-outline" color="var(--error)" />
+        <KpiCard :index="3" label="% costo MP real ponderado" :value="`${kpi.pct_costo_real.toFixed(1)}%`" icon="mdi-percent" :color="colorPct(kpi.pct_costo_real)" />
+        <KpiCard :index="4" label="% costo MP promedio simple" :value="`${kpi.pct_simple.toFixed(1)}%`" icon="mdi-percent-outline" color="var(--indigo)" />
       </div>
 
       <!-- ALERT diferencial -->
@@ -211,6 +194,7 @@ import { ref, computed, onMounted } from 'vue'
 import { fechaInputLocal } from '../../utils/formatters'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
@@ -320,10 +304,10 @@ const kpi = computed(() => {
 // ── Helpers visuales ──────────────────────────────────────────────────────────
 function colorPct(p) {
   const v = parseFloat(p) || 0
-  if (!v) return '#94a3b8'
-  if (v <= 30) return '#22c55e'
-  if (v <= 45) return '#f59e0b'
-  return '#ef4444'
+  if (!v) return 'var(--ink-400)'
+  if (v <= 30) return 'var(--success)'
+  if (v <= 45) return 'var(--gold)'
+  return 'var(--error)'
 }
 
 function pctClass(r) {
@@ -395,10 +379,8 @@ onMounted(fetchCcostos)
 .filtro-label    { font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.55); text-transform: uppercase; letter-spacing: .05em; }
 
 /* KPIs */
-.vv-kpi-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-.vv-kpi     { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 12px; padding: 12px 18px; display: flex; flex-direction: column; align-items: center; min-width: 120px; flex: 1; }
-.kpi-val    { font-size: 22px; font-weight: 800; line-height: 1; }
-.kpi-lbl    { font-size: 10px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; margin-top: 2px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-grid-5 { grid-template-columns: repeat(5, 1fr); }
 
 /* empty */
 .vv-empty { text-align: center; padding: 60px 20px; }

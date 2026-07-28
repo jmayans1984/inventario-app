@@ -8,7 +8,7 @@
         :crumbs="['Recetas', 'Configuración', 'Precios Compra/Venta']"
       >
         <template #actions>
-          <v-chip v-if="pendientes.size" color="#f59e0b" variant="tonal" size="small" prepend-icon="mdi-circle-edit-outline">
+          <v-chip v-if="pendientes.size" color="warning" variant="tonal" size="small" prepend-icon="mdi-circle-edit-outline">
             {{ pendientes.size }} cambio{{ pendientes.size > 1 ? 's' : '' }} sin guardar
           </v-chip>
           <v-btn color="grey" variant="tonal" rounded="lg" :disabled="!pendientes.size" @click="descartarTodo">
@@ -22,7 +22,7 @@
       </PageHeader>
 
       <!-- TABS -->
-      <v-tabs v-model="tab" color="#f59e0b" class="mb-4">
+      <v-tabs v-model="tab" color="warning" class="mb-4">
         <v-tab value="compra" prepend-icon="mdi-cart-outline">Compra (Artículos)</v-tab>
         <v-tab value="venta" prepend-icon="mdi-tag-outline">Venta (Recetas)</v-tab>
       </v-tabs>
@@ -43,28 +43,16 @@
         </div>
 
         <!-- KPI -->
-        <div class="pcv-kpi-row">
-          <div class="pcv-kpi" style="border-color:#3b82f6">
-            <span class="kpi-val" style="color:#3b82f6">{{ articulosFiltrados.length }}</span>
-            <span class="kpi-lbl">Artículos visibles</span>
-          </div>
-          <div class="pcv-kpi" style="border-color:#22c55e">
-            <span class="kpi-val" style="color:#22c55e">{{ artConPrecio }}</span>
-            <span class="kpi-lbl">Con precio</span>
-          </div>
-          <div class="pcv-kpi" style="border-color:#ef4444">
-            <span class="kpi-val" style="color:#ef4444">{{ artSinPrecio }}</span>
-            <span class="kpi-lbl">Sin precio</span>
-          </div>
-          <div class="pcv-kpi" style="border-color:#f59e0b">
-            <span class="kpi-val" style="color:#f59e0b">{{ pendientesCompra.size }}</span>
-            <span class="kpi-lbl">Pendientes</span>
-          </div>
+        <div class="kpi-grid">
+          <KpiCard :index="0" label="Artículos visibles" :value="String(articulosFiltrados.length)" icon="mdi-food-apple-outline" color="var(--indigo)" />
+          <KpiCard :index="1" label="Con precio" :value="String(artConPrecio)" icon="mdi-tag-check-outline" color="var(--success)" />
+          <KpiCard :index="2" label="Sin precio" :value="String(artSinPrecio)" icon="mdi-tag-off-outline" color="var(--error)" />
+          <KpiCard :index="3" label="Pendientes" :value="String(pendientesCompra.size)" icon="mdi-circle-edit-outline" color="var(--gold)" />
         </div>
 
         <!-- GRID COMPRA -->
         <div class="pcv-grid-card">
-          <v-progress-linear v-if="loadingC || guardandoTodo" indeterminate color="#3b82f6" height="3" />
+          <v-progress-linear v-if="loadingC || guardandoTodo" indeterminate color="primary" height="3" />
           <div class="pcv-grid-scroll">
             <table class="pcv-grid">
               <thead>
@@ -74,7 +62,7 @@
                   <th class="col-grp">GRUPO</th>
                   <th class="col-und">UND</th>
                   <th class="col-usos">EN RECETAS</th>
-                  <th class="col-pv" style="color:#3b82f6">PRECIO COMPRA</th>
+                  <th class="col-pv" style="color:rgb(var(--v-theme-primary))">PRECIO COMPRA</th>
                   <th class="col-est">EST</th>
                 </tr>
               </thead>
@@ -164,28 +152,16 @@
         </div>
 
         <!-- KPI -->
-        <div class="pcv-kpi-row">
-          <div class="pcv-kpi" style="border-color:#f59e0b">
-            <span class="kpi-val" style="color:#f59e0b">{{ recetasFiltradas.length }}</span>
-            <span class="kpi-lbl">Recetas visibles</span>
-          </div>
-          <div class="pcv-kpi" style="border-color:#22c55e">
-            <span class="kpi-val" style="color:#22c55e">{{ recConPrecio }}</span>
-            <span class="kpi-lbl">Con precio</span>
-          </div>
-          <div class="pcv-kpi" style="border-color:#ef4444">
-            <span class="kpi-val" style="color:#ef4444">{{ recSinPrecio }}</span>
-            <span class="kpi-lbl">Sin precio</span>
-          </div>
-          <div class="pcv-kpi" style="border-color:#f59e0b">
-            <span class="kpi-val" style="color:#f59e0b">{{ pendientesVenta.size }}</span>
-            <span class="kpi-lbl">Pendientes</span>
-          </div>
+        <div class="kpi-grid">
+          <KpiCard :index="0" label="Recetas visibles" :value="String(recetasFiltradas.length)" icon="mdi-book-open-variant-outline" color="var(--gold)" />
+          <KpiCard :index="1" label="Con precio" :value="String(recConPrecio)" icon="mdi-tag-check-outline" color="var(--success)" />
+          <KpiCard :index="2" label="Sin precio" :value="String(recSinPrecio)" icon="mdi-tag-off-outline" color="var(--error)" />
+          <KpiCard :index="3" label="Pendientes" :value="String(pendientesVenta.size)" icon="mdi-circle-edit-outline" color="var(--gold)" />
         </div>
 
         <!-- GRID VENTA -->
         <div class="pcv-grid-card">
-          <v-progress-linear v-if="loadingV || guardandoTodo" indeterminate color="#f59e0b" height="3" />
+          <v-progress-linear v-if="loadingV || guardandoTodo" indeterminate color="warning" height="3" />
           <div class="pcv-grid-scroll">
             <table class="pcv-grid">
               <thead>
@@ -288,6 +264,7 @@ import { ref, computed, reactive, onMounted, nextTick, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
+import KpiCard from '../../components/common/KpiCard.vue'
 import { API_BASE } from '../../utils/constants.js'
 
 const theme = useTheme()
@@ -609,10 +586,7 @@ onMounted(() => cargarArticulos())
 .pcv-hint   { display: flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); }
 
 /* kpis */
-.pcv-kpi-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-.pcv-kpi     { background: rgb(var(--v-theme-surface)); border: 2px solid; border-radius: 12px; padding: 10px 18px; display: flex; flex-direction: column; align-items: center; min-width: 110px; flex: 1; }
-.kpi-val     { font-size: 22px; font-weight: 800; line-height: 1; }
-.kpi-lbl     { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); text-align: center; margin-top: 2px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 
 /* grid card */
 .pcv-grid-card   { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 16px; overflow: hidden; }
