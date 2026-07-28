@@ -707,13 +707,14 @@ async function exportarExcel() {
 
 .action-buttons {
   display: flex;
-  gap: 2px;
+  gap: -8px;
   justify-content: center;
   align-items: center;
 }
 
 .action-buttons :deep(.v-btn) {
-  margin: 0;
+  margin: 0 -6px;
+  padding: 0 4px;
 }
 
 .text-muted {
