@@ -1,0 +1,519 @@
+---
+
+name: accounting-inventory-ui-polish
+description: Audits and improves accounting and inventory application interfaces, focusing on professional visual hierarchy, dashboards, tables, forms, navigation, responsive design, accessibility, consistency, and usability without altering business logic.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Accounting and Inventory UI Polish
+
+Use this skill when reviewing, redesigning, or improving the interface of an accounting, inventory, invoicing, treasury, purchasing, sales, payroll, or business-management application.
+
+## Primary objective
+
+Transform the existing application into a professional, modern, consistent, and easy-to-use business interface while preserving all current functionality, calculations, routes, validations, permissions, database operations, and business logic.
+
+## Operating principles
+
+1. Inspect the existing project before making changes.
+2. Identify the framework, styling system, component library, routing structure, and reusable components.
+3. Reuse the application's existing architecture whenever practical.
+4. Do not rewrite functional code merely to change appearance.
+5. Do not remove fields, buttons, filters, actions, routes, validations, or business functions.
+6. Do not change accounting calculations, inventory calculations, financial logic, API contracts, database schemas, or permission rules unless explicitly requested.
+7. Apply improvements consistently across the entire application.
+8. Prefer reusable components and design tokens over isolated page-specific styling.
+9. Maintain compatibility with desktop and mobile layouts.
+10. Validate the application after each relevant group of changes.
+
+## Required workflow
+
+Before editing code:
+
+1. Review the project structure.
+2. Locate the main layout, navigation, global styles, theme configuration, reusable UI components, and principal modules.
+3. Identify visual inconsistencies and usability problems.
+4. Create a prioritized implementation plan.
+5. Begin with global components and design foundations.
+6. Continue module by module.
+7. Run available linting, type checking, tests, and builds after implementation.
+
+## Visual direction
+
+The application should feel:
+
+* Professional
+* Reliable
+* Clean
+* Modern
+* Operational
+* Data-focused
+* Easy to scan
+* Appropriate for daily business use
+
+Avoid:
+
+* Excessive gradients
+* Decorative animations without purpose
+* Oversized cards
+* Excessive rounded corners
+* Low-contrast text
+* Unnecessary shadows
+* Random colors
+* Inconsistent spacing
+* Excessive empty space
+* Consumer-style interfaces that reduce information density
+* Dashboard cards that do not communicate useful information
+
+## Design system
+
+Establish or refine reusable design tokens for:
+
+* Primary color
+* Secondary color
+* Accent color
+* Success
+* Warning
+* Error
+* Informational states
+* Page background
+* Surface background
+* Borders
+* Primary text
+* Secondary text
+* Disabled text
+* Spacing
+* Border radius
+* Shadows
+* Typography
+* Component heights
+
+Use a restrained color palette. Financial and inventory applications should prioritize readability and clear semantic states.
+
+Do not use color as the only way to communicate status.
+
+## Typography
+
+Create a clear hierarchy for:
+
+* Page titles
+* Section titles
+* Card titles
+* Field labels
+* Table headings
+* Body content
+* Secondary information
+* Financial values
+* Status indicators
+* Helper text
+* Validation messages
+
+Use consistent font sizes and weights.
+
+Financial amounts and numeric values should be easy to compare. Use tabular numbers where supported.
+
+## Page layout
+
+Each module page should generally include:
+
+1. Page title and short contextual description
+2. Primary action
+3. Relevant summary or KPI area
+4. Filters and search controls
+5. Main table, form, chart, or operational content
+6. Pagination or result count when applicable
+7. Empty, loading, success, and error states
+
+Maintain consistent horizontal padding, content width, section spacing, and alignment across pages.
+
+## Navigation
+
+Review and improve:
+
+* Sidebar hierarchy
+* Menu labels
+* Active navigation state
+* Collapsible menu groups
+* Icons
+* Mobile navigation
+* Breadcrumbs
+* User menu
+* Company selector
+* Notification indicators
+* Permission-based menu visibility
+
+Group navigation items logically, such as:
+
+* Dashboard
+* Sales
+* Purchases
+* Inventory
+* Accounting
+* Treasury
+* Reports
+* Employees
+* Configuration
+
+Do not expose inaccessible modules to users without permission.
+
+## Dashboard
+
+Dashboard metrics must be operationally useful.
+
+Examples include:
+
+* Sales today
+* Sales this month
+* Outstanding receivables
+* Outstanding payables
+* Current cash balance
+* Low-stock products
+* Inventory valuation
+* Gross profit
+* Net cash flow
+* Recent transactions
+* Overdue invoices
+* Pending approvals
+* Stock movements
+
+Each KPI should include:
+
+* Clear label
+* Current value
+* Relevant comparison
+* Trend or status when available
+* Appropriate formatting
+* Link to the underlying detail when useful
+
+Avoid filling the dashboard with decorative cards that do not help the user make decisions.
+
+## Tables
+
+Business applications depend heavily on tables. Improve them carefully.
+
+Review:
+
+* Column hierarchy
+* Numeric alignment
+* Currency formatting
+* Date formatting
+* Status badges
+* Row density
+* Sticky headers
+* Sorting
+* Filtering
+* Search
+* Pagination
+* Bulk selection
+* Row actions
+* Horizontal overflow
+* Loading states
+* Empty states
+* Mobile behavior
+
+Rules:
+
+* Align text columns to the left.
+* Align quantities and financial amounts to the right.
+* Keep actions predictable.
+* Avoid placing too many visible buttons in every row.
+* Use an action menu when multiple secondary actions exist.
+* Preserve keyboard accessibility.
+* Make totals and subtotals visually distinct.
+* Keep essential columns visible.
+* Use truncation and tooltips carefully.
+* Do not hide critical financial information.
+
+## Forms
+
+Improve forms for speed, clarity, and error prevention.
+
+Review:
+
+* Field grouping
+* Label clarity
+* Required indicators
+* Input sizes
+* Help text
+* Validation messages
+* Default values
+* Date selectors
+* Currency inputs
+* Quantity inputs
+* Select fields
+* Autocomplete
+* Product selectors
+* Customer and supplier selectors
+* Tax fields
+* Payment terms
+* Save and cancel actions
+
+Rules:
+
+* Group related information into clear sections.
+* Place labels above controls unless the current design system requires otherwise.
+* Show validation messages next to the affected field.
+* Preserve entered data after validation errors.
+* Disable submission while saving.
+* Communicate successful saves.
+* Warn users before discarding unsaved changes.
+* Format currency and numeric fields consistently.
+* Distinguish read-only fields from editable fields.
+
+## Accounting module
+
+Prioritize clarity and precision for:
+
+* Chart of accounts
+* Journal entries
+* General ledger
+* Trial balance
+* Accounts receivable
+* Accounts payable
+* Bank reconciliation
+* Financial statements
+* Taxes
+* Fiscal periods
+* Closing processes
+
+Accounting screens must clearly distinguish:
+
+* Debit and credit
+* Posted and draft entries
+* Open and closed periods
+* Reconciled and unreconciled transactions
+* Current and overdue balances
+* Original, adjusted, and remaining amounts
+
+Do not alter accounting rules or calculations during visual work.
+
+## Inventory module
+
+Prioritize operational visibility for:
+
+* Products
+* Variants
+* Categories
+* Warehouses
+* Locations
+* Stock levels
+* Stock movements
+* Purchase receipts
+* Sales dispatches
+* Transfers
+* Adjustments
+* Counts
+* Reorder points
+* Inventory valuation
+
+Clearly distinguish:
+
+* Available stock
+* Reserved stock
+* Incoming stock
+* Damaged stock
+* Minimum stock
+* Reorder status
+* Out-of-stock items
+* Negative inventory conditions
+
+Use status indicators and warnings without making the interface visually noisy.
+
+## Treasury module
+
+Prioritize:
+
+* Bank accounts
+* Cash accounts
+* Transfers
+* Deposits
+* Withdrawals
+* Scheduled payments
+* Cash-flow forecasting
+* Reconciliation
+* Payment approvals
+* Liquidity alerts
+
+Clearly distinguish inflows, outflows, pending transactions, reconciled transactions, and account balances.
+
+Use semantic formatting consistently for positive and negative movements.
+
+## Buttons and actions
+
+Create a clear action hierarchy:
+
+* Primary action: one dominant action per section
+* Secondary action: supporting actions
+* Tertiary action: low-priority actions
+* Destructive action: visually distinct and confirmation-protected
+
+Use consistent labels. Prefer specific verbs such as:
+
+* Create invoice
+* Add product
+* Record payment
+* Transfer funds
+* Reconcile account
+* Export report
+
+Avoid vague labels such as “Process,” “Accept,” or “Continue” when a more precise label is available.
+
+## Modals and drawers
+
+Use modals for focused decisions and small forms.
+
+Use drawers for contextual editing when preserving the underlying page is valuable.
+
+Use full pages for complex workflows.
+
+Every modal should include:
+
+* Clear title
+* Brief context when necessary
+* Predictable primary and secondary actions
+* Keyboard focus management
+* Escape behavior when safe
+* Confirmation for destructive operations
+
+## Status and feedback
+
+Implement consistent states for:
+
+* Loading
+* Empty content
+* Success
+* Warning
+* Error
+* Disabled controls
+* Saving
+* Processing
+* Synchronizing
+* No permission
+* Offline or connection failure
+
+Use skeletons for content loading when appropriate.
+
+Do not leave users uncertain about whether an action succeeded.
+
+## Responsive behavior
+
+The application must remain usable on:
+
+* Large desktop screens
+* Standard laptops
+* Tablets
+* Mobile devices
+
+On smaller screens:
+
+* Collapse the sidebar appropriately.
+* Preserve important actions.
+* Stack form fields logically.
+* Prevent tables from breaking the page.
+* Use horizontal scrolling, cards, or prioritized columns when appropriate.
+* Keep touch targets usable.
+* Avoid hiding critical data without an accessible alternative.
+
+## Accessibility
+
+Review:
+
+* Color contrast
+* Keyboard navigation
+* Visible focus states
+* Form labels
+* Semantic HTML
+* ARIA attributes where necessary
+* Button names
+* Icon-only actions
+* Error announcements
+* Table structure
+* Screen-reader clarity
+* Reduced-motion preferences
+
+Do not remove focus outlines unless replacing them with a clearly visible alternative.
+
+## Motion and interaction
+
+Use motion only when it improves comprehension.
+
+Appropriate uses include:
+
+* Sidebar transitions
+* Accordion expansion
+* Modal appearance
+* Toast notifications
+* Loading feedback
+* State transitions
+* Contextual row updates
+
+Animations should be subtle, fast, interruptible, and respectful of reduced-motion settings.
+
+Avoid decorative motion that slows down routine accounting or inventory work.
+
+## Charts and data visualization
+
+Use charts only when they communicate a meaningful trend, comparison, distribution, or anomaly.
+
+Charts must include:
+
+* Clear title
+* Defined period
+* Legible labels
+* Useful tooltips
+* Proper currency or quantity formatting
+* Empty states
+* Accessible data interpretation
+
+Do not use charts when a number or table communicates the information more effectively.
+
+## Implementation constraints
+
+* Preserve current behavior.
+* Preserve existing routes.
+* Preserve API integrations.
+* Preserve database interactions.
+* Preserve validations.
+* Preserve authorization rules.
+* Preserve calculation logic.
+* Preserve localization.
+* Preserve existing tests.
+* Avoid unnecessary dependencies.
+* Avoid replacing the entire UI framework without explicit approval.
+* Avoid large destructive refactors solely for visual improvement.
+
+## Completion checklist
+
+Before declaring the work complete, verify:
+
+* Global visual consistency
+* Navigation consistency
+* Typography hierarchy
+* Spacing consistency
+* Color contrast
+* Responsive behavior
+* Tables
+* Forms
+* Modals
+* Empty states
+* Loading states
+* Error states
+* Success feedback
+* Keyboard accessibility
+* Mobile usability
+* No removed functionality
+* No broken routes
+* No changed accounting logic
+* No changed inventory logic
+* No unexpected console errors
+* Successful linting, type checking, tests, and production build when available
+
+## Final response format
+
+After completing the work, report:
+
+1. What was reviewed
+2. What was changed
+3. Main reusable components created or updated
+4. Modules improved
+5. Validation commands executed
+6. Any unresolved limitations or recommended next steps
