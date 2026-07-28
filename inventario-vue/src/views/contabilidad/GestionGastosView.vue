@@ -65,15 +65,42 @@ function handleGuardar(resultado) {
 </script>
 
 <style scoped>
-/* KPI CARDS */
+/* ════════════════════════════════════════════════════════════════ */
+/* KPI CARDS - MODERN ANIMATION                                    */
+/* ════════════════════════════════════════════════════════════════ */
+
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
+  animation: gridStagger 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes gridStagger {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .table-section {
-  margin-top: 24px;
+  margin-top: 28px;
+  animation: fadeInUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

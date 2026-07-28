@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "design-motion-principles": {
+      "source": "kylezantos/design-motion-principles",
+      "sourceType": "github",
+      "skillPath": "skills/design-motion-principles/SKILL.md",
+      "computedHash": "ca263e4515ddd34e412c841a2b35c2898a2a2122744836fdd003f0a2552192d6"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skill",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "87067d79205fdedc6d682891027dd9c7335486c4b4dc2e785638941a9d2e6061"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
+    "modern-web-design": {
+      "source": "freshtechbro/claudedesignskills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/modern-web-design/SKILL.md",
+      "computedHash": "89af96893e4a67c5aa6d77791d077ce9af577a59ddc280e26e882d7c8b563dc6"
+    },
+    "motion-framer": {
+      "source": "freshtechbro/claudedesignskills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/motion-framer/SKILL.md",
+      "computedHash": "b18cf4fbfd179942f73d770f3f1d4597ea512fbdf67b2aa03f01cfd726558b6e"
+    }
+  }
+}

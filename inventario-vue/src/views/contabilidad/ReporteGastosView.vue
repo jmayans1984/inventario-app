@@ -21,73 +21,102 @@
       </template>
     </PageHeader>
 
-    <!-- ── PANEL DE FILTROS ───────────────────────────────────────── -->
-    <div class="filters-panel mb-5">
-      <div class="filters-grid">
+    <!-- ── PANEL DE FILTROS MODERNO ───────────────────────────────── -->
+    <div class="filters-panel-modern mb-6">
+      <div class="filters-header">
+        <div class="filters-title-group">
+          <v-icon size="20" color="var(--indigo)">mdi-filter-outline</v-icon>
+          <h3 class="filters-title">Filtros de Búsqueda</h3>
+        </div>
+        <span class="filters-subtitle">Selecciona los parámetros para consultar gastos</span>
+      </div>
+
+      <div class="filters-grid-modern">
 
         <!-- Fechas -->
-        <div class="filter-group dates-group">
-          <div class="filter-label">
-            <v-icon size="14" color="var(--sidebar-accent)">mdi-calendar-range</v-icon>
+        <div class="filter-group-modern dates-group-modern">
+          <label class="filter-label-modern">
+            <v-icon size="16" color="var(--indigo)">mdi-calendar-range</v-icon>
             <span>Período</span>
-          </div>
-          <div class="dates-row">
-            <input v-model="filtros.fechaInicial" type="date" class="date-input" title="Fecha inicial" />
-            <v-icon size="16" color="rgba(255,255,255,0.3)">mdi-arrow-right</v-icon>
-            <input v-model="filtros.fechaFinal" type="date" class="date-input" title="Fecha final" />
+          </label>
+          <div class="dates-row-modern">
+            <div class="date-input-wrapper">
+              <input v-model="filtros.fechaInicial" type="date" class="date-input-modern" title="Fecha inicial" />
+              <v-icon size="14" color="rgba(var(--v-theme-on-surface), 0.4)" class="input-icon">mdi-calendar</v-icon>
+            </div>
+            <div class="dates-separator">
+              <v-icon size="14" color="rgba(var(--v-theme-on-surface), 0.3)">mdi-arrow-right</v-icon>
+            </div>
+            <div class="date-input-wrapper">
+              <input v-model="filtros.fechaFinal" type="date" class="date-input-modern" title="Fecha final" />
+              <v-icon size="14" color="rgba(var(--v-theme-on-surface), 0.4)" class="input-icon">mdi-calendar</v-icon>
+            </div>
           </div>
         </div>
 
         <!-- Proveedor -->
-        <div class="filter-group">
-          <div class="filter-label">
-            <v-icon size="14" color="var(--sidebar-accent)">mdi-truck-outline</v-icon>
+        <div class="filter-group-modern">
+          <label class="filter-label-modern">
+            <v-icon size="16" color="var(--success)">mdi-truck-outline</v-icon>
             <span>Proveedor</span>
+          </label>
+          <div class="select-wrapper">
+            <select v-model="filtros.proveedor" class="filter-select-modern">
+              <option value="">TODOS LOS PROVEEDORES</option>
+              <option v-for="p in proveedores" :key="p.codigo" :value="p.codigo">
+                {{ p.nombre }}
+              </option>
+            </select>
+            <v-icon size="16" color="var(--success)" class="select-icon">mdi-chevron-down</v-icon>
           </div>
-          <select v-model="filtros.proveedor" class="filter-select">
-            <option value="">TODOS LOS PROVEEDORES</option>
-            <option v-for="p in proveedores" :key="p.codigo" :value="p.codigo">
-              {{ p.nombre }}
-            </option>
-          </select>
         </div>
 
         <!-- Cuenta Bancaria -->
-        <div class="filter-group">
-          <div class="filter-label">
-            <v-icon size="14" color="var(--sidebar-accent)">mdi-bank-outline</v-icon>
+        <div class="filter-group-modern">
+          <label class="filter-label-modern">
+            <v-icon size="16" color="var(--gold)">mdi-bank-outline</v-icon>
             <span>Cuenta Bancaria</span>
+          </label>
+          <div class="select-wrapper">
+            <select v-model="filtros.cuentaBancaria" class="filter-select-modern">
+              <option value="">TODAS LAS CUENTAS</option>
+              <option v-for="cb in cuentasBancarias" :key="cb.codigo" :value="cb.codigo">
+                {{ cb.nombre_cta }}
+              </option>
+            </select>
+            <v-icon size="16" color="var(--gold)" class="select-icon">mdi-chevron-down</v-icon>
           </div>
-          <select v-model="filtros.cuentaBancaria" class="filter-select">
-            <option value="">TODAS LAS CUENTAS BANCARIAS</option>
-            <option v-for="cb in cuentasBancarias" :key="cb.codigo" :value="cb.codigo">
-              {{ cb.nombre_cta }}
-            </option>
-          </select>
         </div>
 
         <!-- Cuenta Contable -->
-        <div class="filter-group">
-          <div class="filter-label">
-            <v-icon size="14" color="var(--sidebar-accent)">mdi-book-outline</v-icon>
+        <div class="filter-group-modern">
+          <label class="filter-label-modern">
+            <v-icon size="16" color="var(--purple)">mdi-book-outline</v-icon>
             <span>Cuenta Contable</span>
+          </label>
+          <div class="select-wrapper">
+            <select v-model="filtros.cuentaContable" class="filter-select-modern">
+              <option value="">TODAS LAS CUENTAS</option>
+              <option v-for="c in cuentasContables" :key="c.codigo" :value="c.codigo">
+                {{ c.nombre_cta || c.nombre || c.cuenta }}
+              </option>
+            </select>
+            <v-icon size="16" color="var(--purple)" class="select-icon">mdi-chevron-down</v-icon>
           </div>
-          <select v-model="filtros.cuentaContable" class="filter-select">
-            <option value="">TODAS LAS CUENTAS</option>
-            <option v-for="c in cuentasContables" :key="c.codigo" :value="c.codigo">
-              {{ c.nombre_cta || c.nombre || c.cuenta }}
-            </option>
-          </select>
         </div>
 
       </div>
 
-      <!-- Botón consultar -->
-      <div class="filters-footer">
-        <button class="btn-consultar" :disabled="loading" @click="consultar">
-          <v-icon v-if="!loading" size="18">mdi-magnify</v-icon>
-          <v-progress-circular v-else size="16" width="2" indeterminate color="white" />
-          <span>{{ loading ? 'Consultando...' : 'Consultar' }}</span>
+      <!-- Botón consultar mejorado -->
+      <div class="filters-actions">
+        <button class="btn-consultar-modern" :disabled="loading" @click="consultar">
+          <span class="btn-icon" v-if="!loading">
+            <v-icon size="18">mdi-magnify</v-icon>
+          </span>
+          <span class="btn-icon" v-else>
+            <v-progress-circular size="16" width="2" indeterminate color="white" />
+          </span>
+          <span class="btn-text">{{ loading ? 'Consultando...' : 'Consultar' }}</span>
         </button>
       </div>
     </div>
@@ -99,58 +128,75 @@
       <KpiCard :index="2" label="Cuentas Contables" :value="grupos.length" icon="mdi-book-outline" color="var(--gold)" />
     </div>
 
-    <!-- ── PREVIEW DE DATOS ───────────────────────────────────────── -->
-    <div v-if="gastos.length > 0" class="preview-section">
+    <!-- ── DATOS: TABLAS MODERNAS ───────────────────────────────────── -->
+    <div v-if="gastos.length > 0" class="data-section-modern">
 
-      <div v-for="grupo in grupos" :key="grupo.cuenta" class="grupo-block">
+      <div v-for="(grupo, idx) in grupos" :key="grupo.cuenta" class="grupo-block-modern" :style="{ '--stagger': idx * 50 + 'ms' }">
 
-        <!-- Encabezado de grupo -->
-        <div class="grupo-header">
-          <div class="grupo-header-left">
-            <div class="cuenta-badge">{{ grupo.cuenta }}</div>
-            <span class="cuenta-nombre">{{ grupo.cuenta_nombre }}</span>
-            <span class="grupo-count">{{ grupo.items.length }} registros</span>
+        <!-- Encabezado de grupo animado -->
+        <div class="grupo-header-modern">
+          <div class="grupo-header-left-modern">
+            <div class="cuenta-badge-modern">{{ grupo.cuenta }}</div>
+            <div class="grupo-info">
+              <span class="cuenta-nombre-modern">{{ grupo.cuenta_nombre }}</span>
+              <span class="grupo-count-modern">{{ grupo.items.length }} gasto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
+            </div>
           </div>
+          <div class="grupo-subtotal-pill">{{ formatMoneda(grupo.subtotal) }}</div>
         </div>
 
-        <!-- Tabla del grupo -->
-        <div class="grupo-table-wrap">
-          <table class="preview-table">
+        <!-- Tabla moderna -->
+        <div class="tabla-wrapper-modern">
+          <table class="preview-table-modern">
             <colgroup>
-              <col style="width: 130px" />
-              <col style="width: 100px" />
-              <col style="width: 18%" />
+              <col style="width: 110px" />
+              <col style="width: 90px" />
+              <col style="width: 16%" />
               <col style="width: auto" />
-              <col style="width: 15%" />
-              <col style="width: 14%" />
-              <col style="width: 120px" />
+              <col style="width: 140px" />
+              <col style="width: 110px" />
+              <col style="width: 100px" />
             </colgroup>
             <thead>
-              <tr>
-                <th>CÓDIGO</th>
-                <th>FECHA</th>
-                <th>PROVEEDOR</th>
-                <th>CONCEPTO</th>
-                <th>FORMA PAGO</th>
-                <th>C. COSTO</th>
-                <th class="col-right">VALOR</th>
+              <tr class="table-header-modern">
+                <th class="th-left">CÓDIGO</th>
+                <th class="th-center">FECHA</th>
+                <th class="th-left">PROVEEDOR</th>
+                <th class="th-left">CONCEPTO</th>
+                <th class="th-center">FORMA PAGO</th>
+                <th class="th-center">C. COSTO</th>
+                <th class="th-right">VALOR</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="g in grupo.items" :key="g.codigo">
-                <td><span class="badge-cod">{{ g.codigo }}</span></td>
-                <td class="td-center">{{ formatFecha(g.fecha) }}</td>
-                <td>{{ (!g.proveedor || g.proveedor === '0') ? '' : (g.proveedor_nombre || g.proveedor) }}</td>
-                <td class="td-concepto">{{ g.concepto || '-' }}</td>
-                <td class="td-center">{{ g.forma_pago_nombre || g.forma_pago || '-' }}</td>
-                <td class="td-center">{{ g.ccosto_nombre || g.ccosto || '-' }}</td>
-                <td class="td-right td-total">{{ formatMoneda(g.total) }}</td>
+              <tr v-for="(g, rowIdx) in grupo.items" :key="g.codigo" class="table-row-modern" :style="{ '--row-delay': rowIdx * 30 + 'ms' }">
+                <td class="td-left">
+                  <span class="badge-codigo-moderno">{{ g.codigo }}</span>
+                </td>
+                <td class="td-center td-date">{{ formatFecha(g.fecha) }}</td>
+                <td class="td-left td-provider">
+                  <span class="provider-name">{{ (!g.proveedor || g.proveedor === '0') ? '-' : (g.proveedor_nombre || g.proveedor) }}</span>
+                </td>
+                <td class="td-left td-concept">{{ g.concepto || '-' }}</td>
+                <td class="td-center">
+                  <span class="badge-pill">{{ g.forma_pago_nombre || g.forma_pago || '-' }}</span>
+                </td>
+                <td class="td-center">
+                  <span class="badge-pill-secondary">{{ g.ccosto_nombre || g.ccosto || '-' }}</span>
+                </td>
+                <td class="td-right td-amount">
+                  <strong class="amount-value">{{ formatMoneda(g.total) }}</strong>
+                </td>
               </tr>
             </tbody>
             <tfoot>
-              <tr class="subtotal-row">
-                <td colspan="6" class="subtotal-label">SUBTOTAL {{ grupo.cuenta_nombre.toUpperCase() }}</td>
-                <td class="subtotal-val">{{ formatMoneda(grupo.subtotal) }}</td>
+              <tr class="subtotal-row-modern">
+                <td colspan="6" class="subtotal-label-modern">
+                  SUBTOTAL <strong>{{ grupo.cuenta_nombre.toUpperCase() }}</strong>
+                </td>
+                <td class="subtotal-value-modern">
+                  <strong>{{ formatMoneda(grupo.subtotal) }}</strong>
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -158,10 +204,12 @@
 
       </div>
 
-      <!-- Total General -->
-      <div class="total-general-bar">
-        <span class="tg-label">TOTAL GENERAL</span>
-        <span class="tg-val">{{ formatMoneda(totalGeneral) }}</span>
+      <!-- Total General mejorado -->
+      <div class="total-general-modern">
+        <div class="tg-content">
+          <span class="tg-label-modern">TOTAL GENERAL</span>
+          <span class="tg-value-modern">{{ formatMoneda(totalGeneral) }}</span>
+        </div>
       </div>
 
     </div>
@@ -651,258 +699,681 @@ async function generarPDF() {
 </script>
 
 <style scoped>
-/* ── Filtros ────────────────────────────────────────────────────── */
-.filters-panel {
-  background: linear-gradient(135deg, var(--sidebar-bg) 0%, #241d13 100%);
-  border-radius: 16px;
-  padding: 22px 24px 18px;
-  border: 1px solid var(--gold-wash);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+/* ════════════════════════════════════════════════════════════════ */
+/* PANEL DE FILTROS MODERNO                                         */
+/* ════════════════════════════════════════════════════════════════ */
+
+.filters-panel-modern {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 18px;
+  padding: 28px 32px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.filters-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
-  gap: 20px;
-  align-items: end;
-  margin-bottom: 18px;
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.filter-group { display: flex; flex-direction: column; gap: 8px; }
+.filters-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-.filter-label {
+.filters-title-group {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.5);
+  gap: 10px;
 }
 
-/* Fechas */
-.dates-row {
+.filters-title {
+  font-size: clamp(1rem, 1.2vw, 1.3rem);
+  font-weight: 800;
+  color: rgb(var(--v-theme-on-surface));
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+
+.filters-subtitle {
+  font-size: 13px;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  font-weight: 500;
+}
+
+.filters-grid-modern {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.filter-group-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.filter-label-modern {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.6);
 }
-.date-input {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 35%, transparent);
-  border-radius: 8px;
-  padding: 9px 10px;
-  color: white;
+
+/* ── Inputs de fecha con icono ──────────────────────────────────── */
+.dates-group-modern {
+  grid-column: 1;
+}
+
+.dates-row-modern {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.date-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.date-input-modern {
+  width: 100%;
+  padding: 11px 12px 11px 14px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: 1.5px solid rgba(var(--v-theme-on-surface), 0.12);
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
   outline: none;
-  transition: border 0.2s;
-  width: 100%;
   color-scheme: dark;
-}
-.date-input:focus {
-  border-color: var(--sidebar-accent);
-  background: var(--gold-wash);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Select */
-.filter-select {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid color-mix(in srgb, var(--sidebar-accent) 35%, transparent);
-  border-radius: 8px;
-  padding: 9px 12px;
-  color: white;
-  font-size: 12.5px;
-  outline: none;
-  cursor: pointer;
-  transition: border 0.2s;
-  width: 100%;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23f0a83c' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px;
+.date-input-modern:focus {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
-.filter-select:focus { border-color: var(--sidebar-accent); background-color: var(--gold-wash); }
-.filter-select option { background: #1e1e2f; color: white; }
 
-/* Botón consultar */
-.filters-footer { display: flex; justify-content: flex-end; }
-.btn-consultar {
+.date-input-modern:hover:not(:focus) {
+  border-color: rgba(var(--v-theme-on-surface), 0.16);
+  background: rgba(var(--v-theme-on-surface), 0.05);
+}
+
+.input-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.dates-separator {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: var(--sidebar-accent);
-  color: var(--on-gold);
+  height: 40px;
+}
+
+/* ── Select moderno ────────────────────────────────────────────── */
+.select-wrapper {
+  position: relative;
+}
+
+.filter-select-modern {
+  width: 100%;
+  padding: 11px 36px 11px 14px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: 1.5px solid rgba(var(--v-theme-on-surface), 0.12);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-select-modern:hover:not(:focus) {
+  border-color: rgba(var(--v-theme-on-surface), 0.16);
+  background: rgba(var(--v-theme-on-surface), 0.05);
+}
+
+.filter-select-modern:focus {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.filter-select-modern option {
+  background: #1e1e2f;
+  color: white;
+}
+
+.select-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* ── Botón consultar ────────────────────────────────────────────── */
+.filters-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-consultar-modern {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 32px;
+  background: linear-gradient(135deg, var(--indigo) 0%, #5b5fc7 100%);
+  color: white;
   border: none;
-  border-radius: var(--radius-md);
-  padding: 11px 28px;
+  border-radius: 11px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s;
-  box-shadow: 0 4px 16px var(--gold-wash);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  letter-spacing: 0.3px;
 }
-.btn-consultar:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
-.btn-consultar:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── KPI Cards ──────────────────────────────────────────────────── */
+.btn-consultar-modern:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+}
+
+.btn-consultar-modern:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-consultar-modern:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-text {
+  font-weight: 700;
+}
+
+/* ════════════════════════════════════════════════════════════════ */
+/* KPI CARDS                                                        */
+/* ════════════════════════════════════════════════════════════════ */
+
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  animation: staggerIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ── Preview Section ────────────────────────────────────────────── */
-.preview-section {
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════ */
+/* DATOS: TABLAS MODERNAS                                           */
+/* ════════════════════════════════════════════════════════════════ */
+
+.data-section-modern {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  animation: fadeInUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.grupo-block {
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.grupo-block-modern {
   background: rgb(var(--v-theme-surface));
-  border-radius: 12px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  animation: slideInUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-delay: var(--stagger);
 }
 
-.grupo-header {
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.grupo-block-modern:hover {
+  border-color: rgba(var(--v-theme-on-surface), 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.grupo-header-modern {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
-  background: var(--indigo-wash);
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  padding: 18px 20px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
+  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.08);
+  gap: 16px;
 }
-.grupo-header-left { display: flex; align-items: center; gap: 10px; }
-.cuenta-badge {
+
+.grupo-header-left-modern {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cuenta-badge-modern {
   background: var(--indigo);
   color: white;
   font-size: 11px;
   font-weight: 800;
-  padding: 3px 10px;
-  border-radius: 20px;
-  letter-spacing: 0.5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.cuenta-nombre { font-size: 14px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-.grupo-count   { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.45); background: rgba(var(--v-theme-on-surface),0.05); padding: 2px 8px; border-radius: 20px; }
-.grupo-subtotal{ font-size: 16px; font-weight: 800; color: var(--indigo); font-variant-numeric: tabular-nums; }
 
-.grupo-table-wrap { overflow-x: auto; }
+.grupo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
 
-.preview-table {
+.cuenta-nombre-modern {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grupo-count-modern {
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  font-weight: 500;
+}
+
+.grupo-subtotal-pill {
+  background: linear-gradient(135deg, var(--indigo), #6366f1);
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 6px 16px;
+  border-radius: 20px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  flex-shrink: 0;
+}
+
+/* ── Tabla moderna ──────────────────────────────────────────────── */
+.tabla-wrapper-modern {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.preview-table-modern {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 13px;
   table-layout: fixed;
 }
-.preview-table thead th {
+
+.table-header-modern th {
   background: rgba(var(--v-theme-on-surface), 0.04);
-  color: rgba(var(--v-theme-on-surface), 0.5);
+  color: rgba(var(--v-theme-on-surface), 0.6);
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  padding: 8px 12px;
-  text-align: center;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  padding: 12px;
+  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.08);
   white-space: nowrap;
 }
-.preview-table tbody tr {
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04);
-  transition: background 0.12s;
+
+.th-left {
+  text-align: left;
 }
-.preview-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
-.preview-table tbody td {
-  padding: 8px 12px;
+
+.th-center {
+  text-align: center;
+}
+
+.th-right {
+  text-align: right;
+}
+
+.table-row-modern {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: rowFadeIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-delay: var(--row-delay);
+  animation-fill-mode: both;
+}
+
+@keyframes rowFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.table-row-modern:hover {
+  background: rgba(var(--v-theme-on-surface), 0.04);
+}
+
+.preview-table-modern td {
+  padding: 13px 12px;
   color: rgb(var(--v-theme-on-surface));
-  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.preview-table tfoot td { padding: 8px 12px; }
 
-.badge-cod {
-  background: var(--indigo-wash);
+.td-left {
+  text-align: left;
+}
+
+.td-center {
+  text-align: center;
+}
+
+.td-right {
+  text-align: right;
+}
+
+.badge-codigo-moderno {
+  background: rgba(79, 70, 229, 0.15);
   color: var(--indigo);
   font-size: 11px;
   font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
 }
-.td-center   { text-align: center; }
-.td-right    { text-align: right; }
-.td-concepto { max-width: 200px; }
-.td-total    { font-weight: 700; color: var(--indigo); font-variant-numeric: tabular-nums; }
 
-.subtotal-row { background: var(--indigo-wash); }
-.subtotal-label {
+.provider-name {
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.badge-pill,
+.badge-pill-secondary {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 16px;
+  white-space: nowrap;
+}
+
+.badge-pill {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.badge-pill-secondary {
+  background: rgba(240, 168, 60, 0.15);
+  color: #b8720b;
+}
+
+.td-date {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.td-provider {
+  font-weight: 600;
+}
+
+.td-concept {
+  color: rgba(var(--v-theme-on-surface), 0.8);
+}
+
+.td-amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-value {
+  font-size: 13px;
+  color: var(--indigo);
+  font-weight: 800;
+}
+
+.subtotal-row-modern {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(99, 102, 241, 0.06) 100%);
+  border-top: 2px solid rgba(79, 70, 229, 0.2);
+  border-bottom: 1.5px solid rgba(79, 70, 229, 0.15);
+}
+
+.subtotal-label-modern {
   text-align: right;
   font-weight: 700;
   font-size: 12px;
-  color: rgba(var(--v-theme-on-surface), 0.7);
-  padding: 8px 12px;
-}
-.subtotal-val {
-  text-align: right;
-  font-weight: 800;
-  font-size: 13px;
-  color: var(--indigo);
-  font-variant-numeric: tabular-nums;
-  padding: 8px 12px;
+  color: rgba(var(--v-theme-on-surface), 0.8);
+  padding: 13px 12px;
 }
 
-.total-general-bar {
-  background: linear-gradient(135deg, var(--sidebar-bg), #241d13);
-  border-radius: 12px;
-  padding: 16px 24px;
+.subtotal-value-modern {
+  text-align: right;
+  font-size: 14px;
+  color: var(--indigo);
+  padding: 13px 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Total General ──────────────────────────────────────────────── */
+.total-general-modern {
+  background: linear-gradient(135deg, var(--indigo) 0%, #6366f1 100%);
+  border-radius: 14px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
+  animation: totalAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes totalAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.tg-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid var(--gold-wash);
-}
-.tg-label {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: rgba(255,255,255,0.7);
-}
-.tg-val {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--sidebar-accent);
-  font-variant-numeric: tabular-nums;
 }
 
-/* ── States ─────────────────────────────────────────────────────── */
+.tg-label-modern {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tg-value-modern {
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  font-weight: 900;
+  color: white;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+/* ════════════════════════════════════════════════════════════════ */
+/* EMPTY & INITIAL STATES                                           */
+/* ════════════════════════════════════════════════════════════════ */
+
 .empty-state, .initial-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   text-align: center;
+  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.empty-title, .initial-title { font-size: 16px; font-weight: 700; margin: 12px 0 4px; color: rgb(var(--v-theme-on-surface)); }
-.empty-sub, .initial-sub     { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.45); }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.empty-title, .initial-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 16px 0 8px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.empty-sub, .initial-sub {
+  font-size: 14px;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  max-width: 400px;
+}
+
 .initial-card {
   background: rgb(var(--v-theme-surface));
-  border: 1px dashed var(--gold-wash);
-  border-radius: 16px;
-  padding: 40px 60px;
+  border: 2px dashed rgba(var(--v-theme-on-surface), 0.15);
+  border-radius: 18px;
+  padding: 50px 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  backdrop-filter: blur(8px);
+}
+
+/* ════════════════════════════════════════════════════════════════ */
+/* RESPONSIVE                                                        */
+/* ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1200px) {
+  .filters-grid-modern {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .dates-group-modern {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 900px) {
-  .filters-grid { grid-template-columns: 1fr 1fr; }
-  .kpi-row      { grid-template-columns: 1fr 1fr; }
+  .filters-grid-modern {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dates-group-modern {
+    grid-column: span 2;
+  }
+
+  .kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
 }
-@media (max-width: 560px) {
-  .filters-grid { grid-template-columns: 1fr; }
-  .kpi-row      { grid-template-columns: 1fr 1fr; }
+
+@media (max-width: 680px) {
+  .filters-panel-modern {
+    padding: 20px 16px;
+  }
+
+  .filters-grid-modern {
+    grid-template-columns: 1fr;
+  }
+
+  .dates-group-modern {
+    grid-column: 1;
+  }
+
+  .dates-row-modern {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .grupo-header-modern {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .grupo-subtotal-pill {
+    align-self: flex-start;
+  }
+
+  .preview-table-modern {
+    font-size: 12px;
+  }
+
+  .preview-table-modern th,
+  .preview-table-modern td {
+    padding: 10px 8px;
+  }
+
+  .tg-value-modern {
+    font-size: 1.8rem;
+  }
 }
+
 </style>
