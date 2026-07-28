@@ -455,3 +455,270 @@ textarea::placeholder,
     filter: none !important;
   }
 }
+
+/* Grids de Contabilidad: libro mayor limpio, profesional y animado */
+.accounting-module {
+  --acc-grid-accent: var(--indigo);
+  --acc-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, var(--acc-grid-accent) 4%);
+  --acc-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 90%, var(--acc-grid-accent) 10%);
+  --acc-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 88%, var(--acc-grid-accent) 12%);
+  --acc-grid-rule: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 10%, transparent);
+  --acc-grid-rule-soft: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 6%, transparent);
+  --acc-grid-shadow:
+    0 0 0 1px rgba(27, 24, 21, 0.06),
+    0 1px 2px -1px rgba(27, 24, 21, 0.08),
+    0 10px 28px rgba(27, 24, 21, 0.07);
+}
+
+.v-theme--dark.accounting-module {
+  --acc-grid-surface: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, var(--acc-grid-accent) 6%);
+  --acc-grid-head: color-mix(in srgb, rgb(var(--v-theme-surface)) 86%, var(--acc-grid-accent) 14%);
+  --acc-grid-hover: color-mix(in srgb, rgb(var(--v-theme-surface)) 82%, var(--acc-grid-accent) 18%);
+  --acc-grid-shadow:
+    0 0 0 1px rgba(245, 241, 232, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.26),
+    0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.accounting-module .table-container,
+.accounting-module .prov-table-wrapper,
+.accounting-module .cc-table-wrapper,
+.accounting-module .cb-table-wrapper,
+.accounting-module .grupo-block-modern,
+.accounting-module .er-card,
+.accounting-module .dlg-card {
+  background: var(--acc-grid-surface) !important;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--acc-grid-shadow) !important;
+  overflow: hidden !important;
+}
+
+.accounting-module .table-wrapper,
+.accounting-module .tabla-wrapper-modern,
+.accounting-module .er-table-wrap,
+.accounting-module .dlg-body,
+.accounting-module .lineas-wrap {
+  scrollbar-color: color-mix(in srgb, var(--acc-grid-accent) 42%, transparent) transparent;
+}
+
+.accounting-module .data-table,
+.accounting-module .prov-data-table,
+.accounting-module .cc-data-table,
+.accounting-module .cb-data-table,
+.accounting-module .preview-table-modern,
+.accounting-module .er-table,
+.accounting-module .dlg-table,
+.accounting-module .lineas-tabla {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: var(--text-sm) !important;
+  line-height: 1.35;
+}
+
+.accounting-module .data-table thead,
+.accounting-module .data-table thead tr,
+.accounting-module .prov-data-table thead,
+.accounting-module .prov-data-table thead tr,
+.accounting-module .cc-data-table thead,
+.accounting-module .cc-data-table thead tr,
+.accounting-module .cb-data-table thead,
+.accounting-module .cb-data-table thead tr,
+.accounting-module .preview-table-modern thead,
+.accounting-module .preview-table-modern thead tr,
+.accounting-module .er-table thead,
+.accounting-module .er-table thead tr,
+.accounting-module .dlg-table thead,
+.accounting-module .dlg-table thead tr,
+.accounting-module .lineas-tabla thead,
+.accounting-module .lineas-tabla thead tr {
+  background: var(--acc-grid-head) !important;
+}
+
+.accounting-module .data-table thead th,
+.accounting-module .prov-data-table thead th,
+.accounting-module .cc-data-table thead th,
+.accounting-module .cb-data-table thead th,
+.accounting-module .preview-table-modern thead th,
+.accounting-module .er-table thead th,
+.accounting-module .dlg-table thead th,
+.accounting-module .lineas-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 14px !important;
+  background: var(--acc-grid-head) !important;
+  border-bottom: 1px solid var(--acc-grid-rule) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 62%, transparent) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.accounting-module .data-table tbody tr,
+.accounting-module .prov-data-table tbody tr,
+.accounting-module .cc-data-table tbody tr,
+.accounting-module .cb-data-table tbody tr,
+.accounting-module .preview-table-modern tbody tr,
+.accounting-module .er-table tbody tr,
+.accounting-module .dlg-table tbody tr,
+.accounting-module .lineas-tabla tbody tr {
+  border-bottom: 0 !important;
+  transform: translateY(0);
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.accounting-module .data-table tbody td,
+.accounting-module .prov-data-table tbody td,
+.accounting-module .cc-data-table tbody td,
+.accounting-module .cb-data-table tbody td,
+.accounting-module .preview-table-modern tbody td,
+.accounting-module .er-table tbody td,
+.accounting-module .dlg-table tbody td,
+.accounting-module .lineas-tabla tbody td {
+  padding: 11px 14px !important;
+  border-bottom: 1px solid var(--acc-grid-rule-soft) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 86%, transparent) !important;
+  vertical-align: middle;
+}
+
+.accounting-module .data-table tbody tr:hover,
+.accounting-module .prov-data-table tbody tr:hover,
+.accounting-module .cc-data-table tbody tr:hover,
+.accounting-module .cb-data-table tbody tr:hover,
+.accounting-module .preview-table-modern tbody tr:hover,
+.accounting-module .er-table tbody tr:hover,
+.accounting-module .dlg-table tbody tr:hover,
+.accounting-module .lineas-tabla tbody tr:hover {
+  background: var(--acc-grid-hover) !important;
+  box-shadow: inset 3px 0 0 var(--acc-grid-accent);
+  transform: translateY(-1px);
+}
+
+.accounting-module .data-table tbody tr:hover td,
+.accounting-module .prov-data-table tbody tr:hover td,
+.accounting-module .cc-data-table tbody tr:hover td,
+.accounting-module .cb-data-table tbody tr:hover td,
+.accounting-module .preview-table-modern tbody tr:hover td,
+.accounting-module .er-table tbody tr:hover td,
+.accounting-module .dlg-table tbody tr:hover td,
+.accounting-module .lineas-tabla tbody tr:hover td {
+  background: transparent !important;
+}
+
+.accounting-module .data-table tbody tr:last-child td,
+.accounting-module .prov-data-table tbody tr:last-child td,
+.accounting-module .cc-data-table tbody tr:last-child td,
+.accounting-module .cb-data-table tbody tr:last-child td,
+.accounting-module .preview-table-modern tbody tr:last-child td,
+.accounting-module .er-table tbody tr:last-child td,
+.accounting-module .dlg-table tbody tr:last-child td,
+.accounting-module .lineas-tabla tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+.accounting-module .data-table tbody tr:not(.table-empty),
+.accounting-module .prov-data-table tbody tr,
+.accounting-module .cc-data-table tbody tr,
+.accounting-module .cb-data-table tbody tr,
+.accounting-module .preview-table-modern tbody tr:not(.subtotal-row-modern),
+.accounting-module .er-table tbody tr,
+.accounting-module .dlg-table tbody tr,
+.accounting-module .lineas-tabla tbody tr {
+  animation: accounting-row-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(min(var(--row-index, 0), 8) * 22ms);
+}
+
+.accounting-module table tbody tr:nth-child(1) { --row-index: 1; }
+.accounting-module table tbody tr:nth-child(2) { --row-index: 2; }
+.accounting-module table tbody tr:nth-child(3) { --row-index: 3; }
+.accounting-module table tbody tr:nth-child(4) { --row-index: 4; }
+.accounting-module table tbody tr:nth-child(n+5) { --row-index: 5; }
+
+@keyframes accounting-row-in {
+  from { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.accounting-module th.sortable,
+.accounting-module .sortable-header,
+.accounting-module .data-table th[class^="col-"],
+.accounting-module .data-table th[class*=" col-"] {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+.accounting-module th.sortable:hover,
+.accounting-module .sortable-header:hover,
+.accounting-module .data-table th[class^="col-"]:hover,
+.accounting-module .data-table th[class*=" col-"]:hover {
+  background: color-mix(in srgb, var(--acc-grid-head) 72%, var(--acc-grid-accent) 28%) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.accounting-module .codigo-badge,
+.accounting-module .badge-codigo,
+.accounting-module .badge-codigo-moderno,
+.accounting-module .badge-centro,
+.accounting-module .badge-grupo,
+.accounting-module .cuenta-badge-modern,
+.accounting-module .badge-cc-dlg {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.accounting-module .td-total,
+.accounting-module .total-bold,
+.accounting-module .amount-value,
+.accounting-module .subtotal-value-modern,
+.accounting-module .tg-value-modern,
+.accounting-module .er-table .tr,
+.accounting-module .dlg-table .tr {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.accounting-module .table-empty,
+.accounting-module .empty-state,
+.accounting-module .er-empty {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--acc-grid-accent) 7%, transparent), transparent 58%),
+    var(--acc-grid-surface) !important;
+}
+
+.accounting-module .subtotal-row-modern td,
+.accounting-module .er-row-subtotal td,
+.accounting-module .er-row-total td {
+  background: color-mix(in srgb, var(--acc-grid-head) 78%, var(--acc-grid-accent) 22%) !important;
+  border-top: 1px solid var(--acc-grid-rule) !important;
+}
+
+.accounting-module .er-row-grupo-header td {
+  background: color-mix(in srgb, var(--acc-grid-head) 84%, var(--gold) 16%) !important;
+  color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 72%, transparent) !important;
+  font-weight: 900 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accounting-module .data-table tbody tr,
+  .accounting-module .prov-data-table tbody tr,
+  .accounting-module .cc-data-table tbody tr,
+  .accounting-module .cb-data-table tbody tr,
+  .accounting-module .preview-table-modern tbody tr,
+  .accounting-module .er-table tbody tr,
+  .accounting-module .dlg-table tbody tr,
+  .accounting-module .lineas-tabla tbody tr {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}

@@ -14,6 +14,7 @@ const { openCalc } = useCalculadora()
 const lastFocused  = ref(null)
 const appClasses = computed(() => ({
   'treasury-module': route.path.startsWith('/tesoreria'),
+  'accounting-module': route.path.startsWith('/contabilidad'),
 }))
 
 function onFocusIn(e) {
