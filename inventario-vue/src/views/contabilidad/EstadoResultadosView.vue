@@ -15,7 +15,9 @@
           <button :class="['modo-btn', { active: modo === 'anual' }]"   @click="modo = 'anual'">Anual (por mes)</button>
         </div>
         <input v-if="modo === 'mensual'" type="month" v-model="mesSel" class="fx-input" />
-        <input v-else type="number" v-model.number="anioSel" class="fx-input fx-anio" min="2000" max="2100" />
+        <select v-else v-model.number="anioSel" class="fx-input fx-anio">
+          <option v-for="y in años" :key="y" :value="y">{{ y }}</option>
+        </select>
         <select v-model="ccostoSel" class="fx-input fx-select">
           <option value="">Toda la Empresa</option>
           <option v-for="cc in (data?.ccostosDisponibles || [])" :key="cc.codigo" :value="cc.codigo">{{ cc.nombre }}</option>
@@ -162,6 +164,15 @@ const mesLabel = computed(() => {
   const [y, m] = mesSel.value.split('-').map(Number)
   const nombres = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
   return `${nombres[m - 1]} ${y}`
+})
+
+const años = computed(() => {
+  const ahora = new Date().getFullYear()
+  const rango = []
+  for (let i = ahora; i >= 2000; i--) {
+    rango.push(i)
+  }
+  return rango
 })
 
 const ccostoNombre = computed(() => {
@@ -425,7 +436,7 @@ async function generarPDF() {
   border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
 }
-.fx-anio { width: 90px; }
+.fx-anio { min-width: 120px; }
 .fx-select { min-width: 180px; }
 
 /* AVISO */
