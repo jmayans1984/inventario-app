@@ -326,42 +326,39 @@ const toggleTema = () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   min-height: 100vh;
-  padding: 46px;
+  padding: 48px;
   overflow: hidden;
   color: var(--login-stage-text);
   background:
-    linear-gradient(90deg, rgba(255, 193, 61, 0.045) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 193, 61, 0.04) 1px, transparent 1px),
-    radial-gradient(circle at 16% 18%, rgba(255, 183, 32, 0.26), transparent 31%),
-    radial-gradient(circle at 82% 72%, rgba(255, 200, 71, 0.13), transparent 34%),
-    linear-gradient(145deg, #050504 0%, var(--login-stage) 54%, var(--login-stage-soft) 100%);
-  background-size: 38px 38px, 38px 38px, auto, auto, auto;
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 76% 12%, rgba(255, 255, 255, 0.75) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 32% 72%, rgba(255, 255, 255, 0.70) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 90% 58%, rgba(255, 255, 255, 0.82) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 18% 88%, rgba(255, 255, 255, 0.58) 0 1px, transparent 1.6px),
+    linear-gradient(145deg, #000 0%, #050505 56%, #0d0c0a 100%);
+  background-size: 170px 170px, 230px 230px, 190px 190px, 260px 260px, 210px 210px, auto;
 }
 
 .login-stage::before {
   content: '';
   position: absolute;
-  top: -12%;
-  right: -70px;
-  width: 210px;
-  height: 124%;
+  inset: 0;
   background:
-    linear-gradient(180deg, transparent, rgba(255, 189, 46, 0.42), transparent),
-    linear-gradient(90deg, transparent, rgba(255, 229, 160, 0.16), transparent);
-  transform: skewX(-12deg);
-  opacity: 0.88;
+    radial-gradient(circle at 44% 22%, rgba(255, 255, 255, 0.48) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 62% 84%, rgba(255, 255, 255, 0.36) 0 1px, transparent 1.4px);
+  background-size: 120px 120px, 150px 150px;
+  opacity: 0.72;
   pointer-events: none;
+  animation: star-drift 18s linear infinite;
 }
 
 .login-stage::after {
   content: '';
   position: absolute;
-  inset: 24px;
-  border: 1px solid rgba(255, 207, 92, 0.12);
-  border-radius: 8px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, transparent 0 34%, rgba(0, 0, 0, 0.46) 100%);
   pointer-events: none;
 }
 
@@ -375,8 +372,20 @@ const toggleTema = () => {
 .brand-composition {
   display: grid;
   align-content: start;
-  gap: 22px;
-  max-width: 520px;
+  gap: 24px;
+  width: min(100%, 500px);
+  min-height: 560px;
+  padding: 34px;
+  border-radius: 8px;
+  color: #130f05;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.30), transparent 35%),
+    linear-gradient(145deg, #ffd05a 0%, #ffb21f 48%, #d87d00 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 34px 90px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(255, 212, 106, 0.24);
   animation: login-enter var(--dur-slow) var(--ease-out) both;
 }
 
@@ -387,10 +396,10 @@ const toggleTema = () => {
   width: fit-content;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid rgba(255, 199, 72, 0.25);
+  border: 1px solid rgba(19, 15, 5, 0.18);
   border-radius: 8px;
-  background: rgba(255, 193, 61, 0.08);
-  color: rgba(255, 248, 223, 0.78);
+  background: rgba(19, 15, 5, 0.08);
+  color: rgba(19, 15, 5, 0.70);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0;
@@ -401,8 +410,8 @@ const toggleTema = () => {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #ffc13d;
-  box-shadow: 0 0 0 5px rgba(255, 193, 61, 0.15);
+  background: #171105;
+  box-shadow: 0 0 0 5px rgba(19, 15, 5, 0.12);
 }
 
 .brand-emblem {
@@ -411,14 +420,10 @@ const toggleTema = () => {
   width: 122px;
   height: 122px;
   border-radius: 8px;
-  background:
-    linear-gradient(145deg, rgba(255, 198, 45, 0.98), rgba(226, 135, 0, 0.96));
+  background: #050505;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.36),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.16),
-    0 26px 58px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(255, 228, 150, 0.20);
-  transform: rotate(-2deg);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 22px 38px rgba(0, 0, 0, 0.26);
 }
 
 .brand-logo {
@@ -426,7 +431,7 @@ const toggleTema = () => {
   height: 104px;
   border-radius: 7px;
   object-fit: contain;
-  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.24));
 }
 
 .brand-kicker,
@@ -452,13 +457,13 @@ const toggleTema = () => {
 .brand-subtitle {
   max-width: 420px;
   margin: 18px 0 0;
-  color: rgba(255, 248, 223, 0.62);
+  color: rgba(19, 15, 5, 0.70);
   font-size: 15px;
   line-height: 1.55;
 }
 
 .module-showcase {
-  display: grid;
+  display: none;
   gap: 8px;
   width: min(100%, 430px);
   margin: 38px 0 auto;
@@ -512,7 +517,7 @@ const toggleTema = () => {
 }
 
 .stage-footer {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
   gap: 12px;
@@ -1015,6 +1020,11 @@ const toggleTema = () => {
   to { background-position: 145% 0, 0 0; }
 }
 
+@keyframes star-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 120px 80px, -150px 120px; }
+}
+
 .empresa-modal-enter-active,
 .empresa-modal-leave-active {
   transition: opacity var(--dur-base) var(--ease-out);
@@ -1104,6 +1114,7 @@ const toggleTema = () => {
 
 @media (prefers-reduced-motion: reduce) {
   .brand-composition,
+  .login-stage::before,
   .module-showcase,
   .stage-footer,
   .panel-shell,
