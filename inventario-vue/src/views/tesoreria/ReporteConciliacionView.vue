@@ -285,6 +285,7 @@ import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatFecha } from '../../utils/formatters'
+import { detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -401,68 +402,35 @@ watch(bancoSeleccionado, (val) => {
 onMounted(cargarCuentas)
 
 // ─── PDF Export ───────────────────────────────────────────────────────────────
+
 function exportarPDF() {
   if (!datos.value) return
   generandoPDF.value = true
-
-  const nombreCuenta = cuentaNombre.value || bancoSeleccionado.value
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const pageW = doc.internal.pageSize.getWidth()
-
-  // Encabezado azul
-  doc.setFillColor(6, 182, 212)
-  doc.rect(0, 0, pageW, 32, 'F')
-  doc.setFontSize(17)
-  doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
-  doc.text('CONCILIACIÓN BANCARIA', 14, 14)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Cuenta: ${nombreCuenta}`, 14, 22)
-  doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')}`, 14, 28)
-
-  // KPIs
-  autoTable(doc, {
-    startY: 38,
-    head: [['Saldo Conciliado', 'Ingresos Pendientes', 'Egresos Pendientes', 'Saldo Proyectado']],
-    body: [[
-      fmt(datos.value.saldoConciliado),
-      fmt(datos.value.totalIngresosPend),
-      fmt(datos.value.totalEgresosPend),
-      fmt(datos.value.saldoProyectado)
-    ]],
-    styles: { fontSize: 9, halign: 'right' },
-    headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center', fontSize: 8 },
-    bodyStyles: { fontStyle: 'bold' },
-    theme: 'grid'
-  })
-
-  // Tabla movimientos
-  autoTable(doc, {
-    startY: doc.lastAutoTable.finalY + 8,
-    head: [['Fecha', 'Concepto', 'Beneficiario', 'Ingreso', 'Egreso']],
-    body: datos.value.movimientos.map(m => [
-      fmtFecha(m.fecha),
-      m.concepto || '',
-      m.beneficiario || '—',
-      Number(m.ingreso) > 0 ? fmt(m.ingreso) : '—',
-      Number(m.egreso)  > 0 ? fmt(m.egreso)  : '—'
-    ]),
-    foot: [['', '', 'TOTALES', fmt(datos.value.totalIngresosPend), fmt(datos.value.totalEgresosPend)]],
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold' },
-    footStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 24 },
-      3: { halign: 'right', cellWidth: 34 },
-      4: { halign: 'right', cellWidth: 34 }
-    },
-    theme: 'striped',
-    alternateRowStyles: { fillColor: [248, 250, 252] }
-  })
-
-  doc.save(`conciliacion-${nombreCuenta.replace(/\s+/g, '-')}.pdf`)
-  generandoPDF.value = false
+  try {
+    const nombreCuenta = cuentaNombre.value || bancoSeleccionado.value
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const ML = 14
+    const startY = drawReportHeader(doc, {
+      title: 'CONCILIACION BANCARIA',
+      subtitle: `Cuenta: ${nombreCuenta}`,
+      empresa: authStore.empresaNombre || getEmpresa(),
+      usuario: authStore.userName || authStore.userNombre,
+      margin: ML,
+    })
+    autoTable(doc, { startY, head: [['Saldo Conciliado', 'Ingresos Pendientes', 'Egresos Pendientes', 'Saldo Proyectado']], body: [[fmt(datos.value.saldoConciliado), fmt(datos.value.totalIngresosPend), fmt(datos.value.totalEgresosPend), fmt(datos.value.saldoProyectado)]], ...summaryTableOptions(ML) })
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 6,
+      head: [['Fecha', 'Concepto', 'Beneficiario', 'Ingreso', 'Egreso']],
+      body: datos.value.movimientos.map(m => [fmtFecha(m.fecha), m.concepto || '', m.beneficiario || '-', Number(m.ingreso) > 0 ? fmt(m.ingreso) : '-', Number(m.egreso) > 0 ? fmt(m.egreso) : '-']),
+      foot: [['', '', 'TOTALES', fmt(datos.value.totalIngresosPend), fmt(datos.value.totalEgresosPend)]],
+      ...detailTableOptions(ML),
+      columnStyles: { 0: { cellWidth: 24 }, 3: { halign: 'right', cellWidth: 34 }, 4: { halign: 'right', cellWidth: 34 } },
+      didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
+    })
+    doc.save(`conciliacion-${nombreCuenta.replace(/\s+/g, '-')}.pdf`)
+  } finally {
+    generandoPDF.value = false
+  }
 }
 </script>
 

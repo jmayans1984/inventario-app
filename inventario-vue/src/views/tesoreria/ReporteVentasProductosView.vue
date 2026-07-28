@@ -201,6 +201,7 @@ import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatFecha } from '../../utils/formatters'
+import { detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -321,95 +322,38 @@ function fmtFechaCorta(f) {
 }
 
 // ── PDF ─────────────────────────────────────────────────────────
+
 function exportarPDF() {
   if (!rows.value.length) return
   generandoPdf.value = true
   try {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-    const PW  = doc.internal.pageSize.getWidth()
-    const PH  = doc.internal.pageSize.getHeight()
-    const ML  = 10
-    const hoy = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' })
-
+    const ML = 10
     const ccostoLabelPDF = ccostoLabel.value
-
-    // ── Header ─────────────────────────────────────────────────
-    doc.setFillColor(6, 182, 212)
-    doc.rect(0, 0, PW, 18, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text('VENTAS DE PRODUCTOS POR PERÍODO', ML, 8)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text(
-      `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabelPDF}`,
-      ML, 14
-    )
-    doc.text(`Impreso: ${hoy}`, PW - ML, 14, { align: 'right' })
-    doc.setTextColor(0, 0, 0)
-
-    // ── KPI resumen ────────────────────────────────────────────
-    autoTable(doc, {
-      startY: 21,
-      head: [['Productos', 'Total Unidades', 'Total Ventas', 'Precio Promedio']],
-      body: [[
-        String(totals.value.total_productos),
-        fmtNum(totals.value.total_cant),
-        fmt(totals.value.total_valor),
-        fmt(totals.value.ticket_promedio),
-      ]],
-      styles: { fontSize: 8, halign: 'right', fontStyle: 'bold', cellPadding: 1.5 },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'center', cellPadding: 1.5 },
-      theme: 'grid',
-      margin: { left: ML, right: ML }
+    const startY = drawReportHeader(doc, {
+      title: 'VENTAS DE PRODUCTOS POR PERIODO',
+      subtitle: `Periodo: ${fmtFechaCorta(fechaInicio.value)} - ${fmtFechaCorta(fechaFin.value)} | C. Costo: ${ccostoLabelPDF}`,
+      empresa: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+      margin: ML,
     })
 
-    // ── Tabla principal ────────────────────────────────────────
+    autoTable(doc, {
+      startY,
+      head: [['Productos', 'Total Unidades', 'Total Ventas', 'Precio Promedio']],
+      body: [[String(totals.value.total_productos), fmtNum(totals.value.total_cant), fmt(totals.value.total_valor), fmt(totals.value.ticket_promedio)]],
+      ...summaryTableOptions(ML),
+    })
+
     const totalValor = parseFloat(totals.value.total_valor) || 1
     autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 3,
-      head: [['Código', 'Producto', 'Cant.', 'Vr. Unit.', 'Subtotal', '% Total']],
-      body: rows.value.map(r => [
-        r.codigo,
-        r.nombre,
-        fmtNum(r.total_cant),
-        fmt(r.vr_unit_prom),
-        fmt(r.total_subtotal),
-        `${Math.min(100, (parseFloat(r.total_subtotal) / totalValor * 100)).toFixed(1)}%`
-      ]),
-      foot: [[
-        'TOTALES', '',
-        fmtNum(totals.value.total_cant),
-        '',
-        fmt(totals.value.total_valor),
-        '100%'
-      ]],
-      styles: { fontSize: 7, cellPadding: 1.2 },
-      headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold', fontSize: 6.5, cellPadding: 1.5 },
-      footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold', cellPadding: 1.5 },
-      columnStyles: {
-        0: { cellWidth: 22, halign: 'center' },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 22, halign: 'right' },
-        3: { cellWidth: 25, halign: 'right' },
-        4: { cellWidth: 28, halign: 'right' },
-        5: { cellWidth: 18, halign: 'right' },
-      },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      theme: 'striped',
-      margin: { left: ML, right: ML },
-      didDrawCell: (data) => {
-        if (data.section === 'foot' && data.column.index >= 2) {
-          data.cell.styles.halign = 'right'
-        }
-      },
-      didDrawPage: (data) => {
-        doc.setFontSize(7)
-        doc.setTextColor(150)
-        doc.text(`Página ${data.pageNumber}`, PW - ML, PH - 5, { align: 'right' })
-        doc.setTextColor(0, 0, 0)
-      }
+      startY: doc.lastAutoTable.finalY + 4,
+      head: [['Codigo', 'Producto', 'Cant.', 'Vr. Unit.', 'Subtotal', '% Total']],
+      body: rows.value.map(r => [r.codigo, r.nombre, fmtNum(r.total_cant), fmt(r.vr_unit_prom), fmt(r.total_subtotal), `${Math.min(100, (parseFloat(r.total_subtotal) / totalValor * 100)).toFixed(1)}%`]),
+      foot: [['TOTALES', '', fmtNum(totals.value.total_cant), '', fmt(totals.value.total_valor), '100%']],
+      ...detailTableOptions(ML),
+      columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 22, halign: 'right' }, 3: { cellWidth: 25, halign: 'right' }, 4: { cellWidth: 28, halign: 'right' }, 5: { cellWidth: 18, halign: 'right' } },
+      didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
     })
 
     const blob = doc.output('blob')

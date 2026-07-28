@@ -230,6 +230,7 @@ import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatFecha } from '../../utils/formatters'
+import { detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -357,120 +358,41 @@ function fmtFechaCorta(f) {
   return `${d} ${meses[parseInt(m) - 1]} ${y}`
 }
 
+
 function exportarPDF() {
   if (!rows.value.length) return
   generandoPdf.value = true
   try {
-    const doc  = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-    const PW   = doc.internal.pageSize.getWidth()
-    const PH   = doc.internal.pageSize.getHeight()
-    const ML   = 10
-    const hoy  = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' })
-
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+    const ML = 10
     const ccostoLabelPDF = ccostoLabel.value
+    const startY = drawReportHeader(doc, {
+      title: 'VENTAS POR PERIODO',
+      subtitle: `Periodo: ${fmtFechaCorta(fechaInicio.value)} - ${fmtFechaCorta(fechaFin.value)} | C. Costo: ${ccostoLabelPDF}`,
+      empresa: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+      margin: ML,
+    })
 
-    // ── Header ──────────────────────────────────────────────────
-    doc.setFillColor(6, 182, 212)
-    doc.rect(0, 0, PW, 18, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
-    doc.text('VENTAS POR PERÍODO', ML, 8)
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text(
-      `Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}   ·   C. Costo: ${ccostoLabelPDF}`,
-      ML, 14
-    )
-    doc.text(`Impreso: ${hoy}`, PW - ML, 14, { align: 'right' })
-    doc.setTextColor(0, 0, 0)
-
-    // ── KPI resumen ─────────────────────────────────────────────
     autoTable(doc, {
-      startY: 21,
+      startY,
       head: [['Ventas Netas', 'Efectivo', 'Tarjetas', 'Otros', 'Comisiones', 'Devoluciones', 'Registros']],
-      body: [[
-        fmt(totals.value.ventas_netas),
-        fmt(totals.value.efectivo),
-        fmt(totals.value.tarjetas),
-        fmt(totals.value.otros),
-        fmt(totals.value.comisiones),
-        fmt(totals.value.devoluciones),
-        String(rows.value.length)
-      ]],
-      styles: { fontSize: 8, halign: 'right', fontStyle: 'bold', cellPadding: 1.5 },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'center', cellPadding: 1.5 },
-      theme: 'grid',
-      margin: { left: ML, right: ML }
+      body: [[fmt(totals.value.ventas_netas), fmt(totals.value.efectivo), fmt(totals.value.tarjetas), fmt(totals.value.otros), fmt(totals.value.comisiones), fmt(totals.value.devoluciones), String(rows.value.length)]],
+      ...summaryTableOptions(ML),
     })
 
-    // ── Tabla principal ──────────────────────────────────────────
     autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 3,
+      startY: doc.lastAutoTable.finalY + 4,
       head: [['Fecha', 'Brutas', 'Devol.', 'Desc.', 'Netas', 'Impuestos', 'Propinas', 'Comisiones', 'Tarjetas', 'Efectivo', 'Otros']],
-      body: rows.value.map(r => [
-        fmtFechaCorta(r.fecha),
-        fmt(r.ventas_brutas),
-        fmt(r.devoluciones),
-        fmt(r.descuentos),
-        fmt(r.ventas_netas),
-        fmt(r.impuestos),
-        fmt(r.propinas),
-        fmt(r.comisiones),
-        fmt(r.tarjetas),
-        fmt(r.efectivo),
-        fmt(r.otros)
-      ]),
-      foot: [[
-        'TOTALES',
-        fmt(totals.value.ventas_brutas),
-        fmt(totals.value.devoluciones),
-        fmt(totals.value.descuentos),
-        fmt(totals.value.ventas_netas),
-        fmt(totals.value.impuestos),
-        fmt(totals.value.propinas),
-        fmt(totals.value.comisiones),
-        fmt(totals.value.tarjetas),
-        fmt(totals.value.efectivo),
-        fmt(totals.value.otros)
-      ]],
-      styles: { fontSize: 7, cellPadding: 1.2 },
-      headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold', fontSize: 6.5, cellPadding: 1.5 },
-      footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold', cellPadding: 1.5 },
-      columnStyles: {
-        0: { cellWidth: 24 },
-        1:  { halign: 'right' },
-        2:  { halign: 'right' },
-        3:  { halign: 'right' },
-        4:  { halign: 'right', fontStyle: 'bold' },
-        5:  { halign: 'right' },
-        6:  { halign: 'right' },
-        7:  { halign: 'right' },
-        8:  { halign: 'right' },
-        9:  { halign: 'right' },
-        10: { halign: 'right' }
-      },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      theme: 'striped',
-      margin: { left: ML, right: ML },
-      didDrawCell: (data) => {
-        if (data.section === 'foot' && data.column.index >= 1) {
-          data.cell.styles.halign = 'right'
-        }
-      },
-      didDrawPage: (data) => {
-        // Número de página
-        doc.setFontSize(7)
-        doc.setTextColor(150)
-        doc.text(`Página ${data.pageNumber}`, PW - ML, PH - 5, { align: 'right' })
-        doc.setTextColor(0, 0, 0)
-      }
+      body: rows.value.map(r => [fmtFechaCorta(r.fecha), fmt(r.ventas_brutas), fmt(r.devoluciones), fmt(r.descuentos), fmt(r.ventas_netas), fmt(r.impuestos), fmt(r.propinas), fmt(r.comisiones), fmt(r.tarjetas), fmt(r.efectivo), fmt(r.otros)]),
+      foot: [['TOTALES', fmt(totals.value.ventas_brutas), fmt(totals.value.devoluciones), fmt(totals.value.descuentos), fmt(totals.value.ventas_netas), fmt(totals.value.impuestos), fmt(totals.value.propinas), fmt(totals.value.comisiones), fmt(totals.value.tarjetas), fmt(totals.value.efectivo), fmt(totals.value.otros)]],
+      ...detailTableOptions(ML),
+      columnStyles: { 0: { cellWidth: 24 }, 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' } },
+      didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
     })
 
-    // Abrir en nueva pestaña
     const blob = doc.output('blob')
-    const url  = URL.createObjectURL(blob)
-    window.open(url, '_blank')
+    window.open(URL.createObjectURL(blob), '_blank')
   } finally {
     generandoPdf.value = false
   }

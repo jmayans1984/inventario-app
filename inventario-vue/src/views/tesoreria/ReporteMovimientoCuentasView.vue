@@ -298,6 +298,7 @@ import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatFecha } from '../../utils/formatters'
+import { detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -412,65 +413,35 @@ function onFiltroChange() {
 onMounted(cargarCuentas)
 
 // ─── PDF ─────────────────────────────────────────────────────
+
 function exportarPDF() {
   if (!datos.value) return
   generandoPDF.value = true
-  const nombreCuenta = cuentaNombre.value || bancoSeleccionado.value
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const pageW = doc.internal.pageSize.getWidth()
-
-  // Header
-  doc.setFillColor(6, 182, 212)
-  doc.rect(0, 0, pageW, 34, 'F')
-  doc.setFontSize(17); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-  doc.text('MOVIMIENTO POR CUENTAS', 14, 14)
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-  doc.text(`Cuenta: ${nombreCuenta}`, 14, 22)
-  doc.text(`Período: ${fmtFechaCorta(fechaInicio.value)} — ${fmtFechaCorta(fechaFin.value)}`, 14, 28)
-  doc.text(`Generado: ${new Date().toLocaleDateString('es-CO')}`, pageW - 14, 28, { align: 'right' })
-
-  // KPIs
-  autoTable(doc, {
-    startY: 40,
-    head: [['Total Ingresos', 'Total Egresos', 'Saldo Neto', 'Movimientos']],
-    body: [[
-      fmt(datos.value.totalIngresos),
-      fmt(datos.value.totalEgresos),
-      fmt(datos.value.saldoNeto),
-      String(datos.value.cantidadMovimientos)
-    ]],
-    styles: { fontSize: 9, halign: 'right' },
-    headStyles: { fillColor: [15, 23, 42], textColor: 255, halign: 'center', fontSize: 8 },
-    bodyStyles: { fontStyle: 'bold' },
-    theme: 'grid'
-  })
-
-  // Movimientos
-  autoTable(doc, {
-    startY: doc.lastAutoTable.finalY + 8,
-    head: [['Fecha', 'Beneficiario', 'Concepto', 'Ingreso', 'Egreso']],
-    body: datos.value.movimientos.map(m => [
-      fmtFecha(m.fecha),
-      m.beneficiario || '—',
-      m.concepto || '',
-      Number(m.ingreso) > 0 ? fmt(m.ingreso) : '—',
-      Number(m.egreso)  > 0 ? fmt(m.egreso)  : '—'
-    ]),
-    foot: [['', '', 'TOTALES', fmt(datos.value.totalIngresos), fmt(datos.value.totalEgresos)]],
-    styles: { fontSize: 7.5 },
-    headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold' },
-    footStyles: { fillColor: [241, 245, 249], textColor: 30, fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 24 },
-      3: { halign: 'right', cellWidth: 34 },
-      4: { halign: 'right', cellWidth: 34 }
-    },
-    theme: 'striped',
-    alternateRowStyles: { fillColor: [248, 250, 252] }
-  })
-
-  doc.save(`movimientos-${nombreCuenta.replace(/\s+/g, '-')}-${fechaInicio.value}-${fechaFin.value}.pdf`)
-  generandoPDF.value = false
+  try {
+    const nombreCuenta = cuentaNombre.value || bancoSeleccionado.value
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const ML = 14
+    const startY = drawReportHeader(doc, {
+      title: 'MOVIMIENTO POR CUENTAS',
+      subtitle: `Cuenta: ${nombreCuenta} | Periodo: ${fmtFechaCorta(fechaInicio.value)} - ${fmtFechaCorta(fechaFin.value)}`,
+      empresa: authStore.empresaNombre || getEmpresa(),
+      usuario: authStore.userName || authStore.userNombre,
+      margin: ML,
+    })
+    autoTable(doc, { startY, head: [['Total Ingresos', 'Total Egresos', 'Saldo Neto', 'Movimientos']], body: [[fmt(datos.value.totalIngresos), fmt(datos.value.totalEgresos), fmt(datos.value.saldoNeto), String(datos.value.cantidadMovimientos)]], ...summaryTableOptions(ML) })
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 6,
+      head: [['Fecha', 'Beneficiario', 'Concepto', 'Ingreso', 'Egreso']],
+      body: datos.value.movimientos.map(m => [fmtFecha(m.fecha), m.beneficiario || '-', m.concepto || '', Number(m.ingreso) > 0 ? fmt(m.ingreso) : '-', Number(m.egreso) > 0 ? fmt(m.egreso) : '-']),
+      foot: [['', '', 'TOTALES', fmt(datos.value.totalIngresos), fmt(datos.value.totalEgresos)]],
+      ...detailTableOptions(ML),
+      columnStyles: { 0: { cellWidth: 24 }, 3: { halign: 'right', cellWidth: 34 }, 4: { halign: 'right', cellWidth: 34 } },
+      didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
+    })
+    doc.save(`movimientos-${nombreCuenta.replace(/\s+/g, '-')}-${fechaInicio.value}-${fechaFin.value}.pdf`)
+  } finally {
+    generandoPDF.value = false
+  }
 }
 </script>
 
