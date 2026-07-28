@@ -2927,10 +2927,21 @@ async function ensureOrdenProduccionTables() {
             notas           TEXT,
             created_at      TIMESTAMP DEFAULT NOW()
         )`);
+    // Migración: si la tabla existía sin columna 'id', agregarla
+    await pool.query(`
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'orden_produccion' AND column_name = 'id'
+            ) THEN
+                ALTER TABLE orden_produccion ADD COLUMN id SERIAL;
+                ALTER TABLE orden_produccion ADD PRIMARY KEY (id);
+            END IF;
+        END $$`);
     await pool.query(`
         CREATE TABLE IF NOT EXISTS orden_produccion_detalle (
             id            SERIAL PRIMARY KEY,
-            orden_id      INT REFERENCES orden_produccion(id) ON DELETE CASCADE,
+            orden_id      INT,
             articulo      VARCHAR(50),
             nombre        VARCHAR(200),
             und           VARCHAR(30),
@@ -2940,6 +2951,19 @@ async function ensureOrdenProduccionTables() {
             costo_unit    NUMERIC DEFAULT 0,
             costo_total   NUMERIC DEFAULT 0
         )`);
+    // Migración: agregar FK solo si aún no existe
+    await pool.query(`
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE table_name = 'orden_produccion_detalle'
+                  AND constraint_type = 'FOREIGN KEY'
+            ) THEN
+                ALTER TABLE orden_produccion_detalle
+                    ADD CONSTRAINT fk_op_detalle_orden
+                    FOREIGN KEY (orden_id) REFERENCES orden_produccion(id) ON DELETE CASCADE;
+            END IF;
+        END $$`);
     ordenProdTablesReady = true;
 }
 
