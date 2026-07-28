@@ -351,10 +351,22 @@ async function fetchProveedores() {
 <style scoped>
 .prov-table-wrapper {
   background: rgb(var(--v-theme-surface));
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  animation: containerFadeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes containerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Toolbar */
@@ -363,8 +375,8 @@ async function fetchProveedores() {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 16px;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  padding: 20px;
+  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.08);
   flex-wrap: wrap;
 }
 
@@ -389,33 +401,33 @@ async function fetchProveedores() {
 }
 
 .table-header {
-  background: rgba(var(--v-theme-primary), 0.05) !important;
-  border-bottom: 2px solid rgba(var(--v-theme-primary), 0.2) !important;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%) !important;
+  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.1) !important;
 }
 
 .th {
   font-size: 10px !important;
   font-weight: 800 !important;
-  letter-spacing: 1.2px !important;
+  letter-spacing: 0.8px !important;
   text-transform: uppercase !important;
-  color: rgba(var(--v-theme-on-surface), 0.6) !important;
-  padding: 12px 14px !important;
+  color: rgba(var(--v-theme-on-surface), 0.65) !important;
+  padding: 14px 10px !important;
   user-select: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .th.sortable {
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .th.sortable:hover {
-  color: rgb(var(--v-theme-primary)) !important;
-  background: rgba(var(--v-theme-primary), 0.1) !important;
+  color: rgba(var(--v-theme-on-surface), 0.9) !important;
+  background: rgba(var(--v-theme-on-surface), 0.06) !important;
 }
 
 .sort-icon {
-  margin-left: 4px;
-  opacity: 0.5;
+  margin-left: 6px;
+  opacity: 0.7;
 }
 
 .th-checkbox {
@@ -429,12 +441,25 @@ async function fetchProveedores() {
 
 /* Data Rows */
 .data-row {
-  transition: background 0.15s;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05) !important;
+  animation: rowSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes rowSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .data-row:hover {
-  background: rgba(var(--v-theme-primary), 0.04) !important;
+  background: rgba(var(--v-theme-on-surface), 0.06) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.1);
 }
 
 .data-row:last-child {
@@ -444,7 +469,7 @@ async function fetchProveedores() {
 .td {
   font-size: 13px;
   color: rgb(var(--v-theme-on-surface));
-  padding: 12px 14px !important;
+  padding: 13px 10px !important;
   vertical-align: middle;
 }
 
@@ -460,29 +485,29 @@ async function fetchProveedores() {
 
 .codigo-badge {
   display: inline-block;
-  background: rgba(var(--v-theme-primary), 0.15);
-  color: rgb(var(--v-theme-primary));
-  padding: 2px 8px;
-  border-radius: 4px;
+  background: rgba(79, 70, 229, 0.15);
+  color: var(--indigo);
+  padding: 4px 10px;
+  border-radius: 7px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .nombre-text {
-  font-weight: 700;
+  font-weight: 600;
   margin: 0;
 }
 
 .direccion-wrap {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .addr-icon {
   flex-shrink: 0;
-  color: rgba(var(--v-theme-on-surface), 0.4);
+  color: rgba(var(--v-theme-on-surface), 0.45);
 }
 
 .telefono-col {
@@ -490,17 +515,17 @@ async function fetchProveedores() {
 }
 
 .tel-link {
-  color: rgb(var(--v-theme-primary));
+  color: var(--indigo);
   text-decoration: none;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 4px;
-  transition: all 0.2s;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tel-link:hover {
-  text-decoration: underline;
+  opacity: 0.8;
 }
 
 .text-muted {
@@ -509,13 +534,19 @@ async function fetchProveedores() {
 
 .td-acciones {
   text-align: center !important;
-  width: 100px !important;
+  width: 90px !important;
 }
 
 .action-buttons {
   display: flex;
-  gap: 4px;
+  gap: -8px;
   justify-content: center;
+  align-items: center;
+}
+
+.action-buttons :deep(.v-btn) {
+  margin: 0 -6px;
+  padding: 0 4px;
 }
 
 /* Empty State */

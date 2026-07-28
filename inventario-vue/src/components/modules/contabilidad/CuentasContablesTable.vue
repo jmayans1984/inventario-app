@@ -256,74 +256,91 @@ async function exportarExcel() {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .data-table thead {
-  background: rgba(var(--v-theme-on-surface), 0.04);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%);
 }
 
 .data-table thead th {
-  padding: 12px 16px;
+  padding: 14px 12px;
   text-align: left;
-  font-weight: 700;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  font-size: 12px;
-  letter-spacing: 0.5px;
+  font-weight: 800;
+  color: rgba(var(--v-theme-on-surface), 0.65);
+  font-size: 10px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .data-table tbody tr {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
-  transition: background 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: rowSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes rowSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .data-table tbody tr:hover {
-  background: rgba(var(--v-theme-on-surface), 0.02);
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.1);
 }
 
 .table-row td {
-  padding: 12px 16px;
+  padding: 13px 12px;
   color: rgb(var(--v-theme-on-surface));
 }
 
 .table-empty {
   text-align: center;
-  padding: 40px 20px !important;
+  padding: 80px 20px !important;
 }
 
 .empty-icon {
-  color: rgba(var(--v-theme-on-surface), 0.2);
-  margin-bottom: 8px;
+  color: rgba(var(--v-theme-on-surface), 0.15);
+  margin-bottom: 16px;
 }
 
 .empty-text {
-  color: rgba(var(--v-theme-on-surface), 0.4);
+  color: rgba(var(--v-theme-on-surface), 0.55);
   font-size: 14px;
   margin: 0;
 }
 
 .cell-codigo {
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .badge-codigo {
-  background: rgba(102, 126, 234, 0.15);
+  background: rgba(79, 70, 229, 0.15);
   color: var(--indigo);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.3px;
 }
 
 .badge-grupo {
-  background: rgba(118, 75, 162, 0.15);
-  color: var(--gold);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 12px;
+  background: rgba(240, 168, 60, 0.15);
+  color: #b8720b;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.3px;
 }
 
 .cell-nombre {
@@ -337,6 +354,7 @@ async function exportarExcel() {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  font-weight: 600;
 }
 
 .cell-estado {
@@ -344,56 +362,68 @@ async function exportarExcel() {
 }
 
 .cell-acciones {
-  text-align: right;
+  text-align: center;
 }
 
 .action-buttons {
   display: flex;
-  gap: 4px;
-  justify-content: flex-end;
+  gap: -8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.action-buttons :deep(.v-btn) {
+  margin: 0 -6px;
+  padding: 0 4px;
 }
 
 .table-footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 20px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  gap: 16px;
+  padding: 18px 20px;
+  border-top: 1.5px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--v-theme-on-surface), 0.02);
+  flex-wrap: wrap;
 }
 
 .pagination {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
 }
 
 .page-info {
-  font-size: 13px;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  min-width: 120px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  min-width: 140px;
   text-align: center;
+  letter-spacing: 0.2px;
 }
 
 /* Sortable Headers */
 .sortable-header {
   cursor: pointer;
   user-select: none;
-  transition: background 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sortable-header:hover {
-  background: rgba(var(--v-theme-on-surface), 0.08);
+  color: rgba(var(--v-theme-on-surface), 0.9) !important;
+  background: rgba(var(--v-theme-on-surface), 0.08) !important;
 }
 
 /* Inactive Rows */
 .row-inactive {
-  opacity: 0.5;
+  opacity: 0.65;
   background: rgba(var(--v-theme-on-surface), 0.02);
 }
 
 .row-inactive .cell-codigo,
 .row-inactive .cell-grupo,
 .row-inactive .cell-nombre {
-  color: rgba(var(--v-theme-on-surface), 0.4);
+  color: rgba(var(--v-theme-on-surface), 0.45);
 }
 </style>
