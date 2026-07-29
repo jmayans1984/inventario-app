@@ -12218,15 +12218,19 @@ app.get('/api/gerencia/analisis-costos', async (req, res) => {
         const result = await pool.query(`
             WITH compras AS (
                 SELECT dea.articulo AS producto_codigo,
-                       COALESCE(p.nombre, dea.articulo) AS producto_nombre,
-                       p.und, p.grupo, COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre,
+                       COALESCE(p.nombre, a.nombre, dea.articulo) AS producto_nombre,
+                       COALESCE(p.und, a.und) AS und,
+                       COALESCE(p.grupo, a.grupo) AS grupo,
+                       COALESCE(gp.nombre, gpa.nombre, 'Sin Grupo') AS grupo_nombre,
                        ea.fecha::date AS fecha, ea.codigo AS entrada_codigo,
                        ea.proveedor, COALESCE(prov.nombre, ea.proveedor) AS proveedor_nombre,
                        dea.cantidad, dea.vr_unitario AS precio_unitario, dea.subtotal
                 FROM detalle_entrada_almacen dea
                 JOIN entrada_almacen ea ON ea.codigo = dea.codigo AND ea.empresa::text = $1
                 LEFT JOIN productos p ON p.codigo = dea.articulo
+                LEFT JOIN articulos a ON a.codigo = dea.articulo
                 LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+                LEFT JOIN grupo_articulos gpa ON gpa.codigo = a.grupo
                 LEFT JOIN proveedores prov ON prov.codigo = ea.proveedor AND prov.empresa::text = $1
                 WHERE ea.fecha::date >= $2::date AND ea.fecha::date <= $3::date
                   AND dea.vr_unitario > 0
@@ -12342,9 +12346,15 @@ app.get('/api/gerencia/analisis-costos/producto/:codigo', async (req, res) => {
 
     try {
         const prodRes = await pool.query(
-            `SELECT p.codigo, p.nombre, p.und, COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre
-             FROM productos p LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-             WHERE p.codigo = $1`,
+            `SELECT COALESCE(p.codigo, a.codigo) AS codigo,
+                    COALESCE(p.nombre, a.nombre) AS nombre,
+                    COALESCE(p.und, a.und) AS und,
+                    COALESCE(gp.nombre, gpa.nombre, 'Sin Grupo') AS grupo_nombre
+             FROM (SELECT $1::text AS cod) x
+             LEFT JOIN productos p ON p.codigo = x.cod
+             LEFT JOIN articulos a ON a.codigo = x.cod
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             LEFT JOIN grupo_articulos gpa ON gpa.codigo = a.grupo`,
             [codigo]
         );
 
@@ -12362,9 +12372,13 @@ app.get('/api/gerencia/analisis-costos/producto/:codigo', async (req, res) => {
             [String(empresa), codigo, desdeDate, hastaDate]
         );
 
-        const productoInfo = prodRes.rows[0]
-            ? { codigo: prodRes.rows[0].codigo, nombre: prodRes.rows[0].nombre, und: prodRes.rows[0].und, grupo_nombre: prodRes.rows[0].grupo_nombre }
-            : { codigo, nombre: codigo, und: null, grupo_nombre: null };
+        const pr = prodRes.rows[0];
+        const productoInfo = {
+            codigo,
+            nombre: pr?.nombre || codigo,
+            und: pr?.und || null,
+            grupo_nombre: pr?.grupo_nombre || null,
+        };
 
         const historico = [];
         let prevPrecio = null;
