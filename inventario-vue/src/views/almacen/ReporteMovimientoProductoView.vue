@@ -429,8 +429,9 @@ function exportarPDF() {
       },
     }])
 
-    for (const prod of grupo.productos) {
-      body.push([{ content: '', colSpan: 8, styles: { cellPadding: { top: 2.4, right: 0, bottom: 2.4, left: 0 }, lineWidth: 0 } }])
+    grupo.productos.forEach((prod, prodIndex) => {
+      const productGap = prodIndex === 0 ? 0.8 : 2.4
+      body.push([{ content: '', colSpan: 8, styles: { cellPadding: { top: productGap, right: 0, bottom: productGap, left: 0 }, lineWidth: 0 } }])
       body.push([{
         content: `${prod.codigo} - ${prod.nombre}`,
         colSpan: 8,
@@ -454,7 +455,7 @@ function exportarPDF() {
           { content: fmtNum(dia.saldoFinal), styles: { fontStyle: esUltimaFila ? 'bold' : 'normal' } },
         ])
       })
-    }
+    })
   }
 
   autoTable(doc, {
