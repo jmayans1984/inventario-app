@@ -144,7 +144,7 @@ import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { fechaInputLocal } from '../../utils/formatters'
-import JsBarcode from 'jsbarcode'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -247,190 +247,114 @@ async function generar() {
 // ── Exportar PDF ──────────────────────────────────────────────
 function exportarPDF() {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
-  const PW = doc.internal.pageSize.getWidth()
-  const PH = doc.internal.pageSize.getHeight()
-  const ML = 8, MR = 8
-  const HEADER_H = 30  // altura del header en cada página
-
-  // ── Barcode ───────────────────────────────────────────────
-  const [y, m, d] = fecha.value.split('-')
-  const mmddyy = `${m}${d}${y.slice(-2)}`
-  const efectivoCents = Math.round(totalEfectivo.value * 100)
-  const codigoBarras = mmddyy + String(efectivoCents).padStart(9, '0')
-  const barcodeCanvas = document.createElement('canvas')
-  JsBarcode(barcodeCanvas, codigoBarras, {
-    format: 'CODE128', displayValue: true,
-    fontSize: 10, textMargin: 2, height: 38, width: 1.4, margin: 3,
+  const ML = 10
+  const empresaNombre = auth.empresaNombre || empresa.value || 'EMPRESA'
+  const startY = drawReportHeader(doc, {
+    title: 'KARDEX POR PERIODO',
+    subtitle: `Centro de Costo: ${nombreCcosto.value || '-'} | Fecha: ${fechaFormateada.value}`,
+    empresa: empresaNombre,
+    usuario: auth.userName || auth.userNombre,
+    moduleName: 'Modulo de almacen | Reportes',
+    margin: ML,
   })
-  const barcodeImg = barcodeCanvas.toDataURL('image/png')
 
-  // ── Fecha de impresión (sin timezone) ─────────────────────
-  const hoy = new Date()
-  const mm = String(hoy.getMonth()+1).padStart(2,'0')
-  const dd = String(hoy.getDate()).padStart(2,'0')
-  const yyyy = hoy.getFullYear()
-  const hoyStr = `${mm}/${dd}/${yyyy}`
+  autoTable(doc, {
+    startY,
+    head: [['Productos', 'Stock Anterior', 'Entradas', 'Salidas', 'Ventas', 'Stock Final']],
+    body: [[
+      String(filas.value.length),
+      formatNum(totalStockAnterior.value),
+      formatNum(totalEntradas.value),
+      formatNum(totalSalidas.value),
+      formatNum(totalVentas.value),
+      formatNum(totalStockFinal.value),
+    ]],
+    ...summaryTableOptions(ML),
+  })
 
-  // ── Encabezado profesional (se repite en cada hoja) ───────
-  function drawHeader(pageNum, totalPages) {
-    // Banner izquierdo oscuro
-    doc.setFillColor(26, 26, 46)
-    doc.rect(0, 0, 52, HEADER_H, 'F')
-    // Banner derecho gris claro
-    doc.setFillColor(248, 250, 252)
-    doc.rect(52, 0, PW - 52, HEADER_H, 'F')
-    // Línea separadora inferior
-    doc.setDrawColor(8, 145, 178)
-    doc.setLineWidth(0.5)
-    doc.line(0, HEADER_H, PW, HEADER_H)
-
-    // Texto izquierdo
-    doc.setTextColor(148, 163, 184)
-    doc.setFontSize(6)
-    doc.setFont('helvetica', 'normal')
-    doc.text('REPORTE', ML, 8)
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
-    doc.text('KARDEX', ML, 15)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(56, 189, 248)
-    doc.text('INVENTARIO', ML, 21)
-
-    // Datos derecha
-    doc.setTextColor(100, 116, 139)
-    doc.setFontSize(6.5)
-    doc.setFont('helvetica', 'bold')
-    doc.text('CENTRO DE COSTO:', 56, 8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.setFontSize(8)
-    doc.text(nombreCcosto.value, 56, 14)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('FECHA:', 140, 8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.setFontSize(8)
-    doc.text(fechaFormateada.value, 140, 14)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('PRODUCTOS:', 56, 21)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.text(String(filas.value.length), 56 + doc.getTextWidth('PRODUCTOS:') + 2, 21)
-
-    // Página
-    if (totalPages) {
-      doc.setFontSize(7)
-      doc.setTextColor(148, 163, 184)
-      doc.text(`Pág. ${pageNum} / ${totalPages}`, PW - MR - 18, 14)
-    }
-
-    doc.setTextColor(0, 0, 0)
-  }
-
-  // ── Pie de página ─────────────────────────────────────────
-  function drawFooter() {
-    doc.setFontSize(6.5)
-    doc.setTextColor(150)
-    doc.text(`Impreso: ${hoyStr}`, ML, PH - 4)
-    const bW = 55, bH = 12
-    doc.addImage(barcodeImg, 'PNG', PW - MR - bW, PH - bH - 2, bW, bH)
-    doc.setTextColor(0, 0, 0)
-  }
-
-  drawHeader(1, null)
-
-  const startTableY = HEADER_H + 3
-
-  // ── Construir filas ───────────────────────────────────────
-  const CP = { top: 1.2, bottom: 1.2, left: 3, right: 3 }  // ~14px rows
   const body = []
   for (const grupo of productosAgrupados.value) {
     body.push([{
-      content: grupo.nombre.toUpperCase(),
+      content: String(grupo.nombre || 'Sin Grupo').toUpperCase(),
       colSpan: 9,
       styles: {
-        fontStyle: 'bold', fontSize: 7, textColor: [8,100,140],
-        fillColor: [240,249,255], halign: 'left',
-        cellPadding: { top: 1.2, bottom: 1.2, left: 4, right: 4 }
-      }
+        fontStyle: 'bold',
+        fontSize: 6.5,
+        textColor: [0, 0, 0],
+        fillColor: false,
+        halign: 'left',
+        lineWidth: { top: 0.25, bottom: 0.18 },
+        lineColor: [115, 115, 115],
+        cellPadding: { top: 1.5, right: 1.8, bottom: 1.2, left: 1.8 },
+      },
     }])
+
     for (const p of grupo.items) {
       body.push([
         p.codigo,
         p.nombre,
         p.und,
         formatNum(p.stock_anterior),
-        p.entradas_dia > 0 ? formatNum(p.entradas_dia) : '—',
-        p.salidas_dia  > 0 ? formatNum(p.salidas_dia)  : '—',
-        p.ventas_dia   > 0 ? formatNum(p.ventas_dia)   : '—',
+        p.entradas_dia > 0 ? formatNum(p.entradas_dia) : '-',
+        p.salidas_dia > 0 ? formatNum(p.salidas_dia) : '-',
+        p.ventas_dia > 0 ? formatNum(p.ventas_dia) : '-',
         formatNum(p.stock_final),
         '__________',
       ])
     }
   }
 
-  // ── autoTable ─────────────────────────────────────────────
   autoTable(doc, {
-    startY: startTableY,
-    showHead: 'everyPage',
+    startY: doc.lastAutoTable.finalY + 6,
     head: [[
-      { content: 'CÓD',      styles: { halign: 'center' } },
-      { content: 'PRODUCTO' },
-      { content: 'UNIDAD',   styles: { halign: 'center' } },
-      { content: 'ANT.',     styles: { halign: 'right' } },
-      { content: 'ENT.',     styles: { halign: 'right' } },
-      { content: 'SAL.',     styles: { halign: 'right' } },
-      { content: 'VEN.',     styles: { halign: 'right' } },
-      { content: 'FINAL',    styles: { halign: 'right' } },
-      { content: 'CANT.',    styles: { halign: 'center' } },
+      'Cod',
+      'Producto',
+      'Und',
+      'Stock Ant.',
+      'Entradas',
+      'Salidas',
+      'Ventas',
+      'Stock Final',
+      'Cantidad',
     ]],
     body,
-    theme: 'plain',
-    headStyles: {
-      fillColor: [26, 26, 46],
-      textColor: [203, 213, 225],
-      fontSize: 7, fontStyle: 'bold',
-      cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 3 },
-    },
-    bodyStyles: { fontSize: 7, cellPadding: CP },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+    foot: [[
+      '',
+      'TOTALES',
+      '',
+      formatNum(totalStockAnterior.value),
+      formatNum(totalEntradas.value),
+      formatNum(totalSalidas.value),
+      formatNum(totalVentas.value),
+      formatNum(totalStockFinal.value),
+      '',
+    ]],
+    ...detailTableOptions(ML),
     columnStyles: {
-      0: { cellWidth: 12,  halign: 'center' },
+      0: { cellWidth: 12, halign: 'center' },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 16,  halign: 'center' },
-      3: { cellWidth: 17,  halign: 'right' },
-      4: { cellWidth: 14,  halign: 'right', textColor: [16,185,129] },
-      5: { cellWidth: 14,  halign: 'right', textColor: [245,158,11] },
-      6: { cellWidth: 14,  halign: 'right', textColor: [239,68,68] },
-      7: { cellWidth: 17,  halign: 'right', textColor: [8,145,178] },
-      8: { cellWidth: 26,  halign: 'center', textColor: [160,160,160] },
+      2: { cellWidth: 13, halign: 'center' },
+      3: { cellWidth: 20, halign: 'right' },
+      4: { cellWidth: 17, halign: 'right' },
+      5: { cellWidth: 17, halign: 'right' },
+      6: { cellWidth: 17, halign: 'right' },
+      7: { cellWidth: 20, halign: 'right' },
+      8: { cellWidth: 25, halign: 'center' },
     },
-    margin: { left: ML, right: MR, bottom: 20, top: HEADER_H + 2 },
-    didDrawPage: (data) => { drawHeader(data.pageNumber, null) },
+    didParseCell: (data) => {
+      alignReportCell(data, { 0: 'center', 1: 'left', 2: 'center', 3: 'right', 4: 'right', 5: 'right', 6: 'right', 7: 'right', 8: 'center' })
+      if (data.section === 'body' && data.row.raw?.[0]?.colSpan === 9) {
+        data.cell.styles.halign = 'left'
+        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontSize = 6.5
+        data.cell.styles.lineWidth = { top: 0.25, bottom: 0.18 }
+        data.cell.styles.lineColor = [115, 115, 115]
+      }
+    },
+    didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
   })
 
-  const totalPgs = doc.internal.getNumberOfPages()
-  for (let i = 1; i <= totalPgs; i++) {
-    doc.setPage(i)
-    drawFooter()
-    // Actualizar número de página en header
-    doc.setFontSize(7)
-    doc.setTextColor(148, 163, 184)
-    doc.text(`Pág. ${i} / ${totalPgs}`, PW - MR - 18, 14)
-    doc.setTextColor(0, 0, 0)
-  }
-
-  const blob = doc.output('blob')
-  const url  = URL.createObjectURL(blob)
-  window.open(url, '_blank')
+  window.open(URL.createObjectURL(doc.output('blob')), '_blank')
 }
 </script>
 

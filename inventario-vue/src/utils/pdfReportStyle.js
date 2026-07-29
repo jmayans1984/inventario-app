@@ -13,6 +13,7 @@ export function drawReportHeader(doc, {
   usuario = 'Usuario',
   generatedAt = new Date(),
   margin = 10,
+  moduleName = 'Modulo de tesoreria | Reportes',
 } = {}) {
   const pageW = doc.internal.pageSize.getWidth()
   const top = 8
@@ -44,7 +45,7 @@ export function drawReportHeader(doc, {
 
   doc.setFontSize(6)
   doc.setTextColor(...PDF_COLORS.muted)
-  doc.text('Modulo de tesoreria | Reportes', margin, top + 16)
+  doc.text(moduleName, margin, top + 16)
   doc.text(`Usuario: ${usuario || 'Usuario'}`, pageW - margin, top + 16, { align: 'right' })
 
   doc.setDrawColor(...PDF_COLORS.rule)
