@@ -144,7 +144,7 @@ import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { fechaInputLocal } from '../../utils/formatters'
-import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader, summaryTableOptions } from '../../utils/pdfReportStyle'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader } from '../../utils/pdfReportStyle'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -258,20 +258,6 @@ function exportarPDF() {
     margin: ML,
   })
 
-  autoTable(doc, {
-    startY,
-    head: [['Productos', 'Stock Anterior', 'Entradas', 'Salidas', 'Ventas', 'Stock Final']],
-    body: [[
-      String(filas.value.length),
-      formatNum(totalStockAnterior.value),
-      formatNum(totalEntradas.value),
-      formatNum(totalSalidas.value),
-      formatNum(totalVentas.value),
-      formatNum(totalStockFinal.value),
-    ]],
-    ...summaryTableOptions(ML),
-  })
-
   const body = []
   for (const grupo of productosAgrupados.value) {
     body.push([{
@@ -305,7 +291,7 @@ function exportarPDF() {
   }
 
   autoTable(doc, {
-    startY: doc.lastAutoTable.finalY + 6,
+    startY,
     head: [[
       'Cod',
       'Producto',
@@ -318,17 +304,6 @@ function exportarPDF() {
       'Cantidad',
     ]],
     body,
-    foot: [[
-      '',
-      'TOTALES',
-      '',
-      formatNum(totalStockAnterior.value),
-      formatNum(totalEntradas.value),
-      formatNum(totalSalidas.value),
-      formatNum(totalVentas.value),
-      formatNum(totalStockFinal.value),
-      '',
-    ]],
     ...detailTableOptions(ML),
     columnStyles: {
       0: { cellWidth: 12, halign: 'center' },
