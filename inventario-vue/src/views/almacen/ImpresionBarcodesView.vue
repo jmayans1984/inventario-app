@@ -262,8 +262,8 @@ onMounted(cargar)
 .bcv-lista-wrap { background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-theme-on-surface),.08); overflow: hidden; }
 .bcv-empty { display: flex; flex-direction: column; align-items: center; padding: 60px 20px; }
 .bcv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.bcv-table thead { background: rgba(var(--v-theme-on-surface),.04); }
-.bcv-table thead th { padding: 12px 14px; text-align: left; font-weight: 700; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.6); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.bcv-table thead { background: transparent; }
+.bcv-table thead th { padding: 11px 14px; text-align: left; font-weight: 700; font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
 .bcv-row { cursor: pointer; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); transition: background-color .15s ease, box-shadow .15s ease; }
 .bcv-row:last-child { border-bottom: none; }
 .bcv-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
@@ -277,10 +277,10 @@ onMounted(cargar)
 .bcv-check { width: 54px; padding-top: 4px !important; padding-bottom: 4px !important; }
 .bcv-producto { font-weight: 500; }
 .bcv-und, .bcv-estado { text-align: center; }
-.bcv-cant { text-align: right; font-weight: 700; color: var(--indigo) !important; }
+.bcv-cant { text-align: right; font-weight: 700; color: var(--success) !important; }
 .mono { font-variant-numeric: tabular-nums; }
-.bcv-cod-badge { background: rgba(6,182,212,.15); color: var(--indigo); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
-.bcv-und-badge { background: rgba(139,92,246,.12); color: var(--indigo); padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
+.bcv-cod-badge { background: var(--success-wash); color: var(--success); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bcv-und-badge { background: var(--success-wash); color: var(--success); padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
 .bcv-empty-dash { color: rgba(var(--v-theme-on-surface),.3); }
 .bcv-chip-on, .bcv-chip-off { display: inline-flex; align-items: center; justify-content: center; min-width: 86px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 .bcv-chip-on { background: var(--success-wash); color: var(--success); }

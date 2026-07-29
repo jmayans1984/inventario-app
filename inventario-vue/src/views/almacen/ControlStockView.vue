@@ -378,13 +378,13 @@ onMounted(cargar)
 .grupo-header {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px;
-  background: rgba(139,92,246,.06);
+  background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface),.08);
   border-bottom: none;
   border-radius: 12px 12px 0 0;
   margin: 20px 0 0 0;
 }
-.grupo-nombre { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--indigo); }
+.grupo-nombre { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--success); }
 .grupo-count { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
 
 .cst-table {
@@ -398,17 +398,15 @@ onMounted(cargar)
   font-size: 13px;
 }
 
-.cst-table thead {
-  background: rgba(var(--v-theme-on-surface),.04);
-}
+.cst-table thead { background: transparent; }
 
 .cst-table th {
-  padding: 12px 14px;
-  font-size: 11px;
+  padding: 11px 14px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .5px;
-  color: rgba(var(--v-theme-on-surface),.6);
+  color: rgba(var(--v-theme-on-surface),.45);
   text-align: left;
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08);
 }
@@ -424,20 +422,12 @@ onMounted(cargar)
   background: rgba(var(--v-theme-on-surface),.03);
 }
 
-.fila-modificada {
-  background: rgba(245,158,11,.08) !important;
-}
-
-.fila-error {
-  background: rgba(239,68,68,.06) !important;
-}
-
-.fila-warning {
-  background: rgba(245,158,11,.05) !important;
-}
+.fila-modificada { box-shadow: inset 3px 0 0 var(--gold); }
+.fila-error { box-shadow: inset 3px 0 0 var(--error); }
+.fila-warning { box-shadow: inset 3px 0 0 var(--gold); }
 
 .cst-table td {
-  padding: 12px 14px;
+  padding: 10px 14px;
   font-size: 13px;
   color: rgb(var(--v-theme-on-surface));
 }
@@ -449,7 +439,7 @@ onMounted(cargar)
   width: 70px;
 }
 
-.badge-cod { background: rgba(6,182,212,.15); color: var(--indigo); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; display: inline-block; }
+.badge-cod { background: var(--success-wash); color: var(--success); padding: 2px 8px; border-radius: 5px; font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; display: inline-block; }
 
 .nombre-cell { font-weight: 500; min-width: 150px; }
 .desc-cell { font-size: 12px; color: rgba(var(--v-theme-on-surface),.55); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
