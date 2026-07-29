@@ -77,6 +77,16 @@
             </v-select>
           </div>
 
+          <div class="rc-field rc-field--check">
+            <v-checkbox
+              v-model="incluirCostos"
+              label="Incluir costos"
+              color="primary"
+              density="compact"
+              hide-details
+            />
+          </div>
+
           <div class="rc-field rc-field--btn">
             <v-btn
               color="primary"
@@ -124,6 +134,13 @@
               <div class="rc-kpi-lbl">Variación Total</div>
             </div>
           </div>
+          <div v-if="incluirCostos" class="rc-kpi">
+            <v-icon size="18" :color="totalValorizado < 0 ? '#f59e0b' : '#10b981'" class="mr-2">mdi-cash-multiple</v-icon>
+            <div>
+              <div class="rc-kpi-val" :class="totalValorizado < 0 ? 'num-faltante' : (totalValorizado > 0 ? 'num-sobrante' : '')">{{ formatMoney(totalValorizado) }}</div>
+              <div class="rc-kpi-lbl">Valor Variación</div>
+            </div>
+          </div>
           <div class="rc-kpi rc-kpi--periodo">
             <v-icon size="18" color="#64748b" class="mr-2">mdi-calendar-range</v-icon>
             <div>
@@ -143,12 +160,14 @@
                 <th class="th-desc">DESCRIPCIÓN</th>
                 <th>UND</th>
                 <th class="th-num">VARIACIÓN</th>
+                <th v-if="incluirCostos" class="th-num">COSTO UNIT.</th>
+                <th v-if="incluirCostos" class="th-num">VALOR</th>
               </tr>
             </thead>
             <tbody>
               <template v-for="grupo in productosAgrupados" :key="grupo.key">
                 <tr class="rc-grupo-row">
-                  <td colspan="5">
+                  <td :colspan="incluirCostos ? 7 : 5">
                     <v-icon size="13" class="mr-1" style="opacity:.6">mdi-folder-outline</v-icon>
                     {{ grupo.nombre }}
                   </td>
@@ -161,6 +180,10 @@
                   <td class="td-num">
                     <strong :class="netoClass(p)">{{ formatNum(p.total_sobrante - p.total_faltante) }}</strong>
                   </td>
+                  <td v-if="incluirCostos" class="td-num td-costo">{{ formatMoney(p.precio_costo) }}</td>
+                  <td v-if="incluirCostos" class="td-num">
+                    <strong :class="netoClass(p)">{{ formatMoney(valorNeto(p)) }}</strong>
+                  </td>
                 </tr>
               </template>
 
@@ -168,6 +191,8 @@
               <tr class="rc-total-row">
                 <td colspan="4"><strong>TOTALES</strong></td>
                 <td class="td-num"><strong :class="totalVariacion < 0 ? 'num-faltante' : (totalVariacion > 0 ? 'num-sobrante' : '')">{{ formatNum(totalVariacion) }}</strong></td>
+                <td v-if="incluirCostos"></td>
+                <td v-if="incluirCostos" class="td-num"><strong :class="totalValorizado < 0 ? 'num-faltante' : (totalValorizado > 0 ? 'num-sobrante' : '')">{{ formatMoney(totalValorizado) }}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -205,6 +230,7 @@ const primerDiaMes = fechaInputLocal(new Date(new Date().getFullYear(), new Date
 const fechaIni              = ref(primerDiaMes)
 const fechaFin              = ref(hoy)
 const ccostosSeleccionados  = ref([])
+const incluirCostos         = ref(false)
 const errFechaIni = ref('')
 const errFechaFin = ref('')
 const errCcosto   = ref('')
@@ -257,6 +283,17 @@ function formatNum(n) {
   return num.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function formatMoney(n) {
+  const num = parseFloat(n)
+  if (isNaN(num)) return '$0.00'
+  const signo = num < 0 ? '-' : ''
+  return signo + '$' + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function valorNeto(p) {
+  return (parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)) * (parseFloat(p.precio_costo) || 0)
+}
+
 function netoClass(p) {
   const neto = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)
   if (neto > 0) return 'num-sobrante'
@@ -277,7 +314,8 @@ const productosAgrupados = computed(() => {
 })
 
 // ── Totales ───────────────────────────────────────────────────────
-const totalVariacion = computed(() => filas.value.reduce((s, p) => s + (parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)), 0))
+const totalVariacion  = computed(() => filas.value.reduce((s, p) => s + (parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)), 0))
+const totalValorizado = computed(() => filas.value.reduce((s, p) => s + valorNeto(p), 0))
 
 // ── Generar ───────────────────────────────────────────────────────
 async function generar() {
@@ -373,6 +411,17 @@ function exportarPDF() {
     doc.setTextColor(26, 26, 46)
     doc.text(formatNum(totalVariacion.value), 59 + doc.getTextWidth('VARIACIÓN:') + 2, 21)
 
+    if (incluirCostos.value) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(6.5)
+      doc.setTextColor(100, 116, 139)
+      doc.text('VALOR:', 130, 21)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(26, 26, 46)
+      doc.setFontSize(7.5)
+      doc.text(formatMoney(totalValorizado.value), 130 + doc.getTextWidth('VALOR:') + 3, 21)
+    }
+
     if (totalPages) {
       doc.setFontSize(7)
       doc.setTextColor(148, 163, 184)
@@ -391,12 +440,14 @@ function exportarPDF() {
   drawHeader(1, null)
 
   const CP = { top: 1.2, bottom: 1.2, left: 3, right: 3 }
+  const conCosto = incluirCostos.value
+  const numCols  = conCosto ? 7 : 5
   const body = []
 
   for (const grupo of productosAgrupados.value) {
     body.push([{
       content: grupo.nombre.toUpperCase(),
-      colSpan: 5,
+      colSpan: numCols,
       styles: {
         fontStyle: 'bold', fontSize: 7, textColor: [8, 100, 140],
         fillColor: [240, 249, 255], halign: 'left',
@@ -405,31 +456,50 @@ function exportarPDF() {
     }])
     for (const p of grupo.items) {
       const variacion = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)
-      body.push([
+      const color = variacion < 0 ? [245,158,11] : (variacion > 0 ? [16,185,129] : [0,0,0])
+      const fila = [
         p.codigo,
         p.nombre,
         p.descripcion || '',
         p.und,
-        { content: formatNum(variacion), styles: { textColor: variacion < 0 ? [245,158,11] : (variacion > 0 ? [16,185,129] : [0,0,0]) } },
-      ])
+        { content: formatNum(variacion), styles: { textColor: color } },
+      ]
+      if (conCosto) {
+        fila.push({ content: formatMoney(p.precio_costo), styles: { textColor: [100,116,139] } })
+        fila.push({ content: formatMoney(valorNeto(p)),   styles: { textColor: color } })
+      }
+      body.push(fila)
     }
   }
 
   // Fila total
-  body.push([
+  const totalRow = [
     { content: 'TOTALES', colSpan: 4, styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'left', cellPadding: CP } },
     { content: formatNum(totalVariacion.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } },
-  ])
+  ]
+  if (conCosto) {
+    totalRow.push({ content: '', styles: { fillColor: [26,26,46], cellPadding: CP } })
+    totalRow.push({ content: formatMoney(totalValorizado.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } })
+  }
+  body.push(totalRow)
 
   autoTable(doc, {
     startY: HEADER_H + 3,
     showHead: 'everyPage',
-    head: [[
+    head: [conCosto ? [
       { content: 'CÓD',          styles: { halign: 'center' } },
       { content: 'PRODUCTO' },
       { content: 'DESCRIPCIÓN' },
       { content: 'UNIDAD',       styles: { halign: 'center' } },
-      { content: 'VARIACIÓN',   styles: { halign: 'right' } },
+      { content: 'VARIACIÓN',    styles: { halign: 'right' } },
+      { content: 'COSTO UNIT.',  styles: { halign: 'right' } },
+      { content: 'VALOR',        styles: { halign: 'right' } },
+    ] : [
+      { content: 'CÓD',          styles: { halign: 'center' } },
+      { content: 'PRODUCTO' },
+      { content: 'DESCRIPCIÓN' },
+      { content: 'UNIDAD',       styles: { halign: 'center' } },
+      { content: 'VARIACIÓN',    styles: { halign: 'right' } },
     ]],
     body,
     theme: 'plain',
@@ -441,7 +511,15 @@ function exportarPDF() {
     },
     bodyStyles: { fontSize: 7, cellPadding: CP },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: {
+    columnStyles: conCosto ? {
+      0: { cellWidth: 14,   halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 'auto', textColor: [80, 80, 80] },
+      3: { cellWidth: 14,   halign: 'center' },
+      4: { cellWidth: 20,   halign: 'right' },
+      5: { cellWidth: 22,   halign: 'right' },
+      6: { cellWidth: 24,   halign: 'right' },
+    } : {
       0: { cellWidth: 14,   halign: 'center' },
       1: { cellWidth: 'auto' },
       2: { cellWidth: 'auto', textColor: [80, 80, 80] },
@@ -484,6 +562,7 @@ function exportarPDF() {
 .rc-form-row  { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
 .rc-field     { min-width: 160px; flex: 1; }
 .rc-field--btn { flex: 0 0 auto; display: flex; align-items: center; padding-top: 2px; }
+.rc-field--check { flex: 0 0 auto; min-width: 0; display: flex; align-items: center; }
 
 .rc-reporte-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; overflow: hidden; }
 
@@ -515,6 +594,7 @@ function exportarPDF() {
 
 .td-nom       { font-weight: 500; }
 .td-num       { text-align: right !important; white-space: nowrap; }
+.td-costo     { color: rgba(var(--v-theme-on-surface),.55); font-size: 12px; }
 .num-faltante { color: var(--gold); font-weight: 700; }
 .num-sobrante { color: var(--success); font-weight: 700; }
 

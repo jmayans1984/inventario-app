@@ -2648,18 +2648,21 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
                 p.und,
                 COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
                 COALESCE(gp.codigo, '999')        AS grupo_codigo,
+                COALESCE(pce.precio_costo, p.precio_costo, 0)   AS precio_costo,
                 ROUND(COALESCE(SUM(di.entrada), 0)::numeric, 4) AS total_sobrante,
                 ROUND(COALESCE(SUM(di.salida),  0)::numeric, 4) AS total_faltante,
                 COUNT(DISTINCT (di.fecha, di.ccosto))            AS num_tomas
              FROM detalle_inventario di
              JOIN productos p ON p.codigo = di.codigo
+             LEFT JOIN producto_costo_empresa pce
+                    ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
              WHERE di.empresa::text = $1
                AND di.ccosto  IN (${placeholders})
                AND di.fecha  >= $${n + 2}
                AND di.fecha  <= $${n + 3}
                AND di.tipo    = 'TOMA FISICA'
-             GROUP BY di.codigo, p.nombre, p.descripcion, p.und, gp.nombre, gp.codigo
+             GROUP BY di.codigo, p.nombre, p.descripcion, p.und, gp.nombre, gp.codigo, pce.precio_costo, p.precio_costo
              ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
             [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
         );
