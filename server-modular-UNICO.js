@@ -12194,6 +12194,249 @@ app.get('/api/gerencia/consumo-mp', async (req, res) => {
     }
 });
 
+// GET /api/gerencia/analisis-costos — ranking de productos por variación de precio de compra
+// (a partir de entrada_almacen/detalle_entrada_almacen, período configurable, filtro opcional por grupo)
+app.get('/api/gerencia/analisis-costos', async (req, res) => {
+    const { empresa, desde, hasta, grupo } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const hastaDate = hasta || new Date().toISOString().slice(0, 10);
+    const desdeDate = desde || (() => {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - 1);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    const params = [String(empresa), desdeDate, hastaDate];
+    let grupoFilter = '';
+    if (grupo) {
+        params.push(grupo);
+        grupoFilter = `AND p.grupo = $${params.length}`;
+    }
+
+    try {
+        const result = await pool.query(`
+            WITH compras AS (
+                SELECT dea.articulo AS producto_codigo,
+                       COALESCE(p.nombre, dea.articulo) AS producto_nombre,
+                       p.und, p.grupo, COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre,
+                       ea.fecha::date AS fecha, ea.codigo AS entrada_codigo,
+                       ea.proveedor, COALESCE(prov.nombre, ea.proveedor) AS proveedor_nombre,
+                       dea.cantidad, dea.vr_unitario AS precio_unitario, dea.subtotal
+                FROM detalle_entrada_almacen dea
+                JOIN entrada_almacen ea ON ea.codigo = dea.codigo AND ea.empresa::text = $1
+                LEFT JOIN productos p ON p.codigo = dea.articulo
+                LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+                LEFT JOIN proveedores prov ON prov.codigo = ea.proveedor AND prov.empresa::text = $1
+                WHERE ea.fecha::date >= $2::date AND ea.fecha::date <= $3::date
+                  AND dea.vr_unitario > 0
+                  ${grupoFilter}
+            ),
+            primero AS (
+                SELECT DISTINCT ON (producto_codigo) producto_codigo, fecha AS fecha_primera, precio_unitario AS precio_primero
+                FROM compras ORDER BY producto_codigo, fecha ASC, entrada_codigo ASC
+            ),
+            ultimo AS (
+                SELECT DISTINCT ON (producto_codigo) producto_codigo, fecha AS fecha_ultima,
+                       precio_unitario AS precio_ultimo, proveedor_nombre AS proveedor_ultimo
+                FROM compras ORDER BY producto_codigo, fecha DESC, entrada_codigo DESC
+            )
+            SELECT c.producto_codigo, MAX(c.producto_nombre) AS producto_nombre, MAX(c.und) AS und,
+                   MAX(c.grupo_nombre) AS grupo_nombre,
+                   COUNT(*) AS num_compras, SUM(c.cantidad) AS cantidad_total, SUM(c.subtotal) AS total_comprado,
+                   MIN(c.precio_unitario) AS precio_min, MAX(c.precio_unitario) AS precio_max,
+                   AVG(c.precio_unitario) AS precio_promedio,
+                   COUNT(DISTINCT c.proveedor) AS num_proveedores,
+                   pr.fecha_primera, pr.precio_primero, ul.fecha_ultima, ul.precio_ultimo, ul.proveedor_ultimo
+            FROM compras c
+            JOIN primero pr ON pr.producto_codigo = c.producto_codigo
+            JOIN ultimo  ul ON ul.producto_codigo = c.producto_codigo
+            GROUP BY c.producto_codigo, pr.fecha_primera, pr.precio_primero, ul.fecha_ultima, ul.precio_ultimo, ul.proveedor_ultimo
+            ORDER BY producto_nombre
+        `, params);
+
+        const gruposRes = await pool.query(`SELECT codigo, nombre FROM grupo_productos ORDER BY nombre`);
+
+        const productos = result.rows.map(r => {
+            const precioPrimero = parseFloat(r.precio_primero) || 0;
+            const precioUltimo = parseFloat(r.precio_ultimo) || 0;
+            const numCompras = parseInt(r.num_compras) || 0;
+            const sinVariacion = numCompras <= 1;
+            const variacionPct = (!sinVariacion && precioPrimero > 0)
+                ? ((precioUltimo - precioPrimero) / precioPrimero) * 100
+                : null;
+            return {
+                producto_codigo: r.producto_codigo,
+                producto_nombre: r.producto_nombre,
+                und: r.und,
+                grupo_nombre: r.grupo_nombre,
+                num_compras: numCompras,
+                cantidad_total: parseFloat(r.cantidad_total) || 0,
+                total_comprado: parseFloat(r.total_comprado) || 0,
+                precio_min: parseFloat(r.precio_min) || 0,
+                precio_max: parseFloat(r.precio_max) || 0,
+                precio_promedio: parseFloat(r.precio_promedio) || 0,
+                num_proveedores: parseInt(r.num_proveedores) || 0,
+                fecha_primera: r.fecha_primera,
+                precio_primero: precioPrimero,
+                fecha_ultima: r.fecha_ultima,
+                precio_ultimo: precioUltimo,
+                proveedor_ultimo: r.proveedor_ultimo,
+                variacion_pct: variacionPct,
+                sinVariacion,
+            };
+        });
+
+        const conVariacion = productos.filter(p => !p.sinVariacion && p.variacion_pct !== null);
+        const totalComprado = productos.reduce((s, p) => s + p.total_comprado, 0);
+        const totalEntradas = productos.reduce((s, p) => s + p.num_compras, 0);
+        const productosConAumento = conVariacion.filter(p => p.variacion_pct > 0).length;
+        const productosConDisminucion = conVariacion.filter(p => p.variacion_pct < 0).length;
+        const productosSinVariacion = productos.length - conVariacion.length;
+
+        const ordenDesc = [...conVariacion].sort((a, b) => b.variacion_pct - a.variacion_pct);
+        const top = ordenDesc.length ? ordenDesc[0] : null;
+        const bottom = ordenDesc.length ? ordenDesc[ordenDesc.length - 1] : null;
+        const mayorIncremento = (top && top.variacion_pct > 0) ? top : null;
+        const mayorAhorro = (bottom && bottom.variacion_pct < 0) ? bottom : null;
+
+        res.json({
+            success: true,
+            periodo: { desde: desdeDate, hasta: hastaDate },
+            kpis: {
+                totalComprado, totalEntradas,
+                productosAnalizados: productos.length,
+                productosConAumento, productosConDisminucion, productosSinVariacion,
+                mayorIncremento: mayorIncremento ? {
+                    producto_codigo: mayorIncremento.producto_codigo,
+                    producto_nombre: mayorIncremento.producto_nombre,
+                    variacion_pct: mayorIncremento.variacion_pct,
+                } : null,
+                mayorAhorro: mayorAhorro ? {
+                    producto_codigo: mayorAhorro.producto_codigo,
+                    producto_nombre: mayorAhorro.producto_nombre,
+                    variacion_pct: mayorAhorro.variacion_pct,
+                } : null,
+            },
+            productos,
+            gruposDisponibles: gruposRes.rows,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/analisis-costos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/gerencia/analisis-costos/producto/:codigo — histórico de compras de un producto puntual
+app.get('/api/gerencia/analisis-costos/producto/:codigo', async (req, res) => {
+    const { empresa, desde, hasta } = req.query;
+    const { codigo } = req.params;
+    if (!empresa || !codigo) return res.status(400).json({ success: false, error: 'empresa y codigo requeridos' });
+
+    const hastaDate = hasta || new Date().toISOString().slice(0, 10);
+    const desdeDate = desde || (() => {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() - 1);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    try {
+        const prodRes = await pool.query(
+            `SELECT p.codigo, p.nombre, p.und, COALESCE(gp.nombre,'Sin Grupo') AS grupo_nombre
+             FROM productos p LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             WHERE p.codigo = $1`,
+            [codigo]
+        );
+
+        const rows = await pool.query(
+            `SELECT ea.fecha::date AS fecha, ea.codigo AS entrada_codigo,
+                    COALESCE(prov.nombre, ea.proveedor) AS proveedor_nombre,
+                    dea.cantidad, dea.vr_unitario AS precio_unitario, dea.subtotal
+             FROM detalle_entrada_almacen dea
+             JOIN entrada_almacen ea ON ea.codigo = dea.codigo AND ea.empresa::text = $1
+             LEFT JOIN proveedores prov ON prov.codigo = ea.proveedor AND prov.empresa::text = $1
+             WHERE dea.articulo = $2
+               AND ea.fecha::date >= $3::date AND ea.fecha::date <= $4::date
+               AND dea.vr_unitario > 0
+             ORDER BY ea.fecha ASC, ea.codigo ASC`,
+            [String(empresa), codigo, desdeDate, hastaDate]
+        );
+
+        const productoInfo = prodRes.rows[0]
+            ? { codigo: prodRes.rows[0].codigo, nombre: prodRes.rows[0].nombre, und: prodRes.rows[0].und, grupo_nombre: prodRes.rows[0].grupo_nombre }
+            : { codigo, nombre: codigo, und: null, grupo_nombre: null };
+
+        const historico = [];
+        let prevPrecio = null;
+        for (const r of rows.rows) {
+            const precio = parseFloat(r.precio_unitario) || 0;
+            const variacion = (prevPrecio !== null && prevPrecio > 0)
+                ? ((precio - prevPrecio) / prevPrecio) * 100
+                : null;
+            historico.push({
+                fecha: r.fecha,
+                entrada_codigo: r.entrada_codigo,
+                proveedor_nombre: r.proveedor_nombre,
+                cantidad: parseFloat(r.cantidad) || 0,
+                precio_unitario: precio,
+                subtotal: parseFloat(r.subtotal) || 0,
+                variacion_vs_anterior_pct: variacion,
+            });
+            prevPrecio = precio;
+        }
+
+        if (!historico.length) {
+            return res.json({ success: true, producto: productoInfo, kpis: null, historico: [], porProveedor: [] });
+        }
+
+        const precios = historico.map(h => h.precio_unitario);
+        const precioActual = historico[historico.length - 1].precio_unitario;
+        const precioPrimero = historico[0].precio_unitario;
+        const precioPromedio = precios.reduce((s, v) => s + v, 0) / precios.length;
+        const precioMin = Math.min(...precios);
+        const precioMax = Math.max(...precios);
+        const variacionTotalPct = precioPrimero > 0 ? ((precioActual - precioPrimero) / precioPrimero) * 100 : null;
+        const variacionUltimasDosPct = historico.length >= 2 ? historico[historico.length - 1].variacion_vs_anterior_pct : null;
+
+        const provMap = {};
+        for (const h of historico) {
+            const key = h.proveedor_nombre || 'Sin proveedor';
+            if (!provMap[key]) provMap[key] = { proveedor_nombre: key, precios: [] };
+            provMap[key].precios.push(h.precio_unitario);
+        }
+        const porProveedor = Object.values(provMap).map(p => ({
+            proveedor_nombre: p.proveedor_nombre,
+            num_compras: p.precios.length,
+            precio_promedio: p.precios.reduce((s, v) => s + v, 0) / p.precios.length,
+            precio_min: Math.min(...p.precios),
+            precio_max: Math.max(...p.precios),
+        })).sort((a, b) => a.precio_promedio - b.precio_promedio);
+
+        const proveedorMasBarato = porProveedor.length ? porProveedor[0] : null;
+        const proveedorMasCaro = (porProveedor.length > 1) ? porProveedor[porProveedor.length - 1] : null;
+        const totalComprado = historico.reduce((s, h) => s + h.subtotal, 0);
+        const alertaDato = variacionTotalPct !== null && Math.abs(variacionTotalPct) > 300;
+
+        res.json({
+            success: true,
+            producto: productoInfo,
+            kpis: {
+                precioActual, precioPromedio, precioMin, precioMax,
+                variacionTotalPct, variacionUltimasDosPct,
+                totalComprado, numCompras: historico.length,
+                proveedorMasBarato: proveedorMasBarato ? { nombre: proveedorMasBarato.proveedor_nombre, precio_promedio: proveedorMasBarato.precio_promedio } : null,
+                proveedorMasCaro: proveedorMasCaro ? { nombre: proveedorMasCaro.proveedor_nombre, precio_promedio: proveedorMasCaro.precio_promedio } : null,
+                alertaDato,
+            },
+            historico,
+            porProveedor,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/analisis-costos/producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta

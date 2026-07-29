@@ -207,6 +207,7 @@ export const MODULES = [
         { name: 'Análisis de Nómina',   icon: 'mdi-account-cash-outline',   path: '/gerencia/reportes/analisis-nomina' },
         { name: 'Labor Cost %',         icon: 'mdi-percent-outline',        path: '/gerencia/reportes/labor-cost' },
         { name: 'Consumo Materia Prima', icon: 'mdi-food-variant',          path: '/gerencia/reportes/consumo-mp' },
+        { name: 'Análisis de Costos',   icon: 'mdi-trending-up',           path: '/gerencia/reportes/analisis-costos' },
         { name: 'Puntuación/Reviews',   icon: 'mdi-star-outline',           path: '/gerencia/reportes/reviews' },
       ]},
     ],

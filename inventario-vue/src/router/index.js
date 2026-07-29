@@ -115,6 +115,7 @@ const routes = [
   { path: '/gerencia/reportes/analisis-nomina', component: () => import('../views/gerencia/GerenciaAnalisisNominaView.vue'), meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/labor-cost',      component: () => import('../views/gerencia/GerenciaLaborCostView.vue'),      meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/consumo-mp',      component: () => import('../views/gerencia/GerenciaConsumoMPView.vue'),      meta: { requiresAuth: true } },
+  { path: '/gerencia/reportes/analisis-costos', component: () => import('../views/gerencia/GerenciaAnalisisCostosView.vue'), meta: { requiresAuth: true } },
 
   // GERENCIA — patrón general
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },
