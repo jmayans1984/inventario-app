@@ -92,6 +92,7 @@ export const MODULES = [
     children: [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
         { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos', requiredTipo: 'PROVEEDOR' },
+        { name: 'Precio de Costo', icon: 'mdi-cash-edit', path: '/almacen/configuracion/costos-productos' },
         { name: 'Control de Stock', icon: 'mdi-package-variant-closed', path: '/almacen/configuracion/control-stock', requiredTipo: 'PROVEEDOR' },
         { name: 'Impresión de Códigos de Barras', icon: 'mdi-barcode', path: '/almacen/configuracion/impresion-barcodes' },
         { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/almacen/configuracion/grupo-productos' },

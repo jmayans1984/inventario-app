@@ -837,6 +837,76 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
     }
 });
 
+// ── COSTOS DE PRODUCTOS (actualización manual, ruteada por empresa) ───────────
+// PRINCIPAL (tipo_empresa = PROVEEDOR) → costo BASE en productos.precio_costo
+// CLIENTE                              → su capa producto_costo_empresa
+// (mismo criterio que la actualización de costo desde gastos, línea ~9491)
+
+// GET /api/almacen/costos-productos?empresa=
+app.get('/api/almacen/costos-productos', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const teRes = await pool.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
+        const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+
+        const result = await pool.query(
+            `SELECT p.codigo, p.nombre, COALESCE(p.descripcion, '') AS descripcion, p.und,
+                    COALESCE(p.grupo, '__sin__')      AS grupo,
+                    COALESCE(gp.nombre, 'Sin Grupo')  AS grupo_nombre,
+                    COALESCE(p.precio_costo, 0)       AS costo_base,
+                    pce.precio_costo                  AS costo_empresa,
+                    COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo
+             FROM productos p
+             LEFT JOIN producto_costo_empresa pce
+                    ON pce.codigo = p.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             ORDER BY COALESCE(gp.nombre, 'Sin Grupo'), p.nombre`,
+            [String(empresa)]
+        );
+
+        res.json({ success: true, esPrincipal, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/costos-productos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/almacen/costos-productos/:codigo   body: { empresa, precio_costo }
+app.put('/api/almacen/costos-productos/:codigo', async (req, res) => {
+    const { codigo } = req.params;
+    const { empresa, precio_costo } = req.body;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const costo = Math.round((parseFloat(precio_costo) || 0) * 100) / 100;
+    if (costo < 0) return res.status(400).json({ success: false, error: 'El costo no puede ser negativo' });
+
+    try {
+        const existe = await pool.query(`SELECT 1 FROM productos WHERE codigo = $1`, [codigo]);
+        if (!existe.rowCount) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+
+        const teRes = await pool.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
+        const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+
+        if (esPrincipal) {
+            await pool.query(`UPDATE productos SET precio_costo = $1 WHERE codigo = $2`, [costo, codigo]);
+        } else {
+            await pool.query(
+                `INSERT INTO producto_costo_empresa (empresa, codigo, precio_costo)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (empresa, codigo) DO UPDATE SET precio_costo = EXCLUDED.precio_costo`,
+                [String(empresa), String(codigo).trim(), costo]
+            );
+        }
+
+        res.json({ success: true, data: { codigo, precio_costo: costo, esPrincipal } });
+    } catch (error) {
+        console.error('Error PUT /api/almacen/costos-productos/:codigo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// ── FIN COSTOS DE PRODUCTOS ───────────────────────────────────────────────────
+
 // ── BARCODES ──────────────────────────────────────────────────────────────────
 
 // GET /api/almacen/productos/:codigo/barcodes
