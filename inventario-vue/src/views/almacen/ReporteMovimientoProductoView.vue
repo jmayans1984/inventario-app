@@ -216,6 +216,7 @@ import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { fechaInputLocal } from '../../utils/formatters'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader } from '../../utils/pdfReportStyle'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -397,242 +398,93 @@ function tipoBadgeClass(tipo) {
 
 // ── Exportar PDF ──────────────────────────────────────────────────
 function exportarPDF() {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
-  const PW = doc.internal.pageSize.getWidth()   // 216
-  const PH = doc.internal.pageSize.getHeight()  // 279
-  const ML = 8, MR = 8
-  const HEADER_H = 32
-
-  // Fecha de impresión
-  const now = new Date()
-  const impStr = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`
-
-  // Rango formateado
-  const rangoStr = `${fmtFecha(fechaInicio.value)} — ${fmtFecha(fechaFin.value)}`
-
-  // Nombres de productos filtrados (si aplica)
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+  const ML = 10
+  const rangoStr = `${fmtFecha(fechaInicio.value)} - ${fmtFecha(fechaFin.value)}`
   const prodFiltradoNombre = filtroProducto.value.length > 0
     ? filtroProducto.value.map(c => productosDisponibles.value.find(p => p.codigo === c)?.label || c).join(', ')
-    : null
+    : ''
 
-  function drawHeader(pageNum, totalPages) {
-    // Panel izquierdo oscuro (55px)
-    doc.setFillColor(15, 30, 53)
-    doc.rect(0, 0, 55, HEADER_H, 'F')
-    // Panel derecho claro
-    doc.setFillColor(248, 250, 252)
-    doc.rect(55, 0, PW - 55, HEADER_H, 'F')
-    // Línea separadora inferior cyan
-    doc.setDrawColor(8, 145, 178)
-    doc.setLineWidth(0.6)
-    doc.line(0, HEADER_H, PW, HEADER_H)
+  const startY = drawReportHeader(doc, {
+    title: 'MOVIMIENTO POR PRODUCTO',
+    subtitle: `Centro de Costo: ${nombreCcosto.value || '-'} | Periodo: ${rangoStr}${prodFiltradoNombre ? ' | Producto: ' + prodFiltradoNombre : ''}`,
+    empresa: auth.empresaNombre || empresa.value || 'EMPRESA',
+    usuario: auth.userName || auth.userNombre,
+    moduleName: 'Modulo de almacen | Reportes',
+    margin: ML,
+  })
 
-    // Texto izquierdo
-    doc.setTextColor(148, 163, 184)
-    doc.setFontSize(5.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text('REPORTE', ML, 9)
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(8.5)
-    doc.setFont('helvetica', 'bold')
-    doc.text('MOVIMIENTO', ML, 16)
-    doc.text('POR PRODUCTO', ML, 22)
-    doc.setFontSize(6.5)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(56, 189, 248)
-    doc.text('DÍA A DÍA', ML, 28)
-
-    // Datos derecha — columna 1 (a partir de x=59)
-    const rx = 59
-    doc.setTextColor(100, 116, 139)
-    doc.setFontSize(6)
-    doc.setFont('helvetica', 'bold')
-    doc.text('CENTRO DE COSTO:', rx, 9)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(15, 30, 53)
-    doc.setFontSize(7.5)
-    // truncar si es muy largo
-    const ccNombre = doc.splitTextToSize(nombreCcosto.value, 75)[0]
-    doc.text(ccNombre, rx, 15)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.setTextColor(100, 116, 139)
-    doc.text('PERÍODO:', rx, 22)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(15, 30, 53)
-    doc.setFontSize(7)
-    doc.text(rangoStr, rx, 28)
-
-    // Datos derecha — columna 2 (a partir de x=142)
-    const rx2 = 142
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.setTextColor(100, 116, 139)
-    doc.text('PRODUCTOS:', rx2, 9)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(15, 30, 53)
-    doc.setFontSize(7)
-    doc.text(String(totalProductos.value), rx2 + doc.getTextWidth('PRODUCTOS:') + 1, 9)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.setTextColor(100, 116, 139)
-    doc.text('ENTRADAS:', rx2, 17)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(16, 185, 129)
-    doc.setFontSize(7)
-    doc.text(fmtNum(totalEntradas.value), rx2 + doc.getTextWidth('ENTRADAS:') + 1, 17)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.setTextColor(100, 116, 139)
-    doc.text('SALIDAS:', rx2, 24)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(245, 158, 11)
-    doc.setFontSize(7)
-    doc.text(fmtNum(totalSalidas.value), rx2 + doc.getTextWidth('SALIDAS:') + 1, 24)
-
-    // Número de página
-    doc.setFontSize(6.5)
-    doc.setTextColor(148, 163, 184)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Pág. ${pageNum}${totalPages ? ' / ' + totalPages : ''}`, PW - MR - 16, 14)
-
-    doc.setTextColor(0, 0, 0)
-  }
-
-  function drawFooter() {
-    doc.setFontSize(6.5)
-    doc.setTextColor(150)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Impreso: ${impStr}`, ML, PH - 5)
-    if (prodFiltradoNombre) {
-      doc.text(`Filtro: ${prodFiltradoNombre}`, ML + 40, PH - 5)
-    }
-    doc.setTextColor(0, 0, 0)
-  }
-
-  // ── Construir body de la tabla ────────────────────────────────
   const body = []
-
   for (const grupo of productosAgrupados.value) {
-    // Fila de grupo
     body.push([{
-      content: grupo.nombre.toUpperCase(),
+      content: String(grupo.nombre || 'Sin Grupo').toUpperCase(),
       colSpan: 9,
       styles: {
-        fontStyle: 'bold', fontSize: 6.5, textColor: [8, 100, 140],
-        fillColor: [240, 249, 255], halign: 'left',
-        cellPadding: { top: 1.5, bottom: 1.5, left: 4, right: 4 }
-      }
+        fontStyle: 'bold', fontSize: 6.5, textColor: [0, 0, 0], fillColor: false,
+        halign: 'left', lineWidth: { top: 0.25, bottom: 0.18 }, lineColor: [115, 115, 115],
+        cellPadding: { top: 1.5, right: 1.8, bottom: 1.2, left: 1.8 },
+      },
     }])
 
     for (const prod of grupo.productos) {
-      // Cabecera del producto
-      body.push([
-        { content: prod.codigo, styles: { fontStyle: 'bold', fontSize: 6.5, textColor: [15,30,53], halign: 'center', fillColor: [241,245,249] } },
-        { content: '', styles: { fillColor: [241,245,249] } },
-        { content: prod.nombre, colSpan: 2, styles: { fontStyle: 'bold', fontSize: 7.5, textColor: [15,30,53], fillColor: [241,245,249] } },
-        { content: fmtNum(prod.stockInicial), styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'right', textColor: [71,85,105], fillColor: [241,245,249] } },
-        { content: '', colSpan: 4, styles: { fillColor: [241,245,249] } },
-      ])
+      body.push([{
+        content: `${prod.codigo} - ${prod.nombre}`,
+        colSpan: 9,
+        styles: {
+          fontStyle: 'bold', fontSize: 6.8, textColor: [0, 0, 0], fillColor: false,
+          halign: 'left', lineWidth: { bottom: 0.18 }, lineColor: [115, 115, 115],
+          cellPadding: { top: 1.4, right: 1.8, bottom: 1.1, left: 1.8 },
+        },
+      }])
 
-      // Días
       for (const dia of prod.dias) {
         body.push([
-          { content: fmtFecha(dia.fecha), styles: { fontSize: 6.5, textColor: [100,116,139], halign: 'center' } },
-          { content: dia.tipo || '', styles: { fontSize: 6, textColor: [71,85,105], halign: 'left' } },
-          '',
-          '',
-          { content: fmtNum(dia.saldoAnterior), styles: { fontSize: 6.5, textColor: [148,163,184], halign: 'right' } },
-          { content: dia.entradas > 0 ? fmtNum(dia.entradas) : '—', styles: { fontSize: 6.5, halign: 'right',
-              textColor: dia.entradas > 0 ? [16,185,129] : [200,200,200] } },
-          { content: dia.salidas  > 0 ? fmtNum(dia.salidas)  : '—', styles: { fontSize: 6.5, halign: 'right',
-              textColor: dia.salidas  > 0 ? [245,158,11] : [200,200,200] } },
-          { content: dia.ventas   > 0 ? fmtNum(dia.ventas)   : '—', styles: { fontSize: 6.5, halign: 'right',
-              textColor: dia.ventas   > 0 ? [239,68,68]  : [200,200,200] } },
-          { content: fmtNum(dia.saldoFinal), styles: { fontSize: 7, fontStyle: 'bold', halign: 'right',
-              textColor: dia.saldoFinal < 0 ? [239,68,68] : [8,145,178] } },
+          fmtFecha(dia.fecha),
+          dia.tipo || '-',
+          prod.nombre,
+          prod.und,
+          fmtNum(dia.saldoAnterior),
+          dia.entradas > 0 ? fmtNum(dia.entradas) : '-',
+          dia.salidas > 0 ? fmtNum(dia.salidas) : '-',
+          dia.ventas > 0 ? fmtNum(dia.ventas) : '-',
+          fmtNum(dia.saldoFinal),
         ])
       }
-
-      // Total del producto
-      body.push([
-        { content: 'TOTAL', colSpan: 4, styles: { fontStyle: 'bold', fontSize: 6.5, textColor: [71,85,105],
-            halign: 'right', fillColor: [241,245,249] } },
-        { content: fmtNum(prod.stockInicial), styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'right',
-            textColor: [71,85,105], fillColor: [241,245,249] } },
-        { content: fmtNum(prod.totalEntradas), styles: { fontStyle: 'bold', fontSize: 7, halign: 'right',
-            textColor: [16,185,129], fillColor: [241,245,249] } },
-        { content: fmtNum(prod.totalSalidas),  styles: { fontStyle: 'bold', fontSize: 7, halign: 'right',
-            textColor: [245,158,11], fillColor: [241,245,249] } },
-        { content: fmtNum(prod.totalVentas),   styles: { fontStyle: 'bold', fontSize: 7, halign: 'right',
-            textColor: [239,68,68],  fillColor: [241,245,249] } },
-        { content: fmtNum(prod.stockFinal), styles: { fontStyle: 'bold', fontSize: 7.5, halign: 'right',
-            textColor: prod.stockFinal < 0 ? [239,68,68] : [8,145,178], fillColor: [241,245,249] } },
-      ])
     }
   }
 
-  // ── autoTable ─────────────────────────────────────────────────
-  drawHeader(1, null)
-
   autoTable(doc, {
-    startY: HEADER_H + 3,
-    showHead: 'everyPage',
-    head: [[
-      { content: 'FECHA',      styles: { halign: 'center' } },
-      { content: 'TIPO',       styles: { halign: 'left'   } },
-      { content: 'PRODUCTO',   styles: { halign: 'left'   } },
-      { content: 'UND',        styles: { halign: 'center' } },
-      { content: 'ANT.',       styles: { halign: 'right'  } },
-      { content: 'ENTRADAS',   styles: { halign: 'right'  } },
-      { content: 'SALIDAS',    styles: { halign: 'right'  } },
-      { content: 'VENTAS',     styles: { halign: 'right'  } },
-      { content: 'SALDO',      styles: { halign: 'right'  } },
-    ]],
+    startY,
+    head: [['Fecha', 'Tipo', 'Producto', 'Und', 'Ant.', 'Entradas', 'Salidas', 'Ventas', 'Saldo']],
     body,
-    theme: 'plain',
-    headStyles: {
-      fillColor: [15, 30, 53],
-      textColor: [203, 213, 225],
-      fontSize: 6.5, fontStyle: 'bold',
-      cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
-    },
-    bodyStyles: {
-      fontSize: 6.5,
-      cellPadding: { top: 1, bottom: 1, left: 3, right: 3 },
-    },
+    ...detailTableOptions(ML),
+    styles: { ...detailTableOptions(ML).styles, fontSize: 6.5, cellPadding: { top: 1, right: 1.4, bottom: 1, left: 1.4 } },
+    headStyles: { ...detailTableOptions(ML).headStyles, fontSize: 6 },
     columnStyles: {
-      0: { cellWidth: 18, halign: 'center' },
-      1: { cellWidth: 30, halign: 'left'   },
+      0: { cellWidth: 18, halign: 'left' },
+      1: { cellWidth: 40, halign: 'left' },
       2: { cellWidth: 'auto' },
       3: { cellWidth: 12, halign: 'center' },
-      4: { cellWidth: 17, halign: 'right'  },
-      5: { cellWidth: 17, halign: 'right'  },
-      6: { cellWidth: 17, halign: 'right'  },
-      7: { cellWidth: 17, halign: 'right'  },
-      8: { cellWidth: 20, halign: 'right'  },
+      4: { cellWidth: 20, halign: 'right' },
+      5: { cellWidth: 20, halign: 'right' },
+      6: { cellWidth: 20, halign: 'right' },
+      7: { cellWidth: 20, halign: 'right' },
+      8: { cellWidth: 22, halign: 'right' },
     },
-    margin: { left: ML, right: MR, bottom: 16, top: HEADER_H + 2 },
-    didDrawPage: (data) => { drawHeader(data.pageNumber, null) },
+    didParseCell: (data) => {
+      alignReportCell(data, { 0: 'left', 1: 'left', 2: 'left', 3: 'center', 4: 'right', 5: 'right', 6: 'right', 7: 'right', 8: 'right' })
+      if (data.section === 'body' && data.row.raw?.[0]?.colSpan === 9) {
+        data.cell.styles.halign = 'left'
+        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontSize = 6.6
+        data.cell.styles.lineWidth = { top: data.row.index === 0 ? 0.25 : 0, bottom: 0.18 }
+        data.cell.styles.lineColor = [115, 115, 115]
+      }
+    },
+    didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
   })
 
-  // Actualizar números de página y footer
-  const totalPgs = doc.internal.getNumberOfPages()
-  for (let i = 1; i <= totalPgs; i++) {
-    doc.setPage(i)
-    drawFooter()
-    doc.setFontSize(6.5)
-    doc.setTextColor(148, 163, 184)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Pág. ${i} / ${totalPgs}`, PW - MR - 16, 14)
-    doc.setTextColor(0, 0, 0)
-  }
-
-  const blob = doc.output('blob')
-  window.open(URL.createObjectURL(blob), '_blank')
+  window.open(URL.createObjectURL(doc.output('blob')), '_blank')
 }
 </script>
 

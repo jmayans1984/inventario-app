@@ -133,6 +133,7 @@ import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader } from '../../utils/pdfReportStyle'
 
 const authStore = useAuthStore()
 
@@ -190,178 +191,67 @@ function nivelPct(p) {
 
 // ── PDF ──────────────────────────────────────────────────────────
 function exportarPDF() {
-  const doc    = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-  const PW     = doc.internal.pageSize.getWidth()   // 279
-  const PH     = doc.internal.pageSize.getHeight()  // 216
-  const ML     = 8, MR = 8
-  const HEADER_H = 30
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+  const ML = 10
+  const startY = drawReportHeader(doc, {
+    title: 'REPORTE DE STOCK',
+    subtitle: `Bodega Maestra: ${bodega.value || '-'}`,
+    empresa: authStore.empresaNombre || authStore.empresaCodigo || 'EMPRESA',
+    usuario: authStore.userName || authStore.userNombre,
+    moduleName: 'Modulo de almacen | Reportes',
+    margin: ML,
+  })
 
-  const hoyDate = new Date()
-  const mm   = String(hoyDate.getMonth() + 1).padStart(2, '0')
-  const dd   = String(hoyDate.getDate()).padStart(2, '0')
-  const yyyy = hoyDate.getFullYear()
-  const hoyStr = `${mm}/${dd}/${yyyy}`
-
-  function drawHeader(pageNum, totalPages) {
-    // Panel izquierdo oscuro
-    doc.setFillColor(26, 26, 46)
-    doc.rect(0, 0, 60, HEADER_H, 'F')
-    // Panel derecho claro
-    doc.setFillColor(248, 250, 252)
-    doc.rect(60, 0, PW - 60, HEADER_H, 'F')
-    // Línea roja separadora
-    doc.setDrawColor(220, 38, 38)
-    doc.setLineWidth(0.5)
-    doc.line(0, HEADER_H, PW, HEADER_H)
-
-    // Texto izquierdo
-    doc.setTextColor(148, 163, 184)
-    doc.setFontSize(6)
-    doc.setFont('helvetica', 'normal')
-    doc.text('REPORTE', ML, 8)
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text('ALERTAS DE STOCK', ML, 15)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(252, 165, 165)
-    doc.text('BAJO STOCK MÍNIMO', ML, 21)
-
-    // Derecha — Bodega
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('BODEGA MAESTRA:', 64, 8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.setFontSize(7.5)
-    doc.text(bodega.value || '—', 64, 14)
-
-    // Derecha — Productos en alerta
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('PRODUCTOS EN ALERTA:', 140, 8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.setFontSize(7.5)
-    doc.text(String(totalProductos.value), 140, 14)
-
-    // Derecha — Con stock cero
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('CON STOCK CERO:', 64, 22)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(220, 38, 38)
-    doc.setFontSize(7.5)
-    doc.text(String(totalCero.value), 64 + doc.getTextWidth('CON STOCK CERO:') + 2, 22)
-
-    // Número de página
-    if (totalPages) {
-      doc.setFontSize(7)
-      doc.setTextColor(148, 163, 184)
-      doc.text(`Pág. ${pageNum} / ${totalPages}`, PW - MR - 20, 14)
-    }
-    doc.setTextColor(0, 0, 0)
-  }
-
-  function drawFooter() {
-    doc.setFontSize(6.5)
-    doc.setTextColor(150)
-    doc.text(`Impreso: ${hoyStr}`, ML, PH - 4)
-    doc.setTextColor(0, 0, 0)
-  }
-
-  drawHeader(1, null)
-
-  const CP = { top: 1.2, bottom: 1.2, left: 3, right: 3 }
-  const body     = []
-  const rowItems = []  // para colorear celdas: null = fila de grupo
-
+  const body = []
   for (const grupo of grupos.value) {
     body.push([{
-      content: grupo.nombre.toUpperCase(),
+      content: String(grupo.nombre || 'Sin Grupo').toUpperCase(),
       colSpan: 7,
       styles: {
-        fontStyle: 'bold', fontSize: 7,
-        textColor: [185, 28, 28],
-        fillColor: [254, 242, 242],
-        halign: 'left',
-        cellPadding: { top: 1.4, bottom: 1.4, left: 5, right: 5 }
-      }
+        fontStyle: 'bold', fontSize: 6.5, textColor: [0, 0, 0], fillColor: false,
+        halign: 'left', lineWidth: { top: 0.25, bottom: 0.18 }, lineColor: [115, 115, 115],
+        cellPadding: { top: 1.5, right: 1.8, bottom: 1.2, left: 1.8 },
+      },
     }])
-    rowItems.push(null)
-
     for (const p of grupo.items) {
       body.push([
         p.codigo,
         p.nombre,
-        p.descripcion || '—',
+        p.descripcion || '-',
         p.und,
         fmtNum(p.stock_minimo),
         fmtNum(p.stock_actual),
         fmtNum(p.faltante),
       ])
-      rowItems.push(p)
     }
   }
 
   autoTable(doc, {
-    startY: HEADER_H + 3,
-    showHead: 'everyPage',
-    head: [[
-      { content: 'CÓD',          styles: { halign: 'center' } },
-      { content: 'NOMBRE' },
-      { content: 'DESCRIPCIÓN' },
-      { content: 'UND',          styles: { halign: 'center' } },
-      { content: 'STOCK MÍN',   styles: { halign: 'right'  } },
-      { content: 'STOCK ACTUAL', styles: { halign: 'right'  } },
-      { content: 'FALTANTE',    styles: { halign: 'right'  } },
-    ]],
+    startY,
+    head: [['Cod', 'Nombre', 'Descripcion', 'Und', 'Stock Min.', 'Stock Actual', 'Faltante']],
     body,
-    theme: 'plain',
-    headStyles: {
-      fillColor: [26, 26, 46],
-      textColor: [203, 213, 225],
-      fontSize: 7, fontStyle: 'bold',
-      cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 3 },
-    },
-    bodyStyles: { fontSize: 7, cellPadding: CP },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+    ...detailTableOptions(ML),
     columnStyles: {
-      0: { cellWidth: 16,    halign: 'center' },
-      1: { cellWidth: 55 },
+      0: { cellWidth: 16, halign: 'center' },
+      1: { cellWidth: 62 },
       2: { cellWidth: 'auto' },
-      3: { cellWidth: 14,    halign: 'center' },
-      4: { cellWidth: 22,    halign: 'right' },
-      5: { cellWidth: 25,    halign: 'right' },
-      6: { cellWidth: 22,    halign: 'right', textColor: [185, 28, 28], fontStyle: 'bold' },
+      3: { cellWidth: 14, halign: 'center' },
+      4: { cellWidth: 24, halign: 'right' },
+      5: { cellWidth: 26, halign: 'right' },
+      6: { cellWidth: 24, halign: 'right' },
     },
-    didParseCell(data) {
-      if (data.section !== 'body') return
-      const item = rowItems[data.row.index]
-      if (!item) return
-      if (data.column.index === 5) {
-        const val = parseFloat(item.stock_actual)
-        data.cell.styles.textColor = val <= 0 ? [220, 38, 38] : [202, 138, 4]
+    didParseCell: (data) => {
+      alignReportCell(data, { 0: 'center', 1: 'left', 2: 'left', 3: 'center', 4: 'right', 5: 'right', 6: 'right' })
+      if (data.section === 'body' && data.row.raw?.[0]?.colSpan === 7) {
+        data.cell.styles.halign = 'left'
         data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontSize = 6.5
+        data.cell.styles.lineWidth = { top: 0.25, bottom: 0.18 }
+        data.cell.styles.lineColor = [115, 115, 115]
       }
     },
-    margin: { left: ML, right: MR, bottom: 14, top: HEADER_H + 2 },
-    didDrawPage: (data) => { drawHeader(data.pageNumber, null) },
+    didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
   })
-
-  const totalPgs = doc.internal.getNumberOfPages()
-  for (let i = 1; i <= totalPgs; i++) {
-    doc.setPage(i)
-    drawFooter()
-    doc.setFontSize(7)
-    doc.setTextColor(148, 163, 184)
-    doc.text(`Pág. ${i} / ${totalPgs}`, PW - MR - 20, 14)
-    doc.setTextColor(0, 0, 0)
-  }
 
   window.open(URL.createObjectURL(doc.output('blob')), '_blank')
 }

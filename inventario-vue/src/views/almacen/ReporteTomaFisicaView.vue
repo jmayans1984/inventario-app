@@ -219,6 +219,7 @@ import api from '../../services/api'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { fechaInputLocal } from '../../utils/formatters'
+import { alignReportCell, detailTableOptions, drawReportFooter, drawReportHeader } from '../../utils/pdfReportStyle'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -349,196 +350,89 @@ async function generar() {
 
 // ── Exportar PDF ──────────────────────────────────────────────────
 function exportarPDF() {
-  const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
-  const PW   = doc.internal.pageSize.getWidth()
-  const PH   = doc.internal.pageSize.getHeight()
-  const ML   = 8, MR = 8
-  const HEADER_H = 30
-
-  const hoyDate = new Date()
-  const mm  = String(hoyDate.getMonth()+1).padStart(2,'0')
-  const dd  = String(hoyDate.getDate()).padStart(2,'0')
-  const yyyy = hoyDate.getFullYear()
-  const hoyStr = `${mm}/${dd}/${yyyy}`
-
-  function drawHeader(pageNum, totalPages) {
-    doc.setFillColor(26, 26, 46)
-    doc.rect(0, 0, 55, HEADER_H, 'F')
-    doc.setFillColor(248, 250, 252)
-    doc.rect(55, 0, PW - 55, HEADER_H, 'F')
-    doc.setDrawColor(8, 145, 178)
-    doc.setLineWidth(0.5)
-    doc.line(0, HEADER_H, PW, HEADER_H)
-
-    // Texto izquierdo
-    doc.setTextColor(148, 163, 184)
-    doc.setFontSize(6)
-    doc.setFont('helvetica', 'normal')
-    doc.text('REPORTE', ML, 8)
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text('FALTANTES Y SOBRANTES', ML, 15)
-    doc.setFontSize(7)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(103, 232, 249)
-    doc.text('TOMA FÍSICA', ML, 21)
-
-    // Datos derecha
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('CENTRO DE COSTO:', 59, 8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.setFontSize(7.5)
-    doc.text(nombresCcostos.value, 59, 14)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('PERÍODO:', 130, 8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.setFontSize(7.5)
-    doc.text(`${fmtFecha(fechaIni.value)}  →  ${fmtFecha(fechaFin.value)}`, 130, 14)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.5)
-    doc.setTextColor(100, 116, 139)
-    doc.text('VARIACIÓN:', 59, 21)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(26, 26, 46)
-    doc.text(formatNum(totalVariacion.value), 59 + doc.getTextWidth('VARIACIÓN:') + 2, 21)
-
-    if (incluirCostos.value) {
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(6.5)
-      doc.setTextColor(100, 116, 139)
-      doc.text('VALOR:', 130, 21)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(26, 26, 46)
-      doc.setFontSize(7.5)
-      doc.text(formatMoney(totalValorizado.value), 130 + doc.getTextWidth('VALOR:') + 3, 21)
-    }
-
-    if (totalPages) {
-      doc.setFontSize(7)
-      doc.setTextColor(148, 163, 184)
-      doc.text(`Pág. ${pageNum} / ${totalPages}`, PW - MR - 18, 14)
-    }
-    doc.setTextColor(0, 0, 0)
-  }
-
-  function drawFooter() {
-    doc.setFontSize(6.5)
-    doc.setTextColor(150)
-    doc.text(`Impreso: ${hoyStr}`, ML, PH - 4)
-    doc.setTextColor(0, 0, 0)
-  }
-
-  drawHeader(1, null)
-
-  const CP = { top: 1.2, bottom: 1.2, left: 3, right: 3 }
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+  const ML = 10
   const conCosto = incluirCostos.value
-  const numCols  = conCosto ? 7 : 5
-  const body = []
+  const numCols = conCosto ? 7 : 5
+  const startY = drawReportHeader(doc, {
+    title: 'FALTANTES Y SOBRANTES',
+    subtitle: `Centro de Costo: ${nombresCcostos.value || '-'} | Periodo: ${fmtFecha(fechaIni.value)} - ${fmtFecha(fechaFin.value)}`,
+    empresa: auth.empresaNombre || empresa.value || 'EMPRESA',
+    usuario: auth.userName || auth.userNombre,
+    moduleName: 'Modulo de almacen | Reportes',
+    margin: ML,
+  })
 
+  const body = []
   for (const grupo of productosAgrupados.value) {
     body.push([{
-      content: grupo.nombre.toUpperCase(),
+      content: String(grupo.nombre || 'Sin Grupo').toUpperCase(),
       colSpan: numCols,
       styles: {
-        fontStyle: 'bold', fontSize: 7, textColor: [8, 100, 140],
-        fillColor: [240, 249, 255], halign: 'left',
-        cellPadding: { top: 1.2, bottom: 1.2, left: 4, right: 4 }
-      }
+        fontStyle: 'bold', fontSize: 6.5, textColor: [0, 0, 0], fillColor: false,
+        halign: 'left', lineWidth: { top: 0.25, bottom: 0.18 }, lineColor: [115, 115, 115],
+        cellPadding: { top: 1.5, right: 1.8, bottom: 1.2, left: 1.8 },
+      },
     }])
     for (const p of grupo.items) {
       const variacion = parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)
-      const color = variacion < 0 ? [245,158,11] : (variacion > 0 ? [16,185,129] : [0,0,0])
-      const fila = [
-        p.codigo,
-        p.nombre,
-        p.descripcion || '',
-        p.und,
-        { content: formatNum(variacion), styles: { textColor: color } },
-      ]
+      const fila = [p.codigo, p.nombre, p.descripcion || '-', p.und, formatNum(variacion)]
       if (conCosto) {
-        fila.push({ content: formatMoney(p.precio_costo), styles: { textColor: [100,116,139] } })
-        fila.push({ content: formatMoney(valorNeto(p)),   styles: { textColor: color } })
+        fila.push(formatMoney(p.precio_costo))
+        fila.push(formatMoney(valorNeto(p)))
       }
       body.push(fila)
     }
   }
 
-  // Fila total
   const totalRow = [
-    { content: 'TOTALES', colSpan: 4, styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'left', cellPadding: CP } },
-    { content: formatNum(totalVariacion.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } },
+    { content: 'TOTALES', colSpan: 4, styles: { fontStyle: 'bold', halign: 'left' } },
+    { content: formatNum(totalVariacion.value), styles: { fontStyle: 'bold', halign: 'right' } },
   ]
   if (conCosto) {
-    totalRow.push({ content: '', styles: { fillColor: [26,26,46], cellPadding: CP } })
-    totalRow.push({ content: formatMoney(totalValorizado.value), styles: { fontStyle: 'bold', fillColor: [26,26,46], textColor: [255,255,255], halign: 'right', cellPadding: CP } })
+    totalRow.push('')
+    totalRow.push({ content: formatMoney(totalValorizado.value), styles: { fontStyle: 'bold', halign: 'right' } })
   }
-  body.push(totalRow)
 
   autoTable(doc, {
-    startY: HEADER_H + 3,
-    showHead: 'everyPage',
-    head: [conCosto ? [
-      { content: 'CÓD',          styles: { halign: 'center' } },
-      { content: 'PRODUCTO' },
-      { content: 'DESCRIPCIÓN' },
-      { content: 'UNIDAD',       styles: { halign: 'center' } },
-      { content: 'VARIACIÓN',    styles: { halign: 'right' } },
-      { content: 'COSTO UNIT.',  styles: { halign: 'right' } },
-      { content: 'VALOR',        styles: { halign: 'right' } },
-    ] : [
-      { content: 'CÓD',          styles: { halign: 'center' } },
-      { content: 'PRODUCTO' },
-      { content: 'DESCRIPCIÓN' },
-      { content: 'UNIDAD',       styles: { halign: 'center' } },
-      { content: 'VARIACIÓN',    styles: { halign: 'right' } },
-    ]],
+    startY,
+    head: [conCosto
+      ? ['Cod', 'Producto', 'Descripcion', 'Und', 'Variacion', 'Costo Unit.', 'Valor']
+      : ['Cod', 'Producto', 'Descripcion', 'Und', 'Variacion']
+    ],
     body,
-    theme: 'plain',
-    headStyles: {
-      fillColor: [26, 26, 46],
-      textColor: [203, 213, 225],
-      fontSize: 7, fontStyle: 'bold',
-      cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 3 },
-    },
-    bodyStyles: { fontSize: 7, cellPadding: CP },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+    foot: [totalRow],
+    ...detailTableOptions(ML),
     columnStyles: conCosto ? {
-      0: { cellWidth: 14,   halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 'auto', textColor: [80, 80, 80] },
-      3: { cellWidth: 14,   halign: 'center' },
-      4: { cellWidth: 20,   halign: 'right' },
-      5: { cellWidth: 22,   halign: 'right' },
-      6: { cellWidth: 24,   halign: 'right' },
+      0: { cellWidth: 14, halign: 'center' },
+      1: { cellWidth: 48 },
+      2: { cellWidth: 'auto' },
+      3: { cellWidth: 13, halign: 'center' },
+      4: { cellWidth: 20, halign: 'right' },
+      5: { cellWidth: 24, halign: 'right' },
+      6: { cellWidth: 26, halign: 'right' },
     } : {
-      0: { cellWidth: 14,   halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 'auto', textColor: [80, 80, 80] },
-      3: { cellWidth: 16,   halign: 'center' },
-      4: { cellWidth: 24,   halign: 'right' },
+      0: { cellWidth: 14, halign: 'center' },
+      1: { cellWidth: 58 },
+      2: { cellWidth: 'auto' },
+      3: { cellWidth: 16, halign: 'center' },
+      4: { cellWidth: 24, halign: 'right' },
     },
-    margin: { left: ML, right: MR, bottom: 16, top: HEADER_H + 2 },
-    didDrawPage: (data) => { drawHeader(data.pageNumber, null) },
+    didParseCell: (data) => {
+      const alignments = conCosto
+        ? { 0: 'center', 1: 'left', 2: 'left', 3: 'center', 4: 'right', 5: 'right', 6: 'right' }
+        : { 0: 'center', 1: 'left', 2: 'left', 3: 'center', 4: 'right' }
+      alignReportCell(data, alignments)
+      if (data.section === 'body' && data.row.raw?.[0]?.colSpan === numCols) {
+        data.cell.styles.halign = 'left'
+        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontSize = 6.5
+        data.cell.styles.lineWidth = { top: 0.25, bottom: 0.18 }
+        data.cell.styles.lineColor = [115, 115, 115]
+      }
+    },
+    didDrawPage: (data) => drawReportFooter(doc, { pageNumber: data.pageNumber, margin: ML }),
   })
-
-  const totalPgs = doc.internal.getNumberOfPages()
-  for (let i = 1; i <= totalPgs; i++) {
-    doc.setPage(i)
-    drawFooter()
-    doc.setFontSize(7)
-    doc.setTextColor(148, 163, 184)
-    doc.text(`Pág. ${i} / ${totalPgs}`, PW - MR - 18, 14)
-    doc.setTextColor(0, 0, 0)
-  }
 
   window.open(URL.createObjectURL(doc.output('blob')), '_blank')
 }
