@@ -416,64 +416,71 @@ function exportarPDF() {
 
   const body = []
   for (const grupo of productosAgrupados.value) {
+    if (body.length > 0) {
+      body.push([{ content: '', colSpan: 8, styles: { cellPadding: { top: 2.8, right: 0, bottom: 2.8, left: 0 }, lineWidth: 0 } }])
+    }
     body.push([{
       content: String(grupo.nombre || 'Sin Grupo').toUpperCase(),
-      colSpan: 9,
+      colSpan: 8,
       styles: {
         fontStyle: 'bold', fontSize: 6.5, textColor: [0, 0, 0], fillColor: false,
         halign: 'left', lineWidth: { top: 0.25, bottom: 0.18 }, lineColor: [115, 115, 115],
-        cellPadding: { top: 1.5, right: 1.8, bottom: 1.2, left: 1.8 },
+        cellPadding: { top: 2.8, right: 1.8, bottom: 1.8, left: 1.8 },
       },
     }])
 
     for (const prod of grupo.productos) {
+      body.push([{ content: '', colSpan: 8, styles: { cellPadding: { top: 2.4, right: 0, bottom: 2.4, left: 0 }, lineWidth: 0 } }])
       body.push([{
         content: `${prod.codigo} - ${prod.nombre}`,
-        colSpan: 9,
+        colSpan: 8,
         styles: {
           fontStyle: 'bold', fontSize: 6.8, textColor: [0, 0, 0], fillColor: false,
           halign: 'left', lineWidth: { bottom: 0.18 }, lineColor: [115, 115, 115],
-          cellPadding: { top: 1.4, right: 1.8, bottom: 1.1, left: 1.8 },
+          cellPadding: { top: 2.4, right: 1.8, bottom: 1.8, left: 1.8 },
         },
       }])
 
-      for (const dia of prod.dias) {
+      prod.dias.forEach((dia, index) => {
+        const esUltimaFila = index === prod.dias.length - 1
         body.push([
           fmtFecha(dia.fecha),
           dia.tipo || '-',
-          prod.nombre,
           prod.und,
           fmtNum(dia.saldoAnterior),
           dia.entradas > 0 ? fmtNum(dia.entradas) : '-',
           dia.salidas > 0 ? fmtNum(dia.salidas) : '-',
           dia.ventas > 0 ? fmtNum(dia.ventas) : '-',
-          fmtNum(dia.saldoFinal),
+          { content: fmtNum(dia.saldoFinal), styles: { fontStyle: esUltimaFila ? 'bold' : 'normal' } },
         ])
-      }
+      })
     }
   }
 
   autoTable(doc, {
     startY,
-    head: [['Fecha', 'Tipo', 'Producto', 'Und', 'Ant.', 'Entradas', 'Salidas', 'Ventas', 'Saldo']],
+    head: [['Fecha', 'Tipo', 'Und', 'Ant.', 'Entradas', 'Salidas', 'Ventas', 'Saldo']],
     body,
     ...detailTableOptions(ML),
     styles: { ...detailTableOptions(ML).styles, fontSize: 6.5, cellPadding: { top: 1, right: 1.4, bottom: 1, left: 1.4 } },
     headStyles: { ...detailTableOptions(ML).headStyles, fontSize: 6 },
     columnStyles: {
       0: { cellWidth: 18, halign: 'left' },
-      1: { cellWidth: 40, halign: 'left' },
-      2: { cellWidth: 'auto' },
-      3: { cellWidth: 12, halign: 'center' },
-      4: { cellWidth: 20, halign: 'right' },
-      5: { cellWidth: 20, halign: 'right' },
-      6: { cellWidth: 20, halign: 'right' },
-      7: { cellWidth: 20, halign: 'right' },
-      8: { cellWidth: 22, halign: 'right' },
+      1: { cellWidth: 112, halign: 'left' },
+      2: { cellWidth: 12, halign: 'center' },
+      3: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 22, halign: 'right' },
+      5: { cellWidth: 22, halign: 'right' },
+      6: { cellWidth: 22, halign: 'right' },
+      7: { cellWidth: 24, halign: 'right' },
     },
     didParseCell: (data) => {
-      alignReportCell(data, { 0: 'left', 1: 'left', 2: 'left', 3: 'center', 4: 'right', 5: 'right', 6: 'right', 7: 'right', 8: 'right' })
-      if (data.section === 'body' && data.row.raw?.[0]?.colSpan === 9) {
+      alignReportCell(data, { 0: 'left', 1: 'left', 2: 'center', 3: 'right', 4: 'right', 5: 'right', 6: 'right', 7: 'right' })
+      if (data.section === 'body' && data.row.raw?.[0]?.colSpan === 8) {
+        if (!data.row.raw[0].content) {
+          data.cell.styles.lineWidth = 0
+          return
+        }
         data.cell.styles.halign = 'left'
         data.cell.styles.fontStyle = 'bold'
         data.cell.styles.fontSize = 6.6
