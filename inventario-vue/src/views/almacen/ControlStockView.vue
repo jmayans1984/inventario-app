@@ -377,13 +377,14 @@ onMounted(cargar)
 
 .grupo-header {
   display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px;
-  background: rgba(239,68,68,.08);
-  border-left: 3px solid var(--error);
-  border-radius: 8px;
-  margin: 20px 0 12px 0;
+  padding: 10px 14px;
+  background: rgba(139,92,246,.06);
+  border: 1px solid rgba(var(--v-theme-on-surface),.08);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  margin: 20px 0 0 0;
 }
-.grupo-nombre { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--error); }
+.grupo-nombre { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--indigo); }
 .grupo-count { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
 
 .cst-table {
@@ -391,14 +392,14 @@ onMounted(cargar)
   border-collapse: collapse;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface),.08);
-  border-radius: 8px;
+  border-radius: 0 0 12px 12px;
   overflow: hidden;
   margin-bottom: 16px;
+  font-size: 13px;
 }
 
 .cst-table thead {
-  background: rgba(var(--v-theme-on-surface),.05);
-  border-bottom: 2px solid rgba(var(--v-theme-on-surface),.1);
+  background: rgba(var(--v-theme-on-surface),.04);
 }
 
 .cst-table th {
@@ -406,10 +407,10 @@ onMounted(cargar)
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .4px;
+  letter-spacing: .5px;
   color: rgba(var(--v-theme-on-surface),.6);
   text-align: left;
-  border-right: 1px solid rgba(var(--v-theme-on-surface),.05);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08);
 }
 
 .cst-table th:last-child { border-right: none; }
@@ -439,7 +440,6 @@ onMounted(cargar)
   padding: 12px 14px;
   font-size: 13px;
   color: rgb(var(--v-theme-on-surface));
-  border-right: 1px solid rgba(var(--v-theme-on-surface),.05);
 }
 
 .cst-table td:last-child { border-right: none; }
@@ -449,7 +449,7 @@ onMounted(cargar)
   width: 70px;
 }
 
-.badge-cod { background: rgba(239,68,68,.15); color: var(--error); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: monospace; display: inline-block; }
+.badge-cod { background: rgba(6,182,212,.15); color: var(--indigo); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; display: inline-block; }
 
 .nombre-cell { font-weight: 500; min-width: 150px; }
 .desc-cell { font-size: 12px; color: rgba(var(--v-theme-on-surface),.55); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }

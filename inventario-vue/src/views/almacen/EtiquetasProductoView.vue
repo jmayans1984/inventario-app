@@ -57,7 +57,7 @@
                 </span>
               </td>
               <td class="col-acc">
-                <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                <div class="label-actions">
                   <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="abrirModal(e)" />
                   <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error"
                     :loading="eliminando === e.codigo" @click="eliminar(e)" />
@@ -288,10 +288,11 @@ onMounted(cargar)
 .crud-table thead th { padding: 11px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.45); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); text-align: left; }
 .col-center { text-align: center !important; }
 .col-r { text-align: right !important; }
-.col-acc { width: 90px; text-align: center !important; }
+.col-acc { width: 96px; min-width: 96px; text-align: center !important; white-space: nowrap; }
 .data-row td { padding: 10px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); color: rgb(var(--v-theme-on-surface)); }
 .data-row:last-child td { border-bottom: none; }
 .data-row:hover td { background: rgba(var(--v-theme-on-surface),.02); }
+.label-actions { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: nowrap; white-space: nowrap; min-width: 64px; }
 .cod-badge { background: var(--success-wash); color: var(--success); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .fw500 { font-weight: 500; }
 .mono { font-variant-numeric: tabular-nums; }

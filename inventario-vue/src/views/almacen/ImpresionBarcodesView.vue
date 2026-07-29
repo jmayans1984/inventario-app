@@ -73,27 +73,46 @@
           <v-icon size="36" style="color:rgba(var(--v-theme-on-surface),.2)">mdi-inbox-outline</v-icon>
           <p style="color:rgba(var(--v-theme-on-surface),.4);margin:8px 0 0">No se encontraron productos</p>
         </div>
-        <div v-else class="bcv-lista">
-          <div
-            v-for="p in productosFiltrados"
-            :key="p.codigo"
-            class="bcv-item"
-            :class="{ sel: seleccionados.has(p.codigo) }"
-            @click="toggleProducto(p.codigo)"
-          >
-            <v-checkbox
-              :model-value="seleccionados.has(p.codigo)"
-              density="compact"
-              hide-details
-              color="var(--success)"
-              @click.stop="toggleProducto(p.codigo)"
-            />
-            <div>
-              <div class="bcv-item-nombre">{{ p.nombre }}</div>
-              <div class="bcv-item-cod">{{ p.codigo }}{{ p.und ? ' · ' + p.und : '' }}</div>
-            </div>
-          </div>
-        </div>
+        <table v-else class="bcv-table">
+          <thead>
+            <tr>
+              <th class="bcv-th-check"></th>
+              <th class="bcv-th-cod">CODIGO</th>
+              <th>PRODUCTO</th>
+              <th class="bcv-th-und">UNIDAD</th>
+              <th class="bcv-th-cant">CANTIDAD</th>
+              <th class="bcv-th-estado">ESTADO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="p in productosFiltrados"
+              :key="p.codigo"
+              class="bcv-row"
+              :class="{ sel: seleccionados.has(p.codigo) }"
+              @click="toggleProducto(p.codigo)"
+            >
+              <td class="bcv-check">
+                <v-checkbox
+                  :model-value="seleccionados.has(p.codigo)"
+                  density="compact"
+                  hide-details
+                  color="var(--success)"
+                  @click.stop="toggleProducto(p.codigo)"
+                />
+              </td>
+              <td><span class="bcv-cod-badge">{{ p.codigo }}</span></td>
+              <td class="bcv-producto">{{ p.nombre }}</td>
+              <td class="bcv-und"><span v-if="p.und" class="bcv-und-badge">{{ p.und }}</span><span v-else class="bcv-empty-dash">-</span></td>
+              <td class="bcv-cant mono">{{ cantidad }}</td>
+              <td class="bcv-estado">
+                <span :class="seleccionados.has(p.codigo) ? 'bcv-chip-on' : 'bcv-chip-off'">
+                  {{ seleccionados.has(p.codigo) ? 'Seleccionado' : 'Pendiente' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- BARRA INFERIOR -->
@@ -229,7 +248,7 @@ onMounted(cargar)
 </script>
 
 <style scoped>
-.bcv-container { padding: 24px; max-width: 1000px; margin: 0 auto; padding-bottom: 90px; }
+.bcv-container { padding: 24px; max-width: 1200px; margin: 0 auto; padding-bottom: 90px; }
 
 .bcv-opciones { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
 
@@ -242,15 +261,30 @@ onMounted(cargar)
 
 .bcv-lista-wrap { background: rgb(var(--v-theme-surface)); border-radius: 12px; border: 1px solid rgba(var(--v-theme-on-surface),.08); overflow: hidden; }
 .bcv-empty { display: flex; flex-direction: column; align-items: center; padding: 60px 20px; }
-.bcv-lista { display: flex; flex-direction: column; }
-.bcv-item {
-  display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05);
-}
-.bcv-item:hover { background: rgba(var(--v-theme-on-surface),.02); }
-.bcv-item.sel { background: var(--success-wash); }
-.bcv-item-nombre { font-weight: 600; font-size: 14px; }
-.bcv-item-cod { font-size: 12px; color: rgba(var(--v-theme-on-surface),.5); font-variant-numeric: tabular-nums; }
+.bcv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bcv-table thead { background: rgba(var(--v-theme-on-surface),.04); }
+.bcv-table thead th { padding: 12px 14px; text-align: left; font-weight: 700; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface),.6); border-bottom: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.bcv-row { cursor: pointer; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.05); transition: background-color .15s ease, box-shadow .15s ease; }
+.bcv-row:last-child { border-bottom: none; }
+.bcv-row:hover { background: rgba(var(--v-theme-on-surface),.02); }
+.bcv-row.sel { background: var(--success-wash); box-shadow: inset 3px 0 0 var(--success); }
+.bcv-table tbody td { padding: 10px 14px; color: rgb(var(--v-theme-on-surface)); }
+.bcv-th-check { width: 54px; }
+.bcv-th-cod { width: 120px; }
+.bcv-th-und { width: 90px; text-align: center !important; }
+.bcv-th-cant { width: 100px; text-align: right !important; }
+.bcv-th-estado { width: 130px; text-align: center !important; }
+.bcv-check { width: 54px; padding-top: 4px !important; padding-bottom: 4px !important; }
+.bcv-producto { font-weight: 500; }
+.bcv-und, .bcv-estado { text-align: center; }
+.bcv-cant { text-align: right; font-weight: 700; color: var(--indigo) !important; }
+.mono { font-variant-numeric: tabular-nums; }
+.bcv-cod-badge { background: rgba(6,182,212,.15); color: var(--indigo); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
+.bcv-und-badge { background: rgba(139,92,246,.12); color: var(--indigo); padding: 2px 7px; border-radius: 5px; font-size: 12px; font-weight: 600; }
+.bcv-empty-dash { color: rgba(var(--v-theme-on-surface),.3); }
+.bcv-chip-on, .bcv-chip-off { display: inline-flex; align-items: center; justify-content: center; min-width: 86px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.bcv-chip-on { background: var(--success-wash); color: var(--success); }
+.bcv-chip-off { background: rgba(var(--v-theme-on-surface),.05); color: rgba(var(--v-theme-on-surface),.48); }
 
 .bcv-bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0; background: rgb(var(--v-theme-surface));
