@@ -919,25 +919,18 @@ app.put('/api/almacen/costos-productos/:codigo', async (req, res) => {
 });
 
 // POST /api/almacen/costos-productos/sincronizar   body: { empresa }
-// Recalcula todas las recetas y copia el costo de cada receta vinculada a su producto.
+// Copia el costo actual de cada receta vinculada a su producto (sin recalcular recetas).
 app.post('/api/almacen/costos-productos/sincronizar', async (req, res) => {
     const empresa = req.body?.empresa || req.query.empresa;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
-    const client = await pool.connect();
     try {
         const teRes = await pool.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
         const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
 
-        await client.query('BEGIN');
-
-        // Recalcula todas las recetas en orden topológico
-        await ejecutarRecalculoTodasRecetas(client, empresa);
-
-        // Lee los costos recalculados resolviendo la capa de empresa
-        const vinculadosRes = await client.query(`
+        // Lee productos vinculados con el costo actual de su receta (COALESCE empresa/base)
+        const vinculadosRes = await pool.query(`
             SELECT p.codigo AS producto_codigo,
-                   p.receta_vinculada,
                    COALESCE(rce.valor, r.valor, 0) AS costo_receta
             FROM productos p
             JOIN recetas r ON r.codigo = p.receta_vinculada
@@ -946,16 +939,21 @@ app.post('/api/almacen/costos-productos/sincronizar', async (req, res) => {
             WHERE p.receta_vinculada IS NOT NULL
         `, [empresa]);
 
+        if (vinculadosRes.rows.length === 0) {
+            return res.json({ success: true, sincronizados: 0, esPrincipal });
+        }
+
+        // Construye un UPDATE/UPSERT en batch
         let sincronizados = 0;
         for (const row of vinculadosRes.rows) {
             const costo = Math.round((parseFloat(row.costo_receta) || 0) * 100) / 100;
             if (esPrincipal) {
-                await client.query(
+                await pool.query(
                     `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
                     [costo, row.producto_codigo]
                 );
             } else {
-                await client.query(
+                await pool.query(
                     `INSERT INTO producto_costo_empresa (empresa, codigo, precio_costo)
                      VALUES ($1, $2, $3)
                      ON CONFLICT (empresa, codigo) DO UPDATE SET precio_costo = EXCLUDED.precio_costo`,
@@ -965,14 +963,10 @@ app.post('/api/almacen/costos-productos/sincronizar', async (req, res) => {
             sincronizados++;
         }
 
-        await client.query('COMMIT');
         res.json({ success: true, sincronizados, esPrincipal });
     } catch (error) {
-        await client.query('ROLLBACK');
         console.error('Error POST /api/almacen/costos-productos/sincronizar:', error);
         res.status(500).json({ success: false, error: error.message });
-    } finally {
-        client.release();
     }
 });
 // ── FIN COSTOS DE PRODUCTOS ───────────────────────────────────────────────────
