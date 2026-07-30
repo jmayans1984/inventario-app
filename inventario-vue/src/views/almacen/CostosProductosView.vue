@@ -90,7 +90,7 @@
           <v-progress-circular indeterminate color="primary" size="36" />
         </div>
 
-        <div v-else-if="productosFiltrados.length === 0" class="cp-empty">
+        <div v-else-if="productosFiltradosFlat.length === 0" class="cp-empty">
           <v-icon size="44" color="rgba(var(--v-theme-on-surface),.2)">mdi-package-variant</v-icon>
           <p>No hay productos que coincidan con el filtro</p>
         </div>
@@ -102,15 +102,21 @@
               <th>PRODUCTO</th>
               <th class="th-desc">DESCRIPCIÓN</th>
               <th class="th-und">UND</th>
-              <th class="th-grupo">GRUPO</th>
               <th class="th-receta">RECETA VINCULADA</th>
               <th class="th-costo">PRECIO COSTO</th>
               <th class="th-estado"></th>
             </tr>
           </thead>
           <tbody>
+            <template v-for="grupo in productosAgrupados" :key="grupo.grupo">
+              <tr class="grupo-header">
+                <td colspan="7">
+                  <span class="grupo-badge">{{ grupo.grupo_nombre }}</span>
+                  <span class="grupo-count">{{ grupo.items.length }}</span>
+                </td>
+              </tr>
             <tr
-              v-for="p in productosFiltrados"
+              v-for="p in grupo.items"
               :key="p.codigo"
               class="cp-row"
               :class="{ 'row-editando': p._sucio, 'row-guardado': p._flash, 'row-error': p._error, 'row-vinculado': p.receta_vinculada }"
@@ -120,7 +126,6 @@
               <td class="td-nom">{{ p.nombre }}</td>
               <td class="td-desc" :title="p.descripcion">{{ p.descripcion || '—' }}</td>
               <td><span class="badge-und">{{ p.und }}</span></td>
-              <td class="td-grupo">{{ p.grupo_nombre }}</td>
               <td class="td-receta">
                 <select
                   v-if="esPrincipal"
@@ -161,12 +166,13 @@
                 <v-icon v-else-if="p._sucio" size="18" color="warning" title="Sin guardar">mdi-circle-medium</v-icon>
               </td>
             </tr>
+            </template>
           </tbody>
         </table>
       </div>
 
       <div v-if="!loading" class="cp-footer">
-        {{ productosFiltrados.length }} de {{ productos.length }} productos
+        {{ productosFiltradosFlat.length }} de {{ productos.length }} productos
         <span v-if="sinCostoCount > 0" class="cp-warn"> · {{ sinCostoCount }} sin costo asignado</span>
         <span v-if="vinculadosCount > 0" class="cp-vinc"> · {{ vinculadosCount }} vinculados a receta</span>
       </div>
@@ -240,21 +246,31 @@ const gruposFiltro = computed(() => {
   return [{ key: '__todos__', nombre: 'Todos los grupos' }, ...Array.from(mapa.values())]
 })
 
-const productosFiltrados = computed(() => {
+const productosFiltradosFlat = computed(() => {
   let lista = productos.value
   if (grupoFiltro.value !== '__todos__') lista = lista.filter(p => p.grupo === grupoFiltro.value)
   if (soloSinCosto.value) lista = lista.filter(p => !parseFloat(p.precio_costo))
   if (soloVinculados.value) lista = lista.filter(p => p.receta_vinculada)
   const q = search.value.trim().toUpperCase()
   if (q) lista = lista.filter(p => p.nombre?.toUpperCase().includes(q) || String(p.codigo).toUpperCase().includes(q))
-  return lista
+  return [...lista].sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)))
 })
 
-const sinCostoCount  = computed(() => productos.value.filter(p => !parseFloat(p.precio_costo)).length)
+const productosAgrupados = computed(() => {
+  const mapa = new Map()
+  for (const p of productosFiltradosFlat.value) {
+    const key = p.grupo || '__sin__'
+    if (!mapa.has(key)) mapa.set(key, { grupo: key, grupo_nombre: p.grupo_nombre || 'Sin Grupo', items: [] })
+    mapa.get(key).items.push(p)
+  }
+  return [...mapa.values()].sort((a, b) => a.grupo_nombre.localeCompare(b.grupo_nombre))
+})
+
+const sinCostoCount   = computed(() => productos.value.filter(p => !parseFloat(p.precio_costo)).length)
 const vinculadosCount = computed(() => productos.value.filter(p => p.receta_vinculada).length)
 
 function indiceDe(p) {
-  return productosFiltrados.value.indexOf(p)
+  return productosFiltradosFlat.value.indexOf(p)
 }
 
 // ── Autoguardado al salir de la fila ──────────────────────────────
@@ -428,10 +444,29 @@ function saltarSiguiente(p) {
 
 .td-nom   { font-weight: 500; }
 .td-desc  { color: rgba(var(--v-theme-on-surface),.5); font-size: 12px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-grupo { color: rgba(var(--v-theme-on-surface),.55); font-size: 12px; }
 .td-costo { text-align: right; }
 .td-estado { text-align: center; width: 40px; }
 .td-receta { }
+
+/* GRUPO HEADER */
+.grupo-header td {
+  padding: 6px 12px;
+  background: rgba(var(--v-theme-on-surface),.05);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface),.1);
+  border-top: 2px solid rgba(var(--v-theme-on-surface),.08);
+}
+.grupo-header:first-child td { border-top: none; }
+.grupo-badge {
+  font-size: 11px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface),.6);
+}
+.grupo-count {
+  margin-left: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(var(--v-theme-on-surface),.1);
+  color: rgba(var(--v-theme-on-surface),.5);
+  border-radius: 10px; padding: 0 6px; font-size: 10px; font-weight: 700; min-width: 18px; height: 16px;
+}
 
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
 .badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:var(--indigo); font-weight:600; }
