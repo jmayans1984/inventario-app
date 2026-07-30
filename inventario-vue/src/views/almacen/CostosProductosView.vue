@@ -6,7 +6,20 @@
         title="Actualizar Precio de Costo"
         description="Edite el costo de cada producto — se guarda automáticamente al salir de la fila"
         :crumbs="['Almacén', 'Configuración', 'Precio de Costo']"
-      />
+      >
+        <template #actions>
+          <v-btn
+            v-if="vinculadosCount > 0"
+            :loading="sincronizando"
+            color="secondary"
+            variant="flat"
+            prepend-icon="mdi-sync"
+            @click="sincronizarCostos"
+          >
+            Sincronizar recetas ({{ vinculadosCount }})
+          </v-btn>
+        </template>
+      </PageHeader>
 
       <!-- CONTROLES -->
       <div class="cp-controles">
@@ -42,6 +55,14 @@
           hide-details
         />
 
+        <v-checkbox
+          v-model="soloVinculados"
+          label="Solo vinculados"
+          color="secondary"
+          density="compact"
+          hide-details
+        />
+
         <div class="cp-spacer"></div>
 
         <div v-if="!esPrincipal && !loading" class="cp-capa-badge" title="Los cambios se guardan en la capa de costo de esta empresa, sin afectar el costo base">
@@ -59,6 +80,7 @@
         <v-icon size="16" color="primary">mdi-information-outline</v-icon>
         <span>
           Escriba el nuevo costo y salga de la fila (Tab, Enter o clic en otra fila) — el guardado es automático.
+          Vincule una receta para sincronizar el costo de producción automáticamente.
         </span>
       </div>
 
@@ -81,6 +103,7 @@
               <th class="th-desc">DESCRIPCIÓN</th>
               <th class="th-und">UND</th>
               <th class="th-grupo">GRUPO</th>
+              <th class="th-receta">RECETA VINCULADA</th>
               <th class="th-costo">PRECIO COSTO</th>
               <th class="th-estado"></th>
             </tr>
@@ -90,7 +113,7 @@
               v-for="p in productosFiltrados"
               :key="p.codigo"
               class="cp-row"
-              :class="{ 'row-editando': p._sucio, 'row-guardado': p._flash, 'row-error': p._error }"
+              :class="{ 'row-editando': p._sucio, 'row-guardado': p._flash, 'row-error': p._error, 'row-vinculado': p.receta_vinculada }"
               @focusout="onRowFocusOut($event, p)"
             >
               <td><span class="badge-cod">{{ p.codigo }}</span></td>
@@ -98,6 +121,22 @@
               <td class="td-desc" :title="p.descripcion">{{ p.descripcion || '—' }}</td>
               <td><span class="badge-und">{{ p.und }}</span></td>
               <td class="td-grupo">{{ p.grupo_nombre }}</td>
+              <td class="td-receta">
+                <select
+                  v-if="esPrincipal"
+                  class="receta-select"
+                  :class="{ 'receta-select--activa': p.receta_vinculada }"
+                  :value="p.receta_vinculada || ''"
+                  :disabled="p._guardando"
+                  @change="onRecetaChange(p, $event.target.value)"
+                >
+                  <option value="">— Sin vincular —</option>
+                  <option v-for="r in recetas" :key="r.codigo" :value="r.codigo">
+                    {{ r.nombre }}
+                  </option>
+                </select>
+                <span v-else class="receta-label">{{ p.receta_nombre || '—' }}</span>
+              </td>
               <td class="td-costo">
                 <div class="input-wrap" :class="{ 'sin-costo': !parseFloat(p.precio_costo) }">
                   <span class="currency">$</span>
@@ -129,6 +168,7 @@
       <div v-if="!loading" class="cp-footer">
         {{ productosFiltrados.length }} de {{ productos.length }} productos
         <span v-if="sinCostoCount > 0" class="cp-warn"> · {{ sinCostoCount }} sin costo asignado</span>
+        <span v-if="vinculadosCount > 0" class="cp-vinc"> · {{ vinculadosCount }} vinculados a receta</span>
       </div>
 
       <v-snackbar v-model="snack.show" :color="snack.color" :timeout="2500" location="bottom right">
@@ -150,11 +190,14 @@ const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
 
 const productos    = ref([])
+const recetas      = ref([])
 const loading      = ref(false)
 const esPrincipal  = ref(true)
 const search       = ref('')
 const grupoFiltro  = ref('__todos__')
 const soloSinCosto = ref(false)
+const soloVinculados = ref(false)
+const sincronizando = ref(false)
 const snack        = ref({ show: false, msg: '', color: 'success' })
 
 // ── Carga ─────────────────────────────────────────────────────────
@@ -162,19 +205,25 @@ async function cargar() {
   if (!empresa.value) return
   loading.value = true
   try {
-    const res = await api.get('/almacen/costos-productos', { params: { empresa: empresa.value } })
-    esPrincipal.value = res.data?.esPrincipal !== false
-    productos.value = (res.data?.data || []).map(p => ({
+    const [prodRes, recRes] = await Promise.all([
+      api.get('/almacen/costos-productos', { params: { empresa: empresa.value } }),
+      api.get('/recetas', { params: { empresa: empresa.value } }),
+    ])
+    esPrincipal.value = prodRes.data?.esPrincipal !== false
+    productos.value = (prodRes.data?.data || []).map(p => ({
       ...p,
-      precio_costo: parseFloat(p.precio_costo) || 0,
-      _original:  parseFloat(p.precio_costo) || 0,
+      precio_costo:     parseFloat(p.precio_costo) || 0,
+      _original:        parseFloat(p.precio_costo) || 0,
+      receta_vinculada: p.receta_vinculada || null,
+      _receta_original: p.receta_vinculada || null,
       _sucio:     false,
       _guardando: false,
       _flash:     false,
       _error:     '',
     }))
+    recetas.value = (recRes.data?.data || []).map(r => ({ codigo: r.codigo, nombre: r.nombre }))
   } catch (e) {
-    snack.value = { show: true, msg: e?.response?.data?.error || 'Error cargando productos', color: 'error' }
+    snack.value = { show: true, msg: e?.response?.data?.error || 'Error cargando datos', color: 'error' }
   } finally {
     loading.value = false
   }
@@ -195,12 +244,14 @@ const productosFiltrados = computed(() => {
   let lista = productos.value
   if (grupoFiltro.value !== '__todos__') lista = lista.filter(p => p.grupo === grupoFiltro.value)
   if (soloSinCosto.value) lista = lista.filter(p => !parseFloat(p.precio_costo))
+  if (soloVinculados.value) lista = lista.filter(p => p.receta_vinculada)
   const q = search.value.trim().toUpperCase()
   if (q) lista = lista.filter(p => p.nombre?.toUpperCase().includes(q) || String(p.codigo).toUpperCase().includes(q))
   return lista
 })
 
-const sinCostoCount = computed(() => productos.value.filter(p => !parseFloat(p.precio_costo)).length)
+const sinCostoCount  = computed(() => productos.value.filter(p => !parseFloat(p.precio_costo)).length)
+const vinculadosCount = computed(() => productos.value.filter(p => p.receta_vinculada).length)
 
 function indiceDe(p) {
   return productosFiltrados.value.indexOf(p)
@@ -208,7 +259,6 @@ function indiceDe(p) {
 
 // ── Autoguardado al salir de la fila ──────────────────────────────
 function onRowFocusOut(e, p) {
-  // Si el foco sigue dentro de la misma fila, no hacemos nada
   if (e.currentTarget.contains(e.relatedTarget)) return
   guardarFila(p)
 }
@@ -225,7 +275,6 @@ async function guardarFila(p) {
     return
   }
 
-  // Sin cambio real → limpiar estado y salir
   if (nuevo === p._original) {
     p.precio_costo = nuevo
     p._sucio = false
@@ -254,7 +303,53 @@ async function guardarFila(p) {
   }
 }
 
-// Enter → salta al input de la fila siguiente (dispara el autoguardado por focusout)
+// ── Vínculo de receta ─────────────────────────────────────────────
+async function onRecetaChange(p, nuevaReceta) {
+  const rv = nuevaReceta || null
+  if (rv === p._receta_original) return
+
+  const anterior = p._receta_original
+  p.receta_vinculada = rv
+  p._guardando = true
+  try {
+    await api.put(`/almacen/costos-productos/${encodeURIComponent(p.codigo)}`, {
+      empresa:          empresa.value,
+      precio_costo:     parseFloat(p.precio_costo) || 0,
+      receta_vinculada: rv,
+    })
+    p._receta_original = rv
+    // Actualizar el nombre de la receta en la fila
+    const rec = recetas.value.find(r => r.codigo === rv)
+    p.receta_nombre = rec?.nombre || null
+    p._flash = true
+    setTimeout(() => { p._flash = false }, 1500)
+  } catch (e) {
+    p.receta_vinculada = anterior
+    snack.value = { show: true, msg: 'Error guardando vínculo de receta', color: 'error' }
+  } finally {
+    p._guardando = false
+  }
+}
+
+// ── Sincronizar costos desde recetas ─────────────────────────────
+async function sincronizarCostos() {
+  sincronizando.value = true
+  try {
+    const res = await api.post('/almacen/costos-productos/sincronizar', { empresa: empresa.value })
+    snack.value = {
+      show: true,
+      msg: `${res.data.sincronizados} producto(s) sincronizados desde sus recetas`,
+      color: 'success',
+    }
+    await cargar()
+  } catch (e) {
+    snack.value = { show: true, msg: e?.response?.data?.error || 'Error al sincronizar', color: 'error' }
+  } finally {
+    sincronizando.value = false
+  }
+}
+
+// Enter → salta al input de la fila siguiente
 function saltarSiguiente(p) {
   const idx = productosFiltrados.value.indexOf(p)
   const siguiente = document.querySelector(`.costo-input[data-idx="${idx + 1}"]`)
@@ -318,7 +413,8 @@ function saltarSiguiente(p) {
 .th-cod    { width: 90px; }
 .th-desc   { min-width: 160px; }
 .th-und    { width: 70px; }
-.th-grupo  { width: 150px; }
+.th-grupo  { width: 140px; }
+.th-receta { min-width: 200px; }
 .th-costo  { width: 150px; text-align: right !important; }
 .th-estado { width: 40px; }
 
@@ -328,15 +424,52 @@ function saltarSiguiente(p) {
 .row-editando { background: rgba(245,158,11,.07) !important; }
 .row-guardado { background: rgba(16,185,129,.1) !important; transition: background .4s; }
 .row-error    { background: rgba(239,68,68,.08) !important; }
+.row-vinculado td:first-child { border-left: 3px solid var(--indigo); }
 
 .td-nom   { font-weight: 500; }
 .td-desc  { color: rgba(var(--v-theme-on-surface),.5); font-size: 12px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-grupo { color: rgba(var(--v-theme-on-surface),.55); font-size: 12px; }
 .td-costo { text-align: right; }
 .td-estado { text-align: center; width: 40px; }
+.td-receta { }
 
 .badge-cod { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; font-weight:700; font-family:monospace; background:rgba(var(--v-theme-on-surface),.07); }
 .badge-und { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px; background:rgba(8,145,178,.1); color:var(--indigo); font-weight:600; }
+
+/* RECETA SELECT */
+.receta-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(var(--v-theme-on-surface),.04)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(0,0,0,0.3)'/%3E%3C/svg%3E")
+    no-repeat right 8px center;
+  border: 1px solid rgba(var(--v-theme-on-surface),.18);
+  border-radius: 7px;
+  padding: 4px 28px 4px 8px;
+  font-size: 12.5px;
+  color: rgba(var(--v-theme-on-surface),.7);
+  cursor: pointer;
+  width: 100%;
+  max-width: 220px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.receta-select:focus {
+  outline: none;
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+}
+.receta-select--activa {
+  border-color: var(--indigo);
+  background-color: rgba(99,102,241,.06);
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 500;
+}
+.receta-select:disabled { opacity: .5; cursor: default; }
+
+.receta-label {
+  font-size: 12.5px;
+  color: rgba(var(--v-theme-on-surface),.55);
+}
 
 /* INPUT COSTO */
 .input-wrap {
@@ -372,4 +505,5 @@ function saltarSiguiente(p) {
   margin-top: 12px; font-size: 12.5px; color: rgba(var(--v-theme-on-surface),.5); padding: 0 4px;
 }
 .cp-warn { color: #f59e0b; font-weight: 600; }
+.cp-vinc { color: var(--indigo); font-weight: 600; }
 </style>

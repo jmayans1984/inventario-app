@@ -856,11 +856,14 @@ app.get('/api/almacen/costos-productos', async (req, res) => {
                     COALESCE(gp.nombre, 'Sin Grupo')  AS grupo_nombre,
                     COALESCE(p.precio_costo, 0)       AS costo_base,
                     pce.precio_costo                  AS costo_empresa,
-                    COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo
+                    COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
+                    p.receta_vinculada,
+                    r.nombre                          AS receta_nombre
              FROM productos p
              LEFT JOIN producto_costo_empresa pce
                     ON pce.codigo = p.codigo AND TRIM(pce.empresa) = TRIM($1::text)
              LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             LEFT JOIN recetas r ON r.codigo = p.receta_vinculada
              ORDER BY COALESCE(gp.nombre, 'Sin Grupo'), p.nombre`,
             [String(empresa)]
         );
@@ -872,10 +875,10 @@ app.get('/api/almacen/costos-productos', async (req, res) => {
     }
 });
 
-// PUT /api/almacen/costos-productos/:codigo   body: { empresa, precio_costo }
+// PUT /api/almacen/costos-productos/:codigo   body: { empresa, precio_costo, receta_vinculada? }
 app.put('/api/almacen/costos-productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { empresa, precio_costo } = req.body;
+    const { empresa, precio_costo, receta_vinculada } = req.body;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
     const costo = Math.round((parseFloat(precio_costo) || 0) * 100) / 100;
@@ -899,10 +902,77 @@ app.put('/api/almacen/costos-productos/:codigo', async (req, res) => {
             );
         }
 
+        // receta_vinculada es un vínculo global (no por empresa) — se guarda siempre en productos
+        if (receta_vinculada !== undefined) {
+            const rv = receta_vinculada?.trim() || null;
+            await pool.query(
+                `UPDATE productos SET receta_vinculada = $1 WHERE codigo = $2`,
+                [rv, codigo]
+            );
+        }
+
         res.json({ success: true, data: { codigo, precio_costo: costo, esPrincipal } });
     } catch (error) {
         console.error('Error PUT /api/almacen/costos-productos/:codigo:', error);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/almacen/costos-productos/sincronizar   body: { empresa }
+// Recalcula todas las recetas y copia el costo de cada receta vinculada a su producto.
+app.post('/api/almacen/costos-productos/sincronizar', async (req, res) => {
+    const empresa = req.body?.empresa || req.query.empresa;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const client = await pool.connect();
+    try {
+        const teRes = await pool.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
+        const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+
+        await client.query('BEGIN');
+
+        // Recalcula todas las recetas en orden topológico
+        await ejecutarRecalculoTodasRecetas(client, empresa);
+
+        // Lee los costos recalculados resolviendo la capa de empresa
+        const vinculadosRes = await client.query(`
+            SELECT p.codigo AS producto_codigo,
+                   p.receta_vinculada,
+                   COALESCE(rce.valor, r.valor, 0) AS costo_receta
+            FROM productos p
+            JOIN recetas r ON r.codigo = p.receta_vinculada
+            LEFT JOIN receta_costo_empresa rce
+                   ON rce.codigo = r.codigo AND TRIM(rce.empresa) = TRIM($1)
+            WHERE p.receta_vinculada IS NOT NULL
+        `, [empresa]);
+
+        let sincronizados = 0;
+        for (const row of vinculadosRes.rows) {
+            const costo = Math.round((parseFloat(row.costo_receta) || 0) * 100) / 100;
+            if (esPrincipal) {
+                await client.query(
+                    `UPDATE productos SET precio_costo = $1 WHERE codigo = $2`,
+                    [costo, row.producto_codigo]
+                );
+            } else {
+                await client.query(
+                    `INSERT INTO producto_costo_empresa (empresa, codigo, precio_costo)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (empresa, codigo) DO UPDATE SET precio_costo = EXCLUDED.precio_costo`,
+                    [empresa, row.producto_codigo, costo]
+                );
+            }
+            sincronizados++;
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, sincronizados, esPrincipal });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/almacen/costos-productos/sincronizar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
     }
 });
 // ── FIN COSTOS DE PRODUCTOS ───────────────────────────────────────────────────
@@ -10375,6 +10445,7 @@ pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta1 NUMERIC
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta2 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0`).catch(() => {});
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS receta_vinculada VARCHAR(50) DEFAULT NULL`).catch(() => {});
 pool.query(`ALTER TABLE etiquetas_producto ADD COLUMN IF NOT EXISTS barcode VARCHAR(100) DEFAULT NULL`).catch(() => {});
 
 // Migración: asegurar precisión de 2 decimales en campos de precios (por si la columna existe con otro tipo)
