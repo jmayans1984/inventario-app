@@ -2480,34 +2480,44 @@ pool.query(`
         stock        NUMERIC(14,4) DEFAULT 0,
         precio_costo NUMERIC(12,2) DEFAULT 0,
         valor        NUMERIC(14,2) DEFAULT 0,
+        contado      BOOLEAN       DEFAULT FALSE,
         creado_en    TIMESTAMP     DEFAULT NOW(),
         UNIQUE (empresa, ccosto, fecha, codigo)
     )
-`).then(() => pool.query(
-    `CREATE INDEX IF NOT EXISTS idx_tfv_lookup ON toma_fisica_valorizada (empresa, ccosto, fecha)`
-)).catch(() => {});
+`).then(() => Promise.all([
+    pool.query(`CREATE INDEX IF NOT EXISTS idx_tfv_lookup ON toma_fisica_valorizada (empresa, ccosto, fecha)`),
+    pool.query(`ALTER TABLE toma_fisica_valorizada ADD COLUMN IF NOT EXISTS contado BOOLEAN DEFAULT FALSE`),
+])).catch(() => {});
 
 // Recalcula el saldo COMPLETO del ccosto a la fecha de la toma (no solo los
 // productos ajustados) y lo congela con el costo vigente en ese instante.
-async function congelarTomaFisica(client, emp, empresaStr, ccosto, fecha) {
+//
+// Esta tabla es además la EVIDENCIA de que la toma se hizo: detalle_inventario
+// solo guarda diferencias, así que un conteo donde todo cuadra no dejaba rastro
+// y la valoración lo trataba como "sin toma". Aquí siempre queda registro, y
+// `contado` marca qué productos se contaron de verdad (vs. arrastrados del kardex),
+// lo que permite distinguir una toma total de una parcial.
+async function congelarTomaFisica(client, emp, empresaStr, ccosto, fecha, codigosContados = []) {
+    const contados = (codigosContados || []).map(c => String(c).trim());
     await client.query(
         `DELETE FROM toma_fisica_valorizada WHERE empresa=$1 AND ccosto=$2 AND fecha=$3`,
         [emp, ccosto, fecha]
     );
     await client.query(
-        `INSERT INTO toma_fisica_valorizada (empresa, ccosto, fecha, codigo, stock, precio_costo, valor)
+        `INSERT INTO toma_fisica_valorizada (empresa, ccosto, fecha, codigo, stock, precio_costo, valor, contado)
          SELECT $1, $2, $3::date, di.codigo,
                 ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
                 COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
                 ROUND(((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))
-                       * COALESCE(pce.precio_costo, p.precio_costo, 0))::numeric, 2) AS valor
+                       * COALESCE(pce.precio_costo, p.precio_costo, 0))::numeric, 2) AS valor,
+                (TRIM(di.codigo) = ANY($5::text[]))                                  AS contado
          FROM detalle_inventario di
          JOIN productos p ON p.codigo = di.codigo
          LEFT JOIN producto_costo_empresa pce
                 ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($4::text)
          WHERE di.empresa = $1 AND di.ccosto = $2 AND di.fecha <= $3::date AND p.control = 'SI'
          GROUP BY di.codigo, pce.precio_costo, p.precio_costo`,
-        [emp, ccosto, fecha, empresaStr]
+        [emp, ccosto, fecha, empresaStr, contados]
     );
 }
 
@@ -2518,23 +2528,35 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
     // ajustes: [{ codigo, diferencia }]  diferencia = fisico - actual
     // mode: 'new' | 'replace' | 'add'
 
-    if (!empresa || !fecha || !ccosto || !ajustes || ajustes.length === 0) {
-        return res.status(400).json({ success: false, error: 'Faltan parámetros obligatorios' });
+    // `ajustes` trae TODOS los productos contados, incluidos los que cuadran
+    // (diferencia 0). Un conteo sin diferencias sigue siendo una toma física
+    // válida y debe quedar registrada: solo se rechaza si no se contó nada.
+    if (!empresa || !fecha || !ccosto || !Array.isArray(ajustes) || ajustes.length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Registra el conteo físico de al menos un producto antes de guardar'
+        });
     }
 
     const emp = parseInt(empresa);
     const obs = (observaciones || '').trim().toUpperCase();
     const TIPO = 'TOMA FISICA';
+    const codigosContados = ajustes.map(a => a.codigo).filter(Boolean);
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // Detectar conflicto (modo 'new')
+        // Detectar conflicto (modo 'new'). Se revisan ambas fuentes: una toma
+        // donde todo cuadró no deja filas en detalle_inventario, pero sí en el
+        // snapshot valorizado.
         if (!mode || mode === 'new') {
             const dup = await client.query(
-                `SELECT COUNT(*) AS cnt FROM detalle_inventario
-                 WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4`,
+                `SELECT
+                    (SELECT COUNT(*) FROM detalle_inventario
+                      WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4)
+                  + (SELECT COUNT(*) FROM toma_fisica_valorizada
+                      WHERE fecha=$1 AND ccosto=$2 AND empresa=$3) AS cnt`,
                 [fecha, ccosto, emp, TIPO]
             );
             if (parseInt(dup.rows[0].cnt) > 0) {
@@ -2551,7 +2573,7 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
             );
         }
 
-        // Insertar ajustes
+        // Insertar ajustes — solo los que realmente difieren generan movimiento
         let registros = 0;
         for (const aj of ajustes) {
             const diff = parseFloat(aj.diferencia);
@@ -2568,8 +2590,9 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
             registros++;
         }
 
-        // Congelar la valorización de esta toma física (stock + costo del momento)
-        await congelarTomaFisica(client, emp, String(empresa), ccosto, fecha);
+        // Congelar la valorización y dejar constancia del conteo (siempre, aunque
+        // no haya habido ni una sola diferencia)
+        await congelarTomaFisica(client, emp, String(empresa), ccosto, fecha, codigosContados);
 
         await client.query('COMMIT');
 
@@ -2580,7 +2603,7 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
             }
         }
 
-        res.json({ success: true, registros });
+        res.json({ success: true, registros, contados: codigosContados.length });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error POST /api/almacen/ajuste-inventario:', error);
@@ -2962,13 +2985,20 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
             final:   { ini: hasta,             fin: sumarDias(hasta, DIAS_GRACIA_TOMA) },
         };
 
-        // Última toma física real por centro de costo dentro de cada ventana
+        // Última toma física real por centro de costo dentro de cada ventana.
+        // Se consultan dos fuentes: el snapshot valorizado (evidencia directa del
+        // conteo, existe aunque no hubiera ninguna diferencia) y detalle_inventario
+        // (para tomas antiguas, anteriores al snapshot).
         async function tomasEnVentana(v) {
             const r = await pool.query(
-                `SELECT ccosto, MAX(fecha)::text AS fecha
-                 FROM detalle_inventario
-                 WHERE empresa = $1 AND tipo = 'TOMA FISICA'
-                   AND fecha >= $2::date AND fecha <= $3::date
+                `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
+                     SELECT ccosto, fecha FROM toma_fisica_valorizada
+                      WHERE empresa = $1 AND fecha >= $2::date AND fecha <= $3::date
+                     UNION
+                     SELECT ccosto, fecha FROM detalle_inventario
+                      WHERE empresa = $1 AND tipo = 'TOMA FISICA'
+                        AND fecha >= $2::date AND fecha <= $3::date
+                 ) t
                  GROUP BY ccosto`,
                 [emp, v.ini, v.fin]
             );
@@ -2986,14 +3016,14 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         // congelado cuando existe; si no, calcula en vivo desde el kardex.
         async function valorizarCortes(cortes) {
             const pares = Object.entries(cortes);
-            if (!pares.length) return { rows: [], congelados: {} };
+            if (!pares.length) return { rows: [], congelados: {}, conteos: {} };
 
             // 1) Snapshots congelados
             const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
             const params = [emp];
             pares.forEach(([cc, f]) => { params.push(cc, f); });
             const snapRes = await pool.query(
-                `SELECT t.ccosto, t.codigo, t.stock, t.precio_costo,
+                `SELECT t.ccosto, t.codigo, t.stock, t.precio_costo, COALESCE(t.contado, false) AS contado,
                         p.nombre, p.und, COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre
                  FROM toma_fisica_valorizada t
                  JOIN productos p ON p.codigo = t.codigo
@@ -3002,8 +3032,16 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
                 params
             );
 
+            // Cobertura del conteo: cuántos productos se contaron de verdad frente
+            // a los que solo se arrastraron del saldo del kardex (toma parcial).
             const congelados = {};
-            snapRes.rows.forEach(r => { congelados[r.ccosto] = true; });
+            const conteos    = {};
+            snapRes.rows.forEach(r => {
+                congelados[r.ccosto] = true;
+                if (!conteos[r.ccosto]) conteos[r.ccosto] = { contados: 0, total: 0 };
+                conteos[r.ccosto].total++;
+                if (r.contado) conteos[r.ccosto].contados++;
+            });
 
             // 2) Cortes históricos sin snapshot → cálculo en vivo
             const pendientes = pares.filter(([cc]) => !congelados[cc]);
@@ -3032,7 +3070,7 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
                 liveRows = liveRes.rows;
             }
 
-            return { rows: [...snapRes.rows, ...liveRows], congelados };
+            return { rows: [...snapRes.rows, ...liveRows], congelados, conteos };
         }
 
         const gastosMPQuery = ctaMateriaPrima
@@ -3134,6 +3172,8 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
                 tomaFinal:   tomasFinal[cc.codigo]   || null,
                 congeladoInicial: !!valInicial.congelados[cc.codigo],
                 congeladoFinal:   !!valFinal.congelados[cc.codigo],
+                conteoInicial: valInicial.conteos[cc.codigo] || null,
+                conteoFinal:   valFinal.conteos[cc.codigo]   || null,
                 ventas,
                 incluidoEnAsignacion,
                 pctVentas,

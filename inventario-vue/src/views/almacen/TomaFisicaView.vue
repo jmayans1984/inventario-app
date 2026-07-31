@@ -38,8 +38,9 @@
               <div>
                 <strong>Filas sin conteo → se omiten</strong><br>
                 Si dejas un producto en blanco, el sistema <strong>no asume que tiene cero</strong> — simplemente lo omite.
-                Solo se ajustan los productos donde escribiste un conteo físico
-                <em>y</em> ese conteo es diferente al stock actual.
+                Los productos que sí cuentas quedan registrados aunque cuadren:
+                el <em>ajuste</em> solo se genera cuando hay diferencia, pero el <em>conteo</em>
+                se guarda siempre y es lo que respalda el inventario del cierre.
               </div>
             </div>
 
@@ -510,11 +511,16 @@ async function guardar(mode = 'new') {
   exitoMsg.value = ''
   guardando.value = true
 
+  // Se envían TODOS los productos contados, incluidos los que cuadran. Un conteo
+  // sin diferencias sigue siendo una toma física y debe quedar registrada para
+  // que la Valoración Mensual la reconozca; antes se descartaban y el centro
+  // aparecía como "sin toma".
   const ajustes = productos.value
-    .filter(p => getFisico(p.codigo) !== null && getDiferencia(p.codigo) !== 0)
+    .filter(p => getFisico(p.codigo) !== null)
     .map(p => ({ codigo: p.codigo, diferencia: getDiferencia(p.codigo) }))
 
   if (ajustes.length === 0) {
+    errorMsg.value = 'Escribe el conteo físico de al menos un producto antes de guardar.'
     guardando.value = false
     return
   }
@@ -538,7 +544,9 @@ async function guardar(mode = 'new') {
     if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
 
     dlgConflicto.value = false
-    exitoMsg.value = `✓ Ajuste guardado — ${res.data.registros} producto(s) ajustado(s)`
+    exitoMsg.value = res.data.registros === 0
+      ? `✓ Toma física guardada — ${res.data.contados} producto(s) contado(s), todo cuadró (sin ajustes)`
+      : `✓ Toma física guardada — ${res.data.contados} producto(s) contado(s), ${res.data.registros} con ajuste`
     fisico.value = {}
     // Recargar stock para reflejar el ajuste
     await cargarStock()

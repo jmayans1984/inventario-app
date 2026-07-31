@@ -433,6 +433,10 @@
                       <span class="text-dim">{{ fmtFecha(c.tomaFinal) }}</span>
                       <v-icon v-if="c.congeladoFinal" size="13" class="ml-1" color="success" title="Costo congelado">mdi-lock</v-icon>
                       <v-icon v-else size="13" class="ml-1" color="warning" title="Calculado en vivo — cambia si editas precios">mdi-lock-open-variant-outline</v-icon>
+                      <span v-if="c.conteoFinal" class="conteo-tag" :class="{ 'conteo-parcial': esParcial(c.conteoFinal) }"
+                            :title="`${c.conteoFinal.contados} de ${c.conteoFinal.total} productos contados físicamente`">
+                        {{ c.conteoFinal.contados }}/{{ c.conteoFinal.total }}
+                      </span>
                     </template>
                     <span v-else class="badge-missing">SIN TOMA</span>
                   </td>
@@ -636,6 +640,12 @@ const coberturaFinal = computed(() => {
     ? `${con} de ${totalCentros.value} centros con toma física`
     : `${con} de ${totalCentros.value} centros — faltan ${falt} sin toma`
 })
+
+// Una toma es parcial si quedaron productos sin contar: su stock viene del saldo
+// teórico del kardex, no de un conteo real.
+function esParcial(conteo) {
+  return !!conteo && conteo.contados < conteo.total
+}
 
 function fmtFecha(f) {
   if (!f) return '—'
@@ -883,6 +893,14 @@ onMounted(cargar)
 .badge-warn {
   background: rgba(239,68,68,0.12); color: var(--error);
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
+}
+.conteo-tag {
+  margin-left: 6px; padding: 1px 6px; border-radius: 7px;
+  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success);
+}
+.conteo-tag.conteo-parcial {
+  background: var(--gold-wash); color: var(--gold);
 }
 .badge-missing {
   background: rgba(239,68,68,0.12); color: var(--error);
