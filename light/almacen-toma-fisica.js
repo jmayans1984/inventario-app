@@ -57,8 +57,12 @@ async function cargarProductos() {
         '<div style="padding:20px;text-align:center;color:var(--text-secondary)">⏳ Cargando productos...</div>';
 
     try {
+        // En cierre de periodo se listan TODOS los productos con control de
+        // inventario, no solo los operativos del punto: la valorización del mes
+        // incluye todo lo que haya en el centro, así que hay que poder contarlo.
+        const enCierre = document.getElementById('esCierre')?.checked ? '&cierre=true' : '';
         const res  = await fetch(
-            `${API_BASE}/almacen/ajuste-inventario/stock?empresa=${getEmpresa()}&ccosto=${ccSel}`
+            `${API_BASE}/almacen/ajuste-inventario/stock?empresa=${getEmpresa()}&ccosto=${ccSel}${enCierre}`
         );
         const data = await res.json();
         productos = data.data || [];
@@ -235,6 +239,20 @@ function renderProductos() {
     actualizarFooter();
 }
 
+// Al activar/desactivar el cierre cambia el universo de productos a contar,
+// así que hay que recargar la lista. Se avisa si ya había conteo en curso.
+function onCierreChange(el) {
+    document.getElementById('avisoCierre').style.display = el.checked ? 'block' : 'none';
+
+    const hayConteo = Object.keys(fisico).length > 0;
+    if (hayConteo && !confirm('Cambiar el modo recarga la lista de productos y se perderá el conteo que llevas. ¿Continuar?')) {
+        el.checked = !el.checked;
+        document.getElementById('avisoCierre').style.display = el.checked ? 'block' : 'none';
+        return;
+    }
+    if (document.getElementById('ccOrigen').value) cargarProductos();
+}
+
 // ── Input handlers ────────────────────────────────────────────────
 function actualizarDiferencia(el) {
     const codigo = el.dataset.codigo;
@@ -304,6 +322,15 @@ function renderFormulario() {
                     <input type="checkbox" id="esParcial" checked style="width:18px;height:18px;cursor:pointer">
                     <span>Toma Física Parcial (solo productos contados)</span>
                 </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-primary);margin-top:10px">
+                    <input type="checkbox" id="esCierre" style="width:18px;height:18px;cursor:pointer"
+                        onchange="onCierreChange(this)">
+                    <span><strong>Cierre de Inventario Final de Periodo</strong></span>
+                </label>
+                <div id="avisoCierre" style="display:none;margin-top:6px;padding:8px 10px;border-radius:6px;background:rgba(99,102,241,.1);font-size:12px;line-height:1.45;color:var(--text-secondary)">
+                    Se guardará todo lo que digites, cuadre o no. Este conteo será el que
+                    valorice el inventario final del periodo en la Valoración Mensual.
+                </div>
             </div>
         </div>
 
@@ -340,13 +367,17 @@ async function guardarTomaFisica() {
     const ccOrigen     = document.getElementById('ccOrigen').value;
     const observaciones = document.getElementById('observaciones').value;
     const esParcial    = document.getElementById('esParcial').checked;
+    const esCierre     = document.getElementById('esCierre').checked;
 
     if (!fecha || !ccOrigen) {
         alert('❌ Completa los campos obligatorios');
         return;
     }
 
-    // Construir ajustes según parcial / completa
+    // Construir ajustes según parcial / completa.
+    // En un CIERRE se envía todo lo contado aunque cuadre: ese conteo es el que
+    // respalda el inventario final del periodo, así que debe quedar registrado
+    // completo. En un conteo normal solo interesan los que difieren.
     const ajustes = [];
 
     if (esParcial) {
@@ -355,7 +386,7 @@ async function guardarTomaFisica() {
             const prod  = productos.find(p => p.codigo === codigo);
             const stock = parseFloat(prod?.stock_actual ?? 0);
             const diff  = cantFisica - stock;
-            if (diff !== 0) ajustes.push({ codigo, diferencia: diff });
+            if (esCierre || diff !== 0) ajustes.push({ codigo, diferencia: diff });
         });
     } else {
         // Todos los productos: blank = 0
@@ -363,17 +394,32 @@ async function guardarTomaFisica() {
             const stock      = parseFloat(p.stock_actual ?? 0);
             const cantFisica = fisico[p.codigo] !== undefined ? fisico[p.codigo] : 0;
             const diff       = cantFisica - stock;
-            if (diff !== 0) ajustes.push({ codigo: p.codigo, diferencia: diff });
+            if (esCierre || diff !== 0) ajustes.push({ codigo: p.codigo, diferencia: diff });
         });
     }
 
     if (ajustes.length === 0) {
-        alert('❌ Ningún producto tiene diferencia de conteo');
+        alert(esCierre
+            ? '❌ Escribe el conteo físico de al menos un producto antes de cerrar el periodo'
+            : '❌ Ningún producto tiene diferencia de conteo');
         return;
     }
 
-    const tipoTxt = esParcial ? 'Parcial' : 'Completa';
-    if (!confirm(`¿Confirmas toma física ${tipoTxt} con ${ajustes.length} ajuste(s)?`)) return;
+    const tipoTxt   = esParcial ? 'Parcial' : 'Completa';
+    const conAjuste = ajustes.filter(a => a.diferencia !== 0).length;
+
+    let msgConfirm;
+    if (esCierre) {
+        msgConfirm = `¿Confirmas el CIERRE DE PERIODO (${tipoTxt})?\n\n`
+                   + `${ajustes.length} producto(s) contado(s) · ${conAjuste} con ajuste\n\n`
+                   + `Este conteo valorizará el inventario final del periodo.`;
+        if (!esParcial) {
+            msgConfirm += `\n\n⚠️ Los productos que no digitaste se registrarán en CERO.`;
+        }
+    } else {
+        msgConfirm = `¿Confirmas toma física ${tipoTxt} con ${conAjuste} ajuste(s)?`;
+    }
+    if (!confirm(msgConfirm)) return;
 
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('active');
@@ -390,13 +436,14 @@ async function guardarTomaFisica() {
                 ccosto:       ccOrigen,
                 observaciones,
                 ajustes,
+                es_cierre:    esCierre,
             }),
         });
         const data = await res.json();
 
         if (data.conflict) {
             mostrarAviso(`⚠️ Ya existe una toma física para esta fecha y CC. Se guardará como un nuevo registro.`);
-            return guardarConMode('add', fecha, ccOrigen, observaciones, ajustes, tipoTxt);
+            return guardarConMode('add', fecha, ccOrigen, observaciones, ajustes, tipoTxt, esCierre);
         }
 
         if (data.success) {
@@ -418,7 +465,7 @@ async function guardarTomaFisica() {
     }
 }
 
-async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tipoTxt) {
+async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tipoTxt, esCierre = false) {
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('active');
     document.querySelector('.popup-state-loading').classList.remove('hide');
@@ -436,6 +483,7 @@ async function guardarConMode(mode, fecha, ccOrigen, observaciones, ajustes, tip
                 observaciones,
                 ajustes,
                 mode,
+                es_cierre: esCierre,
             }),
         });
         const data = await res.json();
