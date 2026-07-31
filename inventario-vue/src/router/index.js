@@ -46,7 +46,10 @@ const routes = [
   { path: '/almacen/configuracion/mapeo-receta-producto', component: () => import('../views/almacen/MapeoRecetaProductoView.vue'), meta: { requiresAuth: true } },
   { path: '/almacen/procesos/gestion-inventario',      component: () => import('../views/almacen/GestionInventarioView.vue'),  meta: { requiresAuth: true } },
   { path: '/almacen/procesos/toma-fisica',             component: () => import('../views/almacen/TomaFisicaView.vue'),        meta: { requiresAuth: true } },
-  { path: '/almacen/procesos/valoracion',              component: () => import('../views/almacen/ValoracionView.vue'),        meta: { requiresAuth: true } },
+  // Misma pantalla que /almacen/reportes/valoracion-mensual — se mantiene la ruta
+  // de Procesos por compatibilidad con enlaces existentes, pero apunta al mismo
+  // componente para que no vuelvan a divergir (antes era una copia desactualizada).
+  { path: '/almacen/procesos/valoracion',              component: () => import('../views/almacen/ReporteValoracionMensualView.vue'), meta: { requiresAuth: true } },
   { path: '/almacen/procesos/ordenes-compra',          component: () => import('../views/almacen/OrdenesCompraView.vue'),     meta: { requiresAuth: true } },
   { path: '/almacen/procesos/despachos',               component: () => import('../views/almacen/DespachosBodegaView.vue'),   meta: { requiresAuth: true } },
   { path: '/almacen/procesos/ordenes-produccion',      component: () => import('../views/almacen/OrdenesProduccionView.vue'),  meta: { requiresAuth: true } },

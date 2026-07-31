@@ -5,7 +5,7 @@
       <PageHeader
         title="Valoración Mensual de Inventario"
         description="Consumo real de materia prima por juego de inventarios (Inv. Inicial + Compras − Inv. Final)"
-        :crumbs="['Almacén', 'Reportes', 'Valoración Mensual']"
+        :crumbs="crumbs"
       >
         <template #actions>
           <input type="month" v-model="mesSel" class="mes-input" />
@@ -524,10 +524,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
+
+// La pantalla se sirve tanto desde Procesos como desde Reportes
+const route = useRoute()
+const crumbs = computed(() => route.path.includes('/procesos/')
+  ? ['Almacén', 'Procesos', 'Valoración Mensual']
+  : ['Almacén', 'Reportes', 'Valoración Mensual'])
 
 const authStore = useAuthStore()
 const empresa = computed(() =>
