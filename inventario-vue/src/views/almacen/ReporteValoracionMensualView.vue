@@ -8,12 +8,29 @@
         :crumbs="crumbs"
       >
         <template #actions>
-          <input type="month" v-model="mesSel" class="mes-input" />
+          <v-btn-toggle v-model="modo" mandatory density="compact" variant="outlined" divided>
+            <v-btn value="mes"   size="small">Mes</v-btn>
+            <v-btn value="rango" size="small">Corte</v-btn>
+          </v-btn-toggle>
+
+          <input v-if="modo === 'mes'" type="month" v-model="mesSel" class="mes-input" />
+          <template v-else>
+            <input type="date" v-model="fDesde" class="mes-input" title="Desde" />
+            <span class="rango-sep">→</span>
+            <input type="date" v-model="fHasta" class="mes-input" title="Hasta (día del corte)" />
+          </template>
+
           <v-btn color="primary" variant="flat" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
             Actualizar
           </v-btn>
         </template>
       </PageHeader>
+
+      <!-- ERROR -->
+      <div v-if="errorMsg" class="vm-warning">
+        <v-icon size="20" color="error">mdi-alert-circle-outline</v-icon>
+        <span>{{ errorMsg }}</span>
+      </div>
 
       <!-- LOADING -->
       <div v-if="loading" class="vm-loading">
@@ -22,6 +39,20 @@
       </div>
 
       <template v-else-if="data">
+
+        <!-- PERÍODO CONSULTADO -->
+        <div class="vm-periodo">
+          <v-icon size="15">mdi-calendar-range</v-icon>
+          <span>
+            Período <b>{{ fmtFecha(data.periodo.desde) }} → {{ fmtFecha(data.periodo.hasta) }}</b>
+            ({{ diasPeriodo }} {{ diasPeriodo === 1 ? 'día' : 'días' }})
+          </span>
+          <span class="vm-periodo-sep">·</span>
+          <span>
+            Toma de cierre esperada entre
+            <b>{{ fmtFecha(data.ventanas.final.ini) }}</b> y <b>{{ fmtFecha(data.ventanas.final.fin) }}</b>
+          </span>
+        </div>
 
         <!-- AVISO: cuenta de materia prima no configurada -->
         <div v-if="!data.ctaMateriaPrima" class="vm-warning">
@@ -542,8 +573,9 @@ const empresa = computed(() =>
 )
 
 // ── Estado ──────────────────────────────────────────────────────────────────
-const loading = ref(false)
-const data    = ref(null)
+const loading  = ref(false)
+const data     = ref(null)
+const errorMsg = ref('')
 const filtroProducto = ref('')
 const showDetalleInicial = ref(false)
 const showDetalleFinal   = ref(false)
@@ -554,6 +586,14 @@ function mesActualStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 const mesSel = ref(mesActualStr())
+
+// 'mes' = mes calendario completo · 'rango' = corte parcial (7, 15, 20 días…)
+// El backend no asume mes: solo necesita desde/hasta y busca la toma física de
+// cierre en la ventana [hasta, hasta + días de gracia].
+const modo   = ref('mes')
+const hoyStr = new Date().toISOString().slice(0, 10)
+const fDesde = ref(hoyStr.slice(0, 8) + '01')
+const fHasta = ref(hoyStr)
 
 const mesLabel = computed(() => {
   if (!mesSel.value) return ''
@@ -567,6 +607,13 @@ const fechaCorteInicialTxt = computed(() => {
   const d = new Date(data.value.periodo.desde + 'T00:00:00')
   d.setDate(d.getDate() - 1)
   return d.toISOString().slice(0, 10)
+})
+
+const diasPeriodo = computed(() => {
+  if (!data.value) return 0
+  const a = new Date(data.value.periodo.desde + 'T00:00:00Z')
+  const b = new Date(data.value.periodo.hasta + 'T00:00:00Z')
+  return Math.round((b - a) / 86400000) + 1
 })
 
 // Cobertura de tomas físicas: cuántos centros respaldan cada corte
@@ -637,11 +684,27 @@ function rangoMes(mesStr) {
   return { desde, hasta }
 }
 
+// Período efectivo según el modo seleccionado
+function periodoActivo() {
+  if (modo.value === 'rango') {
+    if (!fDesde.value || !fHasta.value) return null
+    if (fHasta.value < fDesde.value) return null
+    return { desde: fDesde.value, hasta: fHasta.value }
+  }
+  return mesSel.value ? rangoMes(mesSel.value) : null
+}
+
 async function cargar() {
-  if (!empresa.value || !mesSel.value) return
+  if (!empresa.value) return
+  const periodo = periodoActivo()
+  if (!periodo) {
+    errorMsg.value = 'Revisa las fechas: la fecha final no puede ser anterior a la inicial.'
+    return
+  }
+  errorMsg.value = ''
   loading.value = true
   try {
-    const { desde, hasta } = rangoMes(mesSel.value)
+    const { desde, hasta } = periodo
     const params = new URLSearchParams({ empresa: empresa.value, desde, hasta })
     const res = await fetch(`${API_BASE}/almacen/valoracion-mensual?${params}`)
     const j   = await res.json()
@@ -650,6 +713,7 @@ async function cargar() {
     loading.value = false
   } catch (e) {
     console.error('valoracion-mensual:', e)
+    errorMsg.value = e?.message || 'No se pudo cargar la valoración. Intenta de nuevo.'
     loading.value = false
   }
 }
@@ -693,6 +757,14 @@ onMounted(cargar)
   color: rgb(var(--v-theme-on-surface)); border-radius: 10px;
   padding: 12px 16px; font-size: 13px; margin-bottom: 18px;
 }
+.vm-periodo {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12.5px; color: rgba(var(--v-theme-on-surface), 0.6);
+  margin-bottom: 16px;
+}
+.vm-periodo-sep { color: rgba(var(--v-theme-on-surface), 0.25); }
+.rango-sep { color: rgba(var(--v-theme-on-surface), 0.4); font-size: 13px; }
+
 .vm-warning-title { font-weight: 700; margin-bottom: 4px; }
 .vm-warning-line  { margin-bottom: 2px; }
 .vm-warning-note  { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); margin-top: 6px; }
