@@ -29,6 +29,36 @@
           <span>No hay configurada la <b>Cuenta Contable Materia Prima (Entrada de Almacén)</b> en Configuración General. Las compras del período se calcularán en $0 hasta que la configures.</span>
         </div>
 
+        <!-- AVISO: centros de costo sin toma física en la ventana de cierre -->
+        <div v-if="data.avisos.sinTomaInicial.length || data.avisos.sinTomaFinal.length" class="vm-warning">
+          <v-icon size="20" color="error">mdi-clipboard-alert-outline</v-icon>
+          <div>
+            <div class="vm-warning-title">Faltan tomas físicas — el inventario de estos centros va en $0</div>
+            <div v-if="data.avisos.sinTomaInicial.length" class="vm-warning-line">
+              <b>Inventario inicial</b> (toma esperada entre {{ fmtFecha(data.ventanas.inicial.ini) }} y {{ fmtFecha(data.ventanas.inicial.fin) }}):
+              {{ data.avisos.sinTomaInicial.join(' · ') }}
+            </div>
+            <div v-if="data.avisos.sinTomaFinal.length" class="vm-warning-line">
+              <b>Inventario final</b> (toma esperada entre {{ fmtFecha(data.ventanas.final.ini) }} y {{ fmtFecha(data.ventanas.final.fin) }}):
+              {{ data.avisos.sinTomaFinal.join(' · ') }}
+            </div>
+            <div class="vm-warning-note">
+              El consumo real de estos centros queda distorsionado hasta que registres la toma física.
+              Como el servicio es nocturno, la toma del cierre puede hacerse la mañana del día siguiente.
+            </div>
+          </div>
+        </div>
+
+        <!-- AVISO: cortes calculados en vivo (sin costo congelado) -->
+        <div v-if="data.avisos.noCongelados.length" class="vm-note-info">
+          <v-icon size="18" color="warning">mdi-lock-open-variant-outline</v-icon>
+          <span>
+            Estos centros usan tomas físicas anteriores al congelado de costos, así que su valor todavía
+            cambia si editas los precios: <b>{{ data.avisos.noCongelados.join(' · ') }}</b>.
+            Las tomas nuevas quedan congeladas automáticamente.
+          </span>
+        </div>
+
         <!-- KPI CARDS -->
         <div class="vm-kpis">
           <div class="vm-kpi">
@@ -42,7 +72,9 @@
             </div>
             <div class="vm-kpi-lbl">Inventario Inicial</div>
             <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorInicial) }}</div>
-            <div class="vm-kpi-sub">toma física al {{ fechaCorteInicialTxt }}</div>
+            <div class="vm-kpi-sub" :class="{ 'vm-kpi-sub-warn': data.kpis.ccSinTomaInicial > 0 }">
+              {{ coberturaInicial }}
+            </div>
           </div>
           <div class="vm-kpi">
             <div class="vm-kpi-top">
@@ -68,7 +100,9 @@
             </div>
             <div class="vm-kpi-lbl">Inventario Final</div>
             <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</div>
-            <div class="vm-kpi-sub">toma física al {{ data.periodo.hasta }}</div>
+            <div class="vm-kpi-sub" :class="{ 'vm-kpi-sub-warn': data.kpis.ccSinTomaFinal > 0 }">
+              {{ coberturaFinal }}
+            </div>
           </div>
           <div class="vm-kpi">
             <div class="vm-kpi-top">
@@ -133,13 +167,15 @@
             </v-card-title>
             <v-card-text class="pa-4">
               <p class="text-body-2 mb-3" style="color:rgba(var(--v-theme-on-surface),0.6)">
-                Valor del inventario según la <b>toma física</b> vigente al <b>{{ fechaCorteInicialTxt }}</b> (día anterior al inicio del período).
-                Se suma el valor (stock × precio_costo) de cada producto en cada centro de costo / bodega.
+                Es el cierre del mes anterior: la <b>toma física</b> registrada entre el
+                <b>{{ fmtFecha(data?.ventanas?.inicial?.ini) }}</b> y el <b>{{ fmtFecha(data?.ventanas?.inicial?.fin) }}</b>.
+                Los centros sin toma en esa ventana van en <b>$0</b>.
               </p>
               <table class="vm-table" v-if="data">
                 <thead>
                   <tr>
                     <th>CENTRO DE COSTO</th>
+                    <th>TOMA</th>
                     <th class="tr">VALOR INICIAL</th>
                   </tr>
                 </thead>
@@ -149,12 +185,17 @@
                       {{ c.nombre }}
                       <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
                     </td>
-                    <td class="tr">{{ fmt(c.valorInicial) }}</td>
+                    <td>
+                      <span v-if="c.tomaInicial" class="text-dim">{{ fmtFecha(c.tomaInicial) }}</span>
+                      <span v-else class="badge-missing">SIN TOMA</span>
+                    </td>
+                    <td class="tr" :class="{ 'td-missing': !c.tomaInicial }">{{ fmt(c.valorInicial) }}</td>
                   </tr>
                 </tbody>
                 <tfoot>
                   <tr class="vm-tr-total">
                     <td class="font-weight-bold">TOTAL</td>
+                    <td></td>
                     <td class="tr font-weight-bold" style="color:var(--indigo)">{{ fmt(data.kpis.valorInicial) }}</td>
                   </tr>
                 </tfoot>
@@ -175,13 +216,16 @@
             </v-card-title>
             <v-card-text class="pa-4">
               <p class="text-body-2 mb-3" style="color:rgba(var(--v-theme-on-surface),0.6)">
-                Valor del inventario según la <b>toma física</b> vigente al <b>{{ data?.periodo?.hasta }}</b> (último día del período).
-                Se suma el valor (stock × precio_costo) de cada producto en cada centro de costo / bodega.
+                Es el cierre del mes: la <b>toma física</b> registrada entre el
+                <b>{{ fmtFecha(data?.ventanas?.final?.ini) }}</b> y el <b>{{ fmtFecha(data?.ventanas?.final?.fin) }}</b>.
+                Como el servicio es nocturno, la toma puede hacerse la mañana siguiente al cierre.
+                Los centros sin toma en esa ventana van en <b>$0</b>.
               </p>
               <table class="vm-table" v-if="data">
                 <thead>
                   <tr>
                     <th>CENTRO DE COSTO</th>
+                    <th>TOMA</th>
                     <th class="tr">VALOR FINAL</th>
                   </tr>
                 </thead>
@@ -191,12 +235,17 @@
                       {{ c.nombre }}
                       <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
                     </td>
-                    <td class="tr">{{ fmt(c.valorFinal) }}</td>
+                    <td>
+                      <span v-if="c.tomaFinal" class="text-dim">{{ fmtFecha(c.tomaFinal) }}</span>
+                      <span v-else class="badge-missing">SIN TOMA</span>
+                    </td>
+                    <td class="tr" :class="{ 'td-missing': !c.tomaFinal }">{{ fmt(c.valorFinal) }}</td>
                   </tr>
                 </tbody>
                 <tfoot>
                   <tr class="vm-tr-total">
                     <td class="font-weight-bold">TOTAL</td>
+                    <td></td>
                     <td class="tr font-weight-bold" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</td>
                   </tr>
                 </tfoot>
@@ -316,12 +365,19 @@
             <v-icon size="18" color="primary">mdi-clipboard-check-outline</v-icon>
             <span class="vm-card-title">Valorización de Toma Física por Centro de Costo / Bodega</span>
           </div>
+          <p class="vm-card-note">
+            Cada valor proviene de una <b>toma física real</b>. Si el centro no registró toma en la ventana de
+            cierre, su valor es <b>$0</b> y aparece marcado como <b>SIN TOMA</b>.
+            El candado indica que el costo quedó congelado y ya no cambia si editas precios.
+          </p>
           <div class="vm-table-wrap">
             <table class="vm-table">
               <thead>
                 <tr>
                   <th>CENTRO DE COSTO</th>
+                  <th>TOMA INICIAL</th>
                   <th class="tr">VALOR INICIAL</th>
+                  <th>TOMA FINAL</th>
                   <th class="tr">VALOR FINAL</th>
                   <th class="tr">DIFERENCIA</th>
                 </tr>
@@ -332,8 +388,24 @@
                     {{ c.nombre }}
                     <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
                   </td>
-                  <td class="tr">{{ fmt(c.valorInicial) }}</td>
-                  <td class="tr">{{ fmt(c.valorFinal) }}</td>
+                  <td>
+                    <template v-if="c.tomaInicial">
+                      <span class="text-dim">{{ fmtFecha(c.tomaInicial) }}</span>
+                      <v-icon v-if="c.congeladoInicial" size="13" class="ml-1" color="success" title="Costo congelado">mdi-lock</v-icon>
+                      <v-icon v-else size="13" class="ml-1" color="warning" title="Calculado en vivo — cambia si editas precios">mdi-lock-open-variant-outline</v-icon>
+                    </template>
+                    <span v-else class="badge-missing">SIN TOMA</span>
+                  </td>
+                  <td class="tr" :class="{ 'td-missing': !c.tomaInicial }">{{ fmt(c.valorInicial) }}</td>
+                  <td>
+                    <template v-if="c.tomaFinal">
+                      <span class="text-dim">{{ fmtFecha(c.tomaFinal) }}</span>
+                      <v-icon v-if="c.congeladoFinal" size="13" class="ml-1" color="success" title="Costo congelado">mdi-lock</v-icon>
+                      <v-icon v-else size="13" class="ml-1" color="warning" title="Calculado en vivo — cambia si editas precios">mdi-lock-open-variant-outline</v-icon>
+                    </template>
+                    <span v-else class="badge-missing">SIN TOMA</span>
+                  </td>
+                  <td class="tr" :class="{ 'td-missing': !c.tomaFinal }">{{ fmt(c.valorFinal) }}</td>
                   <td class="tr font-weight-bold" :style="{ color: c.diferencia >= 0 ? 'var(--success)' : 'var(--error)' }">
                     {{ c.diferencia >= 0 ? '+' : '' }}{{ fmt(c.diferencia) }}
                   </td>
@@ -342,7 +414,9 @@
               <tfoot>
                 <tr class="vm-tr-total">
                   <td class="font-weight-bold">TOTAL EMPRESA</td>
+                  <td></td>
                   <td class="tr font-weight-bold">{{ fmt(data.kpis.valorInicial) }}</td>
+                  <td></td>
                   <td class="tr font-weight-bold">{{ fmt(data.kpis.valorFinal) }}</td>
                   <td class="tr font-weight-bold" :style="{ color: (data.kpis.valorFinal - data.kpis.valorInicial) >= 0 ? 'var(--success)' : 'var(--error)' }">
                     {{ (data.kpis.valorFinal - data.kpis.valorInicial) >= 0 ? '+' : '' }}{{ fmt(data.kpis.valorFinal - data.kpis.valorInicial) }}
@@ -488,6 +562,33 @@ const fechaCorteInicialTxt = computed(() => {
   return d.toISOString().slice(0, 10)
 })
 
+// Cobertura de tomas físicas: cuántos centros respaldan cada corte
+const totalCentros = computed(() => data.value?.centros?.length || 0)
+
+const coberturaInicial = computed(() => {
+  if (!data.value) return ''
+  const falt = data.value.kpis.ccSinTomaInicial
+  const con  = totalCentros.value - falt
+  return falt === 0
+    ? `${con} de ${totalCentros.value} centros con toma física`
+    : `${con} de ${totalCentros.value} centros — faltan ${falt} sin toma`
+})
+
+const coberturaFinal = computed(() => {
+  if (!data.value) return ''
+  const falt = data.value.kpis.ccSinTomaFinal
+  const con  = totalCentros.value - falt
+  return falt === 0
+    ? `${con} de ${totalCentros.value} centros con toma física`
+    : `${con} de ${totalCentros.value} centros — faltan ${falt} sin toma`
+})
+
+function fmtFecha(f) {
+  if (!f) return '—'
+  const [y, m, d] = String(f).slice(0, 10).split('-')
+  return `${d}/${m}/${y}`
+}
+
 const productosFiltrados = computed(() => {
   if (!data.value) return []
   const q = filtroProducto.value.trim().toLowerCase()
@@ -580,10 +681,20 @@ onMounted(cargar)
 
 /* AVISO */
 .vm-warning {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: flex-start; gap: 10px;
   background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
   color: rgb(var(--v-theme-on-surface)); border-radius: 10px;
   padding: 12px 16px; font-size: 13px; margin-bottom: 18px;
+}
+.vm-warning-title { font-weight: 700; margin-bottom: 4px; }
+.vm-warning-line  { margin-bottom: 2px; }
+.vm-warning-note  { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.6); margin-top: 6px; }
+
+.vm-note-info {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--gold-wash); border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  color: rgb(var(--v-theme-on-surface)); border-radius: 10px;
+  padding: 10px 14px; font-size: 12.5px; margin-bottom: 18px;
 }
 
 /* LOADING / EMPTY */
@@ -601,6 +712,7 @@ onMounted(cargar)
 .vm-kpi-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-600); }
 .vm-kpi-val { font-size: var(--text-2xl); font-weight: 700; line-height: 1.2; margin: 4px 0; font-variant-numeric: tabular-nums; }
 .vm-kpi-sub { font-size: 11px; color: var(--ink-400); }
+.vm-kpi-sub-warn { color: var(--error); font-weight: 600; }
 
 /* CARDS */
 .vm-card {
@@ -693,6 +805,12 @@ onMounted(cargar)
   background: rgba(239,68,68,0.12); color: var(--error);
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
 }
+.badge-missing {
+  background: rgba(239,68,68,0.12); color: var(--error);
+  font-size: 10px; font-weight: 800; letter-spacing: .4px;
+  padding: 2px 7px; border-radius: 8px;
+}
+.td-missing { color: var(--error); font-weight: 600; }
 .badge-dim-tag {
   background: rgba(148,163,184,0.12); color: #94a3b8;
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;

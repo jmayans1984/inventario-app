@@ -2466,6 +2466,51 @@ app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
     }
 });
 
+// ── SNAPSHOT VALORIZADO DE TOMA FÍSICA ────────────────────────────
+// Congela stock y costo unitario en el momento de la toma física, para que
+// la Valoración Mensual de meses ya cerrados no cambie si luego se editan
+// los precios de costo. Se escribe automáticamente al guardar cada toma.
+pool.query(`
+    CREATE TABLE IF NOT EXISTS toma_fisica_valorizada (
+        id           SERIAL PRIMARY KEY,
+        empresa      INT           NOT NULL,
+        ccosto       VARCHAR(20)   NOT NULL,
+        fecha        DATE          NOT NULL,
+        codigo       VARCHAR(50)   NOT NULL,
+        stock        NUMERIC(14,4) DEFAULT 0,
+        precio_costo NUMERIC(12,2) DEFAULT 0,
+        valor        NUMERIC(14,2) DEFAULT 0,
+        creado_en    TIMESTAMP     DEFAULT NOW(),
+        UNIQUE (empresa, ccosto, fecha, codigo)
+    )
+`).then(() => pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_tfv_lookup ON toma_fisica_valorizada (empresa, ccosto, fecha)`
+)).catch(() => {});
+
+// Recalcula el saldo COMPLETO del ccosto a la fecha de la toma (no solo los
+// productos ajustados) y lo congela con el costo vigente en ese instante.
+async function congelarTomaFisica(client, emp, empresaStr, ccosto, fecha) {
+    await client.query(
+        `DELETE FROM toma_fisica_valorizada WHERE empresa=$1 AND ccosto=$2 AND fecha=$3`,
+        [emp, ccosto, fecha]
+    );
+    await client.query(
+        `INSERT INTO toma_fisica_valorizada (empresa, ccosto, fecha, codigo, stock, precio_costo, valor)
+         SELECT $1, $2, $3::date, di.codigo,
+                ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
+                COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
+                ROUND(((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))
+                       * COALESCE(pce.precio_costo, p.precio_costo, 0))::numeric, 2) AS valor
+         FROM detalle_inventario di
+         JOIN productos p ON p.codigo = di.codigo
+         LEFT JOIN producto_costo_empresa pce
+                ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($4::text)
+         WHERE di.empresa = $1 AND di.ccosto = $2 AND di.fecha <= $3::date AND p.control = 'SI'
+         GROUP BY di.codigo, pce.precio_costo, p.precio_costo`,
+        [emp, ccosto, fecha, empresaStr]
+    );
+}
+
 // POST /api/almacen/ajuste-inventario
 // Guarda los ajustes en detalle_inventario
 app.post('/api/almacen/ajuste-inventario', async (req, res) => {
@@ -2522,6 +2567,9 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
             );
             registros++;
         }
+
+        // Congelar la valorización de esta toma física (stock + costo del momento)
+        await congelarTomaFisica(client, emp, String(empresa), ccosto, fecha);
 
         await client.query('COMMIT');
 
@@ -2857,9 +2905,20 @@ app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 // VALORACIÓN MENSUAL DE INVENTARIO (juego de inventarios / COGS real)
 //
-// Inventario inicial/final = toma física mensual (capturada en detalle_inventario
-// vía ajuste tipo 'TOMA FISICA'), valorizada al precio_costo actual, sumando
-// TODOS los centros de costo + bodega maestra de la empresa.
+// Inventario inicial/final = TOMA FÍSICA real (ajuste tipo 'TOMA FISICA' en
+// detalle_inventario). NO se usa el saldo teórico del kardex: si un centro de
+// costo no hizo toma física en la ventana de cierre, su inventario va en $0 y
+// se reporta como faltante — así el consumo nunca se infla con saldos ficticios.
+//
+// VENTANA DE CIERRE (el restaurante opera de noche): la toma que cierra el mes
+// M puede hacerse el último día de M o la mañana del día 1 de M+1, después de
+// la venta de la última noche. El inventario inicial de M es, por continuidad,
+// el mismo corte de cierre de M-1.
+//
+// COSTO CONGELADO: cada toma física guarda su valorización en
+// toma_fisica_valorizada (stock + costo del momento). Si existe snapshot se usa
+// ese valor y el mes queda inmune a cambios posteriores de precio_costo. Las
+// tomas antiguas sin snapshot se calculan en vivo y se marcan como no congeladas.
 //
 // Compras = SUM(gastos.total) del mes en la cuenta contable configurada como
 // "Cuenta Materia Prima (Entrada de Almacén)" (config_general.cta_materia_prima).
@@ -2870,6 +2929,15 @@ app.get('/api/almacen/reporte-consumo-insumos', async (req, res) => {
 // ventas en el período (excluyendo la bodega maestra y los CC administrativos
 // sin ventas), en proporción a su participación % en las ventas netas totales.
 // ══════════════════════════════════════════════════════════════════
+
+// Días de gracia tras el cierre para aceptar la toma física del mes.
+const DIAS_GRACIA_TOMA = 1;
+
+function sumarDias(fechaStr, n) {
+    const d = new Date(fechaStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+}
 
 app.get('/api/almacen/valoracion-mensual', async (req, res) => {
     const { empresa, desde, hasta } = req.query;
@@ -2885,28 +2953,87 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         const bodegaMaestra   = bodegaRes.rows[0]?.bodega_maestra || null;
         const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
 
-        // Stock valorizado por producto x ccosto, a un corte de fecha dado.
-        // Costo resuelto por empresa: COALESCE(su capa, costo base del principal).
-        async function stockValorizado(fechaCorte) {
+        // ── Ventanas de cierre ────────────────────────────────────────────
+        // Cierre del mes: [hasta, hasta + gracia]
+        // Cierre del mes anterior (= inventario inicial): [desde-1, desde-1 + gracia]
+        const cierreAnteriorIni = sumarDias(desde, -1);
+        const ventanas = {
+            inicial: { ini: cierreAnteriorIni, fin: sumarDias(cierreAnteriorIni, DIAS_GRACIA_TOMA) },
+            final:   { ini: hasta,             fin: sumarDias(hasta, DIAS_GRACIA_TOMA) },
+        };
+
+        // Última toma física real por centro de costo dentro de cada ventana
+        async function tomasEnVentana(v) {
             const r = await pool.query(
-                `SELECT di.ccosto, di.codigo,
-                        ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
-                        COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
-                        p.nombre, p.und,
-                        COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre
-                 FROM detalle_inventario di
-                 JOIN productos p ON p.codigo = di.codigo
-                 LEFT JOIN producto_costo_empresa pce
-                        ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
-                 LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
-                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
-                 GROUP BY di.ccosto, di.codigo, pce.precio_costo, p.precio_costo, p.nombre, p.und, gp.nombre`,
-                [String(empresa), emp, fechaCorte]
+                `SELECT ccosto, MAX(fecha)::text AS fecha
+                 FROM detalle_inventario
+                 WHERE empresa = $1 AND tipo = 'TOMA FISICA'
+                   AND fecha >= $2::date AND fecha <= $3::date
+                 GROUP BY ccosto`,
+                [emp, v.ini, v.fin]
             );
-            return r.rows;
+            const m = {};
+            r.rows.forEach(row => { m[row.ccosto] = row.fecha.slice(0, 10); });
+            return m;
         }
 
-        const fechaCorteInicial = new Date(new Date(desde).getTime() - 86400000).toISOString().slice(0, 10);
+        const [tomasInicial, tomasFinal] = await Promise.all([
+            tomasEnVentana(ventanas.inicial),
+            tomasEnVentana(ventanas.final),
+        ]);
+
+        // Valoriza un conjunto de cortes (ccosto → fecha). Usa el snapshot
+        // congelado cuando existe; si no, calcula en vivo desde el kardex.
+        async function valorizarCortes(cortes) {
+            const pares = Object.entries(cortes);
+            if (!pares.length) return { rows: [], congelados: {} };
+
+            // 1) Snapshots congelados
+            const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
+            const params = [emp];
+            pares.forEach(([cc, f]) => { params.push(cc, f); });
+            const snapRes = await pool.query(
+                `SELECT t.ccosto, t.codigo, t.stock, t.precio_costo,
+                        p.nombre, p.und, COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre
+                 FROM toma_fisica_valorizada t
+                 JOIN productos p ON p.codigo = t.codigo
+                 LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+                 WHERE t.empresa = $1 AND (t.ccosto, t.fecha) IN (${ph})`,
+                params
+            );
+
+            const congelados = {};
+            snapRes.rows.forEach(r => { congelados[r.ccosto] = true; });
+
+            // 2) Cortes históricos sin snapshot → cálculo en vivo
+            const pendientes = pares.filter(([cc]) => !congelados[cc]);
+            let liveRows = [];
+            if (pendientes.length) {
+                const vals = pendientes.map((_, i) => `($${i * 2 + 3}::varchar, $${i * 2 + 4}::date)`).join(', ');
+                const lp = [emp, String(empresa)];
+                pendientes.forEach(([cc, f]) => { lp.push(cc, f); });
+                const liveRes = await pool.query(
+                    `WITH cortes(ccosto, fecha) AS (VALUES ${vals})
+                     SELECT c.ccosto, di.codigo,
+                            ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
+                            COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
+                            p.nombre, p.und, COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre
+                     FROM cortes c
+                     JOIN detalle_inventario di
+                       ON di.ccosto = c.ccosto AND di.fecha <= c.fecha AND di.empresa = $1
+                     JOIN productos p ON p.codigo = di.codigo
+                     LEFT JOIN producto_costo_empresa pce
+                            ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($2::text)
+                     LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+                     WHERE p.control = 'SI'
+                     GROUP BY c.ccosto, di.codigo, pce.precio_costo, p.precio_costo, p.nombre, p.und, gp.nombre`,
+                    lp
+                );
+                liveRows = liveRes.rows;
+            }
+
+            return { rows: [...snapRes.rows, ...liveRows], congelados };
+        }
 
         const gastosMPQuery = ctaMateriaPrima
             ? pool.query(
@@ -2920,9 +3047,9 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
               )
             : Promise.resolve({ rows: [] });
 
-        const [inicialRows, finalRows, gastosMPRes, ventasRes] = await Promise.all([
-            stockValorizado(fechaCorteInicial),
-            stockValorizado(hasta),
+        const [valInicial, valFinal, gastosMPRes, ventasRes] = await Promise.all([
+            valorizarCortes(tomasInicial),
+            valorizarCortes(tomasFinal),
             gastosMPQuery,
             pool.query(
                 `SELECT ccosto, COALESCE(SUM(ventas_netas), 0) AS ventas
@@ -2954,8 +3081,8 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
                 porProducto[row.codigo][campo === 'valorInicial' ? 'stockInicial' : 'stockFinal'] += parseFloat(row.stock);
             }
         }
-        acumular(inicialRows, 'valorInicial');
-        acumular(finalRows, 'valorFinal');
+        acumular(valInicial.rows, 'valorInicial');
+        acumular(valFinal.rows, 'valorFinal');
 
         const itemsSinCosto = new Set();
         for (const p of Object.values(porProducto)) {
@@ -3002,6 +3129,11 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
                 valorInicial: v.valorInicial,
                 valorFinal: v.valorFinal,
                 diferencia: v.valorFinal - v.valorInicial,
+                // Trazabilidad de la toma física que respalda cada corte
+                tomaInicial: tomasInicial[cc.codigo] || null,
+                tomaFinal:   tomasFinal[cc.codigo]   || null,
+                congeladoInicial: !!valInicial.congelados[cc.codigo],
+                congeladoFinal:   !!valFinal.congelados[cc.codigo],
                 ventas,
                 incluidoEnAsignacion,
                 pctVentas,
@@ -3010,6 +3142,12 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
             };
         }).sort((a, b) => b.consumoMP - a.consumoMP);
 
+        // Centros sin toma física en la ventana de cierre → su inventario va en $0
+        const sinTomaInicial = centros.filter(c => !c.tomaInicial).map(c => c.nombre);
+        const sinTomaFinal   = centros.filter(c => !c.tomaFinal).map(c => c.nombre);
+        const noCongelados   = centros.filter(c => (c.tomaInicial && !c.congeladoInicial) ||
+                                                   (c.tomaFinal   && !c.congeladoFinal)).map(c => c.nombre);
+
         const productos = Object.values(porProducto)
             .filter(p => p.valorInicial > 0.0001 || p.valorFinal > 0.0001)
             .sort((a, b) => (b.valorInicial + b.valorFinal) - (a.valorInicial + a.valorFinal));
@@ -3017,6 +3155,8 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         res.json({
             success: true,
             periodo: { desde, hasta },
+            ventanas,
+            diasGracia: DIAS_GRACIA_TOMA,
             bodegaMaestra,
             ctaMateriaPrima,
             kpis: {
@@ -3025,8 +3165,11 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
                 compras: totalCompras,
                 consumoReal,
                 itemsSinCosto: itemsSinCosto.size,
-                totalVentasBase
+                totalVentasBase,
+                ccSinTomaInicial: sinTomaInicial.length,
+                ccSinTomaFinal: sinTomaFinal.length
             },
+            avisos: { sinTomaInicial, sinTomaFinal, noCongelados },
             centros,
             productos,
             gastosMP: gastosMPRes.rows
