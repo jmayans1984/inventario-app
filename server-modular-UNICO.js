@@ -2481,56 +2481,70 @@ pool.query(`
         precio_costo NUMERIC(12,2) DEFAULT 0,
         valor        NUMERIC(14,2) DEFAULT 0,
         contado      BOOLEAN       DEFAULT FALSE,
+        es_cierre    BOOLEAN       DEFAULT FALSE,
         creado_en    TIMESTAMP     DEFAULT NOW(),
         UNIQUE (empresa, ccosto, fecha, codigo)
     )
 `).then(() => Promise.all([
     pool.query(`CREATE INDEX IF NOT EXISTS idx_tfv_lookup ON toma_fisica_valorizada (empresa, ccosto, fecha)`),
-    pool.query(`ALTER TABLE toma_fisica_valorizada ADD COLUMN IF NOT EXISTS contado BOOLEAN DEFAULT FALSE`),
+    pool.query(`ALTER TABLE toma_fisica_valorizada ADD COLUMN IF NOT EXISTS contado   BOOLEAN DEFAULT FALSE`),
+    pool.query(`ALTER TABLE toma_fisica_valorizada ADD COLUMN IF NOT EXISTS es_cierre BOOLEAN DEFAULT FALSE`),
 ])).catch(() => {});
 
 // Recalcula el saldo COMPLETO del ccosto a la fecha de la toma (no solo los
 // productos ajustados) y lo congela con el costo vigente en ese instante.
 //
-// Esta tabla es además la EVIDENCIA de que la toma se hizo: detalle_inventario
-// solo guarda diferencias, así que un conteo donde todo cuadra no dejaba rastro
-// y la valoración lo trataba como "sin toma". Aquí siempre queda registro, y
-// `contado` marca qué productos se contaron de verdad (vs. arrastrados del kardex),
-// lo que permite distinguir una toma total de una parcial.
-async function congelarTomaFisica(client, emp, empresaStr, ccosto, fecha, codigosContados = []) {
+// Solo los conteos marcados como CIERRE DE PERIODO valorizan el mes. El día a día
+// son tomas parciales de unos pocos productos: registrarlas como cierre haría que
+// un ajuste rutinario cerca de fin de mes se tomara por el inventario final.
+//
+// `contado` marca qué productos se contaron de verdad (vs. arrastrados del saldo
+// del kardex), para distinguir un cierre completo de uno a medias.
+async function congelarTomaFisica(client, emp, empresaStr, ccosto, fecha, codigosContados = [], esCierre = false) {
     const contados = (codigosContados || []).map(c => String(c).trim());
+
+    // Un conteo parcial del mismo día nunca debe pisar el cierre ya registrado
+    if (!esCierre) {
+        const yaHayCierre = await client.query(
+            `SELECT 1 FROM toma_fisica_valorizada
+              WHERE empresa=$1 AND ccosto=$2 AND fecha=$3 AND es_cierre = TRUE LIMIT 1`,
+            [emp, ccosto, fecha]
+        );
+        if (yaHayCierre.rowCount) return;
+    }
+
     await client.query(
         `DELETE FROM toma_fisica_valorizada WHERE empresa=$1 AND ccosto=$2 AND fecha=$3`,
         [emp, ccosto, fecha]
     );
     await client.query(
-        `INSERT INTO toma_fisica_valorizada (empresa, ccosto, fecha, codigo, stock, precio_costo, valor, contado)
+        `INSERT INTO toma_fisica_valorizada (empresa, ccosto, fecha, codigo, stock, precio_costo, valor, contado, es_cierre)
          SELECT $1, $2, $3::date, di.codigo,
                 ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
                 COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
                 ROUND(((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))
                        * COALESCE(pce.precio_costo, p.precio_costo, 0))::numeric, 2) AS valor,
-                (TRIM(di.codigo) = ANY($5::text[]))                                  AS contado
+                (TRIM(di.codigo) = ANY($5::text[]))                                  AS contado,
+                $6::boolean                                                          AS es_cierre
          FROM detalle_inventario di
          JOIN productos p ON p.codigo = di.codigo
          LEFT JOIN producto_costo_empresa pce
                 ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($4::text)
          WHERE di.empresa = $1 AND di.ccosto = $2 AND di.fecha <= $3::date AND p.control = 'SI'
          GROUP BY di.codigo, pce.precio_costo, p.precio_costo`,
-        [emp, ccosto, fecha, empresaStr, contados]
+        [emp, ccosto, fecha, empresaStr, contados, !!esCierre]
     );
 }
 
 // POST /api/almacen/ajuste-inventario
 // Guarda los ajustes en detalle_inventario
 app.post('/api/almacen/ajuste-inventario', async (req, res) => {
-    const { empresa, fecha, ccosto, observaciones, ajustes, mode } = req.body;
+    const { empresa, fecha, ccosto, observaciones, ajustes, mode, es_cierre } = req.body;
     // ajustes: [{ codigo, diferencia }]  diferencia = fisico - actual
     // mode: 'new' | 'replace' | 'add'
+    // es_cierre: true → conteo de fin de periodo; trae todo lo digitado (incluso
+    //            diferencia 0) y es el único que valoriza el inventario del mes.
 
-    // `ajustes` trae TODOS los productos contados, incluidos los que cuadran
-    // (diferencia 0). Un conteo sin diferencias sigue siendo una toma física
-    // válida y debe quedar registrada: solo se rechaza si no se contó nada.
     if (!empresa || !fecha || !ccosto || !Array.isArray(ajustes) || ajustes.length === 0) {
         return res.status(400).json({
             success: false,
@@ -2541,6 +2555,7 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
     const emp = parseInt(empresa);
     const obs = (observaciones || '').trim().toUpperCase();
     const TIPO = 'TOMA FISICA';
+    const esCierre = !!es_cierre;
     const codigosContados = ajustes.map(a => a.codigo).filter(Boolean);
 
     const client = await pool.connect();
@@ -2590,9 +2605,9 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
             registros++;
         }
 
-        // Congelar la valorización y dejar constancia del conteo (siempre, aunque
-        // no haya habido ni una sola diferencia)
-        await congelarTomaFisica(client, emp, String(empresa), ccosto, fecha, codigosContados);
+        // Congelar la valorización. En un cierre queda constancia aunque no hubiera
+        // ni una sola diferencia; en un conteo parcial solo sirve de histórico.
+        await congelarTomaFisica(client, emp, String(empresa), ccosto, fecha, codigosContados, esCierre);
 
         await client.query('COMMIT');
 
@@ -2985,19 +3000,32 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
             final:   { ini: hasta,             fin: sumarDias(hasta, DIAS_GRACIA_TOMA) },
         };
 
-        // Última toma física real por centro de costo dentro de cada ventana.
-        // Se consultan dos fuentes: el snapshot valorizado (evidencia directa del
-        // conteo, existe aunque no hubiera ninguna diferencia) y detalle_inventario
-        // (para tomas antiguas, anteriores al snapshot).
+        // Toma de CIERRE por centro de costo dentro de cada ventana.
+        //
+        // Solo cuentan los conteos marcados como "Cierre de Inventario Final de
+        // Periodo": el día a día son tomas parciales de unos pocos productos y no
+        // representan el inventario del centro. Un ajuste rutinario del día 31 no
+        // debe tomarse por el inventario final del mes.
+        //
+        // Las tomas anteriores a este marcador no tienen snapshot; para no perder
+        // el histórico se siguen aceptando desde detalle_inventario.
         async function tomasEnVentana(v) {
             const r = await pool.query(
                 `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
-                     SELECT ccosto, fecha FROM toma_fisica_valorizada
-                      WHERE empresa = $1 AND fecha >= $2::date AND fecha <= $3::date
-                     UNION
-                     SELECT ccosto, fecha FROM detalle_inventario
-                      WHERE empresa = $1 AND tipo = 'TOMA FISICA'
+                     SELECT ccosto, fecha
+                       FROM toma_fisica_valorizada
+                      WHERE empresa = $1 AND es_cierre = TRUE
                         AND fecha >= $2::date AND fecha <= $3::date
+                     UNION
+                     SELECT di.ccosto, di.fecha
+                       FROM detalle_inventario di
+                      WHERE di.empresa = $1 AND di.tipo = 'TOMA FISICA'
+                        AND di.fecha >= $2::date AND di.fecha <= $3::date
+                        AND NOT EXISTS (
+                              SELECT 1 FROM toma_fisica_valorizada t
+                               WHERE t.empresa = di.empresa
+                                 AND t.ccosto  = di.ccosto
+                                 AND t.fecha   = di.fecha)
                  ) t
                  GROUP BY ccosto`,
                 [emp, v.ini, v.fin]

@@ -38,9 +38,10 @@
               <div>
                 <strong>Filas sin conteo → se omiten</strong><br>
                 Si dejas un producto en blanco, el sistema <strong>no asume que tiene cero</strong> — simplemente lo omite.
-                Los productos que sí cuentas quedan registrados aunque cuadren:
-                el <em>ajuste</em> solo se genera cuando hay diferencia, pero el <em>conteo</em>
-                se guarda siempre y es lo que respalda el inventario del cierre.
+                En un conteo normal solo se ajustan los productos donde escribiste un conteo físico
+                <em>y</em> ese conteo difiere del stock actual.
+                Con <strong>Cierre de Inventario Final de Periodo</strong> activado se guarda todo lo que digites,
+                cuadre o no, porque ese conteo es el que valoriza el inventario del mes.
               </div>
             </div>
 
@@ -141,7 +142,11 @@
           />
           <div class="tf-cierre-text">
             <strong>Cierre de Inventario Final de Periodo</strong>
-            <span>Muestra TODOS los productos con control de inventario activo, sin importar el centro de costo — úsalo para el conteo global de fin de mes.</span>
+            <span v-if="!modoCierre">Muestra TODOS los productos con control de inventario activo, sin importar el centro de costo — úsalo para el conteo global de fin de mes.</span>
+            <span v-else class="tf-cierre-on">
+              Se guardará todo lo que digites, cuadre o no, y este conteo será el que valorice
+              el inventario final del periodo en la Valoración Mensual.
+            </span>
           </div>
         </div>
       </div>
@@ -511,16 +516,19 @@ async function guardar(mode = 'new') {
   exitoMsg.value = ''
   guardando.value = true
 
-  // Se envían TODOS los productos contados, incluidos los que cuadran. Un conteo
-  // sin diferencias sigue siendo una toma física y debe quedar registrada para
-  // que la Valoración Mensual la reconozca; antes se descartaban y el centro
-  // aparecía como "sin toma".
+  // Conteo parcial (modo normal): solo interesan los productos que difieren, que
+  // son los que generan ajuste.
+  // Cierre de periodo: se envía TODO lo digitado, aunque cuadre o quede en cero,
+  // porque ese conteo es el que respalda el inventario final del mes.
   const ajustes = productos.value
-    .filter(p => getFisico(p.codigo) !== null)
+    .filter(p => getFisico(p.codigo) !== null &&
+                 (modoCierre.value || getDiferencia(p.codigo) !== 0))
     .map(p => ({ codigo: p.codigo, diferencia: getDiferencia(p.codigo) }))
 
   if (ajustes.length === 0) {
-    errorMsg.value = 'Escribe el conteo físico de al menos un producto antes de guardar.'
+    errorMsg.value = modoCierre.value
+      ? 'Escribe el conteo físico de al menos un producto antes de cerrar el periodo.'
+      : 'No hay diferencias que ajustar — todos los productos contados coinciden con el sistema.'
     guardando.value = false
     return
   }
@@ -533,6 +541,7 @@ async function guardar(mode = 'new') {
       observaciones: observaciones.value,
       ajustes,
       mode,
+      es_cierre: modoCierre.value,
     })
 
     if (res.data?.conflict) {
@@ -544,9 +553,9 @@ async function guardar(mode = 'new') {
     if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
 
     dlgConflicto.value = false
-    exitoMsg.value = res.data.registros === 0
-      ? `✓ Toma física guardada — ${res.data.contados} producto(s) contado(s), todo cuadró (sin ajustes)`
-      : `✓ Toma física guardada — ${res.data.contados} producto(s) contado(s), ${res.data.registros} con ajuste`
+    exitoMsg.value = modoCierre.value
+      ? `✓ Cierre de periodo guardado — ${res.data.contados} producto(s) contado(s), ${res.data.registros} con ajuste. Este conteo valoriza el inventario final.`
+      : `✓ Ajuste guardado — ${res.data.registros} producto(s) ajustado(s)`
     fisico.value = {}
     // Recargar stock para reflejar el ajuste
     await cargarStock()
@@ -589,6 +598,7 @@ async function guardar(mode = 'new') {
 .tf-cierre-text { display: flex; flex-direction: column; font-size: 12px; padding-top: 6px; }
 .tf-cierre-text strong { font-size: 13px; color: var(--indigo); }
 .tf-cierre-text span { color: rgba(var(--v-theme-on-surface),.55); margin-top: 2px; }
+.tf-cierre-text .tf-cierre-on { color: var(--indigo); font-weight: 500; }
 
 .tf-grid-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 10px; overflow: hidden; }
 
