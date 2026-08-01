@@ -276,6 +276,7 @@
             <span v-else style="color:#0891b2;font-weight:600">
               {{ productosContados }} producto{{ productosContados !== 1 ? 's' : '' }} contados —
               {{ productosConDiferencia }} con diferencia
+              <span v-if="modoCierre" style="color:var(--indigo)"> · se guardarán los {{ productosContados }}</span>
             </span>
           </div>
           <div class="tf-footer-btns">
@@ -284,10 +285,11 @@
               variant="elevated"
               prepend-icon="mdi-content-save"
               :loading="guardando"
-              :disabled="productosConDiferencia === 0"
+              :disabled="!puedeGuardar"
+              :title="tituloBotonGuardar"
               @click="guardar()"
             >
-              Guardar Ajuste
+              {{ modoCierre ? 'Guardar Cierre de Periodo' : 'Guardar Ajuste' }}
             </v-btn>
           </div>
         </div>
@@ -495,6 +497,20 @@ const productosConDiferencia = computed(() =>
     return f !== null && getDiferencia(p.codigo) !== 0
   }).length
 )
+// En un cierre basta con haber contado: un conteo donde todo cuadra sigue siendo
+// el respaldo del inventario del periodo y debe poder guardarse. En un conteo
+// normal solo tiene sentido guardar si hay algo que ajustar.
+const puedeGuardar = computed(() =>
+  modoCierre.value ? productosContados.value > 0 : productosConDiferencia.value > 0
+)
+
+const tituloBotonGuardar = computed(() => {
+  if (puedeGuardar.value) return ''
+  return modoCierre.value
+    ? 'Ingresa el conteo físico de al menos un producto'
+    : 'No hay diferencias que ajustar — activa "Cierre de Inventario Final de Periodo" si quieres registrar el conteo completo'
+})
+
 const productosSinDiferencia = computed(() =>
   productos.value.filter(p => {
     const f = getFisico(p.codigo)

@@ -2611,9 +2611,11 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
 
         await client.query('COMMIT');
 
-        // Generar notificaciones de stock para cada producto ajustado
+        // Notificaciones de stock solo para los productos cuyo saldo cambió. En un
+        // cierre `ajustes` trae todo el conteo (cientos de productos) y los que
+        // cuadran no movieron stock: recorrerlos todos solo alarga la respuesta.
         for (const aj of ajustes) {
-            if (aj.codigo) {
+            if (aj.codigo && parseFloat(aj.diferencia)) {
                 await verificarYGenerarNotificacionesStock(aj.codigo, ccosto, empresa);
             }
         }
