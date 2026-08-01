@@ -111,6 +111,21 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     }
   }
 
+  async function editarMovimiento(numero, datos) {
+    loading.value = true
+    error.value = null
+    try {
+      const resp = await movimientosBancariosService.editarMovimiento(numero, datos)
+      await fetchMovimientos()
+      return resp
+    } catch (err) {
+      error.value = err.response?.data?.error || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   function setBanco(codigo) {
     bancoSeleccionado.value = codigo
     movimientos.value = []
@@ -148,6 +163,7 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     fetchMovimientos,
     buscarProveedores,
     crearMovimiento,
+    editarMovimiento,
     setBanco,
     setFiltros,
     clearError,

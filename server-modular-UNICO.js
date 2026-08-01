@@ -4206,6 +4206,78 @@ app.get('/api/tesoreria/movimientos', async (req, res) => {
     }
 });
 
+// PUT /api/tesoreria/movimientos/:numero/editar - Editar un movimiento bancario manual
+//
+// Solo se permite editar movimientos que:
+//  - NO estén asociados a un gasto (moviban.gasto IS NULL) — esos se editan desde
+//    Contabilidad > Gastos, que ya mantiene sincronizado el moviban asociado.
+//  - NO sean de tipo TRANSFERENCIA — una TRA crea dos registros pareados (uno por
+//    cuenta) sin columna de vínculo explícita entre ellos, así que no hay forma
+//    segura de ubicar y editar ambos lados a la vez. Se recomienda eliminar y
+//    volver a crear la transferencia si está mal.
+app.put('/api/tesoreria/movimientos/:numero/editar', async (req, res) => {
+    const { numero } = req.params;
+    const { empresa, fecha, concepto, beneficia, cheque, monto } = req.body;
+
+    if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+    if (!fecha)   return res.status(400).json({ success: false, error: 'La fecha es requerida' });
+    if (!concepto?.trim()) return res.status(400).json({ success: false, error: 'El concepto es requerido' });
+    const montoVal = parseFloat(monto);
+    if (isNaN(montoVal) || montoVal <= 0) return res.status(400).json({ success: false, error: 'El monto debe ser mayor a 0' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const actualRes = await client.query(
+            `SELECT numero, tipo, gasto FROM moviban WHERE numero = $1 AND empresa = $2 FOR UPDATE`,
+            [numero, empresa]
+        );
+        if (actualRes.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Movimiento no encontrado' });
+        }
+        const actual = actualRes.rows[0];
+
+        if (actual.gasto) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'Este movimiento está asociado a un gasto — edítalo desde Contabilidad > Gastos'
+            });
+        }
+        if (actual.tipo === 'TRA') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'Las transferencias no se pueden editar — elimínala y créala de nuevo si está mal'
+            });
+        }
+
+        const ingresoVal = actual.tipo === 'ING' ? montoVal : 0;
+        const egresoVal  = actual.tipo === 'EGR' ? montoVal : 0;
+
+        const result = await client.query(
+            `UPDATE moviban
+                SET fecha = $1, concepto = $2, beneficia = $3, cheque = $4,
+                    ingreso = $5, egreso = $6
+              WHERE numero = $7 AND empresa = $8
+          RETURNING *`,
+            [fecha, concepto.trim().toUpperCase(), (beneficia || '').toUpperCase(),
+             (cheque || '').toUpperCase(), ingresoVal, egresoVal, numero, empresa]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en PUT /api/tesoreria/movimientos/:numero/editar:', error);
+        res.status(500).json({ success: false, error: 'Error al editar movimiento', details: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // PUT /api/tesoreria/movimientos/:id - Marcar movimiento como conciliado/pendiente
 app.put('/api/tesoreria/movimientos/:id', async (req, res) => {
     const { id } = req.params;

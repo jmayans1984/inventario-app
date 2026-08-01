@@ -64,6 +64,18 @@ export const movimientosBancariosService = {
     }
   },
 
+  // Editar un movimiento (solo permitido si no está asociado a un gasto)
+  async editarMovimiento(numero, datos) {
+    try {
+      const empresa = getEmpresaActiva()
+      const response = await api.put(`${ENDPOINT}/${numero}/editar`, { ...datos, empresa })
+      return response.data
+    } catch (error) {
+      console.error('Error editando movimiento:', error)
+      throw error
+    }
+  },
+
   // Filtrar por rango de fechas
   async getMovimientosPorFecha(fechaInicio, fechaFin, params = {}) {
     try {

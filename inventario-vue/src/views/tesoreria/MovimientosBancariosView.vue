@@ -112,11 +112,12 @@
                 <th class="col-ingreso">INGRESO</th>
                 <th class="col-egreso">EGRESO</th>
                 <th class="col-conciliado">CONCILIADO</th>
+                <th class="col-acciones"></th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="store.movimientosFiltrados.length === 0">
-                <td colspan="8" class="tabla-empty">
+                <td colspan="9" class="tabla-empty">
                   <v-icon size="32" class="empty-icon-sm">mdi-inbox-outline</v-icon>
                   <p class="empty-text">No hay movimientos para mostrar</p>
                 </td>
@@ -154,6 +155,22 @@
                     {{ mov.conciliado === 'SI' ? 'SI' : 'NO' }}
                   </v-chip>
                 </td>
+                <td class="col-acciones">
+                  <v-btn
+                    v-if="puedeEditar(mov)"
+                    icon="mdi-pencil-outline"
+                    size="x-small"
+                    variant="text"
+                    title="Editar movimiento"
+                    @click="abrirEdicion(mov)"
+                  />
+                  <v-icon
+                    v-else-if="mov.gasto"
+                    size="16"
+                    color="rgba(0,0,0,0.25)"
+                    title="Asociado a un gasto — edítalo desde Contabilidad > Gastos"
+                  >mdi-lock-outline</v-icon>
+                </td>
               </tr>
               <!-- FOOTER TOTALES -->
               <tr v-if="store.movimientosFiltrados.length > 0" class="tabla-footer">
@@ -168,6 +185,7 @@
                     {{ formatMoneda(totalFiltradoEgresos) }}
                   </span>
                 </td>
+                <td></td>
                 <td></td>
               </tr>
             </tbody>
@@ -333,6 +351,120 @@
         </div>
       </v-card>
     </v-dialog>
+
+    <!-- MODAL EDITAR MOVIMIENTO -->
+    <v-dialog v-model="dialogEditOpen" max-width="580">
+      <v-card class="form-card">
+        <div class="form-header">
+          <div class="form-header-left">
+            <div class="form-header-icon">
+              <v-icon size="18" color="white">mdi-pencil-outline</v-icon>
+            </div>
+            <span class="form-title">EDITAR MOVIMIENTO — {{ getTipoLabel(editForm.tipo) }}</span>
+          </div>
+          <v-btn icon size="small" variant="text" @click="cerrarEdicion">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <div class="form-body">
+          <div class="form-row">
+            <div class="form-field">
+              <label class="field-label">NÚMERO</label>
+              <div class="numero-auto">
+                <v-icon size="14">mdi-pound</v-icon>
+                <span>{{ editForm.numero }}</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="field-label">FECHA <span class="req">*</span></label>
+              <input
+                v-model="editForm.fecha"
+                type="date"
+                class="field-input"
+                :class="{ error: editFormErrors.fecha }"
+              />
+              <span v-if="editFormErrors.fecha" class="field-error">{{ editFormErrors.fecha }}</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field full-width">
+              <label class="field-label">CONCEPTO <span class="req">*</span></label>
+              <input
+                v-model="editForm.concepto"
+                type="text"
+                class="field-input"
+                :class="{ error: editFormErrors.concepto }"
+                placeholder="Descripción del movimiento"
+                @input="editForm.concepto = editForm.concepto.toUpperCase()"
+              />
+              <span v-if="editFormErrors.concepto" class="field-error">{{ editFormErrors.concepto }}</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field full-width">
+              <label class="field-label">BENEFICIARIO</label>
+              <input
+                v-model="editForm.beneficia"
+                type="text"
+                class="field-input"
+                placeholder="Beneficiario"
+                @input="editForm.beneficia = editForm.beneficia.toUpperCase()"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <label class="field-label">CHEQUE / REFERENCIA</label>
+              <input
+                v-model="editForm.cheque"
+                type="text"
+                class="field-input"
+                placeholder="Nro. cheque o referencia"
+                @input="editForm.cheque = editForm.cheque.toUpperCase()"
+              />
+            </div>
+            <div class="form-field">
+              <label class="field-label">MONTO <span class="req">*</span></label>
+              <input
+                v-model="editForm.monto"
+                type="number"
+                min="0"
+                step="0.01"
+                class="field-input"
+                :class="{ error: editFormErrors.monto }"
+                placeholder="0.00"
+              />
+              <span v-if="editFormErrors.monto" class="field-error">{{ editFormErrors.monto }}</span>
+            </div>
+          </div>
+
+          <div class="tipo-info">
+            <v-icon size="14" :color="getTipoColor(editForm.tipo)">mdi-information-outline</v-icon>
+            <span>
+              {{ editForm.tipo === 'ING' ? 'El monto se registrará como INGRESO (+)' : 'El monto se registrará como EGRESO (-)' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="form-footer">
+          <v-btn variant="text" @click="cerrarEdicion" :disabled="guardandoEdicion">
+            Cancelar
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="guardarEdicion"
+            :loading="guardandoEdicion"
+            prepend-icon="mdi-content-save"
+          >
+            Guardar Cambios
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
   </MainLayout>
 </template>
 
@@ -462,6 +594,74 @@ async function guardarMovimiento() {
   }
 }
 
+// ─── Edición ─────────────────────────────────────────────────────
+// Solo se puede editar un movimiento que NO esté asociado a un gasto y que
+// NO sea una transferencia (una TRA crea dos registros pareados sin columna
+// de vínculo, así que no hay forma segura de editar ambos lados a la vez).
+function puedeEditar(mov) {
+  return !mov.gasto && mov.tipo !== 'TRA'
+}
+
+const dialogEditOpen    = ref(false)
+const guardandoEdicion  = ref(false)
+const editFormErrors    = ref({})
+const editForm = ref({
+  numero:    '',
+  tipo:      '',
+  fecha:     '',
+  concepto:  '',
+  beneficia: '',
+  cheque:    '',
+  monto:     '',
+})
+
+function abrirEdicion(mov) {
+  editFormErrors.value = {}
+  editForm.value = {
+    numero:    mov.numero,
+    tipo:      mov.tipo,
+    fecha:     (mov.fecha || '').slice(0, 10),
+    concepto:  mov.concepto || '',
+    beneficia: mov.beneficia || '',
+    cheque:    mov.cheque || '',
+    monto:     mov.tipo === 'ING' ? mov.ingreso : mov.egreso,
+  }
+  dialogEditOpen.value = true
+}
+
+function cerrarEdicion() {
+  dialogEditOpen.value = false
+}
+
+function validarEditForm() {
+  const errs = {}
+  if (!editForm.value.fecha)            errs.fecha    = 'La fecha es requerida'
+  if (!editForm.value.concepto?.trim()) errs.concepto = 'El concepto es requerido'
+  const monto = parseFloat(editForm.value.monto)
+  if (!editForm.value.monto || isNaN(monto) || monto <= 0) errs.monto = 'El monto debe ser mayor a 0'
+  editFormErrors.value = errs
+  return Object.keys(errs).length === 0
+}
+
+async function guardarEdicion() {
+  if (!validarEditForm()) return
+  guardandoEdicion.value = true
+  try {
+    await store.editarMovimiento(editForm.value.numero, {
+      fecha:     editForm.value.fecha,
+      concepto:  editForm.value.concepto.trim().toUpperCase(),
+      beneficia: (editForm.value.beneficia || '').trim().toUpperCase(),
+      cheque:    (editForm.value.cheque || '').trim().toUpperCase(),
+      monto:     parseFloat(editForm.value.monto),
+    })
+    dialogEditOpen.value = false
+  } catch (err) {
+    console.error('Error editando movimiento:', err)
+  } finally {
+    guardandoEdicion.value = false
+  }
+}
+
 // ─── Inicialización ──────────────────────────────────────────────
 onMounted(async () => {
   await store.fetchCuentasBancarias()
@@ -564,6 +764,7 @@ onMounted(async () => {
 .col-ingreso      { width: 110px; text-align: right !important; }
 .col-egreso       { width: 110px; text-align: right !important; }
 .col-conciliado   { width: 100px; text-align: center !important; }
+.col-acciones     { width: 44px; text-align: center !important; }
 
 .numero-badge {
   background: var(--indigo-wash); color: var(--indigo);
