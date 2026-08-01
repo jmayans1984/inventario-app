@@ -2507,19 +2507,25 @@ async function congelarTomaFisica(client, emp, empresaStr, ccosto, fecha, codigo
     if (!esCierre) {
         const yaHayCierre = await client.query(
             `SELECT 1 FROM toma_fisica_valorizada
-              WHERE empresa=$1 AND ccosto=$2 AND fecha=$3 AND es_cierre = TRUE LIMIT 1`,
+              WHERE empresa=$1::int AND ccosto=$2::text AND fecha=$3::date
+                AND es_cierre = TRUE LIMIT 1`,
             [emp, ccosto, fecha]
         );
         if (yaHayCierre.rowCount) return;
     }
 
     await client.query(
-        `DELETE FROM toma_fisica_valorizada WHERE empresa=$1 AND ccosto=$2 AND fecha=$3`,
+        `DELETE FROM toma_fisica_valorizada
+          WHERE empresa=$1::int AND ccosto=$2::text AND fecha=$3::date`,
         [emp, ccosto, fecha]
     );
+    // Todos los parámetros van casteados: $1 y $2 se usan a la vez como valor a
+    // insertar y como filtro contra detalle_inventario, y sin cast Postgres
+    // intenta deducir dos tipos distintos para el mismo parámetro y falla con
+    // "inconsistent types deduced for parameter".
     await client.query(
         `INSERT INTO toma_fisica_valorizada (empresa, ccosto, fecha, codigo, stock, precio_costo, valor, contado, es_cierre)
-         SELECT $1, $2, $3::date, di.codigo,
+         SELECT $1::int, $2::text, $3::date, di.codigo,
                 ROUND((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))::numeric, 4) AS stock,
                 COALESCE(pce.precio_costo, p.precio_costo, 0) AS precio_costo,
                 ROUND(((COALESCE(SUM(di.entrada),0) - COALESCE(SUM(di.salida),0))
@@ -2530,7 +2536,8 @@ async function congelarTomaFisica(client, emp, empresaStr, ccosto, fecha, codigo
          JOIN productos p ON p.codigo = di.codigo
          LEFT JOIN producto_costo_empresa pce
                 ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($4::text)
-         WHERE di.empresa = $1 AND di.ccosto = $2 AND di.fecha <= $3::date AND p.control = 'SI'
+         WHERE di.empresa = $1::int AND di.ccosto = $2::text
+           AND di.fecha <= $3::date AND p.control = 'SI'
          GROUP BY di.codigo, pce.precio_costo, p.precio_costo`,
         [emp, ccosto, fecha, empresaStr, contados, !!esCierre]
     );
@@ -2569,9 +2576,9 @@ app.post('/api/almacen/ajuste-inventario', async (req, res) => {
             const dup = await client.query(
                 `SELECT
                     (SELECT COUNT(*) FROM detalle_inventario
-                      WHERE fecha=$1 AND ccosto=$2 AND empresa=$3 AND tipo=$4)
+                      WHERE fecha=$1::date AND ccosto=$2::text AND empresa=$3::int AND tipo=$4::text)
                   + (SELECT COUNT(*) FROM toma_fisica_valorizada
-                      WHERE fecha=$1 AND ccosto=$2 AND empresa=$3) AS cnt`,
+                      WHERE fecha=$1::date AND ccosto=$2::text AND empresa=$3::int) AS cnt`,
                 [fecha, ccosto, emp, TIPO]
             );
             if (parseInt(dup.rows[0].cnt) > 0) {
@@ -3014,14 +3021,14 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         async function tomasEnVentana(v) {
             const r = await pool.query(
                 `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
-                     SELECT ccosto, fecha
+                     SELECT ccosto::text AS ccosto, fecha
                        FROM toma_fisica_valorizada
-                      WHERE empresa = $1 AND es_cierre = TRUE
+                      WHERE empresa = $1::int AND es_cierre = TRUE
                         AND fecha >= $2::date AND fecha <= $3::date
                      UNION
-                     SELECT di.ccosto, di.fecha
+                     SELECT di.ccosto::text AS ccosto, di.fecha
                        FROM detalle_inventario di
-                      WHERE di.empresa = $1 AND di.tipo = 'TOMA FISICA'
+                      WHERE di.empresa = $1::int AND di.tipo = 'TOMA FISICA'
                         AND di.fecha >= $2::date AND di.fecha <= $3::date
                         AND NOT EXISTS (
                               SELECT 1 FROM toma_fisica_valorizada t
