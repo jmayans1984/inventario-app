@@ -3,9 +3,10 @@
     :model-value="open"
     max-width="1180"
     scrollable
+    persistent
     @update:model-value="$emit('update:open', $event)"
   >
-    <v-card rounded="xl" elevation="0" class="wiz-card">
+    <v-card rounded="xl" elevation="0" class="wiz-card" @keydown.esc.stop="pedirConfirmarCierre">
 
       <!-- ══ HEADER ══════════════════════════════════════════════════════ -->
       <div class="wiz-header">
@@ -453,8 +454,8 @@
     <!-- ═══════════════════════════════════════════════════════════════════
          SUB-DIALOG: ENTRADA DE ALMACÉN — MATERIA PRIMA
     ═══════════════════════════════════════════════════════════════════ -->
-    <v-dialog v-model="mpDialogOpen" max-width="800" scrollable>
-      <v-card rounded="xl" class="wiz-card">
+    <v-dialog v-model="mpDialogOpen" max-width="800" scrollable persistent>
+      <v-card rounded="xl" class="wiz-card" @keydown.esc.stop="pedirConfirmarCierreMp">
         <div class="wiz-header" style="background: linear-gradient(135deg,var(--gold),var(--gold-strong))">
           <div class="wiz-header-icon">
             <v-icon size="22" color="white">mdi-package-variant-plus</v-icon>
@@ -670,6 +671,46 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- ═══ CONFIRMAR CIERRE (ESC en el gasto) — persistent: ESC no la cierra ═══ -->
+    <v-dialog v-model="dlgConfirmCerrar" max-width="420" persistent>
+      <v-card rounded="lg">
+        <v-card-title class="d-flex align-center pa-4 pb-2">
+          <v-icon color="warning" class="mr-2">mdi-alert-circle-outline</v-icon>
+          ¿Cerrar sin guardar?
+        </v-card-title>
+        <v-card-text class="pt-0">
+          Vas a perder los datos capturados en este gasto.
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" @click="dlgConfirmCerrar = false">Seguir editando</v-btn>
+          <v-btn color="error" variant="flat" @click="dlgConfirmCerrar = false; cerrar()">
+            Cerrar sin guardar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ═══ CONFIRMAR CIERRE (ESC en Entrada de Almacén) ═══ -->
+    <v-dialog v-model="dlgConfirmCerrarMp" max-width="420" persistent>
+      <v-card rounded="lg">
+        <v-card-title class="d-flex align-center pa-4 pb-2">
+          <v-icon color="warning" class="mr-2">mdi-alert-circle-outline</v-icon>
+          ¿Cerrar sin guardar?
+        </v-card-title>
+        <v-card-text class="pt-0">
+          Vas a perder los productos capturados en esta entrada de almacén.
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" @click="dlgConfirmCerrarMp = false">Seguir editando</v-btn>
+          <v-btn color="error" variant="flat" @click="dlgConfirmCerrarMp = false; mpDialogOpen = false">
+            Cerrar sin guardar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-dialog>
 </template>
 
@@ -755,6 +796,15 @@ async function guardarNuevoProveedor() {
 const errorMsg = ref('')
 const guardando = ref(false)
 const step = ref(0)
+
+// ─── ESC no cierra directamente: pide confirmación ───────────
+// v-dialog queda `persistent` (bloquea el cierre automático de Vuetify por ESC
+// o clic afuera) y este @keydown.esc propio abre un popup de confirmación —
+// que a su vez es `persistent`, así que ESC no lo cierra a él tampoco.
+const dlgConfirmCerrar   = ref(false)
+const dlgConfirmCerrarMp = ref(false)
+function pedirConfirmarCierre()   { dlgConfirmCerrar.value   = true }
+function pedirConfirmarCierreMp() { dlgConfirmCerrarMp.value = true }
 
 // ─── Navegación con Enter: salta al siguiente campo visible ──
 const contentRef = ref(null)     // panel principal (pasos 1 y 2)
