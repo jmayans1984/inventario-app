@@ -89,7 +89,7 @@
             </div>
 
             <div class="field-row">
-              <div class="field-col-full">
+              <div class="field-col-full prov-field">
                 <v-autocomplete
                   v-model="form.proveedor"
                   autocomplete="off"
@@ -103,8 +103,27 @@
                   :custom-filter="filtroProveedor"
                   placeholder="Escribe para buscar un proveedor..."
                   prepend-inner-icon="mdi-account-tie-outline"
-                  no-data-text="No hay proveedores"
                   clearable
+                >
+                  <!-- Si la búsqueda no encuentra nada, se puede crear ahí mismo -->
+                  <template #no-data>
+                    <div class="prov-nodata">
+                      <span>No hay proveedores con ese nombre</span>
+                      <v-btn size="small" variant="tonal" color="primary"
+                        prepend-icon="mdi-plus" @click="abrirNuevoProveedor()">
+                        Crear proveedor
+                      </v-btn>
+                    </div>
+                  </template>
+                </v-autocomplete>
+                <v-btn
+                  class="prov-add-btn"
+                  variant="tonal"
+                  color="primary"
+                  icon="mdi-account-plus-outline"
+                  size="small"
+                  title="Crear un proveedor nuevo sin salir del formulario"
+                  @click="abrirNuevoProveedor()"
                 />
               </div>
             </div>
@@ -585,6 +604,72 @@
         </div>
       </v-card>
     </v-dialog>
+
+    <!-- ═══ NUEVO PROVEEDOR (sin salir del gasto) ═══ -->
+    <v-dialog v-model="provDialogOpen" max-width="480" persistent>
+      <v-card rounded="lg">
+        <v-card-title class="prov-dlg-header">
+          <v-icon size="18" class="mr-2">mdi-account-plus-outline</v-icon>
+          Nuevo proveedor
+        </v-card-title>
+        <v-card-text class="pt-4">
+          <p class="prov-dlg-sub">
+            Queda seleccionado en el gasto al crearlo. Puedes completar el resto de
+            los datos después en Contabilidad → Proveedores.
+          </p>
+          <v-text-field
+            v-model="provDraft.nombre"
+            label="Nombre *"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            @keydown.enter.prevent="guardarNuevoProveedor"
+            @input="provDraft.nombre = provDraft.nombre.toUpperCase(); provError = ''"
+          />
+          <v-text-field
+            v-model="provDraft.codigo"
+            label="Código *"
+            variant="outlined"
+            density="comfortable"
+            maxlength="10"
+            counter="10"
+            hint="Suele ser el NIT o identificación del proveedor"
+            persistent-hint
+            class="mb-2"
+            @keydown.enter.prevent="guardarNuevoProveedor"
+            @input="provError = ''"
+          />
+          <v-alert v-if="provError" type="error" variant="tonal" density="compact" class="mb-3">
+            {{ provError }}
+          </v-alert>
+          <div class="d-flex" style="gap:12px">
+            <v-text-field
+              v-model="provDraft.telefono1"
+              label="Teléfono"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+            />
+            <v-text-field
+              v-model="provDraft.direccion"
+              label="Dirección"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              @input="provDraft.direccion = provDraft.direccion.toUpperCase()"
+            />
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" :disabled="provGuardando" @click="provDialogOpen = false">Cancelar</v-btn>
+          <v-btn color="primary" variant="elevated" prepend-icon="mdi-content-save"
+            :loading="provGuardando" @click="guardarNuevoProveedor">
+            Crear y seleccionar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-dialog>
 </template>
 
@@ -610,6 +695,62 @@ const emit = defineEmits(['update:open', 'close', 'guardar'])
 const store = useGestionGastosStore()
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || '')
+
+// ─── Alta rápida de proveedor ────────────────────────
+// Evita tener que abandonar el gasto a medio capturar para ir a crear el
+// proveedor en otra pantalla y volver a empezar.
+const provDialogOpen = ref(false)
+const provGuardando  = ref(false)
+const provError      = ref('')
+const provDraft      = ref({ codigo: '', nombre: '', telefono1: '', direccion: '' })
+
+function abrirNuevoProveedor() {
+  provError.value = ''
+  // El código no se autogenera: los códigos existentes son identificaciones
+  // reales del proveedor (NIT/EIN), no un consecutivo, así que lo escribe quien
+  // captura. Solo se valida que no choque con uno ya registrado.
+  provDraft.value = { codigo: '', nombre: '', telefono1: '', direccion: '' }
+  provDialogOpen.value = true
+}
+
+async function guardarNuevoProveedor() {
+  const nombre = (provDraft.value.nombre || '').trim().toUpperCase()
+  const codigo = (provDraft.value.codigo || '').trim()
+
+  if (!nombre) { provError.value = 'El nombre es requerido'; return }
+  if (!codigo)  { provError.value = 'El código es requerido'; return }
+  if (codigo.length > 10) { provError.value = 'El código no puede superar 10 caracteres'; return }
+  if (proveedoresOptions.value.some(p => String(p.codigo).trim() === codigo)) {
+    provError.value = `El código ${codigo} ya está en uso`
+    return
+  }
+  if (proveedoresOptions.value.some(p => (p.nombre || '').trim().toUpperCase() === nombre)) {
+    provError.value = 'Ya existe un proveedor con ese nombre'
+    return
+  }
+
+  provGuardando.value = true
+  try {
+    const resp = await proveedoresService.crearProveedor({
+      codigo,
+      nombre,
+      telefono1: (provDraft.value.telefono1 || '').trim() || null,
+      direccion: (provDraft.value.direccion || '').trim().toUpperCase() || null,
+      empresa:   empresa.value,
+    })
+    const nuevo = resp?.data || resp
+    if (!nuevo?.codigo) throw new Error('El proveedor se creó sin código')
+
+    // Queda disponible en el selector y seleccionado en el gasto
+    proveedoresOptions.value = [nuevo, ...proveedoresOptions.value]
+    form.value.proveedor = nuevo.codigo
+    provDialogOpen.value = false
+  } catch (e) {
+    provError.value = e?.response?.data?.error || e.message || 'No se pudo crear el proveedor'
+  } finally {
+    provGuardando.value = false
+  }
+}
 
 const errorMsg = ref('')
 const guardando = ref(false)
@@ -1313,6 +1454,26 @@ function cerrar() {
   gap: 4px;
 }
 .mp-opt-lbl { font-size: 12.5px; line-height: 1.4; }
+
+/* Alta rápida de proveedor */
+.prov-field { display: flex; align-items: center; gap: 8px; }
+.prov-field > .v-autocomplete { flex: 1; }
+.prov-add-btn { flex: 0 0 auto; }
+.prov-nodata {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; font-size: 12.5px;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+.prov-dlg-header {
+  display: flex; align-items: center;
+  font-size: 14px; font-weight: 700;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  padding: 14px 18px;
+}
+.prov-dlg-sub {
+  font-size: 12.5px; line-height: 1.45; margin-bottom: 14px;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
 .mp-aviso {
   display: flex; align-items: flex-start; gap: 7px;
   margin-top: 6px; padding: 7px 10px; border-radius: 8px;
