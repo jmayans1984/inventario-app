@@ -336,16 +336,16 @@
         <v-card-text class="pa-5">
           <v-row dense>
             <v-col cols="4">
-              <v-text-field v-model="form.codigo" label="Código" variant="outlined"
-                density="compact" hide-details :disabled="editando" />
+              <v-text-field v-model="form.codigo" label="Código *" variant="outlined"
+                density="compact" hide-details="auto" :disabled="editando" :error-messages="errCodigo" />
             </v-col>
             <v-col cols="8">
               <v-text-field v-model="form.nombre" label="Nombre *" variant="outlined"
-                density="compact" hide-details :error-messages="errNombre" />
+                density="compact" hide-details="auto" :error-messages="errNombre" />
             </v-col>
             <v-col cols="4">
-              <v-text-field v-model="form.und" label="Unidad" variant="outlined"
-                density="compact" hide-details />
+              <v-text-field v-model="form.und" label="Unidad *" variant="outlined"
+                density="compact" hide-details="auto" :error-messages="errUnd" />
             </v-col>
             <v-col cols="4">
               <v-text-field v-model="form.valor" label="Precio Compra" type="number"
@@ -548,6 +548,8 @@ const dlg       = ref(false)
 const editando  = ref(false)
 const guardando = ref(false)
 const errNombre = ref('')
+const errCodigo = ref('')
+const errUnd    = ref('')
 const form      = ref(formVacio())
 
 function formVacio() {
@@ -671,6 +673,8 @@ function abrirNuevo() {
   editando.value  = false
   form.value      = formVacio()
   errNombre.value = ''
+  errCodigo.value = ''
+  errUnd.value    = ''
   dlg.value       = true
 }
 
@@ -684,12 +688,24 @@ function abrirEditar(art) {
     grupo:  art.grupo || null,
   }
   errNombre.value = ''
+  errCodigo.value = ''
+  errUnd.value    = ''
   dlg.value       = true
 }
 
 async function guardar() {
   errNombre.value = ''
-  if (!form.value.nombre?.trim()) { errNombre.value = 'Requerido'; return }
+  errCodigo.value = ''
+  errUnd.value    = ''
+
+  // Un artículo sin código queda inservible: todo endpoint (editar, borrar,
+  // usarlo en una compra) filtra por codigo, así que uno sin él desaparece en
+  // silencio en cualquier flujo que lo necesite — ya pasó con CALDO DE GALLINA.
+  if (!form.value.codigo?.trim()) errCodigo.value = 'Requerido'
+  if (!form.value.nombre?.trim()) errNombre.value = 'Requerido'
+  if (!form.value.und?.trim())    errUnd.value    = 'Requerido'
+  if (errCodigo.value || errNombre.value || errUnd.value) return
+
   guardando.value = true
   try {
     const url    = editando.value ? `${API_BASE}/articulos/${form.value.codigo}` : `${API_BASE}/articulos`

@@ -1031,6 +1031,25 @@ const totalItemsMp = (mp) =>
 
 function confirmarMateriaPrima() {
   const items = mpDraft.value.items.filter(it => it.codigo && (parseFloat(it.cantidad) || 0) > 0)
+
+  // Fila con datos capturados (producto elegido, cantidad o costo) que no
+  // califica para guardarse — antes se perdía sin avisar, que es justo lo que
+  // pasó con un artículo mal cargado sin código.
+  const incompletas = mpDraft.value.items.filter(it =>
+    !(it.codigo && (parseFloat(it.cantidad) || 0) > 0) &&
+    (it.key || (parseFloat(it.cantidad) || 0) > 0 || (parseFloat(it.costoUnit) || 0) > 0)
+  )
+  if (incompletas.length) {
+    const nombres = incompletas
+      .map(it => itemsOptions.value.find(o => o.key === it.key)?.nombre || it.key || '(sin producto)')
+      .join(', ')
+    const seguir = confirm(
+      `Estas filas no se van a guardar porque les falta producto o cantidad: ${nombres}.\n\n` +
+      `¿Continuar de todas formas? (Cancelar para corregirlas)`
+    )
+    if (!seguir) return
+  }
+
   if (mpLineaIdx.value >= 0) {
     form.value.lineas[mpLineaIdx.value].materiaPrima = items.length
       ? { afectaInventario: mpDraft.value.afectaInventario, actualizaCosto: mpDraft.value.actualizaCosto, items }

@@ -10395,6 +10395,18 @@ pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_materia_prim
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS mp_afecta_inventario_default VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS mp_actualiza_costo_default   VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
 
+// Reparación puntual: "CALDO DE GALLINA" quedó con codigo NULL (el POST viejo de
+// /api/articulos insertaba sin código si no venía uno) — inservible, porque todo
+// endpoint de artículos filtra por codigo, y por eso desaparecía en silencio de
+// la entrada de almacén. Se corre una sola vez; UPDATE sobre 0 filas no hace daño
+// en despliegues futuros donde ya quedó reparado.
+pool.query(`
+    UPDATE articulos SET codigo = '1034'
+     WHERE codigo IS NULL AND nombre = 'CALDO DE GALLINA'
+       AND NOT EXISTS (SELECT 1 FROM articulos WHERE TRIM(codigo) = '1034')
+`).then(r => { if (r.rowCount) console.log('✅ Reparado articulo CALDO DE GALLINA -> codigo 1034'); })
+  .catch(() => {});
+
 // Cuentas bancarias predeterminadas para Importar Ventas (Square) — Cta. Otros y Cta. Efectivo
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_otros VARCHAR(10)`).catch(() => {});
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_efectivo VARCHAR(10)`).catch(() => {});
@@ -13139,10 +13151,20 @@ app.post('/api/articulos', async (req, res) => {
                 `, [codigo.trim(), nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null]);
             }
         } else {
+            // Sin código explícito se genera uno: un artículo con codigo NULL queda
+            // inservible — no se puede editar ni borrar (PUT/DELETE filtran por
+            // código) y cualquier flujo que lo requiera lo descarta, como la
+            // entrada de almacén en Gestión de Gastos.
+            const nextRes = await pool.query(`
+                SELECT COALESCE(MAX(CASE WHEN TRIM(codigo) ~ '^[0-9]+$'
+                                         THEN CAST(TRIM(codigo) AS BIGINT) END), 0) + 1 AS next
+                FROM articulos
+            `);
+            const nuevoCodigo = String(nextRes.rows[0].next);
             result = await pool.query(`
-                INSERT INTO articulos (nombre, und, valor, grupo)
-                VALUES ($1,$2,$3,$4) RETURNING *
-            `, [nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null]);
+                INSERT INTO articulos (codigo, nombre, und, valor, grupo)
+                VALUES ($1,$2,$3,$4,$5) RETURNING *
+            `, [nuevoCodigo, nombre.trim(), und || 'UND', parseFloat(valor) || 0, grupo || null]);
         }
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
