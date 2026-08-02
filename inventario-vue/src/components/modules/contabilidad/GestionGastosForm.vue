@@ -464,6 +464,18 @@
                 </span>
               </template>
             </v-checkbox>
+            <!-- El inventario de almacén solo maneja productos; los artículos de
+                 receta se compran y se costean, pero no llevan control de stock. -->
+            <div v-if="mpDraft.afectaInventario && mpArticulosSinStock.length" class="mp-aviso">
+              <v-icon size="15" color="var(--gold)">mdi-information-outline</v-icon>
+              <span>
+                <strong>{{ mpArticulosSinStock.length }}</strong>
+                {{ mpArticulosSinStock.length === 1 ? 'ítem es materia prima y no' : 'ítems son materia prima y no' }}
+                mueve{{ mpArticulosSinStock.length === 1 ? '' : 'n' }} inventario:
+                <strong>{{ mpArticulosSinStock.join(', ') }}</strong>.
+                Su compra y su costo sí quedan registrados.
+              </span>
+            </div>
             <v-checkbox
               v-model="mpDraft.actualizaCosto"
               density="compact"
@@ -820,6 +832,15 @@ function filtroItemCompra(_value, query, item) {
 }
 
 const itemVacio = () => ({ key: '', codigo: '', origen: '', cantidad: 0, costoUnit: 0 })
+
+// Ítems del borrador que son materia prima de recetas: el inventario de almacén
+// solo lleva stock de productos, así que estos no generan movimiento aunque se
+// marque "afectar inventario".
+const mpArticulosSinStock = computed(() =>
+  (mpDraft.value.items || [])
+    .filter(it => it.origen === 'ARTICULO' && it.codigo)
+    .map(it => itemsOptions.value.find(o => o.key === it.key)?.nombre || it.codigo)
+)
 
 function abrirMateriaPrima(idx) {
   mpLineaIdx.value = idx
@@ -1292,6 +1313,13 @@ function cerrar() {
   gap: 4px;
 }
 .mp-opt-lbl { font-size: 12.5px; line-height: 1.4; }
+.mp-aviso {
+  display: flex; align-items: flex-start; gap: 7px;
+  margin-top: 6px; padding: 7px 10px; border-radius: 8px;
+  background: rgba(245,158,11,0.12);
+  font-size: 11.5px; line-height: 1.45;
+  color: rgba(var(--v-theme-on-surface), 0.75);
+}
 .mp-items { display: flex; flex-direction: column; gap: 10px; }
 .mp-item-row {
   display: flex;

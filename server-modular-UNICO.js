@@ -9922,6 +9922,9 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
         // 4. Materia prima: siempre guardar en entrada_almacen/detalle_entrada_almacen;
         //    condicionalmente afectar detalle_inventario y/o precio_costo
         let bodegaMaestra = null;
+        // Ítems que se pidió llevar a inventario pero no existen como producto:
+        // se informan al final para que el usuario sepa que solo quedó su compra.
+        const omitidosInventario = new Set();
         await client.query('LOCK TABLE entrada_almacen IN SHARE ROW EXCLUSIVE MODE');
         const eaMaxRes = await client.query(
             `SELECT COALESCE(MAX(CASE WHEN codigo ~ '^[0-9]+$' THEN CAST(codigo AS BIGINT) ELSE 0 END), 0) AS max_cod
@@ -9965,6 +9968,13 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
             }
 
             // 4c. OPCIONAL: afectar inventario (detalle_inventario)
+            //
+            // Solo los ítems que existen como PRODUCTO mueven stock. Los artículos
+            // (insumos de receta) se quedan fuera: detalle_inventario está ligada al
+            // catálogo de productos — todos los reportes de almacén hacen JOIN contra
+            // él — así que un artículo insertado ahí sería invisible en el kardex, la
+            // toma física y la valoración, además de no caber en la columna.
+            // Su compra y su costo sí quedan registrados en los pasos 4a/4b/4d.
             if (mp.afectaInventario) {
                 if (!bodegaMaestra) {
                     const bmRes = await client.query(
@@ -9973,11 +9983,23 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
                     bodegaMaestra = bmRes.rows[0]?.bodega_maestra;
                     if (!bodegaMaestra) throw new Error('Bodega maestra no configurada para esta empresa');
                 }
+
+                // Se resuelve contra la tabla productos, no contra el campo `origen`
+                // que manda el cliente, para que el filtro no dependa del frontend.
+                const codsLinea = itemsValidos.map(it => String(it.codigo).trim());
+                const rProd = await client.query(
+                    `SELECT TRIM(codigo) AS codigo FROM productos WHERE TRIM(codigo) = ANY($1::text[])`,
+                    [codsLinea]
+                );
+                const esProducto = new Set(rProd.rows.map(r => r.codigo));
+
                 for (const item of itemsValidos) {
+                    const cod = String(item.codigo).trim();
+                    if (!esProducto.has(cod)) { omitidosInventario.add(cod); continue; }
                     await client.query(
                         `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
                          VALUES ($1, $2, $3, $4, 0, 'ENTRADA DE ALMACEN', $5, $6)`,
-                        [fecha, bodegaMaestra, item.codigo, parseFloat(item.cantidad), empresa,
+                        [fecha, bodegaMaestra, cod, parseFloat(item.cantidad), empresa,
                          `COMPRA GASTO ${codigos[i]}${factura ? ' FACT ' + factura : ''}`.substring(0, 100)]
                     );
                 }
@@ -10026,7 +10048,23 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
         }
 
         await client.query('COMMIT');
-        res.status(201).json({ success: true, data: { codigos, moviban: proximoNumMoviban, total: totalFactura } });
+
+        // Nombres de los ítems que no movieron stock, para poder avisar en pantalla
+        let omitidos = [];
+        if (omitidosInventario.size) {
+            const cods = [...omitidosInventario];
+            const rNom = await pool.query(
+                `SELECT TRIM(codigo) AS codigo, nombre FROM articulos WHERE TRIM(codigo) = ANY($1::text[])`,
+                [cods]
+            );
+            const mapaNom = new Map(rNom.rows.map(r => [r.codigo, r.nombre]));
+            omitidos = cods.map(c => ({ codigo: c, nombre: mapaNom.get(c) || c }));
+        }
+
+        res.status(201).json({
+            success: true,
+            data: { codigos, moviban: proximoNumMoviban, total: totalFactura, omitidos_inventario: omitidos }
+        });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error POST /api/contabilidad/gastos/multiple:', error.message);
