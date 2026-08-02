@@ -153,7 +153,29 @@
 
       <!-- MENSAJES -->
       <v-alert v-if="errorMsg" type="error" variant="tonal" class="mb-4" closable @click:close="errorMsg=''">{{ errorMsg }}</v-alert>
-      <v-alert v-if="exitoMsg" type="success" variant="tonal" class="mb-4" closable @click:close="exitoMsg=''">{{ exitoMsg }}</v-alert>
+
+      <!-- POPUP: PROCESANDO -->
+      <!-- No se puede cerrar manualmente: evita que se cierre por error mientras
+           el guardado sigue en curso, sobre todo en un cierre con muchos productos. -->
+      <v-dialog :model-value="mostrarProcesando" persistent max-width="360" no-click-animation>
+        <v-card class="tf-popup tf-popup--procesando">
+          <v-progress-circular indeterminate color="primary" size="44" width="4" class="mb-3" />
+          <div class="tf-popup-title">{{ modoCierre ? 'Guardando cierre de periodo…' : 'Guardando ajuste…' }}</div>
+          <div class="tf-popup-sub">No cierres ni recargues la página.</div>
+        </v-card>
+      </v-dialog>
+
+      <!-- POPUP: CONFIRMACIÓN -->
+      <v-dialog v-model="dlgExito" max-width="420" persistent>
+        <v-card class="tf-popup tf-popup--exito">
+          <v-icon color="success" size="48" class="mb-2">mdi-check-circle</v-icon>
+          <div class="tf-popup-title">{{ modoCierre ? 'Cierre de periodo guardado' : 'Ajuste guardado' }}</div>
+          <div class="tf-popup-sub">{{ exitoMsg }}</div>
+          <v-btn color="primary" variant="elevated" class="mt-4" @click="dlgExito = false">
+            Aceptar
+          </v-btn>
+        </v-card>
+      </v-dialog>
 
       <!-- GRID -->
       <div v-if="totalProductos > 0" class="tf-grid-card">
@@ -370,10 +392,15 @@ const stockCargado  = ref(false)
 const guardando      = ref(false)
 const dlgConflicto   = ref(false)
 const dlgAyuda       = ref(false)
+const dlgExito       = ref(false)
 const conflictCount  = ref(0)
 const errorMsg       = ref('')
 const exitoMsg       = ref('')
 const modoCierre     = ref(false)
+
+// El popup de "procesando" no debe superponerse con el de conflicto (fecha
+// duplicada): ese ya interrumpe el flujo y pide una decisión al usuario.
+const mostrarProcesando = computed(() => guardando.value && !dlgConflicto.value)
 
 function onCierreChange() {
   productos.value    = []
@@ -570,8 +597,9 @@ async function guardar(mode = 'new') {
 
     dlgConflicto.value = false
     exitoMsg.value = modoCierre.value
-      ? `✓ Cierre de periodo guardado — ${res.data.contados} producto(s) contado(s), ${res.data.registros} con ajuste. Este conteo valoriza el inventario final.`
-      : `✓ Ajuste guardado — ${res.data.registros} producto(s) ajustado(s)`
+      ? `${res.data.contados} producto(s) contado(s), ${res.data.registros} con ajuste. Este conteo valoriza el inventario final.`
+      : `${res.data.registros} producto(s) ajustado(s).`
+    dlgExito.value = true
     fisico.value = {}
     // Recargar stock para reflejar el ajuste
     await cargarStock()
@@ -671,4 +699,13 @@ async function guardar(mode = 'new') {
 .tf-footer-btns { display: flex; gap: 8px; }
 
 .tf-empty { text-align: center; padding: 60px 24px; color: rgba(var(--v-theme-on-surface),.4); display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: 14px; }
+
+/* POPUPS: PROCESANDO / CONFIRMACIÓN */
+.tf-popup {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 32px 28px;
+}
+.tf-popup-title { font-size: 16px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
+.tf-popup-sub { font-size: 13px; color: rgba(var(--v-theme-on-surface),.6); margin-top: 6px; line-height: 1.5; }
+.tf-popup--procesando .tf-popup-title { margin-top: 4px; }
 </style>
