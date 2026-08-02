@@ -10388,6 +10388,13 @@ app.get('/api/contabilidad/gastos/proximo-codigo', async (req, res) => {
 // dispara el flujo de entrada de almacén en Gestión de Gastos)
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_materia_prima VARCHAR(10)`).catch(() => {});
 
+// Valor por defecto de los checkboxes "Afectar inventario" / "Actualizar precio
+// de costo" al abrir el diálogo de materia prima en Gestión de Gastos. Solo
+// fija el estado inicial del checkbox — el usuario lo puede cambiar en cada
+// línea/transacción sin que eso altere esta preferencia.
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS mp_afecta_inventario_default VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS mp_actualiza_costo_default   VARCHAR(2) DEFAULT 'SI'`).catch(() => {});
+
 // Cuentas bancarias predeterminadas para Importar Ventas (Square) — Cta. Otros y Cta. Efectivo
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_otros VARCHAR(10)`).catch(() => {});
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_bancaria_efectivo VARCHAR(10)`).catch(() => {});
@@ -10436,7 +10443,8 @@ app.put('/api/config-general', async (req, res) => {
         'cta_propinas', 'cta_impuestos', 'cta_egresos_impuestos',
         'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo',
         'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo',
-        'ccosto_proveeduria'
+        'ccosto_proveeduria',
+        'mp_afecta_inventario_default', 'mp_actualiza_costo_default'
     ];
 
     const sets = [];

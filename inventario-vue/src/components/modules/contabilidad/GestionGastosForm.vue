@@ -819,6 +819,13 @@ function filtroProveedor(_value, query, item) {
 // Cuenta contable configurada como "materia prima" (config_general.cta_materia_prima)
 const ctaMateriaPrima = ref(null)
 
+// Valor por defecto de los checkboxes del diálogo de materia prima, configurable
+// en Configuración > Configuración General. Solo define con qué queda marcado
+// el checkbox al abrir — se puede cambiar libremente en cada línea sin que eso
+// afecte la preferencia guardada.
+const mpAfectaInventarioDefault = ref(true)
+const mpActualizaCostoDefault   = ref(true)
+
 let uidSeq = 1
 const lineaVacia = () => ({
   uid: uidSeq++,
@@ -988,7 +995,14 @@ function abrirMateriaPrima(idx) {
   const existente = form.value.lineas[idx].materiaPrima
   mpDraft.value = existente
     ? JSON.parse(JSON.stringify(existente))
-    : { afectaInventario: false, actualizaCosto: false, items: [itemVacio()] }
+    : {
+        // Solo aplica el default a un borrador nuevo — una línea ya guardada
+        // conserva lo que el usuario eligió esa vez, sin importar si luego
+        // cambia la preferencia general.
+        afectaInventario: mpAfectaInventarioDefault.value,
+        actualizaCosto:   mpActualizaCostoDefault.value,
+        items: [itemVacio()],
+      }
   if (!mpDraft.value.items.length) mpDraft.value.items.push(itemVacio())
   mpDialogOpen.value = true
   cargarItemsCompra()
@@ -1049,7 +1063,10 @@ onMounted(async () => {
     centrosCostosOptions.value    = centros?.data || (Array.isArray(centros) ? centros : [])
     cuentasContablesOptions.value = cuentas?.data || (Array.isArray(cuentas) ? cuentas : [])
     formasPagoOptions.value       = cuentasBank?.data || (Array.isArray(cuentasBank) ? cuentasBank : (cuentasBank || []))
-    ctaMateriaPrima.value         = cfg?.data?.data?.cta_materia_prima || null
+    const cfgData = cfg?.data?.data || {}
+    ctaMateriaPrima.value            = cfgData.cta_materia_prima || null
+    mpAfectaInventarioDefault.value  = (cfgData.mp_afecta_inventario_default ?? 'SI') === 'SI'
+    mpActualizaCostoDefault.value    = (cfgData.mp_actualiza_costo_default   ?? 'SI') === 'SI'
   } catch (err) {
     console.error('Error cargando opciones:', err)
   }

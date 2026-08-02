@@ -161,6 +161,74 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           SECCIÓN 1B-2: ENTRADA DE ALMACÉN (MATERIA PRIMA) EN GESTIÓN DE GASTOS
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(245,158,11,0.12)">
+            <v-icon size="16" color="#f59e0b">mdi-package-variant-closed</v-icon>
+          </div>
+          <span class="cfg-section-title">ENTRADA DE ALMACÉN — VALOR POR DEFECTO</span>
+        </div>
+
+        <div v-if="loadingCfgMp" class="cfg-loading">
+          <v-progress-circular indeterminate color="#f59e0b" size="28" />
+          <span>Cargando configuración...</span>
+        </div>
+
+        <div v-else class="cfg-mp-toggles">
+          <p class="cfg-hint-prov" style="margin-bottom:14px">
+            Define cómo abren estos dos checkboxes al registrar materia prima en Gestión de Gastos.
+            Es solo el punto de partida — se pueden marcar o desmarcar en cada compra sin que eso
+            cambie esta preferencia.
+          </p>
+          <v-checkbox
+            v-model="mpAfectaInventarioDefault"
+            density="compact"
+            hide-details
+            color="#f59e0b"
+          >
+            <template #label>
+              <span class="mp-opt-lbl">
+                <strong>Afectar inventario de la bodega maestra</strong>
+                — abre marcado por defecto
+              </span>
+            </template>
+          </v-checkbox>
+          <v-checkbox
+            v-model="mpActualizaCostoDefault"
+            density="compact"
+            hide-details
+            color="#f59e0b"
+          >
+            <template #label>
+              <span class="mp-opt-lbl">
+                <strong>Actualizar precio de costo</strong>
+                — abre marcado por defecto
+              </span>
+            </template>
+          </v-checkbox>
+        </div>
+
+        <div v-if="!loadingCfgMp" class="cfg-ctas-actions">
+          <span v-if="cfgMpSaveOk" class="cfg-ok-msg">
+            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado correctamente
+          </span>
+          <span v-if="cfgMpSaveErr" class="cfg-err-msg">{{ cfgMpSaveErr }}</span>
+          <v-btn
+            color="#f59e0b"
+            variant="flat"
+            size="small"
+            :loading="savingCfgMp"
+            @click="guardarConfigMp"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
+          </v-btn>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            SECCIÓN 1C: CONFIGURACIÓN GENERAL DE PROVEEDURÍA
       ══════════════════════════════════════════════ -->
       <div v-if="esProveedor" class="cfg-card">
@@ -579,6 +647,7 @@ watch(empresa, (val) => {
   if (val) {
     cargarConfigContable()
     cargarConfigTesoreria()
+    cargarConfigMp()
     cargarConfigProveeduria()
   }
 }, { immediate: false })
@@ -647,6 +716,51 @@ async function guardarConfigTesoreria() {
     cfgTesSaveErr.value = e?.response?.data?.error || e.message
   } finally {
     savingCfgTes.value = false
+  }
+}
+
+// ── Entrada de almacén (materia prima): valor por defecto de los
+//    checkboxes del diálogo en Gestión de Gastos ────────────────
+const mpAfectaInventarioDefault = ref(true)
+const mpActualizaCostoDefault   = ref(true)
+const loadingCfgMp = ref(true)
+const savingCfgMp  = ref(false)
+const cfgMpSaveOk  = ref(false)
+const cfgMpSaveErr = ref('')
+
+async function cargarConfigMp() {
+  loadingCfgMp.value = true
+  try {
+    if (!empresa.value) return
+    const cfgRes = await api.get('/config-general', { params: { empresa: empresa.value } })
+    const cfg = cfgRes.data?.data || {}
+    mpAfectaInventarioDefault.value = (cfg.mp_afecta_inventario_default ?? 'SI') === 'SI'
+    mpActualizaCostoDefault.value   = (cfg.mp_actualiza_costo_default   ?? 'SI') === 'SI'
+  } catch (e) {
+    console.error('[Configuracion] error al cargar entrada de almacén:', e)
+  } finally {
+    loadingCfgMp.value = false
+  }
+}
+
+async function guardarConfigMp() {
+  savingCfgMp.value = true
+  cfgMpSaveOk.value = false
+  cfgMpSaveErr.value = ''
+  try {
+    const payload = {
+      empresa: empresa.value,
+      mp_afecta_inventario_default: mpAfectaInventarioDefault.value ? 'SI' : 'NO',
+      mp_actualiza_costo_default:   mpActualizaCostoDefault.value   ? 'SI' : 'NO',
+    }
+    const res = await api.put('/config-general', payload)
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
+    cfgMpSaveOk.value = true
+    setTimeout(() => { cfgMpSaveOk.value = false }, 3000)
+  } catch (e) {
+    cfgMpSaveErr.value = e?.response?.data?.error || e.message
+  } finally {
+    savingCfgMp.value = false
   }
 }
 
@@ -889,6 +1003,7 @@ async function guardarRecalculoRecetas() {
 onMounted(() => {
   cargarConfigContable()
   cargarConfigTesoreria()
+  cargarConfigMp()
   cargarConfigProveeduria()
   cargarUsuarios()
   cargarLogo()
@@ -990,6 +1105,10 @@ onMounted(() => {
   font-size: 11px; color: rgba(var(--v-theme-on-surface),0.45);
   margin: 8px 0 0; line-height: 1.5;
 }
+
+/* ═══ ENTRADA DE ALMACÉN (MATERIA PRIMA) ═══ */
+.cfg-mp-toggles { display: flex; flex-direction: column; gap: 10px; }
+.mp-opt-lbl { font-size: 12.5px; line-height: 1.4; }
 
 /* ═══ USUARIOS ═══ */
 .cfg-usr-layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
