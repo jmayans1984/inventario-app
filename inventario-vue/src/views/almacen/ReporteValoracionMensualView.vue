@@ -205,26 +205,57 @@
               <table class="vm-table" v-if="data">
                 <thead>
                   <tr>
+                    <th class="th-expand"></th>
                     <th>CENTRO DE COSTO</th>
                     <th>TOMA</th>
                     <th class="tr">VALOR INICIAL</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="c in data.centros" :key="'di-' + c.ccosto" class="vm-tr">
-                    <td class="font-weight-medium">
-                      {{ c.nombre }}
-                      <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
-                    </td>
-                    <td>
-                      <span v-if="c.tomaInicial" class="text-dim">{{ fmtFecha(c.tomaInicial) }}</span>
-                      <span v-else class="badge-missing">SIN TOMA</span>
-                    </td>
-                    <td class="tr" :class="{ 'td-missing': !c.tomaInicial }">{{ fmt(c.valorInicial) }}</td>
-                  </tr>
+                  <template v-for="c in data.centros" :key="'di-' + c.ccosto">
+                    <tr class="vm-tr vm-tr-expandible" @click="toggleExpand('inicial', c.ccosto)">
+                      <td class="td-expand">
+                        <v-icon v-if="centroTieneDetalle('inicial', c.ccosto)" size="18">
+                          {{ expandido('inicial', c.ccosto) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
+                        </v-icon>
+                      </td>
+                      <td class="font-weight-medium">
+                        {{ c.nombre }}
+                        <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
+                      </td>
+                      <td>
+                        <span v-if="c.tomaInicial" class="text-dim">{{ fmtFecha(c.tomaInicial) }}</span>
+                        <span v-else class="badge-missing">SIN TOMA</span>
+                      </td>
+                      <td class="tr" :class="{ 'td-missing': !c.tomaInicial }">{{ fmt(c.valorInicial) }}</td>
+                    </tr>
+                    <tr v-if="expandido('inicial', c.ccosto)" class="vm-tr-detalle">
+                      <td colspan="4">
+                        <table class="vm-table vm-table-nested">
+                          <thead>
+                            <tr>
+                              <th>PRODUCTO</th>
+                              <th class="tr">STOCK</th>
+                              <th class="tr">COSTO UNIT.</th>
+                              <th class="tr">VALOR</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="p in productosDeCentro('inicial', c.ccosto)" :key="p.codigo" class="vm-tr">
+                              <td>{{ p.nombre }} <span class="text-dim">({{ p.codigo }})</span></td>
+                              <td class="tr">{{ numFmt(p.stock) }} {{ p.und }}</td>
+                              <td class="tr">{{ fmt(p.precio_costo) }}</td>
+                              <td class="tr font-weight-medium">{{ fmt(p.valor) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
                 <tfoot>
                   <tr class="vm-tr-total">
+                    <td></td>
                     <td class="font-weight-bold">TOTAL</td>
                     <td></td>
                     <td class="tr font-weight-bold" style="color:var(--indigo)">{{ fmt(data.kpis.valorInicial) }}</td>
@@ -255,26 +286,57 @@
               <table class="vm-table" v-if="data">
                 <thead>
                   <tr>
+                    <th class="th-expand"></th>
                     <th>CENTRO DE COSTO</th>
                     <th>TOMA</th>
                     <th class="tr">VALOR FINAL</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="c in data.centros" :key="'df-' + c.ccosto" class="vm-tr">
-                    <td class="font-weight-medium">
-                      {{ c.nombre }}
-                      <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
-                    </td>
-                    <td>
-                      <span v-if="c.tomaFinal" class="text-dim">{{ fmtFecha(c.tomaFinal) }}</span>
-                      <span v-else class="badge-missing">SIN TOMA</span>
-                    </td>
-                    <td class="tr" :class="{ 'td-missing': !c.tomaFinal }">{{ fmt(c.valorFinal) }}</td>
-                  </tr>
+                  <template v-for="c in data.centros" :key="'df-' + c.ccosto">
+                    <tr class="vm-tr vm-tr-expandible" @click="toggleExpand('final', c.ccosto)">
+                      <td class="td-expand">
+                        <v-icon v-if="centroTieneDetalle('final', c.ccosto)" size="18">
+                          {{ expandido('final', c.ccosto) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
+                        </v-icon>
+                      </td>
+                      <td class="font-weight-medium">
+                        {{ c.nombre }}
+                        <span v-if="c.esBodegaMaestra" class="badge-info">BODEGA MAESTRA</span>
+                      </td>
+                      <td>
+                        <span v-if="c.tomaFinal" class="text-dim">{{ fmtFecha(c.tomaFinal) }}</span>
+                        <span v-else class="badge-missing">SIN TOMA</span>
+                      </td>
+                      <td class="tr" :class="{ 'td-missing': !c.tomaFinal }">{{ fmt(c.valorFinal) }}</td>
+                    </tr>
+                    <tr v-if="expandido('final', c.ccosto)" class="vm-tr-detalle">
+                      <td colspan="4">
+                        <table class="vm-table vm-table-nested">
+                          <thead>
+                            <tr>
+                              <th>PRODUCTO</th>
+                              <th class="tr">STOCK</th>
+                              <th class="tr">COSTO UNIT.</th>
+                              <th class="tr">VALOR</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="p in productosDeCentro('final', c.ccosto)" :key="p.codigo" class="vm-tr">
+                              <td>{{ p.nombre }} <span class="text-dim">({{ p.codigo }})</span></td>
+                              <td class="tr">{{ numFmt(p.stock) }} {{ p.und }}</td>
+                              <td class="tr">{{ fmt(p.precio_costo) }}</td>
+                              <td class="tr font-weight-medium">{{ fmt(p.valor) }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
                 <tfoot>
                   <tr class="vm-tr-total">
+                    <td></td>
                     <td class="font-weight-bold">TOTAL</td>
                     <td></td>
                     <td class="tr font-weight-bold" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</td>
@@ -585,6 +647,30 @@ const showDetalleInicial = ref(false)
 const showDetalleFinal   = ref(false)
 const showDetalleCompras = ref(false)
 
+// Fila expandida por centro dentro de cada diálogo (inicial/final), para ver
+// el detalle de producto que compone el total de ESE centro puntual.
+const expandidoInicial = ref(new Set())
+const expandidoFinal   = ref(new Set())
+
+function centroTieneDetalle(corte, ccosto) {
+  const lista = data.value?.productosPorCentro?.[corte]?.[ccosto]
+  return !!(lista && lista.length)
+}
+function expandido(corte, ccosto) {
+  return (corte === 'inicial' ? expandidoInicial : expandidoFinal).value.has(ccosto)
+}
+function toggleExpand(corte, ccosto) {
+  if (!centroTieneDetalle(corte, ccosto)) return
+  const ref_ = corte === 'inicial' ? expandidoInicial : expandidoFinal
+  const nuevo = new Set(ref_.value)
+  if (nuevo.has(ccosto)) nuevo.delete(ccosto)
+  else nuevo.add(ccosto)
+  ref_.value = nuevo
+}
+function productosDeCentro(corte, ccosto) {
+  return data.value?.productosPorCentro?.[corte]?.[ccosto] || []
+}
+
 function mesActualStr() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -884,6 +970,22 @@ onMounted(cargar)
 .vm-table .tr { text-align: right; }
 .vm-tr:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
 .vm-tr-total td { border-top: 2px solid rgba(var(--v-theme-on-surface), 0.15); border-bottom: none; }
+
+/* EXPANSIÓN POR CENTRO (detalle de producto dentro de cada corte) */
+.th-expand { width: 28px; }
+.td-expand { width: 28px; padding: 10px 0 10px 12px !important; color: rgba(var(--v-theme-on-surface), 0.4); }
+.vm-tr-expandible { cursor: pointer; }
+.vm-tr-detalle td {
+  padding: 0 !important; background: rgba(var(--v-theme-on-surface), 0.02);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.vm-table-nested { margin: 8px 12px 8px 40px; width: calc(100% - 52px); }
+.vm-table-nested th {
+  font-size: 9.5px; padding: 6px 10px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.vm-table-nested td { padding: 6px 10px; font-size: 12px; }
+.vm-table-nested .vm-tr:last-child td { border-bottom: none; }
 .text-dim { color: rgba(var(--v-theme-on-surface), 0.45); }
 
 .badge-info {

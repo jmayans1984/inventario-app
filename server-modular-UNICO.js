@@ -3298,6 +3298,34 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
             .filter(p => p.valorInicial > 0.0001 || p.valorFinal > 0.0001)
             .sort((a, b) => (b.valorInicial + b.valorFinal) - (a.valorInicial + a.valorFinal));
 
+        // Detalle por producto DENTRO de cada centro de costo (a diferencia de
+        // `productos`, que ya viene sumado entre todos los centros). Sirve para
+        // verificar de dónde sale el total de un centro puntual en el detalle de
+        // Inventario Inicial/Final. Se agrupa por ccosto y se descartan filas en
+        // stock cero para no llenar la vista con productos que no tocan ese centro.
+        function agruparPorCentro(rows) {
+            const porCentro = {};
+            for (const row of rows) {
+                const stock = parseFloat(row.stock) || 0;
+                if (Math.abs(stock) < 0.0001) continue;
+                const precio = parseFloat(row.precio_costo) || 0;
+                if (!porCentro[row.ccosto]) porCentro[row.ccosto] = [];
+                porCentro[row.ccosto].push({
+                    codigo: row.codigo, nombre: row.nombre, und: row.und,
+                    grupo_nombre: row.grupo_nombre, stock, precio_costo: precio,
+                    valor: stock * precio,
+                });
+            }
+            for (const cc of Object.keys(porCentro)) {
+                porCentro[cc].sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor));
+            }
+            return porCentro;
+        }
+        const productosPorCentro = {
+            inicial: agruparPorCentro(valInicial.rows),
+            final:   agruparPorCentro(valFinal.rows),
+        };
+
         res.json({
             success: true,
             periodo: { desde, hasta },
@@ -3318,6 +3346,7 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
             avisos: { sinTomaInicial, sinTomaFinal, noCongelados },
             centros,
             productos,
+            productosPorCentro,
             gastosMP: gastosMPRes.rows
         });
     } catch (error) {
