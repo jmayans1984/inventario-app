@@ -1449,26 +1449,26 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
                 // SALIDA POR VENTA desde bodega maestra (no es traslado entre ccostos)
                 cantidadesDespachadas[item.producto_codigo] = cant;
                 await client.query(`
-                    INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones)
-                    VALUES ($1,$2,$3,0,$4,'SALIDA POR VENTA',$5,$6)
+                    INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,despacho_id)
+                    VALUES ($1,$2,$3,0,$4,'SALIDA POR VENTA',$5,$6,$7)
                 `, [fecha, orden.cc_origen, item.producto_codigo, cant, empresa,
-                    `Despacho #${orden.id} — Orden de Compra ${orden.orden_compra}`]);
+                    `Despacho #${orden.id} — Orden de Compra ${orden.orden_compra}`, orden.id]);
                 continue;
             }
 
             // SALIDA POR TRASLADO en cc_origen
             await client.query(`
-                INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
-                VALUES ($1,$2,$3,0,$4,'SALIDA POR TRASLADO',$5,$6,$7)
+                INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion,despacho_id)
+                VALUES ($1,$2,$3,0,$4,'SALIDA POR TRASLADO',$5,$6,$7,$8)
             `, [fecha, orden.cc_origen, item.producto_codigo, cant, empresa,
-                `Despacho #${orden.id} → ${nombreDestino}`, orden.cc_destino]);
+                `Despacho #${orden.id} → ${nombreDestino}`, orden.cc_destino, orden.id]);
 
             // ENTRADA POR TRASLADO en cc_destino
             await client.query(`
-                INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion)
-                VALUES ($1,$2,$3,$4,0,'ENTRADA POR TRASLADO',$5,$6,$7)
+                INSERT INTO detalle_inventario (fecha,ccosto,codigo,entrada,salida,tipo,empresa,observaciones,cc_relacion,despacho_id)
+                VALUES ($1,$2,$3,$4,0,'ENTRADA POR TRASLADO',$5,$6,$7,$8)
             `, [fecha, orden.cc_destino, item.producto_codigo, cant, empresa,
-                `Despacho #${orden.id} desde ${nombreOrigen}`, orden.cc_origen]);
+                `Despacho #${orden.id} desde ${nombreOrigen}`, orden.cc_origen, orden.id]);
         }
 
         // Despacho de VENTA: ajustar la orden de compra a lo realmente despachado
@@ -1556,6 +1556,75 @@ app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         await client.query('ROLLBACK');
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
+// POST /api/almacen/despachos/:id/revertir — deshace una orden COMPLETADA
+//
+// Elimina los movimientos de detalle_inventario que generó el despacho y
+// regresa la orden a EN_PACKING (picking/packing quedan intactos: el despacho
+// vuelve a quedar listo para confirmarse de nuevo, no hay que rehacer el
+// conteo). No borra la orden ni su detalle.
+//
+// Las filas a borrar se ubican por despacho_id cuando existe (despachos
+// confirmados después de que se agregó esa columna). Para despachos anteriores,
+// que no tienen despacho_id, se ubican por el texto exacto que `confirmar`
+// escribe en observaciones ("Despacho #<id> " seguido de espacio) — es
+// determinístico porque el id nunca se reutiliza y el separador es fijo.
+//
+// Solo soportado para despachos de TRASLADO (el caso normal entre centros de
+// costo). Los de tipo VENTA quedan fuera: confirmarlos también deja la orden
+// de compra en EN REPARTO y sobrescribe sus cantidades, y no hay forma de
+// recuperar los valores previos para revertir eso de forma segura.
+app.post('/api/almacen/despachos/:id/revertir', async (req, res) => {
+    const empresa = req.body.empresa || req.headers['x-empresa'];
+    const client  = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const rOrden = await client.query(
+            `SELECT * FROM ordenes_despacho WHERE id=$1 AND empresa=$2::integer FOR UPDATE`,
+            [req.params.id, empresa]
+        );
+        if (rOrden.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'No encontrado' });
+        }
+        const orden = rOrden.rows[0];
+
+        if (orden.estado !== 'COMPLETADO') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, error: 'Solo se pueden reversar órdenes en estado COMPLETADO' });
+        }
+        if (orden.tipo === 'VENTA' && orden.orden_compra) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'Los despachos de VENTA no se pueden reversar automáticamente porque también afectan la Orden de Compra asociada'
+            });
+        }
+
+        const delRes = await client.query(
+            `DELETE FROM detalle_inventario
+              WHERE empresa = $1::integer
+                AND (despacho_id = $2::integer
+                     OR (despacho_id IS NULL AND observaciones LIKE ('Despacho #' || $2::text || ' %')))`,
+            [empresa, req.params.id]
+        );
+
+        await client.query(
+            `UPDATE ordenes_despacho SET estado='EN_PACKING', fecha_completado=NULL WHERE id=$1`,
+            [req.params.id]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, movimientos_eliminados: delRes.rowCount });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/almacen/despachos/:id/revertir:', e);
         res.status(500).json({ success: false, error: e.message });
     } finally {
         client.release();
@@ -16531,6 +16600,19 @@ app.listen(PORT, async () => {
         console.log('✅ Columna cc_relacion verificada/creada');
     } catch (err) {
         console.error('⚠️  Error al crear columna cc_relacion:', err.message);
+    }
+
+    // despacho_id: vincula cada movimiento con la orden de despacho que lo generó,
+    // para poder reversar una orden confirmada sin tener que adivinar sus filas
+    // por texto de observaciones.
+    try {
+        await pool.query(`
+            ALTER TABLE detalle_inventario
+            ADD COLUMN IF NOT EXISTS despacho_id integer
+        `);
+        console.log('✅ Columna despacho_id verificada/creada');
+    } catch (err) {
+        console.error('⚠️  Error al crear columna despacho_id:', err.message);
     }
 
     // Crear tabla receta_producto (mapeo 1:1)

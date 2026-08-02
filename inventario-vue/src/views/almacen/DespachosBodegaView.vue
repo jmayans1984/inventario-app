@@ -118,6 +118,12 @@
                     @click="eliminar(d)">
                     <v-icon>mdi-delete</v-icon>
                   </v-btn>
+                  <v-btn icon size="x-small" variant="text" color="warning" title="Reversar (deshace los movimientos de inventario y vuelve a Packing)"
+                    v-if="d.estado === 'COMPLETADO' && d.tipo !== 'VENTA'"
+                    :loading="reversando === d.id"
+                    @click="reversar(d)">
+                    <v-icon>mdi-undo-variant</v-icon>
+                  </v-btn>
                 </div>
               </td>
             </tr>
@@ -448,6 +454,11 @@
               :loading="completandoVenta" @click="completarDespachoVenta(detalleActivo)">
               Despachar (Salida por Venta)
             </v-btn>
+            <v-btn v-if="detalleActivo.estado === 'COMPLETADO' && detalleActivo.tipo !== 'VENTA'"
+              variant="tonal" color="warning" prepend-icon="mdi-undo-variant"
+              :loading="reversando === detalleActivo.id" @click="reversar(detalleActivo)">
+              Reversar
+            </v-btn>
             <v-btn variant="flat" color="error" @click="dlgDetalle=false" style="color:white">Cerrar</v-btn>
           </v-card-actions>
         </v-card>
@@ -567,6 +578,7 @@ const despachos  = ref([])
 const ccostos    = ref([])
 const loading    = ref(false)
 const eliminando = ref(null)
+const reversando = ref(null)
 const imprimiendo = ref(null)
 const completandoVenta = ref(null)
 
@@ -1113,6 +1125,25 @@ async function eliminar(d) {
     alert(e?.response?.data?.error || 'Error al eliminar')
   } finally {
     eliminando.value = null
+  }
+}
+
+// Deshace los movimientos de inventario que generó una orden COMPLETADA y la
+// regresa a EN_PACKING — el picking/packing quedan como estaban, solo hay que
+// volver a confirmar. No aplica a despachos de VENTA (afectan también la
+// Orden de Compra asociada).
+async function reversar(d) {
+  if (!confirm(`¿Reversar la orden #${d.id}? Se eliminarán los movimientos de inventario que generó (traslado ${d.cc_origen_nombre || d.cc_origen} → ${d.cc_destino_nombre || d.cc_destino}) y la orden volverá a EN PACKING para poder confirmarla de nuevo.`)) return
+  reversando.value = d.id
+  try {
+    const res = await api.post(`/almacen/despachos/${d.id}/revertir`, { empresa: empresa.value })
+    dlgDetalle.value = false
+    await cargar()
+    alert(`Orden #${d.id} reversada — ${res.data?.movimientos_eliminados ?? 0} movimiento(s) de inventario eliminado(s).`)
+  } catch (e) {
+    alert(e?.response?.data?.error || 'Error al reversar la orden')
+  } finally {
+    reversando.value = null
   }
 }
 
