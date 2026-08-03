@@ -266,13 +266,13 @@
           <!-- Concepto -->
           <div class="form-row">
             <div class="form-field full-width">
-              <label class="field-label">CONCEPTO <span class="req">*</span></label>
+              <label class="field-label">CONCEPTO</label>
               <input
                 v-model="form.concepto"
                 type="text"
                 class="field-input"
                 :class="{ error: formErrors.concepto }"
-                placeholder="Descripción del movimiento"
+                placeholder="Descripción del movimiento (opcional)"
                 @input="toUpperCaseField('concepto')"
               />
               <span v-if="formErrors.concepto" class="field-error">{{ formErrors.concepto }}</span>
@@ -560,7 +560,6 @@ function validarForm() {
   const errs = {}
   if (!form.value.fecha)             errs.fecha     = 'La fecha es requerida'
   if (!form.value.tipo)              errs.tipo      = 'El tipo es requerido'
-  if (!form.value.concepto?.trim())  errs.concepto  = 'El concepto es requerido'
   const monto = parseFloat(form.value.monto)
   if (!form.value.monto || isNaN(monto) || monto <= 0) errs.monto = 'El monto debe ser mayor a 0'
   if (form.value.tipo === 'TRA' && !form.value.banco_destino) errs.banco_destino = 'La cuenta destino es requerida'
@@ -761,8 +760,8 @@ onMounted(async () => {
 .col-beneficiario { width: 20%; }
 .col-concepto     { width: 28%; }
 .col-cheque       { width: 110px; }
-.col-ingreso      { width: 110px; text-align: right !important; }
-.col-egreso       { width: 110px; text-align: right !important; }
+.col-ingreso      { width: 120px; text-align: right !important; white-space: nowrap; }
+.col-egreso       { width: 120px; text-align: right !important; white-space: nowrap; }
 .col-conciliado   { width: 100px; text-align: center !important; }
 .col-acciones     { width: 44px; text-align: center !important; }
 
