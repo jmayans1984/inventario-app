@@ -8292,6 +8292,25 @@ app.post('/api/contabilidad/proveedores', async (req, res) => {
             });
         }
 
+        // El código identifica al proveedor en gastos y movimientos bancarios, que
+        // lo resuelven con un JOIN. Dos proveedores con el mismo código hacen que
+        // ese JOIN devuelva una fila por cada uno, y el gasto aparece duplicado en
+        // pantalla (con distinto nombre) aunque en la base haya un solo registro.
+        const cod = (codigo || '').toString().trim();
+        if (!cod) {
+            return res.status(400).json({ success: false, error: 'El código es requerido' });
+        }
+        const dup = await pool.query(
+            `SELECT nombre FROM proveedores WHERE TRIM(codigo) = $1 AND empresa = $2 LIMIT 1`,
+            [cod, empresa]
+        );
+        if (dup.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                error: `El código ${cod} ya está en uso por "${dup.rows[0].nombre}"`
+            });
+        }
+
         const query = `
             INSERT INTO proveedores (codigo, nombre, direccion, telefono1, departamen, empresa)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -8299,7 +8318,7 @@ app.post('/api/contabilidad/proveedores', async (req, res) => {
         `;
 
         const result = await pool.query(query, [
-            codigo || null,
+            cod,
             nombre,
             direccion || null,
             telefono1 || null,

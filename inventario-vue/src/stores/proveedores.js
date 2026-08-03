@@ -331,26 +331,38 @@ export const useProveedoresStore = defineStore('proveedores', () => {
 
   // ─── PRÓXIMO CÓDIGO ──────────────────────────────────
 
+  // Códigos "centinela" heredados que no representan un consecutivo real:
+  // 2147483647 es el máximo de un entero de 32 bits y quedó en varios registros.
+  // Tomarlos como máximo empujaba el siguiente código fuera de rango y terminaba
+  // repitiendo el mismo valor en proveedores distintos — lo que duplica las filas
+  // de gastos y movimientos bancarios, porque ambos resuelven el nombre por JOIN.
+  const CODIGO_CENTINELA = 2147483647
+
+  function calcularProximo(lista) {
+    const usados = new Set(lista.map(p => String(p.codigo || '').trim()))
+    let maxNum = 0
+    lista.forEach(p => {
+      const n = parseInt(p.codigo, 10)
+      if (Number.isFinite(n) && n < CODIGO_CENTINELA && n > maxNum) maxNum = n
+    })
+    // Avanza hasta encontrar uno realmente libre
+    let siguiente = maxNum + 1
+    while (usados.has(String(siguiente).padStart(10, '0')) && siguiente < CODIGO_CENTINELA) {
+      siguiente++
+    }
+    return String(siguiente).padStart(10, '0')
+  }
+
   async function getProximoCodigo() {
     try {
       const authStore = useAuthStore()
       const empresa = authStore.empresa
-      const response = await proveedoresService.getProveedores({ empresa, limit: 200 })
+      const response = await proveedoresService.getProveedores({ empresa, limit: 5000 })
       const lista = Array.isArray(response) ? response : response?.data || proveedores.value
-      let maxNum = 0
-      lista.forEach(p => {
-        const n = parseInt(p.codigo) || 0
-        if (n > maxNum) maxNum = n
-      })
-      return String(maxNum + 1).padStart(10, '0')
+      return calcularProximo(lista)
     } catch {
       // Calcular desde los proveedores ya cargados
-      let maxNum = 0
-      proveedores.value.forEach(p => {
-        const n = parseInt(p.codigo) || 0
-        if (n > maxNum) maxNum = n
-      })
-      return String(maxNum + 1).padStart(10, '0')
+      return calcularProximo(proveedores.value)
     }
   }
 
