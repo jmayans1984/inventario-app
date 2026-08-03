@@ -8258,25 +8258,159 @@ app.get('/api/contabilidad/proveedores/:codigo', async (req, res) => {
     }
 });
 
+// Códigos de proveedor: arrancan en 1000000000 y avanzan de uno en uno hasta
+// encontrar el primer valor libre. No se calcula como "máximo + 1" porque hay
+// códigos heredados fuera de rango (2147483647, el tope de un entero de 32 bits)
+// que empujaban el siguiente código a valores imposibles y terminaban repitiendo
+// el mismo en proveedores distintos — lo que duplica las filas de gastos y
+// movimientos bancarios, que resuelven el nombre del proveedor por JOIN.
+const PROVEEDOR_CODIGO_BASE = 1000000000;
+
+async function proximoCodigoProveedor(empresa) {
+    const r = await pool.query(
+        `SELECT TRIM(codigo) AS codigo FROM proveedores WHERE empresa = $1`,
+        [empresa]
+    );
+    const usados = new Set(r.rows.map(x => x.codigo));
+    let n = PROVEEDOR_CODIGO_BASE;
+    while (usados.has(String(n))) n++;
+    return String(n);
+}
+
 // GET /api/contabilidad/proveedores/proximo-codigo
 app.get('/api/contabilidad/proveedores/proximo-codigo', async (req, res) => {
     try {
         const empresa = req.query.empresa || req.headers['x-empresa'];
         if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
-
-        const result = await pool.query(
-            `SELECT codigo FROM proveedores WHERE empresa = $1 ORDER BY codigo DESC`,
-            [empresa]
-        );
-        let maxNum = 0;
-        result.rows.forEach(row => {
-            const n = parseInt(row.codigo) || 0;
-            if (n > maxNum) maxNum = n;
-        });
-        const proximoCodigo = String(maxNum + 1).padStart(3, '0');
-        res.json({ success: true, codigo: proximoCodigo });
+        res.json({ success: true, codigo: await proximoCodigoProveedor(empresa) });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/contabilidad/proveedores/duplicados
+// Diagnóstico: códigos compartidos por más de un proveedor, con el número real de
+// referencias que tiene ese código en el resto del sistema. Un código repetido hace
+// que gastos y movimientos bancarios muestren la misma fila varias veces (una por
+// cada proveedor que comparte el código), porque ambos resuelven el nombre por JOIN.
+app.get('/api/contabilidad/proveedores/duplicados', async (req, res) => {
+    const empresa = req.query.empresa || req.headers['x-empresa'];
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    try {
+        const dupRes = await pool.query(
+            `SELECT TRIM(codigo) AS codigo, COUNT(*)::int AS cuantos,
+                    ARRAY_AGG(nombre ORDER BY nombre) AS nombres
+             FROM proveedores
+             WHERE empresa = $1
+             GROUP BY TRIM(codigo)
+             HAVING COUNT(*) > 1
+             ORDER BY TRIM(codigo)`,
+            [empresa]
+        );
+
+        const data = [];
+        for (const row of dupRes.rows) {
+            const [gas, mov, ea] = await Promise.all([
+                pool.query(`SELECT COUNT(*)::int AS n FROM gastos          WHERE empresa = $1 AND TRIM(proveedor) = $2`, [empresa, row.codigo]),
+                pool.query(`SELECT COUNT(*)::int AS n FROM moviban         WHERE empresa::text = $1::text AND TRIM(beneficia) = $2`, [empresa, row.codigo]),
+                pool.query(`SELECT COUNT(*)::int AS n FROM entrada_almacen WHERE empresa::text = $1::text AND TRIM(proveedor) = $2`, [empresa, row.codigo]),
+            ]);
+            data.push({
+                codigo: row.codigo,
+                cuantos: row.cuantos,
+                nombres: row.nombres,
+                referencias: { gastos: gas.rows[0].n, moviban: mov.rows[0].n, entrada_almacen: ea.rows[0].n },
+                total_referencias: gas.rows[0].n + mov.rows[0].n + ea.rows[0].n,
+            });
+        }
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/proveedores/duplicados:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/contabilidad/proveedores/depurar-duplicados
+// Body: { empresa, acciones: [{ codigo, conservar }] }
+//   conservar = nombre exacto del proveedor que se queda con ese código.
+//               Si va null, se elimina el grupo completo (sirve para códigos
+//               basura heredados que ningún gasto referencia).
+//
+// Eliminar duplicados de un código NO rompe referencias mientras quede al menos
+// un proveedor con ese código: gastos y moviban apuntan al código, no a la fila.
+// Por eso, si `conservar` viene null, se exige que el código no tenga ninguna
+// referencia — de lo contrario esos registros quedarían sin nombre que mostrar.
+app.post('/api/contabilidad/proveedores/depurar-duplicados', async (req, res) => {
+    const { empresa, acciones } = req.body;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    if (!Array.isArray(acciones) || !acciones.length) {
+        return res.status(400).json({ success: false, error: 'acciones es requerido' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const resultado = [];
+
+        for (const acc of acciones) {
+            const codigo = String(acc.codigo || '').trim();
+            if (!codigo) continue;
+
+            const existentes = await client.query(
+                `SELECT nombre FROM proveedores WHERE empresa = $1 AND TRIM(codigo) = $2`,
+                [empresa, codigo]
+            );
+            if (existentes.rowCount === 0) {
+                resultado.push({ codigo, estado: 'no encontrado' });
+                continue;
+            }
+
+            if (acc.conservar) {
+                const conservar = String(acc.conservar).trim();
+                if (!existentes.rows.some(r => (r.nombre || '').trim() === conservar)) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        success: false,
+                        error: `"${conservar}" no existe entre los proveedores del código ${codigo}`
+                    });
+                }
+                const del = await client.query(
+                    `DELETE FROM proveedores
+                      WHERE empresa = $1 AND TRIM(codigo) = $2 AND TRIM(nombre) <> $3`,
+                    [empresa, codigo, conservar]
+                );
+                resultado.push({ codigo, conservado: conservar, eliminados: del.rowCount });
+            } else {
+                // Sin `conservar`: se borra el grupo entero, solo si nada lo referencia
+                const [gas, mov, ea] = await Promise.all([
+                    client.query(`SELECT COUNT(*)::int AS n FROM gastos          WHERE empresa = $1 AND TRIM(proveedor) = $2`, [empresa, codigo]),
+                    client.query(`SELECT COUNT(*)::int AS n FROM moviban         WHERE empresa::text = $1::text AND TRIM(beneficia) = $2`, [empresa, codigo]),
+                    client.query(`SELECT COUNT(*)::int AS n FROM entrada_almacen WHERE empresa::text = $1::text AND TRIM(proveedor) = $2`, [empresa, codigo]),
+                ]);
+                const refs = gas.rows[0].n + mov.rows[0].n + ea.rows[0].n;
+                if (refs > 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(409).json({
+                        success: false,
+                        error: `El código ${codigo} tiene ${refs} referencia(s) en uso; indica cuál proveedor conservar en vez de eliminarlo`
+                    });
+                }
+                const del = await client.query(
+                    `DELETE FROM proveedores WHERE empresa = $1 AND TRIM(codigo) = $2`,
+                    [empresa, codigo]
+                );
+                resultado.push({ codigo, conservado: null, eliminados: del.rowCount });
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, resultado });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/contabilidad/proveedores/depurar-duplicados:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
     }
 });
 

@@ -331,26 +331,19 @@ export const useProveedoresStore = defineStore('proveedores', () => {
 
   // ─── PRÓXIMO CÓDIGO ──────────────────────────────────
 
-  // Códigos "centinela" heredados que no representan un consecutivo real:
-  // 2147483647 es el máximo de un entero de 32 bits y quedó en varios registros.
-  // Tomarlos como máximo empujaba el siguiente código fuera de rango y terminaba
-  // repitiendo el mismo valor en proveedores distintos — lo que duplica las filas
-  // de gastos y movimientos bancarios, porque ambos resuelven el nombre por JOIN.
-  const CODIGO_CENTINELA = 2147483647
+  // Los códigos arrancan en 1000000000 y avanzan de uno en uno hasta dar con el
+  // primer valor libre. Antes se calculaba como "máximo + 1", pero hay códigos
+  // heredados fuera de rango (2147483647, el tope de un entero de 32 bits) que
+  // empujaban el siguiente a valores imposibles y terminaban repitiendo el mismo
+  // código en proveedores distintos — lo que duplica las filas de gastos y
+  // movimientos bancarios, que resuelven el nombre del proveedor por JOIN.
+  const CODIGO_BASE = 1000000000
 
   function calcularProximo(lista) {
-    const usados = new Set(lista.map(p => String(p.codigo || '').trim()))
-    let maxNum = 0
-    lista.forEach(p => {
-      const n = parseInt(p.codigo, 10)
-      if (Number.isFinite(n) && n < CODIGO_CENTINELA && n > maxNum) maxNum = n
-    })
-    // Avanza hasta encontrar uno realmente libre
-    let siguiente = maxNum + 1
-    while (usados.has(String(siguiente).padStart(10, '0')) && siguiente < CODIGO_CENTINELA) {
-      siguiente++
-    }
-    return String(siguiente).padStart(10, '0')
+    const usados = new Set((lista || []).map(p => String(p.codigo || '').trim()))
+    let n = CODIGO_BASE
+    while (usados.has(String(n))) n++
+    return String(n)
   }
 
   async function getProximoCodigo() {

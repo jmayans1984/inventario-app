@@ -709,7 +709,7 @@
             density="comfortable"
             maxlength="10"
             counter="10"
-            hint="Suele ser el NIT o identificación del proveedor"
+            hint="Sugerido automáticamente — puedes reemplazarlo por el NIT o identificación real"
             persistent-hint
             class="mb-2"
             @keydown.enter.prevent="guardarNuevoProveedor"
@@ -922,13 +922,18 @@ const provGuardando  = ref(false)
 const provError      = ref('')
 const provDraft      = ref({ codigo: '', nombre: '', telefono1: '', direccion: '' })
 
-function abrirNuevoProveedor() {
+async function abrirNuevoProveedor() {
   provError.value = ''
-  // El código no se autogenera: los códigos existentes son identificaciones
-  // reales del proveedor (NIT/EIN), no un consecutivo, así que lo escribe quien
-  // captura. Solo se valida que no choque con uno ya registrado.
   provDraft.value = { codigo: '', nombre: '', telefono1: '', direccion: '' }
   provDialogOpen.value = true
+  // Se sugiere el siguiente código libre (serie desde 1000000000), pero el campo
+  // queda editable por si se prefiere usar el NIT/identificación real.
+  try {
+    const r = await api.get('/contabilidad/proveedores/proximo-codigo', {
+      params: { empresa: empresa.value }
+    })
+    if (r.data?.codigo) provDraft.value.codigo = r.data.codigo
+  } catch { /* si falla, se escribe a mano */ }
 }
 
 async function guardarNuevoProveedor() {
