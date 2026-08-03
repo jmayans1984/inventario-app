@@ -10858,10 +10858,18 @@ app.post('/api/square/importar-resumen', async (req, res) => {
                             + Math.abs(parseFloat(pagos.tarjetaRegalo) || 0);
         const valorOtros    = Math.abs(parseFloat(pagos.otro)          || 0);
 
+        // La cuenta Square es el saldo bancario real: Square deposita las ventas
+        // con tarjeta YA DESCONTADA su comisión, no el bruto. `comisiones` ya se
+        // registró arriba como gasto (cta_comisiones) — aquí solo se neteliza el
+        // ingreso que entra al banco, para que el saldo de esa cuenta cuadre con
+        // lo que Square efectivamente deposita. Math.max(0, …) evita un ingreso
+        // negativo si algún día las comisiones superan el bruto de tarjeta.
+        const valorTarjetaNeto = Math.max(0, valorTarjeta - comisiones);
+
         const movibanRecords = [
-            { concepto: `VENTAS EFECTIVO - ${nombreCcosto}`, ingreso: valorEfectivo, banco: ctaEfectivo || null },
-            { concepto: `VENTAS TARJETA - ${nombreCcosto}`,  ingreso: valorTarjeta,  banco: ctaSquare  || null },
-            { concepto: `VENTAS OTROS - ${nombreCcosto}`,    ingreso: valorOtros,    banco: ctaOtros   || null },
+            { concepto: `VENTAS EFECTIVO - ${nombreCcosto}`, ingreso: valorEfectivo,     banco: ctaEfectivo || null },
+            { concepto: `VENTAS TARJETA - ${nombreCcosto}`,  ingreso: valorTarjetaNeto,  banco: ctaSquare  || null },
+            { concepto: `VENTAS OTROS - ${nombreCcosto}`,    ingreso: valorOtros,        banco: ctaOtros   || null },
         ];
 
         for (const mov of movibanRecords) {
