@@ -526,6 +526,10 @@ import KpiCard from '../../components/common/KpiCard.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
 import { productosAlmacenService } from '../../services/productos-almacen.service'
 import api from '../../services/api'
+import { useAuthStore } from '../../stores/auth'
+
+const auth    = useAuthStore()
+const empresa = computed(() => auth.empresa)
 
 // ── Estado ────────────────────────────────────────────────────
 const productos     = ref([])
@@ -766,7 +770,9 @@ async function abrirBarcodes(p) {
 async function cargarBarcodes() {
   bcLoading.value = true
   try {
-    const res = await api.get(`/almacen/productos/${bcProducto.value.codigo}/barcodes`)
+    const res = await api.get(`/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
+      params: { empresa: empresa.value }
+    })
     barcodes.value = res.data?.data || []
   } catch { /* silencioso */ } finally {
     bcLoading.value = false
@@ -778,7 +784,9 @@ async function agregarBarcode() {
   bcGuardando.value = true
   bcError.value = ''
   try {
-    const res = await api.post(`/almacen/productos/${bcProducto.value.codigo}/barcodes`, bcNuevo.value)
+    const res = await api.post(`/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
+      ...bcNuevo.value, empresa: empresa.value
+    })
     if (!res.data?.success) { bcError.value = res.data?.error || 'Error al guardar'; return }
     await cargarBarcodes()
     bcNuevo.value = { barcode: '', descripcion: '', es_principal: false, factor: 1 }
@@ -792,7 +800,7 @@ async function agregarBarcode() {
 async function eliminarBarcode(bc) {
   bcDeleting.value = bc.id
   try {
-    await api.delete(`/almacen/barcodes/${bc.id}`)
+    await api.delete(`/almacen/barcodes/${bc.id}`, { params: { empresa: empresa.value } })
     await cargarBarcodes()
   } catch { /* silencioso */ } finally {
     bcDeleting.value = null
@@ -804,9 +812,9 @@ async function marcarPrincipal(bc) {
   bcToggling.value = bc.id
   try {
     // Eliminar y re-crear con es_principal=true — más simple que un PATCH específico
-    await api.delete(`/almacen/barcodes/${bc.id}`)
+    await api.delete(`/almacen/barcodes/${bc.id}`, { params: { empresa: empresa.value } })
     await api.post(`/almacen/productos/${bcProducto.value.codigo}/barcodes`, {
-      barcode: bc.barcode, descripcion: bc.descripcion, es_principal: true
+      barcode: bc.barcode, descripcion: bc.descripcion, es_principal: true, empresa: empresa.value
     })
     await cargarBarcodes()
   } catch { /* silencioso */ } finally {
@@ -836,7 +844,7 @@ onMounted(cargar)
 .prd-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .prd-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
-/* KPIs */
+/* KPIs */
 
 /* Filtros */
 .prd-filtros      { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }

@@ -11116,6 +11116,28 @@ pool.query(`ALTER TABLE detalle_ordenes DROP CONSTRAINT IF EXISTS detalle_ordene
     } catch (e) { console.error('Error migrando preferencias_notificaciones:', e.message); }
 })();
 
+// Migración: backfill de producto_barcodes.empresa
+// La pantalla Almacén > Configuración > Productos nunca envió `empresa` al crear
+// o consultar códigos de barras (bug de origen — ninguna otra pantalla toca esta
+// tabla), así que todo lo registrado hasta ahora quedó con empresa = NULL. El GET
+// filtra por empresa = $1 con el valor real de la empresa activa, así que esos
+// registros existentes se volvían invisibles aunque estuvieran ahí. Se asignan
+// una sola vez a la empresa PROVEEDOR (la principal, dueña del catálogo de
+// productos), que es bajo la que se estuvieron creando en la práctica.
+(async () => {
+    try {
+        const prov = await pool.query(`SELECT codigo FROM empresas WHERE tipo_empresa = 'PROVEEDOR' LIMIT 1`);
+        const empresaPrincipal = prov.rows[0]?.codigo;
+        if (empresaPrincipal) {
+            const upd = await pool.query(
+                `UPDATE producto_barcodes SET empresa = $1 WHERE empresa IS NULL`,
+                [String(empresaPrincipal)]
+            );
+            if (upd.rowCount > 0) console.log(`✅ Backfill producto_barcodes.empresa: ${upd.rowCount} fila(s)`);
+        }
+    } catch (e) { console.error('Error en backfill producto_barcodes.empresa:', e.message); }
+})();
+
 // FUNCIÓN AUXILIAR: Crear notificación de orden de compra para proveedor
 async function crearNotificacionOrdenCompra(codigoOrden, cliente, accion = 'creada') {
     try {

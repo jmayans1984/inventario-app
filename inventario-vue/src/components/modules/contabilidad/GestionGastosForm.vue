@@ -528,7 +528,6 @@
                 hide-details
                 autocomplete="off"
                 class="mp-item-prod"
-                no-data-text="Sin productos ni artículos"
                 @update:model-value="onItemSeleccionado(item)"
               >
                 <template #item="{ item: it, props: p }">
@@ -543,6 +542,16 @@
                       </span>
                     </template>
                   </v-list-item>
+                </template>
+                <!-- Si no existe todavía, se puede crear ahí mismo sin perder el gasto que ya se está capturando -->
+                <template #no-data>
+                  <div class="prov-nodata">
+                    <span>No hay productos ni artículos con ese nombre</span>
+                    <v-btn size="small" variant="tonal" color="var(--gold)"
+                      prepend-icon="mdi-plus" @click="abrirNuevoItem(item)">
+                      Crear producto/artículo
+                    </v-btn>
+                  </div>
                 </template>
               </v-autocomplete>
 
@@ -691,6 +700,106 @@
       </v-card>
     </v-dialog>
 
+    <!-- ═══ NUEVO PRODUCTO / ARTÍCULO (sin salir de la entrada de almacén) ═══ -->
+    <v-dialog v-model="dlgNuevoItemOpen" max-width="480" persistent>
+      <v-card rounded="lg">
+        <v-card-title class="d-flex align-center pa-4 pb-2">
+          <v-icon size="18" class="mr-2" color="var(--gold)">mdi-plus-box-outline</v-icon>
+          Nuevo Producto / Artículo
+        </v-card-title>
+        <v-card-text class="pt-2">
+          <p class="prov-dlg-sub">
+            Queda seleccionado en esta línea al crearlo. El resto de sus datos (grupo,
+            precios de venta, etc.) se completan luego en Almacén o Recetas si hace falta.
+          </p>
+
+          <!-- TIPO -->
+          <div class="ni-origen-toggle">
+            <button
+              type="button" class="ni-origen-btn" :class="{ active: nuevoItemDraft.origen === 'ARTICULO' }"
+              @click="cambiarOrigenNuevoItem('ARTICULO')"
+            >
+              <v-icon size="14">mdi-food-drumstick-outline</v-icon> Artículo (materia prima)
+            </button>
+            <button
+              type="button" class="ni-origen-btn" :class="{ active: nuevoItemDraft.origen === 'PRODUCTO' }"
+              @click="cambiarOrigenNuevoItem('PRODUCTO')"
+            >
+              <v-icon size="14">mdi-package-variant</v-icon> Producto (con stock)
+            </button>
+          </div>
+
+          <v-text-field
+            v-model="nuevoItemDraft.nombre"
+            label="Nombre *"
+            variant="outlined"
+            density="comfortable"
+            class="mb-3"
+            autofocus
+            @keydown.enter.prevent="guardarNuevoItem"
+            @input="nuevoItemDraft.nombre = nuevoItemDraft.nombre.toUpperCase(); nuevoItemError = ''"
+          />
+
+          <div class="d-flex" style="gap:12px">
+            <v-text-field
+              v-model="nuevoItemDraft.codigo"
+              :label="nuevoItemDraft.origen === 'PRODUCTO' ? 'Código *' : 'Código (opcional)'"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              maxlength="20"
+            />
+            <v-text-field
+              v-model="nuevoItemDraft.und"
+              label="Unidad"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              @input="nuevoItemDraft.und = nuevoItemDraft.und.toUpperCase()"
+            />
+          </div>
+
+          <v-select
+            v-model="nuevoItemDraft.grupo"
+            :items="gruposNuevoItemOptions"
+            item-title="nombre"
+            item-value="codigo"
+            label="Grupo"
+            variant="outlined"
+            density="comfortable"
+            clearable
+            class="mt-3"
+            hide-details
+          />
+
+          <v-text-field
+            v-model="nuevoItemDraft.precio"
+            label="Costo unitario"
+            type="number"
+            min="0"
+            step="0.0001"
+            variant="outlined"
+            density="comfortable"
+            prefix="$"
+            class="mt-3"
+            hide-details
+          />
+
+          <v-alert v-if="nuevoItemError" type="error" variant="tonal" density="compact" class="mt-3">
+            {{ nuevoItemError }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" :disabled="nuevoItemGuardando" @click="dlgNuevoItemOpen = false">Cancelar</v-btn>
+          <v-btn color="var(--gold)" variant="elevated" prepend-icon="mdi-content-save"
+            :loading="nuevoItemGuardando" @click="guardarNuevoItem">
+            Crear y seleccionar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- ═══ CONFIRMAR CIERRE (ESC en el gasto) — persistent: ESC no la cierra ═══ -->
     <v-dialog v-model="dlgConfirmCerrar" max-width="420" persistent>
       <v-card rounded="lg">
@@ -745,6 +854,7 @@ import { formatMoneda } from '../../../utils/formatters'
 import api from '../../../services/api'
 import { useAuthStore } from '../../../stores/auth'
 import { presentacionesCompraService } from '../../../services/presentaciones-compra.service'
+import { productosAlmacenService } from '../../../services/productos-almacen.service'
 
 const props = defineProps({
   open: Boolean,
@@ -810,6 +920,111 @@ async function guardarNuevoProveedor() {
     provError.value = e?.response?.data?.error || e.message || 'No se pudo crear el proveedor'
   } finally {
     provGuardando.value = false
+  }
+}
+
+// ─── Alta rápida de producto/artículo en Entrada de Almacén ──
+// Evita que, al no encontrar el ítem que se está comprando, haya que
+// abandonar el gasto a medio capturar para crearlo en otra pantalla.
+const dlgNuevoItemOpen   = ref(false)
+const nuevoItemGuardando = ref(false)
+const nuevoItemError     = ref('')
+const nuevoItemTarget    = ref(null)   // la fila (item) del mpDraft que disparó la creación
+const nuevoItemDraft     = ref({ origen: 'ARTICULO', codigo: '', nombre: '', und: 'UND', grupo: null, precio: 0 })
+const gruposProductosNI  = ref([])
+const gruposArticulosNI  = ref([])
+
+const gruposNuevoItemOptions = computed(() =>
+  nuevoItemDraft.value.origen === 'PRODUCTO' ? gruposProductosNI.value : gruposArticulosNI.value
+)
+
+async function cargarGruposNuevoItem() {
+  try {
+    const [gp, ga] = await Promise.all([
+      productosAlmacenService.getGrupos().catch(() => ({ data: [] })),
+      api.get('/articulos/grupos').catch(() => ({ data: { data: [] } })),
+    ])
+    gruposProductosNI.value = gp?.data || []
+    gruposArticulosNI.value = ga?.data?.data || []
+  } catch (e) {
+    console.error('cargarGruposNuevoItem:', e)
+  }
+}
+
+async function sugerirCodigoProducto() {
+  try {
+    const r = await productosAlmacenService.getProximoCodigo()
+    nuevoItemDraft.value.codigo = r?.codigo || ''
+  } catch {
+    nuevoItemDraft.value.codigo = ''
+  }
+}
+
+function cambiarOrigenNuevoItem(origen) {
+  nuevoItemDraft.value.origen = origen
+  nuevoItemDraft.value.grupo = null
+  if (origen === 'PRODUCTO') sugerirCodigoProducto()
+  else nuevoItemDraft.value.codigo = ''
+}
+
+function abrirNuevoItem(item) {
+  nuevoItemError.value = ''
+  nuevoItemTarget.value = item
+  nuevoItemDraft.value = { origen: 'ARTICULO', codigo: '', nombre: '', und: 'UND', grupo: null, precio: 0 }
+  dlgNuevoItemOpen.value = true
+  cargarGruposNuevoItem()
+}
+
+async function guardarNuevoItem() {
+  const nombre = (nuevoItemDraft.value.nombre || '').trim().toUpperCase()
+  const codigo = (nuevoItemDraft.value.codigo || '').trim()
+  const und    = (nuevoItemDraft.value.und || 'UND').trim().toUpperCase()
+  const precio = parseFloat(nuevoItemDraft.value.precio) || 0
+  const origen = nuevoItemDraft.value.origen
+
+  if (!nombre) { nuevoItemError.value = 'El nombre es requerido'; return }
+  if (origen === 'PRODUCTO' && !codigo) { nuevoItemError.value = 'El código es requerido para un producto'; return }
+  if (itemsOptions.value.some(o => o.origen === origen && String(o.codigo).trim() === codigo && codigo)) {
+    nuevoItemError.value = `El código ${codigo} ya está en uso`
+    return
+  }
+
+  nuevoItemGuardando.value = true
+  try {
+    let data
+    if (origen === 'PRODUCTO') {
+      const r = await api.post('/almacen/productos', {
+        codigo, nombre, und,
+        grupo: nuevoItemDraft.value.grupo || null,
+        control: 'SI', visible_operacional: 'SI', para_venta: 'NO',
+        precio_costo: precio,
+      })
+      data = r.data?.data
+      data.precio = parseFloat(data.precio_costo) || 0
+    } else {
+      const r = await api.post('/articulos', {
+        codigo: codigo || undefined, nombre, und,
+        valor: precio, grupo: nuevoItemDraft.value.grupo || null,
+      })
+      data = r.data?.data
+      data.precio = parseFloat(data.valor) || 0
+    }
+    if (!data?.codigo) throw new Error(`El ${origen === 'PRODUCTO' ? 'producto' : 'artículo'} se creó sin código`)
+
+    const key = `${origen}::${data.codigo}`
+    const opt = { key, codigo: data.codigo, origen, nombre: data.nombre, und: data.und || und, precio: data.precio }
+    itemsOptions.value = [opt, ...itemsOptions.value]
+
+    // Selecciona el ítem recién creado en la fila que disparó la creación
+    if (nuevoItemTarget.value) {
+      nuevoItemTarget.value.key = key
+      onItemSeleccionado(nuevoItemTarget.value)
+    }
+    dlgNuevoItemOpen.value = false
+  } catch (e) {
+    nuevoItemError.value = e?.response?.data?.error || e.message || 'No se pudo crear el ítem'
+  } finally {
+    nuevoItemGuardando.value = false
   }
 }
 
@@ -1619,6 +1834,16 @@ function cerrar() {
   font-size: 12.5px; line-height: 1.45; margin-bottom: 14px;
   color: rgba(var(--v-theme-on-surface), 0.6);
 }
+.ni-origen-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+.ni-origen-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 10px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  cursor: pointer; border: 2px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: transparent; color: rgba(var(--v-theme-on-surface), 0.6);
+  transition: all 0.15s;
+}
+.ni-origen-btn:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
+.ni-origen-btn.active { background: var(--gold); border-color: var(--gold); color: #fff; }
 .mp-aviso {
   display: flex; align-items: flex-start; gap: 7px;
   margin-top: 6px; padding: 7px 10px; border-radius: 8px;
