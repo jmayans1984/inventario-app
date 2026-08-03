@@ -514,52 +514,59 @@
 
           <!-- Items -->
           <div class="mp-items">
-            <div v-for="(item, i) in mpDraft.items" :key="i" class="mp-item-row">
-              <v-autocomplete
-                v-model="item.key"
-                :items="itemsOptions"
-                :loading="productosLoading"
-                item-title="nombre"
-                item-value="key"
-                :custom-filter="filtroItemCompra"
-                label="Producto / Artículo *"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                autocomplete="off"
-                class="mp-item-prod"
-                @update:model-value="onItemSeleccionado(item)"
-              >
-                <template #item="{ item: it, props: p }">
-                  <v-list-item v-bind="p">
-                    <template #append>
-                      <span class="mp-prod-meta">
-                        <span
-                          class="mp-origen-tag"
-                          :class="it.raw.origen === 'ARTICULO' ? 'tag-art' : 'tag-prod'"
-                        >{{ it.raw.origen === 'ARTICULO' ? 'MATERIA PRIMA' : 'PRODUCTO' }}</span>
-                        {{ it.raw.codigo }} · {{ it.raw.und }}
-                      </span>
-                    </template>
-                  </v-list-item>
-                </template>
-                <!-- Si no existe todavía, se puede crear ahí mismo sin perder el gasto que ya se está capturando -->
-                <template #no-data>
-                  <div class="prov-nodata">
-                    <span>No hay productos ni artículos con ese nombre</span>
-                    <v-btn size="small" variant="tonal" color="var(--gold)"
-                      prepend-icon="mdi-plus" @click="abrirNuevoItem(item)">
-                      Crear producto/artículo
-                    </v-btn>
-                  </div>
-                </template>
-              </v-autocomplete>
+            <div v-for="(item, i) in mpDraft.items" :key="i" class="mp-item-card">
 
-              <!-- Presentaciones de compra guardadas para este ítem (Almacén > Configuración).
-                   Un clic suma el contenido de esa presentación a la cantidad ya digitada,
-                   para no tener que convertir de cabeza (ej. "Frasco" = 3.2 KG). -->
+              <!-- Fila 1: qué se compró -->
+              <div class="mp-item-top">
+                <v-autocomplete
+                  v-model="item.key"
+                  :items="itemsOptions"
+                  :loading="productosLoading"
+                  item-title="nombre"
+                  item-value="key"
+                  :custom-filter="filtroItemCompra"
+                  label="Producto / Artículo *"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  autocomplete="off"
+                  class="mp-item-prod"
+                  @update:model-value="onItemSeleccionado(item)"
+                >
+                  <template #item="{ item: it, props: p }">
+                    <v-list-item v-bind="p">
+                      <template #append>
+                        <span class="mp-prod-meta">
+                          <span
+                            class="mp-origen-tag"
+                            :class="it.raw.origen === 'ARTICULO' ? 'tag-art' : 'tag-prod'"
+                          >{{ it.raw.origen === 'ARTICULO' ? 'MATERIA PRIMA' : 'PRODUCTO' }}</span>
+                          {{ it.raw.codigo }} · {{ it.raw.und }}
+                        </span>
+                      </template>
+                    </v-list-item>
+                  </template>
+                  <!-- Si no existe todavía, se puede crear ahí mismo sin perder el gasto que ya se está capturando -->
+                  <template #no-data>
+                    <div class="prov-nodata">
+                      <span>No hay productos ni artículos con ese nombre</span>
+                      <v-btn size="small" variant="tonal" color="var(--gold)"
+                        prepend-icon="mdi-plus" @click="abrirNuevoItem(item)">
+                        Crear producto/artículo
+                      </v-btn>
+                    </div>
+                  </template>
+                </v-autocomplete>
+                <v-btn icon variant="text" size="small" color="var(--error)" class="mp-item-del"
+                  @click="mpDraft.items.splice(i, 1)">
+                  <v-icon size="18">mdi-delete-outline</v-icon>
+                </v-btn>
+              </div>
+
+              <!-- Fila 2: presentaciones guardadas para este ítem (Almacén > Configuración).
+                   Abre un popup para digitar cuántas se compraron y calcula la cantidad sola. -->
               <div v-if="presentacionesDe(item.key).length" class="mp-item-presentaciones">
-                <span class="mp-pres-lbl">Agregar por presentación:</span>
+                <span class="mp-pres-lbl">Por presentación:</span>
                 <v-btn
                   v-for="pres in presentacionesDe(item.key)"
                   :key="pres.id"
@@ -567,45 +574,48 @@
                   variant="tonal"
                   color="var(--gold)"
                   class="mp-pres-chip"
-                  @click="sumarPresentacion(item, pres)"
+                  @click="abrirPresentacion(item, pres)"
                 >
                   {{ pres.nombre_presentacion }} ({{ formatNumPres(pres.contenido) }} {{ undItem(item) }})
                 </v-btn>
               </div>
 
-              <v-text-field
-                v-model.number="item.cantidad"
-                label="Cantidad *"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                type="number"
-                step="0.01"
-                min="0"
-                autocomplete="off"
-                class="mp-item-cant"
-                :suffix="undItem(item)"
-              />
-              <v-text-field
-                v-model.number="item.costoUnit"
-                label="Costo Unit. *"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                type="number"
-                step="0.0001"
-                min="0"
-                autocomplete="off"
-                class="mp-item-costo"
-                prefix="$"
-              />
-              <div class="mp-item-subtotal">{{ formatMoneda((item.cantidad || 0) * (item.costoUnit || 0)) }}</div>
-              <v-btn icon variant="text" size="x-small" color="var(--error)" @click="mpDraft.items.splice(i, 1)">
-                <v-icon size="16">mdi-delete-outline</v-icon>
-              </v-btn>
+              <!-- Fila 3: cuánto y a qué costo -->
+              <div class="mp-item-bottom">
+                <v-text-field
+                  v-model.number="item.cantidad"
+                  label="Cantidad *"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  autocomplete="off"
+                  class="mp-item-cant"
+                  :suffix="undItem(item)"
+                />
+                <v-text-field
+                  v-model.number="item.costoUnit"
+                  label="Costo Unit. *"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  autocomplete="off"
+                  class="mp-item-costo"
+                  prefix="$"
+                />
+                <div class="mp-item-subtotal">
+                  <span class="mp-item-subtotal-lbl">Subtotal</span>
+                  <span class="mp-item-subtotal-val">{{ formatMoneda((item.cantidad || 0) * (item.costoUnit || 0)) }}</span>
+                </div>
+              </div>
             </div>
 
-            <v-btn variant="tonal" color="var(--gold)" size="small" prepend-icon="mdi-plus" @click="agregarItemMp">
+            <v-btn variant="tonal" color="var(--gold)" size="small" prepend-icon="mdi-plus" @click="agregarItemMp" class="mp-add-btn">
               Agregar producto
             </v-btn>
           </div>
@@ -631,6 +641,43 @@
             Aceptar
           </v-btn>
         </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- ═══ COMPRAR POR PRESENTACIÓN (calcula la cantidad automáticamente) ═══ -->
+    <v-dialog v-model="dlgPresentacion" max-width="360" persistent>
+      <v-card rounded="lg">
+        <v-card-title class="d-flex align-center pa-4 pb-2">
+          <v-icon color="var(--gold)" class="mr-2">mdi-package-variant-closed</v-icon>
+          {{ presDialogPres?.nombre_presentacion }}
+        </v-card-title>
+        <v-card-text class="pt-0">
+          <p class="pres-dlg-sub">
+            Cada {{ presDialogPres ? formatNumPres(presDialogPres.contenido) : '' }}
+            {{ presDialogItem ? undItem(presDialogItem) : '' }}. ¿Cuántas compraste?
+          </p>
+          <v-text-field
+            v-model.number="presDialogCantidad"
+            label="Cantidad comprada"
+            type="number"
+            min="0"
+            step="1"
+            variant="outlined"
+            density="comfortable"
+            autofocus
+            hide-details
+            @keydown.enter.prevent="confirmarPresentacion"
+          />
+          <div v-if="presDialogPres" class="pres-dlg-preview">
+            = {{ formatNumPres((parseFloat(presDialogCantidad) || 0) * parseFloat(presDialogPres.contenido)) }}
+            {{ presDialogItem ? undItem(presDialogItem) : '' }}
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="text" @click="dlgPresentacion = false">Cancelar</v-btn>
+          <v-btn color="var(--gold)" variant="elevated" @click="confirmarPresentacion">Aplicar</v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -1246,11 +1293,28 @@ function presentacionesDe(key) {
   return presentacionesPorKey.value[key] || []
 }
 
-// Suma el contenido de la presentación elegida a lo que ya haya digitado —
-// permite ir sumando varias unidades de compra (ej. 2 frascos = clic, clic).
-function sumarPresentacion(item, pres) {
-  const actual = parseFloat(item.cantidad) || 0
-  item.cantidad = Math.round((actual + parseFloat(pres.contenido)) * 10000) / 10000
+// Comprar por presentación: en vez de convertir de cabeza, se digita cuántas
+// unidades de compra entraron (ej. "3" frascos) y se multiplica por el
+// contenido de la presentación (2.26 KL) para poner el resultado en Cantidad.
+const dlgPresentacion   = ref(false)
+const presDialogItem     = ref(null)
+const presDialogPres     = ref(null)
+const presDialogCantidad = ref(1)
+
+function abrirPresentacion(item, pres) {
+  presDialogItem.value = item
+  presDialogPres.value = pres
+  presDialogCantidad.value = 1
+  dlgPresentacion.value = true
+}
+
+function confirmarPresentacion() {
+  const qty = parseFloat(presDialogCantidad.value) || 0
+  if (presDialogItem.value && presDialogPres.value && qty > 0) {
+    const total = qty * parseFloat(presDialogPres.value.contenido)
+    presDialogItem.value.cantidad = Math.round(total * 10000) / 10000
+  }
+  dlgPresentacion.value = false
 }
 
 function formatNumPres(n) {
@@ -1851,29 +1915,47 @@ function cerrar() {
   font-size: 11.5px; line-height: 1.45;
   color: rgba(var(--v-theme-on-surface), 0.75);
 }
-.mp-items { display: flex; flex-direction: column; gap: 10px; }
-.mp-item-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.mp-items { display: flex; flex-direction: column; gap: 12px; }
+
+/* Cada producto comprado es una tarjeta propia — separa visualmente dónde
+   empieza y termina uno, en vez de un río continuo de campos envueltos. */
+.mp-item-card {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
-.mp-item-prod { flex: 1; min-width: 240px; }
+.mp-item-top { display: flex; align-items: center; gap: 8px; }
+.mp-item-prod { flex: 1; min-width: 0; }
+.mp-item-del { flex-shrink: 0; }
+
 .mp-item-presentaciones {
-  flex-basis: 100%; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-top: -2px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .mp-pres-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
 .mp-pres-chip { font-size: 11px !important; text-transform: none; letter-spacing: normal; }
-.mp-item-cant { width: 150px; flex-shrink: 0; }
-.mp-item-costo { width: 150px; flex-shrink: 0; }
+
+.mp-item-bottom { display: flex; align-items: flex-end; gap: 10px; }
+.mp-item-cant  { flex: 1; min-width: 110px; }
+.mp-item-costo { flex: 1; min-width: 110px; }
 .mp-item-subtotal {
-  font-family: monospace;
-  font-size: 12.5px;
-  font-weight: 800;
-  color: var(--gold-strong);
-  min-width: 90px;
-  text-align: right;
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end;
+  min-width: 90px; padding-bottom: 2px;
+}
+.mp-item-subtotal-lbl {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+.mp-item-subtotal-val { font-family: monospace; font-size: 14px; font-weight: 800; color: var(--gold-strong); }
+
+.mp-add-btn { align-self: flex-start; }
+
+/* Popup "comprar por presentación" */
+.pres-dlg-sub { font-size: 12.5px; line-height: 1.45; color: rgba(var(--v-theme-on-surface), 0.6); margin-bottom: 12px; }
+.pres-dlg-preview {
+  margin-top: 10px; padding: 8px 12px; border-radius: 8px;
+  background: rgba(245,158,11,0.1); color: var(--gold-strong);
+  font-family: monospace; font-size: 14px; font-weight: 700; text-align: center;
 }
 .mp-prod-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), 0.4); display: inline-flex; align-items: center; gap: 6px; }
 .mp-origen-tag {
