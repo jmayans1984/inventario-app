@@ -545,6 +545,25 @@
                   </v-list-item>
                 </template>
               </v-autocomplete>
+
+              <!-- Presentaciones de compra guardadas para este ítem (Almacén > Configuración).
+                   Un clic suma el contenido de esa presentación a la cantidad ya digitada,
+                   para no tener que convertir de cabeza (ej. "Frasco" = 3.2 KG). -->
+              <div v-if="presentacionesDe(item.key).length" class="mp-item-presentaciones">
+                <span class="mp-pres-lbl">Agregar por presentación:</span>
+                <v-btn
+                  v-for="pres in presentacionesDe(item.key)"
+                  :key="pres.id"
+                  size="x-small"
+                  variant="tonal"
+                  color="var(--gold)"
+                  class="mp-pres-chip"
+                  @click="sumarPresentacion(item, pres)"
+                >
+                  {{ pres.nombre_presentacion }} ({{ formatNumPres(pres.contenido) }} {{ undItem(item) }})
+                </v-btn>
+              </div>
+
               <v-text-field
                 v-model.number="item.cantidad"
                 label="Cantidad *"
@@ -725,6 +744,7 @@ import { cuentasBancariasService } from '../../../services/cuentasbancarias.serv
 import { formatMoneda } from '../../../utils/formatters'
 import api from '../../../services/api'
 import { useAuthStore } from '../../../stores/auth'
+import { presentacionesCompraService } from '../../../services/presentaciones-compra.service'
 
 const props = defineProps({
   open: Boolean,
@@ -986,6 +1006,44 @@ const mpLineaRef = computed(() => form.value.lineas[mpLineaIdx.value] || null)
 const itemsOptions = ref([])
 const productosLoading = ref(false)
 
+// Presentaciones de compra (Almacén > Configuración > Presentaciones de Compra),
+// indexadas por la misma key `${origen}::${codigo}` que usan los ítems, para
+// mostrar chips de conversión rápida en la fila del producto/artículo.
+const presentacionesPorKey = ref({})
+
+async function cargarPresentaciones() {
+  if (Object.keys(presentacionesPorKey.value).length) return
+  try {
+    const r = await presentacionesCompraService.getPresentaciones()
+    const mapa = {}
+    for (const p of (r.data || [])) {
+      const key = `${p.origen}::${p.codigo}`
+      if (!mapa[key]) mapa[key] = []
+      mapa[key].push(p)
+    }
+    presentacionesPorKey.value = mapa
+  } catch (e) {
+    console.error('cargarPresentaciones:', e)
+  }
+}
+
+function presentacionesDe(key) {
+  return presentacionesPorKey.value[key] || []
+}
+
+// Suma el contenido de la presentación elegida a lo que ya haya digitado —
+// permite ir sumando varias unidades de compra (ej. 2 frascos = clic, clic).
+function sumarPresentacion(item, pres) {
+  const actual = parseFloat(item.cantidad) || 0
+  item.cantidad = Math.round((actual + parseFloat(pres.contenido)) * 10000) / 10000
+}
+
+function formatNumPres(n) {
+  const v = parseFloat(n)
+  if (isNaN(v)) return '—'
+  return v.toLocaleString('es-CO', { maximumFractionDigits: 4 })
+}
+
 async function cargarItemsCompra() {
   if (itemsOptions.value.length || productosLoading.value) return
   productosLoading.value = true
@@ -1056,6 +1114,7 @@ function abrirMateriaPrima(idx) {
   if (!mpDraft.value.items.length) mpDraft.value.items.push(itemVacio())
   mpDialogOpen.value = true
   cargarItemsCompra()
+  cargarPresentaciones()
 }
 
 function agregarItemMp() {
@@ -1575,6 +1634,12 @@ function cerrar() {
   flex-wrap: wrap;
 }
 .mp-item-prod { flex: 1; min-width: 240px; }
+.mp-item-presentaciones {
+  flex-basis: 100%; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: -2px;
+}
+.mp-pres-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
+.mp-pres-chip { font-size: 11px !important; text-transform: none; letter-spacing: normal; }
 .mp-item-cant { width: 150px; flex-shrink: 0; }
 .mp-item-costo { width: 150px; flex-shrink: 0; }
 .mp-item-subtotal {

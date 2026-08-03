@@ -2535,6 +2535,108 @@ app.get('/api/almacen/ajuste-inventario/stock', async (req, res) => {
     }
 });
 
+// ── PRESENTACIONES DE COMPRA ──────────────────────────────────────
+// Guarda, para un producto o artículo puntual, cómo viene presentado en la
+// compra (ej. TOCINETA se compra por "Paquete" de 2.5 KG, el sistema lo lleva
+// en KG). Es opcional por ítem — no todos necesitan una. Se usa en la Entrada
+// de Almacén de Gestión de Gastos para no tener que convertir de cabeza cada
+// vez: se elige la presentación, se digita cuántas se compraron, y la cantidad
+// en la unidad del sistema se calcula sola.
+// No lleva columna empresa: es una característica física del producto (cómo
+// lo empaca el proveedor), igual para cualquier empresa que lo compre —
+// coherente con que productos/articulos tampoco están particionados por empresa.
+pool.query(`
+    CREATE TABLE IF NOT EXISTS presentaciones_compra (
+        id                   SERIAL PRIMARY KEY,
+        origen               VARCHAR(10)   NOT NULL,  -- 'PRODUCTO' | 'ARTICULO'
+        codigo               VARCHAR(20)   NOT NULL,
+        nombre_presentacion  VARCHAR(60)   NOT NULL,  -- 'Paquete', 'Frasco', 'Bulto'...
+        contenido            NUMERIC(14,4) NOT NULL,  -- cuánto trae, en la unidad del ítem
+        creado_en            TIMESTAMP     DEFAULT NOW()
+    )
+`).then(() => pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_presentaciones_item ON presentaciones_compra (origen, codigo)`
+)).catch(() => {});
+
+// GET /api/almacen/presentaciones-compra — todas, con nombre/unidad del ítem resuelto
+app.get('/api/almacen/presentaciones-compra', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT pc.id, pc.origen, pc.codigo, pc.nombre_presentacion, pc.contenido,
+                   COALESCE(p.nombre, a.nombre, pc.codigo) AS item_nombre,
+                   COALESCE(p.und, a.und, '') AS item_und
+            FROM presentaciones_compra pc
+            LEFT JOIN productos p ON pc.origen = 'PRODUCTO' AND p.codigo = pc.codigo
+            LEFT JOIN articulos a ON pc.origen = 'ARTICULO' AND a.codigo = pc.codigo
+            ORDER BY item_nombre, pc.nombre_presentacion
+        `);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/almacen/presentaciones-compra:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/almacen/presentaciones-compra
+app.post('/api/almacen/presentaciones-compra', async (req, res) => {
+    const { origen, codigo, nombre_presentacion, contenido } = req.body;
+    if (!['PRODUCTO', 'ARTICULO'].includes(origen))
+        return res.status(400).json({ success: false, error: 'origen debe ser PRODUCTO o ARTICULO' });
+    if (!codigo || !nombre_presentacion?.trim())
+        return res.status(400).json({ success: false, error: 'codigo y nombre_presentacion son requeridos' });
+    const cont = parseFloat(contenido);
+    if (!(cont > 0))
+        return res.status(400).json({ success: false, error: 'El contenido debe ser mayor a 0' });
+    try {
+        const result = await pool.query(
+            `INSERT INTO presentaciones_compra (origen, codigo, nombre_presentacion, contenido)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [origen, String(codigo).trim(), nombre_presentacion.trim().toUpperCase(), cont]
+        );
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error POST /api/almacen/presentaciones-compra:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// PUT /api/almacen/presentaciones-compra/:id
+app.put('/api/almacen/presentaciones-compra/:id', async (req, res) => {
+    const { nombre_presentacion, contenido } = req.body;
+    if (!nombre_presentacion?.trim())
+        return res.status(400).json({ success: false, error: 'nombre_presentacion es requerido' });
+    const cont = parseFloat(contenido);
+    if (!(cont > 0))
+        return res.status(400).json({ success: false, error: 'El contenido debe ser mayor a 0' });
+    try {
+        const result = await pool.query(
+            `UPDATE presentaciones_compra SET nombre_presentacion = $1, contenido = $2
+             WHERE id = $3 RETURNING *`,
+            [nombre_presentacion.trim().toUpperCase(), cont, req.params.id]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'No encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Error PUT /api/almacen/presentaciones-compra/:id:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// DELETE /api/almacen/presentaciones-compra/:id
+app.delete('/api/almacen/presentaciones-compra/:id', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `DELETE FROM presentaciones_compra WHERE id = $1 RETURNING id`, [req.params.id]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ success: false, error: 'No encontrada' });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/almacen/presentaciones-compra/:id:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// ── FIN PRESENTACIONES DE COMPRA ──────────────────────────────────
+
 // ── SNAPSHOT VALORIZADO DE TOMA FÍSICA ────────────────────────────
 // Congela stock y costo unitario en el momento de la toma física, para que
 // la Valoración Mensual de meses ya cerrados no cambie si luego se editan
