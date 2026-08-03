@@ -8215,49 +8215,6 @@ app.get('/api/contabilidad/proveedores', async (req, res) => {
     }
 });
 
-// GET /api/contabilidad/proveedores/:codigo - Obtener un proveedor
-app.get('/api/contabilidad/proveedores/:codigo', async (req, res) => {
-    try {
-        const { codigo } = req.params;
-        const { empresa } = req.query;
-
-        if (!empresa) {
-            return res.status(400).json({
-                success: false,
-                error: 'Parámetro "empresa" es requerido'
-            });
-        }
-
-        const query = `
-            SELECT codigo, nombre, direccion, telefono1, departamen, empresa
-            FROM proveedores
-            WHERE codigo = $1 AND empresa = $2
-        `;
-
-        const result = await pool.query(query, [codigo, empresa]);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Proveedor no encontrado'
-            });
-        }
-
-        res.json({
-            success: true,
-            data: result.rows[0]
-        });
-
-    } catch (error) {
-        console.error('Error en GET /api/contabilidad/proveedores/:id:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Error al obtener proveedor',
-            details: error.message
-        });
-    }
-});
-
 // Códigos de proveedor: arrancan en 1000000000 y avanzan de uno en uno hasta
 // encontrar el primer valor libre. No se calcula como "máximo + 1" porque hay
 // códigos heredados fuera de rango (2147483647, el tope de un entero de 32 bits)
@@ -8667,6 +8624,55 @@ app.get('/api/contabilidad/proveedores/buscar', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Error en búsqueda',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/contabilidad/proveedores/:codigo - Obtener un proveedor
+// Va DESPUÉS de las rutas específicas (/proximo-codigo, /duplicados, /buscar):
+// Express matchea por orden de registro, y como :codigo acepta cualquier texto,
+// si esta ruta quedara primero se comería esas rutas específicas — exactamente
+// lo que pasaba antes de este reordenamiento (las tres devolvían "Proveedor no
+// encontrado" porque el router las tomaba como si "proximo-codigo"/"duplicados"/
+// "buscar" fueran el código de un proveedor).
+app.get('/api/contabilidad/proveedores/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const { empresa } = req.query;
+
+        if (!empresa) {
+            return res.status(400).json({
+                success: false,
+                error: 'Parámetro "empresa" es requerido'
+            });
+        }
+
+        const query = `
+            SELECT codigo, nombre, direccion, telefono1, departamen, empresa
+            FROM proveedores
+            WHERE codigo = $1 AND empresa = $2
+        `;
+
+        const result = await pool.query(query, [codigo, empresa]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Proveedor no encontrado'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error en GET /api/contabilidad/proveedores/:id:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Error al obtener proveedor',
             details: error.message
         });
     }
