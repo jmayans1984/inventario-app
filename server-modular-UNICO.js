@@ -4866,7 +4866,8 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Error al crear movimiento',
-            details: error.message
+            details: error.message,
+            debug: { code: error.code, column: error.column, table: error.table, constraint: error.constraint, detail: error.detail, where: error.where }
         });
     } finally {
         client.release();
