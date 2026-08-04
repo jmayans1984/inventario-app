@@ -151,26 +151,26 @@
             </div>
           </div>
 
-          <!-- KPI 2: Margen -->
+          <!-- KPI 2: Pérdida Esperada -->
           <div class="rc-kpi-new">
             <div class="kpi-icon">
               <v-icon size="16" color="white">mdi-percent</v-icon>
             </div>
             <div>
-              <div class="kpi-lbl">Margen</div>
-              <div class="kpi-val">{{ formatNum(kpiMargenPct).replace('-', '') }}%</div>
-              <div class="kpi-sub">{{ formatMoney(kpiMargenDinero) }}</div>
+              <div class="kpi-lbl">Pérdida Esperada</div>
+              <div class="kpi-val">{{ toleranciaPct.toFixed(2) }}%</div>
+              <div class="kpi-sub">{{ formatMoney(kpiPerdidaEsperadaDinero) }}</div>
             </div>
           </div>
 
-          <!-- KPI 3: Faltante/Sobrante -->
+          <!-- KPI 3: Sobrante / Faltante -->
           <div class="rc-kpi-new">
-            <div class="kpi-icon">
-              <v-icon size="16" color="white">{{ kpiFaltanteTotal > 0 ? 'mdi-minus-circle' : 'mdi-plus-circle' }}</v-icon>
+            <div class="kpi-icon" :style="{ backgroundColor: totalValorizado >= 0 ? '#10b981' : '#ef4444' }">
+              <v-icon size="16" color="white">{{ totalValorizado >= 0 ? 'mdi-plus-circle' : 'mdi-minus-circle' }}</v-icon>
             </div>
             <div>
-              <div class="kpi-lbl">Faltante/Sobrante</div>
-              <div class="kpi-val" :style="{ color: kpiFaltanteTotal > 0 ? '#ef4444' : '#10b981' }">{{ formatMoney(kpiFaltanteTotal) }}</div>
+              <div class="kpi-lbl">{{ totalValorizado >= 0 ? 'Sobrante' : 'Faltante' }}</div>
+              <div class="kpi-val" :style="{ color: totalValorizado >= 0 ? '#10b981' : '#ef4444' }">{{ formatMoney(totalValorizado) }}</div>
             </div>
           </div>
 
@@ -401,12 +401,9 @@ const totalValorizado = computed(() => filas.value.reduce((s, p) => s + valorNet
 // ── 5 KPIs nuevos ─────────────────────────────────────────────────
 const kpiVentasTotal = computed(() => ventasTotal.value)
 
-const kpiMargenPct = computed(() => {
-  if (ventasTotal.value <= 0) return 0
-  return -(Math.abs(totalValorizado.value) / ventasTotal.value * 100)
-})
-
-const kpiMargenDinero = computed(() => totalValorizado.value)
+const kpiPerdidaEsperadaDinero = computed(() =>
+  ventasTotal.value * (toleranciaPct.value / 100)
+)
 
 const kpiFaltanteTotal = computed(() => {
   // Suma del valor de faltantes y sobrantes (el totalValorizado es el neto)
