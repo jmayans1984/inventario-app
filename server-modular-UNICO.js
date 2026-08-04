@@ -9256,11 +9256,14 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         const rangoHasta = periodos[periodos.length - 1].hasta;
 
         const [cfgRes, gruposRes, ccostosRes] = await Promise.all([
-            pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [emp]),
+            pool.query(`SELECT cta_materia_prima, valor_estimado_inventario_final FROM config_general WHERE empresa = $1`, [emp]),
             pool.query(`SELECT TRIM(codigo) AS codigo, TRIM(nombre) AS nombre, TRIM(tipo) AS tipo FROM grupo_gastos ORDER BY codigo ASC`),
             pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [emp]),
         ]);
         const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
+        const valorEstimadoInventarioFinal = cfgRes.rows[0]?.valor_estimado_inventario_final != null
+            ? parseFloat(cfgRes.rows[0].valor_estimado_inventario_final)
+            : null;
 
         const bodegaRes = await pool.query(`SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]);
         const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
@@ -9295,6 +9298,27 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         const stockValores = await Promise.all(cutoffs.map(stockValorizadoTotal));
         const stockPorCorte = {};
         cutoffs.forEach((c, i) => { stockPorCorte[c] = stockValores[i]; });
+
+        // ── Inventario final estimado (fallback) ──────────────────────────
+        // Si el corte final del período no tiene una toma física oficial de
+        // cierre registrada (empresa completa, dentro de la ventana de gracia),
+        // se usa el valor estimado configurado en Configuración General ·
+        // Almacén para aproximar la utilidad mientras se hace la toma real.
+        let inventarioFinalEsEstimado = false;
+        const cutoffFinal = cutoffs[cutoffs.length - 1];
+        if (valorEstimadoInventarioFinal != null) {
+            const tomaCierreRes = await pool.query(
+                `SELECT 1 FROM toma_fisica_valorizada
+                  WHERE empresa = $1 AND es_cierre = TRUE
+                    AND fecha >= $2::date AND fecha <= $3::date
+                  LIMIT 1`,
+                [emp, cutoffFinal, sumarDias(cutoffFinal, DIAS_GRACIA_TOMA)]
+            );
+            if (!tomaCierreRes.rows.length) {
+                stockPorCorte[cutoffFinal] = valorEstimadoInventarioFinal;
+                inventarioFinalEsEstimado = true;
+            }
+        }
 
         // ── Compras de Materia Prima por período (empresa completa) ──────
         const comprasMPRes = ctaMateriaPrima
@@ -9465,7 +9489,8 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
             ccostosDisponibles: ccostosRes.rows,
             materiaPrima: {
                 ctaCodigo: ctaMateriaPrima, ctaNombre: ctaMateriaPrimaNombre,
-                grupoCodigo: grupoMateriaPrimaCodigo, consumo: consumoMPTotal
+                grupoCodigo: grupoMateriaPrimaCodigo, consumo: consumoMPTotal,
+                inventarioFinalEsEstimado
             },
             grupos: gruposFinal,
             utilidadPorPeriodo,
@@ -10934,6 +10959,11 @@ pool.query(`ALTER TABLE ccostos ADD COLUMN IF NOT EXISTS activo VARCHAR(2) DEFAU
 // Centro de costo asignado al módulo de Proveeduría/Franquicias (empresa PROVEEDOR)
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS ccosto_proveeduria VARCHAR(10)`).catch(() => {});
 
+// Valor estimado de inventario final (Almacén): usado por el Estado de Resultados
+// como aproximación de la utilidad cuando el cierre del periodo aún no tiene una
+// toma física oficial registrada en toma_fisica_valorizada (es_cierre = TRUE).
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS valor_estimado_inventario_final NUMERIC(14,2)`).catch(() => {});
+
 // Centro de costo en facturas de venta (para P&L por ccosto)
 pool.query(`ALTER TABLE factura_venta ADD COLUMN IF NOT EXISTS ccosto VARCHAR(10)`).catch(() => {});
 
@@ -10973,7 +11003,8 @@ app.put('/api/config-general', async (req, res) => {
         'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo',
         'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo',
         'ccosto_proveeduria',
-        'mp_afecta_inventario_default', 'mp_actualiza_costo_default'
+        'mp_afecta_inventario_default', 'mp_actualiza_costo_default',
+        'valor_estimado_inventario_final'
     ];
 
     const sets = [];

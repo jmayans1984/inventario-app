@@ -229,6 +229,61 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           SECCIÓN 1B-3: VALOR ESTIMADO DE INVENTARIO FINAL
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(245,158,11,0.12)">
+            <v-icon size="16" color="#f59e0b">mdi-warehouse</v-icon>
+          </div>
+          <span class="cfg-section-title">VALOR ESTIMADO DE INVENTARIO FINAL</span>
+        </div>
+
+        <div v-if="loadingCfgInv" class="cfg-loading">
+          <v-progress-circular indeterminate color="#f59e0b" size="28" />
+          <span>Cargando configuración...</span>
+        </div>
+
+        <div v-else>
+          <p class="cfg-hint-prov" style="margin-bottom:14px">
+            Si aún no has hecho la toma física oficial de cierre del período, el Estado de
+            Resultados usará este valor aproximado de inventario final en lugar del valor
+            calculado en vivo, para que puedas ver una utilidad proyectada mientras completas
+            el conteo. En cuanto registres una toma física de cierre, el sistema vuelve a usar
+            el valor real automáticamente.
+          </p>
+          <div class="cfg-cta-row" style="grid-template-columns: 1fr 260px">
+            <span class="cfg-cta-label">VALOR ESTIMADO DE INVENTARIO FINAL ($)</span>
+            <input
+              v-model.number="valorEstimadoInventarioFinal"
+              type="number"
+              step="0.01"
+              min="0"
+              class="cfg-input"
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div v-if="!loadingCfgInv" class="cfg-ctas-actions">
+          <span v-if="cfgInvSaveOk" class="cfg-ok-msg">
+            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado correctamente
+          </span>
+          <span v-if="cfgInvSaveErr" class="cfg-err-msg">{{ cfgInvSaveErr }}</span>
+          <v-btn
+            color="#f59e0b"
+            variant="flat"
+            size="small"
+            :loading="savingCfgInv"
+            @click="guardarConfigInventarioEstimado"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
+          </v-btn>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            SECCIÓN 1C: CONFIGURACIÓN GENERAL DE PROVEEDURÍA
       ══════════════════════════════════════════════ -->
       <div v-if="esProveedor" class="cfg-card">
@@ -648,6 +703,7 @@ watch(empresa, (val) => {
     cargarConfigContable()
     cargarConfigTesoreria()
     cargarConfigMp()
+    cargarConfigInventarioEstimado()
     cargarConfigProveeduria()
   }
 }, { immediate: false })
@@ -761,6 +817,50 @@ async function guardarConfigMp() {
     cfgMpSaveErr.value = e?.response?.data?.error || e.message
   } finally {
     savingCfgMp.value = false
+  }
+}
+
+// ── Valor estimado de inventario final (Almacén): fallback para el
+//    Estado de Resultados cuando no hay toma física de cierre oficial ──
+const valorEstimadoInventarioFinal = ref(null)
+const loadingCfgInv = ref(true)
+const savingCfgInv  = ref(false)
+const cfgInvSaveOk  = ref(false)
+const cfgInvSaveErr = ref('')
+
+async function cargarConfigInventarioEstimado() {
+  loadingCfgInv.value = true
+  try {
+    if (!empresa.value) return
+    const cfgRes = await api.get('/config-general', { params: { empresa: empresa.value } })
+    const cfg = cfgRes.data?.data || {}
+    valorEstimadoInventarioFinal.value = cfg.valor_estimado_inventario_final != null
+      ? parseFloat(cfg.valor_estimado_inventario_final)
+      : null
+  } catch (e) {
+    console.error('[Configuracion] error al cargar valor estimado de inventario final:', e)
+  } finally {
+    loadingCfgInv.value = false
+  }
+}
+
+async function guardarConfigInventarioEstimado() {
+  savingCfgInv.value = true
+  cfgInvSaveOk.value = false
+  cfgInvSaveErr.value = ''
+  try {
+    const payload = {
+      empresa: empresa.value,
+      valor_estimado_inventario_final: valorEstimadoInventarioFinal.value,
+    }
+    const res = await api.put('/config-general', payload)
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
+    cfgInvSaveOk.value = true
+    setTimeout(() => { cfgInvSaveOk.value = false }, 3000)
+  } catch (e) {
+    cfgInvSaveErr.value = e?.response?.data?.error || e.message
+  } finally {
+    savingCfgInv.value = false
   }
 }
 
@@ -1004,6 +1104,7 @@ onMounted(() => {
   cargarConfigContable()
   cargarConfigTesoreria()
   cargarConfigMp()
+  cargarConfigInventarioEstimado()
   cargarConfigProveeduria()
   cargarUsuarios()
   cargarLogo()

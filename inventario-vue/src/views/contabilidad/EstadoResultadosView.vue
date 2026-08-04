@@ -44,6 +44,11 @@
           <span>No hay configurada la <b>Cuenta Contable Materia Prima (Entrada de Almacén)</b> en Configuración General. El costo de materia prima se calculará solo con el juego de inventarios, sin compras.</span>
         </div>
 
+        <div v-if="data.materiaPrima.inventarioFinalEsEstimado" class="er-warning">
+          <v-icon size="20" color="var(--warning)">mdi-clipboard-alert-outline</v-icon>
+          <span>Aún no hay una <b>toma física de inventario final</b> registrada para este período. La utilidad se está calculando con el <b>valor estimado de inventario final</b> configurado en Configuración General · Almacén. Cuando registres la toma física de cierre, el sistema usará el valor real automáticamente.</span>
+        </div>
+
         <!-- KPI CARDS -->
         <div class="er-kpis">
           <KpiCard :index="0" label="Total Ingresos" :value="fmt(data.kpis.totalIngresos)" icon="mdi-trending-up" color="var(--success)" value-color="var(--success)" />
