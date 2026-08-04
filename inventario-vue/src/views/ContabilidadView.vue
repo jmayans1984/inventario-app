@@ -165,6 +165,38 @@
             </template>
           </div>
 
+          <!-- Preliquidación de Nómina -->
+          <div v-if="preliquidacion && preliquidacion.total_bruto > 0" class="cbl-panel cbl-preliq-panel">
+            <div class="cbl-panel-header">
+              <div class="cbl-panel-title">
+                <v-icon size="14" color="var(--warning)">mdi-clock-outline</v-icon>
+                PRELIQUIDACIÓN NÓMINA
+              </div>
+              <span class="cbl-preliq-badge">Borrador</span>
+            </div>
+            <div class="cbl-preliq-content">
+              <div class="cbl-preliq-row">
+                <span class="cbl-preliq-lbl">Bruto Proyectado</span>
+                <span class="cbl-preliq-val">{{ fmt(preliquidacion.total_bruto) }}</span>
+              </div>
+              <div class="cbl-preliq-row">
+                <span class="cbl-preliq-lbl">Deducciones</span>
+                <span class="cbl-preliq-val cbl-preliq-neg">{{ fmt(preliquidacion.total_deducciones) }}</span>
+              </div>
+              <div class="cbl-preliq-row cbl-preliq-row-bold">
+                <span class="cbl-preliq-lbl">Neto a Pagar</span>
+                <span class="cbl-preliq-val cbl-preliq-pos">{{ fmt(preliquidacion.total_neto) }}</span>
+              </div>
+              <div class="cbl-preliq-row" style="border-top: 1px solid var(--divider); padding-top: 8px; margin-top: 8px;">
+                <span class="cbl-preliq-lbl">Aportes Empresa</span>
+                <span class="cbl-preliq-val">{{ fmt(preliquidacion.total_aportes_er) }}</span>
+              </div>
+            </div>
+            <div class="cbl-preliq-footer">
+              <span class="cbl-preliq-note">Basado en horas hasta hoy</span>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -259,6 +291,7 @@ const pyg = ref([])
 const totalMes = ref(0)
 const cantidadMes = ref(0)
 const ultimosGastos = ref([])
+const preliquidacion = ref(null)
 
 async function cargarDashboard() {
   if (!empresa.value) { dashLoading.value = false; return }
@@ -271,6 +304,7 @@ async function cargarDashboard() {
       totalMes.value = json.data.totalMes || 0
       cantidadMes.value = json.data.cantidadMes || 0
       ultimosGastos.value = json.data.ultimosGastos || []
+      preliquidacion.value = json.data.preliquidacionNomina || null
     }
   } catch (e) {
     console.error('cargarDashboard:', e)
@@ -457,4 +491,27 @@ onMounted(() => {
 .cbl-gasto-prov { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cbl-gasto-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .cbl-gasto-val { flex-shrink: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--gold); }
+
+/* Preliquidación de Nómina */
+.cbl-preliq-panel {
+  border-left: 3px solid var(--warning) !important;
+  background: linear-gradient(135deg, rgba(245,158,11,.04), transparent);
+}
+.cbl-preliq-badge {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  background: rgba(245,158,11,.15); color: var(--warning);
+  padding: 3px 7px; border-radius: 4px;
+}
+.cbl-preliq-content { display: flex; flex-direction: column; gap: 6px; }
+.cbl-preliq-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; font-size: 12px;
+}
+.cbl-preliq-row-bold { padding: 10px 0; border-top: 1px solid rgba(var(--v-theme-on-surface), .1); border-bottom: 1px solid rgba(var(--v-theme-on-surface), .1); }
+.cbl-preliq-lbl { color: rgba(var(--v-theme-on-surface), .65); font-weight: 500; }
+.cbl-preliq-val { font-family: var(--font-mono); font-weight: 700; color: var(--indigo); }
+.cbl-preliq-neg { color: var(--error); }
+.cbl-preliq-pos { color: var(--success); font-size: 13px; }
+.cbl-preliq-footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(var(--v-theme-on-surface), .05); }
+.cbl-preliq-note { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); }
 </style>
