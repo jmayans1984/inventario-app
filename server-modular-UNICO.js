@@ -3076,11 +3076,11 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
             [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
         );
 
-        // Obtener ventas del CC en el período
+        // Obtener ventas del CC en el período (desde tabla ventas)
         const ventasRes = await pool.query(
-            `SELECT COALESCE(SUM(total), 0) AS total_ventas
-             FROM factura_venta
-             WHERE cliente::text = $1
+            `SELECT COALESCE(SUM(ventas_netas), 0) AS total_ventas
+             FROM ventas
+             WHERE empresa = $1
                AND ccosto IN (${placeholders})
                AND fecha >= $${n + 2}
                AND fecha <= $${n + 3}`,
