@@ -87,6 +87,26 @@
             />
           </div>
 
+          <!-- SELECTOR DE FILTRO DE PRODUCTOS -->
+          <div v-if="esBodegaMaestra" class="rc-field rc-field--info">
+            <v-icon size="16" color="rgba(var(--v-theme-on-surface),.5)" class="mr-1">mdi-information-outline</v-icon>
+            <span style="font-size: 12px; color: rgba(var(--v-theme-on-surface),.6);">
+              Mostrando: <strong>control=SI</strong>
+            </span>
+          </div>
+          <div v-else class="rc-field">
+            <v-select
+              v-model="filtroProductos"
+              :items="opcionesFiltro"
+              item-title="label"
+              item-value="value"
+              label="Tipo de Productos *"
+              variant="outlined"
+              density="compact"
+              hide-details="auto"
+            />
+          </div>
+
           <div class="rc-field rc-field--btn">
             <v-btn
               color="primary"
@@ -232,9 +252,36 @@ const fechaIni              = ref(primerDiaMes)
 const fechaFin              = ref(hoy)
 const ccostosSeleccionados  = ref([])
 const incluirCostos         = ref(false)
+const filtroProductos       = ref('visible_operacional')
 const errFechaIni = ref('')
 const errFechaFin = ref('')
 const errCcosto   = ref('')
+
+// Opciones de filtro
+const opcionesFiltro = [
+  { value: 'visible_operacional', label: 'Productos Visibles Operacionalmente' },
+  { value: 'control', label: 'Productos con Control' }
+]
+
+// Detectar si bodega maestra está seleccionada
+const bodegaMaestraCC = computed(() => {
+  const cc = ccostos.value.find(c => c.es_bodega_maestra)
+  return cc?.codigo
+})
+
+const esBodegaMaestra = computed(() => {
+  if (ccostosSeleccionados.value.length !== 1) return false
+  return ccostosSeleccionados.value[0] === bodegaMaestraCC.value
+})
+
+// Resetear filtro cuando cambia selección de CC
+function actualizarFiltroProductos() {
+  if (esBodegaMaestra.value) {
+    filtroProductos.value = 'control'
+  } else {
+    filtroProductos.value = 'visible_operacional'
+  }
+}
 
 // ── Datos ─────────────────────────────────────────────────────────
 const ccostos  = ref([])
@@ -251,6 +298,10 @@ async function cargarCcostos() {
   } catch (e) { console.error('Error cargando ccostos:', e) }
 }
 cargarCcostos()
+
+// Watch para actualizar filtro cuando cambian los CC
+import { watch } from 'vue'
+watch(ccostosSeleccionados, () => actualizarFiltroProductos())
 
 // ── Helpers selección múltiple ────────────────────────────────────
 const todosSeleccionados = computed(() => ccostosSeleccionados.value.length === ccostos.value.length)
@@ -333,10 +384,11 @@ async function generar() {
   try {
     const res = await api.get('/almacen/reporte-toma-fisica', {
       params: {
-        empresa:   empresa.value,
-        ccostos:   ccostosSeleccionados.value.join(','),
-        fecha_ini: fechaIni.value,
-        fecha_fin: fechaFin.value,
+        empresa:          empresa.value,
+        ccostos:          ccostosSeleccionados.value.join(','),
+        fecha_ini:        fechaIni.value,
+        fecha_fin:        fechaFin.value,
+        filtro_productos: esBodegaMaestra.value ? 'control' : filtroProductos.value,
       }
     })
     filas.value    = res.data?.data || []

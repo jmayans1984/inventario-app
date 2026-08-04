@@ -3032,13 +3032,21 @@ app.get('/api/almacen/reporte-consumos', async (req, res) => {
 // tomas físicas se hayan hecho.
 app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
     try {
-        const { empresa, ccostos, fecha_ini, fecha_fin } = req.query;
+        const { empresa, ccostos, fecha_ini, fecha_fin, filtro_productos } = req.query;
         if (!empresa || !ccostos || !fecha_ini || !fecha_fin)
             return res.status(400).json({ success: false, error: 'Faltan parámetros' });
 
         const listaCcostos = ccostos.split(',').map(s => s.trim()).filter(Boolean);
         const n = listaCcostos.length;
         const placeholders = listaCcostos.map((_, i) => `$${i + 2}`).join(', ');
+
+        // Construir cláusula de filtro de productos
+        let filtroProductosSQL = '';
+        if (filtro_productos === 'control') {
+            filtroProductosSQL = " AND p.control='SI'";
+        } else if (filtro_productos === 'visible_operacional') {
+            filtroProductosSQL = " AND p.visible_operacional='SI'";
+        }
 
         const result = await pool.query(
             `SELECT
@@ -3062,6 +3070,7 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
                AND di.fecha  >= $${n + 2}
                AND di.fecha  <= $${n + 3}
                AND di.tipo    = 'TOMA FISICA'
+               ${filtroProductosSQL}
              GROUP BY di.codigo, p.nombre, p.descripcion, p.und, gp.nombre, gp.codigo, pce.precio_costo, p.precio_costo
              ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
             [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
