@@ -164,11 +164,11 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
   const totalGastos = computed(() => gastos.value.length)
 
   const valorTotal = computed(() =>
-    gastos.value.reduce((sum, g) => sum + (g.total || 0), 0)
+    gastos.value.reduce((sum, g) => sum + (Number(g.total) || 0), 0)
   )
 
   const totalImpuestos = computed(() =>
-    gastos.value.reduce((sum, g) => sum + (g.impuestos || 0), 0)
+    gastos.value.reduce((sum, g) => sum + (Number(g.impuestos) || 0), 0)
   )
 
   const gastosMesActual = computed(() => {
@@ -181,7 +181,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
         const fecha = new Date(g.fecha)
         return fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual
       })
-      .reduce((sum, g) => sum + (g.total || 0), 0)
+      .reduce((sum, g) => sum + (Number(g.total) || 0), 0)
   })
 
   const paginasTotales = computed(() => Math.ceil(total.value / filters.limit))
