@@ -3080,7 +3080,7 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
         const ventasRes = await pool.query(
             `SELECT COALESCE(SUM(total), 0) AS total_ventas
              FROM factura_venta
-             WHERE empresa::text = $1
+             WHERE cliente::text = $1
                AND ccosto IN (${placeholders})
                AND fecha >= $${n + 2}
                AND fecha <= $${n + 3}`,
