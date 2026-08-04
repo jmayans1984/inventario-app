@@ -22,6 +22,14 @@
           <option value="">Toda la Empresa</option>
           <option v-for="cc in (data?.ccostosDisponibles || [])" :key="cc.codigo" :value="cc.codigo">{{ cc.nombre }}</option>
         </select>
+        <label
+          v-if="!data || data.nominaProyectada?.disponible"
+          class="fx-check"
+          title="Proyecta el bruto de la semana de nómina en curso (horas reales hasta hoy) y lo suma a Gastos de Personal, mientras esa semana aún no se liquida oficialmente."
+        >
+          <input type="checkbox" v-model="proyectarNominaSel" @change="cargar" />
+          Proyectar nómina en curso
+        </label>
         <v-btn color="secondary" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
           Actualizar
         </v-btn>
@@ -47,6 +55,16 @@
         <div v-if="data.materiaPrima.inventarioFinalEsEstimado" class="er-warning">
           <v-icon size="20" color="var(--warning)">mdi-clipboard-alert-outline</v-icon>
           <span>Aún no hay una <b>toma física de inventario final</b> registrada para este período. La utilidad se está calculando con el <b>valor estimado de inventario final</b> configurado en Configuración General · Almacén. Cuando registres la toma física de cierre, el sistema usará el valor real automáticamente.</span>
+        </div>
+
+        <div v-if="data.nominaProyectada?.incluida" class="er-warning">
+          <v-icon size="20" color="var(--indigo)">mdi-timer-sand</v-icon>
+          <span>
+            Se incluyó una <b>proyección de nómina</b> de {{ fmt(data.nominaProyectada.monto) }} para la semana en
+            curso ({{ fmtFecha(data.nominaProyectada.semana?.semana_inicio) }} – {{ fmtFecha(data.nominaProyectada.semana?.semana_fin) }}),
+            calculada con las horas reales trabajadas hasta hoy. Esta semana aún no se ha liquidado oficialmente,
+            así que el monto es una aproximación y puede variar en el cierre final.
+          </span>
         </div>
 
         <!-- KPI CARDS -->
@@ -163,6 +181,7 @@ function mesActualStr() {
 const mesSel  = ref(mesActualStr())
 const anioSel = ref(new Date().getFullYear())
 const ccostoSel = ref('')
+const proyectarNominaSel = ref(false)
 
 const mesLabel = computed(() => {
   if (!mesSel.value) return ''
@@ -203,6 +222,10 @@ function fmtPct(v) {
   if (v === null || v === undefined) return ''
   return `${v.toFixed(2)}%`
 }
+function fmtFecha(v) {
+  if (!v) return ''
+  return new Date(v).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', timeZone: 'UTC' })
+}
 
 // ── Carga ───────────────────────────────────────────────────────────────────
 async function cargar() {
@@ -213,6 +236,7 @@ async function cargar() {
     if (modo.value === 'anual') params.set('anio', String(anioSel.value))
     else params.set('mes', mesSel.value)
     if (ccostoSel.value) params.set('ccosto', ccostoSel.value)
+    if (proyectarNominaSel.value) params.set('proyectarNomina', '1')
 
     const res = await fetch(`${API_BASE}/contabilidad/estado-resultados?${params}`)
     const j   = await res.json()
@@ -443,6 +467,14 @@ async function generarPDF() {
 }
 .fx-anio { min-width: 120px; }
 .fx-select { min-width: 180px; }
+.fx-check {
+  display: flex; align-items: center; gap: 7px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgb(var(--v-theme-surface));
+  border-radius: 10px; padding: 8px 12px; font-size: 12px; font-weight: 600;
+  color: rgb(var(--v-theme-on-surface)); cursor: pointer; white-space: nowrap;
+}
+.fx-check input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--indigo); }
 
 /* AVISO */
 .er-warning {

@@ -8964,10 +8964,11 @@ app.get('/api/contabilidad/grupos-gastos', async (req, res) => {
 app.get('/api/contabilidad/dashboard', async (req, res) => {
     const empresa = req.query.empresa || req.headers['x-empresa'];
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    const ccostoPanel = req.query.ccosto && req.query.ccosto.trim() ? req.query.ccosto.trim() : null;
 
     try {
-        const [kpisRes, pygRes, ultimosRes] = await Promise.all([
-            // KPIs por código de grupo específico
+        const [kpisRes, pygRes, ultimosRes, kpiMapPanelRes, ccostosRes] = await Promise.all([
+            // KPIs por código de grupo específico (siempre toda la empresa, para el hero)
             pool.query(
                 `SELECT
                     gg.codigo AS codigo_grupo,
@@ -8982,7 +8983,7 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                  GROUP BY gg.codigo, gg.nombre`,
                 [empresa]
             ),
-            // P&G del mes actual agrupados por grupo de la cuenta contable (para el panel lateral)
+            // P&G del mes actual agrupados por grupo de la cuenta contable (para el panel lateral, legado)
             pool.query(
                 `SELECT
                     COALESCE(gg.nombre, 'SIN GRUPO') AS grupo,
@@ -9008,12 +9009,40 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                  LIMIT 8`,
                 [empresa]
             ),
+            // KPIs por grupo, filtrados por centro de costo — alimenta el panel
+            // "MOVIMIENTOS DEL MES" cuando el usuario elige un CC específico.
+            pool.query(
+                `SELECT
+                    gg.codigo AS codigo_grupo,
+                    gg.nombre AS grupo,
+                    SUM(g.total)  AS total,
+                    COUNT(*)      AS cantidad
+                 FROM gastos g
+                 LEFT JOIN cuentas c       ON g.cuenta = c.codigo AND c.empresa = g.empresa
+                 LEFT JOIN grupo_gastos gg ON c.grupo = gg.codigo
+                 WHERE g.empresa = $1
+                   AND DATE_TRUNC('month', g.fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
+                   AND ($2::text IS NULL OR g.ccosto = $2)
+                 GROUP BY gg.codigo, gg.nombre`,
+                [empresa, ccostoPanel]
+            ),
+            pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [empresa]),
         ]);
 
-        // Mapear KPIs por código de grupo
+        // Mapear KPIs por código de grupo (hero, siempre toda la empresa)
         const kpiMap = {};
         kpisRes.rows.forEach(r => {
             kpiMap[r.codigo_grupo] = {
+                grupo:    r.grupo,
+                total:    parseFloat(r.total) || 0,
+                cantidad: parseInt(r.cantidad) || 0,
+            };
+        });
+
+        // Mapear KPIs por código de grupo, filtrados por CC (panel "MOVIMIENTOS DEL MES")
+        const kpiMapPanel = {};
+        kpiMapPanelRes.rows.forEach(r => {
+            kpiMapPanel[r.codigo_grupo] = {
                 grupo:    r.grupo,
                 total:    parseFloat(r.total) || 0,
                 cantidad: parseInt(r.cantidad) || 0,
@@ -9091,6 +9120,7 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                     );
 
                     let totalBruto = 0, totalDed = 0, totalER = 0, totalNeto = 0;
+                    let totalBrutoPanel = 0;
                     const otThreshold = parseFloat(cfg.ot_threshold_hours || 40);
                     const otMult = parseFloat(cfg.ot_multiplier || 1.5);
 
@@ -9149,6 +9179,9 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                             totalDed += taxes.total_deducciones;
                             totalER += taxes.total_aportes_er;
                             totalNeto += netoEmp;
+                            if (ccostoPanel && String(emp.ccosto) === String(ccostoPanel)) {
+                                totalBrutoPanel += totalBrutoEmp;
+                            }
                         }
                     }
 
@@ -9158,6 +9191,7 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                         total_neto: +totalNeto.toFixed(2),
                         total_aportes_er: +totalER.toFixed(2)
                     };
+                    preliquidacionNomina._totalBrutoPanel = +totalBrutoPanel.toFixed(2);
                 }
             }
         } catch(e) {
@@ -9166,29 +9200,36 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
         }
 
         // Construcción del mini estado de resultados (para panel lateral)
-        const ventas = kpiMap['00']?.total || 0;
-        const otrosIngresos = kpiMap['04']?.total || 0;
+        // Usa kpiMapPanel (filtrado por CC cuando aplica); la preliquidación de
+        // nómina en vivo se prorratea por el CC "hogar" de cada empleado — una
+        // aproximación simple ya que las horas extra se calculan sobre el total
+        // semanal del empleado, no por centro.
+        const kpiSrc = ccostoPanel ? kpiMapPanel : kpiMap;
+        const ventas = kpiSrc['00']?.total || 0;
+        const otrosIngresos = kpiSrc['04']?.total || 0;
         const totalIngresos = ventas + otrosIngresos;
 
-        const comprasMP = kpiMap['01']?.total || 0;
-        const nomina = (kpiMap['02']?.total || 0) + preliquidacionNomina.total_bruto;
-        const gastosGenerales = kpiMap['03']?.total || 0;
-        const impuestos = kpiMap['05']?.total || 0;
+        const preliqParaPanel = ccostoPanel ? (preliquidacionNomina._totalBrutoPanel || 0) : preliquidacionNomina.total_bruto;
+        const comprasMP = kpiSrc['01']?.total || 0;
+        const nomina = (kpiSrc['02']?.total || 0) + preliqParaPanel;
+        const gastosGenerales = kpiSrc['03']?.total || 0;
+        const impuestos = kpiSrc['05']?.total || 0;
         const totalGastos = comprasMP + nomina + gastosGenerales + impuestos;
 
         const utilidad = totalIngresos - totalGastos;
 
         const pyg = [
-            { grupo: 'VENTAS', total: ventas, cantidad: kpiMap['00']?.cantidad || 0, tipo: 'ingreso' },
-            { grupo: 'OTROS INGRESOS', total: otrosIngresos, cantidad: kpiMap['04']?.cantidad || 0, tipo: 'ingreso' },
+            { grupo: 'VENTAS', total: ventas, cantidad: kpiSrc['00']?.cantidad || 0, tipo: 'ingreso' },
+            { grupo: 'OTROS INGRESOS', total: otrosIngresos, cantidad: kpiSrc['04']?.cantidad || 0, tipo: 'ingreso' },
             { grupo: 'TOTAL INGRESOS', total: totalIngresos, cantidad: 0, tipo: 'subtotal-ingreso', bold: true },
-            { grupo: 'NÓMINA', total: nomina, cantidad: kpiMap['02']?.cantidad || 0, tipo: 'gasto' },
-            { grupo: 'MATERIA PRIMA', total: comprasMP, cantidad: kpiMap['01']?.cantidad || 0, tipo: 'gasto' },
-            { grupo: 'GASTOS GENERALES', total: gastosGenerales, cantidad: kpiMap['03']?.cantidad || 0, tipo: 'gasto' },
-            { grupo: 'IMPUESTOS', total: impuestos, cantidad: kpiMap['05']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'NÓMINA', total: nomina, cantidad: kpiSrc['02']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'MATERIA PRIMA', total: comprasMP, cantidad: kpiSrc['01']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'GASTOS GENERALES', total: gastosGenerales, cantidad: kpiSrc['03']?.cantidad || 0, tipo: 'gasto' },
+            { grupo: 'IMPUESTOS', total: impuestos, cantidad: kpiSrc['05']?.cantidad || 0, tipo: 'gasto' },
             { grupo: 'TOTAL GASTOS', total: totalGastos, cantidad: 0, tipo: 'subtotal-gasto', bold: true },
             { grupo: 'UTILIDAD APROXIMADA', total: utilidad, cantidad: 0, tipo: 'utilidad', bold: true },
         ];
+        delete preliquidacionNomina._totalBrutoPanel;
 
         const pyg_legacy = pygRes.rows.map(r => ({
             grupo:    r.grupo,
@@ -9208,6 +9249,8 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                     impuestos: kpiMap['05'] || { grupo: 'IMPUESTOS', total: 0, cantidad: 0 },
                 },
                 pyg,
+                ccostoFiltro: ccostoPanel,
+                ccostosDisponibles: ccostosRes.rows,
                 totalMes: pyg_legacy.reduce((s, r) => s + r.total, 0),
                 cantidadMes: pyg_legacy.reduce((s, r) => s + r.cantidad, 0),
                 ultimosGastos: ultimosRes.rows,
@@ -9219,6 +9262,149 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// ── Nómina proyectada (semana en curso) ──────────────────────────────
+// Misma lógica que la preliquidación del dashboard (horas reales hasta
+// hoy de la semana de nómina en curso), pero devuelve además el desglose
+// por centro de costo "hogar" de cada empleado, para poder inyectarla en
+// el Estado de Resultados cuando el usuario active la proyección.
+async function calcularNominaProyectada(empresa) {
+    const resultado = {
+        total_bruto: 0, total_deducciones: 0, total_neto: 0, total_aportes_er: 0,
+        semana: null, porCcosto: {}
+    };
+    try {
+        let semanaRes = await pool.query(
+            `SELECT id, semana_inicio, semana_fin
+             FROM nom_semana
+             WHERE empresa = $1 AND CURRENT_DATE BETWEEN semana_inicio AND semana_fin
+             ORDER BY semana_inicio DESC LIMIT 1`,
+            [empresa]
+        );
+        if (!semanaRes.rows.length) {
+            semanaRes = await pool.query(
+                `SELECT id, semana_inicio, semana_fin
+                 FROM nom_semana WHERE empresa = $1 ORDER BY semana_inicio DESC LIMIT 1`,
+                [empresa]
+            );
+        }
+        if (!semanaRes.rows.length) return resultado;
+
+        const s = semanaRes.rows[0];
+        resultado.semana = { id: s.id, semana_inicio: s.semana_inicio, semana_fin: s.semana_fin };
+        const anio = new Date(s.semana_fin).getFullYear();
+        let cfg = {};
+        const cfgR = await pool.query('SELECT * FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2', [empresa, anio]);
+        if (cfgR.rows.length) cfg = cfgR.rows[0];
+        else cfg = { ss_rate:0.062, ss_wage_base:168600, medicare_rate:0.0145,
+                     medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
+                     futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
+                     ot_threshold_hours:40, ot_multiplier:1.5, wc_default_rate:0, fit_config:null };
+
+        const det = await pool.query(
+            `SELECT empleado_id, ccosto, SUM(COALESCE(real_horas, prog_horas, 0)) AS horas
+             FROM nom_semana_detalle
+             WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
+             GROUP BY empleado_id, ccosto`,
+            [s.id]
+        );
+        let horasPorEmpleado = {};
+        let empleadosEnSemana = new Set();
+        for (const row of det.rows) {
+            empleadosEnSemana.add(parseInt(row.empleado_id));
+            if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
+            const cc = row.ccosto || 'GEN';
+            horasPorEmpleado[row.empleado_id][cc] = parseFloat(row.horas || 0);
+        }
+
+        const diasDet = await pool.query(
+            `SELECT empleado_id, COUNT(DISTINCT fecha) AS dias
+             FROM nom_semana_detalle
+             WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
+               AND COALESCE(real_horas, prog_horas, 0) > 0
+             GROUP BY empleado_id`,
+            [s.id]
+        );
+        let diasPorEmpleado = {};
+        diasDet.rows.forEach(row => { diasPorEmpleado[row.empleado_id] = parseInt(row.dias || 0); });
+
+        if (!empleadosEnSemana.size) return resultado;
+
+        const ids = [...empleadosEnSemana];
+        const empleados = await pool.query(`SELECT * FROM nom_empleados WHERE id = ANY($1) ORDER BY apellido, nombre`, [ids]);
+
+        const otThreshold = parseFloat(cfg.ot_threshold_hours || 40);
+        const otMult = parseFloat(cfg.ot_multiplier || 1.5);
+
+        for (const emp of empleados.rows) {
+            const ytdR = await pool.query(
+                `SELECT COALESCE(SUM(ll.total_bruto),0) AS ytd
+                 FROM nom_liquidacion_linea ll
+                 JOIN nom_liquidacion l ON l.id=ll.liquidacion_id
+                 WHERE ll.empleado_id=$1 AND l.empresa=$2
+                   AND EXTRACT(YEAR FROM l.semana_fin)=$3 AND l.estado IN ('APROBADA','PAGADA')`,
+                [emp.id, empresa, anio]
+            );
+            const ytdBruto = parseFloat(ytdR.rows[0].ytd || 0);
+
+            const ccHoras = horasPorEmpleado[emp.id] || {};
+            const totalHoras = Object.values(ccHoras).reduce((s, h) => s + h, 0);
+
+            let brutoRegular = 0, brutoOT = 0, brutoBase = 0;
+            const tipoPago = emp.tipo_pago || (emp.es_por_horas ? 'HORAS' : 'FIJO_SEMANAL');
+
+            if (tipoPago === 'DIA_LABORADO') {
+                const diasTrabajados = diasPorEmpleado[emp.id] || 0;
+                brutoBase = diasTrabajados * parseFloat(emp.valor_dia || 0);
+            } else if (tipoPago === 'FIJO_MAS_HORAS') {
+                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+                const horasOtrosCC = Object.entries(ccHoras)
+                    .filter(([cc]) => String(cc) !== String(emp.ccosto))
+                    .reduce((s, [, h]) => s + h, 0);
+                const valorHora = parseFloat(emp.valor_hora || 0);
+                const valorHoraOT = valorHora * otMult;
+                if (horasOtrosCC <= otThreshold) {
+                    brutoRegular = horasOtrosCC * valorHora;
+                } else {
+                    brutoRegular = otThreshold * valorHora;
+                    brutoOT = (horasOtrosCC - otThreshold) * valorHoraOT;
+                }
+            } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
+                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+            } else {
+                const valorHora = parseFloat(emp.valor_hora || 0);
+                const valorHoraOT = valorHora * otMult;
+                if (totalHoras <= otThreshold) {
+                    brutoRegular = totalHoras * valorHora;
+                } else {
+                    brutoRegular = otThreshold * valorHora;
+                    brutoOT = (totalHoras - otThreshold) * valorHoraOT;
+                }
+            }
+
+            const totalBrutoEmp = brutoRegular + brutoOT + brutoBase;
+            const taxes = calcularRetenciones(emp, totalBrutoEmp, ytdBruto, cfg);
+            const netoEmp = totalBrutoEmp - taxes.total_deducciones;
+
+            if (totalBrutoEmp > 0) {
+                resultado.total_bruto += totalBrutoEmp;
+                resultado.total_deducciones += taxes.total_deducciones;
+                resultado.total_aportes_er += taxes.total_aportes_er;
+                resultado.total_neto += netoEmp;
+                const ccHome = emp.ccosto != null ? String(emp.ccosto) : 'GEN';
+                resultado.porCcosto[ccHome] = (resultado.porCcosto[ccHome] || 0) + totalBrutoEmp;
+            }
+        }
+
+        resultado.total_bruto = +resultado.total_bruto.toFixed(2);
+        resultado.total_deducciones = +resultado.total_deducciones.toFixed(2);
+        resultado.total_neto = +resultado.total_neto.toFixed(2);
+        resultado.total_aportes_er = +resultado.total_aportes_er.toFixed(2);
+    } catch (e) {
+        console.error('Error calculando nómina proyectada:', e.message);
+    }
+    return resultado;
+}
 
 // ══════════════════════════════════════════════════════════════════
 // ESTADO DE RESULTADOS (P&G)
@@ -9402,6 +9588,29 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         let inventarioFinalEsEstimado = false;
         const cutoffFinal = cutoffs[cutoffs.length - 1];
         const hoy = new Date().toISOString().slice(0, 10);
+        const periodoActualEnCurso = cutoffFinal >= hoy;
+
+        // ── Nómina proyectada (semana en curso) ────────────────────────────
+        // Igual que el inventario estimado: solo tiene sentido para el período
+        // ACTUAL (en curso), nunca para uno ya cerrado. Se suma como línea
+        // aparte dentro de GASTOS DE PERSONAL, usando horas reales hasta hoy
+        // de la semana de nómina en curso (misma lógica de preliquidación del
+        // dashboard de Contabilidad).
+        const proyectarNomina = req.query.proyectarNomina === '1' || req.query.proyectarNomina === 'true';
+        let nominaProyectadaInfo = { disponible: periodoActualEnCurso, incluida: false, monto: 0, semana: null };
+        let nominaProyectadaMonto = 0;
+        if (proyectarNomina && periodoActualEnCurso) {
+            const nominaProy = await calcularNominaProyectada(emp);
+            nominaProyectadaMonto = ccostoFiltro ? (nominaProy.porCcosto[String(ccostoFiltro)] || 0) : nominaProy.total_bruto;
+            nominaProyectadaInfo = {
+                disponible: true,
+                incluida: nominaProyectadaMonto > 0,
+                monto: nominaProyectadaMonto,
+                semana: nominaProy.semana
+            };
+        }
+        const currentPeriodKey = periodos[periodos.length - 1].key;
+
         if (valorEstimadoInventarioFinal != null && cutoffFinal >= hoy) {
             const tomaCierreRes = await pool.query(
                 `SELECT 1 FROM toma_fisica_valorizada
@@ -9539,6 +9748,14 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                     esConsumoCalculado: true
                 });
             }
+            if (g.codigo === '02' && nominaProyectadaInfo.incluida) {
+                cuentas.push({
+                    codigo: 'NOM-PROY', nombre: 'Nómina Proyectada (semana en curso)',
+                    valores: valoresArray({ [currentPeriodKey]: nominaProyectadaMonto }),
+                    total: nominaProyectadaMonto,
+                    esNominaProyectada: true
+                });
+            }
             delete cuentasPorGrupo[g.codigo];
             const subtotales = periodos.map((_, i) => cuentas.reduce((s, c) => s + c.valores[i], 0));
             const total = subtotales.reduce((s, v) => s + v, 0);
@@ -9588,6 +9805,7 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                 grupoCodigo: grupoMateriaPrimaCodigo, consumo: consumoMPTotal,
                 inventarioFinalEsEstimado
             },
+            nominaProyectada: nominaProyectadaInfo,
             grupos: gruposFinal,
             utilidadPorPeriodo,
             ventasNetasPorPeriodo,

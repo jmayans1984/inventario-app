@@ -117,7 +117,16 @@
               </div>
               <button class="cbl-panel-link" @click="go('/contabilidad/reportes/gastos')">Ver reporte</button>
             </div>
-            <div v-if="dashLoading" class="cbl-panel-loading">
+            <select
+              v-if="ccostosDisponibles.length"
+              v-model="ccostoPanelSel"
+              class="cbl-panel-select"
+              @change="cargarDashboard"
+            >
+              <option value="">Toda la empresa</option>
+              <option v-for="cc in ccostosDisponibles" :key="cc.codigo" :value="cc.codigo">{{ cc.nombre }}</option>
+            </select>
+            <div v-if="dashLoading || panelLoading" class="cbl-panel-loading">
               <v-progress-circular indeterminate size="20" width="2" color="var(--indigo)" />
             </div>
             <template v-else>
@@ -297,11 +306,18 @@ const totalMes = ref(0)
 const cantidadMes = ref(0)
 const ultimosGastos = ref([])
 const preliquidacion = ref(null)
+const ccostosDisponibles = ref([])
+const ccostoPanelSel = ref('')
+
+const panelLoading = ref(false)
 
 async function cargarDashboard() {
   if (!empresa.value) { dashLoading.value = false; return }
+  panelLoading.value = true
   try {
-    const res = await fetch(`${API_BASE}/contabilidad/dashboard?empresa=${empresa.value}`)
+    const params = new URLSearchParams({ empresa: empresa.value })
+    if (ccostoPanelSel.value) params.set('ccosto', ccostoPanelSel.value)
+    const res = await fetch(`${API_BASE}/contabilidad/dashboard?${params}`)
     const json = await res.json()
     if (json.success && json.data) {
       kpis.value = json.data.kpis || kpis.value
@@ -310,11 +326,13 @@ async function cargarDashboard() {
       cantidadMes.value = json.data.cantidadMes || 0
       ultimosGastos.value = json.data.ultimosGastos || []
       preliquidacion.value = json.data.preliquidacionNomina || null
+      ccostosDisponibles.value = json.data.ccostosDisponibles || []
     }
   } catch (e) {
     console.error('cargarDashboard:', e)
   } finally {
     dashLoading.value = false
+    panelLoading.value = false
   }
 }
 
@@ -441,6 +459,13 @@ onMounted(() => {
   padding: 2px 6px; border-radius: 6px; transition: background-color 150ms var(--ease-out);
 }
 .cbl-panel-link:hover { background: var(--indigo-wash); }
+.cbl-panel-select {
+  width: 100%; margin-bottom: 10px; padding: 7px 10px;
+  border-radius: 8px; border: 1px solid rgba(var(--v-theme-on-surface), .12);
+  background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface));
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.cbl-panel-select:focus { outline: 2px solid var(--indigo); outline-offset: 1px; }
 .cbl-panel-loading { display: flex; justify-content: center; padding: 20px; }
 .cbl-panel-empty {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
