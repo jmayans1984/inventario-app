@@ -4783,7 +4783,7 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
              FROM moviban WHERE empresa = $1`,
             [empresa]
         );
-        const nextNum = numRes.rows[0].next_num || 1;
+        const nextNum = numRes.rows[0]?.next_num || 1;
         const numero = String(nextNum).padStart(10, '0');
 
         const ingresoVal = parseFloat(ingreso || 0);
@@ -4801,9 +4801,9 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
             numero,
             tipo,
             fecha,
-            concepto || '',
-            beneficia || '',
-            cheque || '',
+            (concepto || '').trim().toUpperCase(),
+            (beneficia || '').trim().toUpperCase(),
+            (cheque || '').trim().toUpperCase(),
             ingresoVal,
             egresoVal,
             banco,
@@ -4820,11 +4820,11 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
                 numDest,
                 'TRA',
                 fecha,
-                concepto || '',
-                beneficia || '',
-                cheque || '',
+                (concepto || '').trim().toUpperCase(),
+                (beneficia || '').trim().toUpperCase(),
+                (cheque || '').trim().toUpperCase(),
                 egresoVal,  // Lo que egresa de origen es ingreso en destino
-                ingresoVal,
+                0,          // egreso destino = 0
                 banco_destino,
                 gasto || null,
                 ccosto || null,
@@ -4842,7 +4842,11 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
         });
 
     } catch (error) {
-        await client.query('ROLLBACK');
+        try {
+            await client.query('ROLLBACK');
+        } catch (rollbackErr) {
+            console.error('Error durante ROLLBACK:', rollbackErr);
+        }
         console.error('Error en POST /api/tesoreria/movimientos:', error);
         res.status(500).json({
             success: false,
