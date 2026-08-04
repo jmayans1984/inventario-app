@@ -8371,6 +8371,87 @@ app.post('/api/contabilidad/proveedores/depurar-duplicados', async (req, res) =>
     }
 });
 
+// POST /api/contabilidad/proveedores/reasignar-duplicados
+// Para códigos compartidos que tienen referencias (no se pueden eliminar): mantiene
+// el proveedor indicado en `conservar` con el código original y asigna códigos nuevos
+// (secuenciales desde PROVEEDOR_CODIGO_BASE) al resto.
+// Body: { empresa, acciones: [{ codigo, conservar }] }
+//   conservar = nombre exacto del proveedor que QUEDA con el código original.
+//              Si se omite, queda el primero en orden alfabético.
+app.post('/api/contabilidad/proveedores/reasignar-duplicados', async (req, res) => {
+    const { empresa, acciones } = req.body;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+    if (!Array.isArray(acciones) || !acciones.length) {
+        return res.status(400).json({ success: false, error: 'acciones es requerido' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Obtener todos los códigos ya usados para generar nuevos sin colisiones
+        const todosR = await client.query(
+            `SELECT TRIM(codigo) AS codigo FROM proveedores WHERE empresa = $1`,
+            [empresa]
+        );
+        const usados = new Set(todosR.rows.map(x => x.codigo));
+
+        function siguienteCodigo() {
+            let n = PROVEEDOR_CODIGO_BASE;
+            while (usados.has(String(n))) n++;
+            usados.add(String(n));
+            return String(n);
+        }
+
+        const resultado = [];
+
+        for (const acc of acciones) {
+            const codigo = String(acc.codigo || '').trim();
+            if (!codigo) continue;
+
+            const existentes = await client.query(
+                `SELECT nombre FROM proveedores WHERE empresa = $1 AND TRIM(codigo) = $2 ORDER BY nombre`,
+                [empresa, codigo]
+            );
+            if (existentes.rowCount <= 1) {
+                resultado.push({ codigo, estado: existentes.rowCount === 0 ? 'no encontrado' : 'sin duplicados' });
+                continue;
+            }
+
+            const conservar = acc.conservar ? String(acc.conservar).trim() : existentes.rows[0].nombre.trim();
+            if (!existentes.rows.some(r => (r.nombre || '').trim() === conservar)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    success: false,
+                    error: `"${conservar}" no existe entre los proveedores del código ${codigo}`
+                });
+            }
+
+            const reasignados = [];
+            for (const row of existentes.rows) {
+                const nombre = (row.nombre || '').trim();
+                if (nombre === conservar) continue;
+                const nuevoCodigo = siguienteCodigo();
+                await client.query(
+                    `UPDATE proveedores SET codigo = $1 WHERE empresa = $2 AND TRIM(codigo) = $3 AND TRIM(nombre) = $4`,
+                    [nuevoCodigo, empresa, codigo, nombre]
+                );
+                reasignados.push({ nombre, codigo_nuevo: nuevoCodigo });
+            }
+            resultado.push({ codigo_original: codigo, conservado: conservar, reasignados });
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, resultado });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/contabilidad/proveedores/reasignar-duplicados:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // POST /api/contabilidad/proveedores - Crear proveedor
 app.post('/api/contabilidad/proveedores', async (req, res) => {
     try {
