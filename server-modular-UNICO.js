@@ -4750,59 +4750,6 @@ app.get('/api/tesoreria/movimientos/next-numero', async (req, res) => {
     }
 });
 
-// TEMP DEBUG: ver esquema de moviban (remover después de diagnosticar)
-app.get('/api/debug/moviban-schema', async (req, res) => {
-    try {
-        const r = await pool.query(
-            `SELECT column_name, data_type, character_maximum_length
-             FROM information_schema.columns
-             WHERE table_name = 'moviban'
-             ORDER BY ordinal_position`
-        );
-        res.json({ success: true, data: r.rows });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// TEMP DEBUG: ver triggers sobre moviban
-app.get('/api/debug/moviban-triggers', async (req, res) => {
-    try {
-        const r = await pool.query(
-            `SELECT tgname, tgrelid::regclass AS tabla, tgtype, tgenabled,
-                    pg_get_triggerdef(oid) AS definicion
-             FROM pg_trigger
-             WHERE tgrelid = 'moviban'::regclass AND NOT tgisinternal`
-        );
-        res.json({ success: true, data: r.rows });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// TEMP DEBUG: ver max numero y longitudes de numero en moviban
-app.get('/api/debug/moviban-numeros', async (req, res) => {
-    const { empresa } = req.query;
-    try {
-        const r = await pool.query(
-            `SELECT numero, LENGTH(numero) AS len, empresa
-             FROM moviban
-             WHERE empresa = $1
-             ORDER BY LENGTH(numero) DESC, numero DESC
-             LIMIT 10`,
-            [empresa]
-        );
-        const maxRes = await pool.query(
-            `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) AS max_num, COALESCE(MAX(LENGTH(numero)), 0) AS max_len
-             FROM moviban WHERE empresa = $1`,
-            [empresa]
-        );
-        res.json({ success: true, top: r.rows, resumen: maxRes.rows[0] });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
 // POST /api/tesoreria/movimientos - Crear nuevo movimiento bancario
 app.post('/api/tesoreria/movimientos', async (req, res) => {
     const { tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, gasto, ccosto, origen, empresa, banco_destino } = req.body;
@@ -4836,7 +4783,7 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
              FROM moviban WHERE empresa = $1`,
             [empresa]
         );
-        const nextNum = numRes.rows[0]?.next_num || 1;
+        const nextNum = parseInt(numRes.rows[0]?.next_num, 10) || 1;
         const numero = String(nextNum).padStart(10, '0');
 
         const ingresoVal = parseFloat(ingreso || 0);
@@ -4904,8 +4851,7 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Error al crear movimiento',
-            details: error.message,
-            debug: Object.getOwnPropertyNames(error).reduce((acc, k) => { acc[k] = error[k]; return acc; }, {})
+            details: error.message
         });
     } finally {
         client.release();
