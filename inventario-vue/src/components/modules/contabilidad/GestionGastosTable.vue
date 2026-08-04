@@ -14,11 +14,11 @@
       </div>
       <div class="header-actions">
         <!-- Toggle: mostrar todos vs solo con proveedor -->
-        <label class="toggle-proveedor" :title="soloConProveedor ? 'Mostrando solo gastos ingresados por usuario. Activa para ver todos.' : 'Mostrando todos los registros incluyendo los automáticos'">
-          <input type="checkbox" v-model="soloConProveedor" @change="currentPage = 1" />
+        <label class="toggle-proveedor" :title="store.filtroSoloConProveedor ? 'Mostrando solo gastos ingresados por usuario. Activa para ver todos.' : 'Mostrando todos los registros incluyendo los automáticos'">
+          <input type="checkbox" v-model="store.filtroSoloConProveedor" @change="currentPage = 1" />
           <span class="toggle-proveedor-label">
-            <v-icon size="13" :color="soloConProveedor ? 'var(--ink-400)' : 'var(--gold)'" class="mr-1">{{ soloConProveedor ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}</v-icon>
-            {{ soloConProveedor ? 'Ocultar automáticos' : 'Mostrar todos' }}
+            <v-icon size="13" :color="store.filtroSoloConProveedor ? 'var(--ink-400)' : 'var(--gold)'" class="mr-1">{{ store.filtroSoloConProveedor ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}</v-icon>
+            {{ store.filtroSoloConProveedor ? 'Ocultar automáticos' : 'Mostrar todos' }}
           </span>
         </label>
         <v-btn
@@ -429,14 +429,13 @@ const itemsPerPage = ref(25)
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 250]
 const sortBy = ref('fecha')
 const sortOrder = ref('desc')
-const soloConProveedor = ref(true)   // por defecto oculta registros sin proveedor
 
 // Filtrado
 const filteredGastos = computed(() => {
   let list = [...store.gastos]
 
   // Ocultar registros automáticos (sin proveedor) a menos que el usuario los pida
-  if (soloConProveedor.value) {
+  if (store.filtroSoloConProveedor) {
     list = list.filter(g => g.proveedor && g.proveedor.trim() !== '' && g.proveedor !== '0')
   }
 
