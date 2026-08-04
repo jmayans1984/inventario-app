@@ -138,34 +138,61 @@
       <!-- REPORTE -->
       <div v-if="filas.length > 0" class="rc-reporte-card">
 
-        <!-- KPIs -->
-        <div class="rc-kpis">
-          <div class="rc-kpi">
-            <v-icon size="18" color="primary" class="mr-2">mdi-package-variant</v-icon>
+        <!-- KPIs (5 Nuevos) -->
+        <div class="rc-kpis-new">
+          <!-- KPI 1: Ventas del mes -->
+          <div class="rc-kpi-new">
+            <div class="kpi-icon">
+              <v-icon size="16" color="white">mdi-trending-up</v-icon>
+            </div>
             <div>
-              <div class="rc-kpi-val">{{ filas.length }}</div>
-              <div class="rc-kpi-lbl">Productos</div>
+              <div class="kpi-lbl">Ventas del Período</div>
+              <div class="kpi-val">{{ formatMoney(kpiVentasTotal) }}</div>
             </div>
           </div>
-          <div class="rc-kpi">
-            <v-icon size="18" :color="totalVariacion < 0 ? '#f59e0b' : '#10b981'" class="mr-2">{{ totalVariacion < 0 ? 'mdi-arrow-down-bold' : 'mdi-arrow-up-bold' }}</v-icon>
+
+          <!-- KPI 2: Margen -->
+          <div class="rc-kpi-new">
+            <div class="kpi-icon">
+              <v-icon size="16" color="white">mdi-percent</v-icon>
+            </div>
             <div>
-              <div class="rc-kpi-val" :class="totalVariacion < 0 ? 'num-faltante' : (totalVariacion > 0 ? 'num-sobrante' : '')">{{ formatNum(totalVariacion) }}</div>
-              <div class="rc-kpi-lbl">Variación Total</div>
+              <div class="kpi-lbl">Margen</div>
+              <div class="kpi-val">{{ formatNum(kpiMargenPct).replace('-', '') }}%</div>
+              <div class="kpi-sub">{{ formatMoney(kpiMargenDinero) }}</div>
             </div>
           </div>
-          <div v-if="incluirCostos" class="rc-kpi">
-            <v-icon size="18" :color="totalValorizado < 0 ? '#f59e0b' : '#10b981'" class="mr-2">mdi-cash-multiple</v-icon>
+
+          <!-- KPI 3: Faltante/Sobrante -->
+          <div class="rc-kpi-new">
+            <div class="kpi-icon">
+              <v-icon size="16" color="white">{{ kpiFaltanteTotal > 0 ? 'mdi-minus-circle' : 'mdi-plus-circle' }}</v-icon>
+            </div>
             <div>
-              <div class="rc-kpi-val" :class="totalValorizado < 0 ? 'num-faltante' : (totalValorizado > 0 ? 'num-sobrante' : '')">{{ formatMoney(totalValorizado) }}</div>
-              <div class="rc-kpi-lbl">Valor Variación</div>
+              <div class="kpi-lbl">Faltante/Sobrante</div>
+              <div class="kpi-val" :style="{ color: kpiFaltanteTotal > 0 ? '#ef4444' : '#10b981' }">{{ formatMoney(kpiFaltanteTotal) }}</div>
             </div>
           </div>
-          <div class="rc-kpi rc-kpi--periodo">
-            <v-icon size="18" color="#64748b" class="mr-2">mdi-calendar-range</v-icon>
+
+          <!-- KPI 4: % sobre Ventas -->
+          <div class="rc-kpi-new">
+            <div class="kpi-icon">
+              <v-icon size="16" color="white">mdi-chart-pie</v-icon>
+            </div>
             <div>
-              <div class="rc-kpi-val" style="font-size:13px">{{ fmtFecha(fechaIni) }} → {{ fmtFecha(fechaFin) }}</div>
-              <div class="rc-kpi-lbl">{{ nombresCcostos }}</div>
+              <div class="kpi-lbl">% de Ventas</div>
+              <div class="kpi-val">{{ formatNum(kpiPorcentajeVentas) }}%</div>
+            </div>
+          </div>
+
+          <!-- KPI 5: Nivel de Pérdida -->
+          <div class="rc-kpi-new">
+            <div class="kpi-icon" :style="{ backgroundColor: colorNivelPerdida }">
+              <v-icon size="16" color="white">{{ kpiNivelPerdida === 'EXCELENTE' ? 'mdi-check-circle' : (kpiNivelPerdida === 'BUENO' ? 'mdi-alert-circle' : 'mdi-close-circle') }}</v-icon>
+            </div>
+            <div>
+              <div class="kpi-lbl">Nivel de Pérdida</div>
+              <div class="kpi-val" :style="{ color: colorNivelPerdida }">{{ kpiNivelPerdida }}</div>
             </div>
           </div>
         </div>
@@ -285,7 +312,9 @@ function actualizarFiltroProductos() {
 
 // ── Datos ─────────────────────────────────────────────────────────
 const ccostos  = ref([])
-const filas    = ref([])
+const filas           = ref([])
+const ventasTotal     = ref(0)
+const toleranciaPct   = ref(2.00)
 const loading  = ref(false)
 const generado = ref(false)
 const errorMsg = ref('')
@@ -365,9 +394,48 @@ const productosAgrupados = computed(() => {
   return Array.from(mapa.values())
 })
 
-// ── Totales ───────────────────────────────────────────────────────
+// ── Totales (antiguos) ────────────────────────────────────────────
 const totalVariacion  = computed(() => filas.value.reduce((s, p) => s + (parseFloat(p.total_sobrante) - parseFloat(p.total_faltante)), 0))
 const totalValorizado = computed(() => filas.value.reduce((s, p) => s + valorNeto(p), 0))
+
+// ── 5 KPIs nuevos ─────────────────────────────────────────────────
+const kpiVentasTotal = computed(() => ventasTotal.value)
+
+const kpiMargenPct = computed(() => {
+  if (ventasTotal.value <= 0) return 0
+  return -(Math.abs(totalValorizado.value) / ventasTotal.value * 100)
+})
+
+const kpiMargenDinero = computed(() => totalValorizado.value)
+
+const kpiFaltanteTotal = computed(() => {
+  // Suma del valor de faltantes y sobrantes (el totalValorizado es el neto)
+  return Math.abs(totalValorizado.value)
+})
+
+const kpiPorcentajeVentas = computed(() => {
+  if (ventasTotal.value <= 0) return 0
+  return (kpiFaltanteTotal.value / ventasTotal.value * 100)
+})
+
+const kpiNivelPerdida = computed(() => {
+  const pct = kpiPorcentajeVentas.value
+  const tolerance = toleranciaPct.value
+  const mitad = tolerance / 2
+
+  if (pct < mitad) return 'EXCELENTE'
+  if (pct <= tolerance) return 'BUENO'
+  return 'MALO'
+})
+
+const colorNivelPerdida = computed(() => {
+  switch (kpiNivelPerdida.value) {
+    case 'EXCELENTE': return '#10b981'
+    case 'BUENO': return '#f59e0b'
+    case 'MALO': return '#ef4444'
+    default: return '#64748b'
+  }
+})
 
 // ── Generar ───────────────────────────────────────────────────────
 async function generar() {
@@ -391,8 +459,10 @@ async function generar() {
         filtro_productos: esBodegaMaestra.value ? 'control' : filtroProductos.value,
       }
     })
-    filas.value    = res.data?.data || []
-    generado.value = true
+    filas.value      = res.data?.data || []
+    ventasTotal.value = parseFloat(res.data?.ventas_ccosto || 0)
+    toleranciaPct.value = parseFloat(res.data?.tolerancia_perdida || 2.00)
+    generado.value   = true
   } catch (e) {
     errorMsg.value = e?.response?.data?.error || e.message || 'Error al generar el reporte'
   } finally {
@@ -519,6 +589,21 @@ function exportarPDF() {
 .rc-kpi--periodo { flex: 2; }
 .rc-kpi-val      { font-size: 18px; font-weight: 800; line-height: 1.2; }
 .rc-kpi-lbl      { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(var(--v-theme-on-surface),.4); margin-top: 2px; }
+
+/* KPIs Nuevos (5 Métricas) */
+.rc-kpis-new { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding-bottom: 16px; }
+.rc-kpi-new { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 10px; background: rgba(var(--v-theme-on-surface),.03); border: 1px solid rgba(var(--v-theme-on-surface),.08); }
+.kpi-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.kpi-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.45); }
+.kpi-val { font-size: 18px; font-weight: 800; margin-top: 2px; }
+.kpi-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 2px; }
+
+@media (max-width: 1400px) {
+  .rc-kpis-new { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .rc-kpis-new { grid-template-columns: repeat(2, 1fr); }
+}
 
 /* Tabla */
 .rc-table-wrap { overflow-x: auto; }

@@ -3076,7 +3076,31 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
             [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
         );
 
-        res.json({ success: true, data: result.rows });
+        // Obtener ventas del CC en el período
+        const ventasRes = await pool.query(
+            `SELECT COALESCE(SUM(total), 0) AS total_ventas
+             FROM factura_venta
+             WHERE empresa::text = $1
+               AND ccosto IN (${placeholders})
+               AND fecha >= $${n + 2}
+               AND fecha <= $${n + 3}`,
+            [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
+        );
+        const ventasTotal = parseFloat(ventasRes.rows[0]?.total_ventas || 0);
+
+        // Obtener tolerancia de pérdidas desde config_general
+        const configRes = await pool.query(
+            `SELECT COALESCE(tolerancia_perdida_faltantes, 2.00) AS tolerancia FROM config_general WHERE empresa::text = $1`,
+            [String(empresa)]
+        );
+        const tolerancia = parseFloat(configRes.rows[0]?.tolerancia || 2.00);
+
+        res.json({
+            success: true,
+            data: result.rows,
+            ventas_ccosto: ventasTotal,
+            tolerancia_perdida: tolerancia
+        });
     } catch (error) {
         console.error('Error GET /api/almacen/reporte-toma-fisica:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -11235,6 +11259,10 @@ pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS ccosto_proveedur
 // toma física oficial registrada en toma_fisica_valorizada (es_cierre = TRUE).
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS valor_estimado_inventario_final NUMERIC(14,2)`).catch(() => {});
 
+// Tolerancia de pérdidas en Faltantes y Sobrantes (Toma Física): porcentaje máximo aceptable
+// para determinar nivel de pérdida (EXCELENTE < 50%, BUENO < 100%, MALO >= 100% del valor)
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS tolerancia_perdida_faltantes NUMERIC(5,2) DEFAULT 2.00`).catch(() => {});
+
 // Centro de costo en facturas de venta (para P&L por ccosto)
 pool.query(`ALTER TABLE factura_venta ADD COLUMN IF NOT EXISTS ccosto VARCHAR(10)`).catch(() => {});
 
@@ -11275,7 +11303,7 @@ app.put('/api/config-general', async (req, res) => {
         'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo',
         'ccosto_proveeduria',
         'mp_afecta_inventario_default', 'mp_actualiza_costo_default',
-        'valor_estimado_inventario_final'
+        'valor_estimado_inventario_final', 'tolerancia_perdida_faltantes'
     ];
 
     const sets = [];

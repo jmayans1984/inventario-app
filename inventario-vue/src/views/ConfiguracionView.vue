@@ -284,6 +284,62 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           SECCIÓN 1B-4: TOLERANCIA DE PÉRDIDAS EN FALTANTES Y SOBRANTES
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(245,158,11,0.12)">
+            <v-icon size="16" color="#f59e0b">mdi-chart-line</v-icon>
+          </div>
+          <span class="cfg-section-title">TOLERANCIA DE PÉRDIDAS — FALTANTES Y SOBRANTES</span>
+        </div>
+
+        <div v-if="loadingCfgInv" class="cfg-loading">
+          <v-progress-circular indeterminate color="#f59e0b" size="28" />
+          <span>Cargando configuración...</span>
+        </div>
+
+        <div v-else>
+          <p class="cfg-hint-prov" style="margin-bottom:14px">
+            Define el porcentaje máximo de tolerancia de pérdidas (como % de ventas).
+            Los niveles se calculan automáticamente:<br/>
+            <strong>EXCELENTE:</strong> &lt; 50% del valor<br/>
+            <strong>BUENO:</strong> 50% a 100% del valor<br/>
+            <strong>MALO:</strong> &gt; 100% del valor
+          </p>
+          <div class="cfg-cta-row" style="grid-template-columns: 1fr 260px">
+            <span class="cfg-cta-label">PORCENTAJE MÁXIMO DE TOLERANCIA (%)</span>
+            <input
+              v-model.number="toleranciaPerdidaFaltantes"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              class="cfg-input"
+              placeholder="2.00"
+            />
+          </div>
+        </div>
+
+        <div v-if="!loadingCfgInv" class="cfg-ctas-actions">
+          <span v-if="cfgInvTolSaveOk" class="cfg-ok-msg">
+            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado correctamente
+          </span>
+          <span v-if="cfgInvTolSaveErr" class="cfg-err-msg">{{ cfgInvTolSaveErr }}</span>
+          <v-btn
+            color="#f59e0b"
+            variant="flat"
+            size="small"
+            :loading="savingCfgInvTol"
+            @click="guardarConfigToleranciaFaltantes"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
+          </v-btn>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            SECCIÓN 1C: CONFIGURACIÓN GENERAL DE PROVEEDURÍA
       ══════════════════════════════════════════════ -->
       <div v-if="esProveedor" class="cfg-card">
@@ -704,6 +760,7 @@ watch(empresa, (val) => {
     cargarConfigTesoreria()
     cargarConfigMp()
     cargarConfigInventarioEstimado()
+    cargarConfigToleranciaFaltantes()
     cargarConfigProveeduria()
   }
 }, { immediate: false })
@@ -861,6 +918,45 @@ async function guardarConfigInventarioEstimado() {
     cfgInvSaveErr.value = e?.response?.data?.error || e.message
   } finally {
     savingCfgInv.value = false
+  }
+}
+
+// ── Tolerancia de pérdidas en faltantes y sobrantes ──
+const toleranciaPerdidaFaltantes = ref(null)
+const savingCfgInvTol  = ref(false)
+const cfgInvTolSaveOk  = ref(false)
+const cfgInvTolSaveErr = ref('')
+
+async function cargarConfigToleranciaFaltantes() {
+  try {
+    if (!empresa.value) return
+    const cfgRes = await api.get('/config-general', { params: { empresa: empresa.value } })
+    const cfg = cfgRes.data?.data || {}
+    toleranciaPerdidaFaltantes.value = cfg.tolerancia_perdida_faltantes != null
+      ? parseFloat(cfg.tolerancia_perdida_faltantes)
+      : 2.00
+  } catch (e) {
+    console.error('[Configuracion] error al cargar tolerancia de pérdidas:', e)
+  }
+}
+
+async function guardarConfigToleranciaFaltantes() {
+  savingCfgInvTol.value = true
+  cfgInvTolSaveOk.value = false
+  cfgInvTolSaveErr.value = ''
+  try {
+    const payload = {
+      empresa: empresa.value,
+      tolerancia_perdida_faltantes: toleranciaPerdidaFaltantes.value,
+    }
+    const res = await api.put('/config-general', payload)
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
+    cfgInvTolSaveOk.value = true
+    setTimeout(() => { cfgInvTolSaveOk.value = false }, 3000)
+  } catch (e) {
+    cfgInvTolSaveErr.value = e?.response?.data?.error || e.message
+  } finally {
+    savingCfgInvTol.value = false
   }
 }
 
@@ -1105,6 +1201,7 @@ onMounted(() => {
   cargarConfigTesoreria()
   cargarConfigMp()
   cargarConfigInventarioEstimado()
+  cargarConfigToleranciaFaltantes()
   cargarConfigProveeduria()
   cargarUsuarios()
   cargarLogo()
