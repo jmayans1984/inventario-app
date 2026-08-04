@@ -9297,39 +9297,80 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         }
 
         // ── Valorización de inventario (empresa completa) en cada corte ──
-        // Igual que en Valoración Mensual: por centro de costo, se usa la toma
-        // física de cierre congelada cuando existe dentro de la ventana de
-        // gracia (más confiable que el kardex, que no captura mermas/ajustes
-        // no registrados); solo se calcula en vivo desde el kardex para los
-        // centros sin toma física en esa fecha. Esto evita que el "inventario
-        // final" de un corte diverja del valor real ya contado físicamente.
+        // Réplica de la lógica de Valoración Mensual (tomasEnVentana +
+        // valorizarCortes): por centro de costo, se usa la toma física de
+        // cierre (congelada, o legado en detalle_inventario) cuando existe
+        // dentro de la ventana de gracia — más confiable que el kardex, que
+        // no captura mermas/ajustes no registrados. Solo se calcula en vivo
+        // desde el kardex para los centros sin ninguna toma física cerca de
+        // esa fecha. Las fechas siempre se castean a texto en SQL (nunca se
+        // reenvían como objetos Date de JS) para evitar desfases de zona
+        // horaria al comparar (ccosto, fecha) en la segunda consulta.
         async function stockValorizadoTotal(fechaCorte) {
             const ventanaFin = sumarDias(fechaCorte, DIAS_GRACIA_TOMA);
+
             const tomaRes = await pool.query(
-                `SELECT DISTINCT ON (ccosto) ccosto, fecha
-                   FROM toma_fisica_valorizada
-                  WHERE empresa = $1 AND es_cierre = TRUE
-                    AND fecha >= $2::date AND fecha <= $3::date
-                  ORDER BY ccosto, fecha DESC`,
+                `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
+                     SELECT ccosto::text AS ccosto, fecha
+                       FROM toma_fisica_valorizada
+                      WHERE empresa = $1::int AND es_cierre = TRUE
+                        AND fecha >= $2::date AND fecha <= $3::date
+                     UNION
+                     SELECT di.ccosto::text AS ccosto, di.fecha
+                       FROM detalle_inventario di
+                      WHERE di.empresa = $1::int AND di.tipo = 'TOMA FISICA'
+                        AND di.fecha >= $2::date AND di.fecha <= $3::date
+                        AND NOT EXISTS (
+                              SELECT 1 FROM toma_fisica_valorizada t
+                               WHERE t.empresa = di.empresa
+                                 AND t.ccosto  = di.ccosto
+                                 AND t.fecha   = di.fecha)
+                 ) t
+                 GROUP BY ccosto`,
                 [emp, fechaCorte, ventanaFin]
             );
-            const ccWithToma = tomaRes.rows.map(r => ({ ccosto: r.ccosto, fecha: r.fecha }));
+            const pares = tomaRes.rows.map(r => [r.ccosto, r.fecha.slice(0, 10)]);
 
-            let totalToma = 0;
-            if (ccWithToma.length) {
-                const ph = ccWithToma.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
+            let totalFrozen = 0;
+            let totalLiveEnCorte = 0;
+            const congelados = new Set();
+            if (pares.length) {
+                const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
                 const params = [emp];
-                ccWithToma.forEach(r => { params.push(r.ccosto, r.fecha); });
-                const valRes = await pool.query(
-                    `SELECT COALESCE(SUM(stock * precio_costo), 0) AS valor
+                pares.forEach(([cc, f]) => { params.push(cc, f); });
+                const snapRes = await pool.query(
+                    `SELECT ccosto, COALESCE(SUM(stock * precio_costo), 0) AS valor
                        FROM toma_fisica_valorizada
-                      WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})`,
+                      WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})
+                      GROUP BY ccosto`,
                     params
                 );
-                totalToma = parseFloat(valRes.rows[0].valor) || 0;
+                snapRes.rows.forEach(r => { congelados.add(r.ccosto); totalFrozen += parseFloat(r.valor) || 0; });
+
+                const pendientes = pares.filter(([cc]) => !congelados.has(cc));
+                if (pendientes.length) {
+                    const vals = pendientes.map((_, i) => `($${i * 2 + 3}::varchar, $${i * 2 + 4}::date)`).join(', ');
+                    const lp = [emp, String(empresa)];
+                    pendientes.forEach(([cc, f]) => { lp.push(cc, f); });
+                    const liveCorteRes = await pool.query(
+                        `WITH cortes(ccosto, fecha) AS (VALUES ${vals})
+                         SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
+                           FROM cortes c
+                           JOIN detalle_inventario di ON di.ccosto = c.ccosto AND di.fecha <= c.fecha AND di.empresa = $1
+                           JOIN productos p ON p.codigo = di.codigo
+                           LEFT JOIN producto_costo_empresa pce ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($2::text)
+                          WHERE p.control = 'SI'`,
+                        lp
+                    );
+                    totalLiveEnCorte = parseFloat(liveCorteRes.rows[0].valor) || 0;
+                }
             }
 
-            const ccostosConToma = ccWithToma.map(r => r.ccosto);
+            // Centros sin ninguna toma física (ni congelada ni legado) en la
+            // ventana: se calculan en vivo hasta la fecha de corte exacta
+            // (comportamiento histórico, preservado para no romper períodos
+            // donde nunca se ha hecho un conteo físico).
+            const ccostosConToma = pares.map(([cc]) => cc);
             const liveRes = await pool.query(
                 `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
                  FROM detalle_inventario di
@@ -9337,12 +9378,12 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                  LEFT JOIN producto_costo_empresa pce
                         ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
                  WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
-                   AND NOT (di.ccosto = ANY($4::text[]))`,
+                   AND (cardinality($4::text[]) = 0 OR NOT (di.ccosto = ANY($4::text[])))`,
                 [String(empresa), emp, fechaCorte, ccostosConToma]
             );
-            const totalLive = parseFloat(liveRes.rows[0].valor) || 0;
+            const totalSinToma = parseFloat(liveRes.rows[0].valor) || 0;
 
-            return totalToma + totalLive;
+            return totalFrozen + totalLiveEnCorte + totalSinToma;
         }
         const cutoffs = [new Date(new Date(rangoDesde).getTime() - 86400000).toISOString().slice(0, 10)];
         for (const p of periodos) cutoffs.push(p.hasta);
