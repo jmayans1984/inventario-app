@@ -12,18 +12,24 @@
       </template>
     </PageHeader>
 
-    <!-- TOP CUENTAS POR CENTRO DE COSTO -->
+    <!-- GASTOS POR CENTRO DE COSTO CON COMPARACIÓN -->
     <div class="kpi-grid">
-      <KpiCard
-        v-for="(item, idx) in store.topCuentasPorCCostoHoyMes"
-        :key="idx"
-        :index="idx"
-        :label="`${item.ccostoNombre} - ${item.cuentaNombre}`"
-        :value="formatMoneda(item.total)"
-        icon="mdi-account-cash-outline"
-        :color="getColorByCCosto(idx)"
-      />
-      <div v-if="store.topCuentasPorCCostoHoyMes.length === 0" class="empty-state-grid">
+      <div v-for="(item, idx) in store.gastosPorCCostoConComparacion" :key="idx" class="ccosto-card">
+        <div class="ccosto-header">
+          <h3 class="ccosto-name">{{ item.ccostoNombre }}</h3>
+          <div class="ccosto-comparison" :class="`trend-${item.indicador}`">
+            <v-icon size="16" class="trend-icon">
+              {{ item.indicador === 'up' ? 'mdi-arrow-up' : item.indicador === 'down' ? 'mdi-arrow-down' : 'mdi-minus' }}
+            </v-icon>
+            <span class="trend-text">{{ Math.abs(item.porcentaje) }}%</span>
+          </div>
+        </div>
+        <div class="ccosto-amount">{{ formatMoneda(item.totalActual) }}</div>
+        <div class="ccosto-subtitle">
+          vs {{ formatMoneda(item.totalPasado) }} mes pasado
+        </div>
+      </div>
+      <div v-if="store.gastosPorCCostoConComparacion.length === 0" class="empty-state-grid">
         No hay gastos registrados este mes
       </div>
     </div>
@@ -99,6 +105,81 @@ function getColorByCCosto(index) {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* CENTRO DE COSTO CARDS */
+.ccosto-card {
+  padding: 20px;
+  background: var(--surface-secondary);
+  border-radius: 12px;
+  border-left: 4px solid var(--indigo);
+  transition: all 200ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ccosto-card:hover {
+  background: var(--surface-tertiary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ccosto-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ccosto-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.ccosto-comparison {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ccosto-comparison.trend-up {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.ccosto-comparison.trend-down {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.ccosto-comparison.trend-equal {
+  background: rgba(156, 163, 175, 0.1);
+  color: #6b7280;
+}
+
+.trend-icon {
+  font-size: 14px;
+}
+
+.ccosto-amount {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.ccosto-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .table-section {

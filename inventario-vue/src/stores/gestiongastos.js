@@ -185,43 +185,72 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
       .reduce((sum, g) => sum + (Number(g.total) || 0), 0)
   })
 
-  const topCuentasPorCCostoHoyMes = computed(() => {
+  const gastosPorCCostoConComparacion = computed(() => {
     const hoy = new Date()
+    const diaActual = hoy.getDate()
     const mesActual = hoy.getMonth()
     const anioActual = hoy.getFullYear()
 
-    const gastosDelMes = gastos.value.filter(g => {
+    // Gastos del mes actual (hasta hoy)
+    const gastosActuales = gastos.value.filter(g => {
       const fecha = new Date(g.fecha)
-      const esDelMes = fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual
+      const esDelMes = fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual && fecha.getDate() <= diaActual
       const paseaFiltro = !filtroSoloConProveedor.value || (g.proveedor && g.proveedor.trim() !== '' && g.proveedor !== '0')
       return esDelMes && paseaFiltro
     })
 
-    const porCCostoCuenta = {}
-    gastosDelMes.forEach(g => {
+    // Gastos del mes pasado (mismos días)
+    const mesPasado = mesActual === 0 ? 11 : mesActual - 1
+    const anioPasado = mesActual === 0 ? anioActual - 1 : anioActual
+    const gastosPasados = gastos.value.filter(g => {
+      const fecha = new Date(g.fecha)
+      const esDelMesPasado = fecha.getMonth() === mesPasado && fecha.getFullYear() === anioPasado && fecha.getDate() <= diaActual
+      const paseaFiltro = !filtroSoloConProveedor.value || (g.proveedor && g.proveedor.trim() !== '' && g.proveedor !== '0')
+      return esDelMesPasado && paseaFiltro
+    })
+
+    // Agrupar por centro de costo
+    const porCCostoActual = {}
+    gastosActuales.forEach(g => {
       const ccostoNombre = g.ccosto_nombre || g.ccosto || 'Sin Centro'
-      const cuentaNombre = g.cuenta_nombre || g.cuenta || 'Sin Cuenta'
-      const key = `${ccostoNombre}|${cuentaNombre}`
-      if (!porCCostoCuenta[key]) {
-        porCCostoCuenta[key] = { ccostoNombre, cuentaNombre, total: 0 }
+      if (!porCCostoActual[ccostoNombre]) {
+        porCCostoActual[ccostoNombre] = 0
       }
-      porCCostoCuenta[key].total += Number(g.total) || 0
+      porCCostoActual[ccostoNombre] += Number(g.total) || 0
     })
 
-    const valores = Object.values(porCCostoCuenta)
-
-    // Agrupar por ccosto y obtener top cuenta por ccosto
-    const porCCosto = {}
-    valores.forEach(item => {
-      if (!porCCosto[item.ccostoNombre]) {
-        porCCosto[item.ccostoNombre] = item
-      } else if (item.total > porCCosto[item.ccostoNombre].total) {
-        porCCosto[item.ccostoNombre] = item
+    const porCCostoPasado = {}
+    gastosPasados.forEach(g => {
+      const ccostoNombre = g.ccosto_nombre || g.ccosto || 'Sin Centro'
+      if (!porCCostoPasado[ccostoNombre]) {
+        porCCostoPasado[ccostoNombre] = 0
       }
+      porCCostoPasado[ccostoNombre] += Number(g.total) || 0
     })
 
-    return Object.values(porCCosto)
-      .sort((a, b) => b.total - a.total)
+    // Calcular comparación
+    const resultado = []
+    const todosCCostos = new Set([...Object.keys(porCCostoActual), ...Object.keys(porCCostoPasado)])
+
+    todosCCostos.forEach(ccostoNombre => {
+      const totalActual = porCCostoActual[ccostoNombre] || 0
+      const totalPasado = porCCostoPasado[ccostoNombre] || 0
+      const diferencia = totalActual - totalPasado
+      const porcentaje = totalPasado === 0
+        ? (totalActual > 0 ? 100 : 0)
+        : (diferencia / totalPasado) * 100
+
+      resultado.push({
+        ccostoNombre,
+        totalActual,
+        totalPasado,
+        diferencia,
+        porcentaje: Math.round(porcentaje * 100) / 100,
+        indicador: totalActual > totalPasado ? 'up' : totalActual < totalPasado ? 'down' : 'equal'
+      })
+    })
+
+    return resultado.sort((a, b) => b.totalActual - a.totalActual)
   })
 
   const paginasTotales = computed(() => Math.ceil(total.value / filters.limit))
@@ -253,7 +282,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
     valorTotal,
     totalImpuestos,
     gastosMesActual,
-    topCuentasPorCCostoHoyMes,
+    gastosPorCCostoConComparacion,
     paginasTotales,
     tieneSeleccionados,
   }
