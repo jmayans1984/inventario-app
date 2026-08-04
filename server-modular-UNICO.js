@@ -9006,13 +9006,20 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
         // Obtener preliquidación de nómina (horas hasta hoy)
         let preliquidacionNomina = { total_bruto: 0, total_deducciones: 0, total_neto: 0, total_aportes_er: 0 };
         try {
-            const preliqRes = await pool.query(
+            let preliqRes = await pool.query(
                 `SELECT id, semana_inicio, semana_fin
                  FROM nom_semana
                  WHERE empresa = $1 AND CURRENT_DATE BETWEEN semana_inicio AND semana_fin
                  ORDER BY semana_inicio DESC LIMIT 1`,
                 [empresa]
             );
+            if (!preliqRes.rows.length) {
+                preliqRes = await pool.query(
+                    `SELECT id, semana_inicio, semana_fin
+                     FROM nom_semana WHERE empresa = $1 ORDER BY semana_inicio DESC LIMIT 1`,
+                    [empresa]
+                );
+            }
             if (preliqRes.rows.length > 0) {
                 const s = preliqRes.rows[0];
                 const anio = new Date(s.semana_fin).getFullYear();
@@ -15629,7 +15636,7 @@ app.get('/api/nomina/preliquidacion-actual', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
     try {
-        // Obtener la semana actual
+        // Obtener la semana actual (o, si no hay ninguna que contenga hoy, la más reciente)
         let semana = await pool.query(
             `SELECT id, semana_inicio, semana_fin
              FROM nom_semana
@@ -15637,8 +15644,15 @@ app.get('/api/nomina/preliquidacion-actual', async (req, res) => {
              ORDER BY semana_inicio DESC LIMIT 1`,
             [empresa]
         );
+        if (!semana.rows.length) {
+            semana = await pool.query(
+                `SELECT id, semana_inicio, semana_fin
+                 FROM nom_semana WHERE empresa = $1 ORDER BY semana_inicio DESC LIMIT 1`,
+                [empresa]
+            );
+        }
 
-        // Si no hay semana actual, retornar cero
+        // Si no hay ninguna semana registrada, retornar cero
         if (!semana.rows.length) {
             return res.json({
                 success: true,

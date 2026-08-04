@@ -166,7 +166,7 @@
           </div>
 
           <!-- Preliquidación de Nómina -->
-          <div v-if="preliquidacion && preliquidacion.total_bruto > 0" class="cbl-panel cbl-preliq-panel">
+          <div v-if="preliquidacion" class="cbl-panel cbl-preliq-panel">
             <div class="cbl-panel-header">
               <div class="cbl-panel-title">
                 <v-icon size="14" color="var(--warning)">mdi-clock-outline</v-icon>
@@ -174,26 +174,31 @@
               </div>
               <span class="cbl-preliq-badge">Borrador</span>
             </div>
-            <div class="cbl-preliq-content">
-              <div class="cbl-preliq-row">
-                <span class="cbl-preliq-lbl">Bruto Proyectado</span>
-                <span class="cbl-preliq-val">{{ fmt(preliquidacion.total_bruto) }}</span>
+            <template v-if="preliquidacion.total_bruto > 0">
+              <div class="cbl-preliq-content">
+                <div class="cbl-preliq-row">
+                  <span class="cbl-preliq-lbl">Bruto Proyectado</span>
+                  <span class="cbl-preliq-val">{{ fmt(preliquidacion.total_bruto) }}</span>
+                </div>
+                <div class="cbl-preliq-row">
+                  <span class="cbl-preliq-lbl">Deducciones</span>
+                  <span class="cbl-preliq-val cbl-preliq-neg">{{ fmt(preliquidacion.total_deducciones) }}</span>
+                </div>
+                <div class="cbl-preliq-row cbl-preliq-row-bold">
+                  <span class="cbl-preliq-lbl">Neto a Pagar</span>
+                  <span class="cbl-preliq-val cbl-preliq-pos">{{ fmt(preliquidacion.total_neto) }}</span>
+                </div>
+                <div class="cbl-preliq-row" style="border-top: 1px solid var(--divider); padding-top: 8px; margin-top: 8px;">
+                  <span class="cbl-preliq-lbl">Aportes Empresa</span>
+                  <span class="cbl-preliq-val">{{ fmt(preliquidacion.total_aportes_er) }}</span>
+                </div>
               </div>
-              <div class="cbl-preliq-row">
-                <span class="cbl-preliq-lbl">Deducciones</span>
-                <span class="cbl-preliq-val cbl-preliq-neg">{{ fmt(preliquidacion.total_deducciones) }}</span>
+              <div class="cbl-preliq-footer">
+                <span class="cbl-preliq-note">Basado en horas hasta hoy</span>
               </div>
-              <div class="cbl-preliq-row cbl-preliq-row-bold">
-                <span class="cbl-preliq-lbl">Neto a Pagar</span>
-                <span class="cbl-preliq-val cbl-preliq-pos">{{ fmt(preliquidacion.total_neto) }}</span>
-              </div>
-              <div class="cbl-preliq-row" style="border-top: 1px solid var(--divider); padding-top: 8px; margin-top: 8px;">
-                <span class="cbl-preliq-lbl">Aportes Empresa</span>
-                <span class="cbl-preliq-val">{{ fmt(preliquidacion.total_aportes_er) }}</span>
-              </div>
-            </div>
-            <div class="cbl-preliq-footer">
-              <span class="cbl-preliq-note">Basado en horas hasta hoy</span>
+            </template>
+            <div v-else class="cbl-preliq-empty">
+              Esta empresa no tiene una semana de nómina registrada en Nómina · Procesos · Horario Semanal.
             </div>
           </div>
 
@@ -514,4 +519,5 @@ onMounted(() => {
 .cbl-preliq-pos { color: var(--success); font-size: 13px; }
 .cbl-preliq-footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(var(--v-theme-on-surface), .05); }
 .cbl-preliq-note { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); }
+.cbl-preliq-empty { padding: 16px 0 4px; font-size: 12px; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .5); }
 </style>
