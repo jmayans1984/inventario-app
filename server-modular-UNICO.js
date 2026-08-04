@@ -8967,7 +8967,7 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
     const ccostoPanel = req.query.ccosto && req.query.ccosto.trim() ? req.query.ccosto.trim() : null;
 
     try {
-        const [kpisRes, pygRes, ultimosRes, kpiMapPanelRes, ccostosRes] = await Promise.all([
+        const [kpisRes, pygRes, ultimosRes, kpiMapPanelRes, ccostosRes, ventasCCRes, bodegaRes] = await Promise.all([
             // KPIs por código de grupo específico (siempre toda la empresa, para el hero)
             pool.query(
                 `SELECT
@@ -9027,6 +9027,15 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                 [empresa, ccostoPanel]
             ),
             pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [empresa]),
+            pool.query(
+                `SELECT ccosto, COALESCE(SUM(ventas_netas), 0) AS ventas
+                 FROM ventas
+                 WHERE empresa = $1
+                   AND DATE_TRUNC('month', fecha::date) = DATE_TRUNC('month', CURRENT_DATE)
+                 GROUP BY ccosto`,
+                [empresa]
+            ),
+            pool.query(`SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [empresa]),
         ]);
 
         // Mapear KPIs por código de grupo (hero, siempre toda la empresa)
@@ -9107,7 +9116,30 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
         const totalIngresos = ventas + otrosIngresos;
 
         const preliqParaPanel = ccostoPanel ? (preliqMes.porCcosto[String(ccostoPanel)] || 0) : (preliqMes.total_bruto || 0);
-        const comprasMP = kpiSrc['01']?.total || 0;
+
+        // MATERIA PRIMA (grupo 01): las compras están centralizadas en la
+        // bodega maestra, así que un filtro literal por CC deja el gasto en
+        // $0 para cualquier CC de servicio. Igual que Estado de Resultados,
+        // se prorratea el total-empresa por el % de ventas del CC frente al
+        // total de ventas de los CC con venta (excluyendo la bodega maestra).
+        // La bodega maestra en sí no consume MP → 0 cuando se filtra por ella.
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+        const ventasPorCC = {};
+        ventasCCRes.rows.forEach(r => { ventasPorCC[String(r.ccosto)] = parseFloat(r.ventas) || 0; });
+        const mpEmpresa = kpiMap['01']?.total || 0;
+        let comprasMP;
+        if (!ccostoPanel) {
+            comprasMP = mpEmpresa;
+        } else if (bodegaMaestra && String(ccostoPanel) === String(bodegaMaestra)) {
+            comprasMP = 0;
+        } else {
+            const ventasBase = Object.entries(ventasPorCC).reduce((s, [cc, v]) => {
+                const esBodega = bodegaMaestra && String(cc) === String(bodegaMaestra);
+                return (!esBodega && v > 0) ? s + v : s;
+            }, 0);
+            const ventasCC = ventasPorCC[String(ccostoPanel)] || 0;
+            comprasMP = (ventasCC > 0 && ventasBase > 0) ? mpEmpresa * (ventasCC / ventasBase) : 0;
+        }
         const nomina = (kpiSrc['02']?.total || 0) + preliqParaPanel;
         const gastosGenerales = kpiSrc['03']?.total || 0;
         const impuestos = kpiSrc['05']?.total || 0;
