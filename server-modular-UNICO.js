@@ -9300,13 +9300,17 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         cutoffs.forEach((c, i) => { stockPorCorte[c] = stockValores[i]; });
 
         // ── Inventario final estimado (fallback) ──────────────────────────
-        // Si el corte final del período no tiene una toma física oficial de
+        // Solo aplica al período ACTUAL (aún en curso), nunca a un período ya
+        // cerrado en el pasado: para meses pasados el kardex en vivo ya refleja
+        // el movimiento real y es más preciso que un estimado genérico. Si el
+        // corte final del período actual no tiene una toma física oficial de
         // cierre registrada (empresa completa, dentro de la ventana de gracia),
         // se usa el valor estimado configurado en Configuración General ·
         // Almacén para aproximar la utilidad mientras se hace la toma real.
         let inventarioFinalEsEstimado = false;
         const cutoffFinal = cutoffs[cutoffs.length - 1];
-        if (valorEstimadoInventarioFinal != null) {
+        const hoy = new Date().toISOString().slice(0, 10);
+        if (valorEstimadoInventarioFinal != null && cutoffFinal >= hoy) {
             const tomaCierreRes = await pool.query(
                 `SELECT 1 FROM toma_fisica_valorizada
                   WHERE empresa = $1 AND es_cierre = TRUE
