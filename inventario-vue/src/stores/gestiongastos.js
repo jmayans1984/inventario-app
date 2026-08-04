@@ -185,7 +185,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
       .reduce((sum, g) => sum + (Number(g.total) || 0), 0)
   })
 
-  const top5CuentasHoyMes = computed(() => {
+  const topCuentasPorCCostoHoyMes = computed(() => {
     const hoy = new Date()
     const mesActual = hoy.getMonth()
     const anioActual = hoy.getFullYear()
@@ -197,46 +197,31 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
       return esDelMes && paseaFiltro
     })
 
-    const porCuenta = {}
-    gastosDelMes.forEach(g => {
-      const cuentaNombre = g.cuenta_nombre || g.cuenta || 'Sin Cuenta'
-      if (!porCuenta[cuentaNombre]) {
-        porCuenta[cuentaNombre] = 0
-      }
-      porCuenta[cuentaNombre] += Number(g.total) || 0
-    })
-
-    return Object.entries(porCuenta)
-      .map(([nombre, total]) => ({ nombre, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5)
-  })
-
-  const totalesPorCCostoHoyMes = computed(() => {
-    const hoy = new Date()
-    const mesActual = hoy.getMonth()
-    const anioActual = hoy.getFullYear()
-
-    const gastosDelMes = gastos.value.filter(g => {
-      const fecha = new Date(g.fecha)
-      const esDelMes = fecha.getMonth() === mesActual && fecha.getFullYear() === anioActual
-      const paseaFiltro = !filtroSoloConProveedor.value || (g.proveedor && g.proveedor.trim() !== '' && g.proveedor !== '0')
-      return esDelMes && paseaFiltro
-    })
-
-    const porCCosto = {}
+    const porCCostoCuenta = {}
     gastosDelMes.forEach(g => {
       const ccostoNombre = g.ccosto_nombre || g.ccosto || 'Sin Centro'
-      if (!porCCosto[ccostoNombre]) {
-        porCCosto[ccostoNombre] = 0
+      const cuentaNombre = g.cuenta_nombre || g.cuenta || 'Sin Cuenta'
+      const key = `${ccostoNombre}|${cuentaNombre}`
+      if (!porCCostoCuenta[key]) {
+        porCCostoCuenta[key] = { ccostoNombre, cuentaNombre, total: 0 }
       }
-      porCCosto[ccostoNombre] += Number(g.total) || 0
+      porCCostoCuenta[key].total += Number(g.total) || 0
     })
 
-    return Object.entries(porCCosto)
-      .map(([nombre, total]) => ({ nombre, total }))
+    const valores = Object.values(porCCostoCuenta)
+
+    // Agrupar por ccosto y obtener top cuenta por ccosto
+    const porCCosto = {}
+    valores.forEach(item => {
+      if (!porCCosto[item.ccostoNombre]) {
+        porCCosto[item.ccostoNombre] = item
+      } else if (item.total > porCCosto[item.ccostoNombre].total) {
+        porCCosto[item.ccostoNombre] = item
+      }
+    })
+
+    return Object.values(porCCosto)
       .sort((a, b) => b.total - a.total)
-      .slice(0, 4)
   })
 
   const paginasTotales = computed(() => Math.ceil(total.value / filters.limit))
@@ -268,8 +253,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
     valorTotal,
     totalImpuestos,
     gastosMesActual,
-    top5CuentasHoyMes,
-    totalesPorCCostoHoyMes,
+    topCuentasPorCCostoHoyMes,
     paginasTotales,
     tieneSeleccionados,
   }
