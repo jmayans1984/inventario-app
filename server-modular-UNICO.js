@@ -4750,6 +4750,21 @@ app.get('/api/tesoreria/movimientos/next-numero', async (req, res) => {
     }
 });
 
+// TEMP DEBUG: ver esquema de moviban (remover después de diagnosticar)
+app.get('/api/debug/moviban-schema', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT column_name, data_type, character_maximum_length
+             FROM information_schema.columns
+             WHERE table_name = 'moviban'
+             ORDER BY ordinal_position`
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/tesoreria/movimientos - Crear nuevo movimiento bancario
 app.post('/api/tesoreria/movimientos', async (req, res) => {
     const { tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, gasto, ccosto, origen, empresa, banco_destino } = req.body;
