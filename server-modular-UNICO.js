@@ -4750,6 +4750,20 @@ app.get('/api/tesoreria/movimientos/next-numero', async (req, res) => {
     }
 });
 
+// TEMP DEBUG: limpiar movimientos de prueba insertados durante diagnóstico
+app.delete('/api/debug/moviban-cleanup', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const r = await pool.query(
+            `DELETE FROM moviban WHERE empresa = $1 AND concepto LIKE 'TEST %' RETURNING numero, concepto`,
+            [empresa]
+        );
+        res.json({ success: true, borrados: r.rows });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/tesoreria/movimientos - Crear nuevo movimiento bancario
 app.post('/api/tesoreria/movimientos', async (req, res) => {
     const { tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, gasto, ccosto, origen, empresa, banco_destino } = req.body;
