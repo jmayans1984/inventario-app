@@ -482,6 +482,72 @@ function exportarPDF() {
     margin: ML,
   })
 
+  // ── Bloque de KPIs ───────────────────────────────────────────────
+  const pageW = doc.internal.pageSize.getWidth()
+  const kpis = [
+    {
+      label: 'Ventas del Período',
+      value: formatMoney(kpiVentasTotal.value),
+      sub: null,
+    },
+    {
+      label: 'Pérdida Esperada',
+      value: `${toleranciaPct.value.toFixed(2)}%`,
+      sub: formatMoney(kpiPerdidaEsperadaDinero.value),
+    },
+    {
+      label: totalValorizado.value >= 0 ? 'Sobrante' : 'Faltante',
+      value: formatMoney(totalValorizado.value),
+      sub: null,
+      color: totalValorizado.value >= 0 ? [16, 185, 129] : [239, 68, 68],
+    },
+    {
+      label: '% sobre Ventas',
+      value: `${kpiPorcentajeVentas.value.toFixed(2)}%`,
+      sub: null,
+    },
+    {
+      label: 'Nivel de Pérdida',
+      value: kpiNivelPerdida.value,
+      sub: null,
+      color: kpiNivelPerdida.value === 'EXCELENTE' ? [16, 185, 129]
+           : kpiNivelPerdida.value === 'BUENO'     ? [245, 158, 11]
+           : [239, 68, 68],
+    },
+  ]
+
+  const kpiBoxW = (pageW - ML * 2 - 4 * 3) / 5
+  let kx = ML
+  const ky = startY + 2
+  const kpiH = 16
+
+  kpis.forEach(kpi => {
+    // fondo
+    doc.setFillColor(247, 248, 250)
+    doc.roundedRect(kx, ky, kpiBoxW, kpiH, 1.5, 1.5, 'F')
+    // label
+    doc.setFontSize(6)
+    doc.setTextColor(120, 120, 130)
+    doc.setFont('helvetica', 'normal')
+    doc.text(kpi.label.toUpperCase(), kx + kpiBoxW / 2, ky + 4.5, { align: 'center' })
+    // valor principal
+    const col = kpi.color || [30, 30, 40]
+    doc.setTextColor(...col)
+    doc.setFontSize(8.5)
+    doc.setFont('helvetica', 'bold')
+    doc.text(kpi.value, kx + kpiBoxW / 2, ky + 10, { align: 'center' })
+    // sub
+    if (kpi.sub) {
+      doc.setFontSize(6)
+      doc.setTextColor(100, 116, 139)
+      doc.setFont('helvetica', 'normal')
+      doc.text(kpi.sub, kx + kpiBoxW / 2, ky + 14, { align: 'center' })
+    }
+    kx += kpiBoxW + 3
+  })
+
+  const kpiBlockEnd = ky + kpiH + 4
+
   const body = []
   for (const grupo of productosAgrupados.value) {
     body.push([{
@@ -514,7 +580,7 @@ function exportarPDF() {
   }
 
   autoTable(doc, {
-    startY,
+    startY: kpiBlockEnd,
     head: [conCosto
       ? ['Cod', 'Producto', 'Descripcion', 'Und', 'Variacion', 'Costo Unit.', 'Valor']
       : ['Cod', 'Producto', 'Descripcion', 'Und', 'Variacion']
