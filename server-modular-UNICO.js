@@ -9003,13 +9003,151 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
             };
         });
 
+        // Obtener preliquidación de nómina (horas hasta hoy)
+        let preliquidacionNomina = { total_bruto: 0, total_deducciones: 0, total_neto: 0, total_aportes_er: 0 };
+        try {
+            const preliqRes = await pool.query(
+                `SELECT id, semana_inicio, semana_fin
+                 FROM nom_semana
+                 WHERE empresa = $1 AND CURRENT_DATE BETWEEN semana_inicio AND semana_fin
+                 ORDER BY semana_inicio DESC LIMIT 1`,
+                [empresa]
+            );
+            if (preliqRes.rows.length > 0) {
+                const s = preliqRes.rows[0];
+                const anio = new Date(s.semana_fin).getFullYear();
+                let cfg = {};
+                const cfgR = await pool.query(
+                    'SELECT * FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2',
+                    [empresa, anio]
+                );
+                if (cfgR.rows.length) cfg = cfgR.rows[0];
+                else cfg = { ss_rate:0.062, ss_wage_base:168600, medicare_rate:0.0145,
+                             medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
+                             futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
+                             ot_threshold_hours:40, ot_multiplier:1.5, wc_default_rate:0, fit_config:null };
+
+                // Horas hasta hoy
+                const det = await pool.query(
+                    `SELECT empleado_id, ccosto, SUM(COALESCE(real_horas, prog_horas, 0)) AS horas
+                     FROM nom_semana_detalle
+                     WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
+                     GROUP BY empleado_id, ccosto`,
+                    [s.id]
+                );
+
+                let horasPorEmpleado = {};
+                let empleadosEnSemana = new Set();
+                for (const row of det.rows) {
+                    empleadosEnSemana.add(parseInt(row.empleado_id));
+                    if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
+                    const cc = row.ccosto || 'GEN';
+                    horasPorEmpleado[row.empleado_id][cc] = parseFloat(row.horas || 0);
+                }
+
+                // Días trabajados hasta hoy
+                const diasDet = await pool.query(
+                    `SELECT empleado_id, COUNT(DISTINCT fecha) AS dias
+                     FROM nom_semana_detalle
+                     WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
+                       AND COALESCE(real_horas, prog_horas, 0) > 0
+                     GROUP BY empleado_id`,
+                    [s.id]
+                );
+                let diasPorEmpleado = {};
+                for (const row of diasDet.rows) {
+                    diasPorEmpleado[row.empleado_id] = parseInt(row.dias || 0);
+                }
+
+                if (empleadosEnSemana.size > 0) {
+                    const ids = [...empleadosEnSemana];
+                    const empleados = await pool.query(
+                        `SELECT * FROM nom_empleados WHERE id = ANY($1) ORDER BY apellido, nombre`,
+                        [ids]
+                    );
+
+                    let totalBruto = 0, totalDed = 0, totalER = 0, totalNeto = 0;
+                    const otThreshold = parseFloat(cfg.ot_threshold_hours || 40);
+                    const otMult = parseFloat(cfg.ot_multiplier || 1.5);
+
+                    for (const emp of empleados.rows) {
+                        const ytdR = await pool.query(
+                            `SELECT COALESCE(SUM(ll.total_bruto),0) AS ytd
+                             FROM nom_liquidacion_linea ll
+                             JOIN nom_liquidacion l ON l.id=ll.liquidacion_id
+                             WHERE ll.empleado_id=$1 AND l.empresa=$2
+                               AND EXTRACT(YEAR FROM l.semana_fin)=$3 AND l.estado IN ('APROBADA','PAGADA')`,
+                            [emp.id, empresa, anio]
+                        );
+                        const ytdBruto = parseFloat(ytdR.rows[0].ytd || 0);
+
+                        const ccHoras = horasPorEmpleado[emp.id] || {};
+                        const totalHoras = Object.values(ccHoras).reduce((s, h) => s + h, 0);
+
+                        let brutoRegular = 0, brutoOT = 0, brutoBase = 0;
+                        const tipoPago = emp.tipo_pago || (emp.es_por_horas ? 'HORAS' : 'FIJO_SEMANAL');
+
+                        if (tipoPago === 'DIA_LABORADO') {
+                            const diasTrabajados = diasPorEmpleado[emp.id] || 0;
+                            brutoBase = diasTrabajados * parseFloat(emp.valor_dia || 0);
+                        } else if (tipoPago === 'FIJO_MAS_HORAS') {
+                            brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+                            const horasOtrosCC = Object.entries(ccHoras)
+                                .filter(([cc]) => String(cc) !== String(emp.ccosto))
+                                .reduce((s, [, h]) => s + h, 0);
+                            const valorHora = parseFloat(emp.valor_hora || 0);
+                            const valorHoraOT = valorHora * otMult;
+                            if (horasOtrosCC <= otThreshold) {
+                                brutoRegular = horasOtrosCC * valorHora;
+                            } else {
+                                brutoRegular = otThreshold * valorHora;
+                                brutoOT = (horasOtrosCC - otThreshold) * valorHoraOT;
+                            }
+                        } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
+                            brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+                        } else {
+                            const valorHora = parseFloat(emp.valor_hora || 0);
+                            const valorHoraOT = valorHora * otMult;
+                            if (totalHoras <= otThreshold) {
+                                brutoRegular = totalHoras * valorHora;
+                            } else {
+                                brutoRegular = otThreshold * valorHora;
+                                brutoOT = (totalHoras - otThreshold) * valorHoraOT;
+                            }
+                        }
+
+                        const totalBrutoEmp = brutoRegular + brutoOT + brutoBase;
+                        const taxes = calcularRetenciones(emp, totalBrutoEmp, ytdBruto, cfg);
+                        const netoEmp = totalBrutoEmp - taxes.total_deducciones;
+
+                        if (totalBrutoEmp > 0) {
+                            totalBruto += totalBrutoEmp;
+                            totalDed += taxes.total_deducciones;
+                            totalER += taxes.total_aportes_er;
+                            totalNeto += netoEmp;
+                        }
+                    }
+
+                    preliquidacionNomina = {
+                        total_bruto: +totalBruto.toFixed(2),
+                        total_deducciones: +totalDed.toFixed(2),
+                        total_neto: +totalNeto.toFixed(2),
+                        total_aportes_er: +totalER.toFixed(2)
+                    };
+                }
+            }
+        } catch(e) {
+            console.error('Error calculando preliquidación:', e.message);
+            // Continuar sin preliquidación si hay error
+        }
+
         // Construcción del mini estado de resultados (para panel lateral)
         const ventas = kpiMap['00']?.total || 0;
         const otrosIngresos = kpiMap['04']?.total || 0;
         const totalIngresos = ventas + otrosIngresos;
 
         const comprasMP = kpiMap['01']?.total || 0;
-        const nomina = kpiMap['02']?.total || 0;
+        const nomina = (kpiMap['02']?.total || 0) + preliquidacionNomina.total_bruto;
         const gastosGenerales = kpiMap['03']?.total || 0;
         const impuestos = kpiMap['05']?.total || 0;
         const totalGastos = comprasMP + nomina + gastosGenerales + impuestos;
@@ -9049,6 +9187,7 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
                 totalMes: pyg_legacy.reduce((s, r) => s + r.total, 0),
                 cantidadMes: pyg_legacy.reduce((s, r) => s + r.cantidad, 0),
                 ultimosGastos: ultimosRes.rows,
+                preliquidacionNomina,
             },
         });
     } catch (error) {
@@ -15480,6 +15619,193 @@ app.get('/api/nomina/horas-semana', async (req, res) => {
         });
     } catch(e) {
         console.error('Error GET /api/nomina/horas-semana:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// GET /api/nomina/preliquidacion-actual — Preliquidación en tiempo real
+// Calcula la nómina proyectada HASTA HOY (no la semana completa) sin guardar
+app.get('/api/nomina/preliquidacion-actual', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+    try {
+        // Obtener la semana actual
+        let semana = await pool.query(
+            `SELECT id, semana_inicio, semana_fin
+             FROM nom_semana
+             WHERE empresa = $1 AND CURRENT_DATE BETWEEN semana_inicio AND semana_fin
+             ORDER BY semana_inicio DESC LIMIT 1`,
+            [empresa]
+        );
+
+        // Si no hay semana actual, retornar cero
+        if (!semana.rows.length) {
+            return res.json({
+                success: true,
+                semana: null,
+                total_bruto: 0,
+                total_deducciones: 0,
+                total_neto: 0,
+                total_aportes_er: 0,
+                empleados: []
+            });
+        }
+
+        const s = semana.rows[0];
+
+        // Obtener config fiscal del año actual
+        const anio = new Date(s.semana_fin).getFullYear();
+        let cfg = {};
+        const cfgR = await pool.query(
+            'SELECT * FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2',
+            [empresa, anio]
+        );
+        if (cfgR.rows.length) cfg = cfgR.rows[0];
+        else cfg = { ss_rate:0.062, ss_wage_base:168600, medicare_rate:0.0145,
+                     medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
+                     futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
+                     ot_threshold_hours:40, ot_multiplier:1.5, wc_default_rate:0, fit_config:null };
+
+        // Obtener horas HASTA HOY SOLAMENTE (no la semana completa)
+        const det = await pool.query(
+            `SELECT empleado_id, ccosto,
+                    SUM(COALESCE(real_horas, prog_horas, 0)) AS horas
+             FROM nom_semana_detalle
+             WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
+             GROUP BY empleado_id, ccosto`,
+            [s.id]
+        );
+
+        let horasPorEmpleado = {};
+        let empleadosEnSemana = new Set();
+
+        for (const row of det.rows) {
+            empleadosEnSemana.add(parseInt(row.empleado_id));
+            if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
+            const cc = row.ccosto || 'GEN';
+            horasPorEmpleado[row.empleado_id][cc] = parseFloat(row.horas || 0);
+        }
+
+        // Contar días distintos con horas > 0 por empleado (hasta hoy)
+        const diasDet = await pool.query(
+            `SELECT empleado_id, COUNT(DISTINCT fecha) AS dias
+             FROM nom_semana_detalle
+             WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
+               AND COALESCE(real_horas, prog_horas, 0) > 0
+             GROUP BY empleado_id`,
+            [s.id]
+        );
+
+        let diasPorEmpleado = {};
+        for (const row of diasDet.rows) {
+            diasPorEmpleado[row.empleado_id] = parseInt(row.dias || 0);
+        }
+
+        // Obtener empleados que tienen horas esta semana
+        let empleados;
+        if (empleadosEnSemana.size > 0) {
+            const ids = [...empleadosEnSemana];
+            empleados = await pool.query(
+                `SELECT * FROM nom_empleados WHERE id = ANY($1) ORDER BY apellido, nombre`,
+                [ids]
+            );
+        } else {
+            return res.json({
+                success: true,
+                semana: s,
+                total_bruto: 0,
+                total_deducciones: 0,
+                total_neto: 0,
+                total_aportes_er: 0,
+                empleados: []
+            });
+        }
+
+        // Calcular nómina preliquidada
+        let totalBruto = 0, totalDed = 0, totalER = 0, totalNeto = 0;
+        const otThreshold = parseFloat(cfg.ot_threshold_hours || 40);
+        const otMult = parseFloat(cfg.ot_multiplier || 1.5);
+
+        const detallesEmpleado = [];
+
+        for (const emp of empleados.rows) {
+            // Get YTD bruto for this employee (current year)
+            const ytdR = await pool.query(
+                `SELECT COALESCE(SUM(ll.total_bruto),0) AS ytd
+                 FROM nom_liquidacion_linea ll
+                 JOIN nom_liquidacion l ON l.id=ll.liquidacion_id
+                 WHERE ll.empleado_id=$1 AND l.empresa=$2
+                   AND EXTRACT(YEAR FROM l.semana_fin)=$3 AND l.estado IN ('APROBADA','PAGADA')`,
+                [emp.id, empresa, anio]
+            );
+            const ytdBruto = parseFloat(ytdR.rows[0].ytd || 0);
+
+            const ccHoras = horasPorEmpleado[emp.id] || {};
+            const totalHoras = Object.values(ccHoras).reduce((s, h) => s + h, 0);
+
+            let brutoRegular = 0, brutoOT = 0, brutoBase = 0;
+            const tipoPago = emp.tipo_pago || (emp.es_por_horas ? 'HORAS' : 'FIJO_SEMANAL');
+
+            if (tipoPago === 'DIA_LABORADO') {
+                const diasTrabajados = diasPorEmpleado[emp.id] || 0;
+                brutoBase = diasTrabajados * parseFloat(emp.valor_dia || 0);
+            } else if (tipoPago === 'FIJO_MAS_HORAS') {
+                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+                const horasOtrosCC = Object.entries(ccHoras)
+                    .filter(([cc]) => String(cc) !== String(emp.ccosto))
+                    .reduce((s, [, h]) => s + h, 0);
+                const valorHora = parseFloat(emp.valor_hora || 0);
+                const valorHoraOT = valorHora * otMult;
+                if (horasOtrosCC <= otThreshold) {
+                    brutoRegular = horasOtrosCC * valorHora;
+                } else {
+                    brutoRegular = otThreshold * valorHora;
+                    brutoOT = (horasOtrosCC - otThreshold) * valorHoraOT;
+                }
+            } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
+                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+            } else {
+                const valorHora = parseFloat(emp.valor_hora || 0);
+                const valorHoraOT = valorHora * otMult;
+                if (totalHoras <= otThreshold) {
+                    brutoRegular = totalHoras * valorHora;
+                } else {
+                    brutoRegular = otThreshold * valorHora;
+                    brutoOT = (totalHoras - otThreshold) * valorHoraOT;
+                }
+            }
+
+            const totalBrutoEmp = brutoRegular + brutoOT + brutoBase;
+            const taxes = calcularRetenciones(emp, totalBrutoEmp, ytdBruto, cfg);
+            const netoEmp = totalBrutoEmp - taxes.total_deducciones;
+
+            if (totalBrutoEmp > 0) {
+                totalBruto += totalBrutoEmp;
+                totalDed += taxes.total_deducciones;
+                totalER += taxes.total_aportes_er;
+                totalNeto += netoEmp;
+
+                detallesEmpleado.push({
+                    empleado_nombre: emp.nombre + ' ' + emp.apellido,
+                    horas: totalHoras,
+                    bruto: +totalBrutoEmp.toFixed(2),
+                    deducciones: +taxes.total_deducciones.toFixed(2),
+                    neto: +netoEmp.toFixed(2)
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            semana: s,
+            total_bruto: +totalBruto.toFixed(2),
+            total_deducciones: +totalDed.toFixed(2),
+            total_neto: +totalNeto.toFixed(2),
+            total_aportes_er: +totalER.toFixed(2),
+            empleados: detallesEmpleado
+        });
+    } catch(e) {
+        console.error('Error GET /api/nomina/preliquidacion-actual:', e);
         res.status(500).json({ success: false, error: e.message });
     }
 });
