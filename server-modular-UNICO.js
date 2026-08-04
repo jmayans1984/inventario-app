@@ -9263,136 +9263,147 @@ app.get('/api/contabilidad/dashboard', async (req, res) => {
     }
 });
 
-// ── Nómina proyectada (semana en curso) ──────────────────────────────
-// Misma lógica que la preliquidación del dashboard (horas reales hasta
-// hoy de la semana de nómina en curso), pero devuelve además el desglose
-// por centro de costo "hogar" de cada empleado, para poder inyectarla en
-// el Estado de Resultados cuando el usuario active la proyección.
-async function calcularNominaProyectada(empresa) {
+// ── Nómina proyectada (para un rango de fechas del período actual) ───
+// A diferencia de la preliquidación del dashboard (que siempre mira "la
+// semana de nómina más reciente" sin importar si ya terminó), esta versión
+// se ciñe estrictamente al rango [fechaDesde, fechaHastaPeriodo] del período
+// que se está reportando en Estado de Resultados, recortado además a "ayer"
+// (el servicio es nocturno, así que el día de hoy todavía no tiene ventas ni
+// horas completas). Recorre TODAS las semanas de nómina que se traslapen con
+// ese rango — no solo una — para no perder horas de semanas ya cerradas pero
+// aún no liquidadas oficialmente, y para no mezclar horas de fuera del mes
+// (p.ej. días de julio de una semana 27 jul–2 ago cuando se reporta agosto).
+// El umbral de horas extra se aplica sobre las horas de cada semana YA
+// recortadas a ese rango (aproximación razonable, igual de "estimada" que
+// el resto de proyecciones de este endpoint).
+async function calcularNominaProyectadaPeriodo(empresa, fechaDesde, fechaHastaPeriodo) {
     const resultado = {
         total_bruto: 0, total_deducciones: 0, total_neto: 0, total_aportes_er: 0,
-        semana: null, porCcosto: {}
+        fechaDesde: null, fechaHasta: null, porCcosto: {}
     };
     try {
-        let semanaRes = await pool.query(
-            `SELECT id, semana_inicio, semana_fin
+        const hoy = new Date().toISOString().slice(0, 10);
+        const ayer = sumarDias(hoy, -1);
+        const fechaHastaEfectiva = fechaHastaPeriodo < ayer ? fechaHastaPeriodo : ayer;
+        if (fechaHastaEfectiva < fechaDesde) return resultado;
+        resultado.fechaDesde = fechaDesde;
+        resultado.fechaHasta = fechaHastaEfectiva;
+
+        const semanasRes = await pool.query(
+            `SELECT id, semana_inicio::text AS semana_inicio, semana_fin::text AS semana_fin
              FROM nom_semana
-             WHERE empresa = $1 AND CURRENT_DATE BETWEEN semana_inicio AND semana_fin
-             ORDER BY semana_inicio DESC LIMIT 1`,
-            [empresa]
+             WHERE empresa = $1 AND semana_fin >= $2::date AND semana_inicio <= $3::date
+             ORDER BY semana_inicio`,
+            [empresa, fechaDesde, fechaHastaEfectiva]
         );
-        if (!semanaRes.rows.length) {
-            semanaRes = await pool.query(
-                `SELECT id, semana_inicio, semana_fin
-                 FROM nom_semana WHERE empresa = $1 ORDER BY semana_inicio DESC LIMIT 1`,
-                [empresa]
+        if (!semanasRes.rows.length) return resultado;
+
+        for (const s of semanasRes.rows) {
+            const wDesde = s.semana_inicio.slice(0, 10) > fechaDesde ? s.semana_inicio.slice(0, 10) : fechaDesde;
+            const wHasta = s.semana_fin.slice(0, 10) < fechaHastaEfectiva ? s.semana_fin.slice(0, 10) : fechaHastaEfectiva;
+            if (wDesde > wHasta) continue;
+
+            const anio = new Date(s.semana_fin).getFullYear();
+            let cfg = {};
+            const cfgR = await pool.query('SELECT * FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2', [empresa, anio]);
+            if (cfgR.rows.length) cfg = cfgR.rows[0];
+            else cfg = { ss_rate:0.062, ss_wage_base:168600, medicare_rate:0.0145,
+                         medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
+                         futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
+                         ot_threshold_hours:40, ot_multiplier:1.5, wc_default_rate:0, fit_config:null };
+
+            const det = await pool.query(
+                `SELECT empleado_id, ccosto, SUM(COALESCE(real_horas, prog_horas, 0)) AS horas
+                 FROM nom_semana_detalle
+                 WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha >= $2::date AND fecha <= $3::date
+                 GROUP BY empleado_id, ccosto`,
+                [s.id, wDesde, wHasta]
             );
-        }
-        if (!semanaRes.rows.length) return resultado;
-
-        const s = semanaRes.rows[0];
-        resultado.semana = { id: s.id, semana_inicio: s.semana_inicio, semana_fin: s.semana_fin };
-        const anio = new Date(s.semana_fin).getFullYear();
-        let cfg = {};
-        const cfgR = await pool.query('SELECT * FROM nom_config_fiscal WHERE empresa=$1 AND anio=$2', [empresa, anio]);
-        if (cfgR.rows.length) cfg = cfgR.rows[0];
-        else cfg = { ss_rate:0.062, ss_wage_base:168600, medicare_rate:0.0145,
-                     medicare_adicional_rate:0.009, medicare_adicional_threshold:200000,
-                     futa_rate:0.006, futa_wage_base:7000, suta_rate:0.027, suta_wage_base:7000,
-                     ot_threshold_hours:40, ot_multiplier:1.5, wc_default_rate:0, fit_config:null };
-
-        const det = await pool.query(
-            `SELECT empleado_id, ccosto, SUM(COALESCE(real_horas, prog_horas, 0)) AS horas
-             FROM nom_semana_detalle
-             WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
-             GROUP BY empleado_id, ccosto`,
-            [s.id]
-        );
-        let horasPorEmpleado = {};
-        let empleadosEnSemana = new Set();
-        for (const row of det.rows) {
-            empleadosEnSemana.add(parseInt(row.empleado_id));
-            if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
-            const cc = row.ccosto || 'GEN';
-            horasPorEmpleado[row.empleado_id][cc] = parseFloat(row.horas || 0);
-        }
-
-        const diasDet = await pool.query(
-            `SELECT empleado_id, COUNT(DISTINCT fecha) AS dias
-             FROM nom_semana_detalle
-             WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha <= CURRENT_DATE
-               AND COALESCE(real_horas, prog_horas, 0) > 0
-             GROUP BY empleado_id`,
-            [s.id]
-        );
-        let diasPorEmpleado = {};
-        diasDet.rows.forEach(row => { diasPorEmpleado[row.empleado_id] = parseInt(row.dias || 0); });
-
-        if (!empleadosEnSemana.size) return resultado;
-
-        const ids = [...empleadosEnSemana];
-        const empleados = await pool.query(`SELECT * FROM nom_empleados WHERE id = ANY($1) ORDER BY apellido, nombre`, [ids]);
-
-        const otThreshold = parseFloat(cfg.ot_threshold_hours || 40);
-        const otMult = parseFloat(cfg.ot_multiplier || 1.5);
-
-        for (const emp of empleados.rows) {
-            const ytdR = await pool.query(
-                `SELECT COALESCE(SUM(ll.total_bruto),0) AS ytd
-                 FROM nom_liquidacion_linea ll
-                 JOIN nom_liquidacion l ON l.id=ll.liquidacion_id
-                 WHERE ll.empleado_id=$1 AND l.empresa=$2
-                   AND EXTRACT(YEAR FROM l.semana_fin)=$3 AND l.estado IN ('APROBADA','PAGADA')`,
-                [emp.id, empresa, anio]
-            );
-            const ytdBruto = parseFloat(ytdR.rows[0].ytd || 0);
-
-            const ccHoras = horasPorEmpleado[emp.id] || {};
-            const totalHoras = Object.values(ccHoras).reduce((s, h) => s + h, 0);
-
-            let brutoRegular = 0, brutoOT = 0, brutoBase = 0;
-            const tipoPago = emp.tipo_pago || (emp.es_por_horas ? 'HORAS' : 'FIJO_SEMANAL');
-
-            if (tipoPago === 'DIA_LABORADO') {
-                const diasTrabajados = diasPorEmpleado[emp.id] || 0;
-                brutoBase = diasTrabajados * parseFloat(emp.valor_dia || 0);
-            } else if (tipoPago === 'FIJO_MAS_HORAS') {
-                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
-                const horasOtrosCC = Object.entries(ccHoras)
-                    .filter(([cc]) => String(cc) !== String(emp.ccosto))
-                    .reduce((s, [, h]) => s + h, 0);
-                const valorHora = parseFloat(emp.valor_hora || 0);
-                const valorHoraOT = valorHora * otMult;
-                if (horasOtrosCC <= otThreshold) {
-                    brutoRegular = horasOtrosCC * valorHora;
-                } else {
-                    brutoRegular = otThreshold * valorHora;
-                    brutoOT = (horasOtrosCC - otThreshold) * valorHoraOT;
-                }
-            } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
-                brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
-            } else {
-                const valorHora = parseFloat(emp.valor_hora || 0);
-                const valorHoraOT = valorHora * otMult;
-                if (totalHoras <= otThreshold) {
-                    brutoRegular = totalHoras * valorHora;
-                } else {
-                    brutoRegular = otThreshold * valorHora;
-                    brutoOT = (totalHoras - otThreshold) * valorHoraOT;
-                }
+            let horasPorEmpleado = {};
+            let empleadosEnSemana = new Set();
+            for (const row of det.rows) {
+                empleadosEnSemana.add(parseInt(row.empleado_id));
+                if (!horasPorEmpleado[row.empleado_id]) horasPorEmpleado[row.empleado_id] = {};
+                const cc = row.ccosto || 'GEN';
+                horasPorEmpleado[row.empleado_id][cc] = parseFloat(row.horas || 0);
             }
+            if (!empleadosEnSemana.size) continue;
 
-            const totalBrutoEmp = brutoRegular + brutoOT + brutoBase;
-            const taxes = calcularRetenciones(emp, totalBrutoEmp, ytdBruto, cfg);
-            const netoEmp = totalBrutoEmp - taxes.total_deducciones;
+            const diasDet = await pool.query(
+                `SELECT empleado_id, COUNT(DISTINCT fecha) AS dias
+                 FROM nom_semana_detalle
+                 WHERE semana_id=$1 AND es_dia_libre=FALSE AND fecha >= $2::date AND fecha <= $3::date
+                   AND COALESCE(real_horas, prog_horas, 0) > 0
+                 GROUP BY empleado_id`,
+                [s.id, wDesde, wHasta]
+            );
+            let diasPorEmpleado = {};
+            diasDet.rows.forEach(row => { diasPorEmpleado[row.empleado_id] = parseInt(row.dias || 0); });
 
-            if (totalBrutoEmp > 0) {
-                resultado.total_bruto += totalBrutoEmp;
-                resultado.total_deducciones += taxes.total_deducciones;
-                resultado.total_aportes_er += taxes.total_aportes_er;
-                resultado.total_neto += netoEmp;
-                const ccHome = emp.ccosto != null ? String(emp.ccosto) : 'GEN';
-                resultado.porCcosto[ccHome] = (resultado.porCcosto[ccHome] || 0) + totalBrutoEmp;
+            const ids = [...empleadosEnSemana];
+            const empleados = await pool.query(`SELECT * FROM nom_empleados WHERE id = ANY($1) ORDER BY apellido, nombre`, [ids]);
+
+            const otThreshold = parseFloat(cfg.ot_threshold_hours || 40);
+            const otMult = parseFloat(cfg.ot_multiplier || 1.5);
+
+            for (const emp of empleados.rows) {
+                const ytdR = await pool.query(
+                    `SELECT COALESCE(SUM(ll.total_bruto),0) AS ytd
+                     FROM nom_liquidacion_linea ll
+                     JOIN nom_liquidacion l ON l.id=ll.liquidacion_id
+                     WHERE ll.empleado_id=$1 AND l.empresa=$2
+                       AND EXTRACT(YEAR FROM l.semana_fin)=$3 AND l.estado IN ('APROBADA','PAGADA')`,
+                    [emp.id, empresa, anio]
+                );
+                const ytdBruto = parseFloat(ytdR.rows[0].ytd || 0);
+
+                const ccHoras = horasPorEmpleado[emp.id] || {};
+                const totalHoras = Object.values(ccHoras).reduce((s, h) => s + h, 0);
+
+                let brutoRegular = 0, brutoOT = 0, brutoBase = 0;
+                const tipoPago = emp.tipo_pago || (emp.es_por_horas ? 'HORAS' : 'FIJO_SEMANAL');
+
+                if (tipoPago === 'DIA_LABORADO') {
+                    const diasTrabajados = diasPorEmpleado[emp.id] || 0;
+                    brutoBase = diasTrabajados * parseFloat(emp.valor_dia || 0);
+                } else if (tipoPago === 'FIJO_MAS_HORAS') {
+                    brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+                    const horasOtrosCC = Object.entries(ccHoras)
+                        .filter(([cc]) => String(cc) !== String(emp.ccosto))
+                        .reduce((s, [, h]) => s + h, 0);
+                    const valorHora = parseFloat(emp.valor_hora || 0);
+                    const valorHoraOT = valorHora * otMult;
+                    if (horasOtrosCC <= otThreshold) {
+                        brutoRegular = horasOtrosCC * valorHora;
+                    } else {
+                        brutoRegular = otThreshold * valorHora;
+                        brutoOT = (horasOtrosCC - otThreshold) * valorHoraOT;
+                    }
+                } else if (tipoPago === 'FIJO_SEMANAL' || (emp.tipo_empleado === '1099' && !emp.es_por_horas)) {
+                    brutoBase = parseFloat(emp.monto_fijo_semanal || 0);
+                } else {
+                    const valorHora = parseFloat(emp.valor_hora || 0);
+                    const valorHoraOT = valorHora * otMult;
+                    if (totalHoras <= otThreshold) {
+                        brutoRegular = totalHoras * valorHora;
+                    } else {
+                        brutoRegular = otThreshold * valorHora;
+                        brutoOT = (totalHoras - otThreshold) * valorHoraOT;
+                    }
+                }
+
+                const totalBrutoEmp = brutoRegular + brutoOT + brutoBase;
+                const taxes = calcularRetenciones(emp, totalBrutoEmp, ytdBruto, cfg);
+                const netoEmp = totalBrutoEmp - taxes.total_deducciones;
+
+                if (totalBrutoEmp > 0) {
+                    resultado.total_bruto += totalBrutoEmp;
+                    resultado.total_deducciones += taxes.total_deducciones;
+                    resultado.total_aportes_er += taxes.total_aportes_er;
+                    resultado.total_neto += netoEmp;
+                    const ccHome = emp.ccosto != null ? String(emp.ccosto) : 'GEN';
+                    resultado.porCcosto[ccHome] = (resultado.porCcosto[ccHome] || 0) + totalBrutoEmp;
+                }
             }
         }
 
@@ -9400,6 +9411,7 @@ async function calcularNominaProyectada(empresa) {
         resultado.total_deducciones = +resultado.total_deducciones.toFixed(2);
         resultado.total_neto = +resultado.total_neto.toFixed(2);
         resultado.total_aportes_er = +resultado.total_aportes_er.toFixed(2);
+        Object.keys(resultado.porCcosto).forEach(cc => { resultado.porCcosto[cc] = +resultado.porCcosto[cc].toFixed(2); });
     } catch (e) {
         console.error('Error calculando nómina proyectada:', e.message);
     }
@@ -9590,26 +9602,29 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         const hoy = new Date().toISOString().slice(0, 10);
         const periodoActualEnCurso = cutoffFinal >= hoy;
 
-        // ── Nómina proyectada (semana en curso) ────────────────────────────
+        // ── Nómina proyectada (días del período actual sin liquidar aún) ────
         // Igual que el inventario estimado: solo tiene sentido para el período
         // ACTUAL (en curso), nunca para uno ya cerrado. Se suma como línea
-        // aparte dentro de GASTOS DE PERSONAL, usando horas reales hasta hoy
-        // de la semana de nómina en curso (misma lógica de preliquidación del
-        // dashboard de Contabilidad).
+        // aparte dentro de GASTOS DE PERSONAL, usando horas reales desde el
+        // inicio del período actual hasta AYER (el servicio es nocturno, así
+        // que el día de hoy todavía no tiene información completa) — sin
+        // importar cómo caigan las semanas de nómina dentro de ese rango.
         const proyectarNomina = req.query.proyectarNomina === '1' || req.query.proyectarNomina === 'true';
-        let nominaProyectadaInfo = { disponible: periodoActualEnCurso, incluida: false, monto: 0, semana: null };
+        const periodoActual = periodos[periodos.length - 1];
+        const currentPeriodKey = periodoActual.key;
+        let nominaProyectadaInfo = { disponible: periodoActualEnCurso, incluida: false, monto: 0, fechaDesde: null, fechaHasta: null };
         let nominaProyectadaMonto = 0;
         if (proyectarNomina && periodoActualEnCurso) {
-            const nominaProy = await calcularNominaProyectada(emp);
+            const nominaProy = await calcularNominaProyectadaPeriodo(emp, periodoActual.desde, periodoActual.hasta);
             nominaProyectadaMonto = ccostoFiltro ? (nominaProy.porCcosto[String(ccostoFiltro)] || 0) : nominaProy.total_bruto;
             nominaProyectadaInfo = {
                 disponible: true,
                 incluida: nominaProyectadaMonto > 0,
                 monto: nominaProyectadaMonto,
-                semana: nominaProy.semana
+                fechaDesde: nominaProy.fechaDesde,
+                fechaHasta: nominaProy.fechaHasta
             };
         }
-        const currentPeriodKey = periodos[periodos.length - 1].key;
 
         if (valorEstimadoInventarioFinal != null && cutoffFinal >= hoy) {
             const tomaCierreRes = await pool.query(

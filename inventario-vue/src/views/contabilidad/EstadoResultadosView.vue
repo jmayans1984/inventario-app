@@ -60,10 +60,11 @@
         <div v-if="data.nominaProyectada?.incluida" class="er-warning">
           <v-icon size="20" color="var(--indigo)">mdi-timer-sand</v-icon>
           <span>
-            Se incluyó una <b>proyección de nómina</b> de {{ fmt(data.nominaProyectada.monto) }} para la semana en
-            curso ({{ fmtFecha(data.nominaProyectada.semana?.semana_inicio) }} – {{ fmtFecha(data.nominaProyectada.semana?.semana_fin) }}),
-            calculada con las horas reales trabajadas hasta hoy. Esta semana aún no se ha liquidado oficialmente,
-            así que el monto es una aproximación y puede variar en el cierre final.
+            Se incluyó una <b>proyección de nómina</b> de {{ fmt(data.nominaProyectada.monto) }}, calculada con las
+            horas reales trabajadas del {{ fmtFecha(data.nominaProyectada.fechaDesde) }} al
+            {{ fmtFecha(data.nominaProyectada.fechaHasta) }} (hasta ayer — el servicio es nocturno, así que hoy
+            todavía no tiene información completa). Esos días aún no se han liquidado oficialmente, así que el
+            monto es una aproximación y puede variar en el cierre final.
           </span>
         </div>
 
