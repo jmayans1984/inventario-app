@@ -3166,10 +3166,13 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         const [ccRes, bodegaRes, cfgRes] = await Promise.all([
             pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [emp]),
             pool.query(`SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]),
-            pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [emp]),
+            pool.query(`SELECT cta_materia_prima, valor_estimado_inventario_final FROM config_general WHERE empresa = $1`, [emp]),
         ]);
         const bodegaMaestra   = bodegaRes.rows[0]?.bodega_maestra || null;
         const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
+        const valorEstimadoInventarioFinal = cfgRes.rows[0]?.valor_estimado_inventario_final != null
+            ? parseFloat(cfgRes.rows[0].valor_estimado_inventario_final)
+            : null;
 
         // ── Ventanas de cierre ────────────────────────────────────────────
         // Cierre del mes: [hasta, hasta + gracia]
@@ -3344,8 +3347,19 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         // ── Compras de materia prima (cuenta contable configurada) ────────
         const totalCompras = gastosMPRes.rows.reduce((s, g) => s + (parseFloat(g.total) || 0), 0);
 
+        // ── Inventario final estimado (fallback) ───────────────────────────
+        // Solo aplica al período ACTUAL (en curso) y cuando NINGÚN centro tiene
+        // toma física de cierre registrada en la ventana final: en ese caso se
+        // usa el valor estimado de Configuración General · Almacén para no
+        // reportar un consumo distorsionado por un inventario final en $0.
+        const hoy = new Date().toISOString().slice(0, 10);
+        const inventarioFinalEsEstimado = Object.keys(tomasFinal).length === 0
+            && hasta >= hoy
+            && valorEstimadoInventarioFinal != null;
+        const valorFinalUsado = inventarioFinalEsEstimado ? valorEstimadoInventarioFinal : valorFinalTotal;
+
         // ── Consumo real MP (empresa) ─────────────────────────────────────
-        const consumoReal = valorInicialTotal + totalCompras - valorFinalTotal;
+        const consumoReal = valorInicialTotal + totalCompras - valorFinalUsado;
 
         // ── Ventas netas por CC en el período ──────────────────────────────
         const ventasPorCC = {};
@@ -3437,7 +3451,10 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
             ctaMateriaPrima,
             kpis: {
                 valorInicial: valorInicialTotal,
-                valorFinal: valorFinalTotal,
+                valorFinal: valorFinalUsado,
+                valorFinalReal: valorFinalTotal,
+                inventarioFinalEsEstimado,
+                valorEstimadoInventarioFinal,
                 compras: totalCompras,
                 consumoReal,
                 itemsSinCosto: itemsSinCosto.size,
@@ -9280,18 +9297,52 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         }
 
         // ── Valorización de inventario (empresa completa) en cada corte ──
-        // Costo resuelto por empresa: COALESCE(su capa, costo base del principal).
+        // Igual que en Valoración Mensual: por centro de costo, se usa la toma
+        // física de cierre congelada cuando existe dentro de la ventana de
+        // gracia (más confiable que el kardex, que no captura mermas/ajustes
+        // no registrados); solo se calcula en vivo desde el kardex para los
+        // centros sin toma física en esa fecha. Esto evita que el "inventario
+        // final" de un corte diverja del valor real ya contado físicamente.
         async function stockValorizadoTotal(fechaCorte) {
-            const r = await pool.query(
+            const ventanaFin = sumarDias(fechaCorte, DIAS_GRACIA_TOMA);
+            const tomaRes = await pool.query(
+                `SELECT DISTINCT ON (ccosto) ccosto, fecha
+                   FROM toma_fisica_valorizada
+                  WHERE empresa = $1 AND es_cierre = TRUE
+                    AND fecha >= $2::date AND fecha <= $3::date
+                  ORDER BY ccosto, fecha DESC`,
+                [emp, fechaCorte, ventanaFin]
+            );
+            const ccWithToma = tomaRes.rows.map(r => ({ ccosto: r.ccosto, fecha: r.fecha }));
+
+            let totalToma = 0;
+            if (ccWithToma.length) {
+                const ph = ccWithToma.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
+                const params = [emp];
+                ccWithToma.forEach(r => { params.push(r.ccosto, r.fecha); });
+                const valRes = await pool.query(
+                    `SELECT COALESCE(SUM(stock * precio_costo), 0) AS valor
+                       FROM toma_fisica_valorizada
+                      WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})`,
+                    params
+                );
+                totalToma = parseFloat(valRes.rows[0].valor) || 0;
+            }
+
+            const ccostosConToma = ccWithToma.map(r => r.ccosto);
+            const liveRes = await pool.query(
                 `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
                  FROM detalle_inventario di
                  JOIN productos p ON p.codigo = di.codigo
                  LEFT JOIN producto_costo_empresa pce
                         ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
-                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'`,
-                [String(empresa), emp, fechaCorte]
+                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
+                   AND NOT (di.ccosto = ANY($4::text[]))`,
+                [String(empresa), emp, fechaCorte, ccostosConToma]
             );
-            return parseFloat(r.rows[0].valor) || 0;
+            const totalLive = parseFloat(liveRes.rows[0].valor) || 0;
+
+            return totalToma + totalLive;
         }
         const cutoffs = [new Date(new Date(rangoDesde).getTime() - 86400000).toISOString().slice(0, 10)];
         for (const p of periodos) cutoffs.push(p.hasta);

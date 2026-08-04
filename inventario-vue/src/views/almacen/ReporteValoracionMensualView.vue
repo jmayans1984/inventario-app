@@ -73,9 +73,15 @@
               <b>Inventario final</b> (toma esperada entre {{ fmtFecha(data.ventanas.final.ini) }} y {{ fmtFecha(data.ventanas.final.fin) }}):
               {{ data.avisos.sinTomaFinal.join(' · ') }}
             </div>
-            <div class="vm-warning-note">
+            <div v-if="!data.kpis.inventarioFinalEsEstimado" class="vm-warning-note">
               El consumo real de estos centros queda distorsionado hasta que registres la toma física.
               Como el servicio es nocturno, la toma del cierre puede hacerse la mañana del día siguiente.
+            </div>
+            <div v-else class="vm-warning-note">
+              Como ningún centro tiene toma física de cierre todavía, el <b>Inventario Final</b> y el
+              <b>Consumo Real MP</b> se están calculando con el <b>valor estimado</b> configurado en
+              Configuración General · Almacén ({{ fmt(data.kpis.valorEstimadoInventarioFinal) }}) en vez de $0.
+              En cuanto registres la toma física de cierre, el sistema usará el valor real.
             </div>
           </div>
         </div>
@@ -129,10 +135,13 @@
                 <v-icon size="13">mdi-eye-outline</v-icon><span>Detalle</span>
               </button>
             </div>
-            <div class="vm-kpi-lbl">Inventario Final</div>
+            <div class="vm-kpi-lbl">
+              Inventario Final
+              <span v-if="data.kpis.inventarioFinalEsEstimado" class="vm-kpi-badge-estimado">ESTIMADO</span>
+            </div>
             <div class="vm-kpi-val" style="color:var(--indigo)">{{ fmt(data.kpis.valorFinal) }}</div>
-            <div class="vm-kpi-sub" :class="{ 'vm-kpi-sub-warn': data.kpis.ccSinTomaFinal > 0 }">
-              {{ coberturaFinal }}
+            <div class="vm-kpi-sub" :class="{ 'vm-kpi-sub-warn': data.kpis.ccSinTomaFinal > 0 && !data.kpis.inventarioFinalEsEstimado }">
+              {{ data.kpis.inventarioFinalEsEstimado ? 'valor estimado — sin toma física registrada' : coberturaFinal }}
             </div>
           </div>
           <div class="vm-kpi">
@@ -888,6 +897,11 @@ onMounted(cargar)
 .vm-kpi-val { font-size: var(--text-2xl); font-weight: 700; line-height: 1.2; margin: 4px 0; font-variant-numeric: tabular-nums; }
 .vm-kpi-sub { font-size: 11px; color: var(--ink-400); }
 .vm-kpi-sub-warn { color: var(--error); font-weight: 600; }
+.vm-kpi-badge-estimado {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: var(--radius-sm, 4px);
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px; color: var(--warning); background: var(--gold-wash);
+  vertical-align: middle;
+}
 
 /* CARDS */
 .vm-card {
