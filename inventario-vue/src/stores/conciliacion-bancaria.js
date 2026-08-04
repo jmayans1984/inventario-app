@@ -86,6 +86,8 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
       await conciliacionBancariaService.marcarConciliado(numero)
       // Quitar de la lista (la vista solo muestra NO conciliados)
       movimientos.value = movimientos.value.filter(m => m.numero !== numero)
+      // Actualizar resumen de KPIs
+      await actualizarResumen()
     } catch (err) {
       error.value = err.message
       throw err
@@ -117,6 +119,8 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
       // Quitar de la lista todos los conciliados
       movimientos.value = movimientos.value.filter(m => !selectedIds.value.includes(m.numero))
       selectedIds.value = []
+      // Actualizar resumen de KPIs
+      await actualizarResumen()
     } catch (err) {
       error.value = err.message
       throw err
@@ -131,6 +135,21 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
 
   function setFiltroEstado(estado) {
     filtroEstado.value = estado
+  }
+
+  async function actualizarResumen() {
+    if (!bancoSeleccionado.value) return
+    try {
+      const dataResumen = await conciliacionBancariaService.getResumen(bancoSeleccionado.value)
+      if (dataResumen?.data) {
+        saldoInicialConciliado.value = dataResumen.data.saldo_inicial_conciliado || 0
+        ingresosPendientes.value     = dataResumen.data.ingresos_pendientes      || 0
+        egresosPendientes.value      = dataResumen.data.egresos_pendientes       || 0
+        saldoFinalConciliado.value   = dataResumen.data.saldo_final_conciliado   || 0
+      }
+    } catch (err) {
+      console.error('Error actualizarResumen:', err)
+    }
   }
 
   function clearError() {
@@ -159,6 +178,7 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
 
     // Actions
     fetchMovimientos,
+    actualizarResumen,
     marcarConciliado,
     marcarPendiente,
     marcarMultiplesConciliados,
