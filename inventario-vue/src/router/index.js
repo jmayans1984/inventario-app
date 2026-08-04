@@ -6,6 +6,7 @@ const routes = [
   { path: '/', name: 'Inicio', component: () => import('../views/DashboardView.vue'), meta: { requiresAuth: true } },
 
   // CONTABILIDAD ESPECÍFICAS
+  { path: '/contabilidad/dashboard',                      component: () => import('../views/contabilidad/ContabilidadDashboardView.vue'), meta: { requiresAuth: true } },
   { path: '/contabilidad/configuracion/proveedores',     component: () => import('../views/contabilidad/ProveedoresView.vue'),     meta: { requiresAuth: true } },
   { path: '/contabilidad/configuracion/centros-costos',   component: () => import('../views/contabilidad/CentroCostosView.vue'),      meta: { requiresAuth: true } },
   { path: '/contabilidad/configuracion/cuentas-bancarias', component: () => import('../views/contabilidad/CuentasBancariasView.vue'), meta: { requiresAuth: true } },
