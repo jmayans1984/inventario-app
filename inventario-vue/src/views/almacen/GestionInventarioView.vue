@@ -125,7 +125,7 @@
             Productos de Inventario
             <span class="gi-grid-sub">— ingresa las cantidades del movimiento</span>
           </div>
-          <div class="d-flex gap-2 align-center">
+          <div class="d-flex gap-2 align-center" style="width: 100%; flex: 1;">
             <v-text-field
               v-model="busquedaProducto"
               density="compact"
@@ -134,7 +134,7 @@
               clearable
               placeholder="Buscar producto..."
               prepend-inner-icon="mdi-magnify"
-              style="max-width:240px"
+              style="flex: 1; min-width: 300px;"
             />
             <v-btn variant="tonal" size="small" color="primary" prepend-icon="mdi-camera-outline" @click="abrirOcr" style="display:none">
               Leer foto
