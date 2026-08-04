@@ -225,29 +225,31 @@
               <div class="field-row montos-row">
                 <div class="field-col-amt">
                   <v-text-field
-                    v-model.number="ln.subtotal"
+                    :value="ln.subtotal"
+                    @input="ln.subtotal = parseFloat(($event.target.value || '0').replace(',', '.')) || 0"
                     autocomplete="off"
                     label="Subtotal *"
                     variant="outlined"
                     density="comfortable"
                     hide-details
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="0.00"
                     prepend-inner-icon="mdi-currency-usd"
                   />
                 </div>
                 <div class="field-col-amt">
                   <v-text-field
-                    v-model.number="ln.impuestos"
+                    :value="ln.impuestos"
+                    @input="ln.impuestos = parseFloat(($event.target.value || '0').replace(',', '.')) || 0"
                     autocomplete="off"
                     label="Impuestos / Tax"
                     variant="outlined"
                     density="comfortable"
                     hide-details
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="0.00"
                     prepend-inner-icon="mdi-currency-usd"
                   />
                 </div>
