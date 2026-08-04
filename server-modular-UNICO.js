@@ -4765,6 +4765,21 @@ app.get('/api/debug/moviban-schema', async (req, res) => {
     }
 });
 
+// TEMP DEBUG: ver triggers sobre moviban
+app.get('/api/debug/moviban-triggers', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT tgname, tgrelid::regclass AS tabla, tgtype, tgenabled,
+                    pg_get_triggerdef(oid) AS definicion
+             FROM pg_trigger
+             WHERE tgrelid = 'moviban'::regclass AND NOT tgisinternal`
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // TEMP DEBUG: ver max numero y longitudes de numero en moviban
 app.get('/api/debug/moviban-numeros', async (req, res) => {
     const { empresa } = req.query;
@@ -4890,7 +4905,7 @@ app.post('/api/tesoreria/movimientos', async (req, res) => {
             success: false,
             error: 'Error al crear movimiento',
             details: error.message,
-            debug: { code: error.code, column: error.column, table: error.table, constraint: error.constraint, detail: error.detail, where: error.where }
+            debug: Object.getOwnPropertyNames(error).reduce((acc, k) => { acc[k] = error[k]; return acc; }, {})
         });
     } finally {
         client.release();
