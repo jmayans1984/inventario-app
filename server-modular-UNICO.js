@@ -4765,6 +4765,29 @@ app.get('/api/debug/moviban-schema', async (req, res) => {
     }
 });
 
+// TEMP DEBUG: ver max numero y longitudes de numero en moviban
+app.get('/api/debug/moviban-numeros', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const r = await pool.query(
+            `SELECT numero, LENGTH(numero) AS len, empresa
+             FROM moviban
+             WHERE empresa = $1
+             ORDER BY LENGTH(numero) DESC, numero DESC
+             LIMIT 10`,
+            [empresa]
+        );
+        const maxRes = await pool.query(
+            `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) AS max_num, COALESCE(MAX(LENGTH(numero)), 0) AS max_len
+             FROM moviban WHERE empresa = $1`,
+            [empresa]
+        );
+        res.json({ success: true, top: r.rows, resumen: maxRes.rows[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/tesoreria/movimientos - Crear nuevo movimiento bancario
 app.post('/api/tesoreria/movimientos', async (req, res) => {
     const { tipo, fecha, concepto, beneficia, cheque, ingreso, egreso, banco, gasto, ccosto, origen, empresa, banco_destino } = req.body;
