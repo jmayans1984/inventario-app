@@ -14261,12 +14261,17 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
                 GROUP BY v.ccosto`,
                 [String(empresa), desdeDate, hastaDate]),
 
-            // 2. Food cost: lo vendido valorizado al costo de receta
+            // 2. Food cost: lo vendido valorizado al costo de receta.
+            // Se trae también el total facturado en el detalle: no siempre
+            // cuadra con ventas_netas del encabezado (hay ventas que no se
+            // desglosan por ítem), y esa brecha es justo la porción de
+            // ingresos a la que no se le puede atribuir costo.
             pool.query(`
                 SELECT dv.ccosto,
                        COALESCE(SUM(dv.cant * COALESCE(r.valor, 0)), 0) AS food_cost,
                        COUNT(DISTINCT dv.codigo)                        AS platos_distintos,
-                       COALESCE(SUM(dv.cant), 0)                        AS unidades_vendidas
+                       COALESCE(SUM(dv.cant), 0)                        AS unidades_vendidas,
+                       COALESCE(SUM(dv.subtotal), 0)                    AS ventas_detalladas
                 FROM detalle_ventas dv
                 LEFT JOIN recetas r ON TRIM(r.codigo) = TRIM(dv.codigo)
                 WHERE dv.empresa::text = $1 AND dv.fecha::date BETWEEN $2::date AND $3::date
@@ -14346,6 +14351,7 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
             s.food_cost         = parseFloat(r.food_cost) || 0;
             s.platos_distintos  = parseInt(r.platos_distintos) || 0;
             s.unidades_vendidas = parseFloat(r.unidades_vendidas) || 0;
+            s.ventas_detalladas = parseFloat(r.ventas_detalladas) || 0;
         }
         for (const r of laborRes.rows) {
             const s = asegurar(r.ccosto);
@@ -14375,6 +14381,10 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
                 margen_pct:    pct(resultado, v),
                 venta_dia:     s.dias_operados > 0 ? v / s.dias_operados : null,
                 venta_hora:    s.horas > 0 ? v / s.horas : null,
+                // Qué porción de la venta llegó desglosada por ítem. Lo que
+                // no está desglosado no tiene costo atribuible, así que el
+                // food_pct queda subestimado en esa misma proporción.
+                cobertura_detalle_pct: pct(s.ventas_detalladas, v),
             };
         }).sort((a, b) => b.ventas_netas - a.ventas_netas);
 
@@ -14384,6 +14394,7 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
         const tFood   = acum('food_cost');
         const tLabor  = acum('labor_cost');
         const tGastos = acum('gastos_operativos');
+        const tDetalle = acum('ventas_detalladas');
         const tPrime  = tFood + tLabor;
         const tResultado = tVentas - tPrime - tGastos;
 
@@ -14409,6 +14420,7 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
                 prime_pct:  pct(tPrime, tVentas),
                 gastos_pct: pct(tGastos, tVentas),
                 margen_pct: pct(tResultado, tVentas),
+                cobertura_detalle_pct: pct(tDetalle, tVentas),
                 num_sedes: filas.length,
                 mejor: ordenMargen[0] ? { nombre: ordenMargen[0].nombre, margen_pct: ordenMargen[0].margen_pct } : null,
                 peor:  ordenMargen.length > 1 ? { nombre: ordenMargen[ordenMargen.length-1].nombre, margen_pct: ordenMargen[ordenMargen.length-1].margen_pct } : null,

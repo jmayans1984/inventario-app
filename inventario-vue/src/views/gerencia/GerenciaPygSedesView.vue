@@ -112,6 +112,18 @@
           </div>
         </div>
 
+        <!-- COBERTURA DEL DETALLE DE VENTAS -->
+        <div v-if="t.cobertura_detalle_pct !== null && t.cobertura_detalle_pct < 97" class="pg-aviso pg-aviso--warn">
+          <v-icon size="18" color="#f59e0b">mdi-information-outline</v-icon>
+          <div>
+            <strong>Solo el {{ pct(t.cobertura_detalle_pct) }} de las ventas viene desglosado por ítem.</strong>
+            El food cost se calcula sobre lo que sí está desglosado, pero el porcentaje se divide entre las
+            ventas totales — así que el <em>food cost real es más alto</em> que el que ves aquí, en
+            aproximadamente esa misma proporción. La diferencia son ventas registradas sin detalle de
+            productos, que no tienen costo atribuible.
+          </div>
+        </div>
+
         <!-- MEJOR / PEOR -->
         <div v-if="t.mejor && t.peor" class="pg-extremos">
           <div class="pg-extremo pg-extremo--bueno">
@@ -250,6 +262,7 @@
                   <th>VENTA / HORA</th>
                   <th>UNIDADES VENDIDAS</th>
                   <th>PLATOS DISTINTOS</th>
+                  <th>VENTA DESGLOSADA</th>
                 </tr>
               </thead>
               <tbody>
@@ -261,6 +274,9 @@
                   <td class="td-num">{{ money(s.venta_hora) }}</td>
                   <td class="td-num">{{ num(s.unidades_vendidas) }}</td>
                   <td class="td-num">{{ s.platos_distintos }}</td>
+                  <td class="td-num" :style="`color:${colorCobertura(s.cobertura_detalle_pct)}`">
+                    {{ pct(s.cobertura_detalle_pct) }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -384,6 +400,11 @@ function colorPrime(v) {
   if (v === null) return 'inherit'
   return v <= 60 ? '#22c55e' : v <= 65 ? '#f59e0b' : '#ef4444'
 }
+// Cuanto menos venta llegue desglosada, menos confiable es el food cost
+function colorCobertura(v) {
+  if (v === null || v === undefined) return 'inherit'
+  return v >= 97 ? '#22c55e' : v >= 90 ? '#f59e0b' : '#ef4444'
+}
 
 async function cargar() {
   loading.value = true
@@ -471,6 +492,7 @@ onMounted(cargar)
   background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.22);
   color: rgba(var(--v-theme-on-surface), 0.8);
 }
+.pg-aviso--warn { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.22); }
 
 /* Extremos */
 .pg-extremos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
