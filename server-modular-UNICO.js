@@ -59,7 +59,10 @@ app.use(cors({
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-empresa']
+    // x-dispositivo-token: identifica el celular enrolado en el marcaje de
+    // asistencia. Sin él en esta lista el navegador bloquea el preflight y
+    // /asistencia/estado y /asistencia/marcar nunca llegan al servidor.
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-empresa', 'x-dispositivo-token']
 }));
 
 // Aumentar límite para soportar imágenes base64 (50MB)
