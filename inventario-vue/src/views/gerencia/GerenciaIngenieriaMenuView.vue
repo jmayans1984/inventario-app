@@ -70,15 +70,15 @@
       <template v-else>
 
         <!-- AVISO DE COSTOS INCONSISTENTES -->
-        <div v-if="data.food_cost_sospechoso" class="im-aviso">
+        <div v-if="t.costo_invalido > 0" class="im-aviso">
           <v-icon size="18" color="#ef4444">mdi-alert-outline</v-icon>
           <div>
-            <strong>Los costos de receta no cuadran (food cost global {{ pct(t.food_cost_pct) }}).</strong>
-            Lo más probable es que algunas recetas tengan el costo del lote completo en vez del costo por
-            porción. <strong>La clasificación en cuadrantes sigue sirviendo</strong> porque compara cada
-            plato contra la mediana del menú, no contra un valor absoluto — pero solo si el error es
-            parejo. Los <em>montos</em> de margen y los <em>%</em> de food cost no son confiables hasta
-            corregir las recetas en <strong>Recetas → Gestión de Costos</strong>.
+            <strong>{{ t.costo_invalido }} receta(s) cuestan más de lo que se venden.</strong>
+            Eso casi nunca es un plato que pierde plata: es el costo del lote completo cargado como si
+            fuera el de una porción. Esas recetas quedaron <strong>fuera de la clasificación</strong> —
+            si se dejaran, arrastrarían el margen promedio a negativo y empujarían platos sanos al
+            cuadrante equivocado. Están listadas abajo para que las corrijas en
+            <strong>Recetas → Gestión de Costos</strong>.
           </div>
         </div>
 
@@ -163,6 +163,48 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- RECETAS CON COSTO INVÁLIDO -->
+        <div class="im-card im-card--alerta" v-if="data.platos_costo_invalido.length">
+          <div class="im-card-head">
+            <v-icon size="16" color="#ef4444">mdi-wrench-outline</v-icon>
+            {{ data.platos_costo_invalido.length }} receta(s) por corregir — el costo supera el precio de venta
+            <span class="im-card-note">Ordenadas por gravedad. Excluidas de la clasificación.</span>
+          </div>
+          <div class="im-table-scroll">
+            <table class="im-table">
+              <thead>
+                <tr>
+                  <th class="th-nom">PLATO</th>
+                  <th class="th-num">UNIDADES</th>
+                  <th class="th-num">P. PROMEDIO</th>
+                  <th class="th-num">COSTO CARGADO</th>
+                  <th class="th-num">FOOD %</th>
+                  <th class="th-num">FACTOR APARENTE</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in data.platos_costo_invalido" :key="p.codigo">
+                  <td class="td-nom">
+                    {{ p.nombre }}
+                    <span class="td-grupo">{{ p.grupo_nombre }}</span>
+                  </td>
+                  <td class="td-num">{{ num(p.unidades) }}</td>
+                  <td class="td-num">{{ money(p.precio_promedio) }}</td>
+                  <td class="td-num" style="color:#ef4444">{{ money(p.costo_unitario) }}</td>
+                  <td class="td-num" style="color:#ef4444">{{ pct(p.food_cost_pct) }}</td>
+                  <td class="td-num td-factor">×{{ (p.food_cost_pct / 100).toFixed(1) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="im-nota">
+            <v-icon size="13">mdi-lightbulb-outline</v-icon>
+            El "factor aparente" es cuántas veces el costo cargado excede al precio. Si varias recetas
+            comparten un factor parecido, probablemente todas tienen el rendimiento del lote mal puesto
+            (por ejemplo, el costo de 10 porciones cargado como si fuera 1).
           </div>
         </div>
 
@@ -442,6 +484,15 @@ onMounted(cargar)
   color: rgba(var(--v-theme-on-surface), 0.6);
 }
 .im-card-note { font-weight: 500; text-transform: none; letter-spacing: 0; color: rgba(var(--v-theme-on-surface), 0.35); }
+.im-card--alerta { border-color: rgba(239,68,68,0.25); }
+.im-card--alerta .im-card-head { background: rgba(239,68,68,0.05); }
+.td-factor { font-weight: 800; color: #ef4444; }
+.im-nota {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 11px 18px; font-size: 11px; line-height: 1.5;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.05);
+}
 .im-chart { padding: 8px 12px 4px; }
 
 .im-tabs { display: flex; gap: 4px; margin-left: auto; }

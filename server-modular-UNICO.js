@@ -14685,10 +14685,16 @@ app.get('/api/gerencia/ingenieria-menu', async (req, res) => {
             };
         });
 
-        // Solo los platos con costo cargado entran en la clasificación:
-        // sin costo no hay margen que comparar.
-        const clasificables = filas.filter(f => !f.sin_costo);
+        // Para clasificar hace falta un costo creíble.
+        //  - sin costo cargado: no hay margen que comparar.
+        //  - costo por encima del precio de venta: en un restaurante eso no
+        //    es un plato que pierde plata, es un costo mal cargado (típico:
+        //    el costo del lote completo en vez del de la porción). Si se
+        //    dejaran, arrastrarían el umbral de margen a negativo y
+        //    empujarían platos sanos al cuadrante equivocado.
         const sinCosto = filas.filter(f => f.sin_costo);
+        const costoInvalido = filas.filter(f => !f.sin_costo && f.food_cost_pct !== null && f.food_cost_pct > 100);
+        const clasificables = filas.filter(f => !f.sin_costo && !(f.food_cost_pct !== null && f.food_cost_pct > 100));
 
         const totalUnidades = clasificables.reduce((s, f) => s + f.unidades, 0);
         const totalMargen   = clasificables.reduce((s, f) => s + f.margen_total, 0);
@@ -14756,12 +14762,15 @@ app.get('/api/gerencia/ingenieria-menu', async (req, res) => {
                 food_cost_pct: foodPctGlobal,
                 margen_pct: totalIngresos > 0 ? (totalMargen / totalIngresos) * 100 : null,
                 sin_costo: sinCosto.length,
+                costo_invalido: costoInvalido.length,
             },
             // Un food cost global imposible delata costos de receta mal cargados.
             food_cost_sospechoso: foodPctGlobal !== null && foodPctGlobal > 60,
             resumen,
             platos,
             platos_sin_costo: sinCosto.sort((a, b) => b.ingresos - a.ingresos),
+            // Lista de trabajo: recetas cuyo costo supera el precio de venta
+            platos_costo_invalido: costoInvalido.sort((a, b) => (b.food_cost_pct || 0) - (a.food_cost_pct || 0)),
             grupos: gruposRes.rows,
             ccostos: ccostosRes.rows,
         });
