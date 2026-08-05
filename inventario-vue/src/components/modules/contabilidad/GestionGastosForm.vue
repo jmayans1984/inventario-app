@@ -226,7 +226,8 @@
                 <div class="field-col-amt-full">
                   <v-text-field
                     :value="ln.subtotal"
-                    @input="ln.subtotal = parseFloat(($event.target.value || '0').replace(',', '.')) || 0"
+                    @input="ln.subtotal = ($event.target.value || '').replace(',', '.')"
+                    @blur="ln.subtotal = parseFloat(ln.subtotal) || 0"
                     autocomplete="off"
                     label="Subtotal *"
                     variant="outlined"
@@ -241,7 +242,8 @@
                 <div class="field-col-amt-full">
                   <v-text-field
                     :value="ln.impuestos"
-                    @input="ln.impuestos = parseFloat(($event.target.value || '0').replace(',', '.')) || 0"
+                    @input="ln.impuestos = ($event.target.value || '').replace(',', '.')"
+                    @blur="ln.impuestos = parseFloat(ln.impuestos) || 0"
                     autocomplete="off"
                     label="Impuestos / Tax"
                     variant="outlined"
