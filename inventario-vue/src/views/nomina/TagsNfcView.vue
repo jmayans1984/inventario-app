@@ -15,8 +15,8 @@
 
       <div v-if="modoPrueba" class="tn-banner">
         <v-icon size="16" color="warning">mdi-flask-outline</v-icon>
-        Modo prueba activo: el "UID" de cada tag es un texto libre que tú inventas — no necesitas comprar
-        tags NTAG 424 DNA todavía para probar el flujo completo.
+        Modo prueba activo: puedes crear tags sin clave AES, con un UID inventado, para probar el flujo
+        sin comprar hardware. Un tag sin clave no verifica firma — desactiva el modo prueba antes de usarlo de verdad.
       </div>
 
       <div class="tn-card">
@@ -26,17 +26,22 @@
         <table v-else class="tn-table">
           <thead>
             <tr>
-              <th>ETIQUETA</th><th>UID DEL TAG</th><th>CENTRO DE COSTO</th><th>CONTADOR</th><th></th>
+              <th>ETIQUETA</th><th>UID DEL TAG</th><th>CENTRO DE COSTO</th><th>FIRMA</th><th>CONTADOR</th><th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!tags.length">
-              <td colspan="5" class="tn-empty">SIN TAGS REGISTRADOS</td>
+              <td colspan="6" class="tn-empty">SIN TAGS REGISTRADOS</td>
             </tr>
             <tr v-for="t in tags" :key="t.id">
               <td class="tn-etiqueta">{{ t.etiqueta || '—' }}</td>
               <td class="tn-uid">{{ t.tag_uid }}</td>
               <td>{{ t.ccosto_nombre }}</td>
+              <td>
+                <span class="tn-chip" :class="t.tiene_clave ? 'chip-ok' : 'chip-warn'">
+                  {{ t.tiene_clave ? 'VERIFICADA' : 'SIN CLAVE' }}
+                </span>
+              </td>
               <td class="tn-contador">{{ t.ultimo_contador }}</td>
               <td @click.stop>
                 <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="eliminar(t)" />
@@ -58,11 +63,19 @@
           </div>
           <div class="tn-field">
             <label>UID DEL TAG *</label>
-            <input v-model="form.tag_uid" class="tn-input" placeholder="En modo prueba, invéntalo. Ej: TEST-COCINA" />
+            <input v-model="form.tag_uid" class="tn-input" placeholder="7 bytes hex del chip. Ej: 04A1B2C3D4E580" />
+            <span class="tn-hint">Viene impreso o lo lee cualquier app de NFC. En modo prueba puedes inventarlo.</span>
           </div>
           <div class="tn-field">
             <label>CENTRO DE COSTO *</label>
             <v-select v-model="form.ccosto" :items="ccostos" item-title="nombre" item-value="codigo" density="compact" variant="outlined" />
+          </div>
+          <div class="tn-field">
+            <label>CLAVE AES DEL TAG {{ modoPrueba ? '(opcional en modo prueba)' : '*' }}</label>
+            <input v-model="form.aes_key" class="tn-input" placeholder="32 caracteres hexadecimales" autocomplete="off" />
+            <span class="tn-hint">
+              Te la entrega el proveedor con los tags. Se guarda cifrada y no se puede volver a consultar.
+            </span>
           </div>
           <div v-if="formErr" class="tn-error">{{ formErr }}</div>
         </div>
@@ -86,7 +99,7 @@ import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
-const modoPrueba = true // Fase 1: sin verificación CMAC real todavía (ver docs/ASISTENCIA-NFC.md)
+const modoPrueba = ref(false) // lo informa el backend según ASISTENCIA_MODO_PRUEBA
 
 const tags = ref([])
 const ccostos = ref([])
@@ -96,7 +109,7 @@ const guardando = ref(false)
 const formErr = ref('')
 const snack = ref(false)
 const snackMsg = ref('')
-const form = ref({ etiqueta: '', tag_uid: '', ccosto: '' })
+const form = ref({ etiqueta: '', tag_uid: '', ccosto: '', aes_key: '' })
 
 async function cargar() {
   cargando.value = true
@@ -106,13 +119,14 @@ async function cargar() {
       api.get('/ccostos', { params: { empresa: empresa.value } }),
     ])
     tags.value = tagsR.data?.data || []
+    modoPrueba.value = !!tagsR.data?.modo_prueba
     ccostos.value = ccR.data?.data || ccR.data || []
   } catch (e) { console.error(e) }
   finally { cargando.value = false }
 }
 
 function abrirNuevo() {
-  form.value = { etiqueta: '', tag_uid: '', ccosto: '' }
+  form.value = { etiqueta: '', tag_uid: '', ccosto: '', aes_key: '' }
   formErr.value = ''
   dialogo.value = true
 }
@@ -188,6 +202,10 @@ onMounted(cargar)
   color: rgb(var(--v-theme-on-surface)); font-size: 13px; outline: none;
 }
 .tn-input:focus { border-color: var(--indigo); }
+.tn-hint { font-size: 10px; color: rgba(var(--v-theme-on-surface), 0.4); line-height: 1.4; }
 .tn-error { color: var(--error); font-size: 12px; font-weight: 600; }
+.tn-chip { font-size: 9px; font-weight: 800; padding: 3px 7px; border-radius: 5px; letter-spacing: 0.4px; }
+.chip-ok { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.chip-warn { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
 .tn-dialog-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 </style>

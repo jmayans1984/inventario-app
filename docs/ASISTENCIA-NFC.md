@@ -222,9 +222,13 @@ El contador sube en cada toque, dentro del chip, y no se puede retroceder.
 7. Actualizar ultimo_contador
 ```
 
-**AES-CMAC sin dependencias**: se implementa sobre `crypto.createCipheriv('aes-128-cbc')`
-siguiendo RFC 4493. Son unas 40 líneas en un helper `lib/aescmac.js`. No hace falta
-instalar nada.
+**AES-CMAC sin dependencias**: implementado en `lib/nfc-sdm.js` sobre `crypto` nativo,
+siguiendo RFC 4493. Validado contra los cuatro vectores de prueba oficiales del RFC.
+
+**Orden de bytes del contador**: varía según cómo venga configurado el mirror en el lote
+de tags. `verificarSun()` prueba ambos órdenes y acepta el que valide. Esto no debilita
+nada — sin la clave AES sigue siendo imposible forjar un CMAC — solo evita tener que
+adivinar la configuración del proveedor.
 
 ### 4.3 Modo simulado para desarrollo
 
@@ -251,11 +255,14 @@ verificar CMAC. Permite probar todo el ciclo y ver el cuadro semanal llenándose
 |---|---|---|
 | `GET` | `/api/asistencia/dia` | Marcajes del día, para el supervisor |
 | `GET` | `/api/asistencia/excepciones` | Anomalías pendientes de resolver |
+| `POST` | `/api/asistencia/marcaje/:id/aprobar` | Valida un sospechoso y lo consolida |
 | `POST` | `/api/asistencia/marcaje/:id/anular` | Anula un marcaje creando el registro de corrección |
 | `POST` | `/api/asistencia/marcaje-manual` | Marcaje a mano cuando falló el celular (queda como `origen=MANUAL`) |
 | `POST` | `/api/asistencia/consolidar` | Fuerza el volcado a `nom_semana_detalle` |
+| `GET` | `/api/asistencia/rafagas` | Parejas reincidentes (§8.2) |
+| `GET` | `/api/asistencia/diagnostico` | Estado del módulo: modo, conteos, URL de redirect |
 | `GET/POST/DELETE` | `/api/asistencia/tags` | Alta y baja de tags NFC |
-| `GET/DELETE` | `/api/asistencia/dispositivos` | Ver y revocar celulares enrolados |
+| `GET/DELETE` | `/api/nomina/empleados/:id/dispositivos` | Ver y revocar celulares enrolados |
 | `POST` | `/api/nomina/empleados/:id/pin` | Generar PIN nuevo (devuelve el claro una vez) |
 
 ---
@@ -423,7 +430,7 @@ Sin anomalía son dos toques y ninguna escritura. Sin cámara, sin permisos.
 
 ## 11. Fases de entrega
 
-**Fase 1 — Ciclo funcional** (se puede probar sin comprar tags, con `ASISTENCIA_MODO_PRUEBA`)
+**Fase 1 — Ciclo funcional** ✅ implementada
 - Tablas y migraciones
 - PIN: generación, hash, enrolamiento, rate limit
 - Endpoints de marcar / estado / enrolar
@@ -431,18 +438,23 @@ Sin anomalía son dos toques y ninguna escritura. Sin cámara, sin permisos.
 - Consolidador a `nom_semana_detalle`
 - Ventana de turno y desafío de PIN por anomalía (§8.1)
 
-**Fase 2 — NFC real**
-- AES-CMAC en `lib/aescmac.js`
-- Verificación de firma y contador
-- Cifrado de claves con `ASISTENCIA_MASTER_KEY`
-- `TagsNfcView.vue`
+**Fase 2 — NFC real** ✅ implementada
+- AES-CMAC en `lib/nfc-sdm.js` (validado contra los 4 vectores del RFC 4493)
+- Verificación de firma SUN y contador antirreplay
+- Cifrado de claves con `ASISTENCIA_MASTER_KEY` (AES-256-GCM)
+- `TagsNfcView.vue` con captura de la clave AES
 
-**Fase 3 — Supervisión**
-- Panel del día
-- Excepciones y correcciones con auditoría
-- Auto-cierre nocturno
-- Reporte semanal de parejas reincidentes en `RAFAGA` (§8.2)
+**Fase 3 — Supervisión** ✅ implementada
+- Panel del día (`ControlAsistenciaView.vue`, ya no es maqueta)
+- Excepciones: aprobar o anular, con auditoría
+- Marcaje manual de respaldo
+- Auto-cierre horario de turnos abiertos
+- Reporte de parejas reincidentes en `RAFAGA` (§8.2)
+- `GET /api/asistencia/diagnostico` para depuración
+
+**Pendiente**
 - Reporte de asistencia vs. horario programado
+- Prueba end-to-end con tags NTAG 424 DNA físicos
 
 ---
 

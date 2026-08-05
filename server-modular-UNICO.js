@@ -18038,19 +18038,22 @@ app.delete('/api/produccion/receta-producto/:codigo_receta', async (req, res) =>
 });
 
 // ================================================================
-// MÓDULO: CONTROL DE ASISTENCIA NFC (Fase 1)
+// MÓDULO: CONTROL DE ASISTENCIA NFC
 // Ver docs/ASISTENCIA-NFC.md para el diseño completo.
 // Marcaje sin cámara: tag NFC + celular enrolado + PIN adaptativo ante
-// anomalía. La verificación CMAC real del chip (Fase 2) aún no está
-// implementada — con ASISTENCIA_MODO_PRUEBA=true el tap se acepta sin
-// firma para poder probar todo el ciclo antes de comprar los tags.
+// anomalía. Con ASISTENCIA_MODO_PRUEBA=true el tap se acepta sin firma
+// para poder probar el ciclo antes de comprar los tags; en producción
+// se exige la firma SUN del NTAG 424 DNA (Fase 2).
 // ================================================================
+
+const nfcSdm = require('./lib/nfc-sdm.js');
 
 const ASISTENCIA_MODO_PRUEBA = process.env.ASISTENCIA_MODO_PRUEBA === 'true';
 const ASISTENCIA_FRONTEND_URL = process.env.ASISTENCIA_FRONTEND_URL
     || 'https://heartfelt-moxie-a79307.netlify.app/completa/';
 const ASISTENCIA_VENTANA_TURNO_MIN = 30; // minutos de tolerancia alrededor del turno programado
 const ASISTENCIA_RAFAGA_SEGUNDOS = 15;
+const ASISTENCIA_RAFAGA_MIN_REINCIDENCIAS = 3; // coincidencias/semana para considerar una pareja sospechosa
 
 // ── Tablas ──────────────────────────────────────────────────────
 async function crearTablasAsistencia() {
@@ -18261,27 +18264,59 @@ async function consolidarDia(empresa, empleadoId, fecha, ccosto) {
 // ── GET /api/asistencia/tap — hit directo del navegador al acercar el celular
 // al tag NFC. Resuelve el tag, crea el contexto temporal y redirige al SPA.
 app.get('/api/asistencia/tap', async (req, res) => {
-    const { uid } = req.query;
+    // El NTAG 424 DNA con SDM imprime uid + contador + firma en cada toque.
+    // Los nombres de parámetro varían según cómo se configure el mirror.
+    const uid = req.query.uid || req.query.picc_uid;
+    const ctr = req.query.ctr || req.query.c;
+    const cmac = req.query.cmac || req.query.mac;
     if (!uid) return res.status(400).send('Falta el identificador del tag.');
     try {
         const tagR = await pool.query(
             `SELECT * FROM nom_nfc_tag WHERE tag_uid = $1 AND activo = TRUE`,
-            [String(uid)]
+            [String(uid).trim().toUpperCase()]
         );
         if (!tagR.rows.length) {
             return res.status(404).send('Tag no reconocido. Contacta a tu supervisor.');
         }
         const tag = tagR.rows[0];
 
-        if (!ASISTENCIA_MODO_PRUEBA) {
-            // Fase 2: verificación CMAC + contador del NTAG 424 DNA. Aún no implementada.
-            return res.status(501).send('Verificación NFC real pendiente de implementar (Fase 2).');
+        let contador;
+        if (ASISTENCIA_MODO_PRUEBA && !tag.aes_key_cif) {
+            // Tag de prueba (sin clave): el contador solo avanza para dejar rastro.
+            contador = tag.ultimo_contador + 1;
+        } else {
+            if (!tag.aes_key_cif) {
+                return res.status(500).send('Este tag no tiene clave AES registrada. Contacta a tu supervisor.');
+            }
+            if (!ctr || !cmac) {
+                return res.status(400).send('Tap inválido: falta la firma del tag.');
+            }
+            let claveSdm;
+            try {
+                claveSdm = nfcSdm.descifrarClaveTag(tag.aes_key_cif);
+            } catch (e) {
+                console.error('Error descifrando clave del tag', tag.id, e.message);
+                return res.status(500).send('Error de configuración del servidor.');
+            }
+            const verif = nfcSdm.verificarSun(claveSdm, String(uid).trim(), String(ctr).trim(), String(cmac).trim());
+            if (!verif.valido) {
+                console.warn(`Tap con firma inválida en tag ${tag.tag_uid}`);
+                return res.status(403).send('Tap no válido. Vuelve a acercar el celular al tag.');
+            }
+            // Antirreplay: el contador del chip solo sube, nunca se repite.
+            if (verif.contador <= tag.ultimo_contador) {
+                console.warn(`REPLAY detectado en tag ${tag.tag_uid}: contador ${verif.contador} <= ${tag.ultimo_contador}`);
+                return res.status(409).send('Este enlace ya fue usado. Vuelve a acercar el celular al tag.');
+            }
+            contador = verif.contador;
         }
 
-        const nuevoContador = tag.ultimo_contador + 1;
-        await pool.query(`UPDATE nom_nfc_tag SET ultimo_contador=$1 WHERE id=$2`, [nuevoContador, tag.id]);
+        await pool.query(`UPDATE nom_nfc_tag SET ultimo_contador=$1 WHERE id=$2`, [contador, tag.id]);
 
-        const codigo = crearPuntoTemp({ empresa: tag.empresa, ccosto: tag.ccosto, tag_id: tag.id, tag_uid: tag.tag_uid });
+        const codigo = crearPuntoTemp({
+            empresa: tag.empresa, ccosto: tag.ccosto,
+            tag_id: tag.id, tag_uid: tag.tag_uid, contador,
+        });
         res.redirect(302, `${ASISTENCIA_FRONTEND_URL}#/marcar?punto=${codigo}`);
     } catch (error) {
         console.error('Error GET /api/asistencia/tap:', error);
@@ -18450,10 +18485,11 @@ app.post('/api/asistencia/marcar', async (req, res) => {
 
         const insertR = await pool.query(
             `INSERT INTO nom_asistencia_marcaje
-             (empresa, empleado_id, tipo, momento, ccosto, origen, tag_id, dispositivo_id, pin_verificado, estado, anomalias, creado_por)
-             VALUES ($1,$2,$3,NOW(),$4,'NFC',$5,$6,$7,$8,$9,'EMPLEADO')
+             (empresa, empleado_id, tipo, momento, ccosto, origen, tag_id, tag_contador, dispositivo_id, pin_verificado, estado, anomalias, creado_por)
+             VALUES ($1,$2,$3,NOW(),$4,'NFC',$5,$6,$7,$8,$9,$10,'EMPLEADO')
              RETURNING id, momento`,
-            [ctx.empresa, dispositivo.id, tipo, ctx.ccosto, ctx.tag_id, dispositivo.dispositivo_id, pinOk, estadoFinal, anomalias.join(',') || null]
+            [ctx.empresa, dispositivo.id, tipo, ctx.ccosto, ctx.tag_id, ctx.contador || null,
+             dispositivo.dispositivo_id, pinOk, estadoFinal, anomalias.join(',') || null]
         );
         await pool.query(`UPDATE nom_dispositivo_empleado SET ultimo_uso=NOW() WHERE id=$1`, [dispositivo.dispositivo_id]);
 
@@ -18481,16 +18517,18 @@ app.get('/api/asistencia/tags', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
     try {
+        // Nunca se expone aes_key_cif: solo si el tag tiene clave o no.
         const r = await pool.query(
             `SELECT t.id, t.tag_uid, t.etiqueta, t.ccosto, COALESCE(cc.nombre, t.ccosto) AS ccosto_nombre,
-                    t.ultimo_contador, t.activo, t.created_at
+                    t.ultimo_contador, t.activo, t.created_at,
+                    (t.aes_key_cif IS NOT NULL) AS tiene_clave
              FROM nom_nfc_tag t
              LEFT JOIN ccostos cc ON cc.codigo = t.ccosto AND cc.empresa::text = t.empresa::text
              WHERE t.empresa = $1
              ORDER BY t.created_at DESC`,
             [empresa]
         );
-        res.json({ success: true, data: r.rows });
+        res.json({ success: true, data: r.rows, modo_prueba: ASISTENCIA_MODO_PRUEBA });
     } catch (error) {
         console.error('Error GET /api/asistencia/tags:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -18498,12 +18536,31 @@ app.get('/api/asistencia/tags', async (req, res) => {
 });
 
 app.post('/api/asistencia/tags', async (req, res) => {
-    const { empresa, tag_uid, etiqueta, ccosto } = req.body;
+    const { empresa, tag_uid, etiqueta, ccosto, aes_key } = req.body;
     if (!empresa || !tag_uid || !ccosto) return res.status(400).json({ success: false, error: 'Empresa, UID del tag y centro de costo son requeridos' });
+
+    // Sin clave AES el tag solo sirve en modo prueba: no hay firma que verificar.
+    if (!aes_key && !ASISTENCIA_MODO_PRUEBA) {
+        return res.status(400).json({ success: false, error: 'La clave AES del tag es obligatoria en producción' });
+    }
+
+    let claveCifrada = null;
+    if (aes_key) {
+        const limpia = String(aes_key).trim().replace(/\s|:/g, '');
+        if (!/^[0-9a-fA-F]{32}$/.test(limpia)) {
+            return res.status(400).json({ success: false, error: 'La clave AES debe ser de 16 bytes en hexadecimal (32 caracteres)' });
+        }
+        try {
+            claveCifrada = nfcSdm.cifrarClaveTag(limpia);
+        } catch (e) {
+            return res.status(500).json({ success: false, error: `No se pudo cifrar la clave: ${e.message}` });
+        }
+    }
+
     try {
         const r = await pool.query(
-            `INSERT INTO nom_nfc_tag (empresa, tag_uid, etiqueta, ccosto) VALUES ($1,$2,$3,$4) RETURNING id`,
-            [empresa, String(tag_uid).trim(), etiqueta || null, ccosto]
+            `INSERT INTO nom_nfc_tag (empresa, tag_uid, etiqueta, ccosto, aes_key_cif) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+            [empresa, String(tag_uid).trim().toUpperCase(), etiqueta || null, ccosto, claveCifrada]
         );
         res.json({ success: true, data: { id: r.rows[0].id } });
     } catch (error) {
@@ -18562,6 +18619,323 @@ app.delete('/api/nomina/empleados/:id/dispositivos/:dispositivoId', async (req, 
         res.json({ success: true });
     } catch (error) {
         console.error('Error DELETE /api/nomina/empleados/:id/dispositivos/:dispositivoId:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
+// ASISTENCIA — FASE 3: SUPERVISIÓN
+// Panel del día, excepciones, correcciones auditadas, auto-cierre y
+// reporte de parejas reincidentes en ráfaga.
+// ================================================================
+
+// ── GET /api/asistencia/dia — marcajes de una fecha, para el supervisor ──
+app.get('/api/asistencia/dia', async (req, res) => {
+    const { empresa, fecha } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+    const dia = fecha || new Date().toISOString().slice(0, 10);
+    try {
+        const r = await pool.query(
+            `SELECT m.id, m.tipo, m.momento, m.ccosto, m.origen, m.estado, m.anomalias,
+                    m.pin_verificado, m.tag_contador, m.corrige_a, m.creado_por, m.notas,
+                    e.nombre, e.apellido,
+                    COALESCE(cc.nombre, m.ccosto) AS ccosto_nombre,
+                    t.etiqueta AS tag_etiqueta
+             FROM nom_asistencia_marcaje m
+             JOIN nom_empleados e ON e.id = m.empleado_id
+             LEFT JOIN ccostos cc ON cc.codigo = m.ccosto AND cc.empresa::text = m.empresa::text
+             LEFT JOIN nom_nfc_tag t ON t.id = m.tag_id
+             WHERE m.empresa = $1 AND m.momento::date = $2::date
+             ORDER BY m.momento DESC`,
+            [empresa, dia]
+        );
+        res.json({ success: true, fecha: dia, data: r.rows });
+    } catch (error) {
+        console.error('Error GET /api/asistencia/dia:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── GET /api/asistencia/excepciones — lo que necesita decisión del supervisor ──
+app.get('/api/asistencia/excepciones', async (req, res) => {
+    const { empresa, dias } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+    const ventana = parseInt(dias) || 14;
+    try {
+        const r = await pool.query(
+            `SELECT m.id, m.tipo, m.momento, m.ccosto, m.origen, m.estado, m.anomalias,
+                    m.pin_verificado, m.notas,
+                    e.nombre, e.apellido,
+                    COALESCE(cc.nombre, m.ccosto) AS ccosto_nombre
+             FROM nom_asistencia_marcaje m
+             JOIN nom_empleados e ON e.id = m.empleado_id
+             LEFT JOIN ccostos cc ON cc.codigo = m.ccosto AND cc.empresa::text = m.empresa::text
+             WHERE m.empresa = $1
+               AND m.estado = 'SOSPECHOSO'
+               AND m.momento > NOW() - ($2 || ' days')::interval
+             ORDER BY m.momento DESC`,
+            [empresa, String(ventana)]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (error) {
+        console.error('Error GET /api/asistencia/excepciones:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── POST /api/asistencia/marcaje/:id/aprobar — el supervisor valida un sospechoso ──
+app.post('/api/asistencia/marcaje/:id/aprobar', async (req, res) => {
+    const { usuario, notas } = req.body;
+    try {
+        const r = await pool.query(
+            `UPDATE nom_asistencia_marcaje
+             SET estado='VALIDO', notas=COALESCE($1, notas)
+             WHERE id=$2 AND estado='SOSPECHOSO'
+             RETURNING empresa, empleado_id, ccosto, momento`,
+            [notas ? `Aprobado por ${usuario || 'supervisor'}: ${notas}` : `Aprobado por ${usuario || 'supervisor'}`, req.params.id]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'Marcaje no encontrado o ya resuelto' });
+
+        const m = r.rows[0];
+        const fecha = new Date(m.momento).toISOString().slice(0, 10);
+        const consolidacion = await consolidarDia(m.empresa, m.empleado_id, fecha, m.ccosto);
+        res.json({ success: true, data: consolidacion });
+    } catch (error) {
+        console.error('Error POST /api/asistencia/marcaje/:id/aprobar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── POST /api/asistencia/marcaje/:id/anular — corrección auditada ──
+// Los marcajes nunca se editan ni se borran: se anula el original y, si
+// se indica un momento nuevo, se crea otro que apunta a él con corrige_a.
+app.post('/api/asistencia/marcaje/:id/anular', async (req, res) => {
+    const { usuario, motivo, momento_corregido } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const orig = await client.query(
+            `SELECT * FROM nom_asistencia_marcaje WHERE id=$1 AND estado != 'ANULADO' FOR UPDATE`,
+            [req.params.id]
+        );
+        if (!orig.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Marcaje no encontrado o ya anulado' });
+        }
+        const m = orig.rows[0];
+
+        await client.query(
+            `UPDATE nom_asistencia_marcaje SET estado='ANULADO', notas=$1 WHERE id=$2`,
+            [`Anulado por ${usuario || 'supervisor'}${motivo ? ': ' + motivo : ''}`, m.id]
+        );
+
+        let nuevoId = null;
+        if (momento_corregido) {
+            const nuevo = await client.query(
+                `INSERT INTO nom_asistencia_marcaje
+                 (empresa, empleado_id, tipo, momento, ccosto, origen, estado, corrige_a, creado_por, notas)
+                 VALUES ($1,$2,$3,$4,$5,'MANUAL','VALIDO',$6,$7,$8)
+                 RETURNING id`,
+                [m.empresa, m.empleado_id, m.tipo, momento_corregido, m.ccosto, m.id,
+                 usuario || 'supervisor', `Corrige el marcaje #${m.id}`]
+            );
+            nuevoId = nuevo.rows[0].id;
+        }
+        await client.query('COMMIT');
+
+        const fecha = new Date(momento_corregido || m.momento).toISOString().slice(0, 10);
+        const consolidacion = await consolidarDia(m.empresa, m.empleado_id, fecha, m.ccosto);
+        res.json({ success: true, data: { anulado: m.id, nuevo: nuevoId, ...consolidacion } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/asistencia/marcaje/:id/anular:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// ── POST /api/asistencia/marcaje-manual — respaldo cuando falló el celular ──
+app.post('/api/asistencia/marcaje-manual', async (req, res) => {
+    const { empresa, empleado_id, tipo, momento, ccosto, usuario, motivo } = req.body;
+    if (!empresa || !empleado_id || !tipo || !momento || !ccosto) {
+        return res.status(400).json({ success: false, error: 'Empresa, empleado, tipo, momento y centro de costo son requeridos' });
+    }
+    if (!['ENTRADA', 'SALIDA'].includes(tipo)) {
+        return res.status(400).json({ success: false, error: 'El tipo debe ser ENTRADA o SALIDA' });
+    }
+    try {
+        const r = await pool.query(
+            `INSERT INTO nom_asistencia_marcaje
+             (empresa, empleado_id, tipo, momento, ccosto, origen, estado, anomalias, creado_por, notas)
+             VALUES ($1,$2,$3,$4,$5,'MANUAL','VALIDO','MANUAL',$6,$7)
+             RETURNING id`,
+            [empresa, empleado_id, tipo, momento, ccosto, usuario || 'supervisor', motivo || null]
+        );
+        const fecha = new Date(momento).toISOString().slice(0, 10);
+        const consolidacion = await consolidarDia(empresa, empleado_id, fecha, ccosto);
+        res.json({ success: true, data: { id: r.rows[0].id, ...consolidacion } });
+    } catch (error) {
+        console.error('Error POST /api/asistencia/marcaje-manual:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── POST /api/asistencia/consolidar — fuerza el volcado de un día ──
+app.post('/api/asistencia/consolidar', async (req, res) => {
+    const { empresa, fecha } = req.body;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+    const dia = fecha || new Date().toISOString().slice(0, 10);
+    try {
+        const pares = await pool.query(
+            `SELECT DISTINCT empleado_id, ccosto FROM nom_asistencia_marcaje
+             WHERE empresa=$1 AND momento::date = $2::date AND estado='VALIDO'`,
+            [empresa, dia]
+        );
+        const resultados = [];
+        for (const p of pares.rows) {
+            const r = await consolidarDia(empresa, p.empleado_id, dia, p.ccosto);
+            resultados.push({ empleado_id: p.empleado_id, ccosto: p.ccosto, ...r });
+        }
+        res.json({ success: true, fecha: dia, data: resultados });
+    } catch (error) {
+        console.error('Error POST /api/asistencia/consolidar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── GET /api/asistencia/rafagas — parejas reincidentes ──
+// Un RAFAGA suelto es ruido (dos compañeros que llegaron juntos). Lo que
+// delata es la misma pareja repitiendo, semana tras semana.
+app.get('/api/asistencia/rafagas', async (req, res) => {
+    const { empresa, dias } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+    const ventana = parseInt(dias) || 7;
+    try {
+        const r = await pool.query(
+            `WITH eventos AS (
+                SELECT m.id, m.empleado_id, m.momento, m.tag_id
+                FROM nom_asistencia_marcaje m
+                WHERE m.empresa = $1
+                  AND m.anomalias LIKE '%RAFAGA%'
+                  AND m.estado != 'ANULADO'
+                  AND m.momento > NOW() - ($2 || ' days')::interval
+            )
+            SELECT LEAST(a.empleado_id, b.empleado_id)    AS empleado_a,
+                   GREATEST(a.empleado_id, b.empleado_id) AS empleado_b,
+                   COUNT(*) AS coincidencias,
+                   MAX(a.momento) AS ultima
+            FROM eventos a
+            JOIN nom_asistencia_marcaje b
+              ON b.tag_id = a.tag_id
+             AND b.empleado_id != a.empleado_id
+             AND b.estado != 'ANULADO'
+             AND b.momento BETWEEN a.momento - ($3 || ' seconds')::interval
+                               AND a.momento + ($3 || ' seconds')::interval
+            GROUP BY 1, 2
+            HAVING COUNT(*) >= $4
+            ORDER BY coincidencias DESC`,
+            [empresa, String(ventana), String(ASISTENCIA_RAFAGA_SEGUNDOS), ASISTENCIA_RAFAGA_MIN_REINCIDENCIAS]
+        );
+
+        // Resolver nombres solo de los empleados involucrados
+        const ids = [...new Set(r.rows.flatMap(x => [x.empleado_a, x.empleado_b]))];
+        let nombres = {};
+        if (ids.length) {
+            const nR = await pool.query(
+                `SELECT id, nombre, apellido FROM nom_empleados WHERE id = ANY($1::int[])`, [ids]
+            );
+            nombres = Object.fromEntries(nR.rows.map(e => [e.id, `${e.apellido}, ${e.nombre}`]));
+        }
+        res.json({
+            success: true,
+            data: r.rows.map(x => ({
+                ...x,
+                empleado_a_nombre: nombres[x.empleado_a] || x.empleado_a,
+                empleado_b_nombre: nombres[x.empleado_b] || x.empleado_b,
+                coincidencias: parseInt(x.coincidencias),
+            })),
+        });
+    } catch (error) {
+        console.error('Error GET /api/asistencia/rafagas:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── Auto-cierre de turnos abiertos ──────────────────────────────
+// Si alguien olvidó marcar salida, se cierra en su hora programada de fin
+// (o a las 23:59 si no tenía turno) y queda con anomalía SIN_SALIDA para
+// que el supervisor lo revise. Nunca se inventan horas en silencio.
+async function autoCerrarTurnosAbiertos() {
+    try {
+        const abiertos = await pool.query(
+            `SELECT DISTINCT ON (m.empleado_id, m.ccosto)
+                    m.id, m.empresa, m.empleado_id, m.ccosto, m.momento
+             FROM nom_asistencia_marcaje m
+             WHERE m.estado = 'VALIDO'
+               AND m.momento::date < CURRENT_DATE
+             ORDER BY m.empleado_id, m.ccosto, m.momento DESC`
+        );
+
+        for (const a of abiertos.rows) {
+            // Solo interesa si el último marcaje de ese día fue una ENTRADA
+            const ultimo = await pool.query(
+                `SELECT tipo FROM nom_asistencia_marcaje
+                 WHERE empleado_id=$1 AND ccosto=$2 AND estado='VALIDO'
+                   AND momento::date = $3::date
+                 ORDER BY momento DESC LIMIT 1`,
+                [a.empleado_id, a.ccosto, a.momento]
+            );
+            if (ultimo.rows[0]?.tipo !== 'ENTRADA') continue;
+
+            const fecha = new Date(a.momento).toISOString().slice(0, 10);
+            const prog = await pool.query(
+                `SELECT sd.prog_fin FROM nom_semana_detalle sd
+                 JOIN nom_semana s ON s.id = sd.semana_id
+                 WHERE sd.empleado_id=$1 AND sd.fecha=$2 AND sd.ccosto=$3 AND s.empresa=$4
+                 LIMIT 1`,
+                [a.empleado_id, fecha, a.ccosto, a.empresa]
+            );
+            const horaCierre = prog.rows[0]?.prog_fin || '23:59:00';
+
+            await pool.query(
+                `INSERT INTO nom_asistencia_marcaje
+                 (empresa, empleado_id, tipo, momento, ccosto, origen, estado, anomalias, creado_por, notas)
+                 VALUES ($1,$2,'SALIDA',($3::date + $4::time),$5,'AUTO_CIERRE','SOSPECHOSO','SIN_SALIDA','SISTEMA',
+                         'Cierre automático: el empleado no marcó salida')`,
+                [a.empresa, a.empleado_id, fecha, horaCierre, a.ccosto]
+            );
+            console.log(`Auto-cierre: empleado ${a.empleado_id} en ${a.ccosto} el ${fecha}`);
+        }
+    } catch (error) {
+        console.error('Error en autoCerrarTurnosAbiertos:', error.message);
+    }
+}
+setInterval(autoCerrarTurnosAbiertos, 60 * 60 * 1000); // cada hora
+
+// ── GET /api/asistencia/diagnostico — estado del módulo, para depurar ──
+app.get('/api/asistencia/diagnostico', async (req, res) => {
+    const { empresa } = req.query;
+    try {
+        const out = {
+            modo_prueba: ASISTENCIA_MODO_PRUEBA,
+            frontend_url: ASISTENCIA_FRONTEND_URL,
+            master_key_configurada: !!process.env.ASISTENCIA_MASTER_KEY,
+            puntos_temp_vivos: puntosTemp.size,
+        };
+        if (empresa) {
+            const [tags, disp, marc] = await Promise.all([
+                pool.query(`SELECT COUNT(*) c FROM nom_nfc_tag WHERE empresa=$1 AND activo=TRUE`, [empresa]),
+                pool.query(`SELECT COUNT(*) c FROM nom_dispositivo_empleado d JOIN nom_empleados e ON e.id=d.empleado_id WHERE e.empresa=$1 AND d.activo=TRUE`, [empresa]),
+                pool.query(`SELECT COUNT(*) c FROM nom_asistencia_marcaje WHERE empresa=$1`, [empresa]),
+            ]);
+            out.tags_activos = parseInt(tags.rows[0].c);
+            out.celulares_vinculados = parseInt(disp.rows[0].c);
+            out.marcajes_totales = parseInt(marc.rows[0].c);
+        }
+        res.json({ success: true, data: out });
+    } catch (error) {
+        console.error('Error GET /api/asistencia/diagnostico:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
