@@ -2311,7 +2311,7 @@ app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
                     ea.fecha::date AS fecha,
                     ea.total AS total_entrada,
                     dea.articulo AS producto_codigo,
-                    COALESCE(p.nombre, p.descripcion, dea.articulo) AS producto_nombre,
+                    COALESCE(p.nombre, p.descripcion, a.nombre, dea.articulo) AS producto_nombre,
                     COALESCE(p.und, '-') AS und,
                     dea.cantidad,
                     dea.vr_unitario AS precio_unitario,
@@ -2319,9 +2319,10 @@ app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
              FROM entrada_almacen ea
              JOIN detalle_entrada_almacen dea ON dea.codigo = ea.codigo
              LEFT JOIN productos p ON p.codigo::text = dea.articulo::text
+             LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(dea.articulo)
              WHERE ea.empresa::text = $1
                AND ea.gasto = $2
-             ORDER BY ea.fecha DESC, COALESCE(p.nombre, p.descripcion, dea.articulo)`,
+             ORDER BY ea.fecha DESC, COALESCE(p.nombre, p.descripcion, a.nombre, dea.articulo)`,
             [String(empresa), codigo]
         );
         res.json({ success: true, data: rows.rows });
