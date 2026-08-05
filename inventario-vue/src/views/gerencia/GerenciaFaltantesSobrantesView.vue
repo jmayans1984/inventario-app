@@ -214,6 +214,20 @@
                   <td class="tr">{{ p.num_tomas }}</td>
                 </tr>
               </tbody>
+              <tfoot>
+                <tr class="fc-tr-totals">
+                  <td class="font-weight-bold">TOTALES</td>
+                  <td></td>
+                  <td class="tr font-weight-bold">{{ fmtNum(productosTotales.sobrante_cant) }}</td>
+                  <td class="tr font-weight-bold">{{ fmtNum(productosTotales.faltante_cant) }}</td>
+                  <td class="tr font-weight-bold" style="color:#22c55e">{{ fmt(productosTotales.sobrante_valor) }}</td>
+                  <td class="tr font-weight-bold" style="color:#ef4444">{{ fmt(productosTotales.faltante_valor) }}</td>
+                  <td class="tr font-weight-bold" :style="{ color: productosTotales.neto_valor >= 0 ? '#22c55e' : '#ef4444' }">
+                    {{ fmt(productosTotales.neto_valor) }}
+                  </td>
+                  <td class="tr font-weight-bold">{{ fmtNum(productosTotales.num_tomas) }}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -396,6 +410,18 @@ const productosFiltrados = computed(() => {
   })
 })
 
+const productosTotales = computed(() => {
+  const lista = productosFiltrados.value
+  return {
+    sobrante_cant: lista.reduce((sum, p) => sum + (p.sobrante_cant || 0), 0),
+    faltante_cant: lista.reduce((sum, p) => sum + (p.faltante_cant || 0), 0),
+    sobrante_valor: lista.reduce((sum, p) => sum + (p.sobrante_valor || 0), 0),
+    faltante_valor: lista.reduce((sum, p) => sum + (p.faltante_valor || 0), 0),
+    neto_valor: lista.reduce((sum, p) => sum + (p.neto_valor || 0), 0),
+    num_tomas: lista.reduce((sum, p) => sum + (p.num_tomas || 0), 0),
+  }
+})
+
 // ── KPIs derivados ────────────────────────────────────────────────
 const netoColor = computed(() => (data.value?.kpis?.neto ?? 0) >= 0 ? '#22c55e' : '#ef4444')
 const netoBg    = computed(() => (data.value?.kpis?.neto ?? 0) >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)')
@@ -504,23 +530,23 @@ function renderMensual() {
   const esValor = modoGlobal.value === 'valor'
 
   const sobrante = serie.map(s => esValor ? s.sobrante_valor : s.sobrante_cant)
-  const faltante = serie.map(s => esValor ? -Math.abs(s.faltante_valor) : -Math.abs(s.faltante_cant))
+  const faltante = serie.map(s => esValor ? s.faltante_valor : s.faltante_cant)
   const neto     = serie.map(s => esValor ? s.neto_valor : s.neto_cant)
 
   chartMensual = new ApexCharts(chartMensualRef.value, {
     chart: {
-      type: 'bar', height: 360, stacked: true, toolbar: { show: false },
+      type: 'line', height: 360, toolbar: { show: false },
       fontFamily: 'Inter,sans-serif', background: 'transparent',
       animations: { enabled: true, speed: 500 },
     },
     theme: { mode: isDark() ? 'dark' : 'light' },
     series: [
-      { name: 'Sobrante', type: 'bar', data: sobrante, color: '#22c55e' },
-      { name: 'Faltante', type: 'bar', data: faltante, color: '#ef4444' },
-      { name: 'Neto', type: 'line', data: neto, color: '#6366f1' },
+      { name: 'Sobrante', data: sobrante, color: '#22c55e' },
+      { name: 'Faltante', data: faltante, color: '#ef4444' },
+      { name: 'Neto', data: neto, color: '#6366f1' },
     ],
-    stroke: { width: [0, 0, 3], curve: 'smooth' },
-    plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
+    stroke: { width: 2.5, curve: 'smooth' },
+    markers: { size: 5, strokeColors: '#fff', strokeWidth: 2, hover: { size: 7 } },
     dataLabels: { enabled: false },
     xaxis: {
       categories: cats,
@@ -733,6 +759,11 @@ onBeforeUnmount(() => {
 .fc-table td { padding: 10px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); white-space: nowrap; }
 .fc-table .tr { text-align: right; }
 .fc-tr:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
+.fc-tr-totals {
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.15);
+  border-bottom: 2px solid rgba(var(--v-theme-on-surface), 0.15);
+}
 .ac-tr-click { cursor: pointer; }
 .ac-row-selected { background: rgba(6, 182, 212, 0.07) !important; }
 .font-weight-bold { font-weight: 700; }
