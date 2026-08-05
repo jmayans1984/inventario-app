@@ -13886,6 +13886,305 @@ app.get('/api/gerencia/analisis-costos/producto/:codigo', async (req, res) => {
 });
 
 // ================================================================
+// GERENCIA — ANÁLISIS DE SOBRANTES / FALTANTES (Toma Física)
+// Fuente: detalle_inventario (tipo='TOMA FISICA'), entrada=sobrante, salida=faltante
+// ================================================================
+
+// Construye el filtro de productos compartido (control / visible_operacional / todos)
+function filtroProductosFaltantesSQL(filtro) {
+    if (filtro === 'control') return " AND p.control='SI'";
+    if (filtro === 'visible_operacional') return " AND p.visible_operacional='SI'";
+    return '';
+}
+
+// GET /api/gerencia/analisis-faltantes — ranking por producto + serie mensual + KPIs
+app.get('/api/gerencia/analisis-faltantes', async (req, res) => {
+    const { empresa, desde, hasta, filtro_productos, ccosto, grupo } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const hastaDate = hasta || new Date().toISOString().slice(0, 10);
+    const desdeDate = desde || (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 11);
+        d.setDate(1);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    const params = [String(empresa), desdeDate, hastaDate];
+    let ccostoFilter = '';
+    if (ccosto) { params.push(ccosto); ccostoFilter = ` AND di.ccosto = $${params.length}`; }
+    let grupoFilter = '';
+    if (grupo)  { params.push(grupo);  grupoFilter  = ` AND p.grupo = $${params.length}`; }
+    const filtroProd = filtroProductosFaltantesSQL(filtro_productos);
+
+    // Expresión de precio de costo por empresa (overlay) con fallback al base del producto
+    const precioExpr = `COALESCE(pce.precio_costo, p.precio_costo, 0)`;
+
+    try {
+        // ── Ranking por producto ──────────────────────────────────
+        const prodQuery = `
+            SELECT di.codigo AS producto_codigo,
+                   MAX(p.nombre) AS producto_nombre,
+                   MAX(p.und) AS und,
+                   MAX(COALESCE(gp.nombre, 'Sin Grupo')) AS grupo_nombre,
+                   MAX(${precioExpr}) AS precio_costo,
+                   ROUND(COALESCE(SUM(di.entrada), 0)::numeric, 4) AS sobrante_cant,
+                   ROUND(COALESCE(SUM(di.salida),  0)::numeric, 4) AS faltante_cant,
+                   ROUND(COALESCE(SUM(di.entrada * ${precioExpr}), 0)::numeric, 2) AS sobrante_valor,
+                   ROUND(COALESCE(SUM(di.salida  * ${precioExpr}), 0)::numeric, 2) AS faltante_valor,
+                   COUNT(DISTINCT (di.fecha, di.ccosto)) AS num_tomas
+            FROM detalle_inventario di
+            JOIN productos p ON p.codigo = di.codigo
+            LEFT JOIN producto_costo_empresa pce
+                   ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+            LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+            WHERE di.empresa::text = $1
+              AND di.fecha >= $2::date AND di.fecha <= $3::date
+              AND di.tipo = 'TOMA FISICA'
+              ${ccostoFilter} ${grupoFilter} ${filtroProd}
+            GROUP BY di.codigo
+            HAVING COALESCE(SUM(di.entrada), 0) <> 0 OR COALESCE(SUM(di.salida), 0) <> 0
+            ORDER BY producto_nombre
+        `;
+        const prodRes = await pool.query(prodQuery, params);
+
+        // ── Serie mensual agregada ────────────────────────────────
+        const serieQuery = `
+            SELECT TO_CHAR(di.fecha, 'YYYY-MM') AS periodo_key,
+                   ROUND(COALESCE(SUM(di.entrada), 0)::numeric, 4) AS sobrante_cant,
+                   ROUND(COALESCE(SUM(di.salida),  0)::numeric, 4) AS faltante_cant,
+                   ROUND(COALESCE(SUM(di.entrada * ${precioExpr}), 0)::numeric, 2) AS sobrante_valor,
+                   ROUND(COALESCE(SUM(di.salida  * ${precioExpr}), 0)::numeric, 2) AS faltante_valor
+            FROM detalle_inventario di
+            JOIN productos p ON p.codigo = di.codigo
+            LEFT JOIN producto_costo_empresa pce
+                   ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+            WHERE di.empresa::text = $1
+              AND di.fecha >= $2::date AND di.fecha <= $3::date
+              AND di.tipo = 'TOMA FISICA'
+              ${ccostoFilter} ${grupoFilter} ${filtroProd}
+            GROUP BY periodo_key
+            ORDER BY periodo_key
+        `;
+        const serieRes = await pool.query(serieQuery, params);
+
+        const gruposRes = await pool.query(`SELECT codigo, nombre FROM grupo_productos ORDER BY nombre`);
+
+        const productos = prodRes.rows.map(r => {
+            const sobranteValor = parseFloat(r.sobrante_valor) || 0;
+            const faltanteValor = parseFloat(r.faltante_valor) || 0;
+            const sobranteCant = parseFloat(r.sobrante_cant) || 0;
+            const faltanteCant = parseFloat(r.faltante_cant) || 0;
+            return {
+                producto_codigo: r.producto_codigo,
+                producto_nombre: r.producto_nombre,
+                und: r.und,
+                grupo_nombre: r.grupo_nombre,
+                precio_costo: parseFloat(r.precio_costo) || 0,
+                sobrante_cant: sobranteCant,
+                faltante_cant: faltanteCant,
+                neto_cant: sobranteCant - faltanteCant,
+                sobrante_valor: sobranteValor,
+                faltante_valor: faltanteValor,
+                neto_valor: sobranteValor - faltanteValor,
+                num_tomas: parseInt(r.num_tomas) || 0,
+            };
+        });
+
+        const serieMensual = serieRes.rows.map(r => {
+            const sobranteValor = parseFloat(r.sobrante_valor) || 0;
+            const faltanteValor = parseFloat(r.faltante_valor) || 0;
+            const sobranteCant = parseFloat(r.sobrante_cant) || 0;
+            const faltanteCant = parseFloat(r.faltante_cant) || 0;
+            return {
+                periodo_key: r.periodo_key,
+                sobrante_cant: sobranteCant,
+                faltante_cant: faltanteCant,
+                neto_cant: sobranteCant - faltanteCant,
+                sobrante_valor: sobranteValor,
+                faltante_valor: faltanteValor,
+                neto_valor: sobranteValor - faltanteValor,
+            };
+        });
+
+        // ── KPIs ──────────────────────────────────────────────────
+        const totalSobrante = productos.reduce((s, p) => s + p.sobrante_valor, 0);
+        const totalFaltante = productos.reduce((s, p) => s + p.faltante_valor, 0);
+        const neto = totalSobrante - totalFaltante;
+
+        const porFaltante = [...productos].sort((a, b) => b.faltante_valor - a.faltante_valor);
+        const porSobrante = [...productos].sort((a, b) => b.sobrante_valor - a.sobrante_valor);
+        const mayorFaltante = (porFaltante[0] && porFaltante[0].faltante_valor > 0) ? porFaltante[0] : null;
+        const mayorSobrante = (porSobrante[0] && porSobrante[0].sobrante_valor > 0) ? porSobrante[0] : null;
+
+        // Ventas del período (todas las cuentas del CC seleccionado o de la empresa)
+        const ventasParams = [String(empresa), desdeDate, hastaDate];
+        let ventasCcostoFilter = '';
+        if (ccosto) { ventasParams.push(ccosto); ventasCcostoFilter = ` AND ccosto = $${ventasParams.length}`; }
+        const ventasRes = await pool.query(
+            `SELECT COALESCE(SUM(ventas_netas), 0) AS total_ventas
+             FROM ventas
+             WHERE empresa = $1 AND fecha >= $2::date AND fecha <= $3::date ${ventasCcostoFilter}`,
+            ventasParams
+        );
+        const totalVentas = parseFloat(ventasRes.rows[0]?.total_ventas || 0);
+
+        res.json({
+            success: true,
+            periodo: { desde: desdeDate, hasta: hastaDate },
+            kpis: {
+                totalSobrante, totalFaltante, neto, totalVentas,
+                pctFaltanteVentas: totalVentas > 0 ? (totalFaltante / totalVentas) * 100 : null,
+                pctNetoVentas: totalVentas > 0 ? (neto / totalVentas) * 100 : null,
+                productosAfectados: productos.length,
+                mayorFaltante: mayorFaltante ? {
+                    producto_codigo: mayorFaltante.producto_codigo,
+                    producto_nombre: mayorFaltante.producto_nombre,
+                    faltante_valor: mayorFaltante.faltante_valor,
+                } : null,
+                mayorSobrante: mayorSobrante ? {
+                    producto_codigo: mayorSobrante.producto_codigo,
+                    producto_nombre: mayorSobrante.producto_nombre,
+                    sobrante_valor: mayorSobrante.sobrante_valor,
+                } : null,
+            },
+            productos,
+            serieMensual,
+            gruposDisponibles: gruposRes.rows,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/analisis-faltantes:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/gerencia/analisis-faltantes/producto/:codigo — serie mensual e histórico de un producto
+app.get('/api/gerencia/analisis-faltantes/producto/:codigo', async (req, res) => {
+    const { empresa, desde, hasta, ccosto } = req.query;
+    const { codigo } = req.params;
+    if (!empresa || !codigo) return res.status(400).json({ success: false, error: 'empresa y codigo requeridos' });
+
+    const hastaDate = hasta || new Date().toISOString().slice(0, 10);
+    const desdeDate = desde || (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 11);
+        d.setDate(1);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    const params = [String(empresa), codigo, desdeDate, hastaDate];
+    let ccostoFilter = '';
+    if (ccosto) { params.push(ccosto); ccostoFilter = ` AND di.ccosto = $${params.length}`; }
+
+    const precioExpr = `COALESCE(pce.precio_costo, p.precio_costo, 0)`;
+
+    try {
+        const prodRes = await pool.query(
+            `SELECT p.codigo, p.nombre, p.und, COALESCE(gp.nombre, 'Sin Grupo') AS grupo_nombre,
+                    ${precioExpr} AS precio_costo
+             FROM productos p
+             LEFT JOIN producto_costo_empresa pce
+                    ON pce.codigo = p.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+             LEFT JOIN grupo_productos gp ON gp.codigo = p.grupo
+             WHERE p.codigo = $2`,
+            [String(empresa), codigo]
+        );
+
+        // Serie mensual del producto
+        const serieRes = await pool.query(
+            `SELECT TO_CHAR(di.fecha, 'YYYY-MM') AS periodo_key,
+                    ROUND(COALESCE(SUM(di.entrada), 0)::numeric, 4) AS sobrante_cant,
+                    ROUND(COALESCE(SUM(di.salida),  0)::numeric, 4) AS faltante_cant,
+                    ROUND(COALESCE(SUM(di.entrada * ${precioExpr}), 0)::numeric, 2) AS sobrante_valor,
+                    ROUND(COALESCE(SUM(di.salida  * ${precioExpr}), 0)::numeric, 2) AS faltante_valor
+             FROM detalle_inventario di
+             JOIN productos p ON p.codigo = di.codigo
+             LEFT JOIN producto_costo_empresa pce
+                    ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+             WHERE di.empresa::text = $1 AND di.codigo = $2
+               AND di.fecha >= $3::date AND di.fecha <= $4::date
+               AND di.tipo = 'TOMA FISICA' ${ccostoFilter}
+             GROUP BY periodo_key
+             ORDER BY periodo_key`,
+            params
+        );
+
+        // Histórico detallado (cada toma)
+        const histRes = await pool.query(
+            `SELECT di.fecha::date AS fecha, di.ccosto,
+                    COALESCE(cc.nombre, di.ccosto) AS ccosto_nombre,
+                    ROUND(COALESCE(di.entrada, 0)::numeric, 4) AS sobrante_cant,
+                    ROUND(COALESCE(di.salida,  0)::numeric, 4) AS faltante_cant,
+                    ${precioExpr} AS precio_costo
+             FROM detalle_inventario di
+             JOIN productos p ON p.codigo = di.codigo
+             LEFT JOIN producto_costo_empresa pce
+                    ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+             LEFT JOIN ccostos cc ON cc.codigo = di.ccosto AND cc.empresa = $1
+             WHERE di.empresa::text = $1 AND di.codigo = $2
+               AND di.fecha >= $3::date AND di.fecha <= $4::date
+               AND di.tipo = 'TOMA FISICA' ${ccostoFilter}
+             ORDER BY di.fecha ASC, di.ccosto ASC`,
+            params
+        );
+
+        const pr = prodRes.rows[0];
+        const productoInfo = {
+            codigo,
+            nombre: pr?.nombre || codigo,
+            und: pr?.und || null,
+            grupo_nombre: pr?.grupo_nombre || null,
+            precio_costo: parseFloat(pr?.precio_costo) || 0,
+        };
+
+        const serieMensual = serieRes.rows.map(r => {
+            const sc = parseFloat(r.sobrante_cant) || 0;
+            const fc = parseFloat(r.faltante_cant) || 0;
+            const sv = parseFloat(r.sobrante_valor) || 0;
+            const fv = parseFloat(r.faltante_valor) || 0;
+            return {
+                periodo_key: r.periodo_key,
+                sobrante_cant: sc, faltante_cant: fc, neto_cant: sc - fc,
+                sobrante_valor: sv, faltante_valor: fv, neto_valor: sv - fv,
+            };
+        });
+
+        const historico = histRes.rows.map(r => {
+            const sc = parseFloat(r.sobrante_cant) || 0;
+            const fc = parseFloat(r.faltante_cant) || 0;
+            const precio = parseFloat(r.precio_costo) || 0;
+            return {
+                fecha: r.fecha, ccosto: r.ccosto, ccosto_nombre: r.ccosto_nombre,
+                sobrante_cant: sc, faltante_cant: fc, neto_cant: sc - fc,
+                neto_valor: (sc - fc) * precio,
+            };
+        });
+
+        const totalSobranteValor = serieMensual.reduce((s, m) => s + m.sobrante_valor, 0);
+        const totalFaltanteValor = serieMensual.reduce((s, m) => s + m.faltante_valor, 0);
+        const totalSobranteCant = serieMensual.reduce((s, m) => s + m.sobrante_cant, 0);
+        const totalFaltanteCant = serieMensual.reduce((s, m) => s + m.faltante_cant, 0);
+
+        res.json({
+            success: true,
+            producto: productoInfo,
+            kpis: {
+                totalSobranteValor, totalFaltanteValor,
+                netoValor: totalSobranteValor - totalFaltanteValor,
+                totalSobranteCant, totalFaltanteCant,
+                netoCant: totalSobranteCant - totalFaltanteCant,
+                numTomas: historico.length,
+            },
+            serieMensual,
+            historico,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/analisis-faltantes/producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
 // articulos:      codigo, nombre, und, valor(precio), empresa, grupo, prod_propio
