@@ -3032,7 +3032,7 @@ app.get('/api/almacen/reporte-consumos', async (req, res) => {
 // tomas físicas se hayan hecho.
 app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
     try {
-        const { empresa, ccostos, fecha_ini, fecha_fin, filtro_productos } = req.query;
+        const { empresa, ccostos, fecha_ini, fecha_fin } = req.query;
         if (!empresa || !ccostos || !fecha_ini || !fecha_fin)
             return res.status(400).json({ success: false, error: 'Faltan parámetros' });
 
@@ -3040,12 +3040,21 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
         const n = listaCcostos.length;
         const placeholders = listaCcostos.map((_, i) => `$${i + 2}`).join(', ');
 
-        // Construir cláusula de filtro de productos
-        let filtroProductosSQL = '';
-        if (filtro_productos === 'control') {
-            filtroProductosSQL = " AND p.control='SI'";
-        } else if (filtro_productos === 'visible_operacional') {
-            filtroProductosSQL = " AND p.visible_operacional='SI'";
+        // Obtener bodega_maestra de la empresa para aplicar el filtro automático:
+        // ccosto = bodega maestra -> producto.control='SI'; ccosto distinto -> producto.visible_operacional='SI'
+        const bodegaRes = await pool.query(
+            `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`, [String(empresa)]
+        );
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+
+        const queryParams = [String(empresa), ...listaCcostos, fecha_ini, fecha_fin];
+        let filtroProductosSQL;
+        if (bodegaMaestra) {
+            queryParams.push(bodegaMaestra);
+            const bmIdx = queryParams.length;
+            filtroProductosSQL = ` AND ((di.ccosto = $${bmIdx} AND p.control='SI') OR (di.ccosto <> $${bmIdx} AND p.visible_operacional='SI'))`;
+        } else {
+            filtroProductosSQL = ` AND p.visible_operacional='SI'`;
         }
 
         const result = await pool.query(
@@ -3073,7 +3082,7 @@ app.get('/api/almacen/reporte-toma-fisica', async (req, res) => {
                ${filtroProductosSQL}
              GROUP BY di.codigo, p.nombre, p.descripcion, p.und, gp.nombre, gp.codigo, pce.precio_costo, p.precio_costo
              ORDER BY COALESCE(gp.codigo, '999'), p.nombre`,
-            [String(empresa), ...listaCcostos, fecha_ini, fecha_fin]
+            queryParams
         );
 
         // Obtener ventas del CC en el período (desde tabla ventas)
@@ -13890,16 +13899,9 @@ app.get('/api/gerencia/analisis-costos/producto/:codigo', async (req, res) => {
 // Fuente: detalle_inventario (tipo='TOMA FISICA'), entrada=sobrante, salida=faltante
 // ================================================================
 
-// Construye el filtro de productos compartido (control / visible_operacional / todos)
-function filtroProductosFaltantesSQL(filtro) {
-    if (filtro === 'control') return " AND p.control='SI'";
-    if (filtro === 'visible_operacional') return " AND p.visible_operacional='SI'";
-    return '';
-}
-
 // GET /api/gerencia/analisis-faltantes — ranking por producto + serie mensual + KPIs
 app.get('/api/gerencia/analisis-faltantes', async (req, res) => {
-    const { empresa, desde, hasta, filtro_productos, ccosto, grupo } = req.query;
+    const { empresa, desde, hasta, ccosto, grupo } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
     const hastaDate = hasta || new Date().toISOString().slice(0, 10);
@@ -13915,7 +13917,21 @@ app.get('/api/gerencia/analisis-faltantes', async (req, res) => {
     if (ccosto) { params.push(ccosto); ccostoFilter = ` AND di.ccosto = $${params.length}`; }
     let grupoFilter = '';
     if (grupo)  { params.push(grupo);  grupoFilter  = ` AND p.grupo = $${params.length}`; }
-    const filtroProd = filtroProductosFaltantesSQL(filtro_productos);
+
+    // Obtener bodega_maestra de la empresa para aplicar el filtro automático:
+    // ccosto = bodega maestra -> producto.control='SI'; ccosto distinto -> producto.visible_operacional='SI'
+    const bodegaRes = await pool.query(
+        `SELECT bodega_maestra FROM empresas WHERE codigo::text = $1`, [String(empresa)]
+    );
+    const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
+    let filtroProd;
+    if (bodegaMaestra) {
+        params.push(bodegaMaestra);
+        const bmIdx = params.length;
+        filtroProd = ` AND ((di.ccosto = $${bmIdx} AND p.control='SI') OR (di.ccosto <> $${bmIdx} AND p.visible_operacional='SI'))`;
+    } else {
+        filtroProd = ` AND p.visible_operacional='SI'`;
+    }
 
     // Expresión de precio de costo por empresa (overlay) con fallback al base del producto
     const precioExpr = `COALESCE(pce.precio_costo, p.precio_costo, 0)`;

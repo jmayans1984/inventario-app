@@ -28,12 +28,6 @@
             <option value="">Todos los CC</option>
             <option v-for="c in ccostos" :key="c.codigo" :value="c.codigo">{{ c.nombre }}</option>
           </select>
-          <!-- Filtro Productos -->
-          <select v-model="filtroProductos" class="ac-select" @change="cargar">
-            <option value="todos">Todos los productos</option>
-            <option value="control">Solo con control</option>
-            <option value="visible_operacional">Solo operacionales</option>
-          </select>
           <!-- Filtro Grupo -->
           <select v-model="grupoSel" class="ac-select" @change="cargar">
             <option value="">Todos los grupos</option>
@@ -375,7 +369,6 @@ const data     = ref(null)
 const busqueda = ref('')
 const grupoSel = ref('')
 const ccostoSel = ref('')
-const filtroProductos = ref('todos')
 const gruposDisponibles = ref([])
 const ccostos = ref([])
 
@@ -537,7 +530,6 @@ async function cargar() {
   try {
     const params = new URLSearchParams({
       empresa: empresa.value, desde: desde.value, hasta: hasta.value,
-      filtro_productos: filtroProductos.value,
     })
     if (ccostoSel.value) params.set('ccosto', ccostoSel.value)
     if (grupoSel.value)  params.set('grupo', grupoSel.value)
