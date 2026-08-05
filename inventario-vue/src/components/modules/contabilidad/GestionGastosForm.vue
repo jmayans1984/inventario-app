@@ -225,9 +225,8 @@
               <div class="field-row montos-row">
                 <div class="field-col-amt-full">
                   <v-text-field
-                    :value="ln.subtotal"
-                    @input="ln.subtotal = ($event.target.value || '').replace(',', '.')"
-                    @blur="ln.subtotal = parseFloat(ln.subtotal) || 0"
+                    v-model="ln.subtotal"
+                    @blur="ln.subtotal = toNum(ln.subtotal)"
                     autocomplete="off"
                     label="Subtotal *"
                     variant="outlined"
@@ -241,9 +240,8 @@
                 </div>
                 <div class="field-col-amt-full">
                   <v-text-field
-                    :value="ln.impuestos"
-                    @input="ln.impuestos = ($event.target.value || '').replace(',', '.')"
-                    @blur="ln.impuestos = parseFloat(ln.impuestos) || 0"
+                    v-model="ln.impuestos"
+                    @blur="ln.impuestos = toNum(ln.impuestos)"
                     autocomplete="off"
                     label="Impuestos / Tax"
                     variant="outlined"
@@ -1197,9 +1195,11 @@ const form = ref(formVacio())
 const esEdicion = computed(() => !!props.gasto?.codigo)
 
 // ─── Totales ─────────────────────────────────────────
-const totalLinea = (ln) => (parseFloat(ln.subtotal) || 0) + (parseFloat(ln.impuestos) || 0)
-const sumSubtotal  = computed(() => form.value.lineas.reduce((s, l) => s + (parseFloat(l.subtotal) || 0), 0))
-const sumImpuestos = computed(() => form.value.lineas.reduce((s, l) => s + (parseFloat(l.impuestos) || 0), 0))
+// Acepta coma o punto como separador decimal (el campo se escribe como texto libre)
+function toNum(v) { return parseFloat(String(v ?? '').replace(',', '.')) || 0 }
+const totalLinea = (ln) => toNum(ln.subtotal) + toNum(ln.impuestos)
+const sumSubtotal  = computed(() => form.value.lineas.reduce((s, l) => s + toNum(l.subtotal), 0))
+const sumImpuestos = computed(() => form.value.lineas.reduce((s, l) => s + toNum(l.impuestos), 0))
 const sumTotal     = computed(() => sumSubtotal.value + sumImpuestos.value)
 
 // ─── Nombres para el resumen (paso 3) ────────────────
@@ -1225,7 +1225,7 @@ function validarPaso(n) {
     for (const [i, ln] of form.value.lineas.entries()) {
       if (!ln.ccosto) return `Línea ${i + 1}: selecciona el centro de costos`
       if (!ln.cuenta) return `Línea ${i + 1}: selecciona la cuenta contable`
-      if (!(parseFloat(ln.subtotal) > 0)) return `Línea ${i + 1}: el subtotal debe ser mayor a 0`
+      if (!(toNum(ln.subtotal) > 0)) return `Línea ${i + 1}: el subtotal debe ser mayor a 0`
     }
   }
   return null
@@ -1581,8 +1581,8 @@ async function guardarGasto() {
         forma_pago: form.value.forma_pago,
         cuenta: ln.cuenta,
         concepto: (ln.concepto || '').trim(),
-        subtotal: parseFloat(ln.subtotal) || 0,
-        impuestos: parseFloat(ln.impuestos) || 0,
+        subtotal: toNum(ln.subtotal),
+        impuestos: toNum(ln.impuestos),
         total: totalLinea(ln),
       })
     } else {
@@ -1596,8 +1596,8 @@ async function guardarGasto() {
           ccosto: ln.ccosto,
           cuenta: ln.cuenta,
           concepto: (ln.concepto || '').trim(),
-          subtotal: parseFloat(ln.subtotal) || 0,
-          impuestos: parseFloat(ln.impuestos) || 0,
+          subtotal: toNum(ln.subtotal),
+          impuestos: toNum(ln.impuestos),
           total: totalLinea(ln),
           materiaPrima: esMateriaPrima(ln) ? ln.materiaPrima : null,
         })),
