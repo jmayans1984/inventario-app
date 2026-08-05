@@ -14444,6 +14444,17 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
     const prevHasta = new Date(new Date(desdeDate).getTime() - msDia).toISOString().slice(0, 10);
     const prevDesde = new Date(new Date(desdeDate).getTime() - dias * msDia).toISOString().slice(0, 10);
 
+    // La tabla gastos guarda también movimientos de INGRESO (ventas, otros
+    // ingresos), que no son compras a proveedores. Sin este filtro el ranking
+    // lo encabeza quien recibe las ventas, no un proveedor real.
+    const SOLO_EGRESOS = `
+        AND COALESCE(TRIM(gg.tipo), 'EGRESO') <> 'INGRESO'`;
+    const JOIN_GRUPO = `
+        LEFT JOIN cuentas c       ON g.cuenta = c.codigo AND c.empresa = g.empresa
+        LEFT JOIN grupo_gastos gg ON c.grupo = gg.codigo`;
+    const PROVEEDOR_VALIDO = `
+        AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'`;
+
     try {
         const [actualRes, previoRes, mensualRes, articulosRes] = await Promise.all([
 
@@ -14457,10 +14468,11 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
                        MAX(g.fecha::date)        AS ultima,
                        COUNT(DISTINCT g.ccosto)  AS num_sedes
                 FROM gastos g
+                ${JOIN_GRUPO}
                 LEFT JOIN proveedores p ON p.codigo = g.proveedor AND p.empresa = g.empresa
                 WHERE g.empresa = $1::int
                   AND g.fecha::date BETWEEN $2::date AND $3::date
-                  AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'
+                  ${PROVEEDOR_VALIDO} ${SOLO_EGRESOS}
                 GROUP BY TRIM(g.proveedor)
                 ORDER BY total DESC`,
                 [String(empresa), desdeDate, hastaDate]),
@@ -14471,9 +14483,10 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
                        COALESCE(SUM(g.total), 0) AS total,
                        COUNT(*) AS num_compras
                 FROM gastos g
+                ${JOIN_GRUPO}
                 WHERE g.empresa = $1::int
                   AND g.fecha::date BETWEEN $2::date AND $3::date
-                  AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'
+                  ${PROVEEDOR_VALIDO} ${SOLO_EGRESOS}
                 GROUP BY TRIM(g.proveedor)`,
                 [String(empresa), prevDesde, prevHasta]),
 
@@ -14483,9 +14496,10 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
                        TO_CHAR(DATE_TRUNC('month', g.fecha::date), 'YYYY-MM') AS mes,
                        COALESCE(SUM(g.total), 0) AS total
                 FROM gastos g
+                ${JOIN_GRUPO}
                 WHERE g.empresa = $1::int
                   AND g.fecha::date BETWEEN $2::date AND $3::date
-                  AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'
+                  ${PROVEEDOR_VALIDO} ${SOLO_EGRESOS}
                 GROUP BY TRIM(g.proveedor), DATE_TRUNC('month', g.fecha::date)
                 ORDER BY mes`,
                 [String(empresa), desdeDate, hastaDate]),
