@@ -266,9 +266,13 @@
                 </div>
               </template>
               <template v-else>
+                <div class="drw-codigo-box">
+                  <span class="drw-codigo-label">CÓDIGO DE EMPLEADO</span>
+                  <span class="drw-codigo-valor">{{ editando.id }}</span>
+                </div>
                 <p style="font-size:12px;color:rgba(255,255,255,0.55);margin:0 0 4px">
-                  El PIN se usa una sola vez para vincular el celular del empleado, y también se pide si un
-                  marcaje resulta sospechoso. No es una contraseña diaria.
+                  Para vincular su celular, el empleado necesita este código y un PIN. El PIN se usa una sola
+                  vez para vincular, y también se pide si un marcaje resulta sospechoso. No es una contraseña diaria.
                 </p>
                 <button class="drw-pin-btn" :disabled="generandoPin" @click="generarPin">
                   <v-progress-circular v-if="generandoPin" indeterminate size="14" width="2" color="white" />
@@ -276,8 +280,11 @@
                   GENERAR NUEVO PIN
                 </button>
                 <div v-if="pinGenerado" class="drw-pin-resultado">
-                  <div class="drw-pin-label">PIN — entrégaselo al empleado ahora, no se puede volver a ver</div>
-                  <div class="drw-pin-valor">{{ pinGenerado }}</div>
+                  <div class="drw-pin-label">ENTRÉGALE AL EMPLEADO ESTOS DOS DATOS AHORA — EL PIN NO SE PUEDE VOLVER A VER</div>
+                  <div class="drw-pin-par">
+                    <div><span class="drw-pin-sublabel">CÓDIGO</span><span class="drw-pin-valor">{{ editando.id }}</span></div>
+                    <div><span class="drw-pin-sublabel">PIN</span><span class="drw-pin-valor">{{ pinGenerado }}</span></div>
+                  </div>
                 </div>
 
                 <div class="drw-section-title" style="margin-top:16px">CELULARES VINCULADOS</div>
@@ -762,6 +769,15 @@ onMounted(cargar)
 }
 .drw-error { color: var(--error); font-size: 12px; font-weight: 600; margin-top: 8px; }
 
+.drw-codigo-box {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
+  background: color-mix(in srgb, var(--indigo) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--indigo) 20%, transparent);
+}
+.drw-codigo-label { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; color: rgba(255,255,255,0.5); }
+.drw-codigo-valor { font-size: 18px; font-weight: 800; color: var(--indigo); font-family: var(--font-mono); }
+
 .drw-pin-btn {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   height: 36px; border: none; border-radius: 8px; cursor: pointer;
@@ -774,8 +790,11 @@ onMounted(cargar)
   background: color-mix(in srgb, var(--success) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
 }
-.drw-pin-label { font-size: 10px; color: rgba(255,255,255,0.55); margin-bottom: 4px; }
-.drw-pin-valor { font-size: 26px; font-weight: 800; letter-spacing: 4px; color: var(--success); font-family: var(--font-mono); }
+.drw-pin-label { font-size: 10px; color: rgba(255,255,255,0.55); margin-bottom: 8px; }
+.drw-pin-par { display: flex; justify-content: center; gap: 28px; }
+.drw-pin-par > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.drw-pin-sublabel { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; color: rgba(255,255,255,0.4); }
+.drw-pin-valor { font-size: 24px; font-weight: 800; letter-spacing: 3px; color: var(--success); font-family: var(--font-mono); }
 
 .drw-dispositivo {
   display: flex; align-items: center; justify-content: space-between;
