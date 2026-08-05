@@ -443,14 +443,9 @@ const productosFiltrados = computed(() => {
     (a.grupo_codigo || '').localeCompare(b.grupo_codigo || '')
   )
 
-  // Ordenar productos dentro de cada grupo por sortCol
+  // Ordenar productos dentro de cada grupo alfabéticamente por nombre
   gruposOrdenados.forEach(g => {
-    g.productos.sort((a, b) => {
-      const av = a[sortCol.value] ?? (sortDir.value === 'asc' ? Infinity : -Infinity)
-      const bv = b[sortCol.value] ?? (sortDir.value === 'asc' ? Infinity : -Infinity)
-      if (typeof av === 'string') return sortDir.value === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-      return sortDir.value === 'asc' ? av - bv : bv - av
-    })
+    g.productos.sort((a, b) => (a.producto_nombre || '').localeCompare(b.producto_nombre || ''))
 
     // Calcular subtotal del grupo
     g.subtotal = {
