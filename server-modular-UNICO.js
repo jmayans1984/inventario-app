@@ -14450,7 +14450,7 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
             // 1. Gasto por proveedor en el período
             pool.query(`
                 SELECT TRIM(g.proveedor) AS proveedor,
-                       COALESCE(p.nombre, g.proveedor) AS proveedor_nombre,
+                       COALESCE(MAX(p.nombre), TRIM(g.proveedor)) AS proveedor_nombre,
                        COALESCE(SUM(g.total), 0) AS total,
                        COUNT(*)                  AS num_compras,
                        MIN(g.fecha::date)        AS primera,
@@ -14461,7 +14461,7 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
                 WHERE g.empresa = $1::int
                   AND g.fecha::date BETWEEN $2::date AND $3::date
                   AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'
-                GROUP BY TRIM(g.proveedor), p.nombre
+                GROUP BY TRIM(g.proveedor)
                 ORDER BY total DESC`,
                 [String(empresa), desdeDate, hastaDate]),
 
