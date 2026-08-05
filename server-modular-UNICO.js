@@ -14586,6 +14586,191 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
     }
 });
 
+// ── GERENCIA: INGENIERÍA DE MENÚ ─────────────────────────────────
+// Método Kasavana-Smith: cada plato se clasifica cruzando popularidad
+// (participación en unidades vendidas) contra rentabilidad (margen de
+// contribución unitario), usando como umbrales el mix esperado ajustado
+// al 70% y el margen promedio ponderado.
+//
+//   ESTRELLA          popular + rentable   -> proteger, no tocar precio
+//   CABALLO DE BATALLA popular + poco rentable -> subir precio o bajar costo
+//   ENIGMA            poco popular + rentable  -> promover, reubicar en carta
+//   PERRO             poco popular + poco rentable -> candidato a salir
+//
+// Ojo: la clasificación es RELATIVA (compara cada plato contra la mediana
+// del menú), así que sigue siendo útil aunque los costos de receta estén
+// escalados de forma pareja. Deja de serlo si unos están por porción y
+// otros por lote — por eso se reporta food_cost_sospechoso.
+app.get('/api/gerencia/ingenieria-menu', async (req, res) => {
+    const { empresa, desde, hasta, ccosto, grupo, incluir_subproductos } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const hastaDate = hasta || new Date().toISOString().slice(0, 10);
+    const desdeDate = desde || (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 2);
+        d.setDate(1);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    const params = [String(empresa), desdeDate, hastaDate];
+    let filtros = '';
+    if (ccosto && String(ccosto).trim()) {
+        params.push(String(ccosto).trim());
+        filtros += ` AND dv.ccosto = $${params.length}`;
+    }
+    if (grupo && String(grupo).trim()) {
+        params.push(String(grupo).trim());
+        filtros += ` AND r.grupo_receta = $${params.length}`;
+    }
+    // Los subproductos son componentes de otras recetas, no platos de carta
+    if (incluir_subproductos !== 'true') {
+        filtros += ` AND COALESCE(r.subproducto, 'NO') <> 'SI'`;
+    }
+
+    try {
+        const [platosRes, gruposRes, ccostosRes] = await Promise.all([
+            pool.query(`
+                SELECT TRIM(dv.codigo) AS codigo,
+                       MAX(dv.nombre)  AS nombre,
+                       COALESCE(SUM(dv.cant), 0)     AS unidades,
+                       COALESCE(SUM(dv.subtotal), 0) AS ingresos,
+                       MAX(COALESCE(r.valor, 0))     AS costo_unitario,
+                       MAX(r.grupo_receta)           AS grupo_receta,
+                       MAX(COALESCE(gr.nombre, r.grupo_receta, 'Sin grupo')) AS grupo_nombre,
+                       BOOL_OR(r.codigo IS NULL)     AS sin_receta
+                FROM detalle_ventas dv
+                LEFT JOIN recetas r       ON TRIM(r.codigo) = TRIM(dv.codigo)
+                LEFT JOIN grupo_recetas gr ON gr.codigo = r.grupo_receta
+                WHERE dv.empresa::text = $1
+                  AND dv.fecha::date BETWEEN $2::date AND $3::date
+                  AND COALESCE(TRIM(dv.codigo), '') <> ''
+                  ${filtros}
+                GROUP BY TRIM(dv.codigo)
+                HAVING SUM(dv.cant) > 0`,
+                params),
+
+            pool.query(
+                `SELECT DISTINCT COALESCE(gr.codigo, r.grupo_receta) AS codigo,
+                        COALESCE(gr.nombre, r.grupo_receta) AS nombre
+                 FROM recetas r
+                 LEFT JOIN grupo_recetas gr ON gr.codigo = r.grupo_receta
+                 WHERE COALESCE(r.grupo_receta,'') <> ''
+                 ORDER BY nombre`),
+
+            pool.query(
+                `SELECT codigo, nombre FROM ccostos WHERE empresa = $1::int AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`,
+                [String(empresa)]),
+        ]);
+
+        const filas = platosRes.rows.map(r => {
+            const unidades = parseFloat(r.unidades) || 0;
+            const ingresos = parseFloat(r.ingresos) || 0;
+            const costoUnit = parseFloat(r.costo_unitario) || 0;
+            const precioProm = unidades > 0 ? ingresos / unidades : 0;
+            const margenUnit = precioProm - costoUnit;
+            return {
+                codigo: r.codigo,
+                nombre: r.nombre,
+                grupo_receta: r.grupo_receta,
+                grupo_nombre: r.grupo_nombre,
+                sin_costo: costoUnit <= 0,
+                unidades, ingresos,
+                costo_unitario: costoUnit,
+                costo_total: unidades * costoUnit,
+                precio_promedio: precioProm,
+                margen_unitario: margenUnit,
+                margen_total: margenUnit * unidades,
+                food_cost_pct: precioProm > 0 ? (costoUnit / precioProm) * 100 : null,
+            };
+        });
+
+        // Solo los platos con costo cargado entran en la clasificación:
+        // sin costo no hay margen que comparar.
+        const clasificables = filas.filter(f => !f.sin_costo);
+        const sinCosto = filas.filter(f => f.sin_costo);
+
+        const totalUnidades = clasificables.reduce((s, f) => s + f.unidades, 0);
+        const totalMargen   = clasificables.reduce((s, f) => s + f.margen_total, 0);
+        const totalIngresos = clasificables.reduce((s, f) => s + f.ingresos, 0);
+        const totalCosto    = clasificables.reduce((s, f) => s + f.costo_total, 0);
+        const n = clasificables.length;
+
+        // Umbrales del método: mix esperado ajustado al 70% y margen medio ponderado
+        const umbralPopularidad = n > 0 ? (100 / n) * 0.70 : 0;
+        const umbralMargen = totalUnidades > 0 ? totalMargen / totalUnidades : 0;
+
+        const CLASES = {
+            ESTRELLA:  { orden: 1, accion: 'Protéjelo: mantén calidad y no le toques el precio' },
+            CABALLO:   { orden: 2, accion: 'Sube precio con cuidado o baja su costo de receta' },
+            ENIGMA:    { orden: 3, accion: 'Promociónalo o reubícalo en la carta' },
+            PERRO:     { orden: 4, accion: 'Candidato a salir de la carta o a rediseñarse' },
+        };
+
+        const platos = clasificables.map(f => {
+            const mixPct = totalUnidades > 0 ? (f.unidades / totalUnidades) * 100 : 0;
+            const popular = mixPct >= umbralPopularidad;
+            const rentable = f.margen_unitario >= umbralMargen;
+            const clase = popular && rentable ? 'ESTRELLA'
+                        : popular && !rentable ? 'CABALLO'
+                        : !popular && rentable ? 'ENIGMA'
+                        : 'PERRO';
+            return {
+                ...f,
+                mix_pct: mixPct,
+                popular, rentable,
+                clase,
+                accion: CLASES[clase].accion,
+                aporte_margen_pct: totalMargen > 0 ? (f.margen_total / totalMargen) * 100 : 0,
+            };
+        }).sort((a, b) =>
+            CLASES[a.clase].orden - CLASES[b.clase].orden || b.margen_total - a.margen_total
+        );
+
+        const resumen = {};
+        for (const c of Object.keys(CLASES)) {
+            const grupo = platos.filter(p => p.clase === c);
+            resumen[c] = {
+                num: grupo.length,
+                unidades: grupo.reduce((s, p) => s + p.unidades, 0),
+                ingresos: grupo.reduce((s, p) => s + p.ingresos, 0),
+                margen: grupo.reduce((s, p) => s + p.margen_total, 0),
+            };
+        }
+
+        const foodPctGlobal = totalIngresos > 0 ? (totalCosto / totalIngresos) * 100 : null;
+
+        res.json({
+            success: true,
+            periodo: { desde: desdeDate, hasta: hastaDate },
+            umbrales: {
+                popularidad_pct: umbralPopularidad,
+                margen_unitario: umbralMargen,
+            },
+            totales: {
+                num_platos: n,
+                unidades: totalUnidades,
+                ingresos: totalIngresos,
+                costo: totalCosto,
+                margen: totalMargen,
+                food_cost_pct: foodPctGlobal,
+                margen_pct: totalIngresos > 0 ? (totalMargen / totalIngresos) * 100 : null,
+                sin_costo: sinCosto.length,
+            },
+            // Un food cost global imposible delata costos de receta mal cargados.
+            food_cost_sospechoso: foodPctGlobal !== null && foodPctGlobal > 60,
+            resumen,
+            platos,
+            platos_sin_costo: sinCosto.sort((a, b) => b.ingresos - a.ingresos),
+            grupos: gruposRes.rows,
+            ccostos: ccostosRes.rows,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/ingenieria-menu:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta

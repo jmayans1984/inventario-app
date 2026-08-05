@@ -125,6 +125,7 @@ const routes = [
   { path: '/gerencia/reportes/analisis-nomina', component: () => import('../views/gerencia/GerenciaAnalisisNominaView.vue'), meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/pyg-sedes',       component: () => import('../views/gerencia/GerenciaPygSedesView.vue'),      meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/proveedores',     component: () => import('../views/gerencia/GerenciaProveedoresView.vue'),   meta: { requiresAuth: true } },
+  { path: '/gerencia/reportes/ingenieria-menu', component: () => import('../views/gerencia/GerenciaIngenieriaMenuView.vue'), meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/labor-cost',      component: () => import('../views/gerencia/GerenciaLaborCostView.vue'),      meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/consumo-mp',      component: () => import('../views/gerencia/GerenciaConsumoMPView.vue'),      meta: { requiresAuth: true } },
   { path: '/gerencia/reportes/analisis-costos', component: () => import('../views/gerencia/GerenciaAnalisisCostosView.vue'), meta: { requiresAuth: true } },
