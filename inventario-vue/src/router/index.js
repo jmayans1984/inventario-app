@@ -5,6 +5,9 @@ const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue'), meta: { requiresAuth: false } },
   { path: '/', name: 'Inicio', component: () => import('../views/DashboardView.vue'), meta: { requiresAuth: true } },
 
+  // MARCAJE DE ASISTENCIA — pública: el empleado no tiene cuenta en la app
+  { path: '/marcar', name: 'Marcar', component: () => import('../views/MarcajeView.vue'), meta: { requiresAuth: false } },
+
   // CONTABILIDAD ESPECÍFICAS
   { path: '/contabilidad/dashboard',                      component: () => import('../views/contabilidad/ContabilidadDashboardView.vue'), meta: { requiresAuth: true } },
   { path: '/contabilidad/configuracion/proveedores',     component: () => import('../views/contabilidad/ProveedoresView.vue'),     meta: { requiresAuth: true } },
@@ -105,6 +108,7 @@ const routes = [
   { path: '/nomina/configuracion/fiscal',         component: () => import('../views/nomina/ConfigFiscalNominaView.vue'), meta: { requiresAuth: true } },
   { path: '/nomina/configuracion/horario-config', component: () => import('../views/nomina/HorarioConfigView.vue'),     meta: { requiresAuth: true } },
   { path: '/nomina/configuracion/control-asistencia', component: () => import('../views/nomina/ControlAsistenciaView.vue'), meta: { requiresAuth: true } },
+  { path: '/nomina/configuracion/tags-nfc',       component: () => import('../views/nomina/TagsNfcView.vue'),           meta: { requiresAuth: true } },
   { path: '/nomina/procesos/horario',             component: () => import('../views/nomina/HorarioSemanalView.vue'),    meta: { requiresAuth: true } },
   { path: '/nomina/procesos/liquidacion',         component: () => import('../views/nomina/LiquidacionNominaView.vue'), meta: { requiresAuth: true } },
   { path: '/nomina/procesos/propinas',            component: () => import('../views/nomina/PropinasView.vue'),          meta: { requiresAuth: true } },

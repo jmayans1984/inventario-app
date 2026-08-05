@@ -7,6 +7,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const crypto = require('crypto');
 require('dotenv').config();
 
 
@@ -18032,6 +18033,535 @@ app.delete('/api/produccion/receta-producto/:codigo_receta', async (req, res) =>
         res.json({ success: true, message: 'Mapeo eliminado' });
     } catch (error) {
         console.error('Error DELETE /api/produccion/receta-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ================================================================
+// MÓDULO: CONTROL DE ASISTENCIA NFC (Fase 1)
+// Ver docs/ASISTENCIA-NFC.md para el diseño completo.
+// Marcaje sin cámara: tag NFC + celular enrolado + PIN adaptativo ante
+// anomalía. La verificación CMAC real del chip (Fase 2) aún no está
+// implementada — con ASISTENCIA_MODO_PRUEBA=true el tap se acepta sin
+// firma para poder probar todo el ciclo antes de comprar los tags.
+// ================================================================
+
+const ASISTENCIA_MODO_PRUEBA = process.env.ASISTENCIA_MODO_PRUEBA === 'true';
+const ASISTENCIA_FRONTEND_URL = process.env.ASISTENCIA_FRONTEND_URL
+    || 'https://jmayans1984.github.io/inventario-app/completa/';
+const ASISTENCIA_VENTANA_TURNO_MIN = 30; // minutos de tolerancia alrededor del turno programado
+const ASISTENCIA_RAFAGA_SEGUNDOS = 15;
+
+// ── Tablas ──────────────────────────────────────────────────────
+async function crearTablasAsistencia() {
+    const sqls = [
+        `CREATE TABLE IF NOT EXISTS nom_nfc_tag (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL,
+            tag_uid VARCHAR(32) NOT NULL, etiqueta VARCHAR(60),
+            ccosto VARCHAR(3) NOT NULL, aes_key_cif VARCHAR(200),
+            ultimo_contador INT4 DEFAULT 0, activo BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE (empresa, tag_uid)
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_dispositivo_empleado (
+            id SERIAL PRIMARY KEY, empleado_id INT4 NOT NULL,
+            token_hash VARCHAR(64) NOT NULL, etiqueta VARCHAR(80),
+            user_agent VARCHAR(300), enrolado_en TIMESTAMP DEFAULT NOW(),
+            ultimo_uso TIMESTAMP, activo BOOLEAN DEFAULT TRUE,
+            revocado_en TIMESTAMP, revocado_por VARCHAR(50),
+            UNIQUE (token_hash)
+        )`,
+        `CREATE TABLE IF NOT EXISTS nom_asistencia_marcaje (
+            id SERIAL PRIMARY KEY, empresa INT4 NOT NULL, empleado_id INT4 NOT NULL,
+            tipo VARCHAR(10) NOT NULL, momento TIMESTAMPTZ NOT NULL,
+            ccosto VARCHAR(3) NOT NULL, origen VARCHAR(12) NOT NULL,
+            tag_id INT4, tag_contador INT4, dispositivo_id INT4,
+            pin_verificado BOOLEAN DEFAULT FALSE,
+            estado VARCHAR(12) DEFAULT 'VALIDO', anomalias VARCHAR(300),
+            corrige_a INT4, creado_por VARCHAR(50) DEFAULT 'EMPLEADO',
+            notas VARCHAR(300), created_at TIMESTAMP DEFAULT NOW()
+        )`,
+        `CREATE INDEX IF NOT EXISTS ix_marcaje_emp_fecha ON nom_asistencia_marcaje (empleado_id, momento)`,
+        `CREATE INDEX IF NOT EXISTS ix_marcaje_empresa_fecha ON nom_asistencia_marcaje (empresa, momento)`,
+        `CREATE TABLE IF NOT EXISTS nom_enrolamiento_intento (
+            id SERIAL PRIMARY KEY, empleado_id INT4, ip VARCHAR(45),
+            exito BOOLEAN DEFAULT FALSE, momento TIMESTAMP DEFAULT NOW()
+        )`
+    ];
+    for (const sql of sqls) {
+        try { await pool.query(sql); } catch(e) { console.error('asistencia table error:', e.message); }
+    }
+    console.log('✅ Tablas de asistencia NFC verificadas');
+}
+crearTablasAsistencia();
+
+async function agregarColumnasAsistencia() {
+    const queries = [
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS pin_hash VARCHAR(160)`,
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS pin_generado_en TIMESTAMP`,
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS pin_usado_en TIMESTAMP`,
+        `ALTER TABLE nom_empleados ADD COLUMN IF NOT EXISTS marcaje_activo BOOLEAN DEFAULT TRUE`
+    ];
+    for (const sql of queries) {
+        try { await pool.query(sql); }
+        catch(e) { console.error('Migración asistencia:', e.message); }
+    }
+    console.log('✅ Columnas de asistencia verificadas');
+}
+agregarColumnasAsistencia();
+
+// ── PIN: generación, hash (scrypt), verificación en tiempo constante ──
+// El PIN no es de un solo uso: sirve para enrolar el celular y también
+// para los desafíos que se piden cuando un marcaje dispara una anomalía.
+function generarPin() {
+    return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+function hashPin(pin) {
+    const salt = crypto.randomBytes(16);
+    const hash = crypto.scryptSync(String(pin), salt, 32);
+    return `${salt.toString('hex')}:${hash.toString('hex')}`;
+}
+function verificarPin(pin, almacenado) {
+    if (!almacenado || !pin) return false;
+    const [saltHex, hashHex] = String(almacenado).split(':');
+    if (!saltHex || !hashHex) return false;
+    try {
+        const hash = crypto.scryptSync(String(pin), Buffer.from(saltHex, 'hex'), 32);
+        const stored = Buffer.from(hashHex, 'hex');
+        if (hash.length !== stored.length) return false;
+        return crypto.timingSafeEqual(hash, stored);
+    } catch { return false; }
+}
+
+// ── Token de dispositivo: aleatorio, en la BD solo se guarda su SHA-256 ──
+function generarTokenDispositivo() {
+    return crypto.randomBytes(32).toString('hex');
+}
+function hashTokenDispositivo(token) {
+    return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+// ── Punto temporal: contexto (empresa/ccosto/tag) entre el tap y el marcaje.
+// Vive ~5 minutos; un Map en memoria basta para un solo proceso Node.
+const puntosTemp = new Map(); // codigo -> { empresa, ccosto, tag_id, tag_uid, expira }
+function crearPuntoTemp(datos) {
+    const codigo = crypto.randomBytes(12).toString('hex');
+    puntosTemp.set(codigo, { ...datos, expira: Date.now() + 5 * 60 * 1000 });
+    return codigo;
+}
+function leerPuntoTemp(codigo) {
+    const p = puntosTemp.get(codigo);
+    if (!p) return null;
+    if (Date.now() > p.expira) { puntosTemp.delete(codigo); return null; }
+    return p;
+}
+setInterval(() => {
+    const ahora = Date.now();
+    for (const [k, v] of puntosTemp.entries()) if (ahora > v.expira) puntosTemp.delete(k);
+}, 60 * 1000);
+
+// ── Rate limit de enrolamiento (por empleado y por IP) ──
+async function rateLimitEnrolamiento(empleadoId, ip) {
+    const desde = new Date(Date.now() - 60 * 60 * 1000);
+    const porEmp = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM nom_enrolamiento_intento WHERE empleado_id=$1 AND exito=FALSE AND momento > $2`,
+        [empleadoId, desde]
+    );
+    if (parseInt(porEmp.rows[0].cnt) >= 5) return 'Demasiados intentos para este empleado. Intenta de nuevo en una hora.';
+    const porIp = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM nom_enrolamiento_intento WHERE ip=$1 AND exito=FALSE AND momento > $2`,
+        [ip, desde]
+    );
+    if (parseInt(porIp.rows[0].cnt) >= 10) return 'Demasiados intentos desde esta red. Intenta más tarde.';
+    return null;
+}
+
+// ── Identidad a partir del token de dispositivo (header X-Dispositivo-Token) ──
+async function resolverDispositivo(req) {
+    const token = req.headers['x-dispositivo-token'];
+    if (!token) return null;
+    const hash = hashTokenDispositivo(token);
+    const r = await pool.query(
+        `SELECT d.id AS dispositivo_id, d.ultimo_uso, e.*
+         FROM nom_dispositivo_empleado d
+         JOIN nom_empleados e ON e.id = d.empleado_id
+         WHERE d.token_hash = $1 AND d.activo = TRUE`,
+        [hash]
+    );
+    return r.rows[0] || null;
+}
+
+function ipDeRequest(req) {
+    return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'desconocida';
+}
+
+// ── Redondeo neutral (FLSA): al múltiplo de 5 minutos más cercano ──
+function redondearHoras(horas) {
+    const minutos = horas * 60;
+    return Math.round(minutos / 5) * 5 / 60;
+}
+
+// ── Consolidación: vuelca los marcajes VALIDO del día a nom_semana_detalle.
+// Nunca sobrescribe una fila que el supervisor ya ajustó a mano.
+async function consolidarDia(empresa, empleadoId, fecha, ccosto) {
+    const marcajes = await pool.query(
+        `SELECT tipo, momento FROM nom_asistencia_marcaje
+         WHERE empleado_id=$1 AND ccosto=$2 AND estado='VALIDO'
+           AND momento::date = $3::date
+         ORDER BY momento ASC`,
+        [empleadoId, ccosto, fecha]
+    );
+    if (!marcajes.rows.length) return { consolidado: false, motivo: 'Sin marcajes válidos' };
+
+    let horas = 0, primeraEntrada = null, ultimaSalida = null, entradaAbierta = null;
+    for (const m of marcajes.rows) {
+        if (m.tipo === 'ENTRADA') {
+            entradaAbierta = new Date(m.momento);
+            if (!primeraEntrada) primeraEntrada = entradaAbierta;
+        } else if (m.tipo === 'SALIDA' && entradaAbierta) {
+            const salida = new Date(m.momento);
+            horas += (salida - entradaAbierta) / 3600000;
+            ultimaSalida = salida;
+            entradaAbierta = null;
+        }
+    }
+    if (!ultimaSalida) return { consolidado: false, motivo: 'Turno abierto, falta la salida' };
+    horas = redondearHoras(horas);
+
+    const semana = await pool.query(
+        `SELECT id FROM nom_semana WHERE empresa=$1 AND $2::date BETWEEN semana_inicio AND semana_fin LIMIT 1`,
+        [empresa, fecha]
+    );
+    if (!semana.rows.length) return { consolidado: false, motivo: 'No existe semana de nómina para esta fecha' };
+    const semanaId = semana.rows[0].id;
+
+    const toHHMM = (d) => d.toISOString().slice(11, 16);
+    const existente = await pool.query(
+        `SELECT id, ajustado FROM nom_semana_detalle WHERE semana_id=$1 AND empleado_id=$2 AND fecha=$3 AND ccosto=$4`,
+        [semanaId, empleadoId, fecha, ccosto]
+    );
+    if (existente.rows.length && existente.rows[0].ajustado) {
+        return { consolidado: false, motivo: 'El supervisor ya ajustó esta fila a mano' };
+    }
+    if (existente.rows.length) {
+        await pool.query(
+            `UPDATE nom_semana_detalle SET real_inicio=$1, real_fin=$2, real_horas=$3, updated_at=NOW() WHERE id=$4`,
+            [toHHMM(primeraEntrada), toHHMM(ultimaSalida), horas, existente.rows[0].id]
+        );
+    } else {
+        await pool.query(
+            `INSERT INTO nom_semana_detalle (semana_id, empleado_id, fecha, ccosto, real_inicio, real_fin, real_horas, ajustado)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE)`,
+            [semanaId, empleadoId, fecha, ccosto, toHHMM(primeraEntrada), toHHMM(ultimaSalida), horas]
+        );
+    }
+    return { consolidado: true, horas };
+}
+
+// ── GET /api/asistencia/tap — hit directo del navegador al acercar el celular
+// al tag NFC. Resuelve el tag, crea el contexto temporal y redirige al SPA.
+app.get('/api/asistencia/tap', async (req, res) => {
+    const { uid } = req.query;
+    if (!uid) return res.status(400).send('Falta el identificador del tag.');
+    try {
+        const tagR = await pool.query(
+            `SELECT * FROM nom_nfc_tag WHERE tag_uid = $1 AND activo = TRUE`,
+            [String(uid)]
+        );
+        if (!tagR.rows.length) {
+            return res.status(404).send('Tag no reconocido. Contacta a tu supervisor.');
+        }
+        const tag = tagR.rows[0];
+
+        if (!ASISTENCIA_MODO_PRUEBA) {
+            // Fase 2: verificación CMAC + contador del NTAG 424 DNA. Aún no implementada.
+            return res.status(501).send('Verificación NFC real pendiente de implementar (Fase 2).');
+        }
+
+        const nuevoContador = tag.ultimo_contador + 1;
+        await pool.query(`UPDATE nom_nfc_tag SET ultimo_contador=$1 WHERE id=$2`, [nuevoContador, tag.id]);
+
+        const codigo = crearPuntoTemp({ empresa: tag.empresa, ccosto: tag.ccosto, tag_id: tag.id, tag_uid: tag.tag_uid });
+        res.redirect(302, `${ASISTENCIA_FRONTEND_URL}#/marcar?punto=${codigo}`);
+    } catch (error) {
+        console.error('Error GET /api/asistencia/tap:', error);
+        res.status(500).send('Error del servidor. Intenta de nuevo.');
+    }
+});
+
+// ── POST /api/asistencia/enrolar — primera vez que el empleado usa su celular ──
+app.post('/api/asistencia/enrolar', async (req, res) => {
+    const { empleado_id, pin } = req.body;
+    const ip = ipDeRequest(req);
+    if (!empleado_id || !pin) return res.status(400).json({ success: false, error: 'Código de empleado y PIN requeridos' });
+    try {
+        const bloqueo = await rateLimitEnrolamiento(empleado_id, ip);
+        if (bloqueo) return res.status(429).json({ success: false, error: bloqueo });
+
+        const empR = await pool.query(
+            `SELECT id, nombre, apellido, estado, marcaje_activo, pin_hash, pin_generado_en, pin_usado_en
+             FROM nom_empleados WHERE id=$1`,
+            [empleado_id]
+        );
+        if (!empR.rows.length) {
+            await pool.query(`INSERT INTO nom_enrolamiento_intento (empleado_id, ip, exito) VALUES ($1,$2,FALSE)`, [empleado_id, ip]);
+            return res.status(404).json({ success: false, error: 'Código de empleado no encontrado' });
+        }
+        const emp = empR.rows[0];
+        if (emp.estado !== 'ACTIVO' || emp.marcaje_activo === false) {
+            return res.status(403).json({ success: false, error: 'Este empleado no tiene el marcaje habilitado' });
+        }
+        if (!emp.pin_hash) {
+            return res.status(400).json({ success: false, error: 'Aún no tienes un PIN generado. Pide al administrador que te genere uno.' });
+        }
+        if (!emp.pin_usado_en && emp.pin_generado_en) {
+            const horasDesdeGeneracion = (Date.now() - new Date(emp.pin_generado_en).getTime()) / 3600000;
+            if (horasDesdeGeneracion > 72) {
+                return res.status(400).json({ success: false, error: 'Tu PIN expiró. Pide al administrador que te genere uno nuevo.' });
+            }
+        }
+
+        const ok = verificarPin(pin, emp.pin_hash);
+        await pool.query(`INSERT INTO nom_enrolamiento_intento (empleado_id, ip, exito) VALUES ($1,$2,$3)`, [empleado_id, ip, ok]);
+        if (!ok) return res.status(401).json({ success: false, error: 'PIN incorrecto' });
+
+        // Un segundo celular no se enrola solo con el PIN: el gerente debe
+        // revocar el dispositivo activo primero (ver docs/ASISTENCIA-NFC.md §3.3).
+        const activoR = await pool.query(
+            `SELECT id FROM nom_dispositivo_empleado WHERE empleado_id=$1 AND activo=TRUE LIMIT 1`,
+            [empleado_id]
+        );
+        if (activoR.rows.length) {
+            return res.status(409).json({ success: false, error: 'Ya tienes un celular vinculado. Pide al administrador que lo revoque antes de vincular uno nuevo.' });
+        }
+
+        const token = generarTokenDispositivo();
+        const tokenHash = hashTokenDispositivo(token);
+        await pool.query(
+            `INSERT INTO nom_dispositivo_empleado (empleado_id, token_hash, user_agent) VALUES ($1,$2,$3)`,
+            [empleado_id, tokenHash, req.headers['user-agent'] || null]
+        );
+        if (!emp.pin_usado_en) {
+            await pool.query(`UPDATE nom_empleados SET pin_usado_en=NOW() WHERE id=$1`, [empleado_id]);
+        }
+
+        res.json({ success: true, data: { token, empleado: { id: emp.id, nombre: emp.nombre, apellido: emp.apellido } } });
+    } catch (error) {
+        console.error('Error POST /api/asistencia/enrolar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── GET /api/asistencia/estado — ¿el celular ya está enrolado? ¿el empleado está dentro o fuera? ──
+app.get('/api/asistencia/estado', async (req, res) => {
+    try {
+        const dispositivo = await resolverDispositivo(req);
+        if (!dispositivo) return res.json({ success: true, data: { enrolado: false } });
+
+        const ultimoR = await pool.query(
+            `SELECT tipo, momento, estado FROM nom_asistencia_marcaje
+             WHERE empleado_id=$1 AND estado != 'ANULADO'
+             ORDER BY momento DESC LIMIT 1`,
+            [dispositivo.id]
+        );
+        const ultimo = ultimoR.rows[0] || null;
+        const estadoActual = (ultimo && ultimo.tipo === 'ENTRADA') ? 'DENTRO' : 'FUERA';
+
+        res.json({
+            success: true,
+            data: {
+                enrolado: true,
+                empleado: { id: dispositivo.id, nombre: dispositivo.nombre, apellido: dispositivo.apellido },
+                estadoActual,
+                ultimoMarcaje: ultimo,
+            },
+        });
+    } catch (error) {
+        console.error('Error GET /api/asistencia/estado:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── POST /api/asistencia/marcar — registra ENTRADA o SALIDA ──
+// El tipo lo decide el servidor (alterna según el último marcaje), no el
+// cliente: así una doble-entrada es estructuralmente imposible.
+app.post('/api/asistencia/marcar', async (req, res) => {
+    const { punto, pin, forzar } = req.body;
+    try {
+        const dispositivo = await resolverDispositivo(req);
+        if (!dispositivo) return res.status(401).json({ success: false, error: 'Celular no reconocido. Enrólalo primero.' });
+        if (dispositivo.estado !== 'ACTIVO' || dispositivo.marcaje_activo === false) {
+            return res.status(403).json({ success: false, error: 'Tu marcaje no está habilitado. Contacta a tu supervisor.' });
+        }
+
+        const ctx = punto ? leerPuntoTemp(punto) : null;
+        if (!ctx) return res.status(400).json({ success: false, error: 'El código expiró. Vuelve a acercar el celular al tag.' });
+        if (String(ctx.empresa) !== String(dispositivo.empresa)) {
+            return res.status(403).json({ success: false, error: 'Este tag no pertenece a tu empresa' });
+        }
+
+        const ultimoR = await pool.query(
+            `SELECT tipo FROM nom_asistencia_marcaje WHERE empleado_id=$1 AND estado != 'ANULADO' ORDER BY momento DESC LIMIT 1`,
+            [dispositivo.id]
+        );
+        const tipo = (ultimoR.rows[0]?.tipo === 'ENTRADA') ? 'SALIDA' : 'ENTRADA';
+
+        // ── Anomalías ──
+        const anomalias = [];
+        const progR = await pool.query(
+            `SELECT sd.prog_inicio, sd.prog_fin FROM nom_semana_detalle sd
+             JOIN nom_semana s ON s.id = sd.semana_id
+             WHERE sd.empleado_id=$1 AND sd.fecha = CURRENT_DATE AND sd.ccosto=$2 AND s.empresa=$3
+             LIMIT 1`,
+            [dispositivo.id, ctx.ccosto, ctx.empresa]
+        );
+        if (!progR.rows.length) {
+            anomalias.push('FUERA_DE_TURNO');
+        } else {
+            const prog = progR.rows[0];
+            const ahora = new Date();
+            const minutosDesdeMedianoche = ahora.getHours() * 60 + ahora.getMinutes();
+            const toMin = (t) => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + m; };
+            if (tipo === 'ENTRADA' && prog.prog_inicio) {
+                if (minutosDesdeMedianoche < toMin(prog.prog_inicio) - ASISTENCIA_VENTANA_TURNO_MIN) anomalias.push('ENTRADA_ANTICIPADA');
+            }
+            if (tipo === 'SALIDA' && prog.prog_fin) {
+                if (minutosDesdeMedianoche > toMin(prog.prog_fin) + ASISTENCIA_VENTANA_TURNO_MIN) anomalias.push('SALIDA_TARDIA');
+            }
+        }
+        if (dispositivo.ultimo_uso === null) anomalias.push('DISPOSITIVO_NUEVO');
+        const rafagaR = await pool.query(
+            `SELECT 1 FROM nom_asistencia_marcaje
+             WHERE tag_id=$1 AND empleado_id != $2 AND estado != 'ANULADO'
+               AND momento > NOW() - INTERVAL '${ASISTENCIA_RAFAGA_SEGUNDOS} seconds'
+             LIMIT 1`,
+            [ctx.tag_id, dispositivo.id]
+        );
+        if (rafagaR.rows.length) anomalias.push('RAFAGA');
+
+        const requierePin = anomalias.length > 0;
+        if (requierePin && !pin && !forzar) {
+            // No se guarda nada todavía: se le da al empleado la oportunidad de escribir el PIN.
+            return res.json({ success: true, data: { requierePin: true, anomalias } });
+        }
+
+        const pinOk = requierePin && pin ? verificarPin(pin, dispositivo.pin_hash) : false;
+        const estadoFinal = !requierePin ? 'VALIDO' : (pinOk ? 'VALIDO' : 'SOSPECHOSO');
+
+        const insertR = await pool.query(
+            `INSERT INTO nom_asistencia_marcaje
+             (empresa, empleado_id, tipo, momento, ccosto, origen, tag_id, dispositivo_id, pin_verificado, estado, anomalias, creado_por)
+             VALUES ($1,$2,$3,NOW(),$4,'NFC',$5,$6,$7,$8,$9,'EMPLEADO')
+             RETURNING id, momento`,
+            [ctx.empresa, dispositivo.id, tipo, ctx.ccosto, ctx.tag_id, dispositivo.dispositivo_id, pinOk, estadoFinal, anomalias.join(',') || null]
+        );
+        await pool.query(`UPDATE nom_dispositivo_empleado SET ultimo_uso=NOW() WHERE id=$1`, [dispositivo.dispositivo_id]);
+
+        let consolidacion = { consolidado: false };
+        if (estadoFinal === 'VALIDO') {
+            const fecha = insertR.rows[0].momento.toISOString().slice(0, 10);
+            consolidacion = await consolidarDia(ctx.empresa, dispositivo.id, fecha, ctx.ccosto);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                id: insertR.rows[0].id, tipo, momento: insertR.rows[0].momento,
+                estado: estadoFinal, anomalias, consolidado: consolidacion.consolidado,
+            },
+        });
+    } catch (error) {
+        console.error('Error POST /api/asistencia/marcar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── Administración: tags NFC (requiere sesión de administrador en el frontend) ──
+app.get('/api/asistencia/tags', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'Empresa requerida' });
+    try {
+        const r = await pool.query(
+            `SELECT t.id, t.tag_uid, t.etiqueta, t.ccosto, COALESCE(cc.nombre, t.ccosto) AS ccosto_nombre,
+                    t.ultimo_contador, t.activo, t.created_at
+             FROM nom_nfc_tag t
+             LEFT JOIN ccostos cc ON cc.codigo = t.ccosto AND cc.empresa::text = t.empresa::text
+             WHERE t.empresa = $1
+             ORDER BY t.created_at DESC`,
+            [empresa]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (error) {
+        console.error('Error GET /api/asistencia/tags:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/api/asistencia/tags', async (req, res) => {
+    const { empresa, tag_uid, etiqueta, ccosto } = req.body;
+    if (!empresa || !tag_uid || !ccosto) return res.status(400).json({ success: false, error: 'Empresa, UID del tag y centro de costo son requeridos' });
+    try {
+        const r = await pool.query(
+            `INSERT INTO nom_nfc_tag (empresa, tag_uid, etiqueta, ccosto) VALUES ($1,$2,$3,$4) RETURNING id`,
+            [empresa, String(tag_uid).trim(), etiqueta || null, ccosto]
+        );
+        res.json({ success: true, data: { id: r.rows[0].id } });
+    } catch (error) {
+        if (error.code === '23505') return res.status(400).json({ success: false, error: 'Ya existe un tag con ese UID en esta empresa' });
+        console.error('Error POST /api/asistencia/tags:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.delete('/api/asistencia/tags/:id', async (req, res) => {
+    try {
+        await pool.query(`UPDATE nom_nfc_tag SET activo=FALSE WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/asistencia/tags/:id:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── Administración: PIN y dispositivos del empleado ──
+app.post('/api/nomina/empleados/:id/pin', async (req, res) => {
+    try {
+        const pin = generarPin();
+        const hash = hashPin(pin);
+        await pool.query(
+            `UPDATE nom_empleados SET pin_hash=$1, pin_generado_en=NOW(), pin_usado_en=NULL WHERE id=$2`,
+            [hash, req.params.id]
+        );
+        res.json({ success: true, data: { pin } });
+    } catch (error) {
+        console.error('Error POST /api/nomina/empleados/:id/pin:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/api/nomina/empleados/:id/dispositivos', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, etiqueta, user_agent, enrolado_en, ultimo_uso, activo
+             FROM nom_dispositivo_empleado WHERE empleado_id=$1 ORDER BY enrolado_en DESC`,
+            [req.params.id]
+        );
+        res.json({ success: true, data: r.rows });
+    } catch (error) {
+        console.error('Error GET /api/nomina/empleados/:id/dispositivos:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.delete('/api/nomina/empleados/:id/dispositivos/:dispositivoId', async (req, res) => {
+    try {
+        await pool.query(
+            `UPDATE nom_dispositivo_empleado SET activo=FALSE, revocado_en=NOW() WHERE id=$1 AND empleado_id=$2`,
+            [req.params.dispositivoId, req.params.id]
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error DELETE /api/nomina/empleados/:id/dispositivos/:dispositivoId:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

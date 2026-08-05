@@ -257,6 +257,48 @@
               </div>
             </div>
 
+            <div v-show="tabActual==='asistencia'" class="drw-section">
+              <div class="drw-section-title">MARCAJE DE ASISTENCIA (NFC)</div>
+              <template v-if="!editando?.id">
+                <div class="drw-info-box">
+                  <v-icon size="13" color="warning">mdi-information-outline</v-icon>
+                  Guarda el empleado primero para poder generar su PIN de enrolamiento.
+                </div>
+              </template>
+              <template v-else>
+                <p style="font-size:12px;color:rgba(255,255,255,0.55);margin:0 0 4px">
+                  El PIN se usa una sola vez para vincular el celular del empleado, y también se pide si un
+                  marcaje resulta sospechoso. No es una contraseña diaria.
+                </p>
+                <button class="drw-pin-btn" :disabled="generandoPin" @click="generarPin">
+                  <v-progress-circular v-if="generandoPin" indeterminate size="14" width="2" color="white" />
+                  <v-icon v-else size="14">mdi-key-variant</v-icon>
+                  GENERAR NUEVO PIN
+                </button>
+                <div v-if="pinGenerado" class="drw-pin-resultado">
+                  <div class="drw-pin-label">PIN — entrégaselo al empleado ahora, no se puede volver a ver</div>
+                  <div class="drw-pin-valor">{{ pinGenerado }}</div>
+                </div>
+
+                <div class="drw-section-title" style="margin-top:16px">CELULARES VINCULADOS</div>
+                <div v-if="cargandoDispositivos" style="font-size:12px;color:rgba(255,255,255,0.4)">Cargando...</div>
+                <div v-else-if="!dispositivos.length" style="font-size:12px;color:rgba(255,255,255,0.4)">
+                  Todavía no ha vinculado ningún celular.
+                </div>
+                <div v-else class="drw-dispositivo" v-for="d in dispositivos" :key="d.id">
+                  <div>
+                    <div style="font-weight:600;font-size:12px">{{ d.user_agent ? resumirUA(d.user_agent) : 'Dispositivo' }}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.4)">
+                      Vinculado {{ formatFecha(d.enrolado_en) }}
+                      <span v-if="d.ultimo_uso"> · Último uso {{ formatFecha(d.ultimo_uso) }}</span>
+                      <span v-if="!d.activo" style="color:var(--error)"> · REVOCADO</span>
+                    </div>
+                  </div>
+                  <v-btn v-if="d.activo" size="x-small" variant="text" color="error" @click="revocarDispositivo(d)">REVOCAR</v-btn>
+                </div>
+              </template>
+            </div>
+
             <div v-show="tabActual==='notas'" class="drw-section">
               <div class="drw-section-title">NOTAS</div>
               <textarea v-model="form.notas" @input="form.notas=form.notas.toUpperCase()" class="drw-textarea" rows="12" placeholder="OBSERVACIONES INTERNAS..."></textarea>
@@ -364,6 +406,10 @@ const fotoPreview = ref(null)
 const fotoBase64  = ref(null)
 const fotoNombre  = ref(null)
 const tabActual   = ref('personal')
+const pinGenerado = ref('')
+const generandoPin = ref(false)
+const dispositivos = ref([])
+const cargandoDispositivos = ref(false)
 
 const filtrados = computed(() => {
   if (filtroEstado.value === 'TODOS') return empleados.value
@@ -395,6 +441,7 @@ const navTabs = [
   { value: 'compensacion', label: 'COMPENSACIÓN', icon: 'mdi-currency-usd' },
   { value: 'w4',           label: 'W-4',          icon: 'mdi-file-document-outline' },
   { value: 'wc',           label: 'WORKERS COMP', icon: 'mdi-shield-outline' },
+  { value: 'asistencia',   label: 'ASISTENCIA',   icon: 'mdi-nfc-variant' },
   { value: 'notas',        label: 'NOTAS',        icon: 'mdi-note-text-outline' },
 ]
 
@@ -435,6 +482,8 @@ function nuevo() {
   fotoBase64.value  = null
   formErr.value   = ''
   tabActual.value = 'personal'
+  pinGenerado.value = ''
+  dispositivos.value = []
   drawer.value    = true
 }
 
@@ -471,13 +520,49 @@ function editar(e) {
   fotoBase64.value  = null
   formErr.value     = ''
   tabActual.value   = 'personal'
+  pinGenerado.value = ''
+  dispositivos.value = []
   // Load photo
   if (e.id) {
     api.get(`/nomina/empleados/${e.id}/foto`, { responseType: 'blob' })
       .then(r => { fotoPreview.value = URL.createObjectURL(r.data) })
       .catch(() => {})
+    cargarDispositivos(e.id)
   }
   drawer.value = true
+}
+
+async function cargarDispositivos(empleadoId) {
+  cargandoDispositivos.value = true
+  try {
+    const r = await api.get(`/nomina/empleados/${empleadoId}/dispositivos`)
+    dispositivos.value = r.data?.data || []
+  } catch (e) { console.error(e) }
+  finally { cargandoDispositivos.value = false }
+}
+
+async function generarPin() {
+  if (!editando.value?.id) return
+  generandoPin.value = true
+  pinGenerado.value = ''
+  try {
+    const r = await api.post(`/nomina/empleados/${editando.value.id}/pin`)
+    pinGenerado.value = r.data.data.pin
+  } catch (e) {
+    console.error(e)
+  } finally { generandoPin.value = false }
+}
+
+async function revocarDispositivo(d) {
+  if (!confirm('¿Revocar este celular? El empleado tendrá que volver a vincularlo con un PIN nuevo.')) return
+  await api.delete(`/nomina/empleados/${editando.value.id}/dispositivos/${d.id}`)
+  cargarDispositivos(editando.value.id)
+}
+
+function resumirUA(ua) {
+  if (/iPhone/.test(ua)) return 'iPhone · Safari'
+  if (/Android/.test(ua)) return 'Android · Chrome'
+  return ua.slice(0, 40)
 }
 
 function onFoto(e) {
@@ -676,4 +761,25 @@ onMounted(cargar)
   margin-top: 4px;
 }
 .drw-error { color: var(--error); font-size: 12px; font-weight: 600; margin-top: 8px; }
+
+.drw-pin-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 36px; border: none; border-radius: 8px; cursor: pointer;
+  background: color-mix(in srgb, var(--indigo) 15%, transparent); color: var(--indigo);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
+}
+.drw-pin-btn:disabled { opacity: 0.5; cursor: default; }
+.drw-pin-resultado {
+  margin-top: 10px; padding: 12px; border-radius: 8px; text-align: center;
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+}
+.drw-pin-label { font-size: 10px; color: rgba(255,255,255,0.55); margin-bottom: 4px; }
+.drw-pin-valor { font-size: 26px; font-weight: 800; letter-spacing: 4px; color: var(--success); font-family: var(--font-mono); }
+
+.drw-dispositivo {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.drw-dispositivo:last-child { border-bottom: none; }
 </style>
