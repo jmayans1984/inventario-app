@@ -149,13 +149,13 @@
         <div class="tabla-wrapper-modern">
           <table class="preview-table-modern">
             <colgroup>
-              <col style="width: 110px" />
-              <col style="width: 90px" />
-              <col style="width: 16%" />
-              <col style="width: auto" />
-              <col style="width: 140px" />
-              <col style="width: 110px" />
               <col style="width: 100px" />
+              <col style="width: 100px" />
+              <col style="width: 14%" />
+              <col style="width: 120px" />
+              <col style="width: 150px" />
+              <col style="width: 110px" />
+              <col style="width: 110px" />
             </colgroup>
             <thead>
               <tr class="table-header-modern">
@@ -1066,7 +1066,7 @@ async function generarPDF() {
 .preview-table-modern {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
   table-layout: fixed;
 }
 
