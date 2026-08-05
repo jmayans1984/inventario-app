@@ -1,21 +1,37 @@
 # Control de Asistencia NFC — Estructura de implementación
 
-Marcaje de entrada/salida mediante tags NFC físicos, celular del empleado y selfie,
-con volcado automático al cuadro semanal de nómina.
+Marcaje de entrada/salida mediante tags NFC físicos y el celular del empleado,
+sin cámara, con volcado automático al cuadro semanal de nómina.
 
 ---
 
-## 1. Principio de diseño: tres factores independientes
+## 1. Principio de diseño: dos factores + verificación adaptativa
+
+**Sin cámara.** No se toma foto en ningún momento.
 
 | Factor | Qué prueba | Cómo |
 |---|---|---|
 | **Tag NFC (NTAG 424 DNA)** | El celular estuvo a 4 cm del tag físico, en este momento | Firma CMAC + contador monotónico verificados en servidor |
-| **Celular enrolado** | Es el teléfono de *este* empleado | Token permanente entregado tras validar el PIN una sola vez |
-| **Selfie** | Quien lo usó fue *esa persona* | Cámara frontal disparada en cada marcaje |
+| **Celular enrolado** | Es el teléfono de *este* empleado | Token permanente entregado tras validar el PIN |
+| **PIN adaptativo** | Que quien marca es el empleado, *solo cuando algo huele raro* | Se exige el PIN únicamente ante anomalía (§8.1) |
 
-Ninguno de los tres se puede suplantar con los otros dos. Un compañero parado frente
-al tag no puede marcar: su celular no está enrolado. Si le prestan un celular
-enrolado, la selfie lo delata.
+Un compañero parado frente al tag no puede marcar: su celular no está enrolado.
+
+### Riesgo residual asumido
+
+Sin cámara queda un hueco: **el favor puntual** — un empleado deja su celular en el
+punto o lo pasa en la puerta para que otro le marque. No es "prestarse los celulares"
+como práctica, es el que va tarde pidiendo el favor.
+
+Se ha decidido asumir ese riesgo y cercarlo por comportamiento en vez de por imagen:
+
+1. **PIN adaptativo** ante cualquier anomalía (§8.1)
+2. **Detección de ráfaga**: dos empleados marcando en el mismo tag en menos de 15 s,
+   de forma recurrente entre la misma pareja, delata a alguien cargando dos celulares
+3. **Ventana de turno**: solo se puede marcar cerca del `prog_inicio` programado
+
+Si más adelante el hueco resulta costoso, la selfie se puede activar sin rediseñar
+nada: es una columna y un paso más en la vista de marcaje.
 
 > **El tag debe ser NTAG 424 DNA con SDM/SUN configurado.** Un NTAG213/215 común
 > guarda una URL fija: cualquiera la copia y marca desde su casa. No sirve.
@@ -69,8 +85,7 @@ CREATE TABLE IF NOT EXISTS nom_asistencia_marcaje (
     tag_id INT4,
     tag_contador INT4,
     dispositivo_id INT4,
-    selfie BYTEA,
-    selfie_mime VARCHAR(20),
+    pin_verificado BOOLEAN DEFAULT FALSE,  -- si se exigió PIN y se validó
     -- estado y auditoría
     estado VARCHAR(12) DEFAULT 'VALIDO',   -- VALIDO | SOSPECHOSO | ANULADO
     anomalias VARCHAR(300),                -- "ENTRADA_ANTICIPADA,SIN_SELFIE"
@@ -119,12 +134,19 @@ propinas) sigue funcionando sin un solo cambio.
 
 ## 3. El PIN: cómo se guarda y para qué sirve
 
-### 3.1 Es un secreto de enrolamiento, no una contraseña diaria
+### 3.1 Dos usos, ninguno diario
 
-El PIN se usa **una sola vez en la vida** de cada empleado: para enrolar su celular.
-Después de eso el celular queda identificado por su token y el PIN nunca se vuelve a
-pedir. Esto es lo que permite que 4 dígitos sean suficientes — no es un secreto que
-viaje todos los días.
+El PIN **no se pide en el marcaje normal**. Solo entra en juego en dos momentos:
+
+1. **Enrolar el celular**, una vez.
+2. **Desafío adaptativo**: cuando el marcaje dispara una anomalía (§8.1), la vista
+   pide el PIN antes de aceptarlo.
+
+En operación normal el empleado nunca lo escribe: acerca el celular y marca.
+
+> **6 dígitos, no 4.** Como el PIN es reutilizable (sirve para los desafíos), la
+> superficie de ataque es mayor que si fuera de un solo uso. Con 6 dígitos y los
+> límites de §3.4, romperlo por fuerza bruta pasa de ~2.000 a ~200.000 horas.
 
 ### 3.2 Almacenamiento
 
@@ -151,23 +173,25 @@ function verificarPin(pin, almacenado) {
 
 ### 3.3 Ciclo de vida
 
-1. En **Empleados**, el gerente pulsa "Generar PIN" → el servidor crea 4 dígitos
+1. En **Empleados**, el gerente pulsa "Generar PIN" → el servidor crea 6 dígitos
    aleatorios, guarda el hash y **devuelve el PIN en claro una única vez** para
-   mostrarlo en pantalla o imprimirlo.
+   mostrarlo en pantalla o imprimirlo. Ni el gerente puede recuperarlo después.
 2. El empleado enrola su celular con ese PIN.
-3. Al enrolar, se marca `pin_usado_en` y **el PIN queda inservible**. Un segundo
-   enrolamiento exige que el gerente genere uno nuevo.
-4. Si el empleado cambia de celular: el gerente revoca el dispositivo viejo y
-   genera un PIN nuevo.
+3. El PIN **sigue vigente** para los desafíos adaptativos.
+4. Un segundo enrolamiento (celular nuevo) exige que el gerente **revoque el
+   dispositivo viejo** primero. El PIN no basta por sí solo para enrolar un
+   segundo celular.
+5. Si el empleado lo olvida, el gerente genera uno nuevo. El anterior muere.
 
 ### 3.4 Protección contra fuerza bruta
 
-4 dígitos son 10.000 combinaciones. Sin límite, se rompen en minutos. Reglas:
+6 dígitos son 1.000.000 de combinaciones. Aun así el límite es obligatorio:
 
 - Máximo **5 intentos fallidos por empleado por hora** (tabla `nom_enrolamiento_intento`).
 - Máximo **10 intentos fallidos por IP por hora**.
-- Superado el límite: bloqueo de enrolamiento y aviso en el panel de excepciones.
-- El PIN caduca a las **72 horas** de generado si no se usó.
+- Superado el límite: bloqueo y aviso en el panel de excepciones.
+- El PIN caduca a las **72 horas** de generado si nunca se usó para enrolar.
+- Se registran también los fallos de desafío, no solo los de enrolamiento.
 
 ---
 
@@ -219,13 +243,13 @@ verificar CMAC. Permite probar todo el ciclo y ver el cuadro semanal llenándose
 | `GET` | `/api/asistencia/tap` | Entrada del NFC. Verifica CMAC y contador, resuelve identidad por token, redirige a `/marcar` |
 | `POST` | `/api/asistencia/enrolar` | Recibe PIN → valida → entrega token de dispositivo |
 | `GET` | `/api/asistencia/estado` | ¿El empleado está dentro o fuera? Último marcaje y turno programado |
-| `POST` | `/api/asistencia/marcar` | Registra ENTRADA o SALIDA con selfie |
+| `POST` | `/api/asistencia/marcar` | Registra ENTRADA o SALIDA. Si hay anomalía, exige PIN (§8.1) |
 
 ### 5.2 Administrativos (requieren login)
 
 | Método | Ruta | Función |
 |---|---|---|
-| `GET` | `/api/asistencia/dia` | Marcajes del día con selfies, para el supervisor |
+| `GET` | `/api/asistencia/dia` | Marcajes del día, para el supervisor |
 | `GET` | `/api/asistencia/excepciones` | Anomalías pendientes de resolver |
 | `POST` | `/api/asistencia/marcaje/:id/anular` | Anula un marcaje creando el registro de corrección |
 | `POST` | `/api/asistencia/marcaje-manual` | Marcaje a mano cuando falló el celular (queda como `origen=MANUAL`) |
@@ -263,8 +287,8 @@ Si se filtra la base de datos, las claves de los tags siguen siendo inservibles.
 - **La hora la pone el servidor**, siempre. La del celular se ignora — es
   manipulable.
 - HTTPS obligatorio (ya lo tienes en Railway).
-- La selfie se guarda comprimida a ~40 KB (JPEG, 480 px de ancho). Con 20 empleados
-  × 2 marcajes × 250 días son ~400 MB al año.
+- **No se captura imagen ni audio en ningún punto del flujo.** La app de marcaje
+  nunca pide permiso de cámara.
 - Los marcajes **nunca se editan ni se borran**. Una corrección anula el original
   (`estado=ANULADO`) y crea uno nuevo con `corrige_a` apuntando a él.
 
@@ -312,12 +336,45 @@ Para cada `empleado + fecha + ccosto`:
 | `SALIDA_TARDIA` | Marca más de N minutos después de `prog_fin` |
 | `SIN_SALIDA` | Cerró el día sin marcar salida |
 | `DOBLE_ENTRADA` | Dos ENTRADA seguidas sin SALIDA en medio |
-| `SIN_SELFIE` | El marcaje llegó sin foto (cámara denegada) |
 | `DISPOSITIVO_NUEVO` | Enroló un celular distinto al habitual |
 | `REPLAY_TAG` | Contador repetido o menor. **Se bloquea el marcaje** |
 | `FUERA_DE_TURNO` | No tenía turno programado ese día |
+| `RAFAGA` | Otro empleado marcó en el mismo tag hace menos de 15 s (§8.2) |
 
 Todas caen en el panel de excepciones. El supervisor resuelve; nada pasa en silencio.
+
+### 8.1 Cuáles disparan el desafío de PIN
+
+Al no haber selfie, estas anomalías **exigen el PIN antes de aceptar el marcaje**:
+
+- `ENTRADA_ANTICIPADA` y `FUERA_DE_TURNO` — marcar lejos del turno programado
+- `DISPOSITIVO_NUEVO` — primer marcaje desde un celular recién enrolado
+- `RAFAGA` — sospecha de una persona con dos celulares
+- `DOBLE_ENTRADA`
+
+Si el PIN no se valida, el marcaje se guarda igual pero con `estado=SOSPECHOSO`
+y no se consolida hasta que el supervisor lo apruebe. **Nunca se pierde un
+marcaje**: se registra siempre, se cuestiona cuando corresponde.
+
+El resto de casos (marcaje normal, dentro de ventana, celular habitual) pasan
+directo sin pedir nada.
+
+### 8.2 Detección de ráfaga
+
+Es la única defensa real contra el "márcame que llego tarde", y no necesita cámara.
+
+```
+Al registrar un marcaje:
+  ¿hubo otro marcaje en este mismo tag, de otro empleado, en los últimos 15 s?
+     → anomalía RAFAGA en ambos, y desafío de PIN al segundo
+
+Reporte semanal de parejas reincidentes:
+  agrupar por (empleado_a, empleado_b) los eventos RAFAGA
+  → 3 o más coincidencias en la semana es señal fuerte, no casualidad
+```
+
+Dos compañeros llegando juntos disparan un `RAFAGA` aislado de vez en cuando: eso es
+ruido normal. Lo que delata es la **reincidencia entre la misma pareja**.
 
 ---
 
@@ -327,13 +384,13 @@ Todas caen en el panel de excepciones. El supervisor resuelve; nada pasa en sile
   los cálculos de salario, **2 años**. La bitácora inmutable de marcajes cubre esto.
 - **Redondeo**: la ley permite redondear, pero debe ser **neutral** — al intervalo más
   cercano, no siempre a favor del empleador. Por eso §7.1 redondea al más cercano.
-- **Selfie ≠ biométrico**: guardar una foto como evidencia visual es muy distinto a
-  generar una plantilla facial. Si más adelante se añade **reconocimiento facial
-  automático**, eso sí crea un identificador biométrico y activa las leyes de
-  privacidad biométrica de Illinois (BIPA), Texas y Washington, que exigen
-  **consentimiento escrito previo**. Recomendación: quedarse en la foto.
-- Conviene que cada empleado firme un consentimiento simple de uso de celular
-  personal y captura de foto para control de asistencia.
+- **Sin cámara, sin dato biométrico.** Al no capturar foto ni huella no se activan
+  las leyes de privacidad biométrica de Illinois (BIPA), Texas o Washington. Si en
+  el futuro se agrega reconocimiento facial u otra biometría, eso sí exige
+  consentimiento escrito previo — hoy no aplica.
+- Conviene igual que cada empleado firme un consentimiento simple de uso de su
+  celular personal para control de asistencia (enrolamiento, geolocalización del
+  tag, PIN).
 
 ---
 
@@ -341,7 +398,7 @@ Todas caen en el panel de excepciones. El supervisor resuelve; nada pasa en sile
 
 | Vista | Ruta | Auth | Función |
 |---|---|---|---|
-| `MarcajeView.vue` | `/marcar` | **Pública** | La que abre el NFC. Móvil, sin MainLayout. Enrolamiento, entrar/salir, selfie |
+| `MarcajeView.vue` | `/marcar` | **Pública** | La que abre el NFC. Móvil, sin MainLayout. Enrolamiento, entrar/salir, desafío de PIN si aplica |
 | `ControlAsistenciaView.vue` | `/nomina/configuracion/control-asistencia` | Sí | Deja de ser maqueta: panel del día, excepciones, correcciones |
 | `TagsNfcView.vue` | `/nomina/configuracion/tags-nfc` | Sí | Alta de tags, asignación a centro de costo, revocación |
 | `EmpleadosView.vue` | (existente) | Sí | Se le añade "Generar PIN" y "Dispositivos enrolados" |
@@ -349,16 +406,18 @@ Todas caen en el panel de excepciones. El supervisor resuelve; nada pasa en sile
 > **Ojo con el router**: hoy todas las rutas llevan `meta: { requiresAuth: true }`.
 > `/marcar` debe quedar fuera del guard, porque el empleado no tiene cuenta.
 
-### Flujo del empleado (3 segundos)
+### Flujo del empleado (2 segundos)
 
 ```
 Acerca el celular al tag
    → notificación → toca → abre /marcar
-   → ¿primera vez? pide PIN una sola vez
+   → ¿primera vez? pide PIN (solo esa vez)
    → ya identificado: botón grande "ENTRAR" o "SALIR" según su estado
-   → selfie automática
+   → ¿anomalía? pide PIN                    ← poco frecuente
    → confirmación con la hora registrada
 ```
+
+Sin anomalía son dos toques y ninguna escritura. Sin cámara, sin permisos.
 
 ---
 
@@ -370,6 +429,7 @@ Acerca el celular al tag
 - Endpoints de marcar / estado / enrolar
 - `MarcajeView.vue`
 - Consolidador a `nom_semana_detalle`
+- Ventana de turno y desafío de PIN por anomalía (§8.1)
 
 **Fase 2 — NFC real**
 - AES-CMAC en `lib/aescmac.js`
@@ -378,9 +438,10 @@ Acerca el celular al tag
 - `TagsNfcView.vue`
 
 **Fase 3 — Supervisión**
-- Panel del día con selfies
+- Panel del día
 - Excepciones y correcciones con auditoría
 - Auto-cierre nocturno
+- Reporte semanal de parejas reincidentes en `RAFAGA` (§8.2)
 - Reporte de asistencia vs. horario programado
 
 ---
@@ -392,4 +453,4 @@ Acerca el celular al tag
 | **Tags** | NTAG 424 DNA **con SDM/SUN preconfigurado de fábrica**, y que el proveedor entregue las claves AES. En blanco requieren herramientas especializadas. 2–3 por punto (uno de repuesto). ~$1.50–3 c/u |
 | **Montaje** | Sticker o disco a la altura del pecho, junto a la puerta. Superficie no metálica, o tag "on-metal" |
 | **Variable de entorno** | `ASISTENCIA_MASTER_KEY` (32 bytes hex) en Railway |
-| **Consentimiento** | Formato firmado por empleado (uso de celular personal + foto) |
+| **Consentimiento** | Formato firmado por empleado (uso de celular personal para marcaje) |
