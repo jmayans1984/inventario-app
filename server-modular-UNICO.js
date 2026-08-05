@@ -2312,7 +2312,7 @@ app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
                     ea.total AS total_entrada,
                     dea.articulo AS producto_codigo,
                     COALESCE(p.nombre, p.descripcion, a.nombre, dea.articulo) AS producto_nombre,
-                    COALESCE(p.und, '-') AS und,
+                    COALESCE(p.und, a.und, '-') AS und,
                     dea.cantidad,
                     dea.vr_unitario AS precio_unitario,
                     dea.subtotal
