@@ -215,11 +215,13 @@ export const MODULES = [
     children: [
       { name: 'Reportes', icon: 'mdi-chart-bar', items: [
         { name: 'Dashboard Franquicias', icon: 'mdi-view-dashboard-outline', path: '/gerencia/reportes/ejecutivo' },
+        { name: 'P&G por Sede',         icon: 'mdi-scale-balance',          path: '/gerencia/reportes/pyg-sedes' },
         { name: 'Análisis de Ventas',   icon: 'mdi-chart-areaspline',       path: '/gerencia/reportes/analisis-ventas' },
         { name: 'Análisis de Nómina',   icon: 'mdi-account-cash-outline',   path: '/gerencia/reportes/analisis-nomina' },
         { name: 'Labor Cost %',         icon: 'mdi-percent-outline',        path: '/gerencia/reportes/labor-cost' },
         { name: 'Consumo Materia Prima', icon: 'mdi-food-variant',          path: '/gerencia/reportes/consumo-mp' },
         { name: 'Análisis de Costos',   icon: 'mdi-trending-up',           path: '/gerencia/reportes/analisis-costos' },
+        { name: 'Análisis de Proveedores', icon: 'mdi-truck-outline',      path: '/gerencia/reportes/proveedores' },
         { name: 'Sobrantes/Faltantes',  icon: 'mdi-scale-balance',          path: '/gerencia/reportes/sobrantes-faltantes' },
         { name: 'Puntuación/Reviews',   icon: 'mdi-star-outline',           path: '/gerencia/reportes/reviews' },
       ]},

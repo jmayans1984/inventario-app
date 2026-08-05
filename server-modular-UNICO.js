@@ -14207,6 +14207,351 @@ app.get('/api/gerencia/analisis-faltantes/producto/:codigo', async (req, res) =>
     }
 });
 
+// ── GERENCIA: P&G COMPARATIVO POR SEDE ───────────────────────────
+// Una fila por centro de costo con la estructura de resultados de un
+// restaurante: ventas, food cost, labor cost, prime cost, gastos
+// operativos y resultado.
+//
+// Nota sobre doble conteo: el food cost NO sale de las compras sino de
+// valorizar lo vendido al costo de receta (igual que /gerencia/consumo-mp).
+// Por eso los gastos de la cuenta de materia prima se excluyen de los
+// gastos operativos — si no, la comida se contaría dos veces.
+//
+// Nota sobre nómina: las liquidaciones son semanales. Cuando el rango
+// consultado parte una semana por la mitad, el costo se prorratea por los
+// días de esa semana que caen dentro del rango.
+app.get('/api/gerencia/pyg-sedes', async (req, res) => {
+    const { empresa, desde, hasta } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const hastaDate = desde && hasta ? hasta : new Date().toISOString().slice(0, 10);
+    const desdeDate = desde || (() => {
+        const d = new Date();
+        d.setDate(1);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    try {
+        // Cuenta de materia prima: se excluye de gastos operativos
+        const cfgRes = await pool.query(
+            `SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [parseInt(empresa)]
+        );
+        const ctaMP = cfgRes.rows[0]?.cta_materia_prima || null;
+
+        const [ventasRes, foodRes, laborRes, gastosRes, ccostosRes] = await Promise.all([
+
+            // 1. Ventas por sede
+            pool.query(`
+                SELECT v.ccosto,
+                       COALESCE(SUM(v.ventas_netas), 0)  AS ventas_netas,
+                       COALESCE(SUM(v.ventas_brutas), 0) AS ventas_brutas,
+                       COALESCE(SUM(v.propinas), 0)      AS propinas,
+                       COALESCE(SUM(v.descuentos), 0)    AS descuentos,
+                       COUNT(DISTINCT v.fecha::date)     AS dias_operados
+                FROM ventas v
+                WHERE v.empresa::text = $1 AND v.fecha::date BETWEEN $2::date AND $3::date
+                GROUP BY v.ccosto`,
+                [String(empresa), desdeDate, hastaDate]),
+
+            // 2. Food cost: lo vendido valorizado al costo de receta
+            pool.query(`
+                SELECT dv.ccosto,
+                       COALESCE(SUM(dv.cant * COALESCE(r.valor, 0)), 0) AS food_cost,
+                       COUNT(DISTINCT dv.codigo)                        AS platos_distintos,
+                       COALESCE(SUM(dv.cant), 0)                        AS unidades_vendidas
+                FROM detalle_ventas dv
+                LEFT JOIN recetas r ON TRIM(r.codigo) = TRIM(dv.codigo)
+                WHERE dv.empresa::text = $1 AND dv.fecha::date BETWEEN $2::date AND $3::date
+                GROUP BY dv.ccosto`,
+                [String(empresa), desdeDate, hastaDate]),
+
+            // 3. Nómina por sede, prorrateada por días de solape
+            pool.query(`
+                SELECT lc.ccosto,
+                       COALESCE(SUM(
+                           lc.costo_total *
+                           (GREATEST(0, (LEAST(l.semana_fin, $3::date) - GREATEST(l.semana_inicio, $2::date)) + 1)::numeric
+                            / NULLIF((l.semana_fin - l.semana_inicio) + 1, 0))
+                       ), 0) AS labor_cost,
+                       COALESCE(SUM(
+                           lc.horas *
+                           (GREATEST(0, (LEAST(l.semana_fin, $3::date) - GREATEST(l.semana_inicio, $2::date)) + 1)::numeric
+                            / NULLIF((l.semana_fin - l.semana_inicio) + 1, 0))
+                       ), 0) AS horas
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll  ON ll.liquidacion_id = l.id
+                JOIN nom_liquidacion_ccosto lc ON lc.linea_id = ll.id
+                WHERE l.empresa = $1::int
+                  AND l.estado IN ('APROBADA','PAGADA')
+                  AND l.semana_inicio <= $3::date AND l.semana_fin >= $2::date
+                GROUP BY lc.ccosto`,
+                [String(empresa), desdeDate, hastaDate]),
+
+            // 4. Gastos operativos por sede y grupo (sin materia prima)
+            pool.query(`
+                SELECT g.ccosto,
+                       COALESCE(gg.nombre, 'SIN GRUPO') AS grupo,
+                       COALESCE(SUM(g.total), 0)        AS total
+                FROM gastos g
+                LEFT JOIN cuentas c       ON g.cuenta = c.codigo AND c.empresa = g.empresa
+                LEFT JOIN grupo_gastos gg ON c.grupo = gg.codigo
+                WHERE g.empresa = $1::int
+                  AND g.fecha::date BETWEEN $2::date AND $3::date
+                  AND ($4::text IS NULL OR g.cuenta IS DISTINCT FROM $4::text)
+                GROUP BY g.ccosto, gg.nombre`,
+                [String(empresa), desdeDate, hastaDate, ctaMP]),
+
+            pool.query(
+                `SELECT codigo, nombre FROM ccostos WHERE empresa = $1::int AND COALESCE(activo,'SI') <> 'NO'`,
+                [String(empresa)]),
+        ]);
+
+        const nombreCC = Object.fromEntries(ccostosRes.rows.map(c => [String(c.codigo), c.nombre]));
+        const sedes = {};
+        const asegurar = (cc) => {
+            const k = String(cc || '').trim() || 'SIN CC';
+            if (!sedes[k]) sedes[k] = {
+                ccosto: k, nombre: nombreCC[k] || k,
+                ventas_netas: 0, ventas_brutas: 0, propinas: 0, descuentos: 0, dias_operados: 0,
+                food_cost: 0, platos_distintos: 0, unidades_vendidas: 0,
+                labor_cost: 0, horas: 0,
+                gastos_operativos: 0, gastos_por_grupo: {},
+            };
+            return sedes[k];
+        };
+
+        for (const r of ventasRes.rows) {
+            const s = asegurar(r.ccosto);
+            s.ventas_netas   = parseFloat(r.ventas_netas) || 0;
+            s.ventas_brutas  = parseFloat(r.ventas_brutas) || 0;
+            s.propinas       = parseFloat(r.propinas) || 0;
+            s.descuentos     = parseFloat(r.descuentos) || 0;
+            s.dias_operados  = parseInt(r.dias_operados) || 0;
+        }
+        for (const r of foodRes.rows) {
+            const s = asegurar(r.ccosto);
+            s.food_cost         = parseFloat(r.food_cost) || 0;
+            s.platos_distintos  = parseInt(r.platos_distintos) || 0;
+            s.unidades_vendidas = parseFloat(r.unidades_vendidas) || 0;
+        }
+        for (const r of laborRes.rows) {
+            const s = asegurar(r.ccosto);
+            s.labor_cost = parseFloat(r.labor_cost) || 0;
+            s.horas      = parseFloat(r.horas) || 0;
+        }
+        for (const r of gastosRes.rows) {
+            const s = asegurar(r.ccosto);
+            const monto = parseFloat(r.total) || 0;
+            s.gastos_operativos += monto;
+            s.gastos_por_grupo[r.grupo] = (s.gastos_por_grupo[r.grupo] || 0) + monto;
+        }
+
+        const pct = (parte, base) => base > 0 ? (parte / base) * 100 : null;
+        const filas = Object.values(sedes).map(s => {
+            const v = s.ventas_netas;
+            const prime = s.food_cost + s.labor_cost;
+            const resultado = v - prime - s.gastos_operativos;
+            return {
+                ...s,
+                prime_cost: prime,
+                resultado,
+                food_pct:      pct(s.food_cost, v),
+                labor_pct:     pct(s.labor_cost, v),
+                prime_pct:     pct(prime, v),
+                gastos_pct:    pct(s.gastos_operativos, v),
+                margen_pct:    pct(resultado, v),
+                venta_dia:     s.dias_operados > 0 ? v / s.dias_operados : null,
+                venta_hora:    s.horas > 0 ? v / s.horas : null,
+            };
+        }).sort((a, b) => b.ventas_netas - a.ventas_netas);
+
+        // Totales consolidados
+        const acum = (campo) => filas.reduce((t, f) => t + (f[campo] || 0), 0);
+        const tVentas = acum('ventas_netas');
+        const tFood   = acum('food_cost');
+        const tLabor  = acum('labor_cost');
+        const tGastos = acum('gastos_operativos');
+        const tPrime  = tFood + tLabor;
+        const tResultado = tVentas - tPrime - tGastos;
+
+        const conMargen = filas.filter(f => f.margen_pct !== null);
+        const ordenMargen = [...conMargen].sort((a, b) => b.margen_pct - a.margen_pct);
+
+        res.json({
+            success: true,
+            periodo: { desde: desdeDate, hasta: hastaDate },
+            excluye_cuenta_mp: ctaMP,
+            totales: {
+                ventas_netas: tVentas, food_cost: tFood, labor_cost: tLabor,
+                prime_cost: tPrime, gastos_operativos: tGastos, resultado: tResultado,
+                food_pct:   pct(tFood, tVentas),
+                labor_pct:  pct(tLabor, tVentas),
+                prime_pct:  pct(tPrime, tVentas),
+                gastos_pct: pct(tGastos, tVentas),
+                margen_pct: pct(tResultado, tVentas),
+                num_sedes: filas.length,
+                mejor: ordenMargen[0] ? { nombre: ordenMargen[0].nombre, margen_pct: ordenMargen[0].margen_pct } : null,
+                peor:  ordenMargen.length > 1 ? { nombre: ordenMargen[ordenMargen.length-1].nombre, margen_pct: ordenMargen[ordenMargen.length-1].margen_pct } : null,
+            },
+            sedes: filas,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/pyg-sedes:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── GERENCIA: ANÁLISIS DE PROVEEDORES ────────────────────────────
+// Mirada centrada en el proveedor (a diferencia de /analisis-costos,
+// que mira la evolución de precio por producto): cuánto se le compra a
+// cada uno, qué peso tiene en el gasto total, cómo cambió contra el
+// período anterior y hace cuánto no se le compra.
+app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
+    const { empresa, desde, hasta } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const hastaDate = hasta || new Date().toISOString().slice(0, 10);
+    const desdeDate = desde || (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 5);
+        d.setDate(1);
+        return d.toISOString().slice(0, 10);
+    })();
+
+    // Período anterior de igual longitud, para comparar
+    const msDia = 86400000;
+    const dias = Math.max(1, Math.round((new Date(hastaDate) - new Date(desdeDate)) / msDia) + 1);
+    const prevHasta = new Date(new Date(desdeDate).getTime() - msDia).toISOString().slice(0, 10);
+    const prevDesde = new Date(new Date(desdeDate).getTime() - dias * msDia).toISOString().slice(0, 10);
+
+    try {
+        const [actualRes, previoRes, mensualRes, articulosRes] = await Promise.all([
+
+            // 1. Gasto por proveedor en el período
+            pool.query(`
+                SELECT TRIM(g.proveedor) AS proveedor,
+                       COALESCE(p.nombre, g.proveedor) AS proveedor_nombre,
+                       COALESCE(SUM(g.total), 0) AS total,
+                       COUNT(*)                  AS num_compras,
+                       MIN(g.fecha::date)        AS primera,
+                       MAX(g.fecha::date)        AS ultima,
+                       COUNT(DISTINCT g.ccosto)  AS num_sedes
+                FROM gastos g
+                LEFT JOIN proveedores p ON p.codigo = g.proveedor AND p.empresa = g.empresa
+                WHERE g.empresa = $1::int
+                  AND g.fecha::date BETWEEN $2::date AND $3::date
+                  AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'
+                GROUP BY TRIM(g.proveedor), p.nombre
+                ORDER BY total DESC`,
+                [String(empresa), desdeDate, hastaDate]),
+
+            // 2. Mismo dato en el período anterior
+            pool.query(`
+                SELECT TRIM(g.proveedor) AS proveedor,
+                       COALESCE(SUM(g.total), 0) AS total,
+                       COUNT(*) AS num_compras
+                FROM gastos g
+                WHERE g.empresa = $1::int
+                  AND g.fecha::date BETWEEN $2::date AND $3::date
+                  AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'
+                GROUP BY TRIM(g.proveedor)`,
+                [String(empresa), prevDesde, prevHasta]),
+
+            // 3. Serie mensual por proveedor (para la tendencia)
+            pool.query(`
+                SELECT TRIM(g.proveedor) AS proveedor,
+                       TO_CHAR(DATE_TRUNC('month', g.fecha::date), 'YYYY-MM') AS mes,
+                       COALESCE(SUM(g.total), 0) AS total
+                FROM gastos g
+                WHERE g.empresa = $1::int
+                  AND g.fecha::date BETWEEN $2::date AND $3::date
+                  AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'
+                GROUP BY TRIM(g.proveedor), DATE_TRUNC('month', g.fecha::date)
+                ORDER BY mes`,
+                [String(empresa), desdeDate, hastaDate]),
+
+            // 4. Artículos distintos que entregó cada proveedor
+            pool.query(`
+                SELECT TRIM(ea.proveedor) AS proveedor,
+                       COUNT(DISTINCT dea.articulo) AS articulos_distintos
+                FROM entrada_almacen ea
+                JOIN detalle_entrada_almacen dea ON dea.codigo = ea.codigo
+                WHERE ea.empresa::text = $1
+                  AND ea.fecha::date BETWEEN $2::date AND $3::date
+                  AND ea.proveedor IS NOT NULL AND TRIM(ea.proveedor) <> ''
+                GROUP BY TRIM(ea.proveedor)`,
+                [String(empresa), desdeDate, hastaDate]),
+        ]);
+
+        const previo = Object.fromEntries(previoRes.rows.map(r => [r.proveedor, parseFloat(r.total) || 0]));
+        const articulos = Object.fromEntries(articulosRes.rows.map(r => [r.proveedor, parseInt(r.articulos_distintos) || 0]));
+        const meses = [...new Set(mensualRes.rows.map(r => r.mes))].sort();
+        const seriePorProv = {};
+        for (const r of mensualRes.rows) {
+            if (!seriePorProv[r.proveedor]) seriePorProv[r.proveedor] = {};
+            seriePorProv[r.proveedor][r.mes] = parseFloat(r.total) || 0;
+        }
+
+        const totalGasto = actualRes.rows.reduce((s, r) => s + (parseFloat(r.total) || 0), 0);
+        const hoy = new Date();
+
+        const proveedores = actualRes.rows.map(r => {
+            const total = parseFloat(r.total) || 0;
+            const anterior = previo[r.proveedor] ?? null;
+            const diasSinComprar = Math.round((hoy - new Date(r.ultima)) / msDia);
+            return {
+                proveedor: r.proveedor,
+                proveedor_nombre: r.proveedor_nombre,
+                total,
+                num_compras: parseInt(r.num_compras) || 0,
+                ticket_promedio: r.num_compras > 0 ? total / parseInt(r.num_compras) : 0,
+                primera: r.primera,
+                ultima: r.ultima,
+                dias_sin_comprar: diasSinComprar,
+                num_sedes: parseInt(r.num_sedes) || 0,
+                articulos_distintos: articulos[r.proveedor] || 0,
+                pct_del_total: totalGasto > 0 ? (total / totalGasto) * 100 : 0,
+                total_anterior: anterior,
+                variacion_pct: (anterior && anterior > 0) ? ((total - anterior) / anterior) * 100 : null,
+                serie: meses.map(m => seriePorProv[r.proveedor]?.[m] ?? 0),
+            };
+        });
+
+        // Concentración: cuánto pesan los más grandes
+        let acumulado = 0;
+        const conAcumulado = proveedores.map(p => {
+            acumulado += p.pct_del_total;
+            return { ...p, pct_acumulado: acumulado };
+        });
+        const pctTop = (n) => proveedores.slice(0, n).reduce((s, p) => s + p.pct_del_total, 0);
+        // Índice Herfindahl: suma de cuadrados de las participaciones (0-10000).
+        // Por encima de 2500 se considera un gasto muy concentrado.
+        const hhi = proveedores.reduce((s, p) => s + Math.pow(p.pct_del_total, 2), 0);
+
+        res.json({
+            success: true,
+            periodo: { desde: desdeDate, hasta: hastaDate },
+            periodo_anterior: { desde: prevDesde, hasta: prevHasta },
+            meses,
+            kpis: {
+                total_gasto: totalGasto,
+                num_proveedores: proveedores.length,
+                total_compras: proveedores.reduce((s, p) => s + p.num_compras, 0),
+                pct_top1: pctTop(1),
+                pct_top3: pctTop(3),
+                pct_top5: pctTop(5),
+                hhi,
+                concentracion: hhi > 2500 ? 'ALTA' : hhi > 1500 ? 'MEDIA' : 'BAJA',
+                inactivos_60d: proveedores.filter(p => p.dias_sin_comprar > 60).length,
+            },
+            proveedores: conAcumulado,
+        });
+    } catch (error) {
+        console.error('Error en /api/gerencia/analisis-proveedores:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ================================================================
 // MÓDULO: RECETAS (Estandarización de Recetas de Restaurante)
 // recetas:        codigo, nombre, valor(costo), grupo_receta, subproducto, und, precio_venta
