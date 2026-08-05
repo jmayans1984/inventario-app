@@ -18048,7 +18048,7 @@ app.delete('/api/produccion/receta-producto/:codigo_receta', async (req, res) =>
 
 const ASISTENCIA_MODO_PRUEBA = process.env.ASISTENCIA_MODO_PRUEBA === 'true';
 const ASISTENCIA_FRONTEND_URL = process.env.ASISTENCIA_FRONTEND_URL
-    || 'https://jmayans1984.github.io/inventario-app/completa/';
+    || 'https://heartfelt-moxie-a79307.netlify.app/completa/';
 const ASISTENCIA_VENTANA_TURNO_MIN = 30; // minutos de tolerancia alrededor del turno programado
 const ASISTENCIA_RAFAGA_SEGUNDOS = 15;
 
