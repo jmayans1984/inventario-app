@@ -223,7 +223,7 @@
               </div>
 
               <div class="field-row montos-row">
-                <div class="field-col-amt">
+                <div class="field-col-amt-full">
                   <v-text-field
                     :value="ln.subtotal"
                     @input="ln.subtotal = parseFloat(($event.target.value || '0').replace(',', '.')) || 0"
@@ -235,10 +235,10 @@
                     type="text"
                     inputmode="decimal"
                     placeholder="0.00"
-                    prepend-inner-icon="mdi-currency-usd"
+                    prefix="$"
                   />
                 </div>
-                <div class="field-col-amt">
+                <div class="field-col-amt-full">
                   <v-text-field
                     :value="ln.impuestos"
                     @input="ln.impuestos = parseFloat(($event.target.value || '0').replace(',', '.')) || 0"
@@ -250,12 +250,12 @@
                     type="text"
                     inputmode="decimal"
                     placeholder="0.00"
-                    prepend-inner-icon="mdi-currency-usd"
+                    prefix="$"
                   />
                 </div>
               </div>
 
-              <!-- Chip de materia prima cuando la cuenta coincide -->
+              <!-- Chip de materia prima cuando la cuenta coincide (opcional) -->
               <div v-if="esMateriaPrima(ln)" class="mp-chip-row">
                 <button class="mp-chip" :class="{ 'mp-chip-ok': ln.materiaPrima?.items?.length }" @click="abrirMateriaPrima(idx)">
                   <v-icon size="13">{{ ln.materiaPrima?.items?.length ? 'mdi-check-circle' : 'mdi-package-variant-plus' }}</v-icon>
@@ -265,7 +265,7 @@
                     <span v-if="ln.materiaPrima.actualizaCosto" class="mp-chip-tag">+COSTO</span>
                   </template>
                   <template v-else>
-                    Registrar entrada de almacén (materia prima)
+                    <span class="mp-chip-label">Entrada de almacén (opcional)</span>
                   </template>
                 </button>
               </div>
@@ -1756,6 +1756,7 @@ function cerrar() {
 .field-col-half { flex: 1 1 260px; min-width: 220px; }
 .field-col-3 { flex: 1 1 200px; min-width: 180px; }
 .field-col-amt { width: 220px; flex-shrink: 0; }
+.field-col-amt-full { flex: 1 1 180px; min-width: 160px; }
 .montos-row { gap: 20px; }
 
 /* ═══ LÍNEAS DE DISTRIBUCIÓN ═════════════════════════════════════════ */
