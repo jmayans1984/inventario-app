@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 
@@ -96,7 +96,10 @@ const API_BASE = import.meta.env.PROD
 
 const route = useRoute()
 const cargando = ref(true)
-const punto = ref(route.query.punto || null)
+// computed, no ref: si el navegador reutiliza la pestaña al volver a tocar el
+// tag (navegación de solo-fragmento), route.query.punto cambia sin remontar
+// el componente — un ref leído una sola vez se quedaría con el valor viejo.
+const punto = computed(() => route.query.punto || null)
 const enrolado = ref(false)
 const empleado = ref({})
 const estadoActual = ref('FUERA')
@@ -188,6 +191,16 @@ const horaResultado = computed(() => {
   return new Date(resultado.value.momento).toLocaleString('es-US', {
     weekday: 'long', hour: '2-digit', minute: '2-digit',
   })
+})
+
+// Si se vuelve a tocar el tag en la misma pestaña (punto cambia sin recargar
+// la página), se limpia el resultado anterior para que aparezca el botón de
+// marcar de nuevo en vez de quedar congelado en la confirmación previa.
+watch(punto, () => {
+  resultado.value = null
+  requierePin.value = false
+  desafioPin.value = ''
+  marcarError.value = ''
 })
 
 onMounted(cargarEstado)
