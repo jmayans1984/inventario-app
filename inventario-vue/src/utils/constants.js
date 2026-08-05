@@ -19,6 +19,13 @@ export const MODULES = [
     path: '/contabilidad',
     children: [
       {
+        name: 'Dashboard',
+        icon: 'mdi-view-dashboard-outline',
+        items: [
+          { name: 'Estado del Mes', icon: 'mdi-view-dashboard-outline', path: '/contabilidad/dashboard' },
+        ],
+      },
+      {
         name: 'Configuración',
         icon: 'mdi-cog-outline',
         items: [
@@ -93,7 +100,9 @@ export const MODULES = [
       { name: 'Configuración', icon: 'mdi-cog-outline', items: [
         { name: 'Productos', icon: 'mdi-package-variant', path: '/almacen/configuracion/productos', requiredTipo: 'PROVEEDOR' },
         { name: 'Precio de Costo', icon: 'mdi-cash-edit', path: '/almacen/configuracion/costos-productos' },
+        { name: 'Precios de Compra / Venta', icon: 'mdi-tag-multiple-outline', path: '/almacen/configuracion/precios', requiredTipo: 'PROVEEDOR' },
         { name: 'Control de Stock', icon: 'mdi-package-variant-closed', path: '/almacen/configuracion/control-stock', requiredTipo: 'PROVEEDOR' },
+        { name: 'Control de Inventario', icon: 'mdi-tune-variant', path: '/almacen/configuracion/control-inventario' },
         { name: 'Impresión de Códigos de Barras', icon: 'mdi-barcode', path: '/almacen/configuracion/impresion-barcodes' },
         { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/almacen/configuracion/grupo-productos' },
         { name: 'Etiquetas de Producto', icon: 'mdi-label-outline', path: '/almacen/configuracion/etiquetas-producto' },
