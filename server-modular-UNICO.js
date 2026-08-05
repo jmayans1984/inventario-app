@@ -14232,11 +14232,19 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
     })();
 
     try {
-        // Cuenta de materia prima: se excluye de gastos operativos
-        const cfgRes = await pool.query(
-            `SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [parseInt(empresa)]
-        );
+        // Cuentas que NO deben entrar en gastos operativos porque su costo ya
+        // se calcula por otra vía: la materia prima sale del costo de receta y
+        // la nómina sale de las liquidaciones. Si se dejaran, se contarían dos veces.
+        const [cfgRes, fiscalRes] = await Promise.all([
+            pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [parseInt(empresa)]),
+            pool.query(
+                `SELECT cuenta_nomina FROM nom_config_fiscal
+                 WHERE empresa = $1 AND COALESCE(cuenta_nomina,'') <> ''
+                 ORDER BY anio DESC LIMIT 1`, [parseInt(empresa)]),
+        ]);
         const ctaMP = cfgRes.rows[0]?.cta_materia_prima || null;
+        const ctaNomina = fiscalRes.rows[0]?.cuenta_nomina || null;
+        const ctasExcluidas = [ctaMP, ctaNomina].filter(Boolean);
 
         const [ventasRes, foodRes, laborRes, gastosRes, ccostosRes] = await Promise.all([
 
@@ -14287,7 +14295,11 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
                 GROUP BY lc.ccosto`,
                 [String(empresa), desdeDate, hastaDate]),
 
-            // 4. Gastos operativos por sede y grupo (sin materia prima)
+            // 4. Gastos operativos por sede y grupo.
+            // Solo grupos de tipo EGRESO: la tabla gastos también guarda
+            // movimientos de INGRESO (ventas, otros ingresos) que no son costo.
+            // Un grupo sin clasificar se trata como egreso, igual que en el
+            // Estado de Resultados.
             pool.query(`
                 SELECT g.ccosto,
                        COALESCE(gg.nombre, 'SIN GRUPO') AS grupo,
@@ -14297,9 +14309,10 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
                 LEFT JOIN grupo_gastos gg ON c.grupo = gg.codigo
                 WHERE g.empresa = $1::int
                   AND g.fecha::date BETWEEN $2::date AND $3::date
-                  AND ($4::text IS NULL OR g.cuenta IS DISTINCT FROM $4::text)
+                  AND COALESCE(TRIM(gg.tipo), 'EGRESO') <> 'INGRESO'
+                  AND NOT (g.cuenta = ANY($4::text[]))
                 GROUP BY g.ccosto, gg.nombre`,
-                [String(empresa), desdeDate, hastaDate, ctaMP]),
+                [String(empresa), desdeDate, hastaDate, ctasExcluidas]),
 
             pool.query(
                 `SELECT codigo, nombre FROM ccostos WHERE empresa = $1::int AND COALESCE(activo,'SI') <> 'NO'`,
@@ -14377,10 +14390,17 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
         const conMargen = filas.filter(f => f.margen_pct !== null);
         const ordenMargen = [...conMargen].sort((a, b) => b.margen_pct - a.margen_pct);
 
+        // El food cost se valoriza con recetas.valor. Si ese costo está mal
+        // cargado (p.ej. costo del lote completo en vez de por porción) el %
+        // sale disparatado — se avisa en vez de mostrar un número sin contexto.
+        const foodSospechoso = pct(tFood, tVentas) !== null && pct(tFood, tVentas) > 60;
+
         res.json({
             success: true,
             periodo: { desde: desdeDate, hasta: hastaDate },
             excluye_cuenta_mp: ctaMP,
+            excluye_cuenta_nomina: ctaNomina,
+            food_cost_sospechoso: foodSospechoso,
             totales: {
                 ventas_netas: tVentas, food_cost: tFood, labor_cost: tLabor,
                 prime_cost: tPrime, gastos_operativos: tGastos, resultado: tResultado,

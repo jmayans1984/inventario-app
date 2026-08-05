@@ -98,6 +98,20 @@
           </div>
         </div>
 
+        <!-- AVISO DE FOOD COST INCONSISTENTE -->
+        <div v-if="data.food_cost_sospechoso" class="pg-aviso">
+          <v-icon size="18" color="#ef4444">mdi-alert-outline</v-icon>
+          <div>
+            <strong>El food cost no es creíble ({{ pct(t.food_pct) }}).</strong>
+            Está calculado valorizando lo vendido con el campo <em>costo</em> de cada receta, así que un
+            costo mal cargado dispara el porcentaje. Lo más común: que la receta tenga el costo del lote
+            completo en lugar del costo por porción. Revísalo en
+            <strong>Recetas → Gestión de Costos</strong>; mientras tanto, las columnas de food cost,
+            prime cost y resultado de este reporte no son confiables.
+            Las de ventas, labor cost y gastos operativos sí.
+          </div>
+        </div>
+
         <!-- MEJOR / PEOR -->
         <div v-if="t.mejor && t.peor" class="pg-extremos">
           <div class="pg-extremo pg-extremo--bueno">
@@ -206,10 +220,16 @@
               </tbody>
             </table>
           </div>
-          <div v-if="data.excluye_cuenta_mp" class="pg-nota">
+          <div class="pg-nota">
             <v-icon size="13">mdi-information-outline</v-icon>
-            El food cost se calcula valorizando lo vendido al costo de receta. La cuenta de materia prima
-            ({{ data.excluye_cuenta_mp }}) se excluye de los gastos operativos para no contarla dos veces.
+            <span>
+              El food cost se calcula valorizando lo vendido al costo de receta, y el labor cost sale de
+              las liquidaciones de nómina. Por eso los gastos operativos excluyen
+              <template v-if="data.excluye_cuenta_mp">la cuenta de materia prima ({{ data.excluye_cuenta_mp }})</template>
+              <template v-if="data.excluye_cuenta_mp && data.excluye_cuenta_nomina"> y </template>
+              <template v-if="data.excluye_cuenta_nomina">la cuenta de nómina ({{ data.excluye_cuenta_nomina }})</template>:
+              si se dejaran, ese gasto se contaría dos veces. Solo se suman grupos contables de tipo EGRESO.
+            </span>
           </div>
         </div>
 
@@ -443,6 +463,14 @@ onMounted(cargar)
 .pg-kpi-lbl { font-size: 10px; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.45); }
 .pg-kpi-val { font-size: 22px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .pg-kpi-foot { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.4); margin-top: 2px; }
+
+/* Aviso de datos inconsistentes */
+.pg-aviso {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 14px 18px; border-radius: 11px; font-size: 12.5px; line-height: 1.6;
+  background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.22);
+  color: rgba(var(--v-theme-on-surface), 0.8);
+}
 
 /* Extremos */
 .pg-extremos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
