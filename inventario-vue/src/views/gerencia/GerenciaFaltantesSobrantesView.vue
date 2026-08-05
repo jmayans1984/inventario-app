@@ -193,26 +193,47 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in productosFiltrados" :key="p.producto_codigo"
-                    class="fc-tr ac-tr-click"
-                    :class="{ 'ac-row-selected': productoSel?.producto_codigo === p.producto_codigo }"
-                    @click="seleccionarProducto(p)">
-                  <td>
-                    <div class="ac-prod-name">{{ p.producto_nombre }}</div>
-                    <div class="ac-prod-cod">{{ p.producto_codigo }} · {{ p.und || '—' }}</div>
-                  </td>
-                  <td><span class="badge-dim">{{ p.grupo_nombre }}</span></td>
-                  <td class="tr">{{ p.sobrante_cant > 0 ? fmtNum(p.sobrante_cant) : '—' }}</td>
-                  <td class="tr">{{ p.faltante_cant > 0 ? fmtNum(p.faltante_cant) : '—' }}</td>
-                  <td class="tr" style="color:#22c55e">{{ p.sobrante_valor > 0 ? fmt(p.sobrante_valor) : '—' }}</td>
-                  <td class="tr" style="color:#ef4444">{{ p.faltante_valor > 0 ? fmt(p.faltante_valor) : '—' }}</td>
-                  <td class="tr font-weight-bold">
-                    <span v-if="p.neto_valor > 0" class="badge-pos">{{ fmt(p.neto_valor) }}</span>
-                    <span v-else-if="p.neto_valor < 0" class="badge-neg">{{ fmt(p.neto_valor) }}</span>
-                    <span v-else class="badge-dim">$0.00</span>
-                  </td>
-                  <td class="tr">{{ p.num_tomas }}</td>
-                </tr>
+                <template v-for="grupo in productosFiltrados" :key="`grupo-${grupo.grupo_codigo}`">
+                  <!-- Header del grupo -->
+                  <tr class="fc-tr-group-header">
+                    <td colspan="8" class="font-weight-bold" style="background: rgba(6, 182, 212, 0.15); padding: 8px 12px">
+                      {{ grupo.grupo_nombre || 'SIN GRUPO' }}
+                    </td>
+                  </tr>
+                  <!-- Productos del grupo -->
+                  <tr v-for="p in grupo.productos" :key="p.producto_codigo"
+                      class="fc-tr ac-tr-click"
+                      :class="{ 'ac-row-selected': productoSel?.producto_codigo === p.producto_codigo }"
+                      @click="seleccionarProducto(p)">
+                    <td>
+                      <div class="ac-prod-name">{{ p.producto_nombre }}</div>
+                      <div class="ac-prod-cod">{{ p.producto_codigo }} · {{ p.und || '—' }}</div>
+                    </td>
+                    <td><span class="badge-dim">{{ p.grupo_nombre }}</span></td>
+                    <td class="tr">{{ p.sobrante_cant > 0 ? fmtNum(p.sobrante_cant) : '—' }}</td>
+                    <td class="tr">{{ p.faltante_cant > 0 ? fmtNum(p.faltante_cant) : '—' }}</td>
+                    <td class="tr" style="color:#22c55e">{{ p.sobrante_valor > 0 ? fmt(p.sobrante_valor) : '—' }}</td>
+                    <td class="tr" style="color:#ef4444">{{ p.faltante_valor > 0 ? fmt(p.faltante_valor) : '—' }}</td>
+                    <td class="tr font-weight-bold">
+                      <span v-if="p.neto_valor > 0" class="badge-pos">{{ fmt(p.neto_valor) }}</span>
+                      <span v-else-if="p.neto_valor < 0" class="badge-neg">{{ fmt(p.neto_valor) }}</span>
+                      <span v-else class="badge-dim">$0.00</span>
+                    </td>
+                    <td class="tr">{{ p.num_tomas }}</td>
+                  </tr>
+                  <!-- Subtotal del grupo -->
+                  <tr class="fc-tr-subtotal">
+                    <td colspan="2" class="font-weight-bold" style="text-align: left">Subtotal {{ grupo.grupo_nombre || 'SIN GRUPO' }}</td>
+                    <td class="tr font-weight-bold">{{ fmtNum(grupo.subtotal.sobrante_cant) }}</td>
+                    <td class="tr font-weight-bold">{{ fmtNum(grupo.subtotal.faltante_cant) }}</td>
+                    <td class="tr font-weight-bold" style="color:#22c55e">{{ fmt(grupo.subtotal.sobrante_valor) }}</td>
+                    <td class="tr font-weight-bold" style="color:#ef4444">{{ fmt(grupo.subtotal.faltante_valor) }}</td>
+                    <td class="tr font-weight-bold" :style="{ color: grupo.subtotal.neto_valor >= 0 ? '#22c55e' : '#ef4444' }">
+                      {{ fmt(grupo.subtotal.neto_valor) }}
+                    </td>
+                    <td class="tr font-weight-bold">{{ fmtNum(grupo.subtotal.num_tomas) }}</td>
+                  </tr>
+                </template>
               </tbody>
               <tfoot>
                 <tr class="fc-tr-totals">
@@ -402,23 +423,58 @@ const productosFiltrados = computed(() => {
       p.producto_codigo?.toLowerCase().includes(q)
     )
   }
-  return [...lista].sort((a, b) => {
-    const av = a[sortCol.value] ?? (sortDir.value === 'asc' ? Infinity : -Infinity)
-    const bv = b[sortCol.value] ?? (sortDir.value === 'asc' ? Infinity : -Infinity)
-    if (typeof av === 'string') return sortDir.value === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
-    return sortDir.value === 'asc' ? av - bv : bv - av
+
+  // Agrupar por grupo_codigo
+  const grupos = {}
+  lista.forEach(p => {
+    const grp = p.grupo_codigo || 'SIN_GRUPO'
+    if (!grupos[grp]) {
+      grupos[grp] = {
+        grupo_codigo: p.grupo_codigo,
+        grupo_nombre: p.grupo_nombre,
+        productos: []
+      }
+    }
+    grupos[grp].productos.push(p)
   })
+
+  // Ordenar grupos por grupo_codigo
+  const gruposOrdenados = Object.values(grupos).sort((a, b) =>
+    (a.grupo_codigo || '').localeCompare(b.grupo_codigo || '')
+  )
+
+  // Ordenar productos dentro de cada grupo por sortCol
+  gruposOrdenados.forEach(g => {
+    g.productos.sort((a, b) => {
+      const av = a[sortCol.value] ?? (sortDir.value === 'asc' ? Infinity : -Infinity)
+      const bv = b[sortCol.value] ?? (sortDir.value === 'asc' ? Infinity : -Infinity)
+      if (typeof av === 'string') return sortDir.value === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+      return sortDir.value === 'asc' ? av - bv : bv - av
+    })
+
+    // Calcular subtotal del grupo
+    g.subtotal = {
+      sobrante_cant: g.productos.reduce((sum, p) => sum + (p.sobrante_cant || 0), 0),
+      faltante_cant: g.productos.reduce((sum, p) => sum + (p.faltante_cant || 0), 0),
+      sobrante_valor: g.productos.reduce((sum, p) => sum + (p.sobrante_valor || 0), 0),
+      faltante_valor: g.productos.reduce((sum, p) => sum + (p.faltante_valor || 0), 0),
+      neto_valor: g.productos.reduce((sum, p) => sum + (p.neto_valor || 0), 0),
+      num_tomas: g.productos.reduce((sum, p) => sum + (p.num_tomas || 0), 0),
+    }
+  })
+
+  return gruposOrdenados
 })
 
 const productosTotales = computed(() => {
-  const lista = productosFiltrados.value
+  const grupos = productosFiltrados.value
   return {
-    sobrante_cant: lista.reduce((sum, p) => sum + (p.sobrante_cant || 0), 0),
-    faltante_cant: lista.reduce((sum, p) => sum + (p.faltante_cant || 0), 0),
-    sobrante_valor: lista.reduce((sum, p) => sum + (p.sobrante_valor || 0), 0),
-    faltante_valor: lista.reduce((sum, p) => sum + (p.faltante_valor || 0), 0),
-    neto_valor: lista.reduce((sum, p) => sum + (p.neto_valor || 0), 0),
-    num_tomas: lista.reduce((sum, p) => sum + (p.num_tomas || 0), 0),
+    sobrante_cant: grupos.reduce((sum, g) => sum + (g.subtotal?.sobrante_cant || 0), 0),
+    faltante_cant: grupos.reduce((sum, g) => sum + (g.subtotal?.faltante_cant || 0), 0),
+    sobrante_valor: grupos.reduce((sum, g) => sum + (g.subtotal?.sobrante_valor || 0), 0),
+    faltante_valor: grupos.reduce((sum, g) => sum + (g.subtotal?.faltante_valor || 0), 0),
+    neto_valor: grupos.reduce((sum, g) => sum + (g.subtotal?.neto_valor || 0), 0),
+    num_tomas: grupos.reduce((sum, g) => sum + (g.subtotal?.num_tomas || 0), 0),
   }
 })
 
@@ -759,6 +815,15 @@ onBeforeUnmount(() => {
 .fc-table td { padding: 10px 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); white-space: nowrap; }
 .fc-table .tr { text-align: right; }
 .fc-tr:hover { background: rgba(var(--v-theme-on-surface), 0.03); }
+.fc-tr-group-header {
+  background: rgba(6, 182, 212, 0.08) !important;
+}
+.fc-tr-group-header:hover { background: rgba(6, 182, 212, 0.12) !important; }
+.fc-tr-subtotal {
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+}
 .fc-tr-totals {
   background: rgba(var(--v-theme-on-surface), 0.08);
   border-top: 2px solid rgba(var(--v-theme-on-surface), 0.15);
