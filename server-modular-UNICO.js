@@ -3290,6 +3290,16 @@ async function stockValorizadoEmpresa(empresa, fechaCorte) {
     // ventana: se calculan en vivo hasta la fecha de corte exacta
     // (comportamiento histórico, preservado para no romper períodos
     // donde nunca se ha hecho un conteo físico).
+    //
+    // Solo cuenta esto para centros de costo REGISTRADOS y activos en
+    // `ccostos` (igual que Valoración Mensual, que solo itera esa lista).
+    // Sin este filtro, cualquier código suelto en detalle_inventario que
+    // ya no corresponda a un centro real —uno eliminado, renombrado o
+    // nunca dado de alta— se sumaba como si fuera inventario vigente.
+    // Se confirmó un caso real: el código "003" (95 filas de kardex, sin
+    // fila en `ccostos`) restaba $1,998.74 al inventario de esta empresa,
+    // que es exactamente por lo que este cálculo no cuadraba con
+    // Valoración Mensual para el mismo corte.
     const ccostosConToma = pares.map(([cc]) => cc);
     const liveRes = await pool.query(
         `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
@@ -3298,7 +3308,11 @@ async function stockValorizadoEmpresa(empresa, fechaCorte) {
          LEFT JOIN producto_costo_empresa pce
                 ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
          WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
-           AND (cardinality($4::text[]) = 0 OR NOT (di.ccosto = ANY($4::text[])))`,
+           AND (cardinality($4::text[]) = 0 OR NOT (di.ccosto = ANY($4::text[])))
+           AND EXISTS (
+                 SELECT 1 FROM ccostos cc
+                  WHERE cc.empresa = $2 AND cc.codigo = di.ccosto
+                    AND COALESCE(cc.activo, 'SI') <> 'NO')`,
         [String(empresa), emp, fechaCorte, ccostosConToma]
     );
     const totalSinToma = parseFloat(liveRes.rows[0].valor) || 0;
@@ -19611,101 +19625,6 @@ app.get('/api/asistencia/diagnostico', async (req, res) => {
         res.json({ success: true, data: out });
     } catch (error) {
         console.error('Error GET /api/asistencia/diagnostico:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// ── TEMPORAL: diagnóstico de divergencia P&G vs Valoración Mensual ──
-app.get('/api/_debug/snapshot-mp', async (req, res) => {
-    const { empresa, ccosto, fecha } = req.query;
-    try {
-        const conJoin = await pool.query(
-            `SELECT t.ccosto, COUNT(*) AS filas, COALESCE(SUM(t.stock * t.precio_costo), 0) AS valor
-               FROM toma_fisica_valorizada t
-               JOIN productos p ON p.codigo = t.codigo
-              WHERE t.empresa = $1 AND t.ccosto = $2 AND t.fecha = $3
-              GROUP BY t.ccosto`,
-            [parseInt(empresa), ccosto, fecha]
-        );
-        const sinJoin = await pool.query(
-            `SELECT ccosto, COUNT(*) AS filas, COALESCE(SUM(stock * precio_costo), 0) AS valor
-               FROM toma_fisica_valorizada
-              WHERE empresa = $1 AND ccosto = $2 AND fecha = $3
-              GROUP BY ccosto`,
-            [parseInt(empresa), ccosto, fecha]
-        );
-        const huerfanas = await pool.query(
-            `SELECT t.codigo, t.stock, t.precio_costo, (t.stock * t.precio_costo) AS valor
-               FROM toma_fisica_valorizada t
-              WHERE t.empresa = $1 AND t.ccosto = $2 AND t.fecha = $3
-                AND NOT EXISTS (SELECT 1 FROM productos p WHERE p.codigo = t.codigo)`,
-            [parseInt(empresa), ccosto, fecha]
-        );
-        res.json({ success: true, conJoin: conJoin.rows, sinJoin: sinJoin.rows, huerfanas: huerfanas.rows });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.get('/api/_debug/pares-mp', async (req, res) => {
-    const { empresa, fechaCorte } = req.query;
-    try {
-        const emp = parseInt(empresa);
-        const ventanaFin = sumarDias(fechaCorte, DIAS_GRACIA_TOMA);
-        const tomaRes = await pool.query(
-            `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
-                 SELECT ccosto::text AS ccosto, fecha
-                   FROM toma_fisica_valorizada
-                  WHERE empresa = $1::int AND es_cierre = TRUE
-                    AND fecha >= $2::date AND fecha <= $3::date
-                 UNION
-                 SELECT di.ccosto::text AS ccosto, di.fecha
-                   FROM detalle_inventario di
-                  WHERE di.empresa = $1::int AND di.tipo = 'TOMA FISICA'
-                    AND di.fecha >= $2::date AND di.fecha <= $3::date
-                    AND NOT EXISTS (
-                          SELECT 1 FROM toma_fisica_valorizada t
-                           WHERE t.empresa = di.empresa
-                             AND t.ccosto  = di.ccosto
-                             AND t.fecha   = di.fecha)
-             ) t
-             GROUP BY ccosto`,
-            [emp, fechaCorte, ventanaFin]
-        );
-        const pares = tomaRes.rows.map(r => [r.ccosto, r.fecha.slice(0, 10)]);
-        let snapSum = 0;
-        if (pares.length) {
-            const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
-            const params = [emp];
-            pares.forEach(([cc, f]) => { params.push(cc, f); });
-            const snapRes = await pool.query(
-                `SELECT ccosto, COALESCE(SUM(stock * precio_costo), 0) AS valor
-                   FROM toma_fisica_valorizada
-                  WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})
-                  GROUP BY ccosto`,
-                params
-            );
-            snapRes.rows.forEach(r => { snapSum += parseFloat(r.valor) || 0; });
-
-            const ccostosConToma = pares.map(([cc]) => cc);
-            const sinTomaDetalle = await pool.query(
-                `SELECT di.ccosto, COUNT(*) AS filas,
-                        COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
-                 FROM detalle_inventario di
-                 JOIN productos p ON p.codigo = di.codigo
-                 LEFT JOIN producto_costo_empresa pce ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
-                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
-                   AND (cardinality($4::text[]) = 0 OR NOT (di.ccosto = ANY($4::text[])))
-                 GROUP BY di.ccosto`,
-                [String(empresa), emp, fechaCorte, ccostosConToma]
-            );
-            const totalSinToma = sinTomaDetalle.rows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
-
-            res.json({ success: true, ventanaFin, pares, snapRows: snapRes.rows, snapSum, ccostosConToma, sinTomaPorCcosto: sinTomaDetalle.rows, totalSinToma, sumaFinal: snapSum + totalSinToma });
-        } else {
-            res.json({ success: true, ventanaFin, pares, snapRows: [], snapSum: 0 });
-        }
-    } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
