@@ -19686,7 +19686,22 @@ app.get('/api/_debug/pares-mp', async (req, res) => {
                 params
             );
             snapRes.rows.forEach(r => { snapSum += parseFloat(r.valor) || 0; });
-            res.json({ success: true, ventanaFin, pares, snapRows: snapRes.rows, snapSum });
+
+            const ccostosConToma = pares.map(([cc]) => cc);
+            const sinTomaDetalle = await pool.query(
+                `SELECT di.ccosto, COUNT(*) AS filas,
+                        COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
+                 FROM detalle_inventario di
+                 JOIN productos p ON p.codigo = di.codigo
+                 LEFT JOIN producto_costo_empresa pce ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
+                   AND (cardinality($4::text[]) = 0 OR NOT (di.ccosto = ANY($4::text[])))
+                 GROUP BY di.ccosto`,
+                [String(empresa), emp, fechaCorte, ccostosConToma]
+            );
+            const totalSinToma = sinTomaDetalle.rows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0);
+
+            res.json({ success: true, ventanaFin, pares, snapRows: snapRes.rows, snapSum, ccostosConToma, sinTomaPorCcosto: sinTomaDetalle.rows, totalSinToma, sumaFinal: snapSum + totalSinToma });
         } else {
             res.json({ success: true, ventanaFin, pares, snapRows: [], snapSum: 0 });
         }
