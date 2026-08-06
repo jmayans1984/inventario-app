@@ -3204,6 +3204,101 @@ function sumarDias(fechaStr, n) {
     return d.toISOString().slice(0, 10);
 }
 
+// ── Stock valorizado de la empresa a una fecha de corte ──────────────
+// Fuente única de verdad para el juego de inventarios. La usan el Estado
+// de Resultados y el P&G por sede, para que ambos den exactamente el
+// mismo costo de materia prima.
+//
+// Réplica de la lógica de Valoración Mensual (tomasEnVentana +
+// valorizarCortes): por centro de costo se usa la toma física de cierre
+// (congelada, o legado en detalle_inventario) cuando existe dentro de la
+// ventana de gracia — más confiable que el kardex, que no captura
+// mermas/ajustes no registrados. Solo se calcula en vivo desde el kardex
+// para los centros sin ninguna toma física cerca de esa fecha. Las
+// fechas siempre se castean a texto en SQL (nunca se reenvían como
+// objetos Date de JS) para evitar desfases de zona horaria al comparar
+// (ccosto, fecha) en la segunda consulta.
+async function stockValorizadoEmpresa(empresa, fechaCorte) {
+    const emp = parseInt(empresa);
+    const ventanaFin = sumarDias(fechaCorte, DIAS_GRACIA_TOMA);
+
+    const tomaRes = await pool.query(
+        `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
+             SELECT ccosto::text AS ccosto, fecha
+               FROM toma_fisica_valorizada
+              WHERE empresa = $1::int AND es_cierre = TRUE
+                AND fecha >= $2::date AND fecha <= $3::date
+             UNION
+             SELECT di.ccosto::text AS ccosto, di.fecha
+               FROM detalle_inventario di
+              WHERE di.empresa = $1::int AND di.tipo = 'TOMA FISICA'
+                AND di.fecha >= $2::date AND di.fecha <= $3::date
+                AND NOT EXISTS (
+                      SELECT 1 FROM toma_fisica_valorizada t
+                       WHERE t.empresa = di.empresa
+                         AND t.ccosto  = di.ccosto
+                         AND t.fecha   = di.fecha)
+         ) t
+         GROUP BY ccosto`,
+        [emp, fechaCorte, ventanaFin]
+    );
+    const pares = tomaRes.rows.map(r => [r.ccosto, r.fecha.slice(0, 10)]);
+
+    let totalFrozen = 0;
+    let totalLiveEnCorte = 0;
+    const congelados = new Set();
+    if (pares.length) {
+        const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
+        const params = [emp];
+        pares.forEach(([cc, f]) => { params.push(cc, f); });
+        const snapRes = await pool.query(
+            `SELECT ccosto, COALESCE(SUM(stock * precio_costo), 0) AS valor
+               FROM toma_fisica_valorizada
+              WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})
+              GROUP BY ccosto`,
+            params
+        );
+        snapRes.rows.forEach(r => { congelados.add(r.ccosto); totalFrozen += parseFloat(r.valor) || 0; });
+
+        const pendientes = pares.filter(([cc]) => !congelados.has(cc));
+        if (pendientes.length) {
+            const vals = pendientes.map((_, i) => `($${i * 2 + 3}::varchar, $${i * 2 + 4}::date)`).join(', ');
+            const lp = [emp, String(empresa)];
+            pendientes.forEach(([cc, f]) => { lp.push(cc, f); });
+            const liveCorteRes = await pool.query(
+                `WITH cortes(ccosto, fecha) AS (VALUES ${vals})
+                 SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
+                   FROM cortes c
+                   JOIN detalle_inventario di ON di.ccosto = c.ccosto AND di.fecha <= c.fecha AND di.empresa = $1
+                   JOIN productos p ON p.codigo = di.codigo
+                   LEFT JOIN producto_costo_empresa pce ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($2::text)
+                  WHERE p.control = 'SI'`,
+                lp
+            );
+            totalLiveEnCorte = parseFloat(liveCorteRes.rows[0].valor) || 0;
+        }
+    }
+
+    // Centros sin ninguna toma física (ni congelada ni legado) en la
+    // ventana: se calculan en vivo hasta la fecha de corte exacta
+    // (comportamiento histórico, preservado para no romper períodos
+    // donde nunca se ha hecho un conteo físico).
+    const ccostosConToma = pares.map(([cc]) => cc);
+    const liveRes = await pool.query(
+        `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
+         FROM detalle_inventario di
+         JOIN productos p ON p.codigo = di.codigo
+         LEFT JOIN producto_costo_empresa pce
+                ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
+         WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
+           AND (cardinality($4::text[]) = 0 OR NOT (di.ccosto = ANY($4::text[])))`,
+        [String(empresa), emp, fechaCorte, ccostosConToma]
+    );
+    const totalSinToma = parseFloat(liveRes.rows[0].valor) || 0;
+
+    return totalFrozen + totalLiveEnCorte + totalSinToma;
+}
+
 app.get('/api/almacen/valoracion-mensual', async (req, res) => {
     const { empresa, desde, hasta } = req.query;
     if (!empresa || !desde || !hasta)
@@ -9475,94 +9570,11 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         }
 
         // ── Valorización de inventario (empresa completa) en cada corte ──
-        // Réplica de la lógica de Valoración Mensual (tomasEnVentana +
-        // valorizarCortes): por centro de costo, se usa la toma física de
-        // cierre (congelada, o legado en detalle_inventario) cuando existe
-        // dentro de la ventana de gracia — más confiable que el kardex, que
-        // no captura mermas/ajustes no registrados. Solo se calcula en vivo
-        // desde el kardex para los centros sin ninguna toma física cerca de
-        // esa fecha. Las fechas siempre se castean a texto en SQL (nunca se
-        // reenvían como objetos Date de JS) para evitar desfases de zona
-        // horaria al comparar (ccosto, fecha) en la segunda consulta.
-        async function stockValorizadoTotal(fechaCorte) {
-            const ventanaFin = sumarDias(fechaCorte, DIAS_GRACIA_TOMA);
+        // Usa el helper compartido stockValorizadoEmpresa (ver arriba, junto a
+        // DIAS_GRACIA_TOMA): la misma valorización alimenta el P&G por sede,
+        // así que ambos informes arrojan idéntico costo de materia prima.
+        const stockValorizadoTotal = (fechaCorte) => stockValorizadoEmpresa(empresa, fechaCorte);
 
-            const tomaRes = await pool.query(
-                `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
-                     SELECT ccosto::text AS ccosto, fecha
-                       FROM toma_fisica_valorizada
-                      WHERE empresa = $1::int AND es_cierre = TRUE
-                        AND fecha >= $2::date AND fecha <= $3::date
-                     UNION
-                     SELECT di.ccosto::text AS ccosto, di.fecha
-                       FROM detalle_inventario di
-                      WHERE di.empresa = $1::int AND di.tipo = 'TOMA FISICA'
-                        AND di.fecha >= $2::date AND di.fecha <= $3::date
-                        AND NOT EXISTS (
-                              SELECT 1 FROM toma_fisica_valorizada t
-                               WHERE t.empresa = di.empresa
-                                 AND t.ccosto  = di.ccosto
-                                 AND t.fecha   = di.fecha)
-                 ) t
-                 GROUP BY ccosto`,
-                [emp, fechaCorte, ventanaFin]
-            );
-            const pares = tomaRes.rows.map(r => [r.ccosto, r.fecha.slice(0, 10)]);
-
-            let totalFrozen = 0;
-            let totalLiveEnCorte = 0;
-            const congelados = new Set();
-            if (pares.length) {
-                const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
-                const params = [emp];
-                pares.forEach(([cc, f]) => { params.push(cc, f); });
-                const snapRes = await pool.query(
-                    `SELECT ccosto, COALESCE(SUM(stock * precio_costo), 0) AS valor
-                       FROM toma_fisica_valorizada
-                      WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})
-                      GROUP BY ccosto`,
-                    params
-                );
-                snapRes.rows.forEach(r => { congelados.add(r.ccosto); totalFrozen += parseFloat(r.valor) || 0; });
-
-                const pendientes = pares.filter(([cc]) => !congelados.has(cc));
-                if (pendientes.length) {
-                    const vals = pendientes.map((_, i) => `($${i * 2 + 3}::varchar, $${i * 2 + 4}::date)`).join(', ');
-                    const lp = [emp, String(empresa)];
-                    pendientes.forEach(([cc, f]) => { lp.push(cc, f); });
-                    const liveCorteRes = await pool.query(
-                        `WITH cortes(ccosto, fecha) AS (VALUES ${vals})
-                         SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
-                           FROM cortes c
-                           JOIN detalle_inventario di ON di.ccosto = c.ccosto AND di.fecha <= c.fecha AND di.empresa = $1
-                           JOIN productos p ON p.codigo = di.codigo
-                           LEFT JOIN producto_costo_empresa pce ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($2::text)
-                          WHERE p.control = 'SI'`,
-                        lp
-                    );
-                    totalLiveEnCorte = parseFloat(liveCorteRes.rows[0].valor) || 0;
-                }
-            }
-
-            // Centros sin ninguna toma física (ni congelada ni legado) en la
-            // ventana: se calculan en vivo hasta la fecha de corte exacta
-            // (comportamiento histórico, preservado para no romper períodos
-            // donde nunca se ha hecho un conteo físico).
-            const ccostosConToma = pares.map(([cc]) => cc);
-            const liveRes = await pool.query(
-                `SELECT COALESCE(SUM((COALESCE(di.entrada,0) - COALESCE(di.salida,0)) * COALESCE(pce.precio_costo, p.precio_costo, 0)), 0) AS valor
-                 FROM detalle_inventario di
-                 JOIN productos p ON p.codigo = di.codigo
-                 LEFT JOIN producto_costo_empresa pce
-                        ON pce.codigo = di.codigo AND TRIM(pce.empresa) = TRIM($1::text)
-                 WHERE di.empresa = $2 AND di.fecha <= $3 AND p.control = 'SI'
-                   AND (cardinality($4::text[]) = 0 OR NOT (di.ccosto = ANY($4::text[])))`,
-                [String(empresa), emp, fechaCorte, ccostosConToma]
-            );
-            const totalSinToma = parseFloat(liveRes.rows[0].valor) || 0;
-
-            return totalFrozen + totalLiveEnCorte + totalSinToma;
-        }
         const cutoffs = [new Date(new Date(rangoDesde).getTime() - 86400000).toISOString().slice(0, 10)];
         for (const p of periodos) cutoffs.push(p.hasta);
         const stockValores = await Promise.all(cutoffs.map(stockValorizadoTotal));
@@ -14233,18 +14245,21 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
 
     try {
         // Cuentas que NO deben entrar en gastos operativos porque su costo ya
-        // se calcula por otra vía: la materia prima sale del costo de receta y
-        // la nómina sale de las liquidaciones. Si se dejaran, se contarían dos veces.
-        const [cfgRes, fiscalRes] = await Promise.all([
+        // se calcula por otra vía: la materia prima sale del juego de
+        // inventarios y la nómina de las liquidaciones. Si se dejaran, se
+        // contarían dos veces.
+        const [cfgRes, fiscalRes, bodegaRes] = await Promise.all([
             pool.query(`SELECT cta_materia_prima FROM config_general WHERE empresa = $1`, [parseInt(empresa)]),
             pool.query(
                 `SELECT cuenta_nomina FROM nom_config_fiscal
                  WHERE empresa = $1 AND COALESCE(cuenta_nomina,'') <> ''
                  ORDER BY anio DESC LIMIT 1`, [parseInt(empresa)]),
+            pool.query(`SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [parseInt(empresa)]),
         ]);
         const ctaMP = cfgRes.rows[0]?.cta_materia_prima || null;
         const ctaNomina = fiscalRes.rows[0]?.cuenta_nomina || null;
         const ctasExcluidas = [ctaMP, ctaNomina].filter(Boolean);
+        const bodegaMaestra = bodegaRes.rows[0]?.bodega_maestra || null;
 
         const [ventasRes, foodRes, laborRes, gastosRes, ccostosRes] = await Promise.all([
 
@@ -14261,19 +14276,16 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
                 GROUP BY v.ccosto`,
                 [String(empresa), desdeDate, hastaDate]),
 
-            // 2. Food cost: lo vendido valorizado al costo de receta.
-            // Se trae también el total facturado en el detalle: no siempre
-            // cuadra con ventas_netas del encabezado (hay ventas que no se
-            // desglosan por ítem), y esa brecha es justo la porción de
-            // ingresos a la que no se le puede atribuir costo.
+            // 2. Detalle de ventas: ya NO se usa para el food cost (ahora sale
+            // del juego de inventarios, igual que el Estado de Resultados),
+            // pero sí para los indicadores de operación y para medir qué
+            // porción de la venta llegó desglosada por ítem.
             pool.query(`
                 SELECT dv.ccosto,
-                       COALESCE(SUM(dv.cant * COALESCE(r.valor, 0)), 0) AS food_cost,
-                       COUNT(DISTINCT dv.codigo)                        AS platos_distintos,
-                       COALESCE(SUM(dv.cant), 0)                        AS unidades_vendidas,
-                       COALESCE(SUM(dv.subtotal), 0)                    AS ventas_detalladas
+                       COUNT(DISTINCT dv.codigo)     AS platos_distintos,
+                       COALESCE(SUM(dv.cant), 0)     AS unidades_vendidas,
+                       COALESCE(SUM(dv.subtotal), 0) AS ventas_detalladas
                 FROM detalle_ventas dv
-                LEFT JOIN recetas r ON TRIM(r.codigo) = TRIM(dv.codigo)
                 WHERE dv.empresa::text = $1 AND dv.fecha::date BETWEEN $2::date AND $3::date
                 GROUP BY dv.ccosto`,
                 [String(empresa), desdeDate, hastaDate]),
@@ -14348,11 +14360,11 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
         }
         for (const r of foodRes.rows) {
             const s = asegurar(r.ccosto);
-            s.food_cost         = parseFloat(r.food_cost) || 0;
             s.platos_distintos  = parseInt(r.platos_distintos) || 0;
             s.unidades_vendidas = parseFloat(r.unidades_vendidas) || 0;
             s.ventas_detalladas = parseFloat(r.ventas_detalladas) || 0;
         }
+
         for (const r of laborRes.rows) {
             const s = asegurar(r.ccosto);
             s.labor_cost = parseFloat(r.labor_cost) || 0;
@@ -14363,6 +14375,39 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
             const monto = parseFloat(r.total) || 0;
             s.gastos_operativos += monto;
             s.gastos_por_grupo[r.grupo] = (s.gastos_por_grupo[r.grupo] || 0) + monto;
+        }
+
+        // ── Costo de materia prima por juego de inventarios ──────────────
+        // Misma fórmula del Estado de Resultados:
+        //   consumo = inventario inicial + compras MP − inventario final
+        // El inventario se valoriza con el helper compartido
+        // stockValorizadoEmpresa, y las compras son los gastos cargados a la
+        // cuenta de materia prima. Se calcula aquí, ya con todas las sedes
+        // consolidadas, porque el reparto depende de las ventas de cada una.
+        const inventarioInicial = await stockValorizadoEmpresa(empresa, sumarDias(desdeDate, -1));
+        const inventarioFinal   = await stockValorizadoEmpresa(empresa, hastaDate);
+        const comprasMPRes = ctaMP
+            ? await pool.query(
+                `SELECT COALESCE(SUM(total), 0) AS total FROM gastos
+                 WHERE empresa = $1::int AND cuenta = $2
+                   AND fecha::date BETWEEN $3::date AND $4::date`,
+                [String(empresa), ctaMP, desdeDate, hastaDate])
+            : { rows: [{ total: 0 }] };
+        const comprasMP = parseFloat(comprasMPRes.rows[0].total) || 0;
+        const consumoMPTotal = inventarioInicial + comprasMP - inventarioFinal;
+
+        // Reparto entre sedes proporcional a las ventas, excluyendo la bodega
+        // maestra: es un almacén, no un punto de venta, así que no consume
+        // materia prima propia — solo la traslada a las sedes.
+        const ventasBaseMP = Object.values(sedes).reduce((acc, x) => {
+            const esBodega = bodegaMaestra && String(x.ccosto) === String(bodegaMaestra);
+            return (!esBodega && x.ventas_netas > 0) ? acc + x.ventas_netas : acc;
+        }, 0);
+        for (const s of Object.values(sedes)) {
+            const esBodega = bodegaMaestra && String(s.ccosto) === String(bodegaMaestra);
+            s.food_cost = (!esBodega && s.ventas_netas > 0 && ventasBaseMP > 0)
+                ? consumoMPTotal * (s.ventas_netas / ventasBaseMP)
+                : 0;
         }
 
         const pct = (parte, base) => base > 0 ? (parte / base) * 100 : null;
@@ -14401,17 +14446,21 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
         const conMargen = filas.filter(f => f.margen_pct !== null);
         const ordenMargen = [...conMargen].sort((a, b) => b.margen_pct - a.margen_pct);
 
-        // El food cost se valoriza con recetas.valor. Si ese costo está mal
-        // cargado (p.ej. costo del lote completo en vez de por porción) el %
-        // sale disparatado — se avisa en vez de mostrar un número sin contexto.
-        const foodSospechoso = pct(tFood, tVentas) !== null && pct(tFood, tVentas) > 60;
-
         res.json({
             success: true,
             periodo: { desde: desdeDate, hasta: hastaDate },
             excluye_cuenta_mp: ctaMP,
             excluye_cuenta_nomina: ctaNomina,
-            food_cost_sospechoso: foodSospechoso,
+            // Juego de inventarios que sustenta el food cost, para poder
+            // auditarlo contra el Estado de Resultados.
+            materia_prima: {
+                inventario_inicial: inventarioInicial,
+                compras: comprasMP,
+                inventario_final: inventarioFinal,
+                consumo: consumoMPTotal,
+                cuenta: ctaMP,
+                bodega_maestra: bodegaMaestra,
+            },
             totales: {
                 ventas_netas: tVentas, food_cost: tFood, labor_cost: tLabor,
                 prime_cost: tPrime, gastos_operativos: tGastos, resultado: tResultado,

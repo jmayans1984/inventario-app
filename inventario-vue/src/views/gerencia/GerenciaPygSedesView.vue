@@ -98,29 +98,41 @@
           </div>
         </div>
 
-        <!-- AVISO DE FOOD COST INCONSISTENTE -->
-        <div v-if="data.food_cost_sospechoso" class="pg-aviso">
-          <v-icon size="18" color="#ef4444">mdi-alert-outline</v-icon>
-          <div>
-            <strong>El food cost no es creíble ({{ pct(t.food_pct) }}).</strong>
-            Está calculado valorizando lo vendido con el campo <em>costo</em> de cada receta, así que un
-            costo mal cargado dispara el porcentaje. Lo más común: que la receta tenga el costo del lote
-            completo en lugar del costo por porción. Revísalo en
-            <strong>Recetas → Gestión de Costos</strong>; mientras tanto, las columnas de food cost,
-            prime cost y resultado de este reporte no son confiables.
-            Las de ventas, labor cost y gastos operativos sí.
+        <!-- JUEGO DE INVENTARIOS QUE SUSTENTA EL FOOD COST -->
+        <div v-if="mp" class="pg-mp">
+          <div class="pg-mp-head">
+            <v-icon size="15" color="#f59e0b">mdi-calculator-variant-outline</v-icon>
+            Costo de materia prima — juego de inventarios
+            <span class="pg-mp-note">Misma fórmula del Estado de Resultados</span>
           </div>
-        </div>
-
-        <!-- COBERTURA DEL DETALLE DE VENTAS -->
-        <div v-if="t.cobertura_detalle_pct !== null && t.cobertura_detalle_pct < 97" class="pg-aviso pg-aviso--warn">
-          <v-icon size="18" color="#f59e0b">mdi-information-outline</v-icon>
-          <div>
-            <strong>Solo el {{ pct(t.cobertura_detalle_pct) }} de las ventas viene desglosado por ítem.</strong>
-            El food cost se calcula sobre lo que sí está desglosado, pero el porcentaje se divide entre las
-            ventas totales — así que el <em>food cost real es más alto</em> que el que ves aquí, en
-            aproximadamente esa misma proporción. La diferencia son ventas registradas sin detalle de
-            productos, que no tienen costo atribuible.
+          <div class="pg-mp-row">
+            <div class="pg-mp-item">
+              <span>Inventario inicial</span>
+              <strong>{{ money(mp.inventario_inicial) }}</strong>
+            </div>
+            <span class="pg-mp-op">+</span>
+            <div class="pg-mp-item">
+              <span>Compras MP<template v-if="mp.cuenta"> (cta. {{ mp.cuenta }})</template></span>
+              <strong>{{ money(mp.compras) }}</strong>
+            </div>
+            <span class="pg-mp-op">−</span>
+            <div class="pg-mp-item">
+              <span>Inventario final</span>
+              <strong>{{ money(mp.inventario_final) }}</strong>
+            </div>
+            <span class="pg-mp-op">=</span>
+            <div class="pg-mp-item pg-mp-item--total">
+              <span>Consumo</span>
+              <strong>{{ money(mp.consumo) }}</strong>
+            </div>
+          </div>
+          <div class="pg-mp-foot">
+            <v-icon size="13">mdi-information-outline</v-icon>
+            El consumo se reparte entre sedes en proporción a sus ventas.
+            <template v-if="mp.bodega_maestra">
+              La bodega maestra ({{ mp.bodega_maestra }}) queda excluida del reparto: es un almacén, no un
+              punto de venta.
+            </template>
           </div>
         </div>
 
@@ -235,8 +247,8 @@
           <div class="pg-nota">
             <v-icon size="13">mdi-information-outline</v-icon>
             <span>
-              El food cost se calcula valorizando lo vendido al costo de receta, y el labor cost sale de
-              las liquidaciones de nómina. Por eso los gastos operativos excluyen
+              El food cost sale del juego de inventarios (igual que el Estado de Resultados) y el labor
+              cost de las liquidaciones de nómina. Por eso los gastos operativos excluyen
               <template v-if="data.excluye_cuenta_mp">la cuenta de materia prima ({{ data.excluye_cuenta_mp }})</template>
               <template v-if="data.excluye_cuenta_mp && data.excluye_cuenta_nomina"> y </template>
               <template v-if="data.excluye_cuenta_nomina">la cuenta de nómina ({{ data.excluye_cuenta_nomina }})</template>:
@@ -361,6 +373,7 @@ function aplicarPreset(p) {
 }
 
 const t = computed(() => data.value?.totales || {})
+const mp = computed(() => data.value?.materia_prima || null)
 
 const gruposGasto = computed(() => {
   if (!data.value) return []
@@ -493,6 +506,39 @@ onMounted(cargar)
   color: rgba(var(--v-theme-on-surface), 0.8);
 }
 .pg-aviso--warn { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.22); }
+
+/* Juego de inventarios */
+.pg-mp {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+  border-left: 3px solid #f59e0b;
+  border-radius: 12px; overflow: hidden;
+}
+.pg-mp-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 18px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+.pg-mp-note { font-weight: 500; text-transform: none; letter-spacing: 0; color: rgba(var(--v-theme-on-surface), 0.35); }
+.pg-mp-row {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 14px 18px;
+}
+.pg-mp-item { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.pg-mp-item span {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+.pg-mp-item strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.pg-mp-item--total strong { color: #f59e0b; font-size: 17px; font-weight: 800; }
+.pg-mp-op { font-size: 17px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.3); }
+.pg-mp-foot {
+  display: flex; align-items: flex-start; gap: 7px;
+  padding: 10px 18px; font-size: 11px; line-height: 1.5;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.05);
+}
 
 /* Extremos */
 .pg-extremos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
