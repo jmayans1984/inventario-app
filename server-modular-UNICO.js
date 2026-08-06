@@ -3204,6 +3204,33 @@ function sumarDias(fechaStr, n) {
     return d.toISOString().slice(0, 10);
 }
 
+// Parte un rango de fechas en sub-períodos de mes calendario, recortando el
+// primero y el último a los límites reales del rango. El Estado de
+// Resultados calcula el consumo de materia prima y reparte por centro de
+// costo MES A MES (nunca de una vez sobre todo el rango), porque la mezcla
+// de ventas entre sedes cambia de un mes a otro — un reparto agregado sobre
+// varios meses da un resultado distinto al de sumar el reparto real de cada
+// mes. Esta función permite que otros reportes (P&G por sede) repliquen
+// exactamente ese comportamiento mes a mes.
+function partirEnMeses(desdeStr, hastaStr) {
+    const periodos = [];
+    let cursor = new Date(desdeStr + 'T00:00:00Z');
+    const fin = new Date(hastaStr + 'T00:00:00Z');
+    while (cursor <= fin) {
+        const y = cursor.getUTCFullYear(), m = cursor.getUTCMonth();
+        const inicioMes = new Date(Date.UTC(y, m, 1));
+        const finMes = new Date(Date.UTC(y, m + 1, 0));
+        const periodoDesde = cursor > inicioMes ? cursor : inicioMes;
+        const periodoHasta = finMes < fin ? finMes : fin;
+        periodos.push({
+            desde: periodoDesde.toISOString().slice(0, 10),
+            hasta: periodoHasta.toISOString().slice(0, 10),
+        });
+        cursor = new Date(Date.UTC(y, m + 1, 1));
+    }
+    return periodos;
+}
+
 // ── Stock valorizado de la empresa a una fecha de corte ──────────────
 // Fuente única de verdad para el juego de inventarios. La usan el Estado
 // de Resultados y el P&G por sede, para que ambos den exactamente el
@@ -14399,66 +14426,109 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
         }
 
         // ── Costo de materia prima por juego de inventarios ──────────────
-        // Misma fórmula del Estado de Resultados:
-        //   consumo = inventario inicial + compras MP − inventario final
-        // El inventario se valoriza con el helper compartido
-        // stockValorizadoEmpresa, y las compras son los gastos cargados a la
-        // cuenta de materia prima. Se calcula aquí, ya con todas las sedes
-        // consolidadas, porque el reparto depende de las ventas de cada una.
-        const inventarioInicial = await stockValorizadoEmpresa(empresa, sumarDias(desdeDate, -1));
-        let inventarioFinal = await stockValorizadoEmpresa(empresa, hastaDate);
-
-        // Inventario final estimado (fallback) — igual que Estado de Resultados
-        // y Valoración Mensual: si el período llega hasta hoy o después (está
-        // en curso) y ningún centro tiene aún su toma física de cierre, el
-        // inventario final calculado en vivo desde el kardex no es confiable
-        // todavía. Se usa el valor estimado de Configuración General · Almacén
-        // en su lugar, para no reportar un food cost distorsionado.
-        let inventarioFinalEsEstimado = false;
+        // Misma fórmula del Estado de Resultados, MES A MES (no una sola vez
+        // sobre todo el rango): consumo_mes = inicial_mes + compras_mes −
+        // final_mes, repartido entre sedes según la mezcla de ventas de ESE
+        // mes. Un reparto agregado sobre varios meses da un número distinto
+        // por sede que sumar el reparto real mes a mes, porque qué sede vendió
+        // más cambia de un mes a otro — el total coincide en ambos casos, pero
+        // la distribución no. Ver partirEnMeses() junto a sumarDias.
         const hoyStr = new Date().toISOString().slice(0, 10);
-        if (hastaDate >= hoyStr) {
-            const cfgEstimadoRes = await pool.query(
-                `SELECT valor_estimado_inventario_final FROM config_general WHERE empresa = $1`,
-                [parseInt(empresa)]
-            );
-            const valorEstimado = cfgEstimadoRes.rows[0]?.valor_estimado_inventario_final;
-            if (valorEstimado != null) {
-                const tomaCierreRes = await pool.query(
-                    `SELECT 1 FROM toma_fisica_valorizada
-                      WHERE empresa = $1 AND es_cierre = TRUE
-                        AND fecha >= $2::date AND fecha <= $3::date
-                      LIMIT 1`,
-                    [parseInt(empresa), hastaDate, sumarDias(hastaDate, DIAS_GRACIA_TOMA)]
+        const periodosMP = partirEnMeses(desdeDate, hastaDate);
+
+        const [ventasPorMesCCRes, comprasPorMesRes] = await Promise.all([
+            pool.query(`
+                SELECT v.ccosto, TO_CHAR(v.fecha::date, 'YYYY-MM') AS periodo_key,
+                       COALESCE(SUM(v.ventas_netas), 0) AS ventas
+                FROM ventas v
+                WHERE v.empresa::text = $1 AND v.fecha::date BETWEEN $2::date AND $3::date
+                GROUP BY v.ccosto, periodo_key`,
+                [String(empresa), desdeDate, hastaDate]),
+            ctaMP
+                ? pool.query(`
+                    SELECT TO_CHAR(fecha::date, 'YYYY-MM') AS periodo_key, COALESCE(SUM(total), 0) AS total
+                    FROM gastos WHERE empresa = $1::int AND cuenta = $2
+                      AND fecha::date BETWEEN $3::date AND $4::date
+                    GROUP BY periodo_key`,
+                    [String(empresa), ctaMP, desdeDate, hastaDate])
+                : Promise.resolve({ rows: [] }),
+        ]);
+        const ventasPorMesCC = {};
+        ventasPorMesCCRes.rows.forEach(r => {
+            const key = r.periodo_key;
+            if (!ventasPorMesCC[key]) ventasPorMesCC[key] = {};
+            ventasPorMesCC[key][String(r.ccosto)] = parseFloat(r.ventas) || 0;
+        });
+        const comprasPorMes = {};
+        comprasPorMesRes.rows.forEach(r => { comprasPorMes[r.periodo_key] = parseFloat(r.total) || 0; });
+
+        let inventarioInicial = null;   // corte al inicio del primer mes del rango
+        let inventarioFinal = null;     // corte al final del último mes del rango
+        let inventarioFinalEsEstimado = false;
+        let comprasMP = 0;
+        let consumoMPTotal = 0;
+
+        for (let i = 0; i < periodosMP.length; i++) {
+            const p = periodosMP[i];
+            const invInicioPeriodo = await stockValorizadoEmpresa(empresa, sumarDias(p.desde, -1));
+            let invFinPeriodo = await stockValorizadoEmpresa(empresa, p.hasta);
+
+            // Inventario final estimado (fallback) — igual que Estado de
+            // Resultados y Valoración Mensual: solo puede aplicar al ÚLTIMO
+            // sub-período si su cierre llega hasta hoy o después (mes en
+            // curso) y ningún centro tiene aún su toma física de cierre.
+            let esteEsEstimado = false;
+            if (p.hasta >= hoyStr) {
+                const cfgEstimadoRes = await pool.query(
+                    `SELECT valor_estimado_inventario_final FROM config_general WHERE empresa = $1`,
+                    [parseInt(empresa)]
                 );
-                if (!tomaCierreRes.rows.length) {
-                    inventarioFinal = parseFloat(valorEstimado);
-                    inventarioFinalEsEstimado = true;
+                const valorEstimado = cfgEstimadoRes.rows[0]?.valor_estimado_inventario_final;
+                if (valorEstimado != null) {
+                    const tomaCierreRes = await pool.query(
+                        `SELECT 1 FROM toma_fisica_valorizada
+                          WHERE empresa = $1 AND es_cierre = TRUE
+                            AND fecha >= $2::date AND fecha <= $3::date
+                          LIMIT 1`,
+                        [parseInt(empresa), p.hasta, sumarDias(p.hasta, DIAS_GRACIA_TOMA)]
+                    );
+                    if (!tomaCierreRes.rows.length) {
+                        invFinPeriodo = parseFloat(valorEstimado);
+                        esteEsEstimado = true;
+                    }
                 }
             }
-        }
 
-        const comprasMPRes = ctaMP
-            ? await pool.query(
-                `SELECT COALESCE(SUM(total), 0) AS total FROM gastos
-                 WHERE empresa = $1::int AND cuenta = $2
-                   AND fecha::date BETWEEN $3::date AND $4::date`,
-                [String(empresa), ctaMP, desdeDate, hastaDate])
-            : { rows: [{ total: 0 }] };
-        const comprasMP = parseFloat(comprasMPRes.rows[0].total) || 0;
-        const consumoMPTotal = inventarioInicial + comprasMP - inventarioFinal;
+            if (i === 0) inventarioInicial = invInicioPeriodo;
+            if (i === periodosMP.length - 1) {
+                inventarioFinal = invFinPeriodo;
+                inventarioFinalEsEstimado = esteEsEstimado;
+            }
 
-        // Reparto entre sedes proporcional a las ventas, excluyendo la bodega
-        // maestra: es un almacén, no un punto de venta, así que no consume
-        // materia prima propia — solo la traslada a las sedes.
-        const ventasBaseMP = Object.values(sedes).reduce((acc, x) => {
-            const esBodega = bodegaMaestra && String(x.ccosto) === String(bodegaMaestra);
-            return (!esBodega && x.ventas_netas > 0) ? acc + x.ventas_netas : acc;
-        }, 0);
-        for (const s of Object.values(sedes)) {
-            const esBodega = bodegaMaestra && String(s.ccosto) === String(bodegaMaestra);
-            s.food_cost = (!esBodega && s.ventas_netas > 0 && ventasBaseMP > 0)
-                ? consumoMPTotal * (s.ventas_netas / ventasBaseMP)
-                : 0;
+            const periodoKey = p.desde.slice(0, 7);
+            const comprasPeriodo = comprasPorMes[periodoKey] || 0;
+            comprasMP += comprasPeriodo;
+            const consumoPeriodo = invInicioPeriodo + comprasPeriodo - invFinPeriodo;
+            consumoMPTotal += consumoPeriodo;
+
+            // Reparto de ESTE mes entre sedes, proporcional a SUS ventas de
+            // ese mismo mes. La bodega maestra queda excluida: es un almacén,
+            // no un punto de venta, así que no consume materia prima propia
+            // — solo la traslada a las sedes.
+            const ventasCCPeriodo = ventasPorMesCC[periodoKey] || {};
+            const ventasBasePeriodo = Object.values(sedes).reduce((acc, s) => {
+                const esBodega = bodegaMaestra && String(s.ccosto) === String(bodegaMaestra);
+                const v = ventasCCPeriodo[s.ccosto] || 0;
+                return (!esBodega && v > 0) ? acc + v : acc;
+            }, 0);
+            for (const s of Object.values(sedes)) {
+                const esBodega = bodegaMaestra && String(s.ccosto) === String(bodegaMaestra);
+                const ventasCC = ventasCCPeriodo[s.ccosto] || 0;
+                const contribucion = (!esBodega && ventasCC > 0 && ventasBasePeriodo > 0)
+                    ? consumoPeriodo * (ventasCC / ventasBasePeriodo)
+                    : 0;
+                s.food_cost += contribucion;
+            }
         }
 
         const pct = (parte, base) => base > 0 ? (parte / base) * 100 : null;
