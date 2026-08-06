@@ -19647,6 +19647,54 @@ app.get('/api/_debug/snapshot-mp', async (req, res) => {
     }
 });
 
+app.get('/api/_debug/pares-mp', async (req, res) => {
+    const { empresa, fechaCorte } = req.query;
+    try {
+        const emp = parseInt(empresa);
+        const ventanaFin = sumarDias(fechaCorte, DIAS_GRACIA_TOMA);
+        const tomaRes = await pool.query(
+            `SELECT ccosto, MAX(fecha)::text AS fecha FROM (
+                 SELECT ccosto::text AS ccosto, fecha
+                   FROM toma_fisica_valorizada
+                  WHERE empresa = $1::int AND es_cierre = TRUE
+                    AND fecha >= $2::date AND fecha <= $3::date
+                 UNION
+                 SELECT di.ccosto::text AS ccosto, di.fecha
+                   FROM detalle_inventario di
+                  WHERE di.empresa = $1::int AND di.tipo = 'TOMA FISICA'
+                    AND di.fecha >= $2::date AND di.fecha <= $3::date
+                    AND NOT EXISTS (
+                          SELECT 1 FROM toma_fisica_valorizada t
+                           WHERE t.empresa = di.empresa
+                             AND t.ccosto  = di.ccosto
+                             AND t.fecha   = di.fecha)
+             ) t
+             GROUP BY ccosto`,
+            [emp, fechaCorte, ventanaFin]
+        );
+        const pares = tomaRes.rows.map(r => [r.ccosto, r.fecha.slice(0, 10)]);
+        let snapSum = 0;
+        if (pares.length) {
+            const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
+            const params = [emp];
+            pares.forEach(([cc, f]) => { params.push(cc, f); });
+            const snapRes = await pool.query(
+                `SELECT ccosto, COALESCE(SUM(stock * precio_costo), 0) AS valor
+                   FROM toma_fisica_valorizada
+                  WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})
+                  GROUP BY ccosto`,
+                params
+            );
+            snapRes.rows.forEach(r => { snapSum += parseFloat(r.valor) || 0; });
+            res.json({ success: true, ventanaFin, pares, snapRows: snapRes.rows, snapSum });
+        } else {
+            res.json({ success: true, ventanaFin, pares, snapRows: [], snapSum: 0 });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ── FIN MÓDULO NÓMINA ────────────────────────────────────────────
 
 // ================================================================
