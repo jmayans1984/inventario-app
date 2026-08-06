@@ -19615,6 +19615,38 @@ app.get('/api/asistencia/diagnostico', async (req, res) => {
     }
 });
 
+// ── TEMPORAL: diagnóstico de divergencia P&G vs Valoración Mensual ──
+app.get('/api/_debug/snapshot-mp', async (req, res) => {
+    const { empresa, ccosto, fecha } = req.query;
+    try {
+        const conJoin = await pool.query(
+            `SELECT t.ccosto, COUNT(*) AS filas, COALESCE(SUM(t.stock * t.precio_costo), 0) AS valor
+               FROM toma_fisica_valorizada t
+               JOIN productos p ON p.codigo = t.codigo
+              WHERE t.empresa = $1 AND t.ccosto = $2 AND t.fecha = $3
+              GROUP BY t.ccosto`,
+            [parseInt(empresa), ccosto, fecha]
+        );
+        const sinJoin = await pool.query(
+            `SELECT ccosto, COUNT(*) AS filas, COALESCE(SUM(stock * precio_costo), 0) AS valor
+               FROM toma_fisica_valorizada
+              WHERE empresa = $1 AND ccosto = $2 AND fecha = $3
+              GROUP BY ccosto`,
+            [parseInt(empresa), ccosto, fecha]
+        );
+        const huerfanas = await pool.query(
+            `SELECT t.codigo, t.stock, t.precio_costo, (t.stock * t.precio_costo) AS valor
+               FROM toma_fisica_valorizada t
+              WHERE t.empresa = $1 AND t.ccosto = $2 AND t.fecha = $3
+                AND NOT EXISTS (SELECT 1 FROM productos p WHERE p.codigo = t.codigo)`,
+            [parseInt(empresa), ccosto, fecha]
+        );
+        res.json({ success: true, conJoin: conJoin.rows, sinJoin: sinJoin.rows, huerfanas: huerfanas.rows });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ── FIN MÓDULO NÓMINA ────────────────────────────────────────────
 
 // ================================================================
