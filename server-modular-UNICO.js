@@ -3251,11 +3251,18 @@ async function stockValorizadoEmpresa(empresa, fechaCorte) {
         const ph = pares.map((_, i) => `($${i * 2 + 2}::varchar, $${i * 2 + 3}::date)`).join(', ');
         const params = [emp];
         pares.forEach(([cc, f]) => { params.push(cc, f); });
+        // INNER JOIN a productos: igual que valorizarCortes() de Valoración
+        // Mensual. Sin este join se cuentan también las filas de toma física
+        // cuyo código ya no existe en productos (código eliminado o renombrado),
+        // que Valoración Mensual excluye — eso es lo que causaba que este
+        // cálculo y el de Valoración Mensual dieran cifras distintas para el
+        // mismo corte.
         const snapRes = await pool.query(
-            `SELECT ccosto, COALESCE(SUM(stock * precio_costo), 0) AS valor
-               FROM toma_fisica_valorizada
-              WHERE empresa = $1 AND (ccosto, fecha) IN (${ph})
-              GROUP BY ccosto`,
+            `SELECT t.ccosto, COALESCE(SUM(t.stock * t.precio_costo), 0) AS valor
+               FROM toma_fisica_valorizada t
+               JOIN productos p ON p.codigo = t.codigo
+              WHERE t.empresa = $1 AND (t.ccosto, t.fecha) IN (${ph})
+              GROUP BY t.ccosto`,
             params
         );
         snapRes.rows.forEach(r => { congelados.add(r.ccosto); totalFrozen += parseFloat(r.valor) || 0; });
@@ -14385,7 +14392,37 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
         // cuenta de materia prima. Se calcula aquí, ya con todas las sedes
         // consolidadas, porque el reparto depende de las ventas de cada una.
         const inventarioInicial = await stockValorizadoEmpresa(empresa, sumarDias(desdeDate, -1));
-        const inventarioFinal   = await stockValorizadoEmpresa(empresa, hastaDate);
+        let inventarioFinal = await stockValorizadoEmpresa(empresa, hastaDate);
+
+        // Inventario final estimado (fallback) — igual que Estado de Resultados
+        // y Valoración Mensual: si el período llega hasta hoy o después (está
+        // en curso) y ningún centro tiene aún su toma física de cierre, el
+        // inventario final calculado en vivo desde el kardex no es confiable
+        // todavía. Se usa el valor estimado de Configuración General · Almacén
+        // en su lugar, para no reportar un food cost distorsionado.
+        let inventarioFinalEsEstimado = false;
+        const hoyStr = new Date().toISOString().slice(0, 10);
+        if (hastaDate >= hoyStr) {
+            const cfgEstimadoRes = await pool.query(
+                `SELECT valor_estimado_inventario_final FROM config_general WHERE empresa = $1`,
+                [parseInt(empresa)]
+            );
+            const valorEstimado = cfgEstimadoRes.rows[0]?.valor_estimado_inventario_final;
+            if (valorEstimado != null) {
+                const tomaCierreRes = await pool.query(
+                    `SELECT 1 FROM toma_fisica_valorizada
+                      WHERE empresa = $1 AND es_cierre = TRUE
+                        AND fecha >= $2::date AND fecha <= $3::date
+                      LIMIT 1`,
+                    [parseInt(empresa), hastaDate, sumarDias(hastaDate, DIAS_GRACIA_TOMA)]
+                );
+                if (!tomaCierreRes.rows.length) {
+                    inventarioFinal = parseFloat(valorEstimado);
+                    inventarioFinalEsEstimado = true;
+                }
+            }
+        }
+
         const comprasMPRes = ctaMP
             ? await pool.query(
                 `SELECT COALESCE(SUM(total), 0) AS total FROM gastos
@@ -14457,6 +14494,7 @@ app.get('/api/gerencia/pyg-sedes', async (req, res) => {
                 inventario_inicial: inventarioInicial,
                 compras: comprasMP,
                 inventario_final: inventarioFinal,
+                inventario_final_es_estimado: inventarioFinalEsEstimado,
                 consumo: consumoMPTotal,
                 cuenta: ctaMP,
                 bodega_maestra: bodegaMaestra,

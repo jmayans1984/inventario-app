@@ -117,7 +117,10 @@
             </div>
             <span class="pg-mp-op">−</span>
             <div class="pg-mp-item">
-              <span>Inventario final</span>
+              <span>
+                Inventario final
+                <span v-if="mp.inventario_final_es_estimado" class="pg-mp-chip">ESTIMADO</span>
+              </span>
               <strong>{{ money(mp.inventario_final) }}</strong>
             </div>
             <span class="pg-mp-op">=</span>
@@ -125,6 +128,12 @@
               <span>Consumo</span>
               <strong>{{ money(mp.consumo) }}</strong>
             </div>
+          </div>
+          <div v-if="mp.inventario_final_es_estimado" class="pg-mp-warn">
+            <v-icon size="14" color="#ef4444">mdi-alert-outline</v-icon>
+            Ningún centro tiene todavía su toma física de cierre para este período. El inventario final
+            usa el valor estimado de Configuración General · Almacén en vez del kardex en vivo — en
+            cuanto se registre la toma de cierre, el sistema usará el valor real.
           </div>
           <div class="pg-mp-foot">
             <v-icon size="13">mdi-information-outline</v-icon>
@@ -533,6 +542,16 @@ onMounted(cargar)
 .pg-mp-item strong { font-size: 15px; font-variant-numeric: tabular-nums; }
 .pg-mp-item--total strong { color: #f59e0b; font-size: 17px; font-weight: 800; }
 .pg-mp-op { font-size: 17px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.3); }
+.pg-mp-chip {
+  font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-left: 5px;
+  background: rgba(245,158,11,0.18); color: #f59e0b; letter-spacing: 0.3px;
+}
+.pg-mp-warn {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 0 18px 12px; padding: 10px 14px; border-radius: 8px; font-size: 11.5px; line-height: 1.5;
+  background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2);
+  color: rgba(var(--v-theme-on-surface), 0.75);
+}
 .pg-mp-foot {
   display: flex; align-items: flex-start; gap: 7px;
   padding: 10px 18px; font-size: 11px; line-height: 1.5;
