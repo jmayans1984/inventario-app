@@ -18333,6 +18333,106 @@ app.get('/api/nomina/reporte', async (req, res) => {
                 ORDER BY l.semana_inicio DESC
             `, [empresa, fechaInicio, fechaFin]);
             rows = r.rows;
+
+        } else if (vista === 'meses') {
+            // Reparto por mes calendario.
+            //
+            // Una semana de nómina puede caer sobre dos meses (p.ej. 27-jul a
+            // 02-ago) y contablemente cada mes debe llevar su parte. El reparto
+            // se hace por las horas REALMENTE trabajadas en cada mes —la misma
+            // expresión con la que se liquidó la semana— para que un mes con más
+            // días laborados no se reparta como si todos los días pesaran igual.
+            // Si la nómina no tiene horario cargado (sueldos fijos, semanas sin
+            // detalle) se cae al reparto por días calendario.
+            const r = await pool.query(`
+                WITH liq AS (
+                    SELECT l.id, l.semana_id, l.semana_inicio, l.semana_fin,
+                           COUNT(DISTINCT ll.empleado_id)                      AS empleados,
+                           COALESCE(SUM(ll.total_bruto),0)                     AS total_bruto,
+                           COALESCE(SUM(ll.total_deducciones),0)               AS total_deducciones,
+                           COALESCE(SUM(ll.total_aportes_er),0)                AS total_aportes_er,
+                           COALESCE(SUM(ll.total_neto),0)                      AS total_neto,
+                           COALESCE(SUM(ll.total_bruto+ll.total_aportes_er),0) AS costo_empresa,
+                           COALESCE(SUM(ll.federal_income_tax),0)              AS federal_income_tax,
+                           COALESCE(SUM(ll.social_security_emp),0)             AS ss_emp,
+                           COALESCE(SUM(ll.social_security_er),0)              AS ss_er,
+                           COALESCE(SUM(ll.medicare_emp),0)                    AS medicare_emp,
+                           COALESCE(SUM(ll.medicare_er),0)                     AS medicare_er,
+                           COALESCE(SUM(ll.futa),0)                            AS futa,
+                           COALESCE(SUM(ll.suta),0)                            AS suta,
+                           COALESCE(SUM(ll.workers_comp),0)                    AS workers_comp
+                    FROM nom_liquidacion l
+                    JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                    WHERE l.empresa=$1 AND l.estado='APROBADA'
+                      AND l.semana_inicio>=$2 AND l.semana_fin<=$3
+                    GROUP BY l.id, l.semana_id, l.semana_inicio, l.semana_fin
+                ),
+                -- Días calendario de cada nómina que caen en cada mes
+                dias AS (
+                    SELECT q.id AS liq_id,
+                           DATE_TRUNC('month', d)::date AS mes,
+                           COUNT(*)::numeric            AS dias
+                    FROM liq q
+                    CROSS JOIN LATERAL generate_series(q.semana_inicio, q.semana_fin, INTERVAL '1 day') d
+                    GROUP BY q.id, DATE_TRUNC('month', d)
+                ),
+                -- Horas trabajadas de cada nómina que caen en cada mes
+                horas AS (
+                    SELECT q.id AS liq_id,
+                           DATE_TRUNC('month', sd.fecha)::date            AS mes,
+                           SUM(COALESCE(sd.real_horas, sd.prog_horas, 0)) AS horas
+                    FROM liq q
+                    JOIN nom_semana_detalle sd
+                      ON sd.semana_id = q.semana_id
+                     AND sd.es_dia_libre = FALSE
+                     AND sd.fecha BETWEEN q.semana_inicio AND q.semana_fin
+                    GROUP BY q.id, DATE_TRUNC('month', sd.fecha)
+                ),
+                base AS (
+                    SELECT d.liq_id, d.mes, d.dias, COALESCE(h.horas,0) AS horas
+                    FROM dias d
+                    LEFT JOIN horas h ON h.liq_id = d.liq_id AND h.mes = d.mes
+                ),
+                tot AS (
+                    SELECT liq_id, SUM(dias) AS tot_dias, SUM(horas) AS tot_horas
+                    FROM base GROUP BY liq_id
+                ),
+                factor AS (
+                    SELECT b.liq_id, b.mes, b.dias, b.horas,
+                           CASE WHEN t.tot_horas > 0 THEN b.horas / t.tot_horas
+                                ELSE b.dias / NULLIF(t.tot_dias,0) END AS f,
+                           (t.tot_horas > 0) AS por_horas
+                    FROM base b JOIN tot t ON t.liq_id = b.liq_id
+                )
+                SELECT
+                    TO_CHAR(f.mes,'YYYY-MM')                  AS mes,
+                    q.id                                      AS liquidacion_id,
+                    TO_CHAR(q.semana_inicio,'YYYY-MM-DD')     AS semana_inicio,
+                    TO_CHAR(q.semana_fin,   'YYYY-MM-DD')     AS semana_fin,
+                    (COUNT(*) OVER (PARTITION BY f.liq_id) > 1) AS periodo_partido,
+                    f.dias                                    AS dias_en_mes,
+                    ROUND(f.horas, 2)                         AS horas_en_mes,
+                    f.por_horas                               AS prorrateo_por_horas,
+                    ROUND(f.f * 100, 2)                       AS porcentaje,
+                    q.empleados,
+                    ROUND(q.total_bruto        * f.f, 2) AS total_bruto,
+                    ROUND(q.total_deducciones  * f.f, 2) AS total_deducciones,
+                    ROUND(q.total_aportes_er   * f.f, 2) AS total_aportes_er,
+                    ROUND(q.total_neto         * f.f, 2) AS total_neto,
+                    ROUND(q.costo_empresa      * f.f, 2) AS costo_empresa,
+                    ROUND(q.federal_income_tax * f.f, 2) AS federal_income_tax,
+                    ROUND(q.ss_emp             * f.f, 2) AS ss_emp,
+                    ROUND(q.ss_er              * f.f, 2) AS ss_er,
+                    ROUND(q.medicare_emp       * f.f, 2) AS medicare_emp,
+                    ROUND(q.medicare_er        * f.f, 2) AS medicare_er,
+                    ROUND(q.futa               * f.f, 2) AS futa,
+                    ROUND(q.suta               * f.f, 2) AS suta,
+                    ROUND(q.workers_comp       * f.f, 2) AS workers_comp
+                FROM factor f
+                JOIN liq q ON q.id = f.liq_id
+                ORDER BY f.mes DESC, q.semana_inicio
+            `, [empresa, fechaInicio, fechaFin]);
+            rows = r.rows;
         }
 
         res.json({ success: true, kpis: kpiRes.rows[0], data: rows, vista });

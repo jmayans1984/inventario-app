@@ -101,6 +101,88 @@
           </table>
         </div>
 
+        <!-- VISTA: POR MES (reparto contable de semanas que cruzan meses) -->
+        <div v-else-if="vistaActiva === 'meses' && datos.length" class="rn-table-wrap">
+          <div class="rn-nota">
+            <v-icon size="15" color="var(--indigo)">mdi-information-outline</v-icon>
+            <span>
+              Las nóminas que cruzan dos meses se reparten entre ellos según las
+              <strong>horas trabajadas en cada mes</strong>. Cuando la nómina no
+              tiene horario cargado, el reparto se hace por días calendario.
+            </span>
+          </div>
+
+          <table class="rn-table">
+            <thead>
+              <tr>
+                <th>MES / NÓMINA</th>
+                <th class="ta-r">DÍAS</th>
+                <th class="ta-r">HORAS</th>
+                <th class="ta-r">% NÓMINA</th>
+                <th class="ta-r">BRUTO</th>
+                <th class="ta-r">DEDUCCIONES</th>
+                <th class="ta-r">APORTES ER</th>
+                <th class="ta-r">NETO</th>
+                <th class="ta-r">COSTO EMPRESA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="g in mesesAgrupados" :key="g.mes">
+                <!-- Subtotal del mes: es la cifra que se lleva a contabilidad -->
+                <tr class="rn-mes-head">
+                  <td>
+                    <v-icon size="15" class="mr-1">mdi-calendar-month-outline</v-icon>
+                    <strong>{{ g.nombre }}</strong>
+                    <span class="mes-sub">{{ g.filas.length }} nómina{{ g.filas.length !== 1 ? 's' : '' }}</span>
+                  </td>
+                  <td class="ta-r font-mono">{{ g.dias }}</td>
+                  <td class="ta-r font-mono">{{ fmtNum(g.horas) }}</td>
+                  <td class="ta-r">—</td>
+                  <td class="ta-r font-mono">{{ fmt(g.totales.total_bruto) }}</td>
+                  <td class="ta-r font-mono text-error">{{ fmt(g.totales.total_deducciones) }}</td>
+                  <td class="ta-r font-mono text-warning">{{ fmt(g.totales.total_aportes_er) }}</td>
+                  <td class="ta-r font-mono text-success">{{ fmt(g.totales.total_neto) }}</td>
+                  <td class="ta-r font-mono text-purple">{{ fmt(g.totales.costo_empresa) }}</td>
+                </tr>
+
+                <!-- Detalle: qué nómina aportó cuánto a este mes -->
+                <tr v-for="r in g.filas" :key="g.mes + '_' + r.liquidacion_id" class="rn-mes-detalle">
+                  <td>
+                    <div class="periodo-label">
+                      {{ fmtFecha(r.semana_inicio) }} — {{ fmtFecha(r.semana_fin) }}
+                      <span v-if="r.periodo_partido" class="badge-partido"
+                        title="Esta nómina cruza dos meses: solo se muestra la parte que corresponde a este mes">
+                        <v-icon size="10">mdi-call-split</v-icon>PARCIAL
+                      </span>
+                    </div>
+                    <div class="periodo-sub">
+                      {{ r.prorrateo_por_horas ? 'Repartido por horas trabajadas' : 'Repartido por días calendario' }}
+                    </div>
+                  </td>
+                  <td class="ta-r font-mono">{{ r.dias_en_mes }}</td>
+                  <td class="ta-r font-mono">{{ fmtNum(r.horas_en_mes) }}</td>
+                  <td class="ta-r font-mono">{{ fmtNum(r.porcentaje) }}%</td>
+                  <td class="ta-r font-mono">{{ fmt(r.total_bruto) }}</td>
+                  <td class="ta-r font-mono text-error">{{ fmt(r.total_deducciones) }}</td>
+                  <td class="ta-r font-mono text-warning">{{ fmt(r.total_aportes_er) }}</td>
+                  <td class="ta-r font-mono text-success">{{ fmt(r.total_neto) }}</td>
+                  <td class="ta-r font-mono text-purple">{{ fmt(r.costo_empresa) }}</td>
+                </tr>
+              </template>
+            </tbody>
+            <tfoot>
+              <tr class="rn-tfoot">
+                <td colspan="4"><strong>TOTAL</strong></td>
+                <td class="ta-r font-mono">{{ fmt(kpis.total_bruto) }}</td>
+                <td class="ta-r font-mono text-error">{{ fmt(kpis.total_deducciones) }}</td>
+                <td class="ta-r font-mono text-warning">{{ fmt(kpis.total_aportes_er) }}</td>
+                <td class="ta-r font-mono text-success">{{ fmt(kpis.total_neto) }}</td>
+                <td class="ta-r font-mono text-purple">{{ fmt(kpis.costo_total_empresa) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
         <!-- VISTA: POR EMPLEADO -->
         <div v-else-if="vistaActiva === 'empleado' && datos.length" class="rn-table-wrap">
           <table class="rn-table">
@@ -276,10 +358,51 @@ const filtros = ref({
 
 const tabs = [
   { val: 'periodo',   label: 'Por Período',         icon: 'mdi-calendar-range-outline' },
+  { val: 'meses',     label: 'Por Mes',              icon: 'mdi-calendar-month-outline' },
   { val: 'empleado',  label: 'Por Empleado',         icon: 'mdi-account-group-outline' },
   { val: 'ccosto',    label: 'Por Centro de Costo',  icon: 'mdi-sitemap-outline' },
   { val: 'impuestos', label: 'Impuestos y Taxes',    icon: 'mdi-receipt-text-outline' },
 ]
+
+// ─── Reparto por mes ──────────────────────────────────────────────
+// El backend devuelve un renglón por (nómina, mes): una semana que cruza
+// dos meses viene partida en dos. Aquí se agrupan por mes para mostrar el
+// subtotal contable de cada uno junto al detalle de qué nómina lo compone.
+const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+function nombreMes(ym) {
+  if (!ym) return '—'
+  const [y, m] = String(ym).split('-')
+  return `${MESES_ES[parseInt(m, 10) - 1] || m} ${y}`
+}
+
+const CAMPOS_MES = ['total_bruto', 'total_deducciones', 'total_aportes_er',
+                    'total_neto', 'costo_empresa']
+
+function agruparPorMes(rows) {
+  const grupos = new Map()
+  for (const r of rows) {
+    if (!grupos.has(r.mes)) {
+      grupos.set(r.mes, {
+        mes: r.mes,
+        nombre: nombreMes(r.mes),
+        filas: [],
+        totales: Object.fromEntries(CAMPOS_MES.map(c => [c, 0])),
+        dias: 0,
+        horas: 0,
+      })
+    }
+    const g = grupos.get(r.mes)
+    g.filas.push(r)
+    for (const c of CAMPOS_MES) g.totales[c] += parseFloat(r[c] || 0)
+    g.dias  += parseFloat(r.dias_en_mes || 0)
+    g.horas += parseFloat(r.horas_en_mes || 0)
+  }
+  return [...grupos.values()]
+}
+
+const mesesAgrupados = computed(() => agruparPorMes(datos.value))
 
 const totalCcostoBruto = computed(() => datos.value.reduce((s, r) => s + parseFloat(r.costo_bruto || 0), 0))
 const totalCcostoTotal = computed(() => datos.value.reduce((s, r) => s + parseFloat(r.costo_total || 0), 0))
@@ -336,8 +459,9 @@ async function exportarPDF() {
     const base = { empresa, fechaInicio: filtros.value.fechaInicio, fechaFin: filtros.value.fechaFin }
 
     // Cargar todas las vistas en paralelo
-    const [rPer, rEmp, rCc, rImp] = await Promise.all([
+    const [rPer, rMes, rEmp, rCc, rImp] = await Promise.all([
       fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'periodo' })}`).then(r => r.json()),
+      fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'meses' })}`).then(r => r.json()),
       fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'empleado' })}`).then(r => r.json()),
       fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'ccosto' })}`).then(r => r.json()),
       fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'impuestos' })}`).then(r => r.json()),
@@ -345,6 +469,7 @@ async function exportarPDF() {
 
     const k = kpis.value
     const periodo   = rPer.data   || []
+    const meses     = agruparPorMes(rMes.data || [])
     const empleados = rEmp.data   || []
     const ccostos   = rCc.data    || []
     const impuestos = rImp.data   || []
@@ -378,6 +503,10 @@ async function exportarPDF() {
       .badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
       .w2    { background: #ede9fe; color: #7c3aed; }
       .c1099 { background: #fef3c7; color: #b45309; }
+      .parcial { background: #fef3c7; color: #b45309; margin-left: 6px; }
+      .nota { font-size: 9.5px; color: #6b7280; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 5px; padding: 5px 8px; margin-bottom: 8px; }
+      tr.mes-head td { background: #f5f3ff; font-weight: 700; border-top: 1.5px solid #c4b5fd; }
+      tr.mes-head td:first-child { color: #6d28d9; }
       .pct-bar { height: 5px; border-radius: 3px; background: linear-gradient(90deg,#ec4899,#8b5cf6); display: inline-block; min-width: 2px; }
       @media print { body { padding: 12px; } }
     `
@@ -403,6 +532,55 @@ async function exportarPDF() {
           </tbody>
           <tfoot><tr class="tfoot">
             <td>TOTAL</td><td>${k.total_empleados}</td>
+            <td>${fmt(k.total_bruto)}</td>
+            <td class="text-red">${fmt(k.total_deducciones)}</td>
+            <td class="text-amber">${fmt(k.total_aportes_er)}</td>
+            <td class="text-green">${fmt(k.total_neto)}</td>
+            <td class="text-purple">${fmt(k.costo_total_empresa)}</td>
+          </tr></tfoot>
+        </table>
+      </div>`
+
+    // ── Por Mes (reparto contable de semanas que cruzan meses) ──
+    const tMeses = `
+      <div class="section">
+        <div class="section-title">Reparto por Mes</div>
+        <div class="nota">Las nóminas que cruzan dos meses se reparten según las horas trabajadas en cada mes; si no hay horario cargado, por días calendario.</div>
+        <table>
+          <thead><tr>
+            <th>MES / NÓMINA</th><th>DÍAS</th><th>HORAS</th><th>% NÓM.</th><th>BRUTO</th><th>DEDUCCIONES</th><th>APORTES ER</th><th>NETO</th><th>COSTO EMPRESA</th>
+          </tr></thead>
+          <tbody>
+            ${meses.map(g => `
+              <tr class="mes-head">
+                <td>${g.nombre} <span style="font-weight:400;color:#9ca3af">(${g.filas.length} nómina${g.filas.length !== 1 ? 's' : ''})</span></td>
+                <td>${g.dias}</td>
+                <td>${fmtNum(g.horas)}</td>
+                <td>—</td>
+                <td>${fmt(g.totales.total_bruto)}</td>
+                <td class="text-red">${fmt(g.totales.total_deducciones)}</td>
+                <td class="text-amber">${fmt(g.totales.total_aportes_er)}</td>
+                <td class="text-green">${fmt(g.totales.total_neto)}</td>
+                <td class="text-purple">${fmt(g.totales.costo_empresa)}</td>
+              </tr>
+              ${g.filas.map(r => `<tr>
+                <td style="padding-left:24px">
+                  ${fmtFecha(r.semana_inicio)} — ${fmtFecha(r.semana_fin)}
+                  ${r.periodo_partido ? '<span class="badge parcial">PARCIAL</span>' : ''}
+                </td>
+                <td>${r.dias_en_mes}</td>
+                <td>${fmtNum(r.horas_en_mes)}</td>
+                <td>${fmtNum(r.porcentaje)}%</td>
+                <td>${fmt(r.total_bruto)}</td>
+                <td class="text-red">${fmt(r.total_deducciones)}</td>
+                <td class="text-amber">${fmt(r.total_aportes_er)}</td>
+                <td class="text-green">${fmt(r.total_neto)}</td>
+                <td class="text-purple">${fmt(r.costo_empresa)}</td>
+              </tr>`).join('')}
+            `).join('')}
+          </tbody>
+          <tfoot><tr class="tfoot">
+            <td colspan="4">TOTAL</td>
             <td>${fmt(k.total_bruto)}</td>
             <td class="text-red">${fmt(k.total_deducciones)}</td>
             <td class="text-amber">${fmt(k.total_aportes_er)}</td>
@@ -532,6 +710,7 @@ async function exportarPDF() {
         <div class="sub">Período: ${fmtFecha(filtros.value.fechaInicio)} — ${fmtFecha(filtros.value.fechaFin)}</div>
         ${kpiHTML}
         ${tPeriodo}
+        ${tMeses}
         ${tEmpleado}
         ${tCcosto}
         ${tImpuestos}
@@ -593,6 +772,36 @@ onMounted(cargar)
 
 .periodo-label { font-weight: 600; font-size: 12px; }
 .periodo-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface),.45); }
+
+/* Vista por mes */
+.rn-nota {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 14px 14px 4px; padding: 9px 12px;
+  border-radius: 9px; font-size: 11.5px; line-height: 1.45;
+  background: color-mix(in srgb, var(--indigo) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--indigo) 18%, transparent);
+  color: rgba(var(--v-theme-on-surface),.7);
+}
+.rn-mes-head td {
+  background: color-mix(in srgb, var(--indigo) 7%, transparent);
+  border-top: 2px solid color-mix(in srgb, var(--indigo) 25%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--indigo) 15%, transparent);
+  font-size: 13px; font-weight: 700;
+}
+.rn-mes-head .mes-sub {
+  margin-left: 8px; font-size: 11px; font-weight: 500;
+  color: rgba(var(--v-theme-on-surface),.5);
+}
+.rn-mes-detalle td { padding-top: 8px; padding-bottom: 8px; }
+.rn-mes-detalle td:first-child { padding-left: 30px; }
+.badge-partido {
+  display: inline-flex; align-items: center; gap: 2px;
+  margin-left: 8px; padding: 1px 6px 1px 4px; border-radius: 5px;
+  font-size: 9px; font-weight: 800; letter-spacing: .4px;
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--gold);
+  cursor: default;
+}
 
 .badge-w2 { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: color-mix(in srgb, var(--indigo) 12%, transparent); color: var(--indigo); }
 .badge-1099 { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--gold); }
