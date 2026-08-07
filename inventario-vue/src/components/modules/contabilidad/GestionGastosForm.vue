@@ -533,12 +533,12 @@
             </v-checkbox>
           </div>
 
-          <!-- Items -->
+          <!-- Items — una línea compacta por producto -->
           <div class="mp-items">
-            <div v-for="(item, i) in mpDraft.items" :key="i" class="mp-item-card">
+            <div v-for="(item, i) in mpDraft.items" :key="i" class="mp-item-row">
 
-              <!-- Fila 1: qué se compró -->
-              <div class="mp-item-top">
+              <!-- Producto/Artículo -->
+              <div class="mp-row-col mp-col-producto">
                 <v-autocomplete
                   v-model="item.key"
                   :items="itemsOptions"
@@ -546,12 +546,11 @@
                   item-title="nombre"
                   item-value="key"
                   :custom-filter="filtroItemCompra"
-                  label="Producto / Artículo *"
+                  label="Producto / Artículo"
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   hide-details
                   autocomplete="off"
-                  class="mp-item-prod"
                   @update:model-value="onItemSeleccionado(item)"
                 >
                   <template #item="{ item: it, props: p }">
@@ -561,78 +560,89 @@
                           <span
                             class="mp-origen-tag"
                             :class="it.raw.origen === 'ARTICULO' ? 'tag-art' : 'tag-prod'"
-                          >{{ it.raw.origen === 'ARTICULO' ? 'MATERIA PRIMA' : 'PRODUCTO' }}</span>
-                          {{ it.raw.codigo }} · {{ it.raw.und }}
+                          >{{ it.raw.origen === 'ARTICULO' ? 'MP' : 'PRD' }}</span>
+                          {{ it.raw.codigo }}
                         </span>
                       </template>
                     </v-list-item>
                   </template>
-                  <!-- Si no existe todavía, se puede crear ahí mismo sin perder el gasto que ya se está capturando -->
                   <template #no-data>
                     <div class="prov-nodata">
-                      <span>No hay productos ni artículos con ese nombre</span>
+                      <span>No hay productos</span>
                       <v-btn size="small" variant="tonal" color="var(--gold)"
                         prepend-icon="mdi-plus" @click="abrirNuevoItem(item)">
-                        Crear producto/artículo
+                        Crear
                       </v-btn>
                     </div>
                   </template>
                 </v-autocomplete>
-                <v-btn icon variant="text" size="small" color="var(--error)" class="mp-item-del"
-                  @click="mpDraft.items.splice(i, 1)">
-                  <v-icon size="18">mdi-delete-outline</v-icon>
-                </v-btn>
               </div>
 
-              <!-- Fila 2: presentaciones guardadas para este ítem (Almacén > Configuración).
-                   Abre un popup para digitar cuántas se compraron y calcula la cantidad sola. -->
-              <div v-if="presentacionesDe(item.key).length" class="mp-item-presentaciones">
-                <span class="mp-pres-lbl">Por presentación:</span>
-                <v-btn
-                  v-for="pres in presentacionesDe(item.key)"
-                  :key="pres.id"
-                  size="x-small"
-                  variant="tonal"
-                  color="var(--gold)"
-                  class="mp-pres-chip"
-                  @click="abrirPresentacion(item, pres)"
-                >
-                  {{ pres.nombre_presentacion }} ({{ formatNumPres(pres.contenido) }} {{ undItem(item) }})
-                </v-btn>
+              <!-- Presentaciones (comprimidas) -->
+              <div v-if="presentacionesDe(item.key).length" class="mp-row-col mp-col-presentaciones">
+                <div class="mp-pres-row">
+                  <v-btn
+                    v-for="pres in presentacionesDe(item.key)"
+                    :key="pres.id"
+                    size="x-small"
+                    variant="tonal"
+                    color="var(--gold)"
+                    class="mp-pres-chip"
+                    @click="abrirPresentacion(item, pres)"
+                  >
+                    {{ pres.nombre_presentacion }}
+                  </v-btn>
+                </div>
               </div>
 
-              <!-- Fila 3: cuánto y a qué costo -->
-              <div class="mp-item-bottom">
+              <!-- Cantidad -->
+              <div class="mp-row-col mp-col-cantidad">
                 <v-text-field
                   v-model.number="item.cantidad"
-                  label="Cantidad *"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
                   type="number"
                   step="0.01"
                   min="0"
                   autocomplete="off"
-                  class="mp-item-cant"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
                   :suffix="undItem(item)"
                 />
+              </div>
+
+              <!-- Costo Unitario -->
+              <div class="mp-row-col mp-col-costo">
                 <v-text-field
                   v-model.number="item.costoUnit"
-                  label="Costo Unit. *"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
                   type="number"
                   step="0.0001"
                   min="0"
                   autocomplete="off"
-                  class="mp-item-costo"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
                   prefix="$"
                 />
-                <div class="mp-item-subtotal">
-                  <span class="mp-item-subtotal-lbl">Subtotal</span>
-                  <span class="mp-item-subtotal-val">{{ formatMoneda((item.cantidad || 0) * (item.costoUnit || 0)) }}</span>
+              </div>
+
+              <!-- Subtotal -->
+              <div class="mp-row-col mp-col-subtotal">
+                <div class="mp-subtotal-box">
+                  {{ formatMoneda((item.cantidad || 0) * (item.costoUnit || 0)) }}
                 </div>
+              </div>
+
+              <!-- Eliminar -->
+              <div class="mp-row-col mp-col-eliminar">
+                <v-btn
+                  icon
+                  variant="text"
+                  size="x-small"
+                  color="var(--error)"
+                  @click="mpDraft.items.splice(i, 1)"
+                >
+                  <v-icon size="18">mdi-delete-outline</v-icon>
+                </v-btn>
               </div>
             </div>
 
@@ -1967,40 +1977,69 @@ function cerrar() {
   font-size: 11.5px; line-height: 1.45;
   color: rgba(var(--v-theme-on-surface), 0.75);
 }
-.mp-items { display: flex; flex-direction: column; gap: 12px; }
+.mp-items { display: flex; flex-direction: column; gap: 8px; }
 
-/* Cada producto comprado es una tarjeta propia — separa visualmente dónde
-   empieza y termina uno, en vez de un río continuo de campos envueltos. */
-.mp-item-card {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 14px; border-radius: 10px;
-  background: rgba(var(--v-theme-on-surface), 0.02);
+/* Una línea por producto — compacta y horizontal */
+.mp-item-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.7fr 0.7fr 0.7fr 50px;
+  gap: 8px;
+  align-items: start;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-on-surface), 0.03);
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  transition: all 0.2s ease;
 }
-.mp-item-top { display: flex; align-items: center; gap: 8px; }
-.mp-item-prod { flex: 1; min-width: 0; }
-.mp-item-del { flex-shrink: 0; }
+.mp-item-row:hover {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border-color: rgba(var(--v-theme-on-surface), 0.12);
+}
 
-.mp-item-presentaciones {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+.mp-row-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
 }
-.mp-pres-lbl { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.mp-pres-chip { font-size: 11px !important; text-transform: none; letter-spacing: normal; }
 
-.mp-item-bottom { display: flex; align-items: flex-end; gap: 10px; }
-.mp-item-cant  { flex: 1; min-width: 110px; }
-.mp-item-costo { flex: 1; min-width: 110px; }
-.mp-item-subtotal {
-  flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end;
-  min-width: 90px; padding-bottom: 2px;
-}
-.mp-item-subtotal-lbl {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.4);
-}
-.mp-item-subtotal-val { font-family: monospace; font-size: 14px; font-weight: 800; color: var(--gold-strong); }
+.mp-col-producto { grid-column: 1; }
+.mp-col-presentaciones { grid-column: 2; min-height: 32px; }
+.mp-col-cantidad { grid-column: 3; }
+.mp-col-costo { grid-column: 4; }
+.mp-col-subtotal { grid-column: 5; }
+.mp-col-eliminar { grid-column: 6; display: flex; justify-content: center; }
 
-.mp-add-btn { align-self: flex-start; }
+.mp-pres-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-content: center;
+}
+.mp-pres-chip {
+  font-size: 10px !important;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 2px 8px !important;
+  height: auto;
+  white-space: nowrap;
+}
+
+.mp-subtotal-box {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gold-strong);
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: rgba(245,158,11,0.08);
+}
+
+.mp-add-btn { align-self: flex-start; margin-top: 2px; }
 
 /* Popup "comprar por presentación" */
 .pres-dlg-sub { font-size: 12.5px; line-height: 1.45; color: rgba(var(--v-theme-on-surface), 0.6); margin-bottom: 12px; }
@@ -2009,28 +2048,43 @@ function cerrar() {
   background: rgba(245,158,11,0.1); color: var(--gold-strong);
   font-family: monospace; font-size: 14px; font-weight: 700; text-align: center;
 }
-.mp-prod-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), 0.4); display: inline-flex; align-items: center; gap: 6px; }
+.mp-prod-meta { font-size: 9px; color: rgba(var(--v-theme-on-surface), 0.4); display: inline-flex; align-items: center; gap: 4px; }
 .mp-origen-tag {
-  font-size: 8.5px;
+  font-size: 7.5px;
   font-weight: 800;
   letter-spacing: 0.3px;
-  padding: 1px 6px;
-  border-radius: 8px;
+  padding: 1px 5px;
+  border-radius: 6px;
   text-transform: uppercase;
 }
 .mp-origen-tag.tag-prod { background: rgba(102,126,234,0.14); color: var(--indigo); }
 .mp-origen-tag.tag-art  { background: rgba(245,158,11,0.16); color: var(--gold-strong); }
+
 .mp-total-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.7fr 0.7fr 0.7fr 50px;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.08);
+  padding: 14px 10px;
+  margin-top: 4px;
+  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-radius: 8px;
+  background: rgba(245,158,11,0.06);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.4px;
+  color: rgba(var(--v-theme-on-surface), 0.8);
 }
-.mp-total-val { font-family: monospace; font-size: 15px; color: var(--gold-strong); }
+.mp-total-row span:first-child { grid-column: 1 / 5; }
+.mp-total-val {
+  grid-column: 5;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--gold-strong);
+  text-align: right;
+  padding: 0 8px;
+}
 .mp-warn {
   display: flex;
   align-items: center;
