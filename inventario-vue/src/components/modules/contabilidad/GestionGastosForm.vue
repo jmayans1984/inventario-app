@@ -533,22 +533,28 @@
             </v-checkbox>
           </div>
 
-          <!-- Header de columnas -->
-          <div class="mp-header-row">
-            <div class="mp-col-producto">Producto / Artículo</div>
-            <div class="mp-col-presentaciones"></div>
-            <div class="mp-col-cantidad">Cantidad</div>
-            <div class="mp-col-costo">Vr. Unitario</div>
-            <div class="mp-col-subtotal">Subtotal</div>
-            <div class="mp-col-eliminar"></div>
-          </div>
+          <!-- ═══ TABLA DE PRODUCTOS ═══ -->
+          <div class="mp-tabla">
 
-          <!-- Items — una línea compacta por producto -->
-          <div class="mp-items">
-            <div v-for="(item, i) in mpDraft.items" :key="i" class="mp-item-row">
+            <!-- Encabezado de columnas: las mismas pistas de grid que las filas,
+                 así los títulos quedan siempre sobre su dato. -->
+            <div class="mp-thead">
+              <div class="mp-th">Producto / Artículo</div>
+              <div class="mp-th mp-th-num">Cantidad</div>
+              <div class="mp-th mp-th-num">Vr. Unitario</div>
+              <div class="mp-th mp-th-num">Subtotal</div>
+              <div class="mp-th"></div>
+            </div>
 
-              <!-- Producto/Artículo -->
-              <div class="mp-row-col mp-col-producto">
+            <div v-if="!mpDraft.items.length" class="mp-vacio">
+              <v-icon size="26">mdi-package-variant-closed</v-icon>
+              <span>Sin productos. Agrega el primero para detallar la compra.</span>
+            </div>
+
+            <div v-for="(item, i) in mpDraft.items" :key="i" class="mp-tr">
+
+              <!-- Producto + sus presentaciones de compra -->
+              <div class="mp-td mp-td-prod">
                 <v-autocomplete
                   v-model="item.key"
                   :items="itemsOptions"
@@ -556,7 +562,7 @@
                   item-title="nombre"
                   item-value="key"
                   :custom-filter="filtroItemCompra"
-                  label="Producto / Artículo"
+                  placeholder="Buscar producto o artículo..."
                   variant="outlined"
                   density="compact"
                   hide-details
@@ -571,42 +577,40 @@
                             class="mp-origen-tag"
                             :class="it.raw.origen === 'ARTICULO' ? 'tag-art' : 'tag-prod'"
                           >{{ it.raw.origen === 'ARTICULO' ? 'MP' : 'PRD' }}</span>
-                          {{ it.raw.codigo }}
+                          {{ it.raw.codigo }} · {{ it.raw.und }}
                         </span>
                       </template>
                     </v-list-item>
                   </template>
                   <template #no-data>
                     <div class="prov-nodata">
-                      <span>No hay productos</span>
+                      <span>No hay productos ni artículos con ese nombre</span>
                       <v-btn size="small" variant="tonal" color="var(--gold)"
                         prepend-icon="mdi-plus" @click="abrirNuevoItem(item)">
-                        Crear
+                        Crear producto/artículo
                       </v-btn>
                     </div>
                   </template>
                 </v-autocomplete>
-              </div>
 
-              <!-- Presentaciones (comprimidas) -->
-              <div v-if="presentacionesDe(item.key).length" class="mp-row-col mp-col-presentaciones">
-                <div class="mp-pres-row">
-                  <v-btn
+                <div v-if="presentacionesDe(item.key).length" class="mp-pres-row">
+                  <span class="mp-pres-lbl">Por presentación</span>
+                  <button
                     v-for="pres in presentacionesDe(item.key)"
                     :key="pres.id"
-                    size="x-small"
-                    variant="tonal"
-                    color="var(--gold)"
+                    type="button"
                     class="mp-pres-chip"
+                    :title="`1 ${pres.nombre_presentacion} = ${formatNumPres(pres.contenido)} ${undItem(item)}`"
                     @click="abrirPresentacion(item, pres)"
                   >
                     {{ pres.nombre_presentacion }}
-                  </v-btn>
+                    <span class="mp-pres-cont">{{ formatNumPres(pres.contenido) }}</span>
+                  </button>
                 </div>
               </div>
 
               <!-- Cantidad -->
-              <div class="mp-row-col mp-col-cantidad">
+              <div class="mp-td">
                 <v-text-field
                   v-model.number="item.cantidad"
                   type="number"
@@ -616,12 +620,13 @@
                   variant="outlined"
                   density="compact"
                   hide-details
+                  class="mp-input-num"
                   :suffix="undItem(item)"
                 />
               </div>
 
               <!-- Costo Unitario -->
-              <div class="mp-row-col mp-col-costo">
+              <div class="mp-td">
                 <v-text-field
                   v-model.number="item.costoUnit"
                   type="number"
@@ -631,46 +636,57 @@
                   variant="outlined"
                   density="compact"
                   hide-details
+                  class="mp-input-num"
                   prefix="$"
                 />
               </div>
 
               <!-- Subtotal -->
-              <div class="mp-row-col mp-col-subtotal">
-                <div class="mp-subtotal-box">
+              <div class="mp-td mp-td-sub">
+                <span class="mp-sub-val">
                   {{ formatMoneda((item.cantidad || 0) * (item.costoUnit || 0)) }}
-                </div>
+                </span>
               </div>
 
               <!-- Eliminar -->
-              <div class="mp-row-col mp-col-eliminar">
+              <div class="mp-td mp-td-acc">
                 <v-btn
                   icon
                   variant="text"
                   size="x-small"
                   color="var(--error)"
+                  title="Quitar producto"
                   @click="mpDraft.items.splice(i, 1)"
                 >
-                  <v-icon size="18">mdi-delete-outline</v-icon>
+                  <v-icon size="17">mdi-delete-outline</v-icon>
                 </v-btn>
               </div>
             </div>
 
-            <v-btn variant="tonal" color="var(--gold)" size="small" prepend-icon="mdi-plus" @click="agregarItemMp" class="mp-add-btn">
+            <!-- Total -->
+            <div class="mp-tfoot">
+              <span class="mp-tfoot-lbl">
+                Total productos
+                <span v-if="mpDraft.items.length" class="mp-tfoot-count">
+                  · {{ mpDraft.items.length }} ítem{{ mpDraft.items.length !== 1 ? 's' : '' }}
+                </span>
+              </span>
+              <span class="mp-tfoot-val">{{ formatMoneda(totalItemsMp(mpDraft)) }}</span>
+              <span></span>
+            </div>
+          </div>
+
+          <div class="mp-acciones">
+            <v-btn variant="tonal" color="var(--gold)" size="small" prepend-icon="mdi-plus" @click="agregarItemMp">
               Agregar producto
             </v-btn>
           </div>
 
-          <!-- Total items vs línea -->
-          <div class="mp-total-row">
-            <span>TOTAL PRODUCTOS</span>
-            <span class="mp-total-val">{{ formatMoneda(totalItemsMp(mpDraft)) }}</span>
-          </div>
           <div
             v-if="mpLineaRef && Math.abs(totalItemsMp(mpDraft) - (mpLineaRef.subtotal || 0)) > 0.01 && mpDraft.items.length"
             class="mp-warn"
           >
-            <v-icon size="14" color="var(--gold)">mdi-alert-outline</v-icon>
+            <v-icon size="15" color="var(--gold)">mdi-alert-outline</v-icon>
             El total de productos no coincide con el subtotal de la línea ({{ formatMoneda(mpLineaRef.subtotal || 0) }})
           </div>
 
@@ -1798,10 +1814,10 @@ function cerrar() {
   overflow-y: auto;
 }
 .wiz-content-simple {
-  padding: 18px 24px !important;
+  padding: 16px 22px 20px !important;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 .wiz-pane { display: flex; flex-direction: column; gap: 18px; }
 .wiz-pane-title {
@@ -1943,13 +1959,18 @@ function cerrar() {
 .mp-opts {
   background: rgba(245,158,11,0.05);
   border: 1px solid rgba(245,158,11,0.2);
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 11px;
+  padding: 8px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
-.mp-opt-lbl { font-size: 12.5px; line-height: 1.4; }
+.mp-opt-lbl {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(var(--v-theme-on-surface), 0.72);
+}
+.mp-opt-lbl strong { color: rgb(var(--v-theme-on-surface)); }
 
 /* Alta rápida de proveedor */
 .prov-field { display: flex; align-items: center; gap: 8px; }
@@ -1987,85 +2008,159 @@ function cerrar() {
   font-size: 11.5px; line-height: 1.45;
   color: rgba(var(--v-theme-on-surface), 0.75);
 }
-.mp-items { display: flex; flex-direction: column; gap: 8px; }
+/* ── Tabla de productos ──────────────────────────────────────────────
+   Encabezado, filas y total comparten las MISMAS pistas de grid, así el
+   título de cada columna cae siempre justo encima de su dato. */
+.mp-tabla {
+  --mp-cols: minmax(220px, 1fr) 126px 148px 132px 40px;
+  --mp-gap: 12px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgb(var(--v-theme-surface));
+}
 
-/* Header de columnas */
-.mp-header-row {
+.mp-thead {
   display: grid;
-  grid-template-columns: 2fr 0.8fr 0.65fr 0.75fr 0.75fr 50px;
-  gap: 8px;
+  grid-template-columns: var(--mp-cols);
+  gap: var(--mp-gap);
   align-items: center;
-  padding: 0 10px 10px 10px;
-  font-size: 10px;
+  padding: 9px 12px;
+  background: rgba(var(--v-theme-on-surface), 0.035);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+}
+.mp-th {
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
   color: rgba(var(--v-theme-on-surface), 0.5);
-  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.1);
-  margin-bottom: 4px;
-}
-
-/* Una línea por producto — compacta y horizontal */
-.mp-item-row {
-  display: grid;
-  grid-template-columns: 2fr 0.8fr 0.65fr 0.75fr 0.75fr 50px;
-  gap: 8px;
-  align-items: start;
-  padding: 10px;
-  border-radius: 8px;
-  background: rgba(var(--v-theme-on-surface), 0.03);
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  transition: all 0.2s ease;
-}
-.mp-item-row:hover {
-  background: rgba(var(--v-theme-on-surface), 0.06);
-  border-color: rgba(var(--v-theme-on-surface), 0.12);
-}
-
-.mp-row-col {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-}
-
-.mp-col-producto { grid-column: 1; }
-.mp-col-presentaciones { grid-column: 2; min-height: 32px; }
-.mp-col-cantidad { grid-column: 3; }
-.mp-col-costo { grid-column: 4; }
-.mp-col-subtotal { grid-column: 5; }
-.mp-col-eliminar { grid-column: 6; display: flex; justify-content: center; }
-
-.mp-pres-row {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  align-content: center;
-}
-.mp-pres-chip {
-  font-size: 10px !important;
-  text-transform: none;
-  letter-spacing: normal;
-  padding: 2px 8px !important;
-  height: auto;
   white-space: nowrap;
 }
+.mp-th-num { text-align: right; }
 
-.mp-subtotal-box {
+.mp-tr {
+  display: grid;
+  grid-template-columns: var(--mp-cols);
+  gap: var(--mp-gap);
+  align-items: start;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  transition: background 0.15s ease;
+}
+.mp-tr:hover { background: rgba(var(--v-theme-on-surface), 0.025); }
+
+.mp-td { min-width: 0; }
+.mp-td-prod { display: flex; flex-direction: column; gap: 6px; }
+.mp-td-sub {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  min-height: 40px;
+}
+.mp-sub-val {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: var(--gold-strong);
-  min-height: 32px;
-  padding: 0 8px;
-  border-radius: 4px;
-  background: rgba(245,158,11,0.08);
+}
+.mp-td-acc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
 }
 
-.mp-add-btn { align-self: flex-start; margin-top: 2px; }
+/* Los campos numéricos se leen alineados a la derecha, como en un libro contable */
+.mp-input-num :deep(input) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Estado vacío */
+.mp-vacio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 26px 16px;
+  font-size: 12.5px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+}
+
+/* Presentaciones de compra bajo el nombre del producto */
+.mp-pres-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.mp-pres-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.38);
+}
+.mp-pres-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(245,158,11,0.35);
+  background: rgba(245,158,11,0.08);
+  color: var(--gold-strong);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.6;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.mp-pres-chip:hover { background: rgba(245,158,11,0.18); border-color: var(--gold); }
+.mp-pres-cont {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+/* Total */
+.mp-tfoot {
+  display: grid;
+  grid-template-columns: var(--mp-cols);
+  gap: var(--mp-gap);
+  align-items: center;
+  padding: 12px;
+  background: rgba(245,158,11,0.07);
+}
+.mp-tfoot-lbl {
+  grid-column: 1 / 4;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+.mp-tfoot-count {
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+}
+.mp-tfoot-val {
+  grid-column: 4;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-strong);
+}
+
+.mp-acciones { display: flex; }
 
 /* Popup "comprar por presentación" */
 .pres-dlg-sub { font-size: 12.5px; line-height: 1.45; color: rgba(var(--v-theme-on-surface), 0.6); margin-bottom: 12px; }
@@ -2086,40 +2181,16 @@ function cerrar() {
 .mp-origen-tag.tag-prod { background: rgba(102,126,234,0.14); color: var(--indigo); }
 .mp-origen-tag.tag-art  { background: rgba(245,158,11,0.16); color: var(--gold-strong); }
 
-.mp-total-row {
-  display: grid;
-  grid-template-columns: 2fr 0.8fr 0.65fr 0.75fr 0.75fr 50px;
-  gap: 8px;
-  align-items: center;
-  padding: 14px 10px;
-  margin-top: 4px;
-  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.1);
-  border-radius: 8px;
-  background: rgba(245,158,11,0.06);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-  color: rgba(var(--v-theme-on-surface), 0.8);
-}
-.mp-total-row span:first-child { grid-column: 1 / 4; }
-.mp-total-val {
-  grid-column: 5;
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--gold-strong);
-  text-align: right;
-  padding: 0 8px;
-}
 .mp-warn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: 7px;
+  font-size: 12px;
   color: var(--gold-strong);
-  background: rgba(245,158,11,0.07);
-  border-radius: 8px;
-  padding: 8px 12px;
+  background: rgba(245,158,11,0.09);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 9px;
+  padding: 9px 12px;
 }
 
 /* ═══ DIALOG FACTURA DUPLICADA ══════════════════════════════════════ */
