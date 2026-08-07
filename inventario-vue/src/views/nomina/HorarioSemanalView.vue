@@ -997,13 +997,18 @@ async function copiarSemanaAnteriorPorCC(ccCodigo) {
           )
 
           if (turnoAnterior) {
+            const ini = turnoAnterior.real_inicio || turnoAnterior.prog_inicio
+            const fin = turnoAnterior.real_fin || turnoAnterior.prog_fin
             await api.post('/nomina/semanas/detalle', {
               semana_id: semanaActual.value.id,
               empleado_id: emp.id,
               fecha: fecha,
-              real_inicio: turnoAnterior.real_inicio || turnoAnterior.prog_inicio,
-              real_fin: turnoAnterior.real_fin || turnoAnterior.prog_fin,
-              real_horas: turnoAnterior.real_horas ?? turnoAnterior.prog_horas,
+              real_inicio: ini,
+              real_fin: fin,
+              // Recalculadas, no arrastradas de la semana anterior
+              real_horas: (ini && fin)
+                ? horasEntre(ini, fin)
+                : (turnoAnterior.real_horas ?? turnoAnterior.prog_horas),
               ccosto: ccCodigo,
               es_dia_libre: turnoAnterior.es_dia_libre,
               ausencia_tipo: turnoAnterior.ausencia_tipo || '',

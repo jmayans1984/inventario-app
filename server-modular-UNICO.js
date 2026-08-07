@@ -17339,29 +17339,46 @@ app.post('/api/nomina/semanas/:id/copiar-anterior', async (req, res) => {
                 es_dia_libre, ausencia_tipo, notas, ajustado)
              SELECT
                $1,
-               d.empleado_id,
-               (d.fecha::date + interval '7 days')::date,
-               d.ccosto,
-               COALESCE(d.real_inicio, d.prog_inicio),
-               COALESCE(d.real_fin,    d.prog_fin),
-               COALESCE(d.real_horas,  d.prog_horas),
-               d.prog_cruza_medianoche,
-               COALESCE(d.real_inicio, d.prog_inicio),
-               COALESCE(d.real_fin,    d.prog_fin),
-               COALESCE(d.real_horas,  d.prog_horas),
-               d.es_dia_libre,
-               d.ausencia_tipo,
-               d.notas,
+               x.empleado_id,
+               x.nueva_fecha,
+               x.ccosto,
+               x.ini, x.fin, x.horas, x.cruza,
+               x.ini, x.fin, x.horas,
+               x.es_dia_libre,
+               x.ausencia_tipo,
+               x.notas,
                FALSE
-             FROM nom_semana_detalle d
-             WHERE d.semana_id = $2
-               AND NOT EXISTS (
-                 SELECT 1 FROM nom_semana_detalle ex
-                 WHERE ex.semana_id    = $1
-                   AND ex.empleado_id  = d.empleado_id
-                   AND ex.fecha        = (d.fecha::date + interval '7 days')::date
-                   AND ex.ccosto       = d.ccosto
-               )`,
+             FROM (
+               SELECT
+                 y.*,
+                 -- Las horas se recalculan desde entrada/salida en vez de
+                 -- arrastrar el real_horas de la semana anterior, que puede
+                 -- venir desalineado de turnos creados antes de la correccion.
+                 CASE WHEN y.ini IS NOT NULL AND y.fin IS NOT NULL
+                      THEN ROUND((EXTRACT(EPOCH FROM (y.fin - y.ini)) / 3600.0
+                                  + CASE WHEN y.fin <= y.ini THEN 24 ELSE 0 END)::numeric, 2)
+                      ELSE y.horas_orig END AS horas,
+                 (y.ini IS NOT NULL AND y.fin IS NOT NULL AND y.fin <= y.ini) AS cruza
+               FROM (
+                 SELECT
+                   d.empleado_id,
+                   (d.fecha::date + interval '7 days')::date AS nueva_fecha,
+                   d.ccosto,
+                   COALESCE(d.real_inicio, d.prog_inicio) AS ini,
+                   COALESCE(d.real_fin,    d.prog_fin)    AS fin,
+                   COALESCE(d.real_horas,  d.prog_horas)  AS horas_orig,
+                   d.es_dia_libre, d.ausencia_tipo, d.notas
+                 FROM nom_semana_detalle d
+                 WHERE d.semana_id = $2
+                   AND NOT EXISTS (
+                     SELECT 1 FROM nom_semana_detalle ex
+                     WHERE ex.semana_id    = $1
+                       AND ex.empleado_id  = d.empleado_id
+                       AND ex.fecha        = (d.fecha::date + interval '7 days')::date
+                       AND ex.ccosto       = d.ccosto
+                   )
+               ) y
+             ) x`,
             [semanaId, semanaAnteriorId]
         );
 
@@ -17489,12 +17506,19 @@ app.post('/api/nomina/semanas/detalle', async (req, res) => {
             }
         }
 
+        // Las horas nunca se toman del payload cuando hay entrada y salida:
+        // se derivan de ellas. Asi ningun camino (plantilla, copiar semana,
+        // edicion masiva) puede guardar un turno cuyas horas no cuadren.
+        const horas = (real_inicio && real_fin)
+            ? horasEntre(real_inicio, real_fin).horas
+            : (real_horas || null);
+
         const r = await pool.query(
             `INSERT INTO nom_semana_detalle
              (semana_id, empleado_id, fecha, real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas, ajustado)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE)
              RETURNING id`,
-            [semana_id, empleado_id, fecha, real_inicio||null, real_fin||null, real_horas||null,
+            [semana_id, empleado_id, fecha, real_inicio||null, real_fin||null, horas,
              ccosto||'', es_dia_libre||false, ausencia_tipo||'', notas||'']
         );
         res.json({ success: true, data: { id: r.rows[0].id } });
@@ -17505,12 +17529,18 @@ app.post('/api/nomina/semanas/detalle', async (req, res) => {
 app.put('/api/nomina/semanas/detalle/:detalleId', async (req, res) => {
     const { real_inicio, real_fin, real_horas, ccosto, es_dia_libre, ausencia_tipo, notas } = req.body;
     try {
+        // Igual que en el INSERT: si hay entrada y salida, las horas se derivan
+        // de ellas y se ignora lo que venga en el payload.
+        const horas = (real_inicio && real_fin)
+            ? horasEntre(real_inicio, real_fin).horas
+            : (real_horas || null);
+
         await pool.query(
             `UPDATE nom_semana_detalle SET
              real_inicio=$1, real_fin=$2, real_horas=$3, ccosto=$4,
              es_dia_libre=$5, ausencia_tipo=$6, notas=$7, ajustado=TRUE, updated_at=NOW()
              WHERE id=$8`,
-            [real_inicio||null, real_fin||null, real_horas||null, ccosto,
+            [real_inicio||null, real_fin||null, horas, ccosto,
              es_dia_libre||false, ausencia_tipo, notas, req.params.detalleId]
         );
         res.json({ success: true });
