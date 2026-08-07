@@ -112,7 +112,16 @@
             <td class="td-concepto">{{ gasto.concepto || '-' }}</td>
             <td class="td-factura">{{ gasto.factura || '-' }}</td>
             <td class="td-total">
-              <span class="total-bold">{{ formatMoneda(gasto.total) }}</span>
+              <span
+                v-if="gasto.es_ingreso"
+                class="badge-ingreso"
+                title="Devolución/reembolso: en el banco este movimiento entra, no sale"
+              >
+                <v-icon size="11">mdi-arrow-down-bold-box-outline</v-icon>ING
+              </span>
+              <span class="total-bold" :class="{ 'total-ingreso': gasto.es_ingreso }">
+                {{ formatMoneda(gasto.total) }}
+              </span>
             </td>
             <td class="td-acciones">
               <div class="action-buttons">
@@ -890,6 +899,24 @@ async function exportarExcel() {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 13px;
+}
+
+/* Devolución: el dinero entra al banco en vez de salir */
+.total-ingreso { color: var(--success); }
+.badge-ingreso {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-right: 5px;
+  padding: 1px 5px 1px 3px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+  vertical-align: middle;
+  cursor: default;
 }
 
 .td-acciones { text-align: center; }

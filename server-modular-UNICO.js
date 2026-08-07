@@ -10585,7 +10585,10 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
                 COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                 g.estado,
                 g.entrada_almacen,
-                g.origen
+                g.origen,
+                -- Subconsulta (no JOIN) para que un moviban no pueda duplicar la fila
+                COALESCE((SELECT MAX(mb.ingreso) FROM moviban mb
+                          WHERE mb.gasto = g.codigo AND mb.empresa = g.empresa), 0) > 0 AS es_ingreso
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
@@ -10618,11 +10621,16 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
     const client = await pool.connect();
     try {
         const { fecha, factura, proveedor, ccosto, forma_pago,
-                cuenta, concepto, subtotal, impuestos, total, empresa, numero_cheque } = req.body;
+                cuenta, concepto, subtotal, impuestos, total, empresa,
+                numero_cheque, es_ingreso } = req.body;
 
         if (!fecha || !proveedor || !ccosto || !forma_pago || !cuenta || !subtotal || !empresa) {
             return res.status(400).json({ success: false, error: 'Campos requeridos faltantes' });
         }
+
+        // Una devolución de compra se captura como gasto (contra una cuenta de
+        // otros ingresos) pero en el banco el dinero ENTRA, no sale.
+        const entraAlBanco = es_ingreso === true || es_ingreso === 'true';
 
         await client.query('BEGIN');
 
@@ -10665,10 +10673,10 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
                 'GTO',
                 proximoNumMoviban,
                 fecha,
-                ('GASTO DE COMPRA: ' + proximoCodigo).substring(0, 60),
+                ((entraAlBanco ? 'DEVOLUCION COMPRA: ' : 'GASTO DE COMPRA: ') + proximoCodigo).substring(0, 60),
                 numero_cheque ? String(numero_cheque).trim() : null,
-                0,
-                total,
+                entraAlBanco ? total : 0,
+                entraAlBanco ? 0 : total,
                 forma_pago,
                 'NO',
                 empresa,
@@ -10770,7 +10778,12 @@ app.get('/api/contabilidad/gastos/verificar-factura', async (req, res) => {
 app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { empresa, fecha, factura, proveedor, forma_pago, lineas, numero_cheque } = req.body;
+        const { empresa, fecha, factura, proveedor, forma_pago, lineas,
+                numero_cheque, es_ingreso } = req.body;
+
+        // Una devolución de compra se captura como gasto (contra una cuenta de
+        // otros ingresos) pero en el banco el dinero ENTRA, no sale.
+        const entraAlBanco = es_ingreso === true || es_ingreso === 'true';
 
         if (!empresa || !fecha || !proveedor || !forma_pago) {
             return res.status(400).json({ success: false, error: 'Campos requeridos faltantes (fecha, proveedor, forma de pago)' });
@@ -10827,16 +10840,19 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
         );
         const proximoNumMoviban = String((parseInt(movibanNumRes.rows[0].max_numero) || 0) + 1).padStart(10, '0');
 
+        const prefijoMoviban = entraAlBanco ? 'DEVOLUCION COMPRA' : 'GASTO DE COMPRA';
         const conceptoMoviban = (codigos.length > 1
-            ? `GASTO DE COMPRA: ${codigos[0]} A ${codigos[codigos.length - 1]}`
-            : `GASTO DE COMPRA: ${codigos[0]}`).substring(0, 60);
+            ? `${prefijoMoviban}: ${codigos[0]} A ${codigos[codigos.length - 1]}`
+            : `${prefijoMoviban}: ${codigos[0]}`).substring(0, 60);
 
         await client.query(
             `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
                                   banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
             ['GTO', proximoNumMoviban, fecha, conceptoMoviban,
-             numero_cheque ? String(numero_cheque).trim() : null, 0, totalFactura,
+             numero_cheque ? String(numero_cheque).trim() : null,
+             entraAlBanco ? totalFactura : 0,
+             entraAlBanco ? 0 : totalFactura,
              forma_pago, 'NO', empresa, codigos[0], proveedor, null, lineas[0].ccosto]
         );
 
@@ -11010,7 +11026,10 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
     try {
         const { codigo } = req.params;
         const { fecha, factura, proveedor, ccosto, forma_pago,
-                cuenta, concepto, subtotal, impuestos, total, empresa, numero_cheque } = req.body;
+                cuenta, concepto, subtotal, impuestos, total, empresa,
+                numero_cheque, es_ingreso } = req.body;
+
+        const entraAlBanco = es_ingreso === true || es_ingreso === 'true';
 
         await client.query('BEGIN');
 
@@ -11027,12 +11046,25 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
         // 2. Actualizar moviban asociado (identificado por gasto = codigo)
         //    El número de cheque no reajusta el consecutivo de la cuenta: eso
         //    solo avanza al crear el gasto, no al editarlo.
+        //    Se escriben SIEMPRE las dos columnas para que al cambiar el sentido
+        //    del movimiento no quede el importe anterior en la columna contraria.
         await client.query(
             `UPDATE moviban
-             SET fecha=$1, egreso=$2, banco=$3, beneficia=$4, ccosto=$5, cheque=$6
-             WHERE gasto=$7 AND empresa=$8`,
-            [fecha, total, forma_pago, proveedor, ccosto,
-             numero_cheque ? String(numero_cheque).trim() : null, codigo, empresa]
+             SET fecha=$1, ingreso=$2, egreso=$3, banco=$4, beneficia=$5, ccosto=$6, cheque=$7,
+                 -- Solo se reescribe el concepto autogenerado de un gasto suelto.
+                 -- Una factura repartida en varias líneas comparte un moviban cuyo
+                 -- concepto abarca un rango de códigos: ese no se toca.
+                 concepto = CASE WHEN concepto IN ($8, $9) THEN $10 ELSE concepto END
+             WHERE gasto=$11 AND empresa=$12`,
+            [fecha,
+             entraAlBanco ? total : 0,
+             entraAlBanco ? 0 : total,
+             forma_pago, proveedor, ccosto,
+             numero_cheque ? String(numero_cheque).trim() : null,
+             `GASTO DE COMPRA: ${codigo}`,
+             `DEVOLUCION COMPRA: ${codigo}`,
+             ((entraAlBanco ? 'DEVOLUCION COMPRA: ' : 'GASTO DE COMPRA: ') + codigo).substring(0, 60),
+             codigo, empresa]
         );
 
         await client.query('COMMIT');
@@ -11127,7 +11159,8 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
                     g.forma_pago, COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                     g.cuenta, cta.cuenta as cuenta_nombre,
                     g.concepto, g.subtotal, g.impuestos, g.total, g.empresa,
-                    g.estado, g.entrada_almacen, g.origen, mb.cheque as numero_cheque
+                    g.estado, g.entrada_almacen, g.origen, mb.cheque as numero_cheque,
+                    COALESCE(mb.ingreso, 0) > 0 AS es_ingreso
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa

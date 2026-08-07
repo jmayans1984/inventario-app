@@ -163,6 +163,40 @@
                 />
               </div>
             </div>
+
+            <!-- Sentido del movimiento bancario.
+                 Una devolución de compra se captura como gasto contra una cuenta
+                 de otros ingresos, pero en el banco el dinero entra. -->
+            <div class="field-row">
+              <div class="field-col-full">
+                <div class="sentido-toggle" :class="{ 'sentido-toggle--ingreso': form.es_ingreso }">
+                  <button
+                    type="button"
+                    class="sentido-btn"
+                    :class="{ active: !form.es_ingreso }"
+                    @click="form.es_ingreso = false"
+                  >
+                    <v-icon size="16">mdi-arrow-up-bold-box-outline</v-icon>
+                    <span class="sentido-txt">
+                      <strong>Sale del banco</strong>
+                      <small>Egreso — compra normal</small>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class="sentido-btn"
+                    :class="{ active: form.es_ingreso }"
+                    @click="form.es_ingreso = true"
+                  >
+                    <v-icon size="16">mdi-arrow-down-bold-box-outline</v-icon>
+                    <span class="sentido-txt">
+                      <strong>Entra al banco</strong>
+                      <small>Ingreso — devolución o reembolso</small>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- ═══ PASO 2: DISTRIBUCIÓN ═══ -->
@@ -329,6 +363,13 @@
                 <span class="resumen-lbl">N° Cheque</span>
                 <span class="resumen-val">{{ form.numero_cheque }}</span>
               </div>
+              <div class="resumen-row">
+                <span class="resumen-lbl">Movimiento bancario</span>
+                <span class="resumen-val" :class="form.es_ingreso ? 'val-ingreso' : 'val-egreso'">
+                  <v-icon size="14">{{ form.es_ingreso ? 'mdi-arrow-down-bold-box-outline' : 'mdi-arrow-up-bold-box-outline' }}</v-icon>
+                  {{ form.es_ingreso ? 'Ingreso (entra al banco)' : 'Egreso (sale del banco)' }}
+                </span>
+              </div>
             </div>
 
             <!-- Tabla de líneas -->
@@ -379,7 +420,9 @@
             <div v-if="!esEdicion" class="tot-nota">
               <v-icon size="13" color="#0ea5e9">mdi-information-outline</v-icon>
               Se registrará{{ form.lineas.length > 1 ? `n ${form.lineas.length} gastos` : ' 1 gasto' }} y
-              <strong>un solo movimiento bancario</strong> por {{ formatMoneda(sumTotal) }}
+              <strong>un solo movimiento bancario</strong> de
+              <strong>{{ form.es_ingreso ? 'ingreso' : 'egreso' }}</strong>
+              por {{ formatMoneda(sumTotal) }}
             </div>
           </div>
 
@@ -1243,6 +1286,7 @@ const formVacio = () => {
     proveedor: '',
     forma_pago: '',
     numero_cheque: '',
+    es_ingreso: false,
     lineas: [lineaVacia()],
   }
 }
@@ -1579,6 +1623,7 @@ watch(() => props.open, async (val) => {
         proveedor: gasto.proveedor || '',
         forma_pago: gasto.forma_pago || '',
         numero_cheque: gasto.numero_cheque ? String(gasto.numero_cheque) : '',
+        es_ingreso: gasto.es_ingreso === true,
         lineas: [{
           uid: uidSeq++,
           ccosto: gasto.ccosto || '',
@@ -1656,6 +1701,7 @@ async function guardarGasto() {
         ccosto: ln.ccosto,
         forma_pago: form.value.forma_pago,
         numero_cheque: muestraCheque.value ? (form.value.numero_cheque || null) : null,
+        es_ingreso: form.value.es_ingreso,
         cuenta: ln.cuenta,
         concepto: (ln.concepto || '').trim(),
         subtotal: toNum(ln.subtotal),
@@ -1670,6 +1716,7 @@ async function guardarGasto() {
         proveedor: form.value.proveedor,
         forma_pago: form.value.forma_pago,
         numero_cheque: muestraCheque.value ? (form.value.numero_cheque || null) : null,
+        es_ingreso: form.value.es_ingreso,
         lineas: form.value.lineas.map(ln => ({
           ccosto: ln.ccosto,
           cuenta: ln.cuenta,
@@ -1954,6 +2001,51 @@ function cerrar() {
   font-size: 12px;
   color: rgba(var(--v-theme-on-surface), 0.55);
 }
+
+/* ═══ SENTIDO DEL MOVIMIENTO BANCARIO ════════════════════════════════ */
+.sentido-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 5px;
+  border-radius: 11px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+}
+.sentido-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.sentido-btn:hover { background: rgba(var(--v-theme-on-surface), 0.05); }
+.sentido-txt { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.sentido-txt strong { font-size: 12.5px; font-weight: 700; }
+.sentido-txt small { font-size: 10.5px; opacity: 0.75; }
+
+/* Egreso (izquierda) activo */
+.sentido-btn.active {
+  background: rgb(var(--v-theme-surface));
+  border-color: rgba(var(--v-theme-on-surface), 0.14);
+  color: rgb(var(--v-theme-on-surface));
+}
+/* Ingreso (derecha) activo — se tiñe de verde para que salte a la vista
+   que ese gasto NO va a descontar del banco */
+.sentido-toggle--ingreso .sentido-btn.active {
+  border-color: var(--success);
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 10%, rgb(var(--v-theme-surface)));
+}
+
+.val-ingreso { color: var(--success); font-weight: 700; }
+.val-egreso  { color: rgba(var(--v-theme-on-surface), 0.75); }
 
 /* ═══ MATERIA PRIMA (sub-dialog) ═════════════════════════════════════ */
 .mp-opts {
