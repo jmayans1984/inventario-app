@@ -130,7 +130,7 @@
             </div>
 
             <div class="field-row">
-              <div class="field-col-full">
+              <div :class="muestraCheque ? 'field-col-half' : 'field-col-full'">
                 <v-autocomplete
                   v-model="form.forma_pago"
                   autocomplete="off"
@@ -145,6 +145,21 @@
                   prepend-inner-icon="mdi-credit-card-outline"
                   no-data-text="No hay formas de pago"
                   clearable
+                />
+              </div>
+              <div v-if="muestraCheque" class="field-col-half">
+                <v-text-field
+                  v-model="form.numero_cheque"
+                  autocomplete="off"
+                  label="N° Cheque"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="0"
+                  prepend-inner-icon="mdi-checkbook"
+                  @input="form.numero_cheque = form.numero_cheque.replace(/[^0-9]/g, '')"
                 />
               </div>
             </div>
@@ -309,6 +324,10 @@
               <div class="resumen-row">
                 <span class="resumen-lbl">Forma de Pago</span>
                 <span class="resumen-val">{{ nombreFormaPago }}</span>
+              </div>
+              <div v-if="muestraCheque && form.numero_cheque" class="resumen-row">
+                <span class="resumen-lbl">N° Cheque</span>
+                <span class="resumen-val">{{ form.numero_cheque }}</span>
               </div>
             </div>
 
@@ -1187,12 +1206,32 @@ const formVacio = () => {
     factura: '',
     proveedor: '',
     forma_pago: '',
+    numero_cheque: '',
     lineas: [lineaVacia()],
   }
 }
 
 const form = ref(formVacio())
 const esEdicion = computed(() => !!props.gasto?.codigo)
+
+// ─── Número de cheque ─────────────────────────────────
+// Solo se pide si la cuenta seleccionada lleva un consecutivo de cheque
+// configurado (cuentas_bancarias.cheque > 0). Se sugiere ese consecutivo,
+// editable, y al guardar el gasto la cuenta avanza al siguiente número.
+const cuentaSeleccionada = computed(() =>
+  formasPagoOptions.value.find(c => c.codigo === form.value.forma_pago) || null
+)
+const muestraCheque = computed(() => {
+  const v = parseInt(cuentaSeleccionada.value?.cheque)
+  return (!isNaN(v) && v > 0) || !!form.value.numero_cheque
+})
+watch(() => form.value.forma_pago, () => {
+  if (muestraCheque.value) {
+    if (!form.value.numero_cheque) form.value.numero_cheque = String(cuentaSeleccionada.value.cheque)
+  } else {
+    form.value.numero_cheque = ''
+  }
+})
 
 // ─── Totales ─────────────────────────────────────────
 // Acepta coma o punto como separador decimal (el campo se escribe como texto libre)
@@ -1503,6 +1542,7 @@ watch(() => props.open, async (val) => {
         factura: gasto.factura || '',
         proveedor: gasto.proveedor || '',
         forma_pago: gasto.forma_pago || '',
+        numero_cheque: gasto.numero_cheque ? String(gasto.numero_cheque) : '',
         lineas: [{
           uid: uidSeq++,
           ccosto: gasto.ccosto || '',
@@ -1579,6 +1619,7 @@ async function guardarGasto() {
         proveedor: form.value.proveedor,
         ccosto: ln.ccosto,
         forma_pago: form.value.forma_pago,
+        numero_cheque: muestraCheque.value ? (form.value.numero_cheque || null) : null,
         cuenta: ln.cuenta,
         concepto: (ln.concepto || '').trim(),
         subtotal: toNum(ln.subtotal),
@@ -1592,6 +1633,7 @@ async function guardarGasto() {
         factura: form.value.factura.trim() || null,
         proveedor: form.value.proveedor,
         forma_pago: form.value.forma_pago,
+        numero_cheque: muestraCheque.value ? (form.value.numero_cheque || null) : null,
         lineas: form.value.lineas.map(ln => ({
           ccosto: ln.ccosto,
           cuenta: ln.cuenta,

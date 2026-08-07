@@ -10618,7 +10618,7 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
     const client = await pool.connect();
     try {
         const { fecha, factura, proveedor, ccosto, forma_pago,
-                cuenta, concepto, subtotal, impuestos, total, empresa } = req.body;
+                cuenta, concepto, subtotal, impuestos, total, empresa, numero_cheque } = req.body;
 
         if (!fecha || !proveedor || !ccosto || !forma_pago || !cuenta || !subtotal || !empresa) {
             return res.status(400).json({ success: false, error: 'Campos requeridos faltantes' });
@@ -10666,7 +10666,7 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
                 proximoNumMoviban,
                 fecha,
                 ('GASTO DE COMPRA: ' + proximoCodigo).substring(0, 60),
-                null,
+                numero_cheque ? String(numero_cheque).trim() : null,
                 0,
                 total,
                 forma_pago,
@@ -10678,6 +10678,15 @@ app.post('/api/contabilidad/gastos', async (req, res) => {
                 ccosto
             ]
         );
+
+        // 4b. Si se usó un número de cheque, la cuenta bancaria avanza su
+        // consecutivo al siguiente número para la próxima vez que se use.
+        if (numero_cheque && parseInt(numero_cheque) > 0) {
+            await client.query(
+                `UPDATE cuentas_bancarias SET cheque = $1 WHERE codigo = $2 AND empresa = $3`,
+                [parseInt(numero_cheque) + 1, forma_pago, empresa]
+            );
+        }
 
         // 5. Obtener el gasto con JOINs para devolver nombres
         const gastoConNombresRes = await client.query(
@@ -10761,7 +10770,7 @@ app.get('/api/contabilidad/gastos/verificar-factura', async (req, res) => {
 app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { empresa, fecha, factura, proveedor, forma_pago, lineas } = req.body;
+        const { empresa, fecha, factura, proveedor, forma_pago, lineas, numero_cheque } = req.body;
 
         if (!empresa || !fecha || !proveedor || !forma_pago) {
             return res.status(400).json({ success: false, error: 'Campos requeridos faltantes (fecha, proveedor, forma de pago)' });
@@ -10826,9 +10835,19 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
             `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
                                   banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-            ['GTO', proximoNumMoviban, fecha, conceptoMoviban, null, 0, totalFactura,
+            ['GTO', proximoNumMoviban, fecha, conceptoMoviban,
+             numero_cheque ? String(numero_cheque).trim() : null, 0, totalFactura,
              forma_pago, 'NO', empresa, codigos[0], proveedor, null, lineas[0].ccosto]
         );
+
+        // 3b. Si se usó un número de cheque, la cuenta bancaria avanza su
+        // consecutivo al siguiente número para la próxima vez que se use.
+        if (numero_cheque && parseInt(numero_cheque) > 0) {
+            await client.query(
+                `UPDATE cuentas_bancarias SET cheque = $1 WHERE codigo = $2 AND empresa = $3`,
+                [parseInt(numero_cheque) + 1, forma_pago, empresa]
+            );
+        }
 
         // 4. Materia prima: siempre guardar en entrada_almacen/detalle_entrada_almacen;
         //    condicionalmente afectar detalle_inventario y/o precio_costo
@@ -10991,7 +11010,7 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
     try {
         const { codigo } = req.params;
         const { fecha, factura, proveedor, ccosto, forma_pago,
-                cuenta, concepto, subtotal, impuestos, total, empresa } = req.body;
+                cuenta, concepto, subtotal, impuestos, total, empresa, numero_cheque } = req.body;
 
         await client.query('BEGIN');
 
@@ -11006,11 +11025,14 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
         );
 
         // 2. Actualizar moviban asociado (identificado por gasto = codigo)
+        //    El número de cheque no reajusta el consecutivo de la cuenta: eso
+        //    solo avanza al crear el gasto, no al editarlo.
         await client.query(
             `UPDATE moviban
-             SET fecha=$1, egreso=$2, banco=$3, beneficia=$4, ccosto=$5
-             WHERE gasto=$6 AND empresa=$7`,
-            [fecha, total, forma_pago, proveedor, ccosto, codigo, empresa]
+             SET fecha=$1, egreso=$2, banco=$3, beneficia=$4, ccosto=$5, cheque=$6
+             WHERE gasto=$7 AND empresa=$8`,
+            [fecha, total, forma_pago, proveedor, ccosto,
+             numero_cheque ? String(numero_cheque).trim() : null, codigo, empresa]
         );
 
         await client.query('COMMIT');
@@ -11105,12 +11127,13 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
                     g.forma_pago, COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                     g.cuenta, cta.cuenta as cuenta_nombre,
                     g.concepto, g.subtotal, g.impuestos, g.total, g.empresa,
-                    g.estado, g.entrada_almacen, g.origen
+                    g.estado, g.entrada_almacen, g.origen, mb.cheque as numero_cheque
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
              LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND cc.empresa = g.empresa
              LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
              LEFT JOIN cuentas cta ON g.cuenta = cta.codigo AND cta.empresa = g.empresa
+             LEFT JOIN moviban mb ON mb.gasto = g.codigo AND mb.empresa = g.empresa
              WHERE g.codigo = $1 AND g.empresa = $2`,
             [codigo, empresa]
         );
