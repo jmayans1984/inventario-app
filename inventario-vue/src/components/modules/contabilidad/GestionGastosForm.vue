@@ -475,7 +475,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════
          SUB-DIALOG: ENTRADA DE ALMACÉN — MATERIA PRIMA
     ═══════════════════════════════════════════════════════════════════ -->
-    <v-dialog v-model="mpDialogOpen" max-width="800" scrollable persistent>
+    <v-dialog v-model="mpDialogOpen" max-width="1100" scrollable persistent>
       <v-card rounded="xl" class="wiz-card" @keydown.esc.stop="pedirConfirmarCierreMp">
         <div class="wiz-header" style="background: linear-gradient(135deg,var(--gold),var(--gold-strong))">
           <div class="wiz-header-icon">
@@ -531,6 +531,16 @@
                 </span>
               </template>
             </v-checkbox>
+          </div>
+
+          <!-- Header de columnas -->
+          <div class="mp-header-row">
+            <div class="mp-col-producto">Producto / Artículo</div>
+            <div class="mp-col-presentaciones"></div>
+            <div class="mp-col-cantidad">Cantidad</div>
+            <div class="mp-col-costo">Vr. Unitario</div>
+            <div class="mp-col-subtotal">Subtotal</div>
+            <div class="mp-col-eliminar"></div>
           </div>
 
           <!-- Items — una línea compacta por producto -->
@@ -1979,10 +1989,26 @@ function cerrar() {
 }
 .mp-items { display: flex; flex-direction: column; gap: 8px; }
 
+/* Header de columnas */
+.mp-header-row {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.65fr 0.75fr 0.75fr 50px;
+  gap: 8px;
+  align-items: center;
+  padding: 0 10px 10px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.1);
+  margin-bottom: 4px;
+}
+
 /* Una línea por producto — compacta y horizontal */
 .mp-item-row {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr 0.7fr 0.7fr 0.7fr 50px;
+  grid-template-columns: 2fr 0.8fr 0.65fr 0.75fr 0.75fr 50px;
   gap: 8px;
   align-items: start;
   padding: 10px;
@@ -2062,7 +2088,7 @@ function cerrar() {
 
 .mp-total-row {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr 0.7fr 0.7fr 0.7fr 50px;
+  grid-template-columns: 2fr 0.8fr 0.65fr 0.75fr 0.75fr 50px;
   gap: 8px;
   align-items: center;
   padding: 14px 10px;
@@ -2075,7 +2101,7 @@ function cerrar() {
   letter-spacing: 0.4px;
   color: rgba(var(--v-theme-on-surface), 0.8);
 }
-.mp-total-row span:first-child { grid-column: 1 / 5; }
+.mp-total-row span:first-child { grid-column: 1 / 4; }
 .mp-total-val {
   grid-column: 5;
   font-family: var(--font-mono);
