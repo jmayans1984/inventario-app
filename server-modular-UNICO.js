@@ -16104,7 +16104,7 @@ app.get('/api/empresas/bodega-maestra', async (req, res) => {
                     COALESCE(e.pct_imprevisto_despachos, 0) AS pct_imprevisto_despachos,
                     cc.codigo AS centro_costo_codigo, cc.nombre AS centro_costo_nombre
              FROM empresas e
-             LEFT JOIN ccostos cc ON cc.codigo = e.bodega_maestra
+             LEFT JOIN ccostos cc ON cc.codigo = e.bodega_maestra AND cc.empresa::text = e.codigo::text
              WHERE e.codigo = $1`,
             [empresaCod]
         );
@@ -17259,7 +17259,7 @@ app.get('/api/nomina/semanas/:id/detalle', async (req, res) => {
                     COALESCE(cc.nombre, sd.ccosto) AS ccosto_nombre
              FROM nom_semana_detalle sd
              JOIN nom_empleados e ON e.id = sd.empleado_id
-             LEFT JOIN ccostos cc ON cc.codigo = sd.ccosto
+             LEFT JOIN ccostos cc ON cc.codigo = sd.ccosto AND cc.empresa::text = e.empresa::text
              WHERE sd.semana_id = $1
              ORDER BY e.apellido, e.nombre, sd.fecha`,
             [req.params.id]

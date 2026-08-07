@@ -52,7 +52,7 @@
               <span>{{ totalHorasCcosto(cc.codigo) }}h esta semana</span>
             </div>
             <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-              <v-btn v-if="horarioConfigs.length > 1" size="x-small" variant="outlined" color="secondary" @click="abrirDialogPlantillaParaCC(cc)">
+              <v-btn v-if="horarioConfigs.length" size="x-small" variant="outlined" color="secondary" @click="abrirDialogPlantillaParaCC(cc)">
                 <v-icon size="12" class="mr-1">mdi-file-document</v-icon> Plantilla
               </v-btn>
               <v-btn v-if="semanaActual && semanaActual.estado==='BORRADOR'" size="x-small" variant="outlined" color="secondary" :loading="copiando" @click="copiarSemanaAnteriorPorCC(cc.codigo)">
@@ -589,7 +589,7 @@ const horaEntradaEditDia  = ref('')
 const horaSalidaEditDia   = ref('')
 const guardandoDiaMasivo  = ref(false)
 const empleadosConTurnoEnDia = computed(() => {
-  if (!offsetEditDia.value || !ccostoEditDia.value.codigo) return 0
+  if (offsetEditDia.value === null || !ccostoEditDia.value.codigo) return 0
   const emps = empleadosParaCcosto(ccostoEditDia.value.codigo)
   let count = 0
   emps.forEach(emp => {
