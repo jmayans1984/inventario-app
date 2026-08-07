@@ -77,9 +77,23 @@
               <p class="empty-text">No hay gastos registrados</p>
             </td>
           </tr>
-          <tr v-for="gasto in paginatedGastos" :key="gasto.codigo + '_' + gasto.fecha" class="table-row">
+          <tr
+            v-for="gasto in paginatedGastos"
+            :key="gasto.codigo + '_' + gasto.fecha"
+            class="table-row"
+            :class="{ 'row-agrupada': !!grupoDe(gasto) }"
+            :style="grupoDe(gasto) ? { '--grupo-color': grupoDe(gasto).color } : {}"
+          >
             <td class="td-codigo">
               <span class="badge-codigo">{{ gasto.codigo }}</span>
+              <span
+                v-if="grupoDe(gasto)"
+                class="badge-grupo"
+                :style="{ background: grupoDe(gasto).color + '22', color: grupoDe(gasto).color }"
+                :title="`Misma factura / forma de pago · ${grupoDe(gasto).count} líneas · Total ${formatMoneda(grupoDe(gasto).total)} · Códigos: ${grupoDe(gasto).codigos.join(', ')}`"
+              >
+                <v-icon size="11">mdi-link-variant</v-icon>{{ grupoDe(gasto).count }}
+              </span>
             </td>
             <td class="td-fecha">{{ formatFecha(gasto.fecha) }}</td>
             <td class="td-proveedor">
@@ -423,6 +437,43 @@ function imprimirEntradasLegacy() {
   setTimeout(() => { win.print(); win.close() }, 400)
 }
 
+// ── Agrupación visual de gastos que pertenecen a la misma factura ──
+// Un solo POST /gastos/multiple crea N filas en `gastos` (una por línea de
+// centro de costo / cuenta contable) pero comparten fecha + proveedor +
+// forma de pago + factura. Como no hay una columna que los vincule, se
+// agrupan aquí por esa combinación para poder distinguirlos en la grilla.
+const COLORES_GRUPO = ['#6366f1', '#10b981', '#f0a83c', '#ec4899', '#06b6d4', '#8b5cf6', '#f43f5e', '#22c55e']
+
+const gruposFactura = computed(() => {
+  const grupos = new Map()
+  for (const g of store.gastos) {
+    if (!g.proveedor || g.proveedor === '0') continue
+    const facturaKey = (g.factura || '').trim().toUpperCase()
+    if (!facturaKey) continue // sin número de factura no hay forma confiable de vincular
+    const key = [g.empresa, g.fecha, g.proveedor, g.forma_pago, facturaKey].join('|')
+    if (!grupos.has(key)) grupos.set(key, [])
+    grupos.get(key).push(g)
+  }
+
+  const porCodigo = new Map()
+  let colorSeq = 0
+  for (const arr of grupos.values()) {
+    if (arr.length < 2) continue
+    const color = COLORES_GRUPO[colorSeq % COLORES_GRUPO.length]
+    colorSeq++
+    const total = arr.reduce((s, g) => s + (parseFloat(g.total) || 0), 0)
+    const codigos = arr.map(g => g.codigo)
+    for (const g of arr) {
+      porCodigo.set(g.codigo, { color, count: arr.length, total, codigos })
+    }
+  }
+  return porCodigo
+})
+
+function grupoDe(gasto) {
+  return gruposFactura.value.get(gasto.codigo) || null
+}
+
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(25)
@@ -729,6 +780,16 @@ async function exportarExcel() {
   box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.1);
 }
 
+/* Filas que pertenecen a la misma factura (varios centros de costo / cuentas) */
+.data-table tbody tr.row-agrupada {
+  box-shadow: inset 3px 0 0 0 var(--grupo-color);
+}
+
+.data-table tbody tr.row-agrupada:hover {
+  background: color-mix(in srgb, var(--grupo-color) 8%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--grupo-color), inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.1);
+}
+
 .data-table tbody td {
   padding: 13px 10px;
   color: rgb(var(--v-theme-on-surface));
@@ -759,6 +820,19 @@ async function exportarExcel() {
   font-size: 11px;
   letter-spacing: 0.3px;
   display: inline-block;
+}
+
+.badge-grupo {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 5px;
+  padding: 2px 6px 2px 4px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 10px;
+  vertical-align: middle;
+  cursor: default;
 }
 
 .td-fecha {
