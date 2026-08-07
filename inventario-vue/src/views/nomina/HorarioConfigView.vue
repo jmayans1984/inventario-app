@@ -70,8 +70,8 @@
                 <input v-model="editForm.dias[dia.num].hora_fin" type="time" class="drw-input" style="width:110px"/>
               </div>
               <label class="cfg-edit-check">
-                <input type="checkbox" v-model="editForm.dias[dia.num].cruza_medianoche"/>
-                <span>Pasa medianoche</span>
+                <input type="checkbox" :checked="editForm.dias[dia.num].cruza_medianoche" disabled style="opacity:0.6"/>
+                <span style="opacity:0.6">Pasa medianoche</span>
               </label>
               <div class="cfg-edit-time">
                 <label>Horas (automático)</label>
@@ -172,23 +172,27 @@ function editar(c) {
   dlg.value = true
 }
 
-function calcularHoras(hora_inicio, hora_fin, cruza_medianoche) {
+// Las horas salen SOLO de entrada/salida. El flag "pasa medianoche" se deriva
+// del mismo dato: usarlo como entrada haría que un turno 17:30-23:30 con el
+// check marcado sumara 24h de más.
+function calcularHoras(hora_inicio, hora_fin) {
   if (!hora_inicio || !hora_fin) return 0
   const [h1, m1] = hora_inicio.split(':').map(Number)
   const [h2, m2] = hora_fin.split(':').map(Number)
+  if ([h1,m1,h2,m2].some(Number.isNaN)) return 0
   let minutos = (h2 * 60 + m2) - (h1 * 60 + m1)
-  if (minutos < 0 || cruza_medianoche) minutos += 24 * 60
+  if (minutos <= 0) minutos += 24 * 60
   return parseFloat((minutos / 60).toFixed(2))
 }
 
 watch(() => editForm.value.dias, (newDias) => {
   DIAS.forEach(dia => {
-    if (newDias[dia.num]?.activo && newDias[dia.num].hora_inicio && newDias[dia.num].hora_fin) {
-      newDias[dia.num].horas_default = calcularHoras(
-        newDias[dia.num].hora_inicio,
-        newDias[dia.num].hora_fin,
-        newDias[dia.num].cruza_medianoche
-      )
+    const d = newDias[dia.num]
+    if (d?.activo && d.hora_inicio && d.hora_fin) {
+      const horas = calcularHoras(d.hora_inicio, d.hora_fin)
+      const cruza = d.hora_fin.slice(0,5) <= d.hora_inicio.slice(0,5)
+      if (d.horas_default !== horas) d.horas_default = horas
+      if (d.cruza_medianoche !== cruza) d.cruza_medianoche = cruza
     }
   })
 }, { deep: true })

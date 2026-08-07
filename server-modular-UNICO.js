@@ -16909,6 +16909,21 @@ app.post('/api/nomina/empleados/:id/historial', async (req, res) => {
 });
 
 // ── CONFIGURACIÓN DE HORARIOS ────────────────────────────────────
+// Las horas de un turno SIEMPRE se derivan de entrada/salida. horas_default y
+// cruza_medianoche son datos redundantes: si se guardan tal como los manda el
+// cliente pueden quedar desalineados con las horas reales (p.ej. 17:30-23:30
+// guardado como 6.50h) y ese error se propaga a cada turno generado.
+function horasEntre(horaInicio, horaFin) {
+    if (!horaInicio || !horaFin) return { horas: null, cruza: false };
+    const [h1, m1] = String(horaInicio).slice(0, 5).split(':').map(Number);
+    const [h2, m2] = String(horaFin).slice(0, 5).split(':').map(Number);
+    if ([h1, m1, h2, m2].some(n => Number.isNaN(n))) return { horas: null, cruza: false };
+    let minutos = (h2 * 60 + m2) - (h1 * 60 + m1);
+    const cruza = minutos <= 0;
+    if (cruza) minutos += 24 * 60;
+    return { horas: parseFloat((minutos / 60).toFixed(2)), cruza };
+}
+
 app.get('/api/nomina/horario-config', async (req, res) => {
     const { empresa } = req.query;
     try {
@@ -16924,9 +16939,15 @@ app.get('/api/nomina/horario-config', async (req, res) => {
             );
             dias = d.rows;
         }
+        // Recalcular horas/cruza desde entrada-salida por si hay filas antiguas
+        // desalineadas (guardadas antes de que el servidor normalizara al escribir)
         const data = configs.rows.map(c => ({
             ...c,
-            dias: dias.filter(d => d.config_id === c.id)
+            dias: dias.filter(d => d.config_id === c.id).map(d => {
+                const calc = horasEntre(d.hora_inicio, d.hora_fin);
+                return calc.horas === null ? d
+                     : { ...d, horas_default: calc.horas, cruza_medianoche: calc.cruza };
+            })
         }));
         res.json({ success: true, data });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
@@ -16942,11 +16963,12 @@ app.post('/api/nomina/horario-config', async (req, res) => {
         const configId = r.rows[0].id;
         if (dias?.length) {
             for (const d of dias) {
+                const calc = horasEntre(d.hora_inicio, d.hora_fin);
                 await pool.query(
                     `INSERT INTO nom_horario_config_dia (config_id,dia_semana,hora_inicio,hora_fin,cruza_medianoche,horas_default,activo)
                      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
                     [configId, d.dia_semana, d.hora_inicio||null, d.hora_fin||null,
-                     d.cruza_medianoche||false, d.horas_default||null, d.activo!==false]
+                     calc.cruza, calc.horas, d.activo!==false]
                 );
             }
         }
@@ -16962,11 +16984,12 @@ app.put('/api/nomina/horario-config/:id', async (req, res) => {
         if (dias?.length) {
             await pool.query('DELETE FROM nom_horario_config_dia WHERE config_id=$1', [req.params.id]);
             for (const d of dias) {
+                const calc = horasEntre(d.hora_inicio, d.hora_fin);
                 await pool.query(
                     `INSERT INTO nom_horario_config_dia (config_id,dia_semana,hora_inicio,hora_fin,cruza_medianoche,horas_default,activo)
                      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
                     [req.params.id, d.dia_semana, d.hora_inicio||null, d.hora_fin||null,
-                     d.cruza_medianoche||false, d.horas_default||null, d.activo!==false]
+                     calc.cruza, calc.horas, d.activo!==false]
                 );
             }
         }
@@ -17392,6 +17415,7 @@ app.post('/api/nomina/semanas/:id/generar', async (req, res) => {
                 const diaSemana = i + 1; // 1=Mon..7=Sun
                 const diaConfig = diasConfig.find(d => d.dia_semana === diaSemana);
                 const fechaStr = fecha.toISOString().split('T')[0];
+                const calc = horasEntre(diaConfig?.hora_inicio, diaConfig?.hora_fin);
 
                 // Skip if already exists
                 const exists = await pool.query(
@@ -17407,9 +17431,9 @@ app.post('/api/nomina/semanas/:id/generar', async (req, res) => {
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
                     [s.id, emp.id, fechaStr, emp.ccosto,
                      diaConfig?.hora_inicio||null, diaConfig?.hora_fin||null,
-                     diaConfig?.horas_default||null, diaConfig?.cruza_medianoche||false,
+                     calc.horas, calc.cruza,
                      diaConfig?.hora_inicio||null, diaConfig?.hora_fin||null,
-                     diaConfig?.horas_default||null, !diaConfig]
+                     calc.horas, !diaConfig]
                 );
             }
         }

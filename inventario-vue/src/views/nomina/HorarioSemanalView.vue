@@ -756,6 +756,17 @@ function addDays(dateStr, days) {
 
 function fmtHoras(v) { return parseFloat(v ?? 0).toFixed(2) }
 
+// Horas entre dos HH:MM. Si la salida es <= entrada, el turno cruza medianoche.
+function horasEntre(horaInicio, horaFin) {
+  if (!horaInicio || !horaFin) return 0
+  const [h1, m1] = String(horaInicio).slice(0,5).split(':').map(Number)
+  const [h2, m2] = String(horaFin).slice(0,5).split(':').map(Number)
+  if ([h1,m1,h2,m2].some(Number.isNaN)) return 0
+  let mins = (h2 * 60 + m2) - (h1 * 60 + m1)
+  if (mins <= 0) mins += 24 * 60
+  return parseFloat((mins / 60).toFixed(2))
+}
+
 function calcularHorasAuto() {
   if (!turnoEdit.value?.real_inicio || !turnoEdit.value?.real_fin) return
   const [h1, m1] = turnoEdit.value.real_inicio.split(':').map(Number)
@@ -913,14 +924,15 @@ async function aplicarPlantillaYCerrar(event) {
         )
 
         if (!turnoExistente && diaConfig && diaConfig.activo) {
-          // Crear turno
+          // Crear turno. Las horas se derivan de entrada/salida, NO de
+          // horas_default: ese campo puede estar desalineado con las horas.
           await api.post('/nomina/semanas/detalle', {
             semana_id: semanaActual.value.id,
             empleado_id: emp.id,
             fecha: fecha,
             real_inicio: diaConfig.hora_inicio || null,
             real_fin: diaConfig.hora_fin || null,
-            real_horas: diaConfig.horas_default || 0,
+            real_horas: horasEntre(diaConfig.hora_inicio, diaConfig.hora_fin),
             ccosto: ccCodigo,
             es_dia_libre: false,
             ausencia_tipo: '',
