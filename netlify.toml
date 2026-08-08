@@ -1,3 +1,11 @@
 [build]
-command = "cd inventario-vue && npm ci && npm run build && cd .. && mkdir -p public && cp index.html public/ && cp .nojekyll public/ && cp -r assets public/ && cp -r light public/ && cp -r completa public/"
+# La carpeta completa/ va versionada en el repo: `npm run build` se corre en
+# local antes de cada commit. Netlify solo tiene que copiar los archivos —
+# volver a instalar dependencias y compilar aquí regeneraría exactamente lo
+# mismo y se come minutos de build en cada push.
+#
+# IMPORTANTE: si commiteas cambios en inventario-vue/src sin correr antes
+#   npm run build --prefix inventario-vue
+# el sitio publicado queda con la versión anterior.
+command = "mkdir -p public && cp index.html public/ && cp .nojekyll public/ && cp -r assets public/ && cp -r light public/ && cp -r completa public/"
 publish = "public"

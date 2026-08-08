@@ -1,4 +1,9 @@
-export const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api'
+// En desarrollo se usa el proxy de Vite (ver vite.config.js): así `npm run dev`
+// puede apuntar al backend de producción o a uno local sin tocar código.
+// En producción, la URL real. Mismo criterio que services/api.js.
+export const API_BASE = import.meta.env.PROD
+  ? 'https://inventario-app-production-e8c8.up.railway.app/api'
+  : '/api'
 
 export const APP_VERSION = __APP_VERSION__
 
