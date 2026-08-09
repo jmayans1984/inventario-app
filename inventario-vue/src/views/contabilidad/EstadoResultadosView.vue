@@ -143,6 +143,7 @@
                                   <th>CONCEPTO</th>
                                   <th>FORMA PAGO</th>
                                   <th class="dt-r">TOTAL</th>
+                                  <th class="dt-acc"></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -154,12 +155,18 @@
                                   <td class="dt-concepto">{{ gasto.concepto || '—' }}</td>
                                   <td>{{ gasto.forma_pago_nombre || '—' }}</td>
                                   <td class="dt-r">{{ fmt(gasto.total) }}</td>
+                                  <td class="dt-acc">
+                                    <button class="dt-edit-btn" title="Editar gasto" @click.stop="abrirEdicion(gasto)">
+                                      <v-icon size="14">mdi-pencil</v-icon>
+                                    </button>
+                                  </td>
                                 </tr>
                               </tbody>
                               <tfoot>
                                 <tr class="dt-total-row">
                                   <td colspan="6" class="dt-r dt-total-label">TOTAL {{ g.cuentas.find(x => x.codigo === c.codigo)?.nombre }}</td>
                                   <td class="dt-r">{{ fmt(gastosCache[c.codigo].reduce((s, x) => s + parseFloat(x.total || 0), 0)) }}</td>
+                                  <td></td>
                                 </tr>
                               </tfoot>
                             </table>
@@ -202,6 +209,21 @@
       </div>
 
     </div>
+
+    <!-- Modal edición de gasto desde el detalle -->
+    <GestionGastosForm
+      :open="editModalOpen"
+      :gasto="gastoEditando"
+      @update:open="editModalOpen = $event"
+      @close="gastoEditando = null"
+      @guardar="handleGuardadoGasto"
+    />
+
+    <!-- Overlay de carga al abrir edición -->
+    <v-overlay :model-value="loadingEdit" class="d-flex align-center justify-center" scrim="rgba(0,0,0,0.3)">
+      <v-progress-circular indeterminate color="white" size="36" />
+    </v-overlay>
+
   </MainLayout>
 </template>
 
@@ -210,6 +232,7 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import KpiCard from '../../components/common/KpiCard.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
+import GestionGastosForm from '../../components/modules/contabilidad/GestionGastosForm.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
 import jsPDF from 'jspdf'
@@ -231,6 +254,11 @@ const empresaInfo  = ref({})
 const expandedCuentas  = ref(new Set())
 const gastosCache      = ref({})
 const loadingDetalle   = ref({})
+
+// Edición de gasto desde el detalle
+const editModalOpen  = ref(false)
+const gastoEditando  = ref(null)
+const loadingEdit    = ref(false)
 
 const modo = ref('mensual')
 
@@ -319,6 +347,34 @@ async function toggleCuenta(cuenta) {
     gastosCache.value = { ...gastosCache.value, [codigo]: [] }
   } finally {
     loadingDetalle.value = { ...loadingDetalle.value, [codigo]: false }
+  }
+}
+
+// ── Edición desde el detalle ─────────────────────────────────────────────────
+async function abrirEdicion(gasto) {
+  loadingEdit.value = true
+  try {
+    const res = await fetch(`${API_BASE}/contabilidad/gastos/${gasto.codigo}?empresa=${empresa.value}`)
+    const j = await res.json()
+    if (j.success) {
+      gastoEditando.value = j.data
+      editModalOpen.value = true
+    }
+  } finally {
+    loadingEdit.value = false
+  }
+}
+
+function handleGuardadoGasto(gastoActualizado) {
+  // Actualizar el gasto en todos los cachés donde aparezca
+  for (const cuenta in gastosCache.value) {
+    const lista = gastosCache.value[cuenta]
+    const idx = lista.findIndex(g => g.codigo === gastoActualizado.codigo)
+    if (idx !== -1) {
+      const nuevaLista = [...lista]
+      nuevaLista[idx] = { ...nuevaLista[idx], ...gastoActualizado }
+      gastosCache.value = { ...gastosCache.value, [cuenta]: nuevaLista }
+    }
   }
 }
 
@@ -707,6 +763,15 @@ async function generarPDF() {
   white-space: nowrap;
 }
 .detalle-table tfoot td { padding: 5px 8px; }
+.dt-acc { width: 28px; padding: 0 4px !important; }
+.dt-edit-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 4px; border: none;
+  background: transparent; cursor: pointer; opacity: 0;
+  color: var(--ink-400); transition: opacity 0.15s, background 0.15s;
+}
+.detalle-table tbody tr:hover .dt-edit-btn { opacity: 1; }
+.dt-edit-btn:hover { background: rgba(var(--v-theme-on-surface), 0.08); color: var(--indigo); }
 .dt-r { text-align: right; }
 .dt-fecha { color: rgba(var(--v-theme-on-surface), 0.6); min-width: 70px; }
 .dt-fac { font-weight: 600; color: var(--indigo); font-size: 10px; }
