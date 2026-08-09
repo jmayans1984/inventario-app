@@ -10813,8 +10813,22 @@ app.get('/api/contabilidad/gastos/verificar-factura', async (req, res) => {
         const params = [empresa, proveedor, factura.trim()];
         let where = 'WHERE g.empresa = $1 AND g.proveedor = $2 AND UPPER(g.factura) = UPPER($3)';
         if (excluir_codigo) {
-            params.push(String(excluir_codigo).trim());
-            where += ` AND TRIM(g.codigo) <> $${params.length}`;
+            // El gasto que se edita puede ser una de varias líneas repartidas de una
+            // misma factura (creadas juntas vía /gastos/multiple: comparten fecha,
+            // proveedor, forma de pago y factura — el mismo criterio de agrupación
+            // que usa la tabla en pantalla). Esas líneas hermanas no son un
+            // duplicado real, así que se excluye todo el grupo, no solo su código.
+            const selfRes = await pool.query(
+                `SELECT fecha, forma_pago FROM gastos WHERE TRIM(codigo) = $1 AND empresa = $2`,
+                [String(excluir_codigo).trim(), empresa]
+            );
+            if (selfRes.rows.length) {
+                params.push(selfRes.rows[0].fecha, selfRes.rows[0].forma_pago);
+                where += ` AND NOT (g.fecha = $${params.length - 1} AND g.forma_pago = $${params.length})`;
+            } else {
+                params.push(String(excluir_codigo).trim());
+                where += ` AND TRIM(g.codigo) <> $${params.length}`;
+            }
         }
         const r = await pool.query(
             `SELECT g.codigo, g.fecha, g.total, g.concepto
