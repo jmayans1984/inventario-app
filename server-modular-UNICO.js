@@ -10623,25 +10623,24 @@ app.get('/api/contabilidad/gastos/por-cuenta', async (req, res) => {
         const { empresa, cuenta, mes, anio, ccosto } = req.query;
         if (!empresa || !cuenta) return res.status(400).json({ success: false, error: 'empresa y cuenta requeridos' });
 
-        let fechaDesde, fechaHasta;
+        const emp = parseInt(empresa);  // mismo cast que estado-resultados
+
+        let rangoDesde, rangoHasta;
         if (mes) {
             const [y, m] = mes.split('-').map(Number);
-            fechaDesde = new Date(Date.UTC(y, m - 1, 1));
-            fechaHasta = new Date(Date.UTC(y, m, 0));
+            const ultimoDia = new Date(y, m, 0).getDate();
+            rangoDesde = `${y}-${String(m).padStart(2,'0')}-01`;
+            rangoHasta = `${y}-${String(m).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}`;
         } else if (anio) {
             const y = Number(anio);
-            fechaDesde = new Date(Date.UTC(y, 0, 1));
-            fechaHasta = new Date(Date.UTC(y, 11, 31));
+            rangoDesde = `${y}-01-01`;
+            rangoHasta = `${y}-12-31`;
         } else {
             return res.status(400).json({ success: false, error: 'mes o anio requerido' });
         }
 
-        const params = [
-            empresa, cuenta,
-            fechaDesde.toISOString().slice(0, 10),
-            fechaHasta.toISOString().slice(0, 10)
-        ];
-
+        // Usar CAST para que el tipo de g.cuenta no genere mismatch
+        const params = [emp, rangoDesde, rangoHasta];
         let query = `
             SELECT
                 g.codigo,
@@ -10660,14 +10659,15 @@ app.get('/api/contabilidad/gastos/por-cuenta', async (req, res) => {
             LEFT JOIN ccostos           cc ON g.ccosto     = cc.codigo AND cc.empresa = g.empresa
             LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
             WHERE g.empresa = $1
-              AND g.cuenta  = $2
-              AND g.fecha  >= $3
-              AND g.fecha  <= $4
+              AND g.fecha  >= $2
+              AND g.fecha  <= $3
+              AND CAST(g.cuenta AS TEXT) = CAST($4 AS TEXT)
         `;
+        params.push(cuenta);
 
         if (ccosto) {
             params.push(ccosto);
-            query += ` AND g.ccosto = $${params.length}`;
+            query += ` AND CAST(g.ccosto AS TEXT) = CAST($${params.length} AS TEXT)`;
         }
 
         query += ` ORDER BY g.fecha DESC, g.codigo DESC`;
