@@ -51,8 +51,8 @@
         <!-- KPI CARDS -->
         <div class="kpi-grid">
           <KpiCard :index="0" label="Saldo Inicial Conciliado" :value="formatMoneda(store.saldoInicialConciliado)" icon="mdi-bank-check" color="var(--indigo)" hint="Balance ya conciliado" />
-          <KpiCard :index="1" label="Ingresos por Conciliar" :value="formatMoneda(store.ingresosPendientes)" icon="mdi-arrow-down-circle" color="var(--success)" :hint="`${store.movimientos.filter(m => m.ingreso > 0).length} movimientos`" />
-          <KpiCard :index="2" label="Egresos por Conciliar" :value="formatMoneda(store.egresosPendientes)" icon="mdi-arrow-up-circle" color="var(--gold)" :hint="`${store.movimientos.filter(m => m.egreso > 0).length} movimientos`" />
+          <KpiCard :index="1" label="Ingresos por Conciliar" :value="formatMoneda(store.ingresosPendientes)" icon="mdi-arrow-down-circle" color="var(--success)" :hint="`${store.movimientos.filter(m => m.ingreso > 0 && m.conciliado !== 'SI').length} movimientos`" />
+          <KpiCard :index="2" label="Egresos por Conciliar" :value="formatMoneda(store.egresosPendientes)" icon="mdi-arrow-up-circle" color="var(--gold)" :hint="`${store.movimientos.filter(m => m.egreso > 0 && m.conciliado !== 'SI').length} movimientos`" />
           <KpiCard
             :index="3"
             label="Saldo Final Conciliado"
@@ -76,6 +76,20 @@
                 class="search-input"
               />
             </div>
+            <div class="toggle-conciliados-wrap">
+              <label class="toggle-conciliados-label">
+                <input
+                  type="checkbox"
+                  v-model="mostrarConciliados"
+                  @change="onToggleConciliados"
+                  class="toggle-check"
+                />
+                <span class="toggle-track" :class="{ 'toggle-track--on': mostrarConciliados }">
+                  <span class="toggle-thumb" />
+                </span>
+                <span class="toggle-text">Mostrar conciliados</span>
+              </label>
+            </div>
             <v-btn
               variant="text"
               prepend-icon="mdi-refresh"
@@ -97,7 +111,7 @@
                       type="checkbox"
                       :checked="todoSeleccionado"
                       @change="toggleTodos"
-                      :disabled="movimientosFiltrados.length === 0"
+                      :disabled="pendientesFiltrados.length === 0"
                     />
                   </th>
                   <th class="col-numero">NÚMERO</th>
@@ -107,18 +121,19 @@
                   <th class="col-cheque">CHEQUE / REF</th>
                   <th class="col-ingreso">INGRESO</th>
                   <th class="col-egreso">EGRESO</th>
+                  <th v-if="mostrarConciliados" class="col-estado">ESTADO</th>
                   <th class="col-acciones">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="store.loading">
-                  <td colspan="9" class="tabla-empty">
+                  <td :colspan="mostrarConciliados ? 10 : 9" class="tabla-empty">
                     <v-progress-circular indeterminate color="primary" size="28" />
                     <p class="empty-text mt-2">Cargando movimientos...</p>
                   </td>
                 </tr>
                 <tr v-else-if="movimientosFiltrados.length === 0">
-                  <td colspan="9" class="tabla-empty">
+                  <td :colspan="mostrarConciliados ? 10 : 9" class="tabla-empty">
                     <v-icon size="32" class="empty-icon">mdi-check-circle-outline</v-icon>
                     <p class="empty-text">No hay movimientos pendientes de conciliar</p>
                   </td>
@@ -127,12 +142,16 @@
                   v-for="mov in movimientosFiltrados"
                   :key="mov.numero"
                   class="tabla-row"
-                  :class="{ 'row-selected': selectedNros.includes(mov.numero) }"
+                  :class="{
+                    'row-selected': selectedNros.includes(mov.numero),
+                    'row-conciliado': mov.conciliado === 'SI'
+                  }"
                 >
                   <td class="col-checkbox">
                     <input
                       type="checkbox"
                       :checked="selectedNros.includes(mov.numero)"
+                      :disabled="mov.conciliado === 'SI'"
                       @change="toggleSeleccion(mov.numero)"
                     />
                   </td>
@@ -158,8 +177,18 @@
                     </span>
                     <span v-else class="text-muted">-</span>
                   </td>
+                  <td v-if="mostrarConciliados" class="col-estado">
+                    <v-chip
+                      :color="mov.conciliado === 'SI' ? 'success' : 'warning'"
+                      variant="flat"
+                      size="small"
+                    >
+                      {{ mov.conciliado === 'SI' ? 'CONCILIADO' : 'PENDIENTE' }}
+                    </v-chip>
+                  </td>
                   <td class="col-acciones">
                     <v-btn
+                      v-if="mov.conciliado !== 'SI'"
                       icon="mdi-check-circle-outline"
                       size="x-small"
                       variant="text"
@@ -167,6 +196,16 @@
                       @click="marcar(mov.numero)"
                       :loading="store.loading"
                       title="Marcar como conciliado"
+                    />
+                    <v-btn
+                      v-else
+                      icon="mdi-close-circle-outline"
+                      size="x-small"
+                      variant="text"
+                      color="warning"
+                      @click="revertir(mov.numero)"
+                      :loading="store.loading"
+                      title="Revertir a pendiente"
                     />
                   </td>
                 </tr>
@@ -199,27 +238,33 @@ const cuentasStore = useCuentasBancariasStore()
 const searchQuery = ref('')
 const selectedNros = ref([])
 const cuentaSeleccionada = ref(null)
+const mostrarConciliados = ref(false)
 
 // Solo cuentas ACTIVAS para el combobox
 const cuentasActivas = computed(() =>
   cuentasStore.cuentas.filter(c => c.estado === 'ACTIVA')
 )
 
-// Movimientos filtrados por búsqueda
+// Todos los movimientos filtrados por búsqueda (incluye conciliados si el toggle está ON)
 const movimientosFiltrados = computed(() => {
-  if (!searchQuery.value.trim()) return store.movimientos
-  const q = searchQuery.value.toLowerCase()
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return store.movimientos
   return store.movimientos.filter(m =>
-    (m.numero && m.numero.toLowerCase().includes(q)) ||
+    (m.numero && String(m.numero).toLowerCase().includes(q)) ||
     (m.beneficia && m.beneficia.toLowerCase().includes(q)) ||
     (m.concepto && m.concepto.toLowerCase().includes(q)) ||
-    (m.cheque && m.cheque.toLowerCase().includes(q))
+    (m.cheque && String(m.cheque).toLowerCase().includes(q))
   )
 })
 
+// Solo pendientes dentro de los filtrados (para checkbox header y bulk action)
+const pendientesFiltrados = computed(() =>
+  movimientosFiltrados.value.filter(m => m.conciliado !== 'SI')
+)
+
 const todoSeleccionado = computed(() =>
-  movimientosFiltrados.value.length > 0 &&
-  selectedNros.value.length === movimientosFiltrados.value.length
+  pendientesFiltrados.value.length > 0 &&
+  selectedNros.value.length === pendientesFiltrados.value.length
 )
 
 // Al cambiar cuenta → cargar movimientos
@@ -250,7 +295,7 @@ function toggleTodos() {
   if (todoSeleccionado.value) {
     selectedNros.value = []
   } else {
-    selectedNros.value = movimientosFiltrados.value.map(m => m.numero)
+    selectedNros.value = pendientesFiltrados.value.map(m => m.numero)
   }
 }
 
@@ -261,6 +306,22 @@ async function marcar(numero) {
     if (idx >= 0) selectedNros.value.splice(idx, 1)
   } catch (err) {
     console.error('Error al conciliar:', err)
+  }
+}
+
+async function revertir(numero) {
+  try {
+    await store.marcarPendiente(numero)
+  } catch (err) {
+    console.error('Error al revertir:', err)
+  }
+}
+
+async function onToggleConciliados() {
+  selectedNros.value = []
+  store.setIncluyeConciliados(mostrarConciliados.value)
+  if (cuentaSeleccionada.value) {
+    await store.fetchMovimientos()
   }
 }
 
@@ -336,4 +397,28 @@ onMounted(async () => {
 .tabla-empty { text-align: center !important; padding: 40px !important; }
 .empty-icon { color: rgba(var(--v-theme-on-surface), 0.2); display: block; margin: 0 auto 8px; }
 .empty-text { color: rgba(var(--v-theme-on-surface), 0.4); font-size: 14px; margin: 0; }
+
+.col-estado { width: 120px; }
+.row-conciliado td { opacity: 0.5; }
+.row-conciliado:hover td { opacity: 0.7; }
+
+/* Toggle "Mostrar conciliados" */
+.toggle-conciliados-wrap { display: flex; align-items: center; padding: 0 12px; }
+.toggle-conciliados-label { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.toggle-check { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: relative; width: 34px; height: 18px;
+  background: rgba(var(--v-theme-on-surface), 0.15);
+  border-radius: 9px; transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle-track--on { background: rgb(var(--v-theme-success, 76, 175, 80)); }
+.toggle-thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: left 0.2s;
+}
+.toggle-track--on .toggle-thumb { left: 18px; }
+.toggle-text { font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.7); white-space: nowrap; }
 </style>

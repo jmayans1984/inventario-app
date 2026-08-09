@@ -11,6 +11,7 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
   const selectedIds = ref([])
   const filtroEstado = ref('PENDIENTE')
   const bancoSeleccionado = ref(null)
+  const incluyeConciliados = ref(false)
 
   // Saldos del resumen
   const saldoInicialConciliado = ref(0)
@@ -49,9 +50,11 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     loading.value = true
     error.value = null
     try {
-      // Cargar movimientos pendientes y resumen en paralelo
+      // Cargar movimientos y resumen en paralelo
+      // Si incluyeConciliados: trae todos (null = sin filtro); si no, solo pendientes ('NO')
+      const filtroConc = incluyeConciliados.value ? null : 'NO'
       const [dataMovs, dataResumen] = await Promise.all([
-        conciliacionBancariaService.getMovimientos(bancoSeleccionado.value),
+        conciliacionBancariaService.getMovimientos(bancoSeleccionado.value, filtroConc),
         conciliacionBancariaService.getResumen(bancoSeleccionado.value)
       ])
       movimientos.value = Array.isArray(dataMovs) ? dataMovs : dataMovs.data || []
@@ -84,9 +87,12 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     error.value = null
     try {
       await conciliacionBancariaService.marcarConciliado(numero)
-      // Quitar de la lista (la vista solo muestra NO conciliados)
-      movimientos.value = movimientos.value.filter(m => m.numero !== numero)
-      // Actualizar resumen de KPIs
+      if (incluyeConciliados.value) {
+        const mov = movimientos.value.find(m => m.numero === numero)
+        if (mov) mov.conciliado = 'SI'
+      } else {
+        movimientos.value = movimientos.value.filter(m => m.numero !== numero)
+      }
       await actualizarResumen()
     } catch (err) {
       error.value = err.message
@@ -101,13 +107,23 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     error.value = null
     try {
       await conciliacionBancariaService.marcarPendiente(numero)
-      movimientos.value = movimientos.value.filter(m => m.numero !== numero)
+      if (incluyeConciliados.value) {
+        const mov = movimientos.value.find(m => m.numero === numero)
+        if (mov) mov.conciliado = 'NO'
+      } else {
+        movimientos.value = movimientos.value.filter(m => m.numero !== numero)
+      }
+      await actualizarResumen()
     } catch (err) {
       error.value = err.message
       throw err
     } finally {
       loading.value = false
     }
+  }
+
+  function setIncluyeConciliados(val) {
+    incluyeConciliados.value = val
   }
 
   async function marcarMultiplesConciliados() {
@@ -164,6 +180,7 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     selectedIds,
     filtroEstado,
     bancoSeleccionado,
+    incluyeConciliados,
     saldoInicialConciliado,
     ingresosPendientes,
     egresosPendientes,
@@ -185,6 +202,7 @@ export const useConciliacionBancariaStore = defineStore('conciliacionBancaria', 
     setSelectedIds,
     setFiltroEstado,
     setBanco,
+    setIncluyeConciliados,
     clearError,
   }
 })

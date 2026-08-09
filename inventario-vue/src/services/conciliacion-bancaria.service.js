@@ -22,15 +22,15 @@ export const conciliacionBancariaService = {
     }
   },
 
-  // Obtener movimientos por banco (conciliados y no conciliados)
-  async getMovimientos(banco = null, params = {}) {
+  // Obtener movimientos por banco
+  // conciliado: 'NO' = solo pendientes, 'SI' = solo conciliados, null = todos
+  async getMovimientos(banco = null, conciliado = 'NO') {
     try {
       const empresa = getEmpresaActiva()
-      const paramsConEmpresa = { ...params, empresa }
-      if (banco) paramsConEmpresa.banco = banco
-      // Por defecto trae solo los NO conciliados para la conciliación
-      paramsConEmpresa.conciliado = 'NO'
-      const response = await api.get(ENDPOINT, { params: paramsConEmpresa })
+      const params = { empresa }
+      if (banco) params.banco = banco
+      if (conciliado !== null) params.conciliado = conciliado
+      const response = await api.get(ENDPOINT, { params })
       return response.data
     } catch (error) {
       console.error('Error obteniendo movimientos:', error)
