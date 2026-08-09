@@ -109,12 +109,66 @@
                   <tr class="er-row-grupo-header">
                     <td :colspan="colCount">{{ g.nombre }}</td>
                   </tr>
-                  <tr v-for="c in g.cuentas" :key="c.codigo" class="er-row-cuenta">
-                    <td class="td-cuenta td-indent">{{ c.nombre }}</td>
-                    <td v-for="(v, i) in c.valores" :key="i" class="tr">{{ v === 0 ? '—' : fmt(v) }}</td>
-                    <td v-if="modo === 'anual'" class="tr font-weight-bold">{{ fmt(c.total) }}</td>
-                    <td class="tr td-pct"></td>
-                  </tr>
+                  <template v-if="g.cuentas.length" v-for="c in g.cuentas" :key="c.codigo">
+                    <tr
+                      class="er-row-cuenta er-row-expandible"
+                      :class="{ 'er-row-expanded': expandedCuentas.has(c.codigo) }"
+                      @click="toggleCuenta(c)"
+                    >
+                      <td class="td-cuenta td-indent">
+                        <span class="expand-icon" :class="{ 'expand-icon--open': expandedCuentas.has(c.codigo) }">
+                          <v-icon size="12">mdi-chevron-right</v-icon>
+                        </span>
+                        {{ c.nombre }}
+                      </td>
+                      <td v-for="(v, i) in c.valores" :key="i" class="tr">{{ v === 0 ? '—' : fmt(v) }}</td>
+                      <td v-if="modo === 'anual'" class="tr font-weight-bold">{{ fmt(c.total) }}</td>
+                      <td class="tr td-pct"></td>
+                    </tr>
+                    <tr v-if="expandedCuentas.has(c.codigo)" class="er-row-detalle">
+                      <td :colspan="colCount" class="td-detalle-outer">
+                        <div class="detalle-wrap">
+                          <div v-if="loadingDetalle[c.codigo]" class="detalle-loading">
+                            <v-progress-circular size="16" width="2" indeterminate color="var(--indigo)" />
+                            <span>Cargando gastos...</span>
+                          </div>
+                          <template v-else-if="(gastosCache[c.codigo] || []).length">
+                            <table class="detalle-table">
+                              <thead>
+                                <tr>
+                                  <th>FECHA</th>
+                                  <th>FACTURA</th>
+                                  <th>PROVEEDOR</th>
+                                  <th>CENTRO COSTO</th>
+                                  <th>CONCEPTO</th>
+                                  <th>FORMA PAGO</th>
+                                  <th class="dt-r">TOTAL</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr v-for="gasto in gastosCache[c.codigo]" :key="gasto.codigo">
+                                  <td class="dt-fecha">{{ fmtFecha(gasto.fecha) }}</td>
+                                  <td class="dt-fac">{{ gasto.factura || '—' }}</td>
+                                  <td>{{ gasto.proveedor_nombre || '—' }}</td>
+                                  <td>{{ gasto.ccosto_nombre || '—' }}</td>
+                                  <td class="dt-concepto">{{ gasto.concepto || '—' }}</td>
+                                  <td>{{ gasto.forma_pago_nombre || '—' }}</td>
+                                  <td class="dt-r">{{ fmt(gasto.total) }}</td>
+                                </tr>
+                              </tbody>
+                              <tfoot>
+                                <tr class="dt-total-row">
+                                  <td colspan="6" class="dt-r dt-total-label">TOTAL {{ g.cuentas.find(x => x.codigo === c.codigo)?.nombre }}</td>
+                                  <td class="dt-r">{{ fmt(gastosCache[c.codigo].reduce((s, x) => s + parseFloat(x.total || 0), 0)) }}</td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </template>
+                          <div v-else class="detalle-empty">Sin gastos registrados para este período</div>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
                   <tr v-if="!g.cuentas.length" class="er-row-cuenta">
                     <td class="td-cuenta td-indent text-dim">Sin movimientos</td>
                     <td v-for="i in data.periodos.length" :key="i" class="tr">—</td>
@@ -173,6 +227,11 @@ const generandoPdf = ref(false)
 const data         = ref(null)
 const empresaInfo  = ref({})
 
+// Detalle por cuenta (expandable)
+const expandedCuentas  = ref(new Set())
+const gastosCache      = ref({})
+const loadingDetalle   = ref({})
+
 const modo = ref('mensual')
 
 function mesActualStr() {
@@ -228,9 +287,48 @@ function fmtFecha(v) {
   return new Date(v).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', timeZone: 'UTC' })
 }
 
+// ── Detalle por cuenta ───────────────────────────────────────────────────────
+async function toggleCuenta(cuenta) {
+  const codigo = cuenta.codigo
+  const yaAbierto = expandedCuentas.value.has(codigo)
+
+  // Crear nueva instancia del Set para forzar reactividad
+  const next = new Set(expandedCuentas.value)
+  if (yaAbierto) {
+    next.delete(codigo)
+    expandedCuentas.value = next
+    return
+  }
+  next.add(codigo)
+  expandedCuentas.value = next
+
+  if (gastosCache.value[codigo] !== undefined) return // ya cargado
+
+  loadingDetalle.value = { ...loadingDetalle.value, [codigo]: true }
+  try {
+    const params = new URLSearchParams({ empresa: empresa.value, cuenta: codigo })
+    if (modo.value === 'mensual') params.set('mes', mesSel.value)
+    else params.set('anio', String(anioSel.value))
+    if (ccostoSel.value) params.set('ccosto', ccostoSel.value)
+
+    const res = await fetch(`${API_BASE}/contabilidad/gastos/por-cuenta?${params}`)
+    const j = await res.json()
+    gastosCache.value = { ...gastosCache.value, [codigo]: j.success ? j.data : [] }
+  } catch (e) {
+    console.error('Error cargando detalle cuenta:', e)
+    gastosCache.value = { ...gastosCache.value, [codigo]: [] }
+  } finally {
+    loadingDetalle.value = { ...loadingDetalle.value, [codigo]: false }
+  }
+}
+
 // ── Carga ───────────────────────────────────────────────────────────────────
 async function cargar() {
   if (!empresa.value) return
+  // Cerrar todos los detalles abiertos al recargar
+  expandedCuentas.value = new Set()
+  gastosCache.value     = {}
+  loadingDetalle.value  = {}
   loading.value = true
   try {
     const params = new URLSearchParams({ empresa: empresa.value, modo: modo.value })
@@ -556,5 +654,72 @@ async function generarPDF() {
   background: var(--info-wash); color: var(--info);
   font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px;
   text-transform: uppercase;
+}
+
+/* FILAS EXPANDIBLES */
+.er-row-expandible { cursor: pointer; }
+.er-row-expandible:hover td { background: rgba(var(--v-theme-on-surface), 0.025); }
+.er-row-expanded td { background: var(--indigo-wash) !important; }
+
+.expand-icon {
+  display: inline-flex; align-items: center; margin-right: 3px;
+  color: rgba(var(--v-theme-on-surface), 0.35);
+  transition: transform 160ms var(--ease-out), color 160ms;
+  transform-origin: center;
+}
+.expand-icon--open { transform: rotate(90deg); color: var(--indigo); }
+
+/* FILA DE DETALLE */
+.er-row-detalle td { padding: 0 !important; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
+.td-detalle-outer { background: rgba(var(--v-theme-on-surface), 0.015); }
+
+.detalle-wrap {
+  padding: 10px 20px 12px 36px;
+  border-left: 3px solid var(--indigo);
+}
+
+.detalle-loading {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.5); padding: 8px 0;
+}
+
+.detalle-empty {
+  font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.4);
+  font-style: italic; padding: 6px 0;
+}
+
+/* MINI-TABLA DE GASTOS */
+.detalle-table {
+  width: 100%; border-collapse: collapse; font-size: 11px;
+}
+.detalle-table thead th {
+  text-align: left; font-size: 9px; font-weight: 800; letter-spacing: 0.4px;
+  text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.45);
+  padding: 4px 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  white-space: nowrap;
+}
+.detalle-table thead th.dt-r { text-align: right; }
+.detalle-table tbody tr { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04); }
+.detalle-table tbody tr:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
+.detalle-table tbody td {
+  padding: 4px 8px;
+  color: rgb(var(--v-theme-on-surface));
+  white-space: nowrap;
+}
+.detalle-table tfoot td { padding: 5px 8px; }
+.dt-r { text-align: right; }
+.dt-fecha { color: rgba(var(--v-theme-on-surface), 0.6); min-width: 70px; }
+.dt-fac { font-weight: 600; color: var(--indigo); font-size: 10px; }
+.dt-concepto { white-space: normal; max-width: 220px; }
+
+.dt-total-row { border-top: 1px solid rgba(var(--v-theme-on-surface), 0.15); }
+.dt-total-label {
+  font-weight: 700; font-size: 10px;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.dt-total-row td:last-child {
+  font-weight: 800; color: var(--indigo); font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
 }
 </style>

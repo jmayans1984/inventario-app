@@ -10616,6 +10616,70 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
     }
 });
 
+// GET /api/contabilidad/gastos/por-cuenta — detalle de gastos de una cuenta contable para un período
+// params: empresa, cuenta, mes (YYYY-MM) | anio (YYYY), ccosto (opcional)
+app.get('/api/contabilidad/gastos/por-cuenta', async (req, res) => {
+    try {
+        const { empresa, cuenta, mes, anio, ccosto } = req.query;
+        if (!empresa || !cuenta) return res.status(400).json({ success: false, error: 'empresa y cuenta requeridos' });
+
+        let fechaDesde, fechaHasta;
+        if (mes) {
+            const [y, m] = mes.split('-').map(Number);
+            fechaDesde = new Date(Date.UTC(y, m - 1, 1));
+            fechaHasta = new Date(Date.UTC(y, m, 0));
+        } else if (anio) {
+            const y = Number(anio);
+            fechaDesde = new Date(Date.UTC(y, 0, 1));
+            fechaHasta = new Date(Date.UTC(y, 11, 31));
+        } else {
+            return res.status(400).json({ success: false, error: 'mes o anio requerido' });
+        }
+
+        const params = [
+            empresa, cuenta,
+            fechaDesde.toISOString().slice(0, 10),
+            fechaHasta.toISOString().slice(0, 10)
+        ];
+
+        let query = `
+            SELECT
+                g.codigo,
+                g.fecha,
+                g.factura,
+                COALESCE(p.nombre, CAST(g.proveedor AS TEXT)) AS proveedor_nombre,
+                g.ccosto,
+                COALESCE(cc.nombre, CAST(g.ccosto AS TEXT)) AS ccosto_nombre,
+                g.concepto,
+                g.subtotal,
+                g.impuestos,
+                g.total,
+                COALESCE(cb.nombre_cta, CAST(g.forma_pago AS TEXT)) AS forma_pago_nombre
+            FROM gastos g
+            LEFT JOIN proveedores       p  ON g.proveedor  = p.codigo  AND p.empresa  = g.empresa
+            LEFT JOIN ccostos           cc ON g.ccosto     = cc.codigo AND cc.empresa = g.empresa
+            LEFT JOIN cuentas_bancarias cb ON g.forma_pago = cb.codigo AND cb.empresa = g.empresa
+            WHERE g.empresa = $1
+              AND g.cuenta  = $2
+              AND g.fecha  >= $3
+              AND g.fecha  <= $4
+        `;
+
+        if (ccosto) {
+            params.push(ccosto);
+            query += ` AND g.ccosto = $${params.length}`;
+        }
+
+        query += ` ORDER BY g.fecha DESC, g.codigo DESC`;
+
+        const result = await pool.query(query, params);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error GET /api/contabilidad/gastos/por-cuenta:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/contabilidad/gastos - Crear gasto + registrar MOVIBAN
 app.post('/api/contabilidad/gastos', async (req, res) => {
     const client = await pool.connect();
