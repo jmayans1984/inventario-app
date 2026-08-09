@@ -1631,7 +1631,7 @@ watch(() => props.open, async (val) => {
           concepto: (gasto.concepto || '').toUpperCase(),
           subtotal: Math.round(parseFloat(gasto.subtotal || 0) * 100) / 100,
           impuestos: Math.round(parseFloat(gasto.impuestos || 0) * 100) / 100,
-          materiaPrima: null,
+          materiaPrima: gasto.materiaPrima || null,
         }],
       }
       // Si la forma de pago del gasto ya no está activa, se agrega igual a las
@@ -1707,6 +1707,7 @@ async function guardarGasto() {
         subtotal: toNum(ln.subtotal),
         impuestos: toNum(ln.impuestos),
         total: totalLinea(ln),
+        materiaPrima: esMateriaPrima(ln) ? ln.materiaPrima : null,
       })
     } else {
       // Creación: N líneas → N gastos + 1 solo moviban
