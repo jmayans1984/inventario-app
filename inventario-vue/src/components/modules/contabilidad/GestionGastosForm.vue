@@ -1666,7 +1666,7 @@ async function handleSubmit() {
       const chk = await gestionGastosService.verificarFactura({
         proveedor: form.value.proveedor,
         factura,
-        excluirCodigo: esEdicion.value ? props.gasto.codigo : null,
+        excluirCodigo: esEdicion.value ? (form.value.codigo || props.gasto?.codigo) : null,
       })
       if (chk?.existe) {
         facturasDuplicadas.value = chk.data || []

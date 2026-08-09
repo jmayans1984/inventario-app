@@ -10813,8 +10813,8 @@ app.get('/api/contabilidad/gastos/verificar-factura', async (req, res) => {
         const params = [empresa, proveedor, factura.trim()];
         let where = 'WHERE g.empresa = $1 AND g.proveedor = $2 AND UPPER(g.factura) = UPPER($3)';
         if (excluir_codigo) {
-            params.push(excluir_codigo);
-            where += ` AND g.codigo <> $${params.length}`;
+            params.push(String(excluir_codigo).trim());
+            where += ` AND TRIM(g.codigo) <> $${params.length}`;
         }
         const r = await pool.query(
             `SELECT g.codigo, g.fecha, g.total, g.concepto
