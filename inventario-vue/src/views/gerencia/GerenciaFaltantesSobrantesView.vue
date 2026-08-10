@@ -164,21 +164,24 @@
             <table class="fc-table">
               <thead>
                 <tr>
+                  <th @click="sortBy('producto_codigo')" class="sortable">
+                    CÓDIGO <v-icon size="12">{{ sortIcon('producto_codigo') }}</v-icon>
+                  </th>
                   <th @click="sortBy('producto_nombre')" class="sortable">
                     PRODUCTO <v-icon size="12">{{ sortIcon('producto_nombre') }}</v-icon>
                   </th>
-                  <th>GRUPO</th>
+                  <th>UNIDAD</th>
+                  <th class="tr" @click="sortBy('precio_costo')" style="cursor:pointer">
+                    COSTO <v-icon size="12">{{ sortIcon('precio_costo') }}</v-icon>
+                  </th>
                   <th class="tr" @click="sortBy('sobrante_cant')" style="cursor:pointer">
                     SOBRANTE (CANT) <v-icon size="12">{{ sortIcon('sobrante_cant') }}</v-icon>
                   </th>
                   <th class="tr" @click="sortBy('faltante_cant')" style="cursor:pointer">
                     FALTANTE (CANT) <v-icon size="12">{{ sortIcon('faltante_cant') }}</v-icon>
                   </th>
-                  <th class="tr" @click="sortBy('sobrante_valor')" style="cursor:pointer">
-                    SOBRANTE $ <v-icon size="12">{{ sortIcon('sobrante_valor') }}</v-icon>
-                  </th>
-                  <th class="tr" @click="sortBy('faltante_valor')" style="cursor:pointer">
-                    FALTANTE $ <v-icon size="12">{{ sortIcon('faltante_valor') }}</v-icon>
+                  <th class="tr" @click="sortBy('diferencia_cant')" style="cursor:pointer">
+                    DIFERENCIA <v-icon size="12">{{ sortIcon('diferencia_cant') }}</v-icon>
                   </th>
                   <th class="tr" @click="sortBy('neto_valor')" style="cursor:pointer">
                     NETO $ <v-icon size="12">{{ sortIcon('neto_valor') }}</v-icon>
@@ -190,7 +193,7 @@
                 <template v-for="grupo in productosFiltrados" :key="`grupo-${grupo.grupo_codigo}`">
                   <!-- Header del grupo -->
                   <tr class="fc-tr-group-header">
-                    <td colspan="8" class="font-weight-bold" style="background: rgba(6, 182, 212, 0.15); padding: 8px 12px">
+                    <td colspan="9" class="font-weight-bold" style="background: rgba(6, 182, 212, 0.15); padding: 8px 12px">
                       {{ grupo.grupo_nombre || 'SIN GRUPO' }}
                     </td>
                   </tr>
@@ -199,15 +202,15 @@
                       class="fc-tr ac-tr-click"
                       :class="{ 'ac-row-selected': productoSel?.producto_codigo === p.producto_codigo }"
                       @click="seleccionarProducto(p)">
-                    <td>
-                      <div class="ac-prod-name">{{ p.producto_nombre }}</div>
-                      <div class="ac-prod-cod">{{ p.producto_codigo }} · {{ p.und || '—' }}</div>
-                    </td>
-                    <td><span class="badge-dim">{{ p.grupo_nombre }}</span></td>
+                    <td class="ac-prod-cod">{{ p.producto_codigo }}</td>
+                    <td class="ac-prod-name">{{ p.producto_nombre }}</td>
+                    <td>{{ p.und || '—' }}</td>
+                    <td class="tr">{{ fmt(p.precio_costo) }}</td>
                     <td class="tr">{{ p.sobrante_cant > 0 ? fmtNum(p.sobrante_cant) : '—' }}</td>
                     <td class="tr">{{ p.faltante_cant > 0 ? fmtNum(p.faltante_cant) : '—' }}</td>
-                    <td class="tr" style="color:#22c55e">{{ p.sobrante_valor > 0 ? fmt(p.sobrante_valor) : '—' }}</td>
-                    <td class="tr" style="color:#ef4444">{{ p.faltante_valor > 0 ? fmt(p.faltante_valor) : '—' }}</td>
+                    <td class="tr" :style="{ color: (p.sobrante_cant - p.faltante_cant) >= 0 ? '#22c55e' : '#ef4444' }">
+                      {{ fmtNum(p.sobrante_cant - p.faltante_cant) }}
+                    </td>
                     <td class="tr font-weight-bold">
                       <span v-if="p.neto_valor > 0" class="badge-pos">{{ fmt(p.neto_valor) }}</span>
                       <span v-else-if="p.neto_valor < 0" class="badge-neg">{{ fmt(p.neto_valor) }}</span>
@@ -217,11 +220,12 @@
                   </tr>
                   <!-- Subtotal del grupo -->
                   <tr class="fc-tr-subtotal">
-                    <td colspan="2" class="font-weight-bold" style="text-align: left">Subtotal {{ grupo.grupo_nombre || 'SIN GRUPO' }}</td>
+                    <td colspan="4" class="font-weight-bold" style="text-align: left">Subtotal {{ grupo.grupo_nombre || 'SIN GRUPO' }}</td>
                     <td class="tr font-weight-bold">{{ fmtNum(grupo.subtotal.sobrante_cant) }}</td>
                     <td class="tr font-weight-bold">{{ fmtNum(grupo.subtotal.faltante_cant) }}</td>
-                    <td class="tr font-weight-bold" style="color:#22c55e">{{ fmt(grupo.subtotal.sobrante_valor) }}</td>
-                    <td class="tr font-weight-bold" style="color:#ef4444">{{ fmt(grupo.subtotal.faltante_valor) }}</td>
+                    <td class="tr font-weight-bold" :style="{ color: grupo.subtotal.diferencia_cant >= 0 ? '#22c55e' : '#ef4444' }">
+                      {{ fmtNum(grupo.subtotal.diferencia_cant) }}
+                    </td>
                     <td class="tr font-weight-bold" :style="{ color: grupo.subtotal.neto_valor >= 0 ? '#22c55e' : '#ef4444' }">
                       {{ fmt(grupo.subtotal.neto_valor) }}
                     </td>
@@ -231,12 +235,12 @@
               </tbody>
               <tfoot>
                 <tr class="fc-tr-totals">
-                  <td class="font-weight-bold">TOTALES</td>
-                  <td></td>
+                  <td colspan="4" class="font-weight-bold">TOTALES</td>
                   <td class="tr font-weight-bold">{{ fmtNum(productosTotales.sobrante_cant) }}</td>
                   <td class="tr font-weight-bold">{{ fmtNum(productosTotales.faltante_cant) }}</td>
-                  <td class="tr font-weight-bold" style="color:#22c55e">{{ fmt(productosTotales.sobrante_valor) }}</td>
-                  <td class="tr font-weight-bold" style="color:#ef4444">{{ fmt(productosTotales.faltante_valor) }}</td>
+                  <td class="tr font-weight-bold" :style="{ color: productosTotales.diferencia_cant >= 0 ? '#22c55e' : '#ef4444' }">
+                    {{ fmtNum(productosTotales.diferencia_cant) }}
+                  </td>
                   <td class="tr font-weight-bold" :style="{ color: productosTotales.neto_valor >= 0 ? '#22c55e' : '#ef4444' }">
                     {{ fmt(productosTotales.neto_valor) }}
                   </td>
@@ -449,6 +453,7 @@ const productosFiltrados = computed(() => {
       neto_valor: g.productos.reduce((sum, p) => sum + (p.neto_valor || 0), 0),
       num_tomas: g.productos.reduce((sum, p) => sum + (p.num_tomas || 0), 0),
     }
+    g.subtotal.diferencia_cant = g.subtotal.sobrante_cant - g.subtotal.faltante_cant
   })
 
   return gruposOrdenados
@@ -463,6 +468,7 @@ const productosTotales = computed(() => {
     faltante_valor: grupos.reduce((sum, g) => sum + (g.subtotal?.faltante_valor || 0), 0),
     neto_valor: grupos.reduce((sum, g) => sum + (g.subtotal?.neto_valor || 0), 0),
     num_tomas: grupos.reduce((sum, g) => sum + (g.subtotal?.num_tomas || 0), 0),
+    diferencia_cant: grupos.reduce((sum, g) => sum + (g.subtotal?.diferencia_cant || 0), 0),
   }
 })
 
