@@ -121,6 +121,7 @@
             <table class="pv-table">
               <thead>
                 <tr>
+                  <th class="th-rank"></th>
                   <th class="th-rank">#</th>
                   <th class="th-nom">PROVEEDOR</th>
                   <th class="th-num">TOTAL</th>
@@ -134,35 +135,69 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(p, i) in data.proveedores" :key="p.proveedor"
-                    :class="{ 'fila-pareto': p.pct_acumulado <= 80 }">
-                  <td class="td-rank">{{ i + 1 }}</td>
-                  <td class="td-nom">
-                    {{ p.proveedor_nombre }}
-                    <span v-if="p.num_sedes > 1" class="pv-chip-sedes">{{ p.num_sedes }} sedes</span>
-                  </td>
-                  <td class="td-num td-total">{{ money(p.total) }}</td>
-                  <td class="td-num">
-                    <div class="pv-bar-wrap">
-                      <div class="pv-bar" :style="`width:${Math.min(100, p.pct_del_total)}%`"></div>
-                      <span>{{ pct(p.pct_del_total) }}</span>
-                    </div>
-                  </td>
-                  <td class="td-num td-acum">{{ pct(p.pct_acumulado) }}</td>
-                  <td class="td-num">{{ p.num_compras }}</td>
-                  <td class="td-num">{{ money(p.ticket_promedio) }}</td>
-                  <td class="td-num">{{ p.articulos_distintos || '—' }}</td>
-                  <td class="td-num">
-                    <span v-if="p.variacion_pct === null" class="pv-nuevo">NUEVO</span>
-                    <span v-else :style="`color:${p.variacion_pct >= 0 ? '#ef4444' : '#22c55e'}`">
-                      {{ p.variacion_pct >= 0 ? '+' : '' }}{{ pct(p.variacion_pct) }}
-                    </span>
-                  </td>
-                  <td class="td-num">
-                    {{ fecha(p.ultima) }}
-                    <span v-if="p.dias_sin_comprar > 60" class="pv-chip-inactivo">{{ p.dias_sin_comprar }}d</span>
-                  </td>
-                </tr>
+                <template v-for="(p, i) in data.proveedores" :key="p.proveedor">
+                  <tr :class="{ 'fila-pareto': p.pct_acumulado <= 80 }"
+                      class="pv-tr-click" @click="toggleExpand(p.proveedor)">
+                    <td class="td-rank">
+                      <v-icon size="16" class="pv-expand-icon" :class="{ 'pv-expand-icon--open': expandido === p.proveedor }">
+                        mdi-chevron-right
+                      </v-icon>
+                    </td>
+                    <td class="td-rank">{{ i + 1 }}</td>
+                    <td class="td-nom">
+                      {{ p.proveedor_nombre }}
+                      <span v-if="p.num_sedes > 1" class="pv-chip-sedes">{{ p.num_sedes }} sedes</span>
+                    </td>
+                    <td class="td-num td-total">{{ money(p.total) }}</td>
+                    <td class="td-num">
+                      <div class="pv-bar-wrap">
+                        <div class="pv-bar" :style="`width:${Math.min(100, p.pct_del_total)}%`"></div>
+                        <span>{{ pct(p.pct_del_total) }}</span>
+                      </div>
+                    </td>
+                    <td class="td-num td-acum">{{ pct(p.pct_acumulado) }}</td>
+                    <td class="td-num">{{ p.num_compras }}</td>
+                    <td class="td-num">{{ money(p.ticket_promedio) }}</td>
+                    <td class="td-num">{{ p.articulos_distintos || '—' }}</td>
+                    <td class="td-num">
+                      <span v-if="p.variacion_pct === null" class="pv-nuevo">NUEVO</span>
+                      <span v-else :style="`color:${p.variacion_pct >= 0 ? '#ef4444' : '#22c55e'}`">
+                        {{ p.variacion_pct >= 0 ? '+' : '' }}{{ pct(p.variacion_pct) }}
+                      </span>
+                    </td>
+                    <td class="td-num">
+                      {{ fecha(p.ultima) }}
+                      <span v-if="p.dias_sin_comprar > 60" class="pv-chip-inactivo">{{ p.dias_sin_comprar }}d</span>
+                    </td>
+                  </tr>
+                  <tr v-if="expandido === p.proveedor" class="pv-tr-detalle">
+                    <td colspan="10">
+                      <div v-if="!p.gastos || !p.gastos.length" class="pv-detalle-vacio">
+                        Sin gastos individuales registrados en el período.
+                      </div>
+                      <table v-else class="pv-subtable">
+                        <thead>
+                          <tr>
+                            <th class="th-nom">FECHA</th>
+                            <th class="th-nom">CONCEPTO</th>
+                            <th class="th-nom">FACTURA</th>
+                            <th class="th-nom">CENTRO DE COSTO</th>
+                            <th class="th-num">TOTAL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(gto, gi) in p.gastos" :key="gi">
+                            <td>{{ fecha(gto.fecha) }}</td>
+                            <td>{{ gto.concepto || '—' }}</td>
+                            <td>{{ gto.factura || '—' }}</td>
+                            <td>{{ gto.ccosto_nombre || '—' }}</td>
+                            <td class="td-num">{{ money(gto.total) }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -216,6 +251,10 @@ const empresa = computed(() => authStore.empresa || authStore.user?.empresa || l
 
 const loading = ref(false)
 const data = ref(null)
+const expandido = ref(null)
+function toggleExpand(proveedor) {
+  expandido.value = expandido.value === proveedor ? null : proveedor
+}
 
 function haceMeses(n) {
   const d = new Date(); d.setMonth(d.getMonth() - n + 1); d.setDate(1)
@@ -362,6 +401,24 @@ onMounted(cargar)
 
 .fila-pareto { background: rgba(180,83,9,0.045); }
 .fila-pareto .td-nom { color: #b45309; }
+
+.pv-tr-click { cursor: pointer; }
+.pv-tr-click:hover { background: rgba(180,83,9,0.06); }
+.pv-expand-icon { transition: transform 0.15s ease-out; color: rgba(var(--v-theme-on-surface), 0.4); }
+.pv-expand-icon--open { transform: rotate(90deg); color: #b45309; }
+
+.pv-tr-detalle { background: rgba(var(--v-theme-on-surface), 0.02); }
+.pv-tr-detalle td { padding: 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07); }
+.pv-detalle-vacio { padding: 14px 18px 14px 46px; font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.4); }
+.pv-subtable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pv-subtable th {
+  padding: 7px 13px 7px 46px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.pv-subtable th.th-num, .pv-subtable td.td-num { padding-left: 13px; }
+.pv-subtable td { padding: 7px 13px 7px 46px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04); color: rgba(var(--v-theme-on-surface), 0.75); }
+.pv-subtable tbody tr:last-child td { border-bottom: none; }
 
 .pv-bar-wrap { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
 .pv-bar {

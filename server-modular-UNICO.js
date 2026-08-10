@@ -14958,7 +14958,7 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
         AND g.proveedor IS NOT NULL AND TRIM(g.proveedor) <> '' AND TRIM(g.proveedor) <> '0'`;
 
     try {
-        const [actualRes, previoRes, mensualRes, articulosRes] = await Promise.all([
+        const [actualRes, previoRes, mensualRes, articulosRes, detalleRes] = await Promise.all([
 
             // 1. Gasto por proveedor en el período
             pool.query(`
@@ -15017,10 +15017,39 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
                   AND ea.proveedor IS NOT NULL AND TRIM(ea.proveedor) <> ''
                 GROUP BY TRIM(ea.proveedor)`,
                 [String(empresa), desdeDate, hastaDate]),
+
+            // 5. Detalle de cada gasto individual, para desplegar por proveedor
+            pool.query(`
+                SELECT TRIM(g.proveedor) AS proveedor,
+                       g.fecha::date AS fecha,
+                       g.concepto,
+                       g.factura,
+                       g.total,
+                       g.ccosto,
+                       COALESCE(cc.nombre, g.ccosto) AS ccosto_nombre
+                FROM gastos g
+                ${JOIN_GRUPO}
+                LEFT JOIN ccostos cc ON g.ccosto = cc.codigo AND g.empresa = cc.empresa
+                WHERE g.empresa = $1::int
+                  AND g.fecha::date BETWEEN $2::date AND $3::date
+                  ${PROVEEDOR_VALIDO} ${SOLO_EGRESOS}
+                ORDER BY g.fecha DESC`,
+                [String(empresa), desdeDate, hastaDate]),
         ]);
 
         const previo = Object.fromEntries(previoRes.rows.map(r => [r.proveedor, parseFloat(r.total) || 0]));
         const articulos = Object.fromEntries(articulosRes.rows.map(r => [r.proveedor, parseInt(r.articulos_distintos) || 0]));
+        const detallePorProv = {};
+        for (const r of detalleRes.rows) {
+            if (!detallePorProv[r.proveedor]) detallePorProv[r.proveedor] = [];
+            detallePorProv[r.proveedor].push({
+                fecha: r.fecha,
+                concepto: r.concepto,
+                factura: r.factura,
+                total: parseFloat(r.total) || 0,
+                ccosto_nombre: r.ccosto_nombre,
+            });
+        }
         const meses = [...new Set(mensualRes.rows.map(r => r.mes))].sort();
         const seriePorProv = {};
         for (const r of mensualRes.rows) {
@@ -15050,6 +15079,7 @@ app.get('/api/gerencia/analisis-proveedores', async (req, res) => {
                 total_anterior: anterior,
                 variacion_pct: (anterior && anterior > 0) ? ((total - anterior) / anterior) * 100 : null,
                 serie: meses.map(m => seriePorProv[r.proveedor]?.[m] ?? 0),
+                gastos: detallePorProv[r.proveedor] || [],
             };
         });
 
