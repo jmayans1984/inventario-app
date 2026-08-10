@@ -1,2 +1,6 @@
 .claude/worktrees/objective-margulis-ea2ece/
 node_modules/
+
+# Credenciales del backend local (DB_HOST, DB_USER, DB_PASSWORD...). Nunca commitear.
+.env
+.env.local

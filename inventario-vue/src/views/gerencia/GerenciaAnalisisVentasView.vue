@@ -193,7 +193,10 @@
                     {{ m.dias_con_venta > 0 ? fmt(parseFloat(m.ventas_brutas) / m.dias_con_venta) : '—' }}
                   </td>
                   <td class="tr">
-                    <template v-if="data.ventasPorMes[vIndex - 1]">
+                    <template v-if="m.mes === mesActualYM">
+                      <span class="text-dim">—</span>
+                    </template>
+                    <template v-else-if="data.ventasPorMes[vIndex - 1]">
                       <span :class="parseFloat(m.ventas_netas) >= parseFloat(data.ventasPorMes[vIndex-1].ventas_netas) ? 'badge-pos' : 'badge-neg'">
                         {{ parseFloat(m.ventas_netas) >= parseFloat(data.ventasPorMes[vIndex-1].ventas_netas) ? '+' : '' }}{{ diffPct(m.ventas_netas, parseFloat(data.ventasPorMes[vIndex-1].ventas_netas)) }}%
                       </span>
@@ -202,6 +205,17 @@
                   </td>
                 </tr>
               </tbody>
+              <tfoot>
+                <tr class="av-tfoot">
+                  <td>TOTAL</td>
+                  <td class="tr">{{ fmt(totalesMensuales.ventas_brutas) }}</td>
+                  <td class="tr text-dim">{{ fmt(totalesMensuales.devoluciones) }}</td>
+                  <td class="tr">{{ fmt(totalesMensuales.ventas_netas) }}</td>
+                  <td class="tr">—</td>
+                  <td class="tr">—</td>
+                  <td class="tr">—</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -276,10 +290,26 @@ function diffPct(val, base) {
   return (((parseFloat(val) - base) / base) * 100).toFixed(1)
 }
 
-// ── Promedio dinámico según métrica seleccionada ─────────────────────────────
+// ── Mes actual en formato YYYY-MM ──────────────────────────────────────────
+const mesActualYM = computed(() => new Date().toISOString().slice(0, 7))
+
+// ── Totales de la tabla de detalle mensual ───────────────────────────────────
+const totalesMensuales = computed(() => {
+  const meses = data.value?.ventasPorMes || []
+  return {
+    ventas_brutas: meses.reduce((s, m) => s + (parseFloat(m.ventas_brutas) || 0), 0),
+    devoluciones:  meses.reduce((s, m) => s + (parseFloat(m.devoluciones) || 0), 0),
+    ventas_netas:  meses.reduce((s, m) => s + (parseFloat(m.ventas_netas) || 0), 0),
+  }
+})
+
+// ── Promedio dinámico según métrica seleccionada (excluye el mes en curso) ───
 const promedioMetrica = computed(() => {
   if (!data.value?.ventasPorMes?.length) return 0
-  const vals = data.value.ventasPorMes.map(m => parseFloat(m[selMetrica.value]) || 0)
+  const mesActual = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
+  const cerrados   = data.value.ventasPorMes.filter(m => m.mes !== mesActual)
+  const lista      = cerrados.length ? cerrados : data.value.ventasPorMes
+  const vals       = lista.map(m => parseFloat(m[selMetrica.value]) || 0)
   return vals.reduce((s, v) => s + v, 0) / vals.length
 })
 
@@ -478,7 +508,7 @@ function renderTop() {
   if (!chartTopRef.value || !data.value) return
   const { fg, grid } = themeColors()
   const top    = data.value.topProductos   // ya viene DESC del servidor
-  const labels = top.map(r => (String(r.nombre || r.codigo || '')).substring(0, 30))
+  const labels = top.map(r => String(r.nombre || r.codigo || ''))
   const vals   = top.map(r => Math.round(parseFloat(r.total_ventas)))
 
   chartTop = new ApexCharts(chartTopRef.value, {
@@ -488,12 +518,12 @@ function renderTop() {
     colors: ['#22c55e'],
     plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '55%' } },
     xaxis: { categories: labels, labels: { style: { colors: fg, fontSize: '11px' }, formatter: v => fmt(v) } },
-    yaxis: { reversed: true, labels: { style: { colors: fg, fontSize: '11px', fontWeight: 500 } } },
-    grid:  { borderColor: grid, strokeDashArray: 4 },
+    yaxis: { reversed: true, opposite: true, labels: { style: { colors: fg, fontSize: '11px', fontWeight: 500 }, maxWidth: 380 } },
+    grid:  { borderColor: grid, strokeDashArray: 4, padding: { right: 20 } },
     legend: { show: false },
     tooltip: {
       custom({ dataPointIndex }) {
-        const prod = data.value?.topProductos ? [...data.value.topProductos].reverse()[dataPointIndex] : null
+        const prod = data.value?.topProductos ? data.value.topProductos[dataPointIndex] : null
         if (!prod) return ''
         return `<div style="padding:8px 12px;font-size:12px;font-family:Inter,sans-serif">
           <strong>${prod.nombre || prod.codigo}</strong><br>
@@ -521,7 +551,10 @@ function renderCategorias() {
   if (!cats.length) return
 
   const labels = cats.map(r => String(r.categoria))
-  const vals   = cats.map(r => Math.round(parseFloat(r.total_ventas)))
+  // Sin redondear cada porción: el backend garantiza que la suma es igual al KPI, y
+  // redondear una por una desviaría el TOTAL del centro por unos pesos. El formato
+  // de visualización ya lo hace fmt().
+  const vals   = cats.map(r => parseFloat(r.total_ventas) || 0)
 
   chartCat = new ApexCharts(chartCatRef.value, {
     chart: { type: 'donut', height: 310, fontFamily: 'Inter,sans-serif', background: 'transparent', animations: { enabled: true, speed: 500 } },
@@ -686,6 +719,13 @@ onBeforeUnmount(() => {
 .av-tr:hover td { background: rgba(var(--v-theme-on-surface),.03); }
 .av-tr:last-child td { border-bottom: none; }
 .text-dim { color: rgba(var(--v-theme-on-surface),.45); }
+
+.av-tfoot td {
+  padding: 9px 14px; font-weight: 800;
+  background: rgba(var(--v-theme-on-surface),.045);
+  border-top: 2px solid rgba(var(--v-theme-on-surface),.12);
+  border-bottom: none;
+}
 
 .badge-pos { background: rgba(34,197,94,.12); color: #22c55e; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 .badge-neg { background: rgba(239,68,68,.12); color: #ef4444; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }

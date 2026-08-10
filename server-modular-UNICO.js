@@ -13507,6 +13507,35 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
         const mejorMes   = meses.length ? meses.reduce((a, b) => parseFloat(a.ventas_brutas) > parseFloat(b.ventas_brutas) ? a : b) : null;
         const totalItems = topProdRes.rows.reduce((s, r) => s + parseFloat(r.total_cant), 0);
 
+        // Distribución por categoría: el KPI sale del encabezado (`ventas.ventas_brutas`)
+        // pero el donut suma `detalle_ventas`, y el importador de Square nunca manda los
+        // modificadores como ítem — solo los usa para el consumo de inventario (ver
+        // ImportarVentasV2View: `items` filtra por `mappedSku`, y `modifiers` va aparte).
+        // Esos pesos son ventas de adicionales que no quedan en ninguna línea de detalle,
+        // así que el faltante se acumula en la categoría ADICIONALES en lugar de dejar el
+        // donut descuadrado contra el KPI.
+        const totalDetalle = catRes.rows.reduce((s, r) => s + parseFloat(r.total_ventas), 0);
+        const faltante     = total12m - totalDetalle;
+        const ventasPorCategoria = catRes.rows.map(r => ({
+            ...r,
+            total_ventas: parseFloat(r.total_ventas),
+        }));
+        // Umbral de 1 peso para no mover nada por un redondeo.
+        if (faltante > 1) {
+            const idxAdic = ventasPorCategoria.findIndex(r => /adicional/i.test(r.categoria || ''));
+            if (idxAdic !== -1) {
+                ventasPorCategoria[idxAdic].total_ventas += faltante;
+            } else {
+                ventasPorCategoria.push({
+                    categoria:    'ADICIONALES',
+                    total_ventas: faltante,
+                    total_cant:   0,
+                });
+            }
+            // Re-ordenar: la categoría que absorbió el faltante puede haber cambiado de puesto.
+            ventasPorCategoria.sort((a, b) => b.total_ventas - a.total_ventas);
+        }
+
         res.json({
             success: true,
             kpis: {
@@ -13521,7 +13550,7 @@ app.get('/api/gerencia/analisis-ventas', async (req, res) => {
             topProductos:        topProdRes.rows,
             distribucionCcosto:  distCcostoRes.rows,
             ccostosDisponibles:  ccostosDisponiblesRes.rows,
-            ventasPorCategoria:  catRes.rows,
+            ventasPorCategoria,
         });
     } catch (error) {
         console.error('Error en /api/gerencia/analisis-ventas:', error);
