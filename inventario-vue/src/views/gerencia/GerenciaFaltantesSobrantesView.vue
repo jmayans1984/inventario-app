@@ -229,7 +229,7 @@
                     <td class="tr font-weight-bold" :style="{ color: grupo.subtotal.neto_valor >= 0 ? '#22c55e' : '#ef4444' }">
                       {{ fmt(grupo.subtotal.neto_valor) }}
                     </td>
-                    <td class="tr font-weight-bold">{{ fmtNum(grupo.subtotal.num_tomas) }}</td>
+                    <td class="tr"></td>
                   </tr>
                 </template>
               </tbody>
@@ -244,7 +244,7 @@
                   <td class="tr font-weight-bold" :style="{ color: productosTotales.neto_valor >= 0 ? '#22c55e' : '#ef4444' }">
                     {{ fmt(productosTotales.neto_valor) }}
                   </td>
-                  <td class="tr font-weight-bold">{{ fmtNum(productosTotales.num_tomas) }}</td>
+                  <td class="tr"></td>
                 </tr>
               </tfoot>
             </table>
