@@ -24,13 +24,6 @@ export const MODULES = [
     path: '/contabilidad',
     children: [
       {
-        name: 'Dashboard',
-        icon: 'mdi-view-dashboard-outline',
-        items: [
-          { name: 'Estado del Mes', icon: 'mdi-view-dashboard-outline', path: '/contabilidad/dashboard' },
-        ],
-      },
-      {
         name: 'Configuración',
         icon: 'mdi-cog-outline',
         items: [
