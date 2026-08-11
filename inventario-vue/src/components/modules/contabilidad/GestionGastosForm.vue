@@ -129,19 +129,40 @@
               </div>
             </div>
 
+            <!-- Cuenta por pagar: el gasto queda contabilizado pero sin salida de
+                 banco. Tesorería registra los abonos después. -->
+            <div class="field-row">
+              <div class="field-col-full">
+                <label class="cxp-toggle" :class="{ 'cxp-toggle--on': form.por_pagar }">
+                  <input type="checkbox" v-model="form.por_pagar" />
+                  <v-icon size="18" :color="form.por_pagar ? '#f0a83c' : undefined">
+                    {{ form.por_pagar ? 'mdi-checkbox-marked' : 'mdi-checkbox-blank-outline' }}
+                  </v-icon>
+                  <span class="cxp-txt">
+                    <strong>Dejar como cuenta por pagar</strong>
+                    <small>
+                      No se registra movimiento bancario ni forma de pago.
+                      Queda pendiente en Tesorería → Cuentas por Pagar.
+                    </small>
+                  </span>
+                </label>
+              </div>
+            </div>
+
             <div class="field-row">
               <div :class="muestraCheque ? 'field-col-half' : 'field-col-full'">
                 <v-autocomplete
                   v-model="form.forma_pago"
                   autocomplete="off"
-                  label="Forma de Pago *"
+                  :label="form.por_pagar ? 'Forma de Pago (se define al pagar)' : 'Forma de Pago *'"
                   variant="outlined"
                   density="comfortable"
                   hide-details
+                  :disabled="form.por_pagar"
                   :items="formasPagoOptions"
                   item-title="nombre_cta"
                   item-value="codigo"
-                  placeholder="Cuenta bancaria con la que se pagó..."
+                  :placeholder="form.por_pagar ? 'Queda en blanco hasta el pago' : 'Cuenta bancaria con la que se pagó...'"
                   prepend-inner-icon="mdi-credit-card-outline"
                   no-data-text="No hay formas de pago"
                   clearable
@@ -166,8 +187,9 @@
 
             <!-- Sentido del movimiento bancario.
                  Una devolución de compra se captura como gasto contra una cuenta
-                 de otros ingresos, pero en el banco el dinero entra. -->
-            <div class="field-row">
+                 de otros ingresos, pero en el banco el dinero entra.
+                 No aplica en una cuenta por pagar: ahí todavía no hay movimiento. -->
+            <div v-if="!form.por_pagar" class="field-row">
               <div class="field-col-full">
                 <div class="sentido-toggle" :class="{ 'sentido-toggle--ingreso': form.es_ingreso }">
                   <button
@@ -357,15 +379,23 @@
               </div>
               <div class="resumen-row">
                 <span class="resumen-lbl">Forma de Pago</span>
-                <span class="resumen-val">{{ nombreFormaPago }}</span>
+                <span v-if="form.por_pagar" class="resumen-val val-cxp">
+                  <v-icon size="14">mdi-clock-outline</v-icon>
+                  Cuenta por pagar — se define al pagar
+                </span>
+                <span v-else class="resumen-val">{{ nombreFormaPago }}</span>
               </div>
-              <div v-if="muestraCheque && form.numero_cheque" class="resumen-row">
+              <div v-if="!form.por_pagar && muestraCheque && form.numero_cheque" class="resumen-row">
                 <span class="resumen-lbl">N° Cheque</span>
                 <span class="resumen-val">{{ form.numero_cheque }}</span>
               </div>
               <div class="resumen-row">
                 <span class="resumen-lbl">Movimiento bancario</span>
-                <span class="resumen-val" :class="form.es_ingreso ? 'val-ingreso' : 'val-egreso'">
+                <span v-if="form.por_pagar" class="resumen-val val-cxp">
+                  <v-icon size="14">mdi-bank-off-outline</v-icon>
+                  Ninguno todavía
+                </span>
+                <span v-else class="resumen-val" :class="form.es_ingreso ? 'val-ingreso' : 'val-egreso'">
                   <v-icon size="14">{{ form.es_ingreso ? 'mdi-arrow-down-bold-box-outline' : 'mdi-arrow-up-bold-box-outline' }}</v-icon>
                   {{ form.es_ingreso ? 'Ingreso (entra al banco)' : 'Egreso (sale del banco)' }}
                 </span>
@@ -413,11 +443,18 @@
                 <span class="tot-val">{{ formatMoneda(sumImpuestos) }}</span>
               </div>
               <div class="tot-item tot-item-final">
-                <span class="tot-lbl">TOTAL PAGADO</span>
+                <span class="tot-lbl">{{ form.por_pagar ? 'TOTAL POR PAGAR' : 'TOTAL PAGADO' }}</span>
                 <span class="tot-val tot-val-final">{{ formatMoneda(sumTotal) }}</span>
               </div>
             </div>
-            <div v-if="!esEdicion" class="tot-nota">
+            <div v-if="!esEdicion && form.por_pagar" class="tot-nota tot-nota-cxp">
+              <v-icon size="13" color="#f0a83c">mdi-clock-alert-outline</v-icon>
+              Se registrará{{ form.lineas.length > 1 ? `n ${form.lineas.length} gastos` : ' 1 gasto' }}
+              <strong>sin movimiento bancario</strong>. Quedará como cuenta por pagar de
+              {{ formatMoneda(sumTotal) }} en <strong>Tesorería → Cuentas por Pagar</strong>,
+              donde podrás abonarle total o parcialmente.
+            </div>
+            <div v-else-if="!esEdicion" class="tot-nota">
               <v-icon size="13" color="#0ea5e9">mdi-information-outline</v-icon>
               Se registrará{{ form.lineas.length > 1 ? `n ${form.lineas.length} gastos` : ' 1 gasto' }} y
               <strong>un solo movimiento bancario</strong> de
@@ -1287,6 +1324,7 @@ const formVacio = () => {
     forma_pago: '',
     numero_cheque: '',
     es_ingreso: false,
+    por_pagar: false,
     lineas: [lineaVacia()],
   }
 }
@@ -1313,6 +1351,16 @@ watch(() => form.value.forma_pago, () => {
   }
 })
 
+// Al marcar "cuenta por pagar" se limpia todo lo que pertenece al pago: la forma
+// de pago, el cheque y el sentido del movimiento. Esos datos los aporta Tesorería
+// cuando registre el abono.
+watch(() => form.value.por_pagar, (on) => {
+  if (!on) return
+  form.value.forma_pago    = ''
+  form.value.numero_cheque = ''
+  form.value.es_ingreso    = false
+})
+
 // ─── Totales ─────────────────────────────────────────
 // Acepta coma o punto como separador decimal (el campo se escribe como texto libre)
 function toNum(v) { return parseFloat(String(v ?? '').replace(',', '.')) || 0 }
@@ -1329,7 +1377,12 @@ function nombreCuenta(codigo) { return cuentasContablesOptions.value.find(c => c
 
 // ─── Pasos del wizard ────────────────────────────────
 const stepsInfo = computed(() => [
-  { title: 'Comprobante', sub: form.value.proveedor ? nombreProveedor.value : 'Fecha, factura y proveedor' },
+  {
+    title: 'Comprobante',
+    sub: form.value.por_pagar
+      ? `${form.value.proveedor ? nombreProveedor.value + ' · ' : ''}cuenta por pagar`
+      : (form.value.proveedor ? nombreProveedor.value : 'Fecha, factura y proveedor'),
+  },
   { title: 'Distribución', sub: `${form.value.lineas.length} línea${form.value.lineas.length !== 1 ? 's' : ''} · ${formatMoneda(sumTotal.value)}` },
   { title: 'Confirmar', sub: 'Revisar y guardar' },
 ])
@@ -1338,7 +1391,10 @@ function validarPaso(n) {
   if (n === 0) {
     if (!form.value.fecha)      return 'La fecha es requerida'
     if (!form.value.proveedor)  return 'Debe seleccionar un proveedor'
-    if (!form.value.forma_pago) return 'Debe seleccionar una forma de pago'
+    // En una cuenta por pagar la forma de pago va vacía a propósito.
+    if (!form.value.por_pagar && !form.value.forma_pago) {
+      return 'Debe seleccionar una forma de pago, o marcar el gasto como cuenta por pagar'
+    }
   }
   if (n === 1) {
     for (const [i, ln] of form.value.lineas.entries()) {
@@ -1624,6 +1680,7 @@ watch(() => props.open, async (val) => {
         forma_pago: gasto.forma_pago || '',
         numero_cheque: gasto.numero_cheque ? String(gasto.numero_cheque) : '',
         es_ingreso: gasto.es_ingreso === true,
+        por_pagar: gasto.por_pagar === 'SI',
         lineas: [{
           uid: uidSeq++,
           ccosto: gasto.ccosto || '',
@@ -1715,9 +1772,10 @@ async function guardarGasto() {
         fecha: form.value.fecha,
         factura: form.value.factura.trim() || null,
         proveedor: form.value.proveedor,
-        forma_pago: form.value.forma_pago,
-        numero_cheque: muestraCheque.value ? (form.value.numero_cheque || null) : null,
-        es_ingreso: form.value.es_ingreso,
+        forma_pago: form.value.por_pagar ? null : form.value.forma_pago,
+        numero_cheque: (!form.value.por_pagar && muestraCheque.value) ? (form.value.numero_cheque || null) : null,
+        es_ingreso: form.value.por_pagar ? false : form.value.es_ingreso,
+        por_pagar: form.value.por_pagar,
         lineas: form.value.lineas.map(ln => ({
           ccosto: ln.ccosto,
           cuenta: ln.cuenta,
@@ -2002,6 +2060,45 @@ function cerrar() {
   font-size: 12px;
   color: rgba(var(--v-theme-on-surface), 0.55);
 }
+.tot-nota-cxp {
+  align-items: flex-start;
+  line-height: 1.5;
+  padding: 10px 13px;
+  border-radius: 9px;
+  background: rgba(240, 168, 60, 0.08);
+  border: 1px solid rgba(240, 168, 60, 0.28);
+  color: rgba(var(--v-theme-on-surface), 0.75);
+}
+
+/* ═══ CUENTA POR PAGAR ═══════════════════════════════════════════════ */
+.cxp-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 11px;
+  cursor: pointer;
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  transition: background 160ms ease-out, border-color 160ms ease-out;
+}
+.cxp-toggle:hover { background: rgba(var(--v-theme-on-surface), 0.055); }
+.cxp-toggle--on {
+  background: rgba(240, 168, 60, 0.09);
+  border-color: rgba(240, 168, 60, 0.42);
+}
+/* El input real queda accesible al teclado pero el estado se dibuja con el icono */
+.cxp-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.cxp-toggle input:focus-visible ~ .v-icon { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 4px; }
+.cxp-txt { display: flex; flex-direction: column; gap: 2px; }
+.cxp-txt strong { font-size: 13px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
+.cxp-txt small { font-size: 11.5px; line-height: 1.45; color: rgba(var(--v-theme-on-surface), 0.5); }
+.val-cxp { color: #f0a83c; font-weight: 700; }
 
 /* ═══ SENTIDO DEL MOVIMIENTO BANCARIO ════════════════════════════════ */
 .sentido-toggle {

@@ -27,6 +27,7 @@ const routes = [
   { path: '/tesoreria/procesos/importar-ventas-v2',              component: () => import('../views/tesoreria/ImportarVentasV2View.vue'),           meta: { requiresAuth: true } },
   { path: '/tesoreria/procesos/conciliacion-cuentas',            component: () => import('../views/tesoreria/ConciliacionCuentasView.vue'),        meta: { requiresAuth: true } },
   { path: '/tesoreria/procesos/movimientos-bancarios',           component: () => import('../views/tesoreria/MovimientosBancariosView.vue'),       meta: { requiresAuth: true } },
+  { path: '/tesoreria/procesos/cuentas-por-pagar',               component: () => import('../views/tesoreria/CuentasPorPagarView.vue'),            meta: { requiresAuth: true } },
   { path: '/tesoreria/procesos/facturas-compra',                 component: () => import('../views/tesoreria/FacturasCompraClienteView.vue'),    meta: { requiresAuth: true, requiredTipo: 'CLIENTE' } },
   { path: '/tesoreria/procesos/facturas-venta',                  component: () => import('../views/tesoreria/FacturasVentaView.vue'),              meta: { requiresAuth: true, requiredTipo: 'PROVEEDOR' } },
   { path: '/tesoreria/reportes/conciliacion-bancaria',           component: () => import('../views/tesoreria/ReporteConciliacionView.vue'),        meta: { requiresAuth: true } },

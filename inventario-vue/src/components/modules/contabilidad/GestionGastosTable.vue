@@ -106,7 +106,16 @@
               <span class="badge-centro">{{ gasto.ccosto_nombre || gasto.ccosto }}</span>
             </td>
             <td class="td-forma-pago">
-              <span class="badge-forma-pago">{{ gasto.forma_pago_nombre || gasto.forma_pago || '-' }}</span>
+              <!-- Una cuenta por pagar todavía no tiene forma de pago: la define
+                   Tesorería al registrar el abono que la salda. -->
+              <span
+                v-if="gasto.por_pagar === 'SI' && !gasto.forma_pago"
+                class="badge-por-pagar"
+                title="Cuenta por pagar — pendiente en Tesorería"
+              >
+                POR PAGAR
+              </span>
+              <span v-else class="badge-forma-pago">{{ gasto.forma_pago_nombre || gasto.forma_pago || '-' }}</span>
             </td>
             <td class="td-cuenta">{{ gasto.cuenta_nombre || gasto.cuenta || '-' }}</td>
             <td class="td-concepto">{{ gasto.concepto || '-' }}</td>
@@ -879,6 +888,18 @@ async function exportarExcel() {
   font-size: 11px;
   letter-spacing: 0.3px;
   display: inline-block;
+}
+
+.badge-por-pagar {
+  background: rgba(240, 168, 60, 0.16);
+  color: #d98613;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-weight: 800;
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .td-concepto {

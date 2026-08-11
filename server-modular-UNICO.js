@@ -10586,6 +10586,8 @@ app.get('/api/contabilidad/gastos', async (req, res) => {
                 g.estado,
                 g.entrada_almacen,
                 g.origen,
+                g.grupo,
+                g.por_pagar,
                 -- Subconsulta (no JOIN) para que un moviban no pueda duplicar la fila
                 COALESCE((SELECT MAX(mb.ingreso) FROM moviban mb
                           WHERE mb.gasto = g.codigo AND mb.empresa = g.empresa), 0) > 0 AS es_ingreso
@@ -10814,16 +10816,21 @@ app.get('/api/contabilidad/gastos/verificar-factura', async (req, res) => {
         let where = 'WHERE g.empresa = $1 AND g.proveedor = $2 AND UPPER(g.factura) = UPPER($3)';
         if (excluir_codigo) {
             // El gasto que se edita puede ser una de varias líneas repartidas de una
-            // misma factura (creadas juntas vía /gastos/multiple: comparten fecha,
-            // proveedor, forma de pago y factura — el mismo criterio de agrupación
-            // que usa la tabla en pantalla). Esas líneas hermanas no son un
-            // duplicado real, así que se excluye todo el grupo, no solo su código.
+            // misma factura (creadas juntas vía /gastos/multiple). Esas líneas
+            // hermanas no son un duplicado real, así que se excluye todo el grupo.
             const selfRes = await pool.query(
-                `SELECT fecha, forma_pago FROM gastos WHERE TRIM(codigo) = $1 AND empresa = $2`,
+                `SELECT fecha, forma_pago, grupo FROM gastos WHERE TRIM(codigo) = $1 AND empresa = $2`,
                 [String(excluir_codigo).trim(), empresa]
             );
-            if (selfRes.rows.length) {
-                params.push(selfRes.rows[0].fecha, selfRes.rows[0].forma_pago);
+            const self = selfRes.rows[0];
+            if (self?.grupo) {
+                // Vínculo real: todas las líneas de la factura comparten `grupo`.
+                params.push(self.grupo);
+                where += ` AND (g.grupo IS DISTINCT FROM $${params.length})`;
+            } else if (self) {
+                // Gastos anteriores a la columna `grupo`: se cae al criterio viejo
+                // (fecha + forma de pago), que era como los agrupaba la pantalla.
+                params.push(self.fecha, self.forma_pago);
                 where += ` AND NOT (g.fecha = $${params.length - 1} AND g.forma_pago = $${params.length})`;
             } else {
                 params.push(String(excluir_codigo).trim());
@@ -10857,14 +10864,24 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
     const client = await pool.connect();
     try {
         const { empresa, fecha, factura, proveedor, forma_pago, lineas,
-                numero_cheque, es_ingreso } = req.body;
+                numero_cheque, es_ingreso, por_pagar } = req.body;
 
         // Una devolución de compra se captura como gasto (contra una cuenta de
         // otros ingresos) pero en el banco el dinero ENTRA, no sale.
         const entraAlBanco = es_ingreso === true || es_ingreso === 'true';
 
-        if (!empresa || !fecha || !proveedor || !forma_pago) {
-            return res.status(400).json({ success: false, error: 'Campos requeridos faltantes (fecha, proveedor, forma de pago)' });
+        // Cuenta por pagar: el gasto queda registrado pero sin movimiento
+        // bancario ni forma de pago. Tesorería crea el moviban al abonar.
+        const esPorPagar = por_pagar === true || por_pagar === 'true';
+
+        if (!empresa || !fecha || !proveedor) {
+            return res.status(400).json({ success: false, error: 'Campos requeridos faltantes (fecha, proveedor)' });
+        }
+        if (!esPorPagar && !forma_pago) {
+            return res.status(400).json({ success: false, error: 'Debe indicar la forma de pago, o marcar el gasto como cuenta por pagar' });
+        }
+        if (esPorPagar && entraAlBanco) {
+            return res.status(400).json({ success: false, error: 'Una cuenta por pagar no puede ser un ingreso al banco' });
         }
         if (!Array.isArray(lineas) || lineas.length === 0) {
             return res.status(400).json({ success: false, error: 'Debe incluir al menos una línea de distribución' });
@@ -10891,56 +10908,64 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
         );
         let seq = (parseInt(codigoRes.rows[0].max_codigo) || 0) + 1;
 
-        // 2. Insertar un gasto por línea
+        // 2. Insertar un gasto por línea. Todas comparten `grupo` = código de la
+        //    primera, para poder tratarlas como una sola factura al pagarlas.
         const codigos = [];
+        const grupo = String(seq).padStart(10, '0');
         for (const ln of lineas) {
             const codigo = String(seq).padStart(10, '0');
             const tieneEntrada = !!(ln.materiaPrima && Array.isArray(ln.materiaPrima.items) && ln.materiaPrima.items.length);
             await client.query(
                 `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
-                                    forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado, entrada_almacen)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDIENTE', $13)`,
+                                    forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado, entrada_almacen,
+                                    grupo, por_pagar)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDIENTE', $13, $14, $15)`,
                 [codigo, fecha, factura || null, proveedor, ln.ccosto,
-                 forma_pago, ln.cuenta, (ln.concepto || '').toUpperCase(),
+                 esPorPagar ? null : forma_pago, ln.cuenta, (ln.concepto || '').toUpperCase(),
                  parseFloat(ln.subtotal) || 0, parseFloat(ln.impuestos) || 0, parseFloat(ln.total) || 0,
-                 empresa, tieneEntrada ? 'SI' : null]
+                 empresa, tieneEntrada ? 'SI' : null, grupo, esPorPagar ? 'SI' : null]
             );
             codigos.push(codigo);
             seq++;
         }
 
-        // 3. UN SOLO movimiento bancario por el total de la factura
-        await client.query('LOCK TABLE moviban IN SHARE ROW EXCLUSIVE MODE');
-        const movibanNumRes = await client.query(
-            `SELECT MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END) as max_numero
-             FROM moviban WHERE empresa = $1`,
-            [empresa]
-        );
-        const proximoNumMoviban = String((parseInt(movibanNumRes.rows[0].max_numero) || 0) + 1).padStart(10, '0');
-
-        const prefijoMoviban = entraAlBanco ? 'DEVOLUCION COMPRA' : 'GASTO DE COMPRA';
-        const conceptoMoviban = (codigos.length > 1
-            ? `${prefijoMoviban}: ${codigos[0]} A ${codigos[codigos.length - 1]}`
-            : `${prefijoMoviban}: ${codigos[0]}`).substring(0, 60);
-
-        await client.query(
-            `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
-                                  banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-            ['GTO', proximoNumMoviban, fecha, conceptoMoviban,
-             numero_cheque ? String(numero_cheque).trim() : null,
-             entraAlBanco ? totalFactura : 0,
-             entraAlBanco ? 0 : totalFactura,
-             forma_pago, 'NO', empresa, codigos[0], proveedor, null, lineas[0].ccosto]
-        );
-
-        // 3b. Si se usó un número de cheque, la cuenta bancaria avanza su
-        // consecutivo al siguiente número para la próxima vez que se use.
-        if (numero_cheque && parseInt(numero_cheque) > 0) {
-            await client.query(
-                `UPDATE cuentas_bancarias SET cheque = $1 WHERE codigo = $2 AND empresa = $3`,
-                [parseInt(numero_cheque) + 1, forma_pago, empresa]
+        // 3. UN SOLO movimiento bancario por el total de la factura.
+        //    Una cuenta por pagar todavía no toca el banco: el moviban lo crea
+        //    Tesorería cuando se registra cada abono.
+        let proximoNumMoviban = null;
+        if (!esPorPagar) {
+            await client.query('LOCK TABLE moviban IN SHARE ROW EXCLUSIVE MODE');
+            const movibanNumRes = await client.query(
+                `SELECT MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END) as max_numero
+                 FROM moviban WHERE empresa = $1`,
+                [empresa]
             );
+            proximoNumMoviban = String((parseInt(movibanNumRes.rows[0].max_numero) || 0) + 1).padStart(10, '0');
+
+            const prefijoMoviban = entraAlBanco ? 'DEVOLUCION COMPRA' : 'GASTO DE COMPRA';
+            const conceptoMoviban = (codigos.length > 1
+                ? `${prefijoMoviban}: ${codigos[0]} A ${codigos[codigos.length - 1]}`
+                : `${prefijoMoviban}: ${codigos[0]}`).substring(0, 60);
+
+            await client.query(
+                `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
+                                      banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                ['GTO', proximoNumMoviban, fecha, conceptoMoviban,
+                 numero_cheque ? String(numero_cheque).trim() : null,
+                 entraAlBanco ? totalFactura : 0,
+                 entraAlBanco ? 0 : totalFactura,
+                 forma_pago, 'NO', empresa, codigos[0], proveedor, null, lineas[0].ccosto]
+            );
+
+            // 3b. Si se usó un número de cheque, la cuenta bancaria avanza su
+            // consecutivo al siguiente número para la próxima vez que se use.
+            if (numero_cheque && parseInt(numero_cheque) > 0) {
+                await client.query(
+                    `UPDATE cuentas_bancarias SET cheque = $1 WHERE codigo = $2 AND empresa = $3`,
+                    [parseInt(numero_cheque) + 1, forma_pago, empresa]
+                );
+            }
         }
 
         // 4. Materia prima: siempre guardar en entrada_almacen/detalle_entrada_almacen;
@@ -11087,7 +11112,8 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: { codigos, moviban: proximoNumMoviban, total: totalFactura, omitidos_inventario: omitidos }
+            data: { codigos, grupo, por_pagar: esPorPagar, moviban: proximoNumMoviban,
+                    total: totalFactura, omitidos_inventario: omitidos }
         });
     } catch (error) {
         await client.query('ROLLBACK');
@@ -11110,6 +11136,24 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
         const entraAlBanco = es_ingreso === true || es_ingreso === 'true';
 
         await client.query('BEGIN');
+
+        // 0. Si el gasto es una cuenta por pagar que ya tiene abonos, no se puede
+        //    editar: cambiar el total dejaría el saldo descuadrado contra los pagos
+        //    ya asentados en el banco. Primero hay que reversar el abono.
+        const abonosRes = await client.query(
+            `SELECT COUNT(*)::int AS n
+             FROM gasto_pagos gp
+             JOIN gastos g ON g.grupo = gp.grupo AND g.empresa = gp.empresa
+             WHERE TRIM(g.codigo) = TRIM($1) AND g.empresa = $2`,
+            [codigo, empresa]
+        );
+        if (abonosRes.rows[0].n > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'Este gasto es una cuenta por pagar con abonos registrados. Reversa los pagos en Tesorería antes de editarlo.'
+            });
+        }
 
         // 1. Actualizar gasto
         await client.query(
@@ -11312,6 +11356,23 @@ app.delete('/api/contabilidad/gastos/:codigo', async (req, res) => {
 
         await client.query('BEGIN');
 
+        // 0. Igual que al editar: una cuenta por pagar con abonos no se borra sin
+        //    antes reversar los pagos, o quedarían movimientos bancarios huérfanos.
+        const abonosRes = await client.query(
+            `SELECT COUNT(*)::int AS n
+             FROM gasto_pagos gp
+             JOIN gastos g ON g.grupo = gp.grupo AND g.empresa = gp.empresa
+             WHERE TRIM(g.codigo) = TRIM($1) AND g.empresa = $2`,
+            [codigo, empresa]
+        );
+        if (abonosRes.rows[0].n > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'Este gasto es una cuenta por pagar con abonos registrados. Reversa los pagos en Tesorería antes de eliminarlo.'
+            });
+        }
+
         // 1. Eliminar moviban asociado al gasto
         await client.query(
             'DELETE FROM moviban WHERE gasto = $1 AND empresa = $2',
@@ -11353,7 +11414,8 @@ app.get('/api/contabilidad/gastos/:codigo', async (req, res) => {
                     g.forma_pago, COALESCE(cb.nombre_cta, g.forma_pago) as forma_pago_nombre,
                     g.cuenta, cta.cuenta as cuenta_nombre,
                     g.concepto, g.subtotal, g.impuestos, g.total, g.empresa,
-                    g.estado, g.entrada_almacen, g.origen, mb.cheque as numero_cheque,
+                    g.estado, g.entrada_almacen, g.origen, g.grupo, g.por_pagar,
+                    mb.cheque as numero_cheque,
                     COALESCE(mb.ingreso, 0) > 0 AS es_ingreso
              FROM gastos g
              LEFT JOIN proveedores p ON g.proveedor = p.codigo AND p.empresa = g.empresa
@@ -11441,6 +11503,395 @@ app.get('/api/contabilidad/gastos/buscar', async (req, res) => {
     } catch (error) {
         console.error('Error GET /api/contabilidad/gastos/buscar:', error.message);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// TESORERÍA — CUENTAS POR PAGAR
+// ══════════════════════════════════════════════════════════════════════════
+// Una cuenta por pagar es una factura de gasto registrada con por_pagar='SI':
+// existe el gasto (y por tanto el costo en el P&G) pero no hay movimiento
+// bancario todavía. Las N líneas de la factura se agrupan por `gastos.grupo`;
+// el saldo es SUM(total del grupo) − SUM(abonos en gasto_pagos).
+//
+// Cada abono genera su propio moviban de egreso, así que Conciliación y
+// Movimiento por Cuentas ven el dinero salir en la fecha real del pago.
+
+// SQL compartido: un renglón por factura por pagar, con lo abonado.
+const CXP_BASE = `
+    WITH grupos AS (
+        SELECT g.empresa,
+               g.grupo,
+               MIN(g.fecha)::date    AS fecha,
+               MIN(g.proveedor)      AS proveedor,
+               MIN(g.factura)        AS factura,
+               MIN(g.ccosto)         AS ccosto,
+               COALESCE(SUM(g.total), 0) AS total,
+               COUNT(*)::int         AS num_lineas
+        FROM gastos g
+        WHERE g.empresa = $1::int
+          AND g.por_pagar = 'SI'
+          AND g.grupo IS NOT NULL
+        GROUP BY g.empresa, g.grupo
+    ),
+    abonos AS (
+        SELECT empresa, grupo,
+               COALESCE(SUM(valor), 0) AS pagado,
+               COUNT(*)::int           AS num_pagos,
+               MAX(fecha)::date        AS ultimo_pago
+        FROM gasto_pagos
+        WHERE empresa = $1::int
+        GROUP BY empresa, grupo
+    )
+    SELECT gr.grupo,
+           gr.fecha,
+           gr.proveedor,
+           COALESCE(pr.nombre, gr.proveedor) AS proveedor_nombre,
+           gr.factura,
+           gr.ccosto,
+           COALESCE(cc.nombre, gr.ccosto)    AS ccosto_nombre,
+           gr.total,
+           gr.num_lineas,
+           COALESCE(ab.pagado, 0)            AS pagado,
+           gr.total - COALESCE(ab.pagado, 0) AS saldo,
+           COALESCE(ab.num_pagos, 0)         AS num_pagos,
+           ab.ultimo_pago,
+           (CURRENT_DATE - gr.fecha)::int    AS dias
+    FROM grupos gr
+    LEFT JOIN abonos ab      ON ab.empresa = gr.empresa AND ab.grupo = gr.grupo
+    LEFT JOIN proveedores pr ON pr.codigo = gr.proveedor AND pr.empresa = gr.empresa
+    LEFT JOIN ccostos cc     ON cc.codigo = gr.ccosto    AND cc.empresa = gr.empresa`;
+
+function estadoCxp(total, pagado) {
+    const saldo = total - pagado;
+    if (saldo <= 0.01) return 'PAGADA';
+    return pagado > 0.01 ? 'PARCIAL' : 'PENDIENTE';
+}
+
+function mapCxp(r) {
+    const total  = parseFloat(r.total) || 0;
+    const pagado = parseFloat(r.pagado) || 0;
+    return {
+        grupo: r.grupo,
+        fecha: r.fecha,
+        proveedor: r.proveedor,
+        proveedor_nombre: r.proveedor_nombre,
+        factura: r.factura,
+        ccosto: r.ccosto,
+        ccosto_nombre: r.ccosto_nombre,
+        total,
+        pagado,
+        saldo: Math.round((total - pagado) * 100) / 100,
+        num_lineas: parseInt(r.num_lineas) || 0,
+        num_pagos: parseInt(r.num_pagos) || 0,
+        ultimo_pago: r.ultimo_pago,
+        dias: parseInt(r.dias) || 0,
+        estado: estadoCxp(total, pagado),
+    };
+}
+
+// GET /api/tesoreria/cuentas-por-pagar — listado + KPIs
+// Query: empresa (req), desde, hasta, proveedor, estado (PENDIENTE|PARCIAL|PAGADA)
+app.get('/api/tesoreria/cuentas-por-pagar', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        const { desde, hasta, proveedor, estado } = req.query;
+        const params = [String(empresa)];
+        let filtros = '';
+        if (desde)     { params.push(desde);     filtros += ` AND gr.fecha >= $${params.length}::date`; }
+        if (hasta)     { params.push(hasta);     filtros += ` AND gr.fecha <= $${params.length}::date`; }
+        if (proveedor) { params.push(proveedor); filtros += ` AND gr.proveedor = $${params.length}`; }
+
+        const r = await pool.query(
+            `${CXP_BASE} WHERE 1=1 ${filtros} ORDER BY gr.fecha, gr.grupo`,
+            params
+        );
+
+        let cuentas = r.rows.map(mapCxp);
+        // El estado es derivado (saldo vs abonos), así que se filtra en JS.
+        if (estado) cuentas = cuentas.filter(c => c.estado === estado);
+
+        const abiertas = cuentas.filter(c => c.estado !== 'PAGADA');
+        const totalSaldo = abiertas.reduce((s, c) => s + c.saldo, 0);
+
+        // Antigüedad del saldo por fecha del gasto (no hay fecha de vencimiento).
+        const bucket = (min, max) => abiertas
+            .filter(c => c.dias >= min && (max === null || c.dias <= max))
+            .reduce((s, c) => s + c.saldo, 0);
+
+        // Saldo por proveedor, para saber a quién se le debe más
+        const porProveedor = {};
+        for (const c of abiertas) {
+            if (!porProveedor[c.proveedor]) {
+                porProveedor[c.proveedor] = { proveedor: c.proveedor, proveedor_nombre: c.proveedor_nombre, saldo: 0, cuentas: 0 };
+            }
+            porProveedor[c.proveedor].saldo   += c.saldo;
+            porProveedor[c.proveedor].cuentas += 1;
+        }
+        const rankingProveedores = Object.values(porProveedor).sort((a, b) => b.saldo - a.saldo);
+
+        res.json({
+            success: true,
+            kpis: {
+                total_por_pagar:   totalSaldo,
+                num_cuentas:       abiertas.length,
+                num_proveedores:   rankingProveedores.length,
+                num_pagadas:       cuentas.length - abiertas.length,
+                total_facturado:   cuentas.reduce((s, c) => s + c.total, 0),
+                total_abonado:     cuentas.reduce((s, c) => s + c.pagado, 0),
+                mayor_saldo:       rankingProveedores[0] || null,
+                antiguedad: {
+                    d0_30:   bucket(0, 30),
+                    d31_60:  bucket(31, 60),
+                    d61_90:  bucket(61, 90),
+                    d90_mas: bucket(91, null),
+                },
+            },
+            cuentas,
+            rankingProveedores,
+        });
+    } catch (error) {
+        console.error('Error GET /api/tesoreria/cuentas-por-pagar:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/tesoreria/cuentas-por-pagar/:grupo — líneas del gasto + historial de abonos
+app.get('/api/tesoreria/cuentas-por-pagar/:grupo', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+        const { grupo } = req.params;
+
+        const [cabRes, lineasRes, pagosRes] = await Promise.all([
+            pool.query(`${CXP_BASE} WHERE gr.grupo = $2`, [String(empresa), grupo]),
+            pool.query(
+                `SELECT g.codigo, g.ccosto, COALESCE(cc.nombre, g.ccosto) AS ccosto_nombre,
+                        g.cuenta, COALESCE(cta.cuenta, g.cuenta) AS cuenta_nombre,
+                        g.concepto, g.subtotal, g.impuestos, g.total
+                 FROM gastos g
+                 LEFT JOIN ccostos cc ON cc.codigo = g.ccosto AND cc.empresa = g.empresa
+                 LEFT JOIN cuentas cta ON cta.codigo = g.cuenta AND cta.empresa = g.empresa
+                 WHERE g.empresa = $1::int AND g.grupo = $2
+                 ORDER BY g.codigo`,
+                [String(empresa), grupo]
+            ),
+            pool.query(
+                `SELECT gp.id, gp.fecha, gp.valor, gp.banco,
+                        COALESCE(cb.nombre_cta, gp.banco) AS banco_nombre,
+                        gp.cheque, gp.moviban, gp.observaciones
+                 FROM gasto_pagos gp
+                 LEFT JOIN cuentas_bancarias cb ON cb.codigo = gp.banco AND cb.empresa = gp.empresa
+                 WHERE gp.empresa = $1::int AND gp.grupo = $2
+                 ORDER BY gp.fecha, gp.id`,
+                [String(empresa), grupo]
+            ),
+        ]);
+
+        if (!cabRes.rows.length) {
+            return res.status(404).json({ success: false, error: 'Cuenta por pagar no encontrada' });
+        }
+
+        res.json({
+            success: true,
+            cuenta: mapCxp(cabRes.rows[0]),
+            lineas: lineasRes.rows.map(l => ({
+                ...l,
+                subtotal:  parseFloat(l.subtotal) || 0,
+                impuestos: parseFloat(l.impuestos) || 0,
+                total:     parseFloat(l.total) || 0,
+            })),
+            pagos: pagosRes.rows.map(p => ({ ...p, valor: parseFloat(p.valor) || 0 })),
+        });
+    } catch (error) {
+        console.error('Error GET /api/tesoreria/cuentas-por-pagar/:grupo:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/tesoreria/cuentas-por-pagar/:grupo/pagos — registrar un abono
+// Body: { empresa, fecha, banco, valor, cheque?, observaciones? }
+app.post('/api/tesoreria/cuentas-por-pagar/:grupo/pagos', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { grupo } = req.params;
+        const { empresa, fecha, banco, valor, cheque, observaciones } = req.body;
+
+        if (!empresa || !fecha || !banco) {
+            return res.status(400).json({ success: false, error: 'Campos requeridos faltantes (fecha, cuenta bancaria)' });
+        }
+        const valorAbono = Math.round((parseFloat(valor) || 0) * 100) / 100;
+        if (!(valorAbono > 0)) {
+            return res.status(400).json({ success: false, error: 'El valor del abono debe ser mayor a 0' });
+        }
+
+        await client.query('BEGIN');
+
+        // 1. Bloquear las líneas del grupo para que dos abonos simultáneos no
+        //    puedan sobrepasar el saldo. FOR UPDATE va en su propia consulta:
+        //    PostgreSQL no lo admite junto a funciones de agregado.
+        await client.query(
+            `SELECT codigo FROM gastos
+             WHERE empresa = $1::int AND grupo = $2 AND por_pagar = 'SI'
+             FOR UPDATE`,
+            [String(empresa), grupo]
+        );
+
+        // Estado actual del grupo
+        const grpRes = await client.query(
+            `SELECT COALESCE(SUM(total), 0) AS total, MIN(proveedor) AS proveedor,
+                    MIN(ccosto) AS ccosto, MIN(factura) AS factura, COUNT(*)::int AS n
+             FROM gastos
+             WHERE empresa = $1::int AND grupo = $2 AND por_pagar = 'SI'`,
+            [String(empresa), grupo]
+        );
+        if (!grpRes.rows[0] || grpRes.rows[0].n === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Cuenta por pagar no encontrada' });
+        }
+        const totalGrupo = parseFloat(grpRes.rows[0].total) || 0;
+        const proveedor  = grpRes.rows[0].proveedor;
+        const ccosto     = grpRes.rows[0].ccosto;
+        const factura    = grpRes.rows[0].factura;
+
+        const pagRes = await client.query(
+            `SELECT COALESCE(SUM(valor), 0) AS pagado FROM gasto_pagos WHERE empresa = $1::int AND grupo = $2`,
+            [String(empresa), grupo]
+        );
+        const pagadoPrevio = parseFloat(pagRes.rows[0].pagado) || 0;
+        const saldo = Math.round((totalGrupo - pagadoPrevio) * 100) / 100;
+
+        if (saldo <= 0.01) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, error: 'Esta cuenta por pagar ya está pagada' });
+        }
+        if (valorAbono > saldo + 0.01) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                error: `El abono (${valorAbono.toFixed(2)}) supera el saldo pendiente (${saldo.toFixed(2)})`
+            });
+        }
+
+        // 2. Movimiento bancario de egreso por el abono
+        await client.query('LOCK TABLE moviban IN SHARE ROW EXCLUSIVE MODE');
+        const mbRes = await client.query(
+            `SELECT MAX(CASE WHEN numero ~ '^[0-9]+$' THEN CAST(numero AS BIGINT) ELSE 0 END) AS max_numero
+             FROM moviban WHERE empresa = $1`,
+            [empresa]
+        );
+        const numeroMoviban = String((parseInt(mbRes.rows[0].max_numero) || 0) + 1).padStart(10, '0');
+
+        const quedaSaldo = Math.round((saldo - valorAbono) * 100) / 100 > 0.01;
+        const concepto = `${quedaSaldo ? 'ABONO CXP' : 'PAGO CXP'}: ${grupo}${factura ? ' FACT ' + factura : ''}`
+            .substring(0, 60);
+
+        await client.query(
+            `INSERT INTO moviban (tipo, numero, fecha, concepto, cheque, ingreso, egreso,
+                                  banco, conciliado, empresa, gasto, beneficia, origen, ccosto)
+             VALUES ('GTO', $1, $2, $3, $4, 0, $5, $6, 'NO', $7, $8, $9, NULL, $10)`,
+            [numeroMoviban, fecha, concepto,
+             cheque ? String(cheque).trim() : null,
+             valorAbono, banco, empresa, grupo, proveedor, ccosto]
+        );
+
+        // 3. Registrar el abono
+        const insRes = await client.query(
+            `INSERT INTO gasto_pagos (empresa, grupo, fecha, banco, valor, cheque, moviban, observaciones)
+             VALUES ($1::int, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id`,
+            [String(empresa), grupo, fecha, banco, valorAbono,
+             cheque ? String(cheque).trim() : null, numeroMoviban,
+             (observaciones || '').substring(0, 200) || null]
+        );
+
+        // 4. Si se usó cheque, la cuenta bancaria avanza su consecutivo
+        if (cheque && parseInt(cheque) > 0) {
+            await client.query(
+                `UPDATE cuentas_bancarias SET cheque = $1 WHERE codigo = $2 AND empresa = $3`,
+                [parseInt(cheque) + 1, banco, empresa]
+            );
+        }
+
+        // 5. Al quedar saldada, se estampa la forma de pago en las líneas del gasto
+        //    para que los reportes clásicos de Contabilidad (que leen forma_pago)
+        //    muestren con qué cuenta se terminó de pagar.
+        if (!quedaSaldo) {
+            await client.query(
+                `UPDATE gastos SET forma_pago = $1 WHERE empresa = $2::int AND grupo = $3`,
+                [banco, String(empresa), grupo]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({
+            success: true,
+            data: {
+                id: insRes.rows[0].id,
+                moviban: numeroMoviban,
+                valor: valorAbono,
+                saldo_restante: Math.round((saldo - valorAbono) * 100) / 100,
+                estado: quedaSaldo ? 'PARCIAL' : 'PAGADA',
+            },
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/tesoreria/cuentas-por-pagar/:grupo/pagos:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// DELETE /api/tesoreria/cuentas-por-pagar/pagos/:id — reversar un abono
+// Borra el movimiento bancario que generó y devuelve la CxP a su saldo anterior.
+app.delete('/api/tesoreria/cuentas-por-pagar/pagos/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+        await client.query('BEGIN');
+
+        const pagoRes = await client.query(
+            `SELECT id, grupo, moviban FROM gasto_pagos WHERE id = $1::int AND empresa = $2::int`,
+            [id, String(empresa)]
+        );
+        if (!pagoRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Abono no encontrado' });
+        }
+        const pago = pagoRes.rows[0];
+
+        // El moviban se identifica por su número, no por `gasto`: un grupo con
+        // varios abonos tiene varios movimientos con el mismo valor en `gasto`.
+        if (pago.moviban) {
+            await client.query(
+                `DELETE FROM moviban WHERE numero = $1 AND empresa = $2`,
+                [pago.moviban, empresa]
+            );
+        }
+        await client.query(`DELETE FROM gasto_pagos WHERE id = $1::int`, [id]);
+
+        // La CxP vuelve a tener saldo: se limpia la forma de pago que se había
+        // estampado al saldarla.
+        await client.query(
+            `UPDATE gastos SET forma_pago = NULL
+             WHERE empresa = $1::int AND grupo = $2 AND por_pagar = 'SI'`,
+            [String(empresa), pago.grupo]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: `Abono reversado`, data: { grupo: pago.grupo } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error DELETE /api/tesoreria/cuentas-por-pagar/pagos/:id:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
     }
 });
 
@@ -11635,6 +12086,37 @@ pool.query(`ALTER TABLE factura_venta ADD COLUMN IF NOT EXISTS ccosto VARCHAR(10
 pool.query(`ALTER TABLE ordenes_despacho ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) DEFAULT 'TRASLADO'`).catch(() => {});
 pool.query(`ALTER TABLE ordenes_despacho ADD COLUMN IF NOT EXISTS orden_compra VARCHAR(30)`).catch(() => {});
 pool.query(`ALTER TABLE ordenes_despacho ALTER COLUMN cc_destino DROP NOT NULL`).catch(() => {});
+
+// ─── CUENTAS POR PAGAR ────────────────────────────────────────────────────
+// Un gasto puede quedar sin pagar: no se crea movimiento bancario al registrarlo
+// y queda como cuenta por pagar hasta que Tesorería registre los abonos.
+//
+// `grupo` vincula las N líneas que salieron de UNA factura (POST /gastos/multiple
+// inserta una fila por línea de ccosto/cuenta). Antes solo se podían agrupar por
+// heurística (fecha+proveedor+forma_pago+factura, ver GestionGastosTable); eso no
+// sirve para pagar, porque en una CxP la forma de pago va vacía. Ahora todas las
+// líneas de una factura comparten el código de la primera.
+pool.query(`ALTER TABLE gastos ADD COLUMN IF NOT EXISTS grupo     VARCHAR(10)`).catch(() => {});
+pool.query(`ALTER TABLE gastos ADD COLUMN IF NOT EXISTS por_pagar VARCHAR(2)`).catch(() => {});
+pool.query(`CREATE INDEX IF NOT EXISTS idx_gastos_grupo ON gastos (empresa, grupo)`).catch(() => {});
+
+// Abonos a cuentas por pagar. Se guarda el histórico en lugar de un solo
+// `valor_pagado` para poder reversar un pago puntual y auditar con qué banco
+// se pagó cada parte. El saldo es total del grupo − SUM(valor).
+pool.query(`
+    CREATE TABLE IF NOT EXISTS gasto_pagos (
+        id            SERIAL PRIMARY KEY,
+        empresa       INTEGER      NOT NULL,
+        grupo         VARCHAR(10)  NOT NULL,
+        fecha         DATE         NOT NULL,
+        banco         VARCHAR(10),
+        valor         NUMERIC(14,2) NOT NULL,
+        cheque        VARCHAR(20),
+        moviban       VARCHAR(10),
+        observaciones VARCHAR(200),
+        creado_en     TIMESTAMP DEFAULT NOW()
+    )`).catch(() => {});
+pool.query(`CREATE INDEX IF NOT EXISTS idx_gasto_pagos_grupo ON gasto_pagos (empresa, grupo)`).catch(() => {});
 
 // GET /api/config-general
 app.get('/api/config-general', async (req, res) => {
