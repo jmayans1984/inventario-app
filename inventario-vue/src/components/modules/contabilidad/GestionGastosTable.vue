@@ -457,18 +457,24 @@ function imprimirEntradasLegacy() {
 
 // ── Agrupación visual de gastos que pertenecen a la misma factura ──
 // Un solo POST /gastos/multiple crea N filas en `gastos` (una por línea de
-// centro de costo / cuenta contable) pero comparten fecha + proveedor +
-// forma de pago + factura. Como no hay una columna que los vincule, se
-// agrupan aquí por esa combinación para poder distinguirlos en la grilla.
+// centro de costo / cuenta contable). Desde que existen las cuentas por pagar
+// todas esas filas comparten `grupo` (el código de la primera), así que ese es
+// el vínculo real. Los gastos anteriores a esa columna no lo tienen: para ellos
+// se cae al criterio viejo (fecha + proveedor + forma de pago + factura).
 const COLORES_GRUPO = ['#6366f1', '#10b981', '#f0a83c', '#ec4899', '#06b6d4', '#8b5cf6', '#f43f5e', '#22c55e']
 
 const gruposFactura = computed(() => {
   const grupos = new Map()
   for (const g of store.gastos) {
     if (!g.proveedor || g.proveedor === '0') continue
-    const facturaKey = (g.factura || '').trim().toUpperCase()
-    if (!facturaKey) continue // sin número de factura no hay forma confiable de vincular
-    const key = [g.empresa, g.fecha, g.proveedor, g.forma_pago, facturaKey].join('|')
+    let key
+    if (g.grupo) {
+      key = `G|${g.empresa}|${g.grupo}`
+    } else {
+      const facturaKey = (g.factura || '').trim().toUpperCase()
+      if (!facturaKey) continue // sin número de factura no hay forma confiable de vincular
+      key = [g.empresa, g.fecha, g.proveedor, g.forma_pago, facturaKey].join('|')
+    }
     if (!grupos.has(key)) grupos.set(key, [])
     grupos.get(key).push(g)
   }
