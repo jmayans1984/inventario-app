@@ -76,6 +76,21 @@ export const movimientosBancariosService = {
     }
   },
 
+  // Eliminar un movimiento. conGasto=true además borra el gasto asociado
+  // (y todas las líneas de su misma factura, si venía repartida).
+  async eliminarMovimiento(numero, conGasto = false) {
+    try {
+      const empresa = getEmpresaActiva()
+      const response = await api.delete(`${ENDPOINT}/${numero}`, {
+        params: { empresa, con_gasto: conGasto },
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error eliminando movimiento:', error)
+      throw error
+    }
+  },
+
   // Filtrar por rango de fechas
   async getMovimientosPorFecha(fechaInicio, fechaFin, params = {}) {
     try {

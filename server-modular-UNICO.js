@@ -4685,6 +4685,83 @@ app.put('/api/tesoreria/movimientos/:numero/editar', async (req, res) => {
     }
 });
 
+// DELETE /api/tesoreria/movimientos/:numero — elimina un movimiento bancario.
+// Query: empresa (req), con_gasto=true|false (default false).
+//
+//  con_gasto=false → borra solo la fila de moviban. Si estaba asociada a un
+//    gasto, el gasto queda intacto (sin movimiento bancario, igual que una
+//    cuenta por pagar, aunque no quede marcada como tal).
+//  con_gasto=true  → además borra el gasto asociado. Como una factura puede
+//    venir repartida en varias líneas (gastos.grupo), se borran TODAS las
+//    líneas del grupo, no solo la referenciada por moviban.gasto.
+//
+// Si el movimiento es un abono de una cuenta por pagar (existe en
+// gasto_pagos), se rechaza: hay que reversarlo desde Tesorería > Cuentas por
+// Pagar, que ya sabe restaurar el saldo correctamente.
+app.delete('/api/tesoreria/movimientos/:numero', async (req, res) => {
+    const { numero } = req.params;
+    const empresa = req.query.empresa || req.body?.empresa;
+    const conGasto = req.query.con_gasto === 'true' || req.body?.con_gasto === true;
+
+    if (!empresa) return res.status(400).json({ success: false, error: 'Parámetro empresa requerido' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const movRes = await client.query(
+            `SELECT numero, tipo, gasto FROM moviban WHERE numero = $1 AND empresa = $2 FOR UPDATE`,
+            [numero, empresa]
+        );
+        if (movRes.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Movimiento no encontrado' });
+        }
+        const mov = movRes.rows[0];
+
+        const pagoRes = await client.query(
+            `SELECT id FROM gasto_pagos WHERE moviban = $1 AND empresa = $2::int`,
+            [numero, empresa]
+        );
+        if (pagoRes.rowCount > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'Este movimiento es un abono de una cuenta por pagar. Revierte el abono desde Tesorería → Cuentas por Pagar.'
+            });
+        }
+
+        let gastosEliminados = [];
+        if (conGasto && mov.gasto) {
+            const gastoRes = await client.query(
+                `SELECT codigo, grupo FROM gastos WHERE codigo = $1 AND empresa = $2`,
+                [mov.gasto, empresa]
+            );
+            if (gastoRes.rows.length) {
+                const { grupo } = gastoRes.rows[0];
+                const delRes = await client.query(
+                    grupo
+                        ? `DELETE FROM gastos WHERE grupo = $1 AND empresa = $2 RETURNING codigo`
+                        : `DELETE FROM gastos WHERE codigo = $1 AND empresa = $2 RETURNING codigo`,
+                    [grupo || mov.gasto, empresa]
+                );
+                gastosEliminados = delRes.rows.map(r => r.codigo);
+            }
+        }
+
+        await client.query(`DELETE FROM moviban WHERE numero = $1 AND empresa = $2`, [numero, empresa]);
+
+        await client.query('COMMIT');
+        res.json({ success: true, data: { numero, gastos_eliminados: gastosEliminados } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error en DELETE /api/tesoreria/movimientos/:numero:', error);
+        res.status(500).json({ success: false, error: 'Error al eliminar movimiento', details: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // PUT /api/tesoreria/movimientos/:id - Marcar movimiento como conciliado/pendiente
 app.put('/api/tesoreria/movimientos/:id', async (req, res) => {
     const { id } = req.params;

@@ -170,6 +170,35 @@
                     color="rgba(0,0,0,0.25)"
                     title="Asociado a un gasto — edítalo desde Contabilidad > Gastos"
                   >mdi-lock-outline</v-icon>
+
+                  <v-menu location="bottom end">
+                    <template #activator="{ props: menuProps }">
+                      <v-btn
+                        v-bind="menuProps"
+                        icon="mdi-dots-vertical"
+                        size="x-small"
+                        variant="text"
+                        title="Más opciones"
+                        @click.stop
+                      />
+                    </template>
+                    <v-list density="compact" class="acciones-menu">
+                      <v-list-item
+                        prepend-icon="mdi-delete-outline"
+                        title="Eliminar solo el movimiento"
+                        :subtitle="mov.gasto ? 'El gasto asociado queda intacto' : null"
+                        @click="confirmarEliminar(mov, false)"
+                      />
+                      <v-list-item
+                        v-if="mov.gasto"
+                        prepend-icon="mdi-delete-forever-outline"
+                        title="Eliminar movimiento y gasto asociado"
+                        subtitle="Borra también la(s) línea(s) del gasto en Contabilidad"
+                        base-color="error"
+                        @click="confirmarEliminar(mov, true)"
+                      />
+                    </v-list>
+                  </v-menu>
                 </td>
               </tr>
               <!-- FOOTER TOTALES -->
@@ -465,6 +494,70 @@
         </div>
       </v-card>
     </v-dialog>
+
+    <!-- MODAL CONFIRMAR ELIMINACIÓN -->
+    <v-dialog v-model="dialogEliminarOpen" max-width="460">
+      <v-card class="form-card">
+        <div class="form-header form-header-danger">
+          <div class="form-header-left">
+            <div class="form-header-icon">
+              <v-icon size="18" color="white">mdi-delete-outline</v-icon>
+            </div>
+            <span class="form-title">
+              {{ eliminarConGasto ? 'ELIMINAR MOVIMIENTO Y GASTO' : 'ELIMINAR MOVIMIENTO' }}
+            </span>
+          </div>
+          <v-btn icon size="small" variant="text" @click="cerrarEliminar">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <div class="form-body" v-if="movAEliminar">
+          <p class="confirm-texto">
+            Vas a eliminar el movimiento
+            <strong class="numero-badge">{{ movAEliminar.numero }}</strong>
+            del {{ formatFecha(movAEliminar.fecha) }}
+            por <strong>{{ formatMoneda(parseFloat(movAEliminar.ingreso) > 0 ? movAEliminar.ingreso : movAEliminar.egreso) }}</strong>.
+          </p>
+
+          <div v-if="eliminarConGasto" class="confirm-warning">
+            <v-icon size="16" color="var(--error)">mdi-alert-outline</v-icon>
+            <span>
+              También se eliminará el gasto asociado en Contabilidad
+              (todas las líneas de la misma factura, si venía repartida).
+              Esta acción no se puede deshacer.
+            </span>
+          </div>
+          <div v-else-if="movAEliminar.gasto" class="confirm-info">
+            <v-icon size="16" color="var(--indigo)">mdi-information-outline</v-icon>
+            <span>El gasto asociado en Contabilidad no se toca — solo desaparece este movimiento bancario.</span>
+          </div>
+
+          <div v-if="movAEliminar.conciliado === 'SI'" class="confirm-warning">
+            <v-icon size="16" color="var(--error)">mdi-alert-outline</v-icon>
+            <span>Este movimiento ya está conciliado. Eliminarlo puede descuadrar la conciliación bancaria.</span>
+          </div>
+
+          <v-alert v-if="errorEliminar" type="error" density="compact" class="mt-3">
+            {{ errorEliminar }}
+          </v-alert>
+        </div>
+
+        <div class="form-footer">
+          <v-btn variant="text" @click="cerrarEliminar" :disabled="eliminando">
+            Cancelar
+          </v-btn>
+          <v-btn
+            color="error"
+            @click="ejecutarEliminar"
+            :loading="eliminando"
+            prepend-icon="mdi-delete-outline"
+          >
+            {{ eliminarConGasto ? 'Eliminar todo' : 'Eliminar movimiento' }}
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
   </MainLayout>
 </template>
 
@@ -661,6 +754,40 @@ async function guardarEdicion() {
   }
 }
 
+// ─── Eliminar ────────────────────────────────────────────────────
+const dialogEliminarOpen = ref(false)
+const movAEliminar       = ref(null)
+const eliminarConGasto   = ref(false)
+const eliminando         = ref(false)
+const errorEliminar      = ref('')
+
+function confirmarEliminar(mov, conGasto) {
+  movAEliminar.value     = mov
+  eliminarConGasto.value = conGasto
+  errorEliminar.value    = ''
+  dialogEliminarOpen.value = true
+}
+
+function cerrarEliminar() {
+  dialogEliminarOpen.value = false
+  movAEliminar.value = null
+}
+
+async function ejecutarEliminar() {
+  if (!movAEliminar.value) return
+  eliminando.value = true
+  errorEliminar.value = ''
+  try {
+    await store.eliminarMovimiento(movAEliminar.value.numero, eliminarConGasto.value)
+    dialogEliminarOpen.value = false
+    movAEliminar.value = null
+  } catch (err) {
+    errorEliminar.value = err.response?.data?.error || err.message || 'Error al eliminar el movimiento'
+  } finally {
+    eliminando.value = false
+  }
+}
+
 // ─── Inicialización ──────────────────────────────────────────────
 onMounted(async () => {
   await store.fetchCuentasBancarias()
@@ -763,7 +890,7 @@ onMounted(async () => {
 .col-ingreso      { width: 120px; text-align: right !important; white-space: nowrap; }
 .col-egreso       { width: 120px; text-align: right !important; white-space: nowrap; }
 .col-conciliado   { width: 100px; text-align: center !important; }
-.col-acciones     { width: 44px; text-align: center !important; }
+.col-acciones     { width: 74px; text-align: center !important; white-space: nowrap; }
 
 .numero-badge {
   background: var(--indigo-wash); color: var(--indigo);
@@ -866,4 +993,19 @@ onMounted(async () => {
   padding: 12px 20px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
+
+/* Menú de acciones por fila */
+.acciones-menu :deep(.v-list-item-title) { font-size: 12.5px; font-weight: 600; }
+.acciones-menu :deep(.v-list-item-subtitle) { font-size: 10.5px; white-space: normal; line-height: 1.4; }
+
+/* Modal eliminar */
+.form-header-danger { background: linear-gradient(135deg, var(--error), var(--error)) !important; }
+.confirm-texto { font-size: 13px; line-height: 1.6; color: rgb(var(--v-theme-on-surface)); margin: 0 0 12px; }
+.confirm-warning, .confirm-info {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+  margin-bottom: 10px;
+}
+.confirm-warning { background: rgba(var(--v-theme-error), 0.08); color: rgba(var(--v-theme-on-surface), 0.8); }
+.confirm-info    { background: var(--indigo-wash); color: rgba(var(--v-theme-on-surface), 0.75); }
 </style>

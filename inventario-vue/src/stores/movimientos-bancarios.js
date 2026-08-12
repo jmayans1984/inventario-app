@@ -126,6 +126,21 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     }
   }
 
+  async function eliminarMovimiento(numero, conGasto = false) {
+    loading.value = true
+    error.value = null
+    try {
+      const resp = await movimientosBancariosService.eliminarMovimiento(numero, conGasto)
+      await fetchMovimientos()
+      return resp
+    } catch (err) {
+      error.value = err.response?.data?.error || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   function setBanco(codigo) {
     bancoSeleccionado.value = codigo
     movimientos.value = []
@@ -164,6 +179,7 @@ export const useMovimientosBancariosStore = defineStore('movimientosBancarios', 
     buscarProveedores,
     crearMovimiento,
     editarMovimiento,
+    eliminarMovimiento,
     setBanco,
     setFiltros,
     clearError,
