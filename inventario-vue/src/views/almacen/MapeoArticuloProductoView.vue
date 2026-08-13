@@ -46,6 +46,12 @@
           su precio se guarda en el catálogo de productos y el artículo queda congelado — y las recetas
           que lo usan nunca actualizan su costo. Al vincularlos aquí, cualquier compra que actualice
           un lado actualiza el otro automáticamente.
+          <div class="ap-explica-fac">
+            Si no miden en la misma unidad — la receta gasta <strong>kilos</strong> y bodega compra
+            <strong>bultos</strong> — define el <strong>factor</strong>: cuántas unidades del artículo
+            trae una unidad del producto. El costo se convierte antes de escribirlo
+            (<code>costo artículo = costo producto ÷ factor</code>).
+          </div>
         </div>
       </div>
 
@@ -110,7 +116,7 @@
                 <tr>
                   <th class="th-nom">ARTÍCULO (RECETAS)</th>
                   <th class="th-num">COSTO</th>
-                  <th class="th-mini"></th>
+                  <th class="th-num">FACTOR</th>
                   <th class="th-nom">PRODUCTO (BODEGA)</th>
                   <th class="th-num">COSTO</th>
                   <th class="th-nom">ESTADO</th>
@@ -124,7 +130,14 @@
                     <span class="ap-cod">{{ m.articulo }}{{ m.articulo_und ? ' · ' + m.articulo_und : '' }}</span>
                   </td>
                   <td class="td-num">{{ money(m.articulo_costo) }}</td>
-                  <td class="td-mini"><v-icon size="15" color="rgba(var(--v-theme-on-surface),0.3)">mdi-arrow-left-right</v-icon></td>
+                  <td class="td-num">
+                    <button class="ap-factor" :class="{ 'ap-factor--uno': m.factor === 1 }"
+                            title="Editar el factor de conversión"
+                            @click="abrirFactor(m)">
+                      ÷ {{ num(m.factor) }}
+                      <v-icon size="12">mdi-pencil</v-icon>
+                    </button>
+                  </td>
                   <td class="td-nom">
                     {{ m.producto_nombre || '(producto borrado)' }}
                     <span class="ap-cod">{{ m.producto }}{{ m.producto_und ? ' · ' + m.producto_und : '' }}</span>
@@ -133,6 +146,7 @@
                   <td class="td-nom">
                     <span v-if="m.desalineado" class="ap-badge ap-badge--warn">DESALINEADO</span>
                     <span v-else class="ap-badge ap-badge--ok">OK</span>
+                    <span v-if="m.desalineado" class="ap-cod">esperado {{ money(m.articulo_costo_esperado) }}</span>
                   </td>
                   <td class="td-mini">
                     <v-btn
@@ -178,11 +192,15 @@
                   <div class="ap-cand-info">
                     <span class="ap-cand-nom">{{ c.nombre }}</span>
                     <span class="ap-cod">{{ c.codigo }}{{ c.und ? ' · ' + c.und : '' }} · {{ money(c.precio_costo) }}</span>
+                    <span v-if="unidadDistinta(s, c)" class="ap-cand-und">
+                      <v-icon size="11">mdi-scale-balance</v-icon>
+                      Unidades distintas ({{ s.articulo_und }} vs {{ c.und }}) — confirma el factor
+                    </span>
                   </div>
                   <v-btn
                     size="small" variant="tonal" color="#047857" rounded="lg"
                     :loading="vinculando === `${s.articulo}::${c.codigo}`"
-                    @click="vincular(s.articulo, c.codigo)"
+                    @click="pedirVincular(s, c)"
                   >
                     Vincular
                   </v-btn>
@@ -222,11 +240,30 @@
               clearable
             />
 
-            <div v-if="nuevoProductoObj" class="ap-dlg-nota">
+            <v-text-field
+              v-model.number="nuevoFactor"
+              label="Factor: unidades del artículo por unidad del producto"
+              type="number" min="0.0001" step="any"
+              variant="outlined" density="comfortable" class="mt-3"
+              prepend-inner-icon="mdi-scale"
+              hide-details persistent-placeholder
+            />
+            <div class="ap-dlg-nota">
               <v-icon size="14" color="#047857">mdi-information-outline</v-icon>
-              Al vincular se copiará el costo del producto
-              (<strong>{{ money(nuevoProductoObj.precio_costo) }}</strong>) al artículo,
-              y las recetas que lo usen tomarán ese valor en el próximo recálculo.
+              <span>
+                Deja <strong>1</strong> si ambos miden igual. Si la receta gasta kilos y el
+                producto viene en bultos de 25 kilos, pon <strong>25</strong>.
+              </span>
+            </div>
+
+            <div v-if="nuevoProductoObj" class="ap-dlg-nota">
+              <v-icon size="14" color="#047857">mdi-function-variant</v-icon>
+              <span>
+                Al vincular, el artículo quedará en
+                <strong>{{ money(nuevoFactorOk ? nuevoProductoObj.precio_costo / nuevoFactor : 0) }}</strong>
+                ({{ money(nuevoProductoObj.precio_costo) }} ÷ {{ num(nuevoFactor) }}),
+                y las recetas que lo usen tomarán ese valor en el próximo recálculo.
+              </span>
             </div>
 
             <v-alert v-if="errorNuevo" type="error" variant="tonal" density="compact" class="mt-3">
@@ -238,10 +275,73 @@
             <v-btn
               color="#047857" variant="flat"
               :loading="guardandoNuevo"
-              :disabled="!nuevoArticulo || !nuevoProducto"
+              :disabled="!nuevoArticulo || !nuevoProducto || !nuevoFactorOk"
               @click="guardarNuevo"
             >
               Vincular
+            </v-btn>
+          </div>
+        </v-card>
+      </v-dialog>
+
+      <!-- ══ DIÁLOGO: FACTOR DE CONVERSIÓN ══ -->
+      <v-dialog v-model="dlgFactor" max-width="520">
+        <v-card class="ap-dlg">
+          <div class="ap-dlg-head">
+            <v-icon size="19" color="#047857">mdi-scale-balance</v-icon>
+            <span>{{ conv.modo === 'crear' ? 'Confirmar conversión de unidades' : 'Editar factor de conversión' }}</span>
+          </div>
+          <div class="ap-dlg-body">
+            <div class="ap-conv">
+              <div class="ap-conv-lado">
+                <span class="ap-conv-rol">ARTÍCULO · RECETAS</span>
+                <span class="ap-conv-nom">{{ conv.articulo_nombre }}</span>
+                <span class="ap-cod">se consume por {{ conv.articulo_und || '—' }}</span>
+              </div>
+              <v-icon size="17" color="rgba(var(--v-theme-on-surface),0.3)">mdi-arrow-left</v-icon>
+              <div class="ap-conv-lado">
+                <span class="ap-conv-rol">PRODUCTO · BODEGA</span>
+                <span class="ap-conv-nom">{{ conv.producto_nombre }}</span>
+                <span class="ap-cod">se compra por {{ conv.producto_und || '—' }} a {{ money(conv.producto_costo) }}</span>
+              </div>
+            </div>
+
+            <v-text-field
+              v-model.number="conv.factor"
+              :label="`¿Cuántos ${conv.articulo_und || 'unidades del artículo'} trae un ${conv.producto_und || 'unidad del producto'}?`"
+              type="number" min="0.0001" step="any"
+              variant="outlined" density="comfortable" class="mt-4"
+              prepend-inner-icon="mdi-scale"
+              hide-details="auto"
+              :hint="conv.factor === 1 ? 'Factor 1 = ambos miden en la misma unidad' : ' '"
+              persistent-hint
+            />
+
+            <div class="ap-conv-calc" :class="{ 'ap-conv-calc--bad': !factorOk }">
+              <template v-if="factorOk">
+                <v-icon size="15" color="#047857">mdi-function-variant</v-icon>
+                <span>
+                  {{ money(conv.producto_costo) }} ÷ {{ num(conv.factor) }} =
+                  <strong>{{ money(costoConvertido) }}</strong> por {{ conv.articulo_und || 'unidad' }}
+                  <span v-if="conv.articulo_costo_actual" class="ap-conv-antes">
+                    (hoy el artículo vale {{ money(conv.articulo_costo_actual) }})
+                  </span>
+                </span>
+              </template>
+              <template v-else>
+                <v-icon size="15" color="#ef4444">mdi-alert-circle-outline</v-icon>
+                <span>El factor debe ser mayor que cero.</span>
+              </template>
+            </div>
+
+            <v-alert v-if="errorFactor" type="error" variant="tonal" density="compact" class="mt-3">
+              {{ errorFactor }}
+            </v-alert>
+          </div>
+          <div class="ap-dlg-foot">
+            <v-btn variant="text" @click="dlgFactor = false">Cancelar</v-btn>
+            <v-btn color="#047857" variant="flat" :loading="guardandoFactor" :disabled="!factorOk" @click="guardarFactor">
+              {{ conv.modo === 'crear' ? 'Vincular' : 'Guardar y recalcular' }}
             </v-btn>
           </div>
         </v-card>
@@ -312,13 +412,32 @@ async function cargar() {
   }
 }
 
-async function vincular(articulo, producto) {
+function und(x) { return String(x || '').trim().toUpperCase() }
+function unidadDistinta(s, c) { return und(s.articulo_und) !== und(c.und) }
+
+// Vincular sin pensar solo es seguro cuando ambos lados miden igual y el backend
+// no propuso conversión; en cualquier otro caso se pide confirmar el factor,
+// porque copiar el precio de un bulto como precio del kilo daña las recetas.
+function pedirVincular(s, c) {
+  const factorSugerido = Number(c.factor_sugerido) || 1
+  if (!unidadDistinta(s, c) && factorSugerido === 1) return vincular(s.articulo, c.codigo, 1)
+  abrirConversion({
+    modo: 'crear',
+    articulo: s.articulo, articulo_nombre: s.articulo_nombre, articulo_und: s.articulo_und,
+    articulo_costo_actual: s.articulo_costo,
+    producto: c.codigo, producto_nombre: c.nombre, producto_und: c.und,
+    producto_costo: c.precio_costo,
+    factor: factorSugerido,
+  })
+}
+
+async function vincular(articulo, producto, factor = 1) {
   vinculando.value = `${articulo}::${producto}`
   try {
-    const r = await articuloProductoService.crear({ articulo, producto, sincronizar: true })
+    const r = await articuloProductoService.crear({ articulo, producto, factor, sincronizar: true })
     snack(
       r.data?.sincronizado
-        ? `Vinculado · costo ${money(r.data.sincronizado)} copiado al artículo`
+        ? `Vinculado · el artículo quedó en ${money(r.data.sincronizado)}`
         : 'Vinculado',
       'success'
     )
@@ -330,11 +449,69 @@ async function vincular(articulo, producto) {
   }
 }
 
+// ─── Factor de conversión ─────────────────────────────────────────
+const dlgFactor       = ref(false)
+const errorFactor     = ref('')
+const guardandoFactor = ref(false)
+const conv = ref({
+  modo: 'crear', articulo: '', articulo_nombre: '', articulo_und: '', articulo_costo_actual: 0,
+  producto: '', producto_nombre: '', producto_und: '', producto_costo: 0, factor: 1,
+})
+
+const factorOk = computed(() => Number(conv.value.factor) > 0)
+const costoConvertido = computed(() =>
+  factorOk.value ? Number(conv.value.producto_costo) / Number(conv.value.factor) : 0
+)
+
+function abrirConversion(ctx) {
+  errorFactor.value = ''
+  conv.value = { ...ctx }
+  dlgFactor.value = true
+}
+
+function abrirFactor(m) {
+  abrirConversion({
+    modo: 'editar',
+    articulo: m.articulo, articulo_nombre: m.articulo_nombre, articulo_und: m.articulo_und,
+    articulo_costo_actual: m.articulo_costo,
+    producto: m.producto, producto_nombre: m.producto_nombre, producto_und: m.producto_und,
+    producto_costo: m.producto_costo,
+    factor: Number(m.factor) || 1,
+  })
+}
+
+async function guardarFactor() {
+  errorFactor.value = ''
+  guardandoFactor.value = true
+  try {
+    const c = conv.value
+    const r = c.modo === 'crear'
+      ? await articuloProductoService.crear({
+          articulo: c.articulo, producto: c.producto, factor: c.factor, sincronizar: true,
+        })
+      : await articuloProductoService.actualizarFactor(c.articulo, c.factor)
+    dlgFactor.value = false
+    snack(
+      r.data?.sincronizado
+        ? `Listo · el artículo quedó en ${money(r.data.sincronizado)}`
+        : 'Factor guardado',
+      'success'
+    )
+    await cargar()
+  } catch (e) {
+    errorFactor.value = e.response?.data?.error || 'No se pudo guardar el factor'
+  } finally {
+    guardandoFactor.value = false
+  }
+}
+
 // ─── Vincular manualmente ─────────────────────────────────────────
 const dlgNuevo       = ref(false)
 const nuevoArticulo  = ref(null)
 const nuevoProducto  = ref(null)
+const nuevoFactor    = ref(1)
 const errorNuevo     = ref('')
+const nuevoFactorOk  = computed(() => Number(nuevoFactor.value) > 0)
 const guardandoNuevo = ref(false)
 const todosArticulos = ref([])
 const todosProductos = ref([])
@@ -377,6 +554,7 @@ async function abrirNuevo() {
   errorNuevo.value = ''
   nuevoArticulo.value = null
   nuevoProducto.value = null
+  nuevoFactor.value = 1
   dlgNuevo.value = true
   await cargarCatalogos()
 }
@@ -388,12 +566,13 @@ async function guardarNuevo() {
     const r = await articuloProductoService.crear({
       articulo: nuevoArticulo.value,
       producto: nuevoProducto.value,
+      factor: nuevoFactor.value,
       sincronizar: true,
     })
     dlgNuevo.value = false
     snack(
       r.data?.sincronizado
-        ? `Vinculado · costo ${money(r.data.sincronizado)} copiado al artículo`
+        ? `Vinculado · el artículo quedó en ${money(r.data.sincronizado)}`
         : 'Vinculado',
       'success'
     )
@@ -454,6 +633,14 @@ function snack(msg, color = 'success') {
 function money(v) {
   if (v === null || v === undefined) return '—'
   return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// El factor puede ser entero (bulto de 25) o fraccionario (2.2727): sin decimales
+// forzados para que el caso común no se lea como "25.0000".
+function num(v) {
+  const n = Number(v)
+  if (!isFinite(n)) return '—'
+  return n.toLocaleString('en-US', { maximumFractionDigits: 4 })
 }
 
 onMounted(cargar)
@@ -602,6 +789,63 @@ onMounted(cargar)
   font-size: 11.5px; line-height: 1.55; color: rgba(var(--v-theme-on-surface), 0.55);
 }
 .ap-dlg-texto { font-size: 13px; line-height: 1.6; color: rgba(var(--v-theme-on-surface), 0.78); }
+
+/* FACTOR DE CONVERSIÓN */
+.ap-explica-fac {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(4,120,87,0.18);
+  color: rgba(var(--v-theme-on-surface), 0.68);
+}
+.ap-explica-fac code {
+  font-size: 11.5px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(4,120,87,0.12); color: #047857;
+}
+
+.ap-factor {
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  padding: 3px 8px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+  background: rgba(240,168,60,0.14); color: #b06f10;
+  border: 1px solid rgba(240,168,60,0.3);
+  transition: background 150ms ease-out;
+}
+.ap-factor:hover { background: rgba(240,168,60,0.26); }
+/* Factor 1 = sin conversión: no debe llamar la atención */
+.ap-factor--uno {
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  border-color: rgba(var(--v-theme-on-surface), 0.1);
+  color: rgba(var(--v-theme-on-surface), 0.45);
+}
+.ap-factor--uno:hover { background: rgba(var(--v-theme-on-surface), 0.1); }
+
+.ap-cand-und {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 3px;
+  font-size: 10.5px; font-weight: 700; color: #b06f10;
+}
+
+.ap-conv {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  padding: 13px 15px; border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+}
+.ap-conv-lado { display: flex; flex-direction: column; min-width: 0; }
+.ap-conv-rol {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.6px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+.ap-conv-nom { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
+
+.ap-conv-calc {
+  display: flex; align-items: flex-start; gap: 7px; margin-top: 14px;
+  padding: 11px 13px; border-radius: 9px;
+  font-size: 12px; line-height: 1.55;
+  background: rgba(4,120,87,0.08); border: 1px solid rgba(4,120,87,0.2);
+  color: rgba(var(--v-theme-on-surface), 0.8);
+  font-variant-numeric: tabular-nums;
+}
+.ap-conv-calc--bad { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); }
+.ap-conv-antes { color: rgba(var(--v-theme-on-surface), 0.45); }
 
 @media (max-width: 760px) {
   .ap-sug { grid-template-columns: 1fr; gap: 10px; }

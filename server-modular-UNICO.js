@@ -12205,6 +12205,24 @@ pool.query(`
         creado_en TIMESTAMP DEFAULT NOW()
     )`).catch(() => {});
 
+// Los dos catálogos no siempre miden en la misma unidad: la receta lleva el
+// artículo por KILO y bodega compra el producto por BULTO/UNIDAD. Copiar el
+// costo tal cual metería el precio del bulto como precio del kilo y dañaría
+// toda receta que lo use.
+//
+// `factor` = cuántas unidades DEL ARTÍCULO caben en una unidad DEL PRODUCTO
+// (ej: bulto de 2.27 KL → factor 2.27). De ahí:
+//     costo_articulo = costo_producto / factor
+//     costo_producto = costo_articulo * factor
+// factor = 1 cuando ambos miden igual.
+pool.query(`ALTER TABLE articulo_producto ADD COLUMN IF NOT EXISTS factor NUMERIC(14,6) NOT NULL DEFAULT 1`).catch(() => {});
+
+// factor <= 0 rompería la división; se trata como 1 (sin conversión).
+function factorValido(f) {
+    const v = parseFloat(f);
+    return isFinite(v) && v > 0 ? v : 1;
+}
+
 // Propaga el costo recién escrito de un ítem a su contraparte mapeada en el otro
 // catálogo. `origen` es el lado que YA se actualizó ('PRODUCTO' | 'ARTICULO').
 //
@@ -12220,38 +12238,41 @@ async function propagarCostoVinculado(db, { empresa, esPrincipal, origen, codigo
 
     if (origen === 'PRODUCTO') {
         const r = await db.query(
-            `SELECT articulo FROM articulo_producto WHERE TRIM(producto) = $1`, [cod]
+            `SELECT articulo, factor FROM articulo_producto WHERE TRIM(producto) = $1`, [cod]
         );
         if (!r.rows.length) return null;
         const art = String(r.rows[0].articulo).trim();
+        // El producto viene por bulto; la receta lo consume por unidad de artículo.
+        const destino = Math.round((valor / factorValido(r.rows[0].factor)) * 10000) / 10000;
         if (esPrincipal) {
-            await db.query(`UPDATE articulos SET valor = $1 WHERE TRIM(codigo) = $2`, [valor, art]);
+            await db.query(`UPDATE articulos SET valor = $1 WHERE TRIM(codigo) = $2`, [destino, art]);
         } else {
             await db.query(
                 `INSERT INTO articulo_costo_empresa (empresa, codigo, valor) VALUES ($1, $2, $3)
                  ON CONFLICT (empresa, codigo) DO UPDATE SET valor = EXCLUDED.valor`,
-                [String(empresa), art, valor]
+                [String(empresa), art, destino]
             );
         }
-        return { origen: 'ARTICULO', codigo: art };
+        return { origen: 'ARTICULO', codigo: art, costo: destino };
     }
 
     if (origen === 'ARTICULO') {
         const r = await db.query(
-            `SELECT producto FROM articulo_producto WHERE TRIM(articulo) = $1`, [cod]
+            `SELECT producto, factor FROM articulo_producto WHERE TRIM(articulo) = $1`, [cod]
         );
         if (!r.rows.length) return null;
         const prod = String(r.rows[0].producto).trim();
+        const destino = Math.round((valor * factorValido(r.rows[0].factor)) * 10000) / 10000;
         if (esPrincipal) {
-            await db.query(`UPDATE productos SET precio_costo = $1 WHERE TRIM(codigo) = $2`, [valor, prod]);
+            await db.query(`UPDATE productos SET precio_costo = $1 WHERE TRIM(codigo) = $2`, [destino, prod]);
         } else {
             await db.query(
                 `INSERT INTO producto_costo_empresa (empresa, codigo, precio_costo) VALUES ($1, $2, $3)
                  ON CONFLICT (empresa, codigo) DO UPDATE SET precio_costo = EXCLUDED.precio_costo`,
-                [String(empresa), prod, valor]
+                [String(empresa), prod, destino]
             );
         }
-        return { origen: 'PRODUCTO', codigo: prod };
+        return { origen: 'PRODUCTO', codigo: prod, costo: destino };
     }
     return null;
 }
@@ -15988,6 +16009,7 @@ app.get('/api/articulo-producto', async (req, res) => {
                    p.nombre  AS producto_nombre,
                    p.und     AS producto_und,
                    COALESCE(pce.precio_costo, p.precio_costo, 0) AS producto_costo,
+                   COALESCE(ap.factor, 1) AS factor,
                    ap.creado_en
             FROM articulo_producto ap
             LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(ap.articulo)
@@ -16001,13 +16023,23 @@ app.get('/api/articulo-producto', async (req, res) => {
 
         res.json({
             success: true,
-            data: r.rows.map(x => ({
-                ...x,
-                articulo_costo: parseFloat(x.articulo_costo) || 0,
-                producto_costo: parseFloat(x.producto_costo) || 0,
-                // Señal para la pantalla: los dos lados deberían valer lo mismo.
-                desalineado: Math.abs((parseFloat(x.articulo_costo) || 0) - (parseFloat(x.producto_costo) || 0)) > 0.01,
-            })),
+            data: r.rows.map(x => {
+                const factor = factorValido(x.factor);
+                const cArt = parseFloat(x.articulo_costo) || 0;
+                const cProd = parseFloat(x.producto_costo) || 0;
+                // El costo esperado del artículo es el del producto convertido a la
+                // unidad de la receta; comparar en crudo daría falsos desalineados
+                // en todo mapeo con factor ≠ 1.
+                const esperado = Math.round((cProd / factor) * 10000) / 10000;
+                return {
+                    ...x,
+                    factor,
+                    articulo_costo: cArt,
+                    producto_costo: cProd,
+                    articulo_costo_esperado: esperado,
+                    desalineado: Math.abs(cArt - esperado) > 0.01,
+                };
+            }),
         });
     } catch (error) {
         console.error('Error GET /api/articulo-producto:', error);
@@ -16072,9 +16104,21 @@ app.get('/api/articulo-producto/sugerencias', async (req, res) => {
                 }
                 if (!comunes) continue;
                 // Jaccard: penaliza los nombres que solo comparten una palabra genérica
-                const score = comunes / (tokensA.size + p._tokens.size - comunes);
-                candidatos.push({ codigo: p.codigo, nombre: p.nombre, und: p.und,
-                                  precio_costo: parseFloat(p.precio_costo) || 0, score: Math.round(score * 100) });
+                const score = comunes / (tokensA.length + p._tokens.length - comunes);
+                const costoProd = parseFloat(p.precio_costo) || 0;
+                const costoArt = parseFloat(a.valor) || 0;
+                candidatos.push({
+                    codigo: p.codigo, nombre: p.nombre, und: p.und,
+                    precio_costo: costoProd,
+                    // Si las unidades no coinciden, la relación entre los costos
+                    // actuales es la mejor pista del tamaño del bulto (ej: KL $2.81
+                    // vs UN $6.39 → 2.27 kilos por unidad). Solo es una propuesta:
+                    // el usuario la confirma o la corrige antes de vincular.
+                    factor_sugerido: (costoArt > 0 && costoProd > 0 && String(p.und || '').trim().toUpperCase() !== String(a.und || '').trim().toUpperCase())
+                        ? Math.round((costoProd / costoArt) * 10000) / 10000
+                        : 1,
+                    score: Math.round(score * 100),
+                });
             }
             if (!candidatos.length) continue;
             candidatos.sort((x, y) => y.score - x.score);
@@ -16095,11 +16139,13 @@ app.get('/api/articulo-producto/sugerencias', async (req, res) => {
 });
 
 // POST /api/articulo-producto — crear/actualizar un mapeo
-// Body: { articulo, producto, empresa?, sincronizar? }
+// Body: { articulo, producto, empresa?, sincronizar?, factor? }
+// `factor` = unidades del artículo por unidad del producto (bulto de 25 KL → 25).
 // `sincronizar` copia de una vez el costo del producto al artículo, para no tener
 // que esperar a la próxima compra.
 app.post('/api/articulo-producto', async (req, res) => {
     const { articulo, producto, empresa, sincronizar } = req.body;
+    const factor = factorValido(req.body.factor);
     if (!articulo || !producto) {
         return res.status(400).json({ success: false, error: 'articulo y producto son requeridos' });
     }
@@ -16136,9 +16182,9 @@ app.post('/api/articulo-producto', async (req, res) => {
         }
 
         await client.query(
-            `INSERT INTO articulo_producto (articulo, producto) VALUES ($1, $2)
-             ON CONFLICT (articulo) DO UPDATE SET producto = EXCLUDED.producto`,
-            [art, prod]
+            `INSERT INTO articulo_producto (articulo, producto, factor) VALUES ($1, $2, $3)
+             ON CONFLICT (articulo) DO UPDATE SET producto = EXCLUDED.producto, factor = EXCLUDED.factor`,
+            [art, prod, factor]
         );
 
         let sincronizado = null;
@@ -16154,18 +16200,72 @@ app.post('/api/articulo-producto', async (req, res) => {
             );
             const costo = parseFloat(costoRes.rows[0].costo) || 0;
             if (costo > 0) {
-                await propagarCostoVinculado(client, {
+                const r = await propagarCostoVinculado(client, {
                     empresa, esPrincipal, origen: 'PRODUCTO', codigo: prod, costo,
                 });
-                sincronizado = costo;
+                sincronizado = r?.costo ?? null;
             }
         }
 
         await client.query('COMMIT');
-        res.status(201).json({ success: true, data: { articulo: art, producto: prod, sincronizado } });
+        res.status(201).json({ success: true, data: { articulo: art, producto: prod, factor, sincronizado } });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error POST /api/articulo-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// PATCH /api/articulo-producto/:articulo — corregir el factor de conversión
+// Body: { factor, empresa?, sincronizar? }
+// Cambiar el factor sin reescribir el costo dejaría el artículo con el valor que
+// calculó el factor anterior, así que por defecto vuelve a propagar.
+app.patch('/api/articulo-producto/:articulo', async (req, res) => {
+    const art = String(req.params.articulo).trim();
+    const factor = factorValido(req.body?.factor);
+    const empresa = req.body?.empresa;
+    const sincronizar = req.body?.sincronizar !== false;
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const r = await client.query(
+            `UPDATE articulo_producto SET factor = $1 WHERE TRIM(articulo) = $2 RETURNING articulo, producto, factor`,
+            [factor, art]
+        );
+        if (!r.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Mapeo no encontrado' });
+        }
+        const prod = String(r.rows[0].producto).trim();
+
+        let sincronizado = null;
+        if (sincronizar && empresa) {
+            const teRes = await client.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
+            const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+            const costoRes = await client.query(
+                `SELECT COALESCE(
+                    (SELECT precio_costo FROM producto_costo_empresa WHERE TRIM(empresa) = TRIM($1::text) AND TRIM(codigo) = $2),
+                    (SELECT precio_costo FROM productos WHERE TRIM(codigo) = $2),
+                    0) AS costo`,
+                [String(empresa), prod]
+            );
+            const costo = parseFloat(costoRes.rows[0].costo) || 0;
+            if (costo > 0) {
+                const p = await propagarCostoVinculado(client, {
+                    empresa, esPrincipal, origen: 'PRODUCTO', codigo: prod, costo,
+                });
+                sincronizado = p?.costo ?? null;
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, data: { articulo: art, producto: prod, factor, sincronizado } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error PATCH /api/articulo-producto/:articulo:', error);
         res.status(500).json({ success: false, error: error.message });
     } finally {
         client.release();

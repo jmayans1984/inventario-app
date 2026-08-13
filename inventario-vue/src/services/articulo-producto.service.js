@@ -21,11 +21,20 @@ export const articuloProductoService = {
     return response.data
   },
 
-  // Vincular un artículo con un producto. sincronizar=true copia de una vez
-  // el costo del producto al artículo.
-  async crear({ articulo, producto, sincronizar = true }) {
+  // Vincular un artículo con un producto. `factor` son las unidades del artículo
+  // que caben en una unidad del producto (bulto de 25 KL → 25), y sincronizar=true
+  // copia de una vez el costo ya convertido.
+  async crear({ articulo, producto, sincronizar = true, factor = 1 }) {
     const response = await api.post(ENDPOINT, {
-      articulo, producto, sincronizar, empresa: getEmpresa(),
+      articulo, producto, sincronizar, factor, empresa: getEmpresa(),
+    })
+    return response.data
+  },
+
+  // Corregir el factor de un vínculo ya creado; re-propaga el costo convertido.
+  async actualizarFactor(articulo, factor) {
+    const response = await api.patch(`${ENDPOINT}/${encodeURIComponent(articulo)}`, {
+      factor, sincronizar: true, empresa: getEmpresa(),
     })
     return response.data
   },
