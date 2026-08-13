@@ -307,12 +307,15 @@
             </div>
 
             <!-- Equivalencias ya registradas en Presentaciones de compra -->
-            <div v-if="presConv.length" class="ap-pres">
+            <div class="ap-pres">
               <div class="ap-pres-lbl">
                 <v-icon size="13" color="#047857">mdi-package-variant-closed</v-icon>
                 Presentaciones registradas para este artículo
+                <button class="ap-pres-add" @click="abrirNuevaPres">
+                  <v-icon size="12">mdi-plus</v-icon> Agregar
+                </button>
               </div>
-              <div class="ap-pres-chips">
+              <div v-if="presConv.length" class="ap-pres-chips">
                 <button
                   v-for="p in presConv" :key="p.id"
                   class="ap-pres-chip"
@@ -321,7 +324,41 @@
                 >
                   {{ p.nombre_presentacion }} = {{ num(p.contenido) }} {{ conv.articulo_und }}
                 </button>
+                <span v-if="!presConv.length" class="ap-pres-empty">Ninguna — usa Agregar para crear una</span>
               </div>
+              <div v-else class="ap-pres-empty">Ninguna — usa Agregar para crear una</div>
+
+              <!-- Formulario inline para nueva presentación -->
+              <Transition name="pres-new">
+                <div v-if="showNuevaPres" class="ap-pres-form">
+                  <v-text-field
+                    v-model="nuevaPres.nombre"
+                    :label="`Nombre (ej: ${conv.producto_und || 'UNIDAD'})`"
+                    variant="outlined" density="compact" hide-details class="ap-pres-inp"
+                    :placeholder="conv.producto_und || 'UNIDAD'"
+                    @keyup.enter="guardarNuevaPres"
+                  />
+                  <v-text-field
+                    v-model.number="nuevaPres.contenido"
+                    :label="`Contenido en ${conv.articulo_und || 'unidad'}`"
+                    type="number" min="0.0001" step="any"
+                    variant="outlined" density="compact" hide-details class="ap-pres-inp"
+                    @keyup.enter="guardarNuevaPres"
+                  />
+                  <div class="ap-pres-form-btns">
+                    <button class="ap-pres-btn-cancel" @click="showNuevaPres = false">Cancelar</button>
+                    <button
+                      class="ap-pres-btn-save"
+                      :disabled="!nuevaPresOk || guardandoPres"
+                      @click="guardarNuevaPres"
+                    >
+                      <v-icon v-if="guardandoPres" size="13">mdi-loading mdi-spin</v-icon>
+                      Guardar
+                    </button>
+                  </div>
+                  <span v-if="errorPres" class="ap-pres-err">{{ errorPres }}</span>
+                </div>
+              </Transition>
             </div>
 
             <v-text-field
@@ -548,6 +585,44 @@ function abrirFactor(m) {
     producto_costo: m.producto_costo,
     factor: Number(m.factor) || 1,
   })
+}
+
+// ─── Nueva presentación inline ────────────────────────────────────
+const showNuevaPres  = ref(false)
+const guardandoPres  = ref(false)
+const errorPres      = ref('')
+const nuevaPres      = ref({ nombre: '', contenido: null })
+const nuevaPresOk    = computed(() =>
+  nuevaPres.value.nombre.trim().length > 0 && Number(nuevaPres.value.contenido) > 0
+)
+
+function abrirNuevaPres() {
+  nuevaPres.value = { nombre: conv.value.producto_und || '', contenido: null }
+  errorPres.value = ''
+  showNuevaPres.value = true
+}
+
+async function guardarNuevaPres() {
+  if (!nuevaPresOk.value) return
+  guardandoPres.value = true
+  errorPres.value = ''
+  try {
+    await presentacionesCompraService.crear({
+      origen: 'ARTICULO',
+      codigo: conv.value.articulo,
+      nombre_presentacion: nuevaPres.value.nombre.trim().toUpperCase(),
+      contenido: Number(nuevaPres.value.contenido),
+    })
+    // Recarga las presentaciones y aplica el factor recién creado
+    const pr = await presentacionesCompraService.getPresentaciones()
+    presentaciones.value = pr.data || []
+    conv.value.factor = Number(nuevaPres.value.contenido)
+    showNuevaPres.value = false
+  } catch (e) {
+    errorPres.value = e.response?.data?.error || 'No se pudo guardar'
+  } finally {
+    guardandoPres.value = false
+  }
 }
 
 async function guardarFactor() {
@@ -943,6 +1018,43 @@ onMounted(cargar)
 .ap-pres-chip--calza {
   background: rgba(4,120,87,0.12); border-color: rgba(4,120,87,0.4); color: #047857;
 }
+
+.ap-pres-add {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 5px; cursor: pointer;
+  background: rgba(4,120,87,0.1); border: 1px solid rgba(4,120,87,0.25); color: #047857;
+  transition: background 150ms;
+}
+.ap-pres-add:hover { background: rgba(4,120,87,0.2); }
+
+.ap-pres-empty {
+  font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.35); font-style: italic;
+}
+
+.ap-pres-form {
+  margin-top: 10px; padding: 12px 14px; border-radius: 9px;
+  background: rgba(4,120,87,0.06); border: 1px solid rgba(4,120,87,0.2);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ap-pres-inp { flex: 1; }
+.ap-pres-form-btns {
+  display: flex; justify-content: flex-end; gap: 7px; margin-top: 2px;
+}
+.ap-pres-btn-cancel {
+  font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  background: transparent; border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+.ap-pres-btn-save {
+  font-size: 12px; font-weight: 700; padding: 5px 14px; border-radius: 6px; cursor: pointer;
+  background: #047857; border: 1px solid #047857; color: #fff;
+  transition: opacity 150ms;
+}
+.ap-pres-btn-save:disabled { opacity: 0.45; cursor: not-allowed; }
+.ap-pres-err { font-size: 11px; color: #ef4444; }
+
+.pres-new-enter-active, .pres-new-leave-active { transition: opacity 180ms ease, transform 180ms ease; }
+.pres-new-enter-from, .pres-new-leave-to { opacity: 0; transform: translateY(-6px); }
 
 @media (max-width: 760px) {
   .ap-sug { grid-template-columns: 1fr; gap: 10px; }
