@@ -906,6 +906,12 @@ app.put('/api/almacen/costos-productos/:codigo', async (req, res) => {
             );
         }
 
+        // Si el producto está mapeado a un artículo, el costo también viaja allá:
+        // es el mismo ítem físico y las recetas leen del lado de artículos.
+        await propagarCostoVinculado(pool, {
+            empresa, esPrincipal, origen: 'PRODUCTO', codigo, costo,
+        });
+
         // receta_vinculada es un vínculo global (no por empresa) — se guarda siempre en productos
         if (receta_vinculada !== undefined) {
             const rv = receta_vinculada?.trim() || null;
@@ -11169,6 +11175,14 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
                             );
                         }
                     }
+                    // Si el ítem está mapeado al otro catálogo (p.ej. se compra como
+                    // PRODUCTO pero las recetas lo consumen como ARTICULO), el costo
+                    // se copia también allá; si no, el costo de esas recetas nunca se
+                    // movería. Ver tabla articulo_producto.
+                    await propagarCostoVinculado(client, {
+                        empresa, esPrincipal, origen: item.origen === 'ARTICULO' ? 'ARTICULO' : 'PRODUCTO',
+                        codigo: cod, costo,
+                    });
                 }
             }
         }
@@ -11372,6 +11386,12 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
                                 );
                             }
                         }
+                        // Mismo criterio que al crear el gasto: propagar al catálogo
+                        // vinculado para que las recetas vean el costo nuevo.
+                        await propagarCostoVinculado(client, {
+                            empresa, esPrincipal, origen: item.origen === 'ARTICULO' ? 'ARTICULO' : 'PRODUCTO',
+                            codigo: cod, costo,
+                        });
                     }
                 }
             }
@@ -12163,6 +12183,78 @@ pool.query(`ALTER TABLE factura_venta ADD COLUMN IF NOT EXISTS ccosto VARCHAR(10
 pool.query(`ALTER TABLE ordenes_despacho ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) DEFAULT 'TRASLADO'`).catch(() => {});
 pool.query(`ALTER TABLE ordenes_despacho ADD COLUMN IF NOT EXISTS orden_compra VARCHAR(30)`).catch(() => {});
 pool.query(`ALTER TABLE ordenes_despacho ALTER COLUMN cc_destino DROP NOT NULL`).catch(() => {});
+
+// ─── MAPEO ARTÍCULO ↔ PRODUCTO ────────────────────────────────────────────
+// El mismo ítem físico puede existir en los dos catálogos: como PRODUCTO (lo
+// que se compra y se controla en bodega) y como ARTICULO (materia prima de
+// recetas). Son tablas independientes con códigos distintos, así que comprar
+// "papas francesas" como producto actualizaba `productos.precio_costo` y dejaba
+// `articulos.valor` congelado — y el costo de toda receta que lo lleve nunca se
+// movía, porque el recálculo lee de `articulos`.
+//
+// Este mapeo 1:1 los declara el mismo ítem. Al actualizar el costo de un lado se
+// propaga al otro (ver propagarCostoVinculado), respetando la capa que
+// corresponda: costo BASE si es el principal, capa de empresa si es un cliente.
+//
+// Es global, no por empresa: la identidad del ítem es la misma para todos
+// (igual que la fórmula de las recetas). Lo que sí es por empresa son los costos.
+pool.query(`
+    CREATE TABLE IF NOT EXISTS articulo_producto (
+        articulo  VARCHAR(20) PRIMARY KEY,
+        producto  VARCHAR(20) NOT NULL UNIQUE,
+        creado_en TIMESTAMP DEFAULT NOW()
+    )`).catch(() => {});
+
+// Propaga el costo recién escrito de un ítem a su contraparte mapeada en el otro
+// catálogo. `origen` es el lado que YA se actualizó ('PRODUCTO' | 'ARTICULO').
+//
+// Escribe en la misma capa que usó el llamador — base si es el principal, capa de
+// empresa si es un cliente — para no romper el aislamiento de costos por empresa.
+// Si el ítem no está mapeado no hace nada y devuelve null.
+//
+// `db` acepta tanto un client de transacción como el pool.
+async function propagarCostoVinculado(db, { empresa, esPrincipal, origen, codigo, costo }) {
+    const cod = String(codigo ?? '').trim();
+    const valor = parseFloat(costo);
+    if (!cod || !isFinite(valor) || valor < 0) return null;
+
+    if (origen === 'PRODUCTO') {
+        const r = await db.query(
+            `SELECT articulo FROM articulo_producto WHERE TRIM(producto) = $1`, [cod]
+        );
+        if (!r.rows.length) return null;
+        const art = String(r.rows[0].articulo).trim();
+        if (esPrincipal) {
+            await db.query(`UPDATE articulos SET valor = $1 WHERE TRIM(codigo) = $2`, [valor, art]);
+        } else {
+            await db.query(
+                `INSERT INTO articulo_costo_empresa (empresa, codigo, valor) VALUES ($1, $2, $3)
+                 ON CONFLICT (empresa, codigo) DO UPDATE SET valor = EXCLUDED.valor`,
+                [String(empresa), art, valor]
+            );
+        }
+        return { origen: 'ARTICULO', codigo: art };
+    }
+
+    if (origen === 'ARTICULO') {
+        const r = await db.query(
+            `SELECT producto FROM articulo_producto WHERE TRIM(articulo) = $1`, [cod]
+        );
+        if (!r.rows.length) return null;
+        const prod = String(r.rows[0].producto).trim();
+        if (esPrincipal) {
+            await db.query(`UPDATE productos SET precio_costo = $1 WHERE TRIM(codigo) = $2`, [valor, prod]);
+        } else {
+            await db.query(
+                `INSERT INTO producto_costo_empresa (empresa, codigo, precio_costo) VALUES ($1, $2, $3)
+                 ON CONFLICT (empresa, codigo) DO UPDATE SET precio_costo = EXCLUDED.precio_costo`,
+                [String(empresa), prod, valor]
+            );
+        }
+        return { origen: 'PRODUCTO', codigo: prod };
+    }
+    return null;
+}
 
 // ─── CUENTAS POR PAGAR ────────────────────────────────────────────────────
 // Un gasto puede quedar sin pagar: no se crea movimiento bancario al registrarlo
@@ -15878,6 +15970,270 @@ app.get('/api/gerencia/ingenieria-menu', async (req, res) => {
 // detalle_recetas:codigo, receta, articulo, cantidad, vr_unit, vr_total
 // ================================================================
 
+// ── MAPEO ARTÍCULO ↔ PRODUCTO ───────────────────────────────────
+// Declara que un artículo de receta y un producto de bodega son el MISMO ítem
+// físico, para que el costo de compra llegue a las recetas sin importar por cuál
+// de los dos catálogos se haya registrado la entrada. Ver propagarCostoVinculado.
+
+// GET /api/articulo-producto — mapeos existentes, con nombre y costo de cada lado
+app.get('/api/articulo-producto', async (req, res) => {
+    const empresa = req.query.empresa || req.headers['x-empresa'] || null;
+    try {
+        const r = await pool.query(`
+            SELECT ap.articulo,
+                   a.nombre  AS articulo_nombre,
+                   a.und     AS articulo_und,
+                   COALESCE(ace.valor, a.valor, 0) AS articulo_costo,
+                   ap.producto,
+                   p.nombre  AS producto_nombre,
+                   p.und     AS producto_und,
+                   COALESCE(pce.precio_costo, p.precio_costo, 0) AS producto_costo,
+                   ap.creado_en
+            FROM articulo_producto ap
+            LEFT JOIN articulos a ON TRIM(a.codigo) = TRIM(ap.articulo)
+            LEFT JOIN productos p ON TRIM(p.codigo) = TRIM(ap.producto)
+            LEFT JOIN articulo_costo_empresa ace
+                   ON TRIM(ace.codigo) = TRIM(ap.articulo) AND TRIM(ace.empresa) = TRIM($1::text)
+            LEFT JOIN producto_costo_empresa pce
+                   ON TRIM(pce.codigo) = TRIM(ap.producto) AND TRIM(pce.empresa) = TRIM($1::text)
+            ORDER BY a.nombre NULLS LAST, ap.articulo
+        `, [empresa === null ? '' : String(empresa)]);
+
+        res.json({
+            success: true,
+            data: r.rows.map(x => ({
+                ...x,
+                articulo_costo: parseFloat(x.articulo_costo) || 0,
+                producto_costo: parseFloat(x.producto_costo) || 0,
+                // Señal para la pantalla: los dos lados deberían valer lo mismo.
+                desalineado: Math.abs((parseFloat(x.articulo_costo) || 0) - (parseFloat(x.producto_costo) || 0)) > 0.01,
+            })),
+        });
+    } catch (error) {
+        console.error('Error GET /api/articulo-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/articulo-producto/sugerencias — artículos sin mapear, cada uno con los
+// productos candidatos que más se le parecen por nombre.
+//
+// La similitud se calcula en JS (Jaccard sobre palabras, tolerante a acentos y
+// plurales) para no depender de extensiones de Postgres. Nunca mapea solo: es una
+// ayuda para que el usuario confirme, porque un falso positivo aquí escribiría un
+// costo equivocado en las recetas.
+//
+// Se excluyen los artículos con prod_propio='SI': esos son subproductos espejados
+// desde `recetas`, su costo sale del recálculo y no de una compra.
+app.get('/api/articulo-producto/sugerencias', async (req, res) => {
+    const limitePorArticulo = Math.min(parseInt(req.query.limite) || 3, 10);
+    try {
+        const artRes = await pool.query(`
+            SELECT TRIM(a.codigo) AS codigo, a.nombre, a.und, COALESCE(a.valor, 0) AS valor
+            FROM articulos a
+            WHERE TRIM(a.codigo) NOT IN (SELECT TRIM(articulo) FROM articulo_producto)
+              AND a.nombre IS NOT NULL
+              AND COALESCE(a.prod_propio, '') <> 'SI'
+            ORDER BY a.nombre
+        `);
+
+        const prodRes = await pool.query(`
+            SELECT TRIM(p.codigo) AS codigo, p.nombre, p.und, COALESCE(p.precio_costo, 0) AS precio_costo
+            FROM productos p
+            WHERE TRIM(p.codigo) NOT IN (SELECT TRIM(producto) FROM articulo_producto)
+              AND p.nombre IS NOT NULL
+        `);
+
+        const norm = (s) => String(s || '')
+            .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+        // Dos palabras cuentan como la misma si son iguales o comparten un prefijo
+        // largo, para que "PAPAS FRANCESAS" empareje con "PAPA FRANCESA".
+        const mismoToken = (x, y) => {
+            if (x === y) return true;
+            const n = Math.min(x.length, y.length);
+            if (n < 4 || Math.abs(x.length - y.length) > 2) return false;
+            return x.slice(0, n) === y.slice(0, n);
+        };
+
+        const productos = prodRes.rows.map(p => ({ ...p, _tokens: [...new Set(norm(p.nombre).split(' ').filter(Boolean))] }));
+
+        const sugerencias = [];
+        for (const a of artRes.rows) {
+            const tokensA = [...new Set(norm(a.nombre).split(' ').filter(Boolean))];
+            if (!tokensA.length) continue;
+
+            const candidatos = [];
+            for (const p of productos) {
+                let comunes = 0;
+                for (const t of tokensA) {
+                    if (p._tokens.some(u => mismoToken(t, u))) comunes++;
+                }
+                if (!comunes) continue;
+                // Jaccard: penaliza los nombres que solo comparten una palabra genérica
+                const score = comunes / (tokensA.size + p._tokens.size - comunes);
+                candidatos.push({ codigo: p.codigo, nombre: p.nombre, und: p.und,
+                                  precio_costo: parseFloat(p.precio_costo) || 0, score: Math.round(score * 100) });
+            }
+            if (!candidatos.length) continue;
+            candidatos.sort((x, y) => y.score - x.score);
+            sugerencias.push({
+                articulo: a.codigo, articulo_nombre: a.nombre, articulo_und: a.und,
+                articulo_costo: parseFloat(a.valor) || 0,
+                candidatos: candidatos.slice(0, limitePorArticulo),
+            });
+        }
+
+        // Primero los que tienen un candidato más fuerte
+        sugerencias.sort((x, y) => y.candidatos[0].score - x.candidatos[0].score);
+        res.json({ success: true, data: sugerencias });
+    } catch (error) {
+        console.error('Error GET /api/articulo-producto/sugerencias:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/articulo-producto — crear/actualizar un mapeo
+// Body: { articulo, producto, empresa?, sincronizar? }
+// `sincronizar` copia de una vez el costo del producto al artículo, para no tener
+// que esperar a la próxima compra.
+app.post('/api/articulo-producto', async (req, res) => {
+    const { articulo, producto, empresa, sincronizar } = req.body;
+    if (!articulo || !producto) {
+        return res.status(400).json({ success: false, error: 'articulo y producto son requeridos' });
+    }
+    const art = String(articulo).trim();
+    const prod = String(producto).trim();
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const okArt = await client.query(`SELECT 1 FROM articulos WHERE TRIM(codigo) = $1`, [art]);
+        if (!okArt.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: `El artículo ${art} no existe` });
+        }
+        const okProd = await client.query(`SELECT 1 FROM productos WHERE TRIM(codigo) = $1`, [prod]);
+        if (!okProd.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: `El producto ${prod} no existe` });
+        }
+
+        // 1:1 en ambos sentidos: si el producto ya estaba tomado por otro artículo,
+        // ese mapeo se rompe primero (si no, el UNIQUE lo rechaza sin explicar).
+        const ocupado = await client.query(
+            `SELECT articulo FROM articulo_producto WHERE TRIM(producto) = $1 AND TRIM(articulo) <> $2`,
+            [prod, art]
+        );
+        if (ocupado.rowCount) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: `Ese producto ya está mapeado al artículo ${ocupado.rows[0].articulo}. Elimina ese mapeo primero.`
+            });
+        }
+
+        await client.query(
+            `INSERT INTO articulo_producto (articulo, producto) VALUES ($1, $2)
+             ON CONFLICT (articulo) DO UPDATE SET producto = EXCLUDED.producto`,
+            [art, prod]
+        );
+
+        let sincronizado = null;
+        if (sincronizar && empresa) {
+            const teRes = await client.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
+            const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+            const costoRes = await client.query(
+                `SELECT COALESCE(
+                    (SELECT precio_costo FROM producto_costo_empresa WHERE TRIM(empresa) = TRIM($1::text) AND TRIM(codigo) = $2),
+                    (SELECT precio_costo FROM productos WHERE TRIM(codigo) = $2),
+                    0) AS costo`,
+                [String(empresa), prod]
+            );
+            const costo = parseFloat(costoRes.rows[0].costo) || 0;
+            if (costo > 0) {
+                await propagarCostoVinculado(client, {
+                    empresa, esPrincipal, origen: 'PRODUCTO', codigo: prod, costo,
+                });
+                sincronizado = costo;
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ success: true, data: { articulo: art, producto: prod, sincronizado } });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/articulo-producto:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// DELETE /api/articulo-producto/:articulo — quitar el mapeo (no toca costos)
+app.delete('/api/articulo-producto/:articulo', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `DELETE FROM articulo_producto WHERE TRIM(articulo) = $1 RETURNING articulo, producto`,
+            [String(req.params.articulo).trim()]
+        );
+        if (!r.rowCount) return res.status(404).json({ success: false, error: 'Mapeo no encontrado' });
+        res.json({ success: true, data: r.rows[0] });
+    } catch (error) {
+        console.error('Error DELETE /api/articulo-producto/:articulo:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/articulo-producto/sincronizar — empuja el costo del producto al
+// artículo en TODOS los mapeos y recalcula las recetas de una vez.
+// Body: { empresa }
+app.post('/api/articulo-producto/sincronizar', async (req, res) => {
+    const empresa = req.body?.empresa || req.query.empresa;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const teRes = await client.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
+        const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
+
+        const mapRes = await client.query(`
+            SELECT TRIM(ap.producto) AS producto,
+                   COALESCE(pce.precio_costo, p.precio_costo, 0) AS costo
+            FROM articulo_producto ap
+            JOIN productos p ON TRIM(p.codigo) = TRIM(ap.producto)
+            LEFT JOIN producto_costo_empresa pce
+                   ON TRIM(pce.codigo) = TRIM(ap.producto) AND TRIM(pce.empresa) = TRIM($1::text)
+        `, [String(empresa)]);
+
+        let sincronizados = 0;
+        for (const row of mapRes.rows) {
+            const costo = parseFloat(row.costo) || 0;
+            if (costo <= 0) continue;
+            const r = await propagarCostoVinculado(client, {
+                empresa, esPrincipal, origen: 'PRODUCTO', codigo: row.producto, costo,
+            });
+            if (r) sincronizados++;
+        }
+
+        // Con los artículos ya al día, el costo de las recetas se rehace enseguida
+        // en vez de esperar al job nocturno.
+        const { resultados } = await ejecutarRecalculoTodasRecetas(client, empresa);
+        await client.query('COMMIT');
+
+        res.json({ success: true, sincronizados, recetas_recalculadas: resultados.length, esPrincipal });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error POST /api/articulo-producto/sincronizar:', error);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // ── ARTÍCULOS / INSUMOS ─────────────────────────────────────────
 // Columnas reales: codigo, nombre, und, valor, empresa, grupo, prod_propio
 
@@ -16053,6 +16409,16 @@ app.put('/api/articulos/:codigo', async (req, res) => {
             valor != null ? parseFloat(valor) : null, grupo || null, codigo]);
         if (result.rowCount === 0)
             return res.status(404).json({ success: false, error: 'Artículo no encontrado' });
+
+        // Este endpoint edita el catálogo base (no tiene noción de empresa), así que
+        // la contraparte mapeada también se actualiza en su costo base.
+        if (valor != null) {
+            await propagarCostoVinculado(pool, {
+                empresa: null, esPrincipal: true, origen: 'ARTICULO',
+                codigo, costo: parseFloat(valor),
+            });
+        }
+
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
         console.error('Error PUT /api/articulos/:codigo:', error);
