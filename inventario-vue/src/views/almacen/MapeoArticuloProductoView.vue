@@ -306,6 +306,24 @@
               </div>
             </div>
 
+            <!-- Equivalencias ya registradas en Presentaciones de compra -->
+            <div v-if="presConv.length" class="ap-pres">
+              <div class="ap-pres-lbl">
+                <v-icon size="13" color="#047857">mdi-package-variant-closed</v-icon>
+                Presentaciones registradas para este artículo
+              </div>
+              <div class="ap-pres-chips">
+                <button
+                  v-for="p in presConv" :key="p.id"
+                  class="ap-pres-chip"
+                  :class="{ 'ap-pres-chip--calza': mismaUnidad(p.nombre_presentacion, conv.producto_und) }"
+                  @click="conv.factor = Number(p.contenido)"
+                >
+                  {{ p.nombre_presentacion }} = {{ num(p.contenido) }} {{ conv.articulo_und }}
+                </button>
+              </div>
+            </div>
+
             <v-text-field
               v-model.number="conv.factor"
               :label="`¿Cuántos ${conv.articulo_und || 'unidades del artículo'} trae un ${conv.producto_und || 'unidad del producto'}?`"
@@ -325,6 +343,9 @@
                   <strong>{{ money(costoConvertido) }}</strong> por {{ conv.articulo_und || 'unidad' }}
                   <span v-if="conv.articulo_costo_actual" class="ap-conv-antes">
                     (hoy el artículo vale {{ money(conv.articulo_costo_actual) }})
+                  </span>
+                  <span v-if="conv.origenFactor" class="ap-conv-origen">
+                    Factor tomado de {{ conv.origenFactor }} — corrígelo si no aplica.
                   </span>
                 </span>
               </template>
@@ -379,6 +400,7 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { articuloProductoService } from '../../services/articulo-producto.service'
+import { presentacionesCompraService } from '../../services/presentaciones-compra.service'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
@@ -393,15 +415,57 @@ const vinculando   = ref('')
 
 const desalineados = computed(() => mapeos.value.filter(m => m.desalineado))
 
+// ─── Presentaciones de compra ─────────────────────────────────────
+// Almacén ya guarda cómo viene empacado cada ítem, pero en la unidad del ítem
+// MISMO (paquete de tocineta = 2.5 KG, y tocineta se maneja en KG). Eso no es
+// el factor: el factor cruza dos catálogos con unidades distintas.
+//
+// Sí sirve como fuente cuando la presentación registrada en el ARTÍCULO es
+// justamente la unidad en la que se compra el PRODUCTO — "una UNIDAD trae 2.27
+// KL" es, dimensionalmente, KL por unidad de producto. Por eso se ofrecen como
+// opción de un clic en vez de obligar a redigitar la equivalencia.
+const presentaciones = ref([])
+
+const normUnd = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toUpperCase().replace(/[^A-Z0-9]/g, '')
+
+// "UN" ↔ "UNIDAD", "KL" ↔ "KILO": una unidad suele escribirse abreviada en un
+// catálogo y completa en el nombre de la presentación.
+function mismaUnidad(a, b) {
+  const x = normUnd(a), y = normUnd(b)
+  if (!x || !y) return false
+  if (x === y) return true
+  const corto = x.length < y.length ? x : y
+  const largo = x.length < y.length ? y : x
+  return corto.length >= 2 && largo.startsWith(corto)
+}
+
+// Presentaciones del artículo: su `contenido` está en la unidad del artículo,
+// que es la que necesita la receta.
+function presentacionesDelArticulo(codigo) {
+  const cod = String(codigo || '').trim()
+  return presentaciones.value.filter(
+    p => p.origen === 'ARTICULO' && String(p.codigo).trim() === cod && Number(p.contenido) > 0
+  )
+}
+
+// La que se llama igual que la unidad de compra del producto ES el factor.
+function presentacionQueCalza(articulo, productoUnd) {
+  return presentacionesDelArticulo(articulo)
+    .find(p => mismaUnidad(p.nombre_presentacion, productoUnd)) || null
+}
+
 async function cargar() {
   loading.value = true
   try {
-    const [mp, sg] = await Promise.all([
+    const [mp, sg, pr] = await Promise.all([
       articuloProductoService.getMapeos(),
       articuloProductoService.getSugerencias(3),
+      presentacionesCompraService.getPresentaciones().catch(() => ({ data: [] })),
     ])
     mapeos.value      = mp.data || []
     sugerencias.value = sg.data || []
+    presentaciones.value = pr.data || []
     // Si no hay nada vinculado pero sí sugerencias, arranca en esa pestaña
     if (!mapeos.value.length && sugerencias.value.length) tab.value = 'sugerencias'
   } catch (e) {
@@ -419,7 +483,11 @@ function unidadDistinta(s, c) { return und(s.articulo_und) !== und(c.und) }
 // no propuso conversión; en cualquier otro caso se pide confirmar el factor,
 // porque copiar el precio de un bulto como precio del kilo daña las recetas.
 function pedirVincular(s, c) {
-  const factorSugerido = Number(c.factor_sugerido) || 1
+  // Una presentación declarada gana sobre la relación de costos: es un dato que
+  // el usuario escribió, no una inferencia a partir de precios que pueden estar
+  // desactualizados en cualquiera de los dos lados.
+  const pres = presentacionQueCalza(s.articulo, c.und)
+  const factorSugerido = pres ? Number(pres.contenido) : (Number(c.factor_sugerido) || 1)
   if (!unidadDistinta(s, c) && factorSugerido === 1) return vincular(s.articulo, c.codigo, 1)
   abrirConversion({
     modo: 'crear',
@@ -428,6 +496,7 @@ function pedirVincular(s, c) {
     producto: c.codigo, producto_nombre: c.nombre, producto_und: c.und,
     producto_costo: c.precio_costo,
     factor: factorSugerido,
+    origenFactor: pres ? `presentación "${pres.nombre_presentacion}"` : (factorSugerido !== 1 ? 'relación de costos actuales' : ''),
   })
 }
 
@@ -459,6 +528,7 @@ const conv = ref({
 })
 
 const factorOk = computed(() => Number(conv.value.factor) > 0)
+const presConv = computed(() => presentacionesDelArticulo(conv.value.articulo))
 const costoConvertido = computed(() =>
   factorOk.value ? Number(conv.value.producto_costo) / Number(conv.value.factor) : 0
 )
@@ -846,6 +916,33 @@ onMounted(cargar)
 }
 .ap-conv-calc--bad { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); }
 .ap-conv-antes { color: rgba(var(--v-theme-on-surface), 0.45); }
+.ap-conv-origen {
+  display: block; margin-top: 3px;
+  font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5);
+}
+
+/* Equivalencias tomadas de Presentaciones de compra */
+.ap-pres { margin-top: 14px; }
+.ap-pres-lbl {
+  display: flex; align-items: center; gap: 5px; margin-bottom: 6px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+}
+.ap-pres-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-pres-chip {
+  padding: 5px 11px; border-radius: 7px; cursor: pointer;
+  font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  transition: background 150ms ease-out, border-color 150ms ease-out;
+}
+.ap-pres-chip:hover { background: rgba(4,120,87,0.1); border-color: rgba(4,120,87,0.35); }
+/* La presentación que se llama como la unidad de compra del producto es la que
+   dimensionalmente ES el factor. */
+.ap-pres-chip--calza {
+  background: rgba(4,120,87,0.12); border-color: rgba(4,120,87,0.4); color: #047857;
+}
 
 @media (max-width: 760px) {
   .ap-sug { grid-template-columns: 1fr; gap: 10px; }
