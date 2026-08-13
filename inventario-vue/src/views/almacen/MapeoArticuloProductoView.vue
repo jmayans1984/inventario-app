@@ -540,7 +540,7 @@ function pedirVincular(s, c) {
 async function vincular(articulo, producto, factor = 1) {
   vinculando.value = `${articulo}::${producto}`
   try {
-    const r = await articuloProductoService.crear({ articulo, producto, factor, sincronizar: true })
+    const r = await articuloProductoService.crear({ articulo, producto, factor: Number(factor) || 1, sincronizar: true })
     snack(
       r.data?.sincronizado
         ? `Vinculado · el artículo quedó en ${money(r.data.sincronizado)}`
@@ -548,6 +548,7 @@ async function vincular(articulo, producto, factor = 1) {
       'success'
     )
     await cargar()
+    tab.value = 'mapeos'
   } catch (e) {
     snack(e.response?.data?.error || 'No se pudo vincular', 'error')
   } finally {
@@ -630,19 +631,21 @@ async function guardarFactor() {
   guardandoFactor.value = true
   try {
     const c = conv.value
+    const factor = parseFloat(c.factor) || 1
     const r = c.modo === 'crear'
       ? await articuloProductoService.crear({
-          articulo: c.articulo, producto: c.producto, factor: c.factor, sincronizar: true,
+          articulo: c.articulo, producto: c.producto, factor, sincronizar: true,
         })
-      : await articuloProductoService.actualizarFactor(c.articulo, c.factor)
+      : await articuloProductoService.actualizarFactor(c.articulo, factor)
     dlgFactor.value = false
     snack(
       r.data?.sincronizado
-        ? `Listo · el artículo quedó en ${money(r.data.sincronizado)}`
-        : 'Factor guardado',
+        ? `Factor ÷${num(factor)} guardado · artículo en ${money(r.data.sincronizado)}`
+        : `Factor ÷${num(factor)} guardado`,
       'success'
     )
     await cargar()
+    tab.value = 'mapeos'
   } catch (e) {
     errorFactor.value = e.response?.data?.error || 'No se pudo guardar el factor'
   } finally {
@@ -711,17 +714,18 @@ async function guardarNuevo() {
     const r = await articuloProductoService.crear({
       articulo: nuevoArticulo.value,
       producto: nuevoProducto.value,
-      factor: nuevoFactor.value,
+      factor: parseFloat(nuevoFactor.value) || 1,
       sincronizar: true,
     })
     dlgNuevo.value = false
     snack(
       r.data?.sincronizado
-        ? `Vinculado · el artículo quedó en ${money(r.data.sincronizado)}`
+        ? `Vinculado · artículo en ${money(r.data.sincronizado)}`
         : 'Vinculado',
       'success'
     )
     await cargar()
+    tab.value = 'mapeos'
   } catch (e) {
     errorNuevo.value = e.response?.data?.error || 'No se pudo vincular'
   } finally {
