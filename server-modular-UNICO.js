@@ -12223,6 +12223,15 @@ function factorValido(f) {
     return isFinite(v) && v > 0 ? v : 1;
 }
 
+// Si la conexión ya quedó rota (el pool de este server tiene solo 5 clientes,
+// Railway puede matar conexiones idle), un ROLLBACK sobre ella también lanza.
+// Sin este try/catch ese throw escapa del bloque catch del endpoint, salta el
+// res.status(500) y la petición se queda "procesando" para siempre en el
+// navegador porque nunca se manda ninguna respuesta.
+async function rollbackSeguro(client) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* conexión ya perdida */ }
+}
+
 // Propaga el costo recién escrito de un ítem a su contraparte mapeada en el otro
 // catálogo. `origen` es el lado que YA se actualizó ('PRODUCTO' | 'ARTICULO').
 //
@@ -16152,18 +16161,23 @@ app.post('/api/articulo-producto', async (req, res) => {
     const art = String(articulo).trim();
     const prod = String(producto).trim();
 
-    const client = await pool.connect();
+    let client;
     try {
+        client = await pool.connect();
         await client.query('BEGIN');
+        // Si otra transacción quedó abierta sobre esta fila (conexión colgada,
+        // request anterior que nunca cerró), sin esto la petición se queda
+        // "procesando" para siempre esperando el lock en vez de fallar rápido.
+        await client.query(`SET LOCAL lock_timeout = '5s'`);
 
         const okArt = await client.query(`SELECT 1 FROM articulos WHERE TRIM(codigo) = $1`, [art]);
         if (!okArt.rowCount) {
-            await client.query('ROLLBACK');
+            await rollbackSeguro(client);
             return res.status(404).json({ success: false, error: `El artículo ${art} no existe` });
         }
         const okProd = await client.query(`SELECT 1 FROM productos WHERE TRIM(codigo) = $1`, [prod]);
         if (!okProd.rowCount) {
-            await client.query('ROLLBACK');
+            await rollbackSeguro(client);
             return res.status(404).json({ success: false, error: `El producto ${prod} no existe` });
         }
 
@@ -16174,7 +16188,7 @@ app.post('/api/articulo-producto', async (req, res) => {
             [prod, art]
         );
         if (ocupado.rowCount) {
-            await client.query('ROLLBACK');
+            await rollbackSeguro(client);
             return res.status(409).json({
                 success: false,
                 error: `Ese producto ya está mapeado al artículo ${ocupado.rows[0].articulo}. Elimina ese mapeo primero.`
@@ -16210,11 +16224,11 @@ app.post('/api/articulo-producto', async (req, res) => {
         await client.query('COMMIT');
         res.status(201).json({ success: true, data: { articulo: art, producto: prod, factor, sincronizado } });
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (client) await rollbackSeguro(client);
         console.error('Error POST /api/articulo-producto:', error);
         res.status(500).json({ success: false, error: error.message });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 });
 
@@ -16228,15 +16242,17 @@ app.patch('/api/articulo-producto/:articulo', async (req, res) => {
     const empresa = req.body?.empresa;
     const sincronizar = req.body?.sincronizar !== false;
 
-    const client = await pool.connect();
+    let client;
     try {
+        client = await pool.connect();
         await client.query('BEGIN');
+        await client.query(`SET LOCAL lock_timeout = '5s'`);
         const r = await client.query(
             `UPDATE articulo_producto SET factor = $1 WHERE TRIM(articulo) = $2 RETURNING articulo, producto, factor`,
             [factor, art]
         );
         if (!r.rowCount) {
-            await client.query('ROLLBACK');
+            await rollbackSeguro(client);
             return res.status(404).json({ success: false, error: 'Mapeo no encontrado' });
         }
         const prod = String(r.rows[0].producto).trim();
@@ -16264,11 +16280,11 @@ app.patch('/api/articulo-producto/:articulo', async (req, res) => {
         await client.query('COMMIT');
         res.json({ success: true, data: { articulo: art, producto: prod, factor, sincronizado } });
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (client) await rollbackSeguro(client);
         console.error('Error PATCH /api/articulo-producto/:articulo:', error);
         res.status(500).json({ success: false, error: error.message });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 });
 
@@ -16294,9 +16310,11 @@ app.post('/api/articulo-producto/sincronizar', async (req, res) => {
     const empresa = req.body?.empresa || req.query.empresa;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
-    const client = await pool.connect();
+    let client;
     try {
+        client = await pool.connect();
         await client.query('BEGIN');
+        await client.query(`SET LOCAL lock_timeout = '5s'`);
         const teRes = await client.query(`SELECT tipo_empresa FROM empresas WHERE codigo = $1`, [empresa]);
         const esPrincipal = (teRes.rows[0]?.tipo_empresa || 'PROVEEDOR') === 'PROVEEDOR';
 
@@ -16326,11 +16344,11 @@ app.post('/api/articulo-producto/sincronizar', async (req, res) => {
 
         res.json({ success: true, sincronizados, recetas_recalculadas: resultados.length, esPrincipal });
     } catch (error) {
-        await client.query('ROLLBACK');
+        if (client) await rollbackSeguro(client);
         console.error('Error POST /api/articulo-producto/sincronizar:', error);
         res.status(500).json({ success: false, error: error.message });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 });
 
