@@ -189,6 +189,7 @@
                 <v-icon size="15" color="success">mdi-package-variant</v-icon>
                 <span class="sheet-ttl">Productos a Despachar</span>
                 <span class="sheet-count">{{ productosConCantidad }} con cantidad</span>
+                <span v-if="totalUnidadesForm > 0" class="sheet-count sheet-count-alt">{{ totalUnidadesForm.toFixed(0) }} und. en total</span>
                 <v-btn v-if="productosConCantidad > 0" variant="text" size="x-small" color="grey" class="ml-2"
                   prepend-icon="mdi-eraser" @click="cantidades={}">
                   Limpiar
@@ -200,10 +201,68 @@
                   variant="outlined"
                   hide-details
                   clearable
+                  autocomplete="off"
                   placeholder="Buscar producto..."
                   prepend-inner-icon="mdi-magnify"
                   style="max-width:260px"
                 />
+              </div>
+
+              <!-- Filtros y orden del grid -->
+              <div v-if="form.cc_destino && !loadingGrid" class="grid-filtros">
+                <v-select
+                  v-model="filtroGrupo"
+                  :items="gruposDisponibles"
+                  item-title="nombre"
+                  item-value="codigo"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  label="Categoría"
+                  prepend-inner-icon="mdi-folder-outline"
+                  style="max-width:230px"
+                />
+                <v-select
+                  v-model="modoOrden"
+                  :items="[
+                    { value: 'grupo',      title: 'Agrupar por categoría' },
+                    { value: 'alfabetico', title: 'Orden alfabético' },
+                  ]"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  label="Ordenar"
+                  prepend-inner-icon="mdi-sort"
+                  style="max-width:210px"
+                />
+
+                <div class="gf-chips">
+                  <button class="gf-chip" :class="filtroRapido==='todos' && 'gf-chip-on'" @click="filtroRapido='todos'">
+                    Todos
+                  </button>
+                  <button class="gf-chip" :class="filtroRapido==='faltante' && 'gf-chip-on'" @click="filtroRapido='faltante'">
+                    Con faltante
+                  </button>
+                  <button class="gf-chip" :class="filtroRapido==='concantidad' && 'gf-chip-on'" @click="filtroRapido='concantidad'">
+                    Ya cargados
+                  </button>
+                </div>
+
+                <v-spacer />
+
+                <button v-if="busquedaProducto || filtroGrupo !== 'TODOS' || filtroRapido !== 'todos'"
+                  class="gf-link" @click="limpiarFiltros">
+                  <v-icon size="14">mdi-filter-remove-outline</v-icon> Quitar filtros
+                </button>
+                <v-btn v-if="faltantesSinCantidad > 0" size="small" variant="tonal" color="success"
+                  prepend-icon="mdi-auto-fix" @click="llenarFaltantes"
+                  title="Llena la cantidad sugerida (el faltante) en los productos visibles. Si supera el stock disponible en bodega, la fila queda marcada en rojo.">
+                  Llenar {{ faltantesSinCantidad }} faltante{{ faltantesSinCantidad !== 1 ? 's' : '' }}
+                </v-btn>
+              </div>
+
+              <div v-if="form.cc_destino && !loadingGrid" class="grid-resumen-filtro">
+                Mostrando <strong>{{ productosFiltrados.length }}</strong> de {{ productosGrid.length }} productos
               </div>
 
               <!-- Sin CC destino -->
@@ -238,12 +297,12 @@
                 </thead>
                 <tbody>
                   <template v-if="productosAgrupados.length === 0">
-                    <tr><td colspan="8" class="grid-empty">{{ busquedaProducto ? 'Sin resultados para la búsqueda' : 'No hay productos con control de inventario' }}</td></tr>
+                    <tr><td colspan="9" class="grid-empty">{{ busquedaProducto || filtroGrupo !== 'TODOS' || filtroRapido !== 'todos' ? 'Sin resultados con los filtros aplicados' : 'No hay productos con control de inventario' }}</td></tr>
                   </template>
                   <template v-for="grupo in productosAgrupados" :key="grupo.key">
-                    <!-- Cabecera de grupo -->
-                    <tr class="pg-grupo-row">
-                      <td colspan="8" class="pg-grupo-cell">
+                    <!-- Cabecera de grupo (se omite en orden alfabético) -->
+                    <tr v-if="!grupo.plano" class="pg-grupo-row">
+                      <td colspan="9" class="pg-grupo-cell">
                         <v-icon size="13" class="mr-1" style="color:#8b5cf6">mdi-folder-outline</v-icon>
                         <span class="pg-grupo-name">{{ grupo.nombre }}</span>
                         <span class="pg-grupo-count">{{ grupo.items.length }} producto{{ grupo.items.length !== 1 ? 's' : '' }}</span>
@@ -380,10 +439,10 @@
             <div style="display:flex;align-items:center;gap:6px">
               <v-btn v-if="detalleActivo.estado === 'PENDIENTE' && detalleActivo.tipo !== 'VENTA'" variant="flat"
                 style="background:rgba(255,255,255,.2);color:white" size="small"
-                prepend-icon="mdi-pencil" @click="abrirEditar(detalleActivo)">
+                prepend-icon="mdi-pencil" :loading="cargandoEditar" :disabled="cargandoEditar" @click="abrirEditar(detalleActivo)">
                 Editar
               </v-btn>
-              <v-btn icon variant="text" color="white" size="small" @click="dlgDetalle=false"><v-icon>mdi-close</v-icon></v-btn>
+              <v-btn icon variant="text" color="white" size="small" :disabled="cargandoEditar" @click="dlgDetalle=false"><v-icon>mdi-close</v-icon></v-btn>
             </div>
           </div>
 
@@ -613,6 +672,9 @@ const stockDestinoPorCodigo = ref({})   // { [codigo]: stock_actual } en cc_dest
 const cantidades      = ref({})   // { [codigo]: number }
 const loadingGrid     = ref(false)
 const busquedaProducto = ref('')
+const filtroGrupo     = ref('TODOS')      // codigo de grupo o 'TODOS'
+const modoOrden       = ref('grupo')      // 'grupo' | 'alfabetico'
+const filtroRapido    = ref('todos')      // 'todos' | 'faltante' | 'concantidad'
 
 // Promedio de ventas (mismo día de la semana, últimos 5 con venta) + % imprevisto
 const promedioVentasPorCodigo = ref({}) // { [codigo]: { promedio, promedio_base, detalle: [{fecha,cantidad}] } }
@@ -625,6 +687,7 @@ const ventasDetalleActivo     = ref(null) // { codigo, nombre }
 // Dialog detalle
 const dlgDetalle    = ref(false)
 const detalleActivo = ref(null)
+const cargandoEditar = ref(false)
 
 // Dialog análisis de faltantes
 const dlgAnalisis = ref(false)
@@ -652,21 +715,51 @@ const productosGrid = computed(() =>
   }))
 )
 
+// Categorías presentes en el grid, para el selector de filtro
+const gruposDisponibles = computed(() => {
+  const mapa = new Map()
+  for (const p of productosGrid.value) {
+    const codigo = p.grupo_codigo || '__sin_grupo__'
+    if (!mapa.has(codigo)) mapa.set(codigo, { codigo, nombre: p.grupo_nombre || 'Sin Grupo' })
+  }
+  const lista = Array.from(mapa.values()).sort((a, b) => {
+    const na = parseInt(a.codigo) || 999999
+    const nb = parseInt(b.codigo) || 999999
+    return na - nb
+  })
+  return [{ codigo: 'TODOS', nombre: 'Todas las categorías' }, ...lista]
+})
+
 const productosFiltrados = computed(() => {
   const q = busquedaProducto.value?.trim().toLowerCase()
-  if (!q) return productosGrid.value
-  return productosGrid.value.filter(p =>
-    p.nombre?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q)
-  )
+  return productosGrid.value.filter(p => {
+    if (q && !(p.nombre?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q))) return false
+    if (filtroGrupo.value !== 'TODOS' && (p.grupo_codigo || '__sin_grupo__') !== filtroGrupo.value) return false
+    if (filtroRapido.value === 'faltante'    && !(faltante(p.codigo) > 0)) return false
+    if (filtroRapido.value === 'concantidad' && !(parseFloat(cantidades.value[p.codigo]) > 0)) return false
+    return true
+  })
 })
 
 const productosAgrupados = computed(() => {
+  // Modo alfabético: una sola "pseudo-categoría" con todo ordenado por nombre,
+  // para poder reutilizar el mismo render agrupado de la tabla.
+  if (modoOrden.value === 'alfabetico') {
+    const items = [...productosFiltrados.value].sort((a, b) =>
+      (a.nombre || '').localeCompare(b.nombre || '', 'es')
+    )
+    return items.length ? [{ key: '__todos__', nombre: '', items, plano: true }] : []
+  }
+
   const mapa = new Map()
   for (const p of productosFiltrados.value) {
     const key    = p.grupo_codigo || '__sin_grupo__'
     const nombre = p.grupo_nombre || 'Sin Grupo'
     if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
     mapa.get(key).items.push(p)
+  }
+  for (const g of mapa.values()) {
+    g.items.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'))
   }
   return Array.from(mapa.values()).sort((a, b) => {
     const na = parseInt(a.key) || 999999
@@ -678,6 +771,39 @@ const productosAgrupados = computed(() => {
 const productosConCantidad = computed(() =>
   Object.values(cantidades.value).filter(v => parseFloat(v) > 0).length
 )
+
+// Unidades cargadas en el formulario que se está editando/creando
+// (distinto de `totalUnidades`, que es el KPI de despachado hoy)
+const totalUnidadesForm = computed(() =>
+  Object.values(cantidades.value).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+)
+
+// Productos visibles con faltante que aún no tienen cantidad asignada
+const faltantesSinCantidad = computed(() =>
+  productosFiltrados.value.filter(p =>
+    faltante(p.codigo) > 0 && !(parseFloat(cantidades.value[p.codigo]) > 0)
+  ).length
+)
+
+// Llena la cantidad de los productos visibles con faltante. No se limita al
+// stock disponible en bodega: la fila queda marcada en rojo cuando la cantidad
+// supera lo disponible, para que se vea qué hay que reponer aunque no alcance.
+function llenarFaltantes() {
+  const next = { ...cantidades.value }
+  for (const p of productosFiltrados.value) {
+    const falta = faltante(p.codigo)
+    if (!(falta > 0)) continue
+    if (parseFloat(next[p.codigo]) > 0) continue
+    next[p.codigo] = Math.ceil(falta)
+  }
+  cantidades.value = next
+}
+
+function limpiarFiltros() {
+  busquedaProducto.value = ''
+  filtroGrupo.value = 'TODOS'
+  filtroRapido.value = 'todos'
+}
 
 function promedioVentas(codigo) {
   return promedioVentasPorCodigo.value[codigo]?.promedio ?? null
@@ -939,6 +1065,8 @@ function abrirNuevo() {
   errDestino.value = ''
   cantidades.value = {}
   busquedaProducto.value = ''
+  filtroGrupo.value  = 'TODOS'
+  filtroRapido.value = 'todos'
   todosProductos.value  = []
   stockPorCodigo.value  = {}
   stockDisponiblePorCodigo.value = {}
@@ -957,13 +1085,19 @@ function abrirNuevo() {
 }
 
 async function abrirEditar(d) {
-  dlgDetalle.value = false
+  // El popup de resumen se queda abierto (con el botón "Editar" en estado de
+  // carga) mientras se trae el detalle y el grid de productos — antes se
+  // cerraba de inmediato y quedaban 6-7 segundos sin ningún dialogo abierto
+  // ni indicio de que algo estaba pasando.
+  cargandoEditar.value = true
   editandoId.value = d.id
   formError.value  = ''
   errFecha.value   = ''
   errDestino.value = ''
   cantidades.value = {}
   busquedaProducto.value = ''
+  filtroGrupo.value  = 'TODOS'
+  filtroRapido.value = 'todos'
   todosProductos.value = []
   stockPorCodigo.value = {}
   stockDisponiblePorCodigo.value = {}
@@ -985,9 +1119,12 @@ async function abrirEditar(d) {
     await cargarGrid(orden.cc_destino)
     cantidades.value = prevCant
     cargarPromedioVentas(orden.cc_destino, form.value.fecha)
+    dlgDetalle.value = false
     dlgForm.value = true
   } catch (e) {
     console.error(e)
+  } finally {
+    cargandoEditar.value = false
   }
 }
 
@@ -1406,6 +1543,40 @@ onMounted(async () => {
 .sheet-hdr  { display: flex; align-items: center; gap: 8px; }
 .sheet-ttl  { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: rgba(var(--v-theme-on-surface),.8); }
 .sheet-count{ font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); margin-left: auto; }
+
+.sheet-count-alt { margin-left: 0; padding-left: 8px; border-left: 1px solid rgba(var(--v-theme-on-surface),.15); }
+
+/* Filtros del grid */
+.grid-filtros {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 0 12px; margin-bottom: 10px;
+  border-bottom: 1px dashed rgba(var(--v-theme-on-surface),.12);
+}
+.gf-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.gf-chip {
+  border: 1px solid rgba(var(--v-theme-on-surface),.14);
+  background: transparent; color: rgba(var(--v-theme-on-surface),.6);
+  font-size: 11.5px; font-weight: 600;
+  padding: 5px 11px; border-radius: 20px; cursor: pointer;
+  transition: border-color 150ms var(--ease-out), background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+.gf-chip:hover { border-color: var(--success); color: var(--success); }
+.gf-chip-on {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border-color: var(--success); color: var(--success);
+}
+.gf-link {
+  display: flex; align-items: center; gap: 4px;
+  border: none; background: transparent; cursor: pointer;
+  font-size: 11.5px; font-weight: 600; color: rgba(var(--v-theme-on-surface),.5);
+  padding: 4px 8px; border-radius: 7px;
+}
+.gf-link:hover { background: rgba(var(--v-theme-on-surface),.06); color: rgb(var(--v-theme-on-surface)); }
+.grid-resumen-filtro { font-size: 11px; color: rgba(var(--v-theme-on-surface),.45); margin-bottom: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gf-chip { transition: none; }
+}
 
 /* Placeholders del grid */
 .grid-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }

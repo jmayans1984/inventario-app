@@ -4662,21 +4662,71 @@ app.get('/api/tesoreria/movimientos/:numero/facturas', async (req, res) => {
             [numero, String(empresa)]
         );
 
-        res.json({
-            success: true,
-            data: r.rows.map(row => ({
-                id: row.id,
-                grupo: row.grupo,
-                factura: row.factura,
-                proveedor_nombre: row.proveedor_nombre,
-                ccosto_nombre: row.ccosto_nombre,
-                fecha_factura: row.fecha_factura,
-                factura_total: parseFloat(row.factura_total) || 0,
-                valor: parseFloat(row.valor) || 0,
-                saldo_actual: parseFloat(row.saldo_actual) || 0,
-                observaciones: row.observaciones,
-            })),
-        });
+        const filas = r.rows.map(row => ({
+            id: row.id,
+            grupo: row.grupo,
+            factura: row.factura,
+            proveedor_nombre: row.proveedor_nombre,
+            ccosto_nombre: row.ccosto_nombre,
+            fecha_factura: row.fecha_factura,
+            factura_total: parseFloat(row.factura_total) || 0,
+            valor: parseFloat(row.valor) || 0,
+            saldo_actual: parseFloat(row.saldo_actual) || 0,
+            observaciones: row.observaciones,
+            es_gasto_directo: false,
+        }));
+
+        // El gasto que originó el movimiento (moviban.gasto) no pasa por
+        // gasto_pagos cuando se paga de contado — es el caso de un gasto nuevo
+        // creado en Gestión de Gastos al que se le anexaron CxP viejas: el
+        // cheque cubre la factura nueva + las CxP, pero arriba solo salían las
+        // CxP. Se agrega aquí para que el desglose cuadre con el total pagado.
+        // Se omite si ese mismo grupo ya viene en gasto_pagos (abono individual
+        // desde Cuentas por Pagar, donde moviban.gasto apunta a la misma
+        // factura que el abono) para no contarlo dos veces.
+        const mb = await pool.query(
+            `SELECT gasto FROM moviban WHERE numero = $1 AND empresa = $2::int LIMIT 1`,
+            [numero, String(empresa)]
+        );
+        const grupoDirecto = mb.rows[0]?.gasto;
+        const yaListado = filas.some(f => String(f.grupo) === String(grupoDirecto));
+
+        if (grupoDirecto && !yaListado) {
+            const g = await pool.query(
+                `SELECT COALESCE(g.grupo, g.codigo) AS grupo,
+                        MIN(g.fecha)::date        AS fecha_factura,
+                        MIN(g.factura)            AS factura,
+                        COALESCE(SUM(g.total), 0) AS factura_total,
+                        COALESCE(MIN(pr.nombre), MIN(g.proveedor)) AS proveedor_nombre,
+                        COALESCE(MIN(cc.nombre), MIN(g.ccosto))    AS ccosto_nombre,
+                        MIN(g.por_pagar)          AS por_pagar
+                 FROM gastos g
+                 LEFT JOIN proveedores pr ON pr.codigo = g.proveedor AND pr.empresa = g.empresa
+                 LEFT JOIN ccostos cc     ON cc.codigo = g.ccosto    AND cc.empresa = g.empresa
+                 WHERE g.empresa = $2::int AND COALESCE(g.grupo, g.codigo) = $1
+                 GROUP BY COALESCE(g.grupo, g.codigo)`,
+                [grupoDirecto, String(empresa)]
+            );
+            if (g.rows.length) {
+                const row = g.rows[0];
+                const total = parseFloat(row.factura_total) || 0;
+                filas.unshift({
+                    id: null,
+                    grupo: row.grupo,
+                    factura: row.factura,
+                    proveedor_nombre: row.proveedor_nombre,
+                    ccosto_nombre: row.ccosto_nombre,
+                    fecha_factura: row.fecha_factura,
+                    factura_total: total,
+                    valor: total,
+                    saldo_actual: 0,
+                    observaciones: null,
+                    es_gasto_directo: true,
+                });
+            }
+        }
+
+        res.json({ success: true, data: filas });
     } catch (error) {
         console.error('Error GET /api/tesoreria/movimientos/:numero/facturas:', error.message);
         res.status(500).json({ success: false, error: error.message });

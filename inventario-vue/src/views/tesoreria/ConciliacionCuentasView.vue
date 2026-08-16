@@ -242,8 +242,13 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <tr v-for="f in detalleFacturas" :key="f.id">
-                          <td>{{ f.proveedor_nombre || '-' }}</td>
+                        <tr v-for="f in detalleFacturas" :key="f.grupo">
+                          <td>
+                            {{ f.proveedor_nombre || '-' }}
+                            <span class="det-tag" :class="f.es_gasto_directo ? 'det-tag-nueva' : 'det-tag-cxp'">
+                              {{ f.es_gasto_directo ? 'Factura del gasto' : 'CxP anterior' }}
+                            </span>
+                          </td>
                           <td class="dim">{{ f.factura || f.grupo }}</td>
                           <td class="dim">{{ f.ccosto_nombre || '-' }}</td>
                           <td class="ta-right dim">{{ formatMoneda(f.factura_total) }}</td>
@@ -253,6 +258,13 @@
                           </td>
                         </tr>
                       </tbody>
+                      <tfoot v-if="detalleFacturas.length > 1">
+                        <tr class="detalle-total-row">
+                          <td colspan="4" class="ta-right">TOTAL DEL MOVIMIENTO</td>
+                          <td class="ta-right monto-egreso">{{ formatMoneda(totalDetalle) }}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </td>
                 </tr>
@@ -389,6 +401,11 @@ const detalleFacturas  = ref([])
 const loadingDetalle   = ref(false)
 const detalleError     = ref('')
 
+// Suma de lo pagado en el movimiento: debe cuadrar con el egreso de la fila
+const totalDetalle = computed(() =>
+  detalleFacturas.value.reduce((s, f) => s + (parseFloat(f.valor) || 0), 0)
+)
+
 async function toggleDetalle(mov) {
   if (expandido.value === mov.numero) { expandido.value = null; return }
   expandido.value = mov.numero
@@ -503,6 +520,20 @@ onMounted(async () => {
 .detalle-table tbody tr:last-child td { border-bottom: none; }
 .detalle-table .dim { color: rgba(var(--v-theme-on-surface), 0.55); }
 .detalle-table .ta-right { text-align: right; font-variant-numeric: tabular-nums; }
+.detalle-table tfoot td {
+  padding: 8px 10px;
+  border-top: 2px solid rgba(var(--v-theme-on-surface), 0.12);
+  font-weight: 800; font-size: 11.5px;
+  letter-spacing: .3px; text-transform: uppercase;
+}
+.detalle-total-row td:first-child { color: rgba(var(--v-theme-on-surface), 0.55); }
+.det-tag {
+  display: inline-block; margin-left: 7px;
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+  padding: 1px 6px; border-radius: 4px; vertical-align: middle;
+}
+.det-tag-nueva { color: var(--indigo); background: var(--indigo-wash); }
+.det-tag-cxp   { color: var(--gold);   background: var(--gold-wash); }
 
 /* Toggle "Mostrar conciliados" */
 .toggle-conciliados-wrap { display: flex; align-items: center; padding: 0 12px; }
