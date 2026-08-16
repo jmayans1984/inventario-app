@@ -175,7 +175,7 @@
                 :key="emp.empresa"
                 class="empresa-item"
                 type="button"
-                @click="selectEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)"
+                @click="selectEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo, emp.codigo)"
               >
                 <span class="empresa-item-icon">
                   <v-icon size="19">mdi-store-outline</v-icon>
@@ -250,6 +250,7 @@ const handleLogin = async () => {
       } else {
         const emp = result.data.empresas[0]
         if (emp) {
+          authStore.setUsuarioCodigo(emp.codigo)
           authStore.setEmpresa(emp.empresa, emp.empresa_nombre, emp.tipo)
           redirectToMain()
         }
@@ -264,7 +265,8 @@ const handleLogin = async () => {
   }
 }
 
-const selectEmpresa = (cod, nombre, tipo = null) => {
+const selectEmpresa = (cod, nombre, tipo = null, codigoUsuario = null) => {
+  if (codigoUsuario) authStore.setUsuarioCodigo(codigoUsuario)
   authStore.setEmpresa(cod, nombre, tipo)
   redirectToMain()
 }

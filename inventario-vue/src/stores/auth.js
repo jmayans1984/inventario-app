@@ -57,6 +57,17 @@ export const useAuthStore = defineStore('auth', () => {
     modulosDeshabilitados.value = Array.from(combinadas)
   }
 
+  // El mismo usuario/clave tiene una fila (y un codigo) distinto por cada
+  // empresa a la que tiene acceso. Se corrige aquí para que quede el codigo
+  // correcto de la empresa seleccionada, no el de la primera fila que
+  // matcheó el login — de lo contrario, todo lo que se guarda "por usuario"
+  // (favoritos, atajos, etc.) queda mezclado entre empresas.
+  function setUsuarioCodigo(codigo) {
+    if (!usuario.value || !codigo) return
+    usuario.value = { ...usuario.value, codigo }
+    localStorage.setItem('usuario', JSON.stringify(usuario.value))
+  }
+
   function setEmpresa(empresaCod, nombre = null, tipo = null) {
     empresa.value = empresaCod
     empresaNombre.value = nombre
@@ -145,6 +156,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Actions
     setUsuario,
+    setUsuarioCodigo,
     setEmpresa,
     setModoApp,
     logout,

@@ -106,15 +106,20 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
         
+        // Un mismo usuario/clave puede tener una fila distinta en `usuarios`
+        // por cada empresa (codigo diferente por empresa) — se incluye el
+        // codigo específico de cada una para que el frontend lo use al
+        // seleccionar la empresa, en vez del codigo de la primera fila que
+        // matcheó el login (que podía ser el de una empresa distinta).
         const empresasQuery = `
-            SELECT DISTINCT u.empresa, e.nombre as empresa_nombre, COALESCE(e.tipo_empresa, '') as tipo
+            SELECT DISTINCT u.codigo, u.empresa, e.nombre as empresa_nombre, COALESCE(e.tipo_empresa, '') as tipo
             FROM usuarios u
             INNER JOIN empresas e ON u.empresa = e.codigo
-            WHERE UPPER(u.usuario) = UPPER($1)
+            WHERE UPPER(u.usuario) = UPPER($1) AND u.clave = $2
             ORDER BY e.nombre
         `;
         
-        const empresasResult = await pool.query(empresasQuery, [usuario]);
+        const empresasResult = await pool.query(empresasQuery, [usuario, clave]);
         const userData = result.rows[0];
         
         res.json({

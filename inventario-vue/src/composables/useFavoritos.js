@@ -5,8 +5,14 @@ import { useAuthStore } from '../stores/auth'
 // Pantallas ancladas como favoritas arriba del menú lateral, por usuario.
 // Estado singleton: MainLayout renderiza la lista y cada item hoja expone
 // el botón de anclar/desanclar; ambos comparten esta misma lista reactiva.
+//
+// El logout/login es una navegación de cliente (sin recargar la página), así
+// que este módulo sigue vivo entre sesiones de distintos usuarios en la misma
+// pestaña. Por eso NO se usa un flag de "ya cargué una vez": se recuerda para
+// qué (empresa, usuario) se cargó la lista, y se vuelve a pedir al backend
+// en cuanto cambia — evitando que el usuario B vea los favoritos del A.
 const favoritos = ref([])
-let cargado = false
+let claveCargada = null
 
 export function useFavoritos() {
   const auth = useAuthStore()
@@ -17,6 +23,10 @@ export function useFavoritos() {
     if (!auth.empresa) return
     const usuario = auth.usuario?.codigo || auth.usuario?.usuario
     if (!usuario) return
+    const clave = `${auth.empresa}:${usuario}`
+    if (clave === claveCargada) return
+    claveCargada = clave
+    favoritos.value = []
     try {
       const { data } = await api.get('/favoritos-sidebar', { params: { empresa: auth.empresa, usuario } })
       if (data.success) favoritos.value = data.data || []
@@ -49,12 +59,7 @@ export function useFavoritos() {
     guardar()
   }
 
-  onMounted(() => {
-    if (!cargado) {
-      cargado = true
-      cargar()
-    }
-  })
+  onMounted(cargar)
 
   return { favoritos, esFavorito, toggleFavorito, cargar }
 }
