@@ -41,31 +41,40 @@
 
       <!-- Menu -->
       <div class="sidebar-menu">
-        <!-- Favoritos anclados -->
-        <div v-if="favoritos.length && !collapsed" class="fav-section">
-          <div class="fav-label">
-            <v-icon size="12" color="var(--sidebar-accent)">mdi-star</v-icon>
-            Favoritos
-          </div>
-          <router-link
-            v-for="fav in favoritos"
-            :key="fav.path"
-            :to="fav.path"
-            custom
-            v-slot="{ isActive, navigate }"
+        <!-- Favoritos anclados (desplegable, igual que los módulos) -->
+        <div v-if="favoritos.length && !collapsed" class="fav-section" :style="{ '--mod-color': 'var(--sidebar-accent)' }">
+          <div
+            class="menu-item"
+            :class="{ 'menu-item-open': favAbierto }"
+            @click="toggleFavoritos"
           >
-            <div
-              class="fav-item"
-              :class="{ 'fav-item-active': isActive }"
-              @click="() => { navigate(); if (isMobile) drawer = false }"
+            <v-icon size="17" class="menu-icon">mdi-star</v-icon>
+            <span class="menu-label">FAVORITOS</span>
+            <span class="fav-badge">{{ favoritos.length }}</span>
+            <v-icon size="14" class="menu-chevron" :class="{ rotated: favAbierto }">mdi-chevron-down</v-icon>
+          </div>
+
+          <div v-show="favAbierto">
+            <router-link
+              v-for="fav in favoritos"
+              :key="fav.path"
+              :to="fav.path"
+              custom
+              v-slot="{ isActive, navigate }"
             >
-              <v-icon size="15" class="fav-icon">{{ fav.icon }}</v-icon>
-              <span class="fav-label-txt">{{ fav.name }}</span>
-              <button class="fav-unpin" title="Quitar de favoritos" @click.stop="toggleFavorito(fav)">
-                <v-icon size="13">mdi-close</v-icon>
-              </button>
-            </div>
-          </router-link>
+              <div
+                class="fav-item"
+                :class="{ 'fav-item-active': isActive }"
+                @click="() => { navigate(); if (isMobile) drawer = false }"
+              >
+                <v-icon size="15" class="fav-icon">{{ fav.icon }}</v-icon>
+                <span class="fav-label-txt">{{ fav.name }}</span>
+                <button class="fav-unpin" title="Quitar de favoritos" @click.stop="toggleFavorito(fav)">
+                  <v-icon size="13">mdi-close</v-icon>
+                </button>
+              </div>
+            </router-link>
+          </div>
         </div>
 
         <template v-for="mod in modules" :key="mod.id">
@@ -498,6 +507,14 @@ const openCats = reactive({})
 
 const toggleModule = (id) => { openModules[id] = !openModules[id] }
 const toggleCat = (key) => { openCats[key] = !openCats[key] }
+
+// Favoritos: desplegable como los módulos. Se recuerda la preferencia porque
+// con muchos accesos anclados la lista empuja los módulos fuera de la vista.
+const favAbierto = ref(localStorage.getItem('_favAbierto') !== '0')
+function toggleFavoritos() {
+  favAbierto.value = !favAbierto.value
+  localStorage.setItem('_favAbierto', favAbierto.value ? '1' : '0')
+}
 
 function onModuleClick(mod, navigate) {
   if (collapsed.value) {
@@ -943,11 +960,18 @@ const handleLogout = () => {
 .leaf-pin-activo { opacity: 1; color: var(--sidebar-accent) !important; }
 
 /* Favoritos anclados */
-.fav-section { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.fav-label {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 9.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase;
-  color: rgba(255,255,255,0.4); padding: 6px 10px 5px;
+.fav-section { margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.fav-section .menu-icon { color: var(--sidebar-accent); }
+.fav-badge {
+  flex-shrink: 0; font-size: 9.5px; font-weight: 800;
+  color: var(--sidebar-accent); background: rgba(255,255,255,0.1);
+  padding: 1px 6px; border-radius: 10px; margin-right: 2px;
+}
+/* Los favoritos cuelgan del encabezado, con la misma guía que los submenús */
+.fav-section .menu-item-open + div {
+  border-left: 1px solid rgba(255,255,255,0.06);
+  margin-left: 18px;
+  padding-left: 2px;
 }
 .fav-item {
   display: flex; align-items: center; gap: 9px;
