@@ -32,6 +32,13 @@ export const cuentasPorPagarService = {
     const response = await api.delete(`${ENDPOINT}/pagos/${id}`, { params: { empresa: getEmpresa() } })
     return response.data
   },
+
+  // Un solo pago/cheque que cubre varias cuentas por pagar a la vez.
+  // pagos: [{ grupo, valor }, ...]
+  async registrarPagoMultiple(data) {
+    const response = await api.post(`${ENDPOINT}/pagos-multiples`, { ...data, empresa: getEmpresa() })
+    return response.data
+  },
 }
 
 export default cuentasPorPagarService

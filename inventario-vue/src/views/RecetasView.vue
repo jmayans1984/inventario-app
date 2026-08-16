@@ -13,84 +13,35 @@
         </div>
       </div>
 
-      <!-- SECCIÓN: CONFIGURACIÓN -->
-      <div class="mod-section-label">CONFIGURACIÓN</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/recetas/configuracion/catalogo')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-book-open-variant-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Catálogo de Recetas</div>
-            <div class="mod-card-desc">Crea y gestiona recetas con subrecetas jerárquicas</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/recetas/configuracion/articulos')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-food-apple-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Artículos e Insumos</div>
-            <div class="mod-card-desc">Gestiona ingredientes y precios de compra</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/recetas/configuracion/precios')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-tag-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Precios de Venta</div>
-            <div class="mod-card-desc">Configura precios de venta de las recetas</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
+      <div class="mod-nav-top">
+        <button class="mod-personalizar" @click="dialogAbierto = true">
+          <v-icon size="14">mdi-tune-variant</v-icon>
+          Personalizar accesos
+        </button>
       </div>
 
-      <!-- SECCIÓN: PROCESOS -->
-      <div class="mod-section-label">PROCESOS</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/recetas/procesos/costos')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-calculator-variant-outline</v-icon>
+      <template v-for="sec in secciones" :key="sec.label">
+        <div class="mod-section-label">{{ sec.label }}</div>
+        <div class="mod-grid">
+          <div v-for="item in sec.items" :key="item.path" class="mod-card" @click="go(item.path)">
+            <div class="mod-card-icon" style="background:var(--gold-wash)">
+              <v-icon size="22" color="warning">{{ item.icon }}</v-icon>
+            </div>
+            <div class="mod-card-body">
+              <div class="mod-card-title">{{ item.title }}</div>
+              <div class="mod-card-desc">{{ item.desc }}</div>
+            </div>
+            <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
           </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Gestión de Costos</div>
-            <div class="mod-card-desc">Recalcula costos de todas las recetas automáticamente</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
-      </div>
+      </template>
 
-      <!-- SECCIÓN: REPORTES -->
-      <div class="mod-section-label">REPORTES</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/recetas/reportes/costos')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-file-chart-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Reporte de Costos</div>
-            <div class="mod-card-desc">Análisis de costos, márgenes y % por receta</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/recetas/reportes/fichas')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-file-document-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Fichas Técnicas</div>
-            <div class="mod-card-desc">Visualiza e imprime fichas técnicas de recetas</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-      </div>
-
+      <PersonalizarAtajosDialog
+        v-model="dialogAbierto"
+        :secciones="seccionesTodas"
+        @guardar="guardar"
+        @restablecer="restablecer"
+      />
     </div>
   </MainLayout>
 </template>
@@ -98,8 +49,37 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import PersonalizarAtajosDialog from '../components/common/PersonalizarAtajosDialog.vue'
+import { useAtajosModulo } from '../composables/useAtajosModulo'
 const router = useRouter()
 const go = (path) => router.push(path)
+
+const seccionesBase = [
+  {
+    label: 'CONFIGURACIÓN',
+    items: [
+      { path: '/recetas/configuracion/catalogo',  icon: 'mdi-book-open-variant-outline', title: 'Catálogo de Recetas', desc: 'Crea y gestiona recetas con subrecetas jerárquicas' },
+      { path: '/recetas/configuracion/articulos', icon: 'mdi-food-apple-outline',        title: 'Artículos e Insumos', desc: 'Gestiona ingredientes y precios de compra' },
+      { path: '/recetas/configuracion/precios',   icon: 'mdi-tag-outline',               title: 'Precios de Venta',    desc: 'Configura precios de venta de las recetas' },
+    ],
+  },
+  {
+    label: 'PROCESOS',
+    items: [
+      { path: '/recetas/procesos/costos', icon: 'mdi-calculator-variant-outline', title: 'Gestión de Costos', desc: 'Recalcula costos de todas las recetas automáticamente' },
+    ],
+  },
+  {
+    label: 'REPORTES',
+    items: [
+      { path: '/recetas/reportes/costos', icon: 'mdi-file-chart-outline',    title: 'Reporte de Costos', desc: 'Análisis de costos, márgenes y % por receta' },
+      { path: '/recetas/reportes/fichas', icon: 'mdi-file-document-outline', title: 'Fichas Técnicas',   desc: 'Visualiza e imprime fichas técnicas de recetas' },
+    ],
+  },
+]
+
+const { secciones, seccionesTodas, dialogAbierto, guardar, restablecer } =
+  useAtajosModulo('recetas', seccionesBase)
 </script>
 
 <style scoped>

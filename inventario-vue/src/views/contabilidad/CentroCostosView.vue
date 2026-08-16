@@ -55,6 +55,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import CentroCostosTable from '../../components/modules/contabilidad/CentroCostosTable.vue'
 import CentroCostosForm from '../../components/modules/contabilidad/CentroCostosForm.vue'
@@ -63,6 +64,7 @@ import PageHeader from '../../components/common/PageHeader.vue'
 import { useCentroCostosStore } from '../../stores/centrocostos'
 
 const store = useCentroCostosStore()
+const route = useRoute()
 
 const dialogForm = ref(false)
 const ccEditando = ref(null)
@@ -109,6 +111,8 @@ function handleGuardar(cc) {
 // ─── LIFECYCLE ───────────────────────────────────────
 
 onMounted(async () => {
+  const buscar = route.query.buscar
+  if (buscar) store.filters.search = String(buscar)
   try {
     await store.fetchCentrosCostos()
   } catch (err) {

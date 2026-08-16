@@ -13,83 +13,35 @@
         </div>
       </div>
 
-      <!-- SECCIÓN: CONFIGURACIÓN -->
-      <div class="mod-section-label">CONFIGURACIÓN</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/produccion/configuracion/productos-venta')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-store-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Productos de Venta</div>
-            <div class="mod-card-desc">Catálogo de productos que ofreces a tus clientes</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/produccion/configuracion/grupo-productos')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-tag-multiple-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Grupos de Productos</div>
-            <div class="mod-card-desc">Categorías y agrupaciones de productos</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/produccion/configuracion/lista-precios')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-currency-usd</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Lista de Precios</div>
-            <div class="mod-card-desc">Define y actualiza precios de venta</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
+      <div class="mod-nav-top">
+        <button class="mod-personalizar" @click="dialogAbierto = true">
+          <v-icon size="14">mdi-tune-variant</v-icon>
+          Personalizar accesos
+        </button>
       </div>
 
-      <!-- SECCIÓN: PROCESOS -->
-      <div class="mod-section-label">PROCESOS</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/produccion/procesos/ordenes-compra')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-clipboard-play-outline</v-icon>
+      <template v-for="sec in secciones" :key="sec.label">
+        <div class="mod-section-label">{{ sec.label }}</div>
+        <div class="mod-grid">
+          <div v-for="item in sec.items" :key="item.path" class="mod-card" @click="go(item.path)">
+            <div class="mod-card-icon" style="background:var(--gold-wash)">
+              <v-icon size="22" color="warning">{{ item.icon }}</v-icon>
+            </div>
+            <div class="mod-card-body">
+              <div class="mod-card-title">{{ item.title }}</div>
+              <div class="mod-card-desc">{{ item.desc }}</div>
+            </div>
+            <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
           </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Órdenes de Compra</div>
-            <div class="mod-card-desc">Gestiona órdenes de compra recibidas de clientes</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
         </div>
-      </div>
+      </template>
 
-      <!-- SECCIÓN: INFORMES -->
-      <div class="mod-section-label">INFORMES</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/produccion/informes/lista-precios')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-file-chart-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Lista de Precios</div>
-            <div class="mod-card-desc">Reporte imprimible de precios de venta</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/produccion/informes/ordenes-compra')">
-          <div class="mod-card-icon" style="background:var(--gold-wash)">
-            <v-icon size="22" color="warning">mdi-file-document-multiple-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Reporte de Órdenes</div>
-            <div class="mod-card-desc">Historial y estado de órdenes de compra</div>
-          </div>
-          <v-icon size="16" color="warning" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-      </div>
+      <PersonalizarAtajosDialog
+        v-model="dialogAbierto"
+        :secciones="seccionesTodas"
+        @guardar="guardar"
+        @restablecer="restablecer"
+      />
 
     </div>
   </MainLayout>
@@ -98,8 +50,37 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import PersonalizarAtajosDialog from '../components/common/PersonalizarAtajosDialog.vue'
+import { useAtajosModulo } from '../composables/useAtajosModulo'
 const router = useRouter()
 const go = (path) => router.push(path)
+
+const seccionesBase = [
+  {
+    label: 'CONFIGURACIÓN',
+    items: [
+      { path: '/produccion/configuracion/productos-venta',  icon: 'mdi-store-outline',        title: 'Productos de Venta',  desc: 'Catálogo de productos que ofreces a tus clientes' },
+      { path: '/produccion/configuracion/grupo-productos',  icon: 'mdi-tag-multiple-outline', title: 'Grupos de Productos', desc: 'Categorías y agrupaciones de productos' },
+      { path: '/produccion/configuracion/lista-precios',    icon: 'mdi-currency-usd',         title: 'Lista de Precios',    desc: 'Define y actualiza precios de venta' },
+    ],
+  },
+  {
+    label: 'PROCESOS',
+    items: [
+      { path: '/produccion/procesos/ordenes-compra', icon: 'mdi-clipboard-play-outline', title: 'Órdenes de Compra', desc: 'Gestiona órdenes de compra recibidas de clientes' },
+    ],
+  },
+  {
+    label: 'INFORMES',
+    items: [
+      { path: '/produccion/informes/lista-precios',  icon: 'mdi-file-chart-outline',              title: 'Lista de Precios',    desc: 'Reporte imprimible de precios de venta' },
+      { path: '/produccion/informes/ordenes-compra', icon: 'mdi-file-document-multiple-outline',  title: 'Reporte de Órdenes',  desc: 'Historial y estado de órdenes de compra' },
+    ],
+  },
+]
+
+const { secciones, seccionesTodas, dialogAbierto, guardar, restablecer } =
+  useAtajosModulo('produccion', seccionesBase)
 </script>
 
 <style scoped>

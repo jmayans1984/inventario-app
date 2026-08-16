@@ -119,12 +119,34 @@
           <span class="btn-text">{{ loading ? 'Consultando...' : 'Consultar' }}</span>
         </button>
       </div>
+
+      <!-- Comparar con período anterior -->
+      <div class="compare-row-modern">
+        <label class="compare-toggle">
+          <input v-model="comparar" type="checkbox" />
+          <span>Comparar con período anterior</span>
+        </label>
+        <select v-if="comparar" v-model="modoComparacion" class="compare-select">
+          <option value="anterior">Período inmediatamente anterior</option>
+          <option value="año">Mismo período, año pasado</option>
+        </select>
+      </div>
     </div>
 
     <!-- ── KPI CARDS ──────────────────────────────────────────────── -->
     <div v-if="gastos.length > 0" class="kpi-row mb-5">
       <KpiCard :index="0" label="Total Registros" :value="gastos.length" icon="mdi-receipt-text-outline" color="var(--indigo)" />
-      <KpiCard :index="1" label="Total Período" :value="formatMoneda(totalGeneral)" icon="mdi-cash-multiple" color="var(--success)" />
+      <div class="kpi-with-delta">
+        <KpiCard :index="1" label="Total Período" :value="formatMoneda(totalGeneral)" icon="mdi-cash-multiple" color="var(--success)" />
+        <div v-if="comparar && comparacionLista" class="delta-badge" :class="deltaClase">
+          <v-icon size="13">{{ deltaIcono }}</v-icon>
+          <span>{{ deltaTexto }}</span>
+          <span class="delta-vs">vs {{ formatMoneda(totalGeneralAnterior) }}</span>
+        </div>
+        <div v-else-if="comparar && comparandoLoading" class="delta-badge delta-loading">
+          <v-progress-circular indeterminate size="11" width="2" />
+        </div>
+      </div>
       <KpiCard :index="2" label="Cuentas Contables" :value="grupos.length" icon="mdi-book-outline" color="var(--gold)" />
     </div>
 
@@ -210,6 +232,11 @@
           <span class="tg-label-modern">TOTAL GENERAL</span>
           <span class="tg-value-modern">{{ formatMoneda(totalGeneral) }}</span>
         </div>
+        <div v-if="comparar && comparacionLista" class="delta-badge delta-badge-footer" :class="deltaClase">
+          <v-icon size="13">{{ deltaIcono }}</v-icon>
+          <span>{{ deltaTexto }}</span>
+          <span class="delta-vs">{{ etiquetaPeriodoAnterior }}: {{ formatMoneda(totalGeneralAnterior) }}</span>
+        </div>
       </div>
 
     </div>
@@ -234,7 +261,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import KpiCard from '../../components/common/KpiCard.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
@@ -312,7 +339,101 @@ async function consultar() {
   } finally {
     loading.value = false
   }
+  if (comparar.value) await consultarComparacion()
 }
+
+// ── Comparación con período anterior ──────────────────────────────
+const comparar          = ref(false)
+const modoComparacion    = ref('anterior') // 'anterior' | 'año'
+const gastosAnterior     = ref([])
+const comparandoLoading  = ref(false)
+const comparacionLista   = ref(false)
+
+function parseYMD(s) {
+  const [y, m, d] = s.split('-').map(Number)
+  return { y, m, d }
+}
+function toYMD(date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+}
+function addDiasUTC(ymd, dias) {
+  const { y, m, d } = parseYMD(ymd)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + dias)
+  return toYMD(dt)
+}
+function addAniosUTC(ymd, anios) {
+  const { y, m, d } = parseYMD(ymd)
+  return toYMD(new Date(Date.UTC(y + anios, m - 1, d)))
+}
+
+const rangoAnterior = computed(() => {
+  const { fechaInicial, fechaFinal } = filtros.value
+  if (modoComparacion.value === 'año') {
+    return { fechaInicial: addAniosUTC(fechaInicial, -1), fechaFinal: addAniosUTC(fechaFinal, -1) }
+  }
+  const { y: y1, m: m1, d: d1 } = parseYMD(fechaInicial)
+  const { y: y2, m: m2, d: d2 } = parseYMD(fechaFinal)
+  const dias = Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000)
+  const finAnt = addDiasUTC(fechaInicial, -1)
+  const iniAnt = addDiasUTC(finAnt, -dias)
+  return { fechaInicial: iniAnt, fechaFinal: finAnt }
+})
+
+const etiquetaPeriodoAnterior = computed(() =>
+  modoComparacion.value === 'año' ? 'Mismo período año pasado' : 'Período anterior'
+)
+
+async function consultarComparacion() {
+  if (!filtros.value.fechaInicial || !filtros.value.fechaFinal) return
+  comparandoLoading.value = true
+  comparacionLista.value = false
+  try {
+    const { fechaInicial, fechaFinal } = rangoAnterior.value
+    const params = { empresa: auth.empresa, fechaInicial, fechaFinal }
+    if (filtros.value.proveedor)      params.proveedor      = filtros.value.proveedor
+    if (filtros.value.cuentaBancaria) params.cuentaBancaria = filtros.value.cuentaBancaria
+    if (filtros.value.cuentaContable) params.cuentaContable = filtros.value.cuentaContable
+    const res = await gestionGastosService.getReporte(params)
+    gastosAnterior.value = res.gastos || res.data || []
+    comparacionLista.value = true
+  } catch (err) {
+    console.error('Error al consultar comparación:', err)
+    gastosAnterior.value = []
+  } finally {
+    comparandoLoading.value = false
+  }
+}
+
+const totalGeneralAnterior = computed(() =>
+  gastosAnterior.value.reduce((s, g) => s + (parseFloat(g.total) || 0), 0)
+)
+
+const deltaPct = computed(() => {
+  if (!comparacionLista.value) return null
+  if (totalGeneralAnterior.value === 0) return totalGeneral.value > 0 ? 100 : 0
+  return ((totalGeneral.value - totalGeneralAnterior.value) / totalGeneralAnterior.value) * 100
+})
+
+const deltaClase = computed(() => {
+  if (deltaPct.value === null) return ''
+  return deltaPct.value > 0 ? 'delta-up' : deltaPct.value < 0 ? 'delta-down' : 'delta-flat'
+})
+const deltaIcono = computed(() => {
+  if (deltaPct.value === null) return 'mdi-minus'
+  return deltaPct.value > 0 ? 'mdi-arrow-up-bold' : deltaPct.value < 0 ? 'mdi-arrow-down-bold' : 'mdi-minus'
+})
+const deltaTexto = computed(() => {
+  if (deltaPct.value === null) return ''
+  const signo = deltaPct.value > 0 ? '+' : ''
+  return `${signo}${deltaPct.value.toFixed(1)}%`
+})
+
+// Consultar de nuevo la comparación si el usuario activa el switch o
+// cambia el modo después de ya tener resultados en pantalla.
+watch([comparar, modoComparacion], ([val]) => {
+  if (val && consultado.value && gastos.value.length > 0) consultarComparacion()
+})
 
 // ── Agrupar por cuenta contable ──────────────────────────────────
 const grupos = computed(() => {
@@ -878,6 +999,61 @@ async function generarPDF() {
   justify-content: flex-end;
   gap: 12px;
 }
+
+.compare-row-modern {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(var(--v-theme-on-surface), 0.1);
+}
+.compare-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  cursor: pointer;
+  user-select: none;
+}
+.compare-toggle input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--indigo); cursor: pointer; }
+.compare-select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Badge de variación % vs período anterior */
+.kpi-with-delta { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.delta-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  width: fit-content;
+}
+.delta-up   { background: rgba(220, 38, 38, 0.12);  color: var(--error, #dc2626); }
+.delta-down { background: rgba(21, 128, 61, 0.14);  color: var(--success, #15803d); }
+.delta-flat { background: rgba(var(--v-theme-on-surface), 0.08); color: rgba(var(--v-theme-on-surface), 0.55); }
+.delta-loading { background: rgba(var(--v-theme-on-surface), 0.06); }
+.delta-vs { font-weight: 500; opacity: 0.75; margin-left: 2px; }
+.delta-badge-footer {
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: white !important;
+}
+.delta-badge-footer.delta-up   { background: rgba(248, 113, 113, 0.25) !important; }
+.delta-badge-footer.delta-down { background: rgba(74, 222, 128, 0.25) !important; }
 
 .btn-consultar-modern {
   display: flex;

@@ -114,6 +114,7 @@
                       :disabled="pendientesFiltrados.length === 0"
                     />
                   </th>
+                  <th class="col-expand"></th>
                   <th class="col-numero">NÚMERO</th>
                   <th class="col-fecha">FECHA</th>
                   <th class="col-beneficia">BENEFICIARIO</th>
@@ -127,37 +128,48 @@
               </thead>
               <tbody>
                 <tr v-if="store.loading">
-                  <td :colspan="mostrarConciliados ? 10 : 9" class="tabla-empty">
+                  <td :colspan="mostrarConciliados ? 11 : 10" class="tabla-empty">
                     <v-progress-circular indeterminate color="primary" size="28" />
                     <p class="empty-text mt-2">Cargando movimientos...</p>
                   </td>
                 </tr>
                 <tr v-else-if="movimientosFiltrados.length === 0">
-                  <td :colspan="mostrarConciliados ? 10 : 9" class="tabla-empty">
+                  <td :colspan="mostrarConciliados ? 11 : 10" class="tabla-empty">
                     <v-icon size="32" class="empty-icon">mdi-check-circle-outline</v-icon>
                     <p class="empty-text">No hay movimientos pendientes de conciliar</p>
                   </td>
                 </tr>
-                <tr
-                  v-for="mov in movimientosFiltrados"
-                  :key="mov.numero"
-                  class="tabla-row"
-                  :class="{
-                    'row-selected': selectedNros.includes(mov.numero),
-                    'row-conciliado': mov.conciliado === 'SI'
-                  }"
-                >
-                  <td class="col-checkbox">
-                    <input
-                      type="checkbox"
-                      :checked="selectedNros.includes(mov.numero)"
-                      :disabled="mov.conciliado === 'SI'"
-                      @change="toggleSeleccion(mov.numero)"
-                    />
-                  </td>
-                  <td class="col-numero">
-                    <span class="badge-numero">{{ mov.numero }}</span>
-                  </td>
+                <template v-for="mov in movimientosFiltrados" :key="mov.numero">
+                  <tr
+                    class="tabla-row"
+                    :class="{
+                      'row-selected': selectedNros.includes(mov.numero),
+                      'row-conciliado': mov.conciliado === 'SI'
+                    }"
+                  >
+                    <td class="col-checkbox">
+                      <input
+                        type="checkbox"
+                        :checked="selectedNros.includes(mov.numero)"
+                        :disabled="mov.conciliado === 'SI'"
+                        @change="toggleSeleccion(mov.numero)"
+                      />
+                    </td>
+                    <td class="col-expand">
+                      <v-btn
+                        v-if="tieneFacturasCxp(mov)"
+                        icon size="x-small" variant="text"
+                        :title="expandido === mov.numero ? 'Ocultar facturas' : 'Ver facturas pagadas'"
+                        @click="toggleDetalle(mov)"
+                      >
+                        <v-icon size="18" class="chevron-icon" :class="{ 'chevron-icon--open': expandido === mov.numero }">
+                          mdi-chevron-right
+                        </v-icon>
+                      </v-btn>
+                    </td>
+                    <td class="col-numero">
+                      <span class="badge-numero">{{ mov.numero }}</span>
+                    </td>
                   <td class="col-fecha">{{ formatFecha(mov.fecha) }}</td>
                   <td class="col-beneficia">{{ mov.beneficia || '-' }}</td>
                   <td class="col-concepto">{{ mov.concepto || '-' }}</td>
@@ -209,6 +221,42 @@
                     />
                   </td>
                 </tr>
+
+                <!-- DETALLE: facturas de CxP cubiertas por este movimiento -->
+                <tr v-if="expandido === mov.numero" class="tabla-row-detalle">
+                  <td :colspan="mostrarConciliados ? 11 : 10">
+                    <div v-if="loadingDetalle" class="detalle-load">
+                      <v-progress-circular indeterminate color="primary" size="20" />
+                      <span>Cargando facturas...</span>
+                    </div>
+                    <div v-else-if="detalleError" class="detalle-error">{{ detalleError }}</div>
+                    <table v-else class="detalle-table">
+                      <thead>
+                        <tr>
+                          <th>PROVEEDOR</th>
+                          <th>FACTURA</th>
+                          <th>CENTRO DE COSTO</th>
+                          <th class="ta-right">TOTAL FACTURA</th>
+                          <th class="ta-right">PAGADO EN ESTE MOVIMIENTO</th>
+                          <th class="ta-right">SALDO ACTUAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="f in detalleFacturas" :key="f.id">
+                          <td>{{ f.proveedor_nombre || '-' }}</td>
+                          <td class="dim">{{ f.factura || f.grupo }}</td>
+                          <td class="dim">{{ f.ccosto_nombre || '-' }}</td>
+                          <td class="ta-right dim">{{ formatMoneda(f.factura_total) }}</td>
+                          <td class="ta-right monto-egreso">{{ formatMoneda(f.valor) }}</td>
+                          <td class="ta-right" :class="f.saldo_actual > 0.01 ? 'monto-egreso' : 'monto-ingreso'">
+                            {{ f.saldo_actual > 0.01 ? formatMoneda(f.saldo_actual) : 'PAGADA' }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -230,6 +278,7 @@ import PageHeader from '../../components/common/PageHeader.vue'
 import KpiCard from '../../components/common/KpiCard.vue'
 import { useConciliacionBancariaStore } from '../../stores/conciliacion-bancaria'
 import { useCuentasBancariasStore } from '../../stores/cuentasbancarias'
+import { conciliacionBancariaService } from '../../services/conciliacion-bancaria.service'
 import { formatMoneda, formatFecha } from '../../utils/formatters'
 
 const store = useConciliacionBancariaStore()
@@ -271,6 +320,7 @@ const todoSeleccionado = computed(() =>
 async function onCuentaChange(codigo) {
   selectedNros.value = []
   searchQuery.value = ''
+  expandido.value = null
   if (codigo) {
     store.setBanco(codigo)
     await store.fetchMovimientos()
@@ -322,6 +372,36 @@ async function onToggleConciliados() {
   store.setIncluyeConciliados(mostrarConciliados.value)
   if (cuentaSeleccionada.value) {
     await store.fetchMovimientos()
+  }
+}
+
+// ─── Detalle de facturas CxP cubiertas por un movimiento ─────────────
+// Se ofrece expandir cuando el movimiento nació de un abono/pago de
+// Cuentas por Pagar: `gasto` trae el grupo en un abono a una sola
+// factura, y el concepto lleva el prefijo "PAGO MULTIPLE CXP" cuando
+// un mismo cheque repartió el pago entre varias.
+function tieneFacturasCxp(mov) {
+  return !!mov.gasto || (mov.concepto || '').startsWith('PAGO MULTIPLE CXP')
+}
+
+const expandido        = ref(null)
+const detalleFacturas  = ref([])
+const loadingDetalle   = ref(false)
+const detalleError     = ref('')
+
+async function toggleDetalle(mov) {
+  if (expandido.value === mov.numero) { expandido.value = null; return }
+  expandido.value = mov.numero
+  detalleFacturas.value = []
+  detalleError.value = ''
+  loadingDetalle.value = true
+  try {
+    const r = await conciliacionBancariaService.getFacturasDelMovimiento(mov.numero)
+    detalleFacturas.value = r?.data || []
+  } catch (err) {
+    detalleError.value = err.response?.data?.error || 'No se pudo cargar el detalle de facturas'
+  } finally {
+    loadingDetalle.value = false
   }
 }
 
@@ -378,6 +458,9 @@ onMounted(async () => {
 
 .col-checkbox { width: 36px; }
 .col-checkbox input { cursor: pointer; }
+.col-expand { width: 30px; text-align: center; }
+.chevron-icon { color: rgba(var(--v-theme-on-surface), 0.4); transition: transform 150ms ease-out; }
+.chevron-icon--open { transform: rotate(90deg); color: var(--indigo); }
 .col-numero { width: 130px; }
 .col-fecha { width: 95px; white-space: nowrap; }
 .col-beneficia { width: 18%; }
@@ -401,6 +484,25 @@ onMounted(async () => {
 .col-estado { width: 120px; }
 .row-conciliado td { opacity: 0.5; }
 .row-conciliado:hover td { opacity: 0.7; }
+
+/* DETALLE DE FACTURAS CxP */
+.tabla-row-detalle td { padding: 0 !important; background: rgba(var(--v-theme-on-surface), 0.02); }
+.detalle-load, .detalle-error {
+  display: flex; align-items: center; gap: 10px; padding: 14px 20px 14px 46px;
+  font-size: 12.5px; color: rgba(var(--v-theme-on-surface), 0.5);
+}
+.detalle-error { color: var(--error); }
+.detalle-table { border-collapse: collapse; font-size: 12.5px; margin: 6px 0 10px 46px; width: calc(100% - 46px); }
+.detalle-table thead th {
+  padding: 6px 10px; text-align: left; font-size: 10px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.detalle-table tbody td { padding: 7px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04); }
+.detalle-table tbody tr:last-child td { border-bottom: none; }
+.detalle-table .dim { color: rgba(var(--v-theme-on-surface), 0.55); }
+.detalle-table .ta-right { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Toggle "Mostrar conciliados" */
 .toggle-conciliados-wrap { display: flex; align-items: center; padding: 0 12px; }

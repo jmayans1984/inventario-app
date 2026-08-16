@@ -79,6 +79,12 @@
 
         <!-- ── Columna izquierda: navegación ── -->
         <div class="cbl-nav">
+          <div class="mod-nav-top">
+            <button class="mod-personalizar" @click="dialogAbierto = true">
+              <v-icon size="14">mdi-tune-variant</v-icon>
+              Personalizar accesos
+            </button>
+          </div>
           <div v-for="sec in secciones" :key="sec.label" class="cbl-sec">
             <div class="cbl-sec-label">
               <v-icon size="13" :color="sec.color">{{ sec.icon }}</v-icon>
@@ -107,6 +113,84 @@
 
         <!-- ── Columna derecha: paneles en vivo ── -->
         <div class="cbl-side">
+
+          <!-- Checklist de cierre de mes -->
+          <div class="cbl-panel cbl-cierre-panel">
+            <div class="cbl-panel-header">
+              <div class="cbl-panel-title">
+                <v-icon size="14" color="var(--gold)">mdi-clipboard-check-outline</v-icon>
+                CIERRE DE MES
+              </div>
+              <span class="cbl-cierre-mes-lbl">{{ mesActual }}</span>
+            </div>
+            <div v-if="cierreLoading" class="cbl-panel-loading">
+              <v-progress-circular indeterminate size="20" width="2" color="var(--gold)" />
+            </div>
+            <template v-else-if="cierre">
+              <div v-if="cierrePendientesTotal === 0" class="cbl-cierre-ok">
+                <v-icon size="26" color="var(--success)">mdi-check-decagram</v-icon>
+                <span>Todo listo para cerrar el mes</span>
+              </div>
+              <template v-else>
+                <div
+                  class="cbl-cierre-item"
+                  :class="cierre.conciliacionPendiente.length ? 'cbl-cierre-warn' : 'cbl-cierre-done'"
+                  @click="go('/tesoreria/procesos/conciliacion-cuentas')"
+                >
+                  <v-icon size="16" :color="cierre.conciliacionPendiente.length ? 'var(--warning)' : 'var(--success)'">
+                    {{ cierre.conciliacionPendiente.length ? 'mdi-alert-circle-outline' : 'mdi-check-circle-outline' }}
+                  </v-icon>
+                  <div class="cbl-cierre-txt">
+                    <div class="cbl-cierre-lbl">Conciliación bancaria</div>
+                    <div class="cbl-cierre-sub">
+                      <template v-if="cierre.conciliacionPendiente.length">
+                        {{ totalMovsConciliacion }} movimiento{{ totalMovsConciliacion !== 1 ? 's' : '' }} sin conciliar en {{ cierre.conciliacionPendiente.length }} cuenta{{ cierre.conciliacionPendiente.length !== 1 ? 's' : '' }}
+                      </template>
+                      <template v-else>Todas las cuentas conciliadas</template>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="cbl-cierre-item"
+                  :class="cierre.gastosSinCentroCosto.cantidad ? 'cbl-cierre-warn' : 'cbl-cierre-done'"
+                  @click="go('/contabilidad/procesos/gastos')"
+                >
+                  <v-icon size="16" :color="cierre.gastosSinCentroCosto.cantidad ? 'var(--warning)' : 'var(--success)'">
+                    {{ cierre.gastosSinCentroCosto.cantidad ? 'mdi-alert-circle-outline' : 'mdi-check-circle-outline' }}
+                  </v-icon>
+                  <div class="cbl-cierre-txt">
+                    <div class="cbl-cierre-lbl">Gastos sin centro de costo</div>
+                    <div class="cbl-cierre-sub">
+                      <template v-if="cierre.gastosSinCentroCosto.cantidad">
+                        {{ cierre.gastosSinCentroCosto.cantidad }} gasto{{ cierre.gastosSinCentroCosto.cantidad !== 1 ? 's' : '' }} · {{ fmt(cierre.gastosSinCentroCosto.total) }}
+                      </template>
+                      <template v-else>Todos los gastos tienen centro de costo</template>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="cbl-cierre-item"
+                  :class="cierre.ccostosSinTomaFisica.length ? 'cbl-cierre-warn' : 'cbl-cierre-done'"
+                  @click="go('/almacen/procesos/toma-fisica')"
+                >
+                  <v-icon size="16" :color="cierre.ccostosSinTomaFisica.length ? 'var(--warning)' : 'var(--success)'">
+                    {{ cierre.ccostosSinTomaFisica.length ? 'mdi-alert-circle-outline' : 'mdi-check-circle-outline' }}
+                  </v-icon>
+                  <div class="cbl-cierre-txt">
+                    <div class="cbl-cierre-lbl">Toma física de inventario</div>
+                    <div class="cbl-cierre-sub">
+                      <template v-if="cierre.ccostosSinTomaFisica.length">
+                        {{ cierre.ccostosSinTomaFisica.length }} centro{{ cierre.ccostosSinTomaFisica.length !== 1 ? 's' : '' }} de costo sin ajustar este mes
+                      </template>
+                      <template v-else>Toma física al día en todos los centros</template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </template>
+          </div>
 
           <!-- Movimientos del mes por grupo -->
           <div class="cbl-panel">
@@ -214,6 +298,12 @@
         </div>
       </div>
 
+      <PersonalizarAtajosDialog
+        v-model="dialogAbierto"
+        :secciones="seccionesTodas"
+        @guardar="guardar"
+        @restablecer="restablecer"
+      />
     </div>
   </MainLayout>
 </template>
@@ -222,6 +312,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import PersonalizarAtajosDialog from '../components/common/PersonalizarAtajosDialog.vue'
+import { useAtajosModulo } from '../composables/useAtajosModulo'
 import { useAuthStore } from '../stores/auth'
 import { API_BASE } from '../utils/constants'
 
@@ -257,7 +349,7 @@ function fmtFecha(f) {
 }
 
 // ─── Navegación (mismas rutas de siempre) ────────────────────
-const secciones = [
+const seccionesBase = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
@@ -290,6 +382,9 @@ const secciones = [
     ],
   },
 ]
+
+const { secciones, seccionesTodas, dialogAbierto, guardar, restablecer } =
+  useAtajosModulo('contabilidad', seccionesBase)
 
 // ─── Dashboard: KPIs + P&G del mes + últimos gastos ─────────────────
 const dashLoading = ref(true)
@@ -348,8 +443,42 @@ function pct(total) {
   return ((total / totalMes.value) * 100).toFixed(1)
 }
 
+// ─── Checklist de cierre de mes ──────────────────────────────
+const cierre = ref(null)
+const cierreLoading = ref(true)
+
+const totalMovsConciliacion = computed(() =>
+  cierre.value ? cierre.value.conciliacionPendiente.reduce((s, c) => s + c.pendientes, 0) : 0
+)
+const cierrePendientesTotal = computed(() => {
+  if (!cierre.value) return 0
+  return cierre.value.conciliacionPendiente.length +
+    cierre.value.gastosSinCentroCosto.cantidad +
+    cierre.value.ccostosSinTomaFisica.length
+})
+
+async function cargarCierreMes() {
+  if (!empresa.value) { cierreLoading.value = false; return }
+  try {
+    const hoy = new Date()
+    const params = new URLSearchParams({
+      empresa: empresa.value,
+      mes: hoy.getMonth() + 1,
+      anio: hoy.getFullYear(),
+    })
+    const res = await fetch(`${API_BASE}/contabilidad/cierre-mes?${params}`)
+    const json = await res.json()
+    if (json.success) cierre.value = json.data
+  } catch (e) {
+    console.error('cargarCierreMes:', e)
+  } finally {
+    cierreLoading.value = false
+  }
+}
+
 onMounted(() => {
   cargarDashboard()
+  cargarCierreMes()
 })
 </script>
 
@@ -510,6 +639,30 @@ onMounted(() => {
   font-size: 11px; font-weight: 800; letter-spacing: .4px;
 }
 .cbl-pyg-total span:last-child { font-family: var(--font-mono); font-size: 13px; color: var(--indigo); }
+
+/* Checklist de cierre de mes */
+.cbl-cierre-panel { border-left: 3px solid var(--gold); }
+.cbl-cierre-mes-lbl {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  color: rgba(var(--v-theme-on-surface), .45);
+}
+.cbl-cierre-ok {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 22px 0 8px; font-size: 12.5px; font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), .65); text-align: center;
+}
+.cbl-cierre-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 8px; border-radius: 10px; cursor: pointer;
+  transition: background-color 150ms var(--ease-out);
+}
+.cbl-cierre-item:hover { background: rgba(var(--v-theme-on-surface), .04); }
+.cbl-cierre-item .v-icon { margin-top: 1px; flex-shrink: 0; }
+.cbl-cierre-txt { min-width: 0; }
+.cbl-cierre-lbl { font-size: 12.5px; font-weight: 700; }
+.cbl-cierre-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), .5); margin-top: 1px; line-height: 1.4; }
+.cbl-cierre-warn .cbl-cierre-lbl { color: var(--warning); }
+.cbl-cierre-done { opacity: .7; }
 
 /* Últimos gastos */
 .cbl-gasto-row {

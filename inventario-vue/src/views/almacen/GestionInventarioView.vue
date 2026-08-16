@@ -506,7 +506,7 @@
               Imprimir
             </v-btn>
             <v-spacer />
-            <v-btn color="success" variant="flat" @click="dlgExito = false">Aceptar</v-btn>
+            <v-btn color="success" variant="flat" @click="resetFormulario">Aceptar</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -1034,18 +1034,28 @@ function cancelarEdicion() {
   limpiarCantidades()
 }
 
-function resetTodo() {
-  limpiarCantidades()
+function resetFormulario() {
+  cantidades.value       = {}
   busquedaProducto.value = ''
-  tipoOp.value        = null
-  ccOrigen.value      = null
-  ccDestino.value     = null
-  observaciones.value = ''
-  errorGuardar.value  = ''
-  exitoMsg.value      = ''
-  dlgExito.value      = false
-  modoEdicion.value   = false
-  editKey.value       = {}
+  tipoOp.value           = null
+  ccOrigen.value         = null
+  ccDestino.value        = null
+  observaciones.value    = ''
+  errFecha.value         = ''
+  errTipo.value          = ''
+  errCcOrigen.value      = ''
+  errCcDestino.value     = ''
+  errorGuardar.value     = ''
+  exitoMsg.value         = ''
+  dlgExito.value         = false
+  modoEdicion.value      = false
+  editKey.value          = {}
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function resetTodo() {
+  fecha.value = fechaInputLocal()
+  resetFormulario()
 }
 
 function imprimirMovimientoActual() {

@@ -434,6 +434,7 @@
 
 <script setup>
 import { ref, computed, reactive, nextTick, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useTheme } from 'vuetify'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
@@ -455,6 +456,7 @@ const hoveredRow = ref(null)
 const articulos   = ref([])
 const grupos      = ref([])   // [{ codigo, nombre }] desde grupo_articulos
 const loading     = ref(false)
+const route       = useRoute()
 const busqueda    = ref('')
 const filtroGrupo = ref('TODOS')
 
@@ -769,7 +771,11 @@ function fmt(v) {
   return '$' + (parseFloat(v) || 0).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-onMounted(cargar)
+onMounted(() => {
+  const buscar = route.query.buscar
+  if (buscar) busqueda.value = String(buscar)
+  cargar()
+})
 </script>
 
 <style scoped>

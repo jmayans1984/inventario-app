@@ -41,6 +41,33 @@
 
       <!-- Menu -->
       <div class="sidebar-menu">
+        <!-- Favoritos anclados -->
+        <div v-if="favoritos.length && !collapsed" class="fav-section">
+          <div class="fav-label">
+            <v-icon size="12" color="var(--sidebar-accent)">mdi-star</v-icon>
+            Favoritos
+          </div>
+          <router-link
+            v-for="fav in favoritos"
+            :key="fav.path"
+            :to="fav.path"
+            custom
+            v-slot="{ isActive, navigate }"
+          >
+            <div
+              class="fav-item"
+              :class="{ 'fav-item-active': isActive }"
+              @click="() => { navigate(); if (isMobile) drawer = false }"
+            >
+              <v-icon size="15" class="fav-icon">{{ fav.icon }}</v-icon>
+              <span class="fav-label-txt">{{ fav.name }}</span>
+              <button class="fav-unpin" title="Quitar de favoritos" @click.stop="toggleFavorito(fav)">
+                <v-icon size="13">mdi-close</v-icon>
+              </button>
+            </div>
+          </router-link>
+        </div>
+
         <template v-for="mod in modules" :key="mod.id">
 
           <!-- Sin submenús (INICIO) -->
@@ -119,6 +146,14 @@
                     >
                       <span class="leaf-dot"></span>
                       <span class="leaf-label">{{ item.name }}</span>
+                      <button
+                        class="leaf-pin"
+                        :class="{ 'leaf-pin-activo': esFavorito(item.path) }"
+                        :title="esFavorito(item.path) ? 'Quitar de favoritos' : 'Anclar a favoritos'"
+                        @click.stop="toggleFavorito(item)"
+                      >
+                        <v-icon size="13">{{ esFavorito(item.path) ? 'mdi-star' : 'mdi-star-outline' }}</v-icon>
+                      </button>
                     </div>
                   </router-link>
                 </div>
@@ -160,6 +195,11 @@
         <span class="mobile-page-title">{{ currentModuleTitle }}</span>
 
         <div class="mobile-header-actions">
+          <!-- Búsqueda global móvil -->
+          <button class="mobile-action-btn" @click="commandPaletteOpen = true">
+            <v-icon size="20">mdi-magnify</v-icon>
+          </button>
+
           <!-- Notificaciones móvil -->
           <v-menu location="bottom end" :close-on-content-click="false">
             <template #activator="{ props }">
@@ -213,6 +253,13 @@
         </div>
 
         <div class="header-right">
+          <!-- Búsqueda global -->
+          <button class="header-search-btn" @click="commandPaletteOpen = true">
+            <v-icon size="16">mdi-magnify</v-icon>
+            <span class="header-search-txt">Buscar…</span>
+            <kbd class="header-search-kbd">Ctrl K</kbd>
+          </button>
+
           <!-- Notificaciones desktop -->
           <v-menu location="bottom end" :close-on-content-click="false">
             <template #activator="{ props }">
@@ -395,6 +442,8 @@ import { formatFechaLarga } from '../../utils/formatters'
 import { notificacionesService } from '../../services/notificaciones.service'
 import ActualizacionesModal from '../ActualizacionesModal.vue'
 import { useCalculadora } from '../../composables/useCalculadora'
+import { useCommandPalette } from '../../composables/useCommandPalette'
+import { useFavoritos } from '../../composables/useFavoritos'
 import logoSrc from '../../assets/logo.png'
 
 const router = useRouter()
@@ -402,6 +451,8 @@ const route = useRoute()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const display = useDisplay()
+const { open: commandPaletteOpen } = useCommandPalette()
+const { favoritos, esFavorito, toggleFavorito } = useFavoritos()
 
 const isMobile = computed(() => display.mobile.value)
 const drawer = ref(true)
@@ -875,12 +926,46 @@ const handleLogout = () => {
   transition: background-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
 }
 .leaf-label {
+  flex: 1;
   font-size: 11px;
   font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.leaf-pin {
+  flex-shrink: 0; border: none; background: transparent; cursor: pointer;
+  color: rgba(255,255,255,0.25); line-height: 0; padding: 3px;
+  opacity: 0; transition: opacity 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+.menu-leaf:hover .leaf-pin { opacity: 1; }
+.leaf-pin:hover { color: rgba(255,255,255,0.7); }
+.leaf-pin-activo { opacity: 1; color: var(--sidebar-accent) !important; }
+
+/* Favoritos anclados */
+.fav-section { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.fav-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); padding: 6px 10px 5px;
+}
+.fav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 8px 6px 12px; border-radius: 7px; cursor: pointer;
+  color: rgba(255,255,255,0.65); margin-bottom: 1px; min-height: 32px;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+.fav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+.fav-item-active { background: rgba(255,255,255,0.08); color: white; font-weight: 600; }
+.fav-icon { flex-shrink: 0; color: var(--sidebar-accent); }
+.fav-label-txt { flex: 1; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fav-unpin {
+  flex-shrink: 0; border: none; background: transparent; cursor: pointer;
+  color: rgba(255,255,255,0.3); line-height: 0; padding: 3px;
+  opacity: 0; transition: opacity 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+.fav-item:hover .fav-unpin { opacity: 1; }
+.fav-unpin:hover { color: rgba(255,255,255,0.8); }
 
 /* Footer desktop */
 .sidebar-footer {
@@ -1024,8 +1109,25 @@ const handleLogout = () => {
   text-transform: capitalize;
   margin-top: 1px;
 }
-.header-right { display: flex; align-items: center; }
+.header-right { display: flex; align-items: center; gap: 4px; }
 .header-btn { color: rgba(var(--v-theme-on-surface), 0.5) !important; }
+.header-search-btn {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .1);
+  background: rgba(var(--v-theme-on-surface), .03);
+  color: rgba(var(--v-theme-on-surface), .5);
+  padding: 7px 10px 7px 12px; border-radius: 9px; cursor: pointer;
+  font-size: 12.5px; margin-right: 10px;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+.header-search-btn:hover { border-color: var(--indigo); background: var(--indigo-wash); }
+.header-search-txt { min-width: 46px; text-align: left; }
+.header-search-kbd {
+  font-family: var(--font-mono, monospace); font-size: 10px; font-weight: 700;
+  color: rgba(var(--v-theme-on-surface), .5);
+  background: rgba(var(--v-theme-on-surface), .08);
+  border-radius: 5px; padding: 2px 6px;
+}
 .header-user { display: flex; align-items: center; gap: 10px; }
 .header-user-texts { display: flex; flex-direction: column; text-align: right; }
 .header-username {

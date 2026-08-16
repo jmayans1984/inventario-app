@@ -1,1 +1,1 @@
-import{gn as e,in as t,u as n,yn as r}from"./index.js";var i={__name:`CuentasBancariasView`,setup(i){let a=n();return e(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(e,n)=>(r(),t(`div`))}};export{i as default};
+import{Fn as e,X as t,Xn as n,qn as r}from"./index.js";var i={__name:`CuentasBancariasView`,setup(i){let a=t();return r(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(t,r)=>(n(),e(`div`))}};export{i as default};

@@ -48,6 +48,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import CuentasBancariasTable from '../../components/modules/contabilidad/CuentasBancariasTable.vue'
 import CuentasBancariasForm  from '../../components/modules/contabilidad/CuentasBancariasForm.vue'
@@ -56,6 +57,7 @@ import PageHeader from '../../components/common/PageHeader.vue'
 import { useCuentasBancariasStore } from '../../stores/cuentasbancarias'
 
 const store = useCuentasBancariasStore()
+const route = useRoute()
 
 const dialogForm    = ref(false)
 const cuentaEditando = ref(null)
@@ -75,6 +77,8 @@ function handleGuardar(cuenta) {
 }
 
 onMounted(async () => {
+  const buscar = route.query.buscar
+  if (buscar) store.filters.search = String(buscar)
   try {
     await store.fetchCuentas()
   } catch {

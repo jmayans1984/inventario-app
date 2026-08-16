@@ -4,7 +4,9 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useAppStore } from './stores/app'
 import MiniCalculadora from './components/MiniCalculadora.vue'
+import CommandPalette from './components/common/CommandPalette.vue'
 import { useCalculadora } from './composables/useCalculadora'
+import { useCommandPalette } from './composables/useCommandPalette'
 
 const authStore = useAuthStore()
 const appStore  = useAppStore()
@@ -12,6 +14,7 @@ const route = useRoute()
 
 const { openCalc } = useCalculadora()
 const lastFocused  = ref(null)
+const { open: commandPaletteOpen } = useCommandPalette()
 const appClasses = computed(() => ({
   'treasury-module': route.path.startsWith('/tesoreria'),
   'accounting-module': route.path.startsWith('/contabilidad'),
@@ -33,6 +36,12 @@ function onKeyDown(e) {
     e.preventDefault()
     e.stopPropagation()
     openCalc(lastFocused.value)
+    return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    e.stopPropagation()
+    if (authStore.isAuthenticated) commandPaletteOpen.value = true
   }
 }
 
@@ -53,6 +62,7 @@ onUnmounted(() => {
   <v-app :theme="appStore.tema" :class="appClasses">
     <router-view />
     <MiniCalculadora />
+    <CommandPalette v-model="commandPaletteOpen" />
   </v-app>
 </template>
 

@@ -49,6 +49,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import ProveedoresTable from '../../components/modules/contabilidad/ProveedoresTable.vue'
 import ProveedoresForm from '../../components/modules/contabilidad/ProveedoresForm.vue'
@@ -57,6 +58,7 @@ import PageHeader from '../../components/common/PageHeader.vue'
 import { useProveedoresStore } from '../../stores/proveedores'
 
 const store = useProveedoresStore()
+const route = useRoute()
 const tableComponent = ref(null)
 
 const dialogForm = ref(false)
@@ -134,6 +136,8 @@ function formatEntero(n) {
 // ─── LIFECYCLE ───────────────────────────────────────
 
 onMounted(async () => {
+  const buscar = route.query.buscar
+  if (buscar) store.filters.search = String(buscar)
   await cargarDatos()
 })
 </script>

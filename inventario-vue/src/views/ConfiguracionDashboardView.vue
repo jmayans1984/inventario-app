@@ -14,63 +14,35 @@
       </div>
 
       <!-- SECCIÓN: CONFIGURACIÓN -->
-      <div class="mod-section-label">CONFIGURACIÓN</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="go('/configuracion/general')">
-          <div class="mod-card-icon" style="background:rgba(139,92,246,.12)">
-            <v-icon size="22" color="#8b5cf6">mdi-tune</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Configuración General</div>
-            <div class="mod-card-desc">Parámetros contables, usuarios y logo de la empresa</div>
-          </div>
-          <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/configuracion/bodega-maestra')">
-          <div class="mod-card-icon" style="background:rgba(139,92,246,.12)">
-            <v-icon size="22" color="#8b5cf6">mdi-warehouse</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Bodega Maestra / Proveeduría</div>
-            <div class="mod-card-desc">Centro de costos asignado como bodega maestra</div>
-          </div>
-          <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/configuracion/notificaciones')">
-          <div class="mod-card-icon" style="background:rgba(139,92,246,.12)">
-            <v-icon size="22" color="#8b5cf6">mdi-bell-cog</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Preferencias de Notificaciones</div>
-            <div class="mod-card-desc">Configura alertas y avisos del sistema</div>
-          </div>
-          <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/configuracion/permisos-clientes')">
-          <div class="mod-card-icon" style="background:rgba(139,92,246,.12)">
-            <v-icon size="22" color="#8b5cf6">mdi-shield-account-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Permisos por Cliente</div>
-            <div class="mod-card-desc">Restringe módulos y rutas por empresa cliente</div>
-          </div>
-          <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="go('/configuracion/permisos-usuarios')">
-          <div class="mod-card-icon" style="background:rgba(139,92,246,.12)">
-            <v-icon size="22" color="#8b5cf6">mdi-account-lock-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Permisos de Usuarios</div>
-            <div class="mod-card-desc">Restringe módulos por usuario individual</div>
-          </div>
-          <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
+      <div class="mod-nav-top">
+        <button class="mod-personalizar" @click="dialogAbierto = true">
+          <v-icon size="14">mdi-tune-variant</v-icon>
+          Personalizar accesos
+        </button>
       </div>
+
+      <template v-for="sec in secciones" :key="sec.label">
+        <div class="mod-section-label">{{ sec.label }}</div>
+        <div class="mod-grid">
+          <div v-for="item in sec.items" :key="item.path" class="mod-card" @click="go(item.path)">
+            <div class="mod-card-icon" style="background:rgba(139,92,246,.12)">
+              <v-icon size="22" color="#8b5cf6">{{ item.icon }}</v-icon>
+            </div>
+            <div class="mod-card-body">
+              <div class="mod-card-title">{{ item.title }}</div>
+              <div class="mod-card-desc">{{ item.desc }}</div>
+            </div>
+            <v-icon size="16" color="#8b5cf6" class="mod-card-arrow">mdi-arrow-right</v-icon>
+          </div>
+        </div>
+      </template>
+
+      <PersonalizarAtajosDialog
+        v-model="dialogAbierto"
+        :secciones="seccionesTodas"
+        @guardar="guardar"
+        @restablecer="restablecer"
+      />
 
     </div>
   </MainLayout>
@@ -79,8 +51,26 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import PersonalizarAtajosDialog from '../components/common/PersonalizarAtajosDialog.vue'
+import { useAtajosModulo } from '../composables/useAtajosModulo'
 const router = useRouter()
 const go = (path) => router.push(path)
+
+const seccionesBase = [
+  {
+    label: 'CONFIGURACIÓN',
+    items: [
+      { path: '/configuracion/general',           icon: 'mdi-tune',                     title: 'Configuración General',        desc: 'Parámetros contables, usuarios y logo de la empresa' },
+      { path: '/configuracion/bodega-maestra',    icon: 'mdi-warehouse',                title: 'Bodega Maestra / Proveeduría', desc: 'Centro de costos asignado como bodega maestra' },
+      { path: '/configuracion/notificaciones',    icon: 'mdi-bell-cog',                 title: 'Preferencias de Notificaciones', desc: 'Configura alertas y avisos del sistema' },
+      { path: '/configuracion/permisos-clientes', icon: 'mdi-shield-account-outline',   title: 'Permisos por Cliente',         desc: 'Restringe módulos y rutas por empresa cliente' },
+      { path: '/configuracion/permisos-usuarios', icon: 'mdi-account-lock-outline',     title: 'Permisos de Usuarios',         desc: 'Restringe módulos por usuario individual' },
+    ],
+  },
+]
+
+const { secciones, seccionesTodas, dialogAbierto, guardar, restablecer } =
+  useAtajosModulo('configuracion', seccionesBase)
 </script>
 
 <style scoped>

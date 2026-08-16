@@ -37,9 +37,9 @@
             </option>
           </select>
           <div class="cp-fechas">
-            <input type="date" v-model="desde" class="cp-date" />
+            <input type="date" v-model="desde" class="cp-date" autocomplete="off" />
             <span class="cp-date-sep">→</span>
-            <input type="date" v-model="hasta" class="cp-date" />
+            <input type="date" v-model="hasta" class="cp-date" autocomplete="off" />
           </div>
           <v-btn color="#0369a1" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
             Actualizar
@@ -126,12 +126,33 @@
           <div class="cp-card-head">
             <v-icon size="16" color="#0369a1">mdi-format-list-bulleted</v-icon>
             Cuentas por pagar
-            <input v-model="busqueda" placeholder="Buscar proveedor o factura..." class="cp-search" />
+            <input v-model="busqueda" placeholder="Buscar proveedor o factura..." class="cp-search" autocomplete="off" />
           </div>
+
+          <!-- BARRA DE SELECCIÓN MÚLTIPLE -->
+          <div v-if="seleccion.size > 0" class="cp-selbar">
+            <span class="cp-selbar-txt">
+              <strong>{{ seleccion.size }}</strong> factura{{ seleccion.size !== 1 ? 's' : '' }} seleccionada{{ seleccion.size !== 1 ? 's' : '' }}
+              · {{ money(totalSeleccion) }}
+            </span>
+            <v-btn size="small" variant="text" @click="limpiarSeleccion">Quitar selección</v-btn>
+            <v-btn size="small" variant="flat" color="#0369a1" rounded="lg" prepend-icon="mdi-cash-multiple" @click="abrirPagoMultiple">
+              Pagar seleccionadas
+            </v-btn>
+          </div>
+
           <div class="cp-table-scroll">
             <table class="cp-table">
               <thead>
                 <tr>
+                  <th class="th-mini">
+                    <input
+                      type="checkbox" class="cp-checkbox"
+                      :checked="todasSeleccionadas" :indeterminate.prop="algunasSeleccionadas"
+                      :disabled="!cuentasSeleccionables.length"
+                      @click.stop="toggleSeleccionTodas"
+                    />
+                  </th>
                   <th class="th-mini"></th>
                   <th class="th-nom">PROVEEDOR</th>
                   <th class="th-nom">FACTURA</th>
@@ -147,6 +168,14 @@
               <tbody>
                 <template v-for="c in cuentasFiltradas" :key="c.grupo">
                   <tr class="cp-tr" :class="{ 'cp-tr-open': expandido === c.grupo }" @click="toggle(c)">
+                    <td class="td-mini">
+                      <input
+                        v-if="c.estado !== 'PAGADA'"
+                        type="checkbox" class="cp-checkbox"
+                        :checked="seleccion.has(c.grupo)"
+                        @click.stop="toggleSeleccion(c)"
+                      />
+                    </td>
                     <td class="td-mini">
                       <v-icon size="16" class="cp-chevron" :class="{ 'cp-chevron--open': expandido === c.grupo }">
                         mdi-chevron-right
@@ -182,7 +211,7 @@
 
                   <!-- DETALLE -->
                   <tr v-if="expandido === c.grupo" class="cp-tr-detalle">
-                    <td colspan="10">
+                    <td colspan="11">
                       <div v-if="loadingDetalle" class="cp-detalle-load">
                         <v-progress-circular indeterminate color="#0369a1" size="22" />
                         <span>Cargando detalle...</span>
@@ -262,7 +291,7 @@
               </tbody>
               <tfoot>
                 <tr class="cp-tfoot">
-                  <td colspan="5">TOTALES ({{ cuentasFiltradas.length }})</td>
+                  <td colspan="6">TOTALES ({{ cuentasFiltradas.length }})</td>
                   <td class="td-num">{{ money(totales.total) }}</td>
                   <td class="td-num" style="color:#22c55e">{{ money(totales.pagado) }}</td>
                   <td class="td-num" style="color:#ef4444">{{ money(totales.saldo) }}</td>
@@ -300,13 +329,13 @@
 
             <v-text-field
               v-model="pagoForm.fecha"
-              type="date" label="Fecha del pago *"
+              type="date" label="Fecha del pago *" autocomplete="off"
               variant="outlined" density="comfortable" hide-details class="mb-3"
             />
 
             <v-autocomplete
               v-model="pagoForm.banco"
-              label="Cuenta bancaria *"
+              label="Cuenta bancaria *" autocomplete="off"
               variant="outlined" density="comfortable" hide-details class="mb-3"
               :items="cuentasBancarias"
               item-title="nombre_cta" item-value="codigo"
@@ -318,7 +347,7 @@
             <div class="cp-dlg-monto">
               <v-text-field
                 v-model="pagoForm.valor"
-                label="Valor del abono *" prefix="$"
+                label="Valor del abono *" prefix="$" autocomplete="off"
                 variant="outlined" density="comfortable" hide-details
                 type="text" inputmode="decimal"
               />
@@ -330,7 +359,7 @@
             <v-text-field
               v-if="muestraCheque"
               v-model="pagoForm.cheque"
-              label="N° Cheque"
+              label="N° Cheque (sugerido, editable)" autocomplete="off"
               variant="outlined" density="comfortable" hide-details class="mt-3"
               type="text" inputmode="numeric"
               prepend-inner-icon="mdi-checkbook"
@@ -339,7 +368,7 @@
 
             <v-text-field
               v-model="pagoForm.observaciones"
-              label="Observaciones"
+              label="Observaciones" autocomplete="off"
               variant="outlined" density="comfortable" hide-details class="mt-3"
               maxlength="200" placeholder="Opcional"
             />
@@ -359,6 +388,111 @@
             <v-btn variant="text" @click="dlgPago = false">Cancelar</v-btn>
             <v-btn color="#0369a1" variant="flat" :loading="guardandoPago" @click="guardarPago">
               Registrar abono
+            </v-btn>
+          </div>
+        </v-card>
+      </v-dialog>
+
+      <!-- ══ DIÁLOGO: PAGO MÚLTIPLE ══ -->
+      <v-dialog v-model="dlgPagoMultiple" max-width="640" persistent scrollable>
+        <v-card class="cp-dlg">
+          <div class="cp-dlg-head">
+            <v-icon size="19" color="#0369a1">mdi-cash-multiple</v-icon>
+            <span>Pago múltiple · {{ pagoMultipleLineas.length }} factura{{ pagoMultipleLineas.length !== 1 ? 's' : '' }}</span>
+          </div>
+
+          <v-card-text class="cp-dlg-body">
+            <table class="cp-subtable cp-multi-tabla">
+              <thead>
+                <tr>
+                  <th class="th-nom">PROVEEDOR</th>
+                  <th class="th-nom">FACTURA</th>
+                  <th class="th-num">SALDO</th>
+                  <th class="th-num">A PAGAR</th>
+                  <th class="th-mini"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(l, i) in pagoMultipleLineas" :key="l.grupo">
+                  <td class="td-nom">{{ l.proveedor_nombre }}</td>
+                  <td class="td-dim">{{ l.factura || '—' }}</td>
+                  <td class="td-num td-dim">{{ money(l.saldo) }}</td>
+                  <td class="td-num">
+                    <input
+                      v-model="l.valor" type="text" inputmode="decimal"
+                      class="cp-multi-input" autocomplete="off"
+                    />
+                  </td>
+                  <td class="td-mini">
+                    <v-btn icon variant="text" size="x-small" color="error" title="Quitar de la selección"
+                      @click="quitarDePagoMultiple(i)">
+                      <v-icon size="15">mdi-close</v-icon>
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" style="font-weight:800">TOTAL DEL PAGO</td>
+                  <td class="td-num" style="font-weight:800">{{ money(totalPagoMultiple) }}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <v-text-field
+              v-model="pagoMultipleForm.fecha"
+              type="date" label="Fecha del pago *" autocomplete="off"
+              variant="outlined" density="comfortable" hide-details class="mt-4 mb-3"
+            />
+
+            <v-autocomplete
+              v-model="pagoMultipleForm.banco"
+              label="Cuenta bancaria *" autocomplete="off"
+              variant="outlined" density="comfortable" hide-details class="mb-3"
+              :items="cuentasBancarias"
+              item-title="nombre_cta" item-value="codigo"
+              prepend-inner-icon="mdi-bank-outline"
+              no-data-text="No hay cuentas bancarias"
+              clearable
+            />
+
+            <v-text-field
+              v-if="muestraChequeMultiple"
+              v-model="pagoMultipleForm.cheque"
+              label="N° Cheque (sugerido, editable)" autocomplete="off"
+              variant="outlined" density="comfortable" hide-details class="mb-3"
+              type="text" inputmode="numeric"
+              prepend-inner-icon="mdi-checkbook"
+              @input="pagoMultipleForm.cheque = pagoMultipleForm.cheque.replace(/[^0-9]/g, '')"
+            />
+
+            <v-text-field
+              v-model="pagoMultipleForm.observaciones"
+              label="Observaciones" autocomplete="off"
+              variant="outlined" density="comfortable" hide-details
+              maxlength="200" placeholder="Opcional"
+            />
+
+            <v-alert v-if="pagoMultipleError" type="error" variant="tonal" density="compact" class="mt-3">
+              {{ pagoMultipleError }}
+            </v-alert>
+
+            <div class="cp-dlg-nota">
+              <v-icon size="13" color="#0369a1">mdi-information-outline</v-icon>
+              Se creará un único movimiento bancario de egreso por {{ money(totalPagoMultiple) }},
+              repartido entre las {{ pagoMultipleLineas.length }} factura{{ pagoMultipleLineas.length !== 1 ? 's' : '' }} de arriba.
+            </div>
+          </v-card-text>
+
+          <div class="cp-dlg-foot">
+            <v-btn variant="text" @click="dlgPagoMultiple = false">Cancelar</v-btn>
+            <v-btn
+              color="#0369a1" variant="flat" :loading="guardandoPago"
+              :disabled="!pagoMultipleLineas.length"
+              @click="guardarPagoMultiple"
+            >
+              Registrar pago
             </v-btn>
           </div>
         </v-card>
@@ -397,7 +531,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { cuentasPorPagarService } from '../../services/cuentas-por-pagar.service'
 import { cuentasBancariasService } from '../../services/cuentasbancarias.service'
@@ -477,6 +611,10 @@ async function cargar() {
     kpis.value    = r.kpis || {}
     ranking.value = r.rankingProveedores || []
     if (!filtroProveedor.value) proveedoresConSaldo.value = r.rankingProveedores || []
+
+    // Quita de la selección lo que ya no está pendiente (p.ej. quedó pagado)
+    const vigentes = new Set(lista.filter(c => c.estado !== 'PAGADA').map(c => c.grupo))
+    seleccion.value = new Set([...seleccion.value].filter(g => vigentes.has(g)))
   } catch (e) {
     console.error('Error cargando cuentas por pagar:', e)
     snack(e.response?.data?.error || 'No se pudieron cargar las cuentas por pagar', 'error')
@@ -520,6 +658,14 @@ const muestraCheque = computed(() => {
   const cta = cuentasBancarias.value.find(c => c.codigo === pagoForm.value.banco)
   const v = parseInt(cta?.cheque)
   return !isNaN(v) && v > 0
+})
+
+// Al elegir la cuenta, se sugiere el siguiente consecutivo de cheque; el
+// usuario lo puede editar si va a usar uno distinto (p.ej. quemó uno a mano).
+watch(() => pagoForm.value.banco, (codigo) => {
+  const cta = cuentasBancarias.value.find(c => c.codigo === codigo)
+  const v = parseInt(cta?.cheque)
+  pagoForm.value.cheque = (!isNaN(v) && v > 0) ? String(v) : ''
 })
 
 function toNum(v) { return parseFloat(String(v ?? '').replace(',', '.')) || 0 }
@@ -578,6 +724,118 @@ async function guardarPago() {
   }
 }
 
+// ─── Selección múltiple ─────────────────────────────────────────────
+const seleccion = ref(new Set())
+
+const cuentasSeleccionables = computed(() => cuentasFiltradas.value.filter(c => c.estado !== 'PAGADA'))
+const todasSeleccionadas = computed(() =>
+  cuentasSeleccionables.value.length > 0 &&
+  cuentasSeleccionables.value.every(c => seleccion.value.has(c.grupo))
+)
+const algunasSeleccionadas = computed(() =>
+  !todasSeleccionadas.value && cuentasSeleccionables.value.some(c => seleccion.value.has(c.grupo))
+)
+const totalSeleccion = computed(() =>
+  cuentasSeleccionables.value
+    .filter(c => seleccion.value.has(c.grupo))
+    .reduce((s, c) => s + c.saldo, 0)
+)
+
+function toggleSeleccion(c) {
+  const nuevo = new Set(seleccion.value)
+  if (nuevo.has(c.grupo)) nuevo.delete(c.grupo)
+  else nuevo.add(c.grupo)
+  seleccion.value = nuevo
+}
+function toggleSeleccionTodas() {
+  const nuevo = new Set(seleccion.value)
+  if (todasSeleccionadas.value) {
+    for (const c of cuentasSeleccionables.value) nuevo.delete(c.grupo)
+  } else {
+    for (const c of cuentasSeleccionables.value) nuevo.add(c.grupo)
+  }
+  seleccion.value = nuevo
+}
+function limpiarSeleccion() {
+  seleccion.value = new Set()
+}
+
+// ─── Pago múltiple ──────────────────────────────────────────────────
+const dlgPagoMultiple    = ref(false)
+const pagoMultipleLineas = ref([])   // [{ grupo, factura, proveedor_nombre, saldo, valor }]
+const pagoMultipleForm   = ref({ fecha: '', banco: '', cheque: '', observaciones: '' })
+const pagoMultipleError  = ref('')
+
+const muestraChequeMultiple = computed(() => {
+  const cta = cuentasBancarias.value.find(c => c.codigo === pagoMultipleForm.value.banco)
+  const v = parseInt(cta?.cheque)
+  return !isNaN(v) && v > 0
+})
+watch(() => pagoMultipleForm.value.banco, (codigo) => {
+  const cta = cuentasBancarias.value.find(c => c.codigo === codigo)
+  const v = parseInt(cta?.cheque)
+  pagoMultipleForm.value.cheque = (!isNaN(v) && v > 0) ? String(v) : ''
+})
+const totalPagoMultiple = computed(() =>
+  pagoMultipleLineas.value.reduce((s, l) => s + toNum(l.valor), 0)
+)
+
+function abrirPagoMultiple() {
+  pagoMultipleError.value = ''
+  pagoMultipleLineas.value = cuentasSeleccionables.value
+    .filter(c => seleccion.value.has(c.grupo))
+    .map(c => ({
+      grupo: c.grupo, factura: c.factura, proveedor_nombre: c.proveedor_nombre,
+      saldo: c.saldo, valor: c.saldo,
+    }))
+  pagoMultipleForm.value = {
+    fecha: new Date().toISOString().slice(0, 10),
+    banco: '', cheque: '', observaciones: '',
+  }
+  dlgPagoMultiple.value = true
+}
+
+function quitarDePagoMultiple(i) {
+  pagoMultipleLineas.value.splice(i, 1)
+  if (!pagoMultipleLineas.value.length) dlgPagoMultiple.value = false
+}
+
+async function guardarPagoMultiple() {
+  pagoMultipleError.value = ''
+  if (!pagoMultipleForm.value.fecha) { pagoMultipleError.value = 'La fecha es requerida'; return }
+  if (!pagoMultipleForm.value.banco) { pagoMultipleError.value = 'Selecciona la cuenta bancaria'; return }
+
+  const pagos = []
+  for (const l of pagoMultipleLineas.value) {
+    const valor = toNum(l.valor)
+    if (!(valor > 0)) { pagoMultipleError.value = `El valor a pagar de ${l.factura || l.grupo} debe ser mayor a 0`; return }
+    if (valor > l.saldo + 0.01) {
+      pagoMultipleError.value = `El pago a ${l.factura || l.grupo} supera su saldo pendiente (${money(l.saldo)})`
+      return
+    }
+    pagos.push({ grupo: l.grupo, valor })
+  }
+
+  guardandoPago.value = true
+  try {
+    const r = await cuentasPorPagarService.registrarPagoMultiple({
+      fecha: pagoMultipleForm.value.fecha,
+      banco: pagoMultipleForm.value.banco,
+      cheque: muestraChequeMultiple.value ? (pagoMultipleForm.value.cheque || null) : null,
+      observaciones: pagoMultipleForm.value.observaciones || null,
+      pagos,
+    })
+    dlgPagoMultiple.value = false
+    snack(`Pago registrado · ${r.data?.num_facturas || pagos.length} factura(s) por ${money(r.data?.valor_total)}`, 'success')
+    limpiarSeleccion()
+    await cargar()
+  } catch (e) {
+    pagoMultipleError.value = e.response?.data?.error || e.message || 'No se pudo registrar el pago múltiple'
+  } finally {
+    guardandoPago.value = false
+  }
+}
+
 // ─── Reverso ──────────────────────────────────────────────────────
 const dlgReverso    = ref(false)
 const pagoAReversar = ref(null)
@@ -628,7 +886,7 @@ function fecha(f) {
 
 onMounted(async () => {
   try {
-    const cb = await cuentasBancariasService.getCuentas()
+    const cb = await cuentasBancariasService.getCuentas({ estado: 'ACTIVA', limit: 200 })
     cuentasBancarias.value = cb?.data || (Array.isArray(cb) ? cb : [])
   } catch (e) {
     console.error('Error cargando cuentas bancarias:', e)
@@ -726,6 +984,16 @@ onMounted(async () => {
 .cp-aging-val { font-size: 13.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: rgba(var(--v-theme-on-surface), 0.4); }
 .cp-aging-lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: rgba(var(--v-theme-on-surface), 0.42); }
 
+/* SELECCIÓN MÚLTIPLE */
+.cp-selbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 18px;
+  background: rgba(3,105,161,0.08); border-bottom: 1px solid rgba(3,105,161,0.15);
+}
+.cp-selbar-txt { font-size: 12.5px; color: rgba(var(--v-theme-on-surface), 0.75); }
+.cp-selbar-txt strong { color: #0369a1; font-variant-numeric: tabular-nums; }
+.cp-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: #0369a1; }
+
 /* TABLA */
 .cp-table-scroll { overflow-x: auto; }
 .cp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
@@ -814,6 +1082,17 @@ onMounted(async () => {
   font-size: 11.5px; line-height: 1.5; color: rgba(var(--v-theme-on-surface), 0.5);
 }
 .cp-dlg-texto { font-size: 13px; line-height: 1.6; color: rgba(var(--v-theme-on-surface), 0.75); }
+
+/* PAGO MÚLTIPLE */
+.cp-multi-tabla { margin-bottom: 4px; }
+.cp-multi-tabla tfoot td { padding: 8px 11px; border-top: 1.5px solid rgba(var(--v-theme-on-surface), 0.12); }
+.cp-multi-input {
+  width: 110px; padding: 5px 9px; text-align: right; font-variant-numeric: tabular-nums;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18); border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.03); color: rgb(var(--v-theme-on-surface));
+  font-size: 12.5px; font-weight: 600; outline: none;
+}
+.cp-multi-input:focus { border-color: #0369a1; background: rgba(3,105,161,0.06); }
 
 @media (max-width: 700px) {
   .cp-aging { grid-template-columns: repeat(2, 1fr); }

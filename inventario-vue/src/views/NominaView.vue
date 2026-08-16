@@ -69,6 +69,12 @@
 
         <!-- ── Columna izquierda: navegación ── -->
         <div class="nom-nav">
+          <div class="mod-nav-top">
+            <button class="mod-personalizar" @click="dialogAbierto = true">
+              <v-icon size="14">mdi-tune-variant</v-icon>
+              Personalizar accesos
+            </button>
+          </div>
           <div v-for="sec in secciones" :key="sec.label" class="nom-sec">
             <div class="nom-sec-label">
               <v-icon size="13" :color="sec.color">{{ sec.icon }}</v-icon>
@@ -185,6 +191,12 @@
         </div>
       </div>
 
+      <PersonalizarAtajosDialog
+        v-model="dialogAbierto"
+        :secciones="seccionesTodas"
+        @guardar="guardar"
+        @restablecer="restablecer"
+      />
     </div>
   </MainLayout>
 </template>
@@ -193,6 +205,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import PersonalizarAtajosDialog from '../components/common/PersonalizarAtajosDialog.vue'
+import { useAtajosModulo } from '../composables/useAtajosModulo'
 import { useAuthStore } from '../stores/auth'
 import { API_BASE } from '../utils/constants'
 
@@ -210,7 +224,7 @@ const fechaHoy = computed(() => {
 })
 
 // ─── Navegación (mismas rutas de siempre) ────────────────────
-const secciones = [
+const seccionesBase = [
   {
     label: 'CONFIGURACIÓN',
     icon: 'mdi-cog-outline',
@@ -247,6 +261,9 @@ const secciones = [
     ],
   },
 ]
+
+const { secciones, seccionesTodas, dialogAbierto, guardar, restablecer } =
+  useAtajosModulo('nomina', seccionesBase)
 
 // ─── Equipo: empleados activos (W2/1099, por horas, por CC) ──
 const empLoading = ref(true)

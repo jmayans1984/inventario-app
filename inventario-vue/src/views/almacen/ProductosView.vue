@@ -521,6 +521,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import KpiCard from '../../components/common/KpiCard.vue'
 import PageHeader from '../../components/common/PageHeader.vue'
@@ -529,6 +530,7 @@ import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 
 const auth    = useAuthStore()
+const route   = useRoute()
 const empresa = computed(() => auth.empresa)
 
 // ── Estado ────────────────────────────────────────────────────
@@ -822,7 +824,11 @@ async function marcarPrincipal(bc) {
   }
 }
 
-onMounted(cargar)
+onMounted(() => {
+  const buscar = route.query.buscar
+  if (buscar) search.value = String(buscar)
+  cargar()
+})
 </script>
 
 <style scoped>
@@ -844,7 +850,7 @@ onMounted(cargar)
 .prd-title       { font-size: 20px; font-weight: 800; letter-spacing: .5px; margin: 0; }
 .prd-sub         { font-size: 13px; color: rgba(var(--v-theme-on-surface),.5); margin: 2px 0 0; }
 
-/* KPIs */
+/* KPIs */
 
 /* Filtros */
 .prd-filtros      { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }

@@ -69,6 +69,12 @@
 
         <!-- ── Columna izquierda: navegación ── -->
         <div class="tes-nav">
+          <div class="mod-nav-top">
+            <button class="mod-personalizar" @click="dialogAbierto = true">
+              <v-icon size="14">mdi-tune-variant</v-icon>
+              Personalizar accesos
+            </button>
+          </div>
           <div v-for="sec in secciones" :key="sec.label" class="tes-sec">
             <div class="tes-sec-label">
               <v-icon size="13" :color="sec.color">{{ sec.icon }}</v-icon>
@@ -219,6 +225,12 @@
         </div>
       </div>
 
+      <PersonalizarAtajosDialog
+        v-model="dialogAbierto"
+        :secciones="seccionesTodas"
+        @guardar="guardar"
+        @restablecer="restablecer"
+      />
     </div>
   </MainLayout>
 </template>
@@ -227,6 +239,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import PersonalizarAtajosDialog from '../components/common/PersonalizarAtajosDialog.vue'
+import { useAtajosModulo } from '../composables/useAtajosModulo'
 import { useAuthStore } from '../stores/auth'
 import { API_BASE } from '../utils/constants'
 
@@ -295,12 +309,15 @@ const seccionesBase = [
   },
 ]
 
-const secciones = computed(() => {
+const seccionesDisponibles = computed(() => {
   return seccionesBase.map(sec => ({
     ...sec,
     items: sec.items.filter(item => !item.requiredTipo || item.requiredTipo === tipoEmpresa.value)
   }))
 })
+
+const { secciones, seccionesTodas, dialogAbierto, guardar, restablecer } =
+  useAtajosModulo('tesoreria', seccionesDisponibles)
 
 // ─── Saldos de cuentas bancarias activas ─────────────────────
 const saldosLoading = ref(true)

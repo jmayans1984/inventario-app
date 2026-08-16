@@ -13,76 +13,35 @@
         </div>
       </div>
 
-      <!-- SECCIÓN: REPORTES -->
-      <div class="mod-section-label">REPORTES</div>
-      <div class="mod-grid">
-        <div class="mod-card" @click="router.push('/gerencia/reportes/ejecutivo')">
-          <div class="mod-card-icon" style="background:var(--indigo-wash)">
-            <v-icon size="22" color="primary">mdi-view-dashboard-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Dashboard Franquicias</div>
-            <div class="mod-card-desc">Vista estratégica consolidada</div>
-          </div>
-          <v-icon size="16" color="primary" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="router.push('/gerencia/reportes/analisis-ventas')">
-          <div class="mod-card-icon" style="background:var(--indigo-wash)">
-            <v-icon size="22" color="primary">mdi-chart-areaspline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Análisis de Ventas</div>
-            <div class="mod-card-desc">Tendencias y comparativas de ventas</div>
-          </div>
-          <v-icon size="16" color="primary" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="router.push('/gerencia/reportes/analisis-nomina')">
-          <div class="mod-card-icon" style="background:var(--indigo-wash)">
-            <v-icon size="22" color="primary">mdi-account-cash-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Análisis de Nómina</div>
-            <div class="mod-card-desc">Costos laborales por período</div>
-          </div>
-          <v-icon size="16" color="primary" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="router.push('/gerencia/reportes/labor-cost')">
-          <div class="mod-card-icon" style="background:var(--indigo-wash)">
-            <v-icon size="22" color="primary">mdi-percent-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Labor Cost %</div>
-            <div class="mod-card-desc">Porcentaje de costo laboral sobre ventas</div>
-          </div>
-          <v-icon size="16" color="primary" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="router.push('/gerencia/reportes/consumo-mp')">
-          <div class="mod-card-icon" style="background:var(--indigo-wash)">
-            <v-icon size="22" color="primary">mdi-food-variant</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Consumo Materia Prima</div>
-            <div class="mod-card-desc">Consumo de insumos por período</div>
-          </div>
-          <v-icon size="16" color="primary" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
-
-        <div class="mod-card" @click="router.push('/gerencia/reportes/reviews')">
-          <div class="mod-card-icon" style="background:var(--indigo-wash)">
-            <v-icon size="22" color="primary">mdi-star-outline</v-icon>
-          </div>
-          <div class="mod-card-body">
-            <div class="mod-card-title">Puntuación / Reviews</div>
-            <div class="mod-card-desc">Calificaciones y reseñas de clientes</div>
-          </div>
-          <v-icon size="16" color="primary" class="mod-card-arrow">mdi-arrow-right</v-icon>
-        </div>
+      <div class="mod-nav-top">
+        <button class="mod-personalizar" @click="dialogAbierto = true">
+          <v-icon size="14">mdi-tune-variant</v-icon>
+          Personalizar accesos
+        </button>
       </div>
 
+      <template v-for="sec in secciones" :key="sec.label">
+        <div class="mod-section-label">{{ sec.label }}</div>
+        <div class="mod-grid">
+          <div v-for="item in sec.items" :key="item.path" class="mod-card" @click="router.push(item.path)">
+            <div class="mod-card-icon" style="background:var(--indigo-wash)">
+              <v-icon size="22" color="primary">{{ item.icon }}</v-icon>
+            </div>
+            <div class="mod-card-body">
+              <div class="mod-card-title">{{ item.title }}</div>
+              <div class="mod-card-desc">{{ item.desc }}</div>
+            </div>
+            <v-icon size="16" color="primary" class="mod-card-arrow">mdi-arrow-right</v-icon>
+          </div>
+        </div>
+      </template>
+
+      <PersonalizarAtajosDialog
+        v-model="dialogAbierto"
+        :secciones="seccionesTodas"
+        @guardar="guardar"
+        @restablecer="restablecer"
+      />
     </div>
   </MainLayout>
 </template>
@@ -90,7 +49,26 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
+import PersonalizarAtajosDialog from '../components/common/PersonalizarAtajosDialog.vue'
+import { useAtajosModulo } from '../composables/useAtajosModulo'
 const router = useRouter()
+
+const seccionesBase = [
+  {
+    label: 'REPORTES',
+    items: [
+      { path: '/gerencia/reportes/ejecutivo',       icon: 'mdi-view-dashboard-outline', title: 'Dashboard Franquicias',  desc: 'Vista estratégica consolidada' },
+      { path: '/gerencia/reportes/analisis-ventas', icon: 'mdi-chart-areaspline',       title: 'Análisis de Ventas',     desc: 'Tendencias y comparativas de ventas' },
+      { path: '/gerencia/reportes/analisis-nomina', icon: 'mdi-account-cash-outline',   title: 'Análisis de Nómina',     desc: 'Costos laborales por período' },
+      { path: '/gerencia/reportes/labor-cost',      icon: 'mdi-percent-outline',        title: 'Labor Cost %',           desc: 'Porcentaje de costo laboral sobre ventas' },
+      { path: '/gerencia/reportes/consumo-mp',      icon: 'mdi-food-variant',           title: 'Consumo Materia Prima',  desc: 'Consumo de insumos por período' },
+      { path: '/gerencia/reportes/reviews',         icon: 'mdi-star-outline',           title: 'Puntuación / Reviews',   desc: 'Calificaciones y reseñas de clientes' },
+    ],
+  },
+]
+
+const { secciones, seccionesTodas, dialogAbierto, guardar, restablecer } =
+  useAtajosModulo('gerencia', seccionesBase)
 </script>
 
 <style scoped>

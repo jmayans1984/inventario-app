@@ -52,6 +52,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { useGestionGastosStore } from '../../stores/gestiongastos'
 import GestionGastosTable from '../../components/modules/contabilidad/GestionGastosTable.vue'
@@ -61,10 +62,13 @@ import PageHeader from '../../components/common/PageHeader.vue'
 import { formatMoneda } from '../../utils/formatters'
 
 const store = useGestionGastosStore()
+const route = useRoute()
 const modalOpen = ref(false)
 const gastoEditando = ref(null)
 
 onMounted(() => {
+  const buscar = route.query.buscar
+  if (buscar) store.filters.search = String(buscar)
   store.fetchGastos()
 })
 

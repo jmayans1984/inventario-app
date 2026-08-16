@@ -83,6 +83,19 @@ export const conciliacionBancariaService = {
     }
   },
 
+  // Facturas de Cuentas por Pagar cubiertas por este movimiento (abono
+  // individual o pago múltiple)
+  async getFacturasDelMovimiento(numero) {
+    try {
+      const empresa = getEmpresaActiva()
+      const response = await api.get(`${ENDPOINT}/${numero}/facturas`, { params: { empresa } })
+      return response.data
+    } catch (error) {
+      console.error(`Error obteniendo facturas del movimiento ${numero}:`, error)
+      throw error
+    }
+  },
+
   // Obtener resumen de saldos por banco
   async getResumen(banco) {
     try {

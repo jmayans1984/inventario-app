@@ -444,7 +444,9 @@
               </div>
               <div class="tot-item tot-item-final">
                 <span class="tot-lbl">{{ form.por_pagar ? 'TOTAL POR PAGAR' : 'TOTAL PAGADO' }}</span>
-                <span class="tot-val tot-val-final">{{ formatMoneda(sumTotal) }}</span>
+                <span class="tot-val tot-val-final">
+                  {{ formatMoneda(form.por_pagar ? sumTotal : totalMovimientoConCxp) }}
+                </span>
               </div>
             </div>
             <div v-if="!esEdicion && form.por_pagar" class="tot-nota tot-nota-cxp">
@@ -460,6 +462,61 @@
               <strong>un solo movimiento bancario</strong> de
               <strong>{{ form.es_ingreso ? 'ingreso' : 'egreso' }}</strong>
               por {{ formatMoneda(sumTotal) }}
+              <template v-if="cxpSeleccionadas.length">
+                + {{ formatMoneda(totalCxpSeleccion) }} de {{ cxpSeleccionadas.length }}
+                cuenta{{ cxpSeleccionadas.length !== 1 ? 's' : '' }} por pagar antigua{{ cxpSeleccionadas.length !== 1 ? 's' : '' }},
+                para un total de <strong>{{ formatMoneda(totalMovimientoConCxp) }}</strong>
+              </template>
+            </div>
+
+            <!-- Incluir cuentas por pagar viejas del mismo proveedor -->
+            <div v-if="!esEdicion && !form.por_pagar && form.proveedor" class="cxp-incluir">
+              <div class="cxp-incluir-head">
+                <v-icon size="15" color="var(--gold)">mdi-cash-multiple</v-icon>
+                Incluir cuentas por pagar antiguas de {{ nombreProveedor }} en este mismo pago
+              </div>
+
+              <div v-if="cxpLoading" class="cxp-incluir-estado">
+                <v-progress-circular indeterminate size="16" width="2" color="var(--gold)" />
+                <span>Buscando cuentas pendientes...</span>
+              </div>
+              <div v-else-if="!cxpAbiertas.length" class="cxp-incluir-estado">
+                Este proveedor no tiene otras cuentas por pagar pendientes.
+              </div>
+              <table v-else class="cxp-incluir-tabla">
+                <thead>
+                  <tr>
+                    <th class="col-mini"></th>
+                    <th>FACTURA</th>
+                    <th>FECHA</th>
+                    <th class="col-right">SALDO</th>
+                    <th class="col-right">A PAGAR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in cxpAbiertas" :key="c.grupo">
+                    <td class="col-mini">
+                      <input
+                        type="checkbox" class="cxp-incluir-check"
+                        :checked="cxpSeleccion.has(c.grupo)"
+                        @change="toggleCxp(c)"
+                      />
+                    </td>
+                    <td>{{ c.factura || c.grupo }}</td>
+                    <td class="dim">{{ String(c.fecha).slice(0, 10) }}</td>
+                    <td class="col-right dim">{{ formatMoneda(c.saldo) }}</td>
+                    <td class="col-right">
+                      <input
+                        v-if="cxpSeleccion.has(c.grupo)"
+                        v-model="cxpValores[c.grupo]"
+                        type="text" inputmode="decimal" autocomplete="off"
+                        class="cxp-incluir-input"
+                      />
+                      <span v-else class="dim">—</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -620,6 +677,7 @@
                  así los títulos quedan siempre sobre su dato. -->
             <div class="mp-thead">
               <div class="mp-th">Producto / Artículo</div>
+              <div class="mp-th mp-th-tipo"></div>
               <div class="mp-th mp-th-num">Cantidad</div>
               <div class="mp-th mp-th-num">Vr. Unitario</div>
               <div class="mp-th mp-th-num">Subtotal</div>
@@ -687,6 +745,16 @@
                     <span class="mp-pres-cont">{{ formatNumPres(pres.contenido) }}</span>
                   </button>
                 </div>
+              </div>
+
+              <!-- Tipo: materia prima (artículo) o producto de bodega -->
+              <div class="mp-td mp-td-tipo">
+                <span
+                  v-if="item.origen"
+                  class="mp-origen-tag"
+                  :class="item.origen === 'ARTICULO' ? 'tag-art' : 'tag-prod'"
+                  :title="item.origen === 'ARTICULO' ? 'Materia prima (artículo de receta)' : 'Producto de bodega'"
+                >{{ item.origen === 'ARTICULO' ? 'MP' : 'PR' }}</span>
               </div>
 
               <!-- Cantidad -->
@@ -1034,6 +1102,7 @@ import { proveedoresService } from '../../../services/proveedores.service'
 import { centroCostosService } from '../../../services/centrocostos.service'
 import { cuentasContablesService } from '../../../services/cuentascontables.service'
 import { cuentasBancariasService } from '../../../services/cuentasbancarias.service'
+import { cuentasPorPagarService } from '../../../services/cuentas-por-pagar.service'
 import { formatMoneda } from '../../../utils/formatters'
 import api from '../../../services/api'
 import { useAuthStore } from '../../../stores/auth'
@@ -1368,6 +1437,55 @@ const totalLinea = (ln) => toNum(ln.subtotal) + toNum(ln.impuestos)
 const sumSubtotal  = computed(() => form.value.lineas.reduce((s, l) => s + toNum(l.subtotal), 0))
 const sumImpuestos = computed(() => form.value.lineas.reduce((s, l) => s + toNum(l.impuestos), 0))
 const sumTotal     = computed(() => sumSubtotal.value + sumImpuestos.value)
+
+// ─── Incluir cuentas por pagar viejas del mismo proveedor en este pago ──
+// En vez de guardar la factura actual como CxP y luego ir a Tesorería a
+// hacer un pago múltiple aparte, el paso de confirmación deja sumar de
+// una vez las cuentas viejas de este proveedor al mismo cheque/movimiento.
+const cxpAbiertas  = ref([])
+const cxpLoading   = ref(false)
+const cxpSeleccion = ref(new Set())
+const cxpValores   = ref({})
+
+async function cargarCxpProveedor() {
+  cxpAbiertas.value  = []
+  cxpSeleccion.value = new Set()
+  cxpValores.value   = {}
+  if (esEdicion.value || form.value.por_pagar || !form.value.proveedor) return
+  cxpLoading.value = true
+  try {
+    const r = await cuentasPorPagarService.getCuentas({ proveedor: form.value.proveedor })
+    cxpAbiertas.value = (r.cuentas || []).filter(c => c.estado !== 'PAGADA')
+  } catch (e) {
+    console.error('Error cargando cuentas por pagar del proveedor:', e)
+  } finally {
+    cxpLoading.value = false
+  }
+}
+
+// Se recarga cada vez que se entra al paso de confirmar, por si el
+// proveedor o el "dejar como cuenta por pagar" cambiaron mientras tanto.
+watch(step, (val) => { if (val === 2) cargarCxpProveedor() })
+
+function toggleCxp(c) {
+  const nuevo = new Set(cxpSeleccion.value)
+  if (nuevo.has(c.grupo)) {
+    nuevo.delete(c.grupo)
+    delete cxpValores.value[c.grupo]
+  } else {
+    nuevo.add(c.grupo)
+    cxpValores.value[c.grupo] = c.saldo
+  }
+  cxpSeleccion.value = nuevo
+}
+
+const cxpSeleccionadas = computed(() =>
+  cxpAbiertas.value.filter(c => cxpSeleccion.value.has(c.grupo))
+)
+const totalCxpSeleccion = computed(() =>
+  cxpSeleccionadas.value.reduce((s, c) => s + toNum(cxpValores.value[c.grupo]), 0)
+)
+const totalMovimientoConCxp = computed(() => sumTotal.value + totalCxpSeleccion.value)
 
 // ─── Nombres para el resumen (paso 3) ────────────────
 const nombreProveedor = computed(() => proveedoresOptions.value.find(p => p.codigo === form.value.proveedor)?.nombre || '—')
@@ -1715,6 +1833,18 @@ const facturasDuplicadas  = ref([])
 async function handleSubmit() {
   const err = validarPaso(0) || validarPaso(1)
   if (err) { errorMsg.value = err; return }
+
+  for (const c of cxpSeleccionadas.value) {
+    const v = toNum(cxpValores.value[c.grupo])
+    if (!(v > 0)) {
+      errorMsg.value = `El valor a pagar de la factura ${c.factura || c.grupo} debe ser mayor a 0`
+      return
+    }
+    if (v > c.saldo + 0.01) {
+      errorMsg.value = `El pago a ${c.factura || c.grupo} supera su saldo pendiente (${formatMoneda(c.saldo)})`
+      return
+    }
+  }
   errorMsg.value = ''
 
   const factura = form.value.factura.trim()
@@ -1784,6 +1914,9 @@ async function guardarGasto() {
           impuestos: toNum(ln.impuestos),
           total: totalLinea(ln),
           materiaPrima: esMateriaPrima(ln) ? ln.materiaPrima : null,
+        })),
+        pagosCxp: cxpSeleccionadas.value.map(c => ({
+          grupo: c.grupo, valor: toNum(cxpValores.value[c.grupo]),
         })),
       })
     }
@@ -2070,6 +2203,68 @@ function cerrar() {
   color: rgba(var(--v-theme-on-surface), 0.75);
 }
 
+/* ═══ INCLUIR CxP VIEJAS EN EL MISMO PAGO ═══════════════════════════ */
+.cxp-incluir {
+  margin-top: 14px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cxp-incluir-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 13px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  background: rgba(240, 168, 60, 0.06);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.cxp-incluir-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+}
+.cxp-incluir-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cxp-incluir-tabla thead th {
+  padding: 6px 12px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: left;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.cxp-incluir-tabla .col-right { text-align: right; }
+.cxp-incluir-tabla .col-mini { width: 30px; }
+.cxp-incluir-tabla tbody td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05);
+  font-variant-numeric: tabular-nums;
+}
+.cxp-incluir-tabla tbody tr:last-child td { border-bottom: none; }
+.cxp-incluir-tabla .dim { color: rgba(var(--v-theme-on-surface), 0.5); }
+.cxp-incluir-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--gold); }
+.cxp-incluir-input {
+  width: 100px;
+  padding: 4px 8px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+}
+.cxp-incluir-input:focus { border-color: var(--gold); background: rgba(240, 168, 60, 0.06); }
+
 /* ═══ CUENTA POR PAGAR ═══════════════════════════════════════════════ */
 .cxp-toggle {
   display: flex;
@@ -2202,7 +2397,7 @@ function cerrar() {
    Encabezado, filas y total comparten las MISMAS pistas de grid, así el
    título de cada columna cae siempre justo encima de su dato. */
 .mp-tabla {
-  --mp-cols: minmax(220px, 1fr) 126px 148px 132px 40px;
+  --mp-cols: minmax(220px, 1fr) 34px 126px 148px 132px 40px;
   --mp-gap: 12px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
   border-radius: 12px;
@@ -2242,6 +2437,12 @@ function cerrar() {
 
 .mp-td { min-width: 0; }
 .mp-td-prod { display: flex; flex-direction: column; gap: 6px; }
+.mp-td-tipo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+}
 .mp-td-sub {
   display: flex;
   align-items: center;
@@ -2327,7 +2528,7 @@ function cerrar() {
   background: rgba(245,158,11,0.07);
 }
 .mp-tfoot-lbl {
-  grid-column: 1 / 4;
+  grid-column: 1 / 5;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.6px;
