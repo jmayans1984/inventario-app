@@ -13013,7 +13013,7 @@ app.put('/api/config-general', async (req, res) => {
     const allowed = [
         'cta_ventas', 'cta_comisiones', 'cta_descuentos_ventas',
         'cta_propinas', 'cta_impuestos', 'cta_egresos_impuestos',
-        'cta_egresos_propinas', 'cta_otras_comisiones',
+        'cta_egresos_propinas', 'cta_otras_comisiones', 'cta_devoluciones',
         'tipo_moviban_ventas', 'cuenta_efectivo',
         'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo',
         'ccosto_proveeduria',
@@ -13247,6 +13247,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         const records = [
             { cuenta: cfg.cta_ventas,            valor: vNetas     },
             { cuenta: cfg.cta_descuentos_ventas,  valor: descuentos },
+            { cuenta: cfg.cta_devoluciones,       valor: vDevoluc   },
             { cuenta: cfg.cta_impuestos,          valor: impuestos  },
             { cuenta: cfg.cta_propinas,           valor: propinas   },
             { cuenta: cfg.cta_comisiones,         valor: comisiones },
@@ -13598,6 +13599,9 @@ pool.query(`
     END $$;
 `).catch(() => {});
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_otras_comisiones VARCHAR(20)`).catch(() => {});
+// Cuenta contable para registrar las devoluciones/reembolsos que Square reporta
+// (columna "Refunds" del CSV) como gasto, igual que ya se hace con descuentos.
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_devoluciones VARCHAR(20)`).catch(() => {});
 
 // Pantallas ancladas como favoritas arriba del menú lateral, por usuario.
 // rutas guarda un JSON [{ path, name, icon }, ...] en el orden elegido.

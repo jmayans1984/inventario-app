@@ -109,7 +109,7 @@
                 <label class="field-label">Fecha de Vencimiento</label>
                 <input v-model="form.fecha_vence" type="date" class="field-input" />
                 <span class="hint-txt" v-if="diasVencimiento">
-                  Sugerido: {{ diasVencimientoStr }} ({{ diasVencimiento }} días)
+                  Sugerido: {{ fmtFecha(diasVencimientoStr) }} ({{ diasVencimiento }} días)
                 </span>
               </div>
             </div>
@@ -214,7 +214,9 @@ const filtrados = computed(() => {
 function fmtFecha(f) {
   if (!f) return '—'
   const d = new Date(String(f).substring(0, 10) + 'T12:00:00')
-  return d.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${mm}/${dd}/${d.getFullYear()}`
 }
 
 function venceProximo(f) {
@@ -321,7 +323,9 @@ function imprimirEtiqueta(l) {
   const fmtD = (f) => {
     if (!f) return '—'
     const d = new Date(String(f).substring(0, 10) + 'T12:00:00')
-    return d.toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${mm}/${dd}/${d.getFullYear()}`
   }
 
   const barcodeVal = l.barcode || l.codigo
@@ -340,10 +344,10 @@ function imprimirEtiqueta(l) {
   .lbl-top { display: flex; align-items: stretch; border-bottom: 1.5px solid #000; }
   .top-icon-box { width: 22%; border-right: 1.5px solid #000; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
   .top-icon { width: 18px; height: 18px; border: 1.5px solid #000; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9pt; font-weight: 900; }
-  .top-icon-cap { font-size: 4pt; text-align: center; line-height: 1.2; color: #333; text-transform: uppercase; }
+  .top-icon-cap { font-size: 5.5pt; text-align: center; line-height: 1.2; color: #333; text-transform: uppercase; }
   .top-badge { flex: 1; padding: 4px 6px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; }
   .badge-title { font-size: 7.5pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
-  .badge-sub   { font-size: 4.5pt; font-weight: 700; text-transform: uppercase; color: #333; margin-top: 1px; }
+  .badge-sub   { font-size: 6pt; font-weight: 700; text-transform: uppercase; color: #333; margin-top: 1px; }
 
   /* Product title bar – centered, no lot reference (shown in footer) */
   .lbl-header-bar { padding: 4px 8px; border-bottom: 1.5px solid #000; text-align: center; }
@@ -352,31 +356,31 @@ function imprimirEtiqueta(l) {
   /* Net weight / servings boxes */
   .weight-row { display: flex; gap: 4px; padding: 3px 8px; border-bottom: 1px solid #000; }
   .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 2px 3px; }
-  .w-lbl { font-size: 4pt; text-transform: uppercase; font-weight: 700; }
-  .w-val { font-size: 6pt; font-weight: 900; }
+  .w-lbl { font-size: 5.5pt; text-transform: uppercase; font-weight: 700; }
+  .w-val { font-size: 7.5pt; font-weight: 900; }
 
   /* From/To style dates section */
   .two-col { display: flex; border-bottom: 1px solid #000; }
   .col { flex: 1; padding: 3px 6px; }
   .col:first-child { border-right: 1px solid #000; }
-  .col-title { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-  .col-row { font-size: 5pt; line-height: 1.4; }
+  .col-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .col-row { font-size: 6.5pt; line-height: 1.4; }
   .col-lbl { color: #555; }
-  .col-val { font-weight: 700; margin-left: 2px; }
-  .col-warn { display: inline-block; margin-top: 2px; font-size: 4pt; font-weight: 900; text-transform: uppercase; border: 1px solid #000; padding: 1px 4px; border-radius: 3px; }
+  .col-val { font-weight: 700; margin-left: 2px; font-size: 8pt; }
+  .col-warn { display: inline-block; margin-top: 2px; font-size: 5.5pt; font-weight: 900; text-transform: uppercase; border: 1px solid #000; padding: 1px 4px; border-radius: 3px; }
 
   /* Additional information */
   .lbl-extra { flex: 1; padding: 3px 8px; display: flex; flex-direction: column; gap: 2px; }
-  .section-title { font-size: 4.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
-  .section-txt   { font-size: 5pt; line-height: 1.2; }
-  .alerg-txt     { font-size: 5pt; font-weight: 700; line-height: 1.15; }
-  .instr-txt     { font-size: 4.5pt; font-style: italic; line-height: 1.15; }
+  .section-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
+  .section-txt   { font-size: 6.5pt; line-height: 1.2; }
+  .alerg-txt     { font-size: 6.5pt; font-weight: 700; line-height: 1.15; }
+  .instr-txt     { font-size: 6pt; font-style: italic; line-height: 1.15; }
 
   /* Footer: batch code + barcode */
   .lbl-barcode { padding: 3px 8px 5px; text-align: center; border-top: 1.5px solid #000; }
-  .footer-title { font-size: 5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
+  .footer-title { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
   .lbl-barcode svg { max-width: 100%; }
-  .bc-num { font-size: 5pt; margin-top: 1px; font-family: monospace; letter-spacing: 0.5px; }
+  .bc-num { font-size: 6.5pt; margin-top: 1px; font-family: monospace; letter-spacing: 0.5px; }
 ` : `
   @page { size: 4in 6in; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
@@ -387,12 +391,12 @@ function imprimirEtiqueta(l) {
   /* Header: empresa – solo borde inferior, sin fondo */
   .lbl-header { padding: 7px 12px 5px; text-align: center; border-bottom: 2px solid #000; }
   .emp-name { font-size: 13pt; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
-  .emp-sub  { font-size: 7pt; color: #333; margin-top: 1px; }
+  .emp-sub  { font-size: 8.5pt; color: #333; margin-top: 1px; }
 
   /* Producto – centrado, sin fondo */
   .lbl-product { padding: 7px 12px 6px; text-align: center; border-bottom: 1.5px solid #000; }
   .prod-name { font-size: 16pt; font-weight: 900; text-transform: uppercase; line-height: 1.1; }
-  .lot-tag   { font-size: 7.5pt; font-family: monospace; letter-spacing: 1.5px; margin-top: 3px; color: #333; }
+  .lot-tag   { font-size: 9pt; font-family: monospace; letter-spacing: 1.5px; margin-top: 3px; color: #333; }
 
   /* Cuerpo */
   .lbl-body { flex: 1; padding: 7px 12px; display: flex; flex-direction: column; gap: 6px; }
@@ -400,25 +404,25 @@ function imprimirEtiqueta(l) {
   /* Fechas */
   .dates-row { display: flex; gap: 8px; }
   .date-box  { flex: 1; border: 1px solid #000; padding: 4px 7px; }
-  .date-lbl  { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
-  .date-val  { font-size: 10pt; font-weight: 900; }
+  .date-lbl  { font-size: 8pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+  .date-val  { font-size: 14.5pt; font-weight: 900; }
 
   /* Pesos */
   .weight-row { display: flex; gap: 6px; }
   .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 3px 5px; }
-  .w-lbl { font-size: 6pt; text-transform: uppercase; font-weight: 700; }
-  .w-val { font-size: 9pt; font-weight: 900; }
+  .w-lbl { font-size: 8pt; text-transform: uppercase; font-weight: 700; }
+  .w-val { font-size: 11pt; font-weight: 900; }
 
   /* Secciones */
-  .section-title { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
-  .section-txt   { font-size: 7.5pt; line-height: 1.35; }
-  .alerg-txt     { font-size: 7.5pt; font-weight: 700; line-height: 1.3; }
-  .instr-txt     { font-size: 7pt; font-style: italic; line-height: 1.3; }
+  .section-title { font-size: 8pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
+  .section-txt   { font-size: 9pt; line-height: 1.35; }
+  .alerg-txt     { font-size: 9pt; font-weight: 700; line-height: 1.3; }
+  .instr-txt     { font-size: 8.5pt; font-style: italic; line-height: 1.3; }
 
   /* Barcode */
   .lbl-barcode { padding: 6px 12px 8px; text-align: center; border-top: 1.5px solid #000; }
   .lbl-barcode svg { max-width: 100%; }
-  .bc-num { font-size: 7pt; margin-top: 1px; font-family: monospace; letter-spacing: 1px; }
+  .bc-num { font-size: 8.5pt; margin-top: 1px; font-family: monospace; letter-spacing: 1px; }
 `
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">

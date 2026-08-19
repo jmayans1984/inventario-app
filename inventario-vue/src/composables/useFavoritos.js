@@ -59,7 +59,19 @@ export function useFavoritos() {
     guardar()
   }
 
+  // Sube o baja un favorito una posición dentro de la lista (arriba = índice
+  // menor = más cerca del inicio del menú).
+  function moverFavorito(path, direccion) {
+    const idx = favoritos.value.findIndex(f => f.path === path)
+    const destino = idx + direccion
+    if (idx < 0 || destino < 0 || destino >= favoritos.value.length) return
+    const lista = [...favoritos.value]
+    ;[lista[idx], lista[destino]] = [lista[destino], lista[idx]]
+    favoritos.value = lista
+    guardar()
+  }
+
   onMounted(cargar)
 
-  return { favoritos, esFavorito, toggleFavorito, cargar }
+  return { favoritos, esFavorito, toggleFavorito, moverFavorito, cargar }
 }

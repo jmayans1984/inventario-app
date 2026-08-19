@@ -56,7 +56,7 @@
 
           <div v-show="favAbierto">
             <router-link
-              v-for="fav in favoritos"
+              v-for="(fav, idx) in favoritos"
               :key="fav.path"
               :to="fav.path"
               custom
@@ -69,6 +69,24 @@
               >
                 <v-icon size="15" class="fav-icon">{{ fav.icon }}</v-icon>
                 <span class="fav-label-txt">{{ fav.name }}</span>
+                <span class="fav-reordenar">
+                  <button
+                    class="fav-mover"
+                    title="Subir"
+                    :disabled="idx === 0"
+                    @click.stop="moverFavorito(fav.path, -1)"
+                  >
+                    <v-icon size="13">mdi-chevron-up</v-icon>
+                  </button>
+                  <button
+                    class="fav-mover"
+                    title="Bajar"
+                    :disabled="idx === favoritos.length - 1"
+                    @click.stop="moverFavorito(fav.path, 1)"
+                  >
+                    <v-icon size="13">mdi-chevron-down</v-icon>
+                  </button>
+                </span>
                 <button class="fav-unpin" title="Quitar de favoritos" @click.stop="pedirToggleFavorito(fav)">
                   <v-icon size="13">mdi-close</v-icon>
                 </button>
@@ -488,7 +506,7 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 const display = useDisplay()
 const { open: commandPaletteOpen } = useCommandPalette()
-const { favoritos, esFavorito, toggleFavorito } = useFavoritos()
+const { favoritos, esFavorito, toggleFavorito, moverFavorito } = useFavoritos()
 
 const isMobile = computed(() => display.mobile.value)
 const drawer = ref(true)
@@ -1036,6 +1054,20 @@ const handleLogout = () => {
 }
 .fav-item:hover .fav-unpin { opacity: 1; }
 .fav-unpin:hover { color: rgba(255,255,255,0.8); }
+
+.fav-reordenar {
+  flex-shrink: 0; display: flex; flex-direction: column;
+  opacity: 0; transition: opacity 150ms var(--ease-out);
+}
+.fav-item:hover .fav-reordenar { opacity: 1; }
+.fav-mover {
+  border: none; background: transparent; cursor: pointer;
+  color: rgba(255,255,255,0.35); line-height: 0; padding: 0;
+  height: 12px; display: flex; align-items: center; justify-content: center;
+  transition: color 150ms var(--ease-out);
+}
+.fav-mover:hover:not(:disabled) { color: rgba(255,255,255,0.9); }
+.fav-mover:disabled { opacity: 0.25; cursor: default; }
 
 /* Footer desktop */
 .sidebar-footer {

@@ -672,6 +672,7 @@ const CFG_ROWS = [
   { key: 'cta_ventas',            label: 'CUENTA CONTABLE DE VENTAS' },
   { key: 'cta_comisiones',        label: 'CUENTA CONTABLE COMISIONES POS' },
   { key: 'cta_descuentos_ventas', label: 'CUENTA CONTABLE DESCUENTO VENTAS' },
+  { key: 'cta_devoluciones',      label: 'CUENTA CONTABLE DEVOLUCIONES / REEMBOLSOS' },
   { key: 'cta_propinas',          label: 'CUENTA CONTABLE INGRESO PROPINAS' },
   { key: 'cta_impuestos',         label: 'CUENTA CONTABLE INGRESO IMPUESTOS' },
   { key: 'cta_egresos_propinas',  label: 'CUENTA CONTABLE EGRESO PROPINAS' },
