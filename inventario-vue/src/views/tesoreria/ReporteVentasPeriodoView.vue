@@ -176,6 +176,7 @@
             <th class="col-num">TARJETAS</th>
             <th class="col-num">EFECTIVO</th>
             <th class="col-num">OTROS</th>
+            <th class="col-num" title="Costo delivery (sobreprecio de plataformas)">DELIVERY</th>
           </tr>
         </thead>
         <tbody>
@@ -191,6 +192,9 @@
             <td class="col-num">{{ fmt(r.tarjetas) }}</td>
             <td class="col-num td-green">{{ fmt(r.efectivo) }}</td>
             <td class="col-num td-dim">{{ fmt(r.otros) }}</td>
+            <td class="col-num" :class="parseFloat(r.otras_comisiones) > 0 ? 'td-red' : 'td-dim'">
+              {{ fmt(r.otras_comisiones) }}
+            </td>
           </tr>
         </tbody>
         <!-- Fila de totales -->
@@ -207,6 +211,7 @@
             <td class="col-num">{{ fmt(totals.tarjetas) }}</td>
             <td class="col-num td-green">{{ fmt(totals.efectivo) }}</td>
             <td class="col-num">{{ fmt(totals.otros) }}</td>
+            <td class="col-num td-red">{{ fmt(totals.otras_comisiones) }}</td>
           </tr>
         </tfoot>
       </table>
@@ -260,7 +265,8 @@ const ccostos              = ref([])
 const ccostosLoading       = ref(false)
 const rows                 = ref([])
 const totals               = ref({ ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
-                                   impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 })
+                                   impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0,
+                                   otras_comisiones:0 })
 const loading              = ref(false)
 const error                = ref('')
 const consultado           = ref(false)
@@ -326,7 +332,8 @@ async function consultar() {
     if (!r.data?.success) throw new Error(r.data?.error || 'Error al consultar')
     rows.value   = r.data.data   || []
     totals.value = r.data.totals || { ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
-                                      impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 }
+                                      impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0,
+                                      otras_comisiones:0 }
   } catch (e) {
     error.value = e?.response?.data?.error || e.message || 'Error al consultar'
   } finally {
@@ -383,9 +390,9 @@ function exportarPDF() {
 
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 4,
-      head: [['Fecha', 'Brutas', 'Devol.', 'Desc.', 'Netas', 'Impuestos', 'Propinas', 'Comisiones', 'Tarjetas', 'Efectivo', 'Otros']],
-      body: rows.value.map(r => [fmtFechaCorta(r.fecha), fmt(r.ventas_brutas), fmt(r.devoluciones), fmt(r.descuentos), fmt(r.ventas_netas), fmt(r.impuestos), fmt(r.propinas), fmt(r.comisiones), fmt(r.tarjetas), fmt(r.efectivo), fmt(r.otros)]),
-      foot: [['TOTALES', fmt(totals.value.ventas_brutas), fmt(totals.value.devoluciones), fmt(totals.value.descuentos), fmt(totals.value.ventas_netas), fmt(totals.value.impuestos), fmt(totals.value.propinas), fmt(totals.value.comisiones), fmt(totals.value.tarjetas), fmt(totals.value.efectivo), fmt(totals.value.otros)]],
+      head: [['Fecha', 'Brutas', 'Devol.', 'Desc.', 'Netas', 'Impuestos', 'Propinas', 'Comisiones', 'Tarjetas', 'Efectivo', 'Otros', 'Costo Delivery']],
+      body: rows.value.map(r => [fmtFechaCorta(r.fecha), fmt(r.ventas_brutas), fmt(r.devoluciones), fmt(r.descuentos), fmt(r.ventas_netas), fmt(r.impuestos), fmt(r.propinas), fmt(r.comisiones), fmt(r.tarjetas), fmt(r.efectivo), fmt(r.otros), fmt(r.otras_comisiones)]),
+      foot: [['TOTALES', fmt(totals.value.ventas_brutas), fmt(totals.value.devoluciones), fmt(totals.value.descuentos), fmt(totals.value.ventas_netas), fmt(totals.value.impuestos), fmt(totals.value.propinas), fmt(totals.value.comisiones), fmt(totals.value.tarjetas), fmt(totals.value.efectivo), fmt(totals.value.otros), fmt(totals.value.otras_comisiones)]],
       ...detailTableOptions(ML),
       columnStyles: { 0: { cellWidth: 24 }, 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' } },
       didParseCell: (data) => alignReportCell(data, { 0: 'left', 1: 'right', 2: 'right', 3: 'right', 4: 'right', 5: 'right', 6: 'right', 7: 'right', 8: 'right', 9: 'right', 10: 'right' }),

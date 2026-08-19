@@ -676,6 +676,7 @@ const CFG_ROWS = [
   { key: 'cta_impuestos',         label: 'CUENTA CONTABLE INGRESO IMPUESTOS' },
   { key: 'cta_egresos_propinas',  label: 'CUENTA CONTABLE EGRESO PROPINAS' },
   { key: 'cta_egresos_impuestos', label: 'CUENTA CONTABLE EGRESO IMPUESTOS' },
+  { key: 'cta_otras_comisiones',  label: 'CUENTA CONTABLE OTRAS COMISIONES (PLATAFORMAS DE DOMICILIO)' },
   { key: 'cta_materia_prima',     label: 'CUENTA CONTABLE MATERIA PRIMA (ENTRADA DE ALMACÉN)' },
 ]
 

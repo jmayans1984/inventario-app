@@ -69,7 +69,7 @@
               >
                 <v-icon size="15" class="fav-icon">{{ fav.icon }}</v-icon>
                 <span class="fav-label-txt">{{ fav.name }}</span>
-                <button class="fav-unpin" title="Quitar de favoritos" @click.stop="toggleFavorito(fav)">
+                <button class="fav-unpin" title="Quitar de favoritos" @click.stop="pedirToggleFavorito(fav)">
                   <v-icon size="13">mdi-close</v-icon>
                 </button>
               </div>
@@ -159,7 +159,7 @@
                         class="leaf-pin"
                         :class="{ 'leaf-pin-activo': esFavorito(item.path) }"
                         :title="esFavorito(item.path) ? 'Quitar de favoritos' : 'Anclar a favoritos'"
-                        @click.stop="toggleFavorito(item)"
+                        @click.stop="pedirToggleFavorito(item)"
                       >
                         <v-icon size="13">{{ esFavorito(item.path) ? 'mdi-star' : 'mdi-star-outline' }}</v-icon>
                       </button>
@@ -437,6 +437,33 @@
 
     <!-- Popup automático de actualizaciones (una vez por usuario, hasta que haya una nueva) -->
     <ActualizacionesModal v-model:mostrar="mostrarActualizacionesAuto" @update:mostrar="onCerrarActualizacionesAuto" />
+
+    <!-- Confirmación al anclar / quitar un favorito -->
+    <v-dialog v-model="confirmFavAbierto" max-width="400">
+      <div class="cf-card">
+        <div class="cf-icon" :class="confirmFavQuitar ? 'cf-icon-quitar' : 'cf-icon-anclar'">
+          <v-icon size="24" color="white">{{ confirmFavQuitar ? 'mdi-star-off' : 'mdi-star' }}</v-icon>
+        </div>
+        <div class="cf-title">
+          {{ confirmFavQuitar ? 'Quitar de favoritos' : 'Anclar a favoritos' }}
+        </div>
+        <div class="cf-text">
+          <template v-if="confirmFavQuitar">
+            <strong>{{ confirmFavItem?.name }}</strong> dejará de aparecer en tus accesos rápidos.
+          </template>
+          <template v-else>
+            <strong>{{ confirmFavItem?.name }}</strong> se agregará a tus accesos rápidos del menú.
+          </template>
+        </div>
+        <div class="cf-actions">
+          <button class="cf-btn cf-btn-ghost" @click="cancelarToggleFavorito">Cancelar</button>
+          <button class="cf-btn" :class="confirmFavQuitar ? 'cf-btn-danger' : 'cf-btn-primary'"
+            @click="confirmarToggleFavorito">
+            {{ confirmFavQuitar ? 'Quitar' : 'Anclar' }}
+          </button>
+        </div>
+      </div>
+    </v-dialog>
   </v-layout>
 </template>
 
@@ -514,6 +541,25 @@ const favAbierto = ref(localStorage.getItem('_favAbierto') !== '0')
 function toggleFavoritos() {
   favAbierto.value = !favAbierto.value
   localStorage.setItem('_favAbierto', favAbierto.value ? '1' : '0')
+}
+
+// Confirmación antes de anclar o quitar un favorito. El item se guarda aparte
+// porque el diálogo sigue mostrándose mientras se cierra (la lista ya cambió).
+const confirmFavItem   = ref(null)
+const confirmFavQuitar = ref(false)
+const confirmFavAbierto = ref(false)
+
+function pedirToggleFavorito(item) {
+  confirmFavItem.value   = item
+  confirmFavQuitar.value = esFavorito(item.path)
+  confirmFavAbierto.value = true
+}
+function cancelarToggleFavorito() {
+  confirmFavAbierto.value = false
+}
+function confirmarToggleFavorito() {
+  if (confirmFavItem.value) toggleFavorito(confirmFavItem.value)
+  confirmFavAbierto.value = false
 }
 
 function onModuleClick(mod, navigate) {
@@ -1454,5 +1500,43 @@ const handleLogout = () => {
   font-size: 10px;
   color: rgba(var(--v-theme-on-surface), 0.4);
   margin-top: 4px;
+}
+
+/* Confirmación de favoritos */
+.cf-card {
+  background: rgb(var(--v-theme-surface));
+  border-radius: 16px;
+  padding: 26px 24px 20px;
+  text-align: center;
+}
+.cf-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+}
+.cf-icon-anclar { background: linear-gradient(135deg, var(--gold), var(--gold-soft, var(--gold))); }
+.cf-icon-quitar { background: linear-gradient(135deg, var(--error), #b91c1c); }
+.cf-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+.cf-text {
+  font-size: 13px; line-height: 1.5;
+  color: rgba(var(--v-theme-on-surface), .6);
+  margin-bottom: 20px;
+}
+.cf-actions { display: flex; gap: 8px; justify-content: center; }
+.cf-btn {
+  border: none; cursor: pointer; border-radius: 9px;
+  padding: 10px 20px; font-size: 13px; font-weight: 700;
+  transition: filter 150ms var(--ease-out), background-color 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+.cf-btn:active { transform: scale(.97); }
+.cf-btn-ghost { background: transparent; color: rgba(var(--v-theme-on-surface), .6); }
+.cf-btn-ghost:hover { background: rgba(var(--v-theme-on-surface), .07); }
+.cf-btn-primary { background: var(--gold); color: var(--on-gold, #1b1508); }
+.cf-btn-danger  { background: var(--error); color: white; }
+.cf-btn-primary:hover, .cf-btn-danger:hover { filter: brightness(1.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-btn { transition: none; }
+  .cf-btn:active { transform: none; }
 }
 </style>

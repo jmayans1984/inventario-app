@@ -1,2210 +1,1633 @@
 <template>
   <MainLayout>
-    <div class="iv-wrap">
+    <div class="ivc-wrap">
 
-      <!-- BREADCRUMB -->
-      <div class="breadcrumb">
-        <span class="bc-root">TESORERÍA</span>
-        <v-icon size="13" color="#06b6d4">mdi-chevron-right</v-icon>
-        <span class="bc-cat">Procesos</span>
-        <v-icon size="13" color="#475569">mdi-chevron-right</v-icon>
-        <span class="bc-cur">Importar Ventas V 2.0</span>
-      </div>
+      <PageHeader
+        title="Importar Ventas Consolidado"
+        description="Un solo archivo de Square con todas las sedes: se importan todas juntas"
+        :crumbs="['Tesorería', 'Procesos', 'Importar Ventas Consolidado']"
+      />
 
-      <!-- HEADER -->
-      <div class="iv-header">
-        <div class="iv-header-left">
-          <div class="iv-icon-wrap">
-            <v-icon size="26" color="white">mdi-file-excel-outline</v-icon>
+      <!-- ═══════════ CONFIGURACIÓN ═══════════ -->
+      <div class="ivc-card mb-4">
+        <div class="ivc-card-hdr">
+          <v-icon size="15" color="var(--indigo)">mdi-tune</v-icon>
+          <span class="ivc-card-ttl">CONFIGURACIÓN</span>
+          <span class="ivc-card-sub">Se aplica a todas las sedes del archivo</span>
+        </div>
+        <div class="ivc-cfg-grid">
+          <div class="ivc-field">
+            <label class="ivc-label">FECHA DE LOS MOVIMIENTOS</label>
+            <input v-model="configFecha" type="date" class="ivc-input" />
+            <span v-if="periodo.desde && configFecha !== periodo.desde" class="ivc-hint ivc-hint-warn">
+              El día de operación del archivo es {{ periodo.desde }}
+              <button class="ivc-link" @click="configFecha = periodo.desde">usar esa</button>
+            </span>
+            <span v-else-if="periodo.desde" class="ivc-hint ivc-hint-ok">
+              Día de operación {{ periodo.desde }}<template v-if="periodo.hasta !== periodo.desde"> (cierre {{ periodo.hasta }})</template>
+            </span>
           </div>
-          <div>
-            <h1 class="iv-title">IMPORTAR VENTAS V 2.0</h1>
-            <p class="iv-sub">Carga el archivo XLSX exportado desde Square con todas las pestañas del día</p>
+          <div class="ivc-field">
+            <label class="ivc-label">CUENTA OTROS PAGOS</label>
+            <v-select v-model="configCtaOtros" :items="cuentasBancarias" item-title="nombre_cta" item-value="codigo"
+              density="compact" variant="outlined" hide-details placeholder="Selecciona…" />
+          </div>
+          <div class="ivc-field">
+            <label class="ivc-label">CUENTA EFECTIVO</label>
+            <v-select v-model="configCtaEfectivo" :items="cuentasBancarias" item-title="nombre_cta" item-value="codigo"
+              density="compact" variant="outlined" hide-details placeholder="Selecciona…" />
           </div>
         </div>
-      </div>
-
-      <!-- ═══ CONFIGURACIÓN DE IMPORTACIÓN ═══ -->
-      <div class="imp-cfg-card">
-        <div class="imp-cfg-header">
-          <div class="imp-cfg-icon">
-            <v-icon size="16" color="white">mdi-tune</v-icon>
-          </div>
-          <span class="imp-cfg-title">CONFIGURACIÓN DE IMPORTACIÓN</span>
-          <span class="imp-cfg-sub">Parámetros para los movimientos contables</span>
+        <div class="ivc-cfg-nota">
+          <v-icon size="13" color="var(--info)">mdi-information-outline</v-icon>
+          La <strong>cuenta de Square es distinta por sede</strong>, así que se elige en cada tarjeta más abajo.
+          Efectivo y Otros pagos sí son los mismos para toda la empresa.
         </div>
-        <div class="imp-cfg-fields">
-          <div class="imp-cfg-field">
-            <label class="imp-cfg-label">
-              <v-icon size="12" color="#06b6d4" class="mr-1">mdi-calendar-outline</v-icon>
-              FECHA
-            </label>
-            <div class="imp-cfg-input-wrap">
-              <input v-model="configFecha" type="date" class="imp-cfg-date" />
-              <v-icon v-if="fechaMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Fecha coincide con el archivo">mdi-check-circle</v-icon>
-              <v-icon v-else-if="fechaMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="La fecha no coincide con el archivo">mdi-close-circle</v-icon>
-            </div>
-          </div>
-          <div class="imp-cfg-field">
-            <label class="imp-cfg-label">
-              <v-icon size="12" color="#f59e0b" class="mr-1">mdi-map-marker-outline</v-icon>
-              CENTRO DE COSTO
-            </label>
-            <div class="imp-cfg-input-wrap">
-              <v-select
-                v-model="configCcosto"
-                :items="ccostos"
-                item-title="nombre"
-                item-value="codigo"
-                density="compact"
-                variant="outlined"
-                hide-details
-                placeholder="Seleccionar..."
-                :loading="ccostosLoading"
-                class="imp-cfg-select"
-                bg-color="rgb(var(--v-theme-surface))"
-                style="min-width:180px"
-              />
-              <v-icon v-if="ccostoMatch" size="18" color="#10b981" class="cfg-ok-icon" title="Centro de costo coincide con el archivo">mdi-check-circle</v-icon>
-              <v-icon v-else-if="ubicacionMismatch" size="18" color="#ef4444" class="cfg-ok-icon" title="El centro de costo no coincide con el archivo">mdi-close-circle</v-icon>
-            </div>
-          </div>
-          <div class="imp-cfg-field">
-            <label class="imp-cfg-label">
-              <v-icon size="12" color="#7c3aed" class="mr-1">mdi-credit-card-outline</v-icon>
-              CTA. SQUARE
-            </label>
-            <v-select
-              v-model="configCtaSquare"
-              :items="cuentasBancarias"
-              item-title="nombre_cta"
-              item-value="codigo"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Cuenta tarjeta..."
-              :loading="cuentasLoading"
-              clearable
-              class="imp-cfg-select"
-              bg-color="rgb(var(--v-theme-surface))"
-              style="min-width:180px"
-            />
-          </div>
-          <div class="imp-cfg-field">
-            <label class="imp-cfg-label">
-              <v-icon size="12" color="#06b6d4" class="mr-1">mdi-bank-transfer-out</v-icon>
-              CTA. OTROS
-            </label>
-            <v-select
-              v-model="configCtaOtros"
-              :items="cuentasBancarias"
-              item-title="nombre_cta"
-              item-value="codigo"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Cuenta otros..."
-              :loading="cuentasLoading"
-              clearable
-              class="imp-cfg-select"
-              bg-color="rgb(var(--v-theme-surface))"
-              style="min-width:180px"
-            />
-          </div>
-          <div class="imp-cfg-field">
-            <label class="imp-cfg-label">
-              <v-icon size="12" color="#10b981" class="mr-1">mdi-cash</v-icon>
-              CTA. EFECTIVO
-            </label>
-            <v-select
-              v-model="configCtaEfectivo"
-              :items="cuentasBancarias"
-              item-title="nombre_cta"
-              item-value="codigo"
-              density="compact"
-              variant="outlined"
-              hide-details
-              placeholder="Cuenta efectivo..."
-              :loading="cuentasLoading"
-              clearable
-              class="imp-cfg-select"
-              bg-color="rgb(var(--v-theme-surface))"
-              style="min-width:180px"
-            />
-          </div>
+        <div v-if="sedes.length && !ctaOtrasComisiones && hayOtrasComisiones" class="ivc-cfg-nota ivc-cfg-nota-warn">
+          <v-icon size="13" color="var(--warning)">mdi-alert-outline</v-icon>
+          Hay <strong>{{ fmt(totalOtrasComisiones) }}</strong> de sobreprecio de plataformas, pero no está
+          definida la <strong>cuenta contable de otras comisiones</strong> en Configuración → General:
+          el valor se guardará en la venta pero <strong>no se creará el gasto</strong>.
         </div>
       </div>
 
-      <!-- ═══ ZONA DE CARGA ═══ -->
-      <div
-        class="drop-zone"
-        :class="{ 'drop-zone--active': dragging, 'drop-zone--loaded': xlsxData }"
-        @dragover.prevent="dragging = true"
-        @dragleave="dragging = false"
-        @drop.prevent="onDrop"
-        @click="$refs.inputFile.click()"
-      >
-        <input ref="inputFile" type="file" accept=".xlsx,.xls" hidden @change="onFileInput" />
-        <div v-if="!xlsxData" class="drop-content">
-          <div class="drop-icon-wrap drop-icon-green">
-            <v-icon size="28" color="white">mdi-file-excel-outline</v-icon>
-          </div>
-          <div class="drop-title">Reporte de Ventas Square (XLSX)</div>
-          <div class="drop-sub">Arrastra o haz click para cargar el archivo Excel</div>
-          <div class="drop-hint">Debe contener las pestañas: Sales Summary, Items, Modifiers, Payments, Fees, Taxes</div>
+      <!-- ═══════════ CARGA DEL ARCHIVO ═══════════ -->
+      <div v-if="!sedes.length" class="ivc-drop" :class="{ 'ivc-drop-on': dragging }"
+        @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="onDrop"
+        @click="$refs.fileInput.click()">
+        <input ref="fileInput" type="file" accept=".csv,.txt" hidden @change="onPick" />
+        <v-icon size="40" color="var(--indigo)">mdi-file-delimited-outline</v-icon>
+        <div class="ivc-drop-ttl">Arrastra el reporte de <strong>Ventas Totales</strong> de Square</div>
+        <div class="ivc-drop-sub">
+          Debe estar exportado con <strong>“Display By Location”</strong> activado, para que traiga todas las sedes.
         </div>
-        <div v-else class="drop-loaded">
-          <v-icon size="32" color="#10b981">mdi-check-circle</v-icon>
-          <div class="drop-loaded-name">{{ fileName }}</div>
-          <div class="drop-loaded-sub">
-            {{ xlsxData.location }} · {{ xlsxData.dateRange }}
-          </div>
-          <div class="drop-loaded-stats">
-            <span class="drop-stat"><v-icon size="11" color="#3b82f6">mdi-package-variant-closed</v-icon> {{ xlsxData.items.length }} artículos</span>
-            <span class="drop-stat"><v-icon size="11" color="#f59e0b">mdi-tune-variant</v-icon> {{ xlsxData.modifiers.length }} modificadores</span>
-            <span class="drop-stat"><v-icon size="11" color="#8b5cf6">mdi-credit-card-outline</v-icon> {{ xlsxData.payments.length }} pagos</span>
-          </div>
-          <v-btn size="x-small" variant="text" color="#94a3b8" @click.stop="limpiar">
-            <v-icon size="14">mdi-close</v-icon> Quitar
-          </v-btn>
-        </div>
+        <div class="ivc-drop-sub2">o haz clic para buscarlo</div>
       </div>
 
-      <!-- BARRA DE ACCIONES -->
-      <div v-if="xlsxData" class="iv-action-bar">
-        <div class="iv-action-bar-left">
-          <v-icon size="15" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
-          <span v-if="unmappedCount > 0" class="iv-action-warn">
-            <v-icon size="14" color="#f59e0b">mdi-alert-outline</v-icon>
-            {{ unmappedCount }} artículo{{ unmappedCount !== 1 ? 's' : '' }} sin mapear SKU
-          </span>
-          <span v-else class="iv-action-ok">
-            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon>
-            Todos los artículos mapeados
-          </span>
-        </div>
-        <div class="iv-action-bar-right">
-          <v-btn variant="outlined" color="#94a3b8" size="small" @click="limpiar">
-            <v-icon size="15" class="mr-1">mdi-close</v-icon> Cancelar
-          </v-btn>
-          <v-btn color="#06b6d4" variant="flat" size="small" @click="abrirGuardarResumen">
-            <v-icon size="15" class="mr-1">mdi-database-import-outline</v-icon> Guardar
-          </v-btn>
-        </div>
-      </div>
-
-      <!-- ERROR DE PARSEO -->
-      <div v-if="parseError" class="iv-error">
-        <v-icon size="20" color="#ef4444">mdi-alert-circle-outline</v-icon>
+      <div v-if="parseError" class="ivc-alert ivc-alert-err">
+        <v-icon size="18" color="var(--error)">mdi-alert-circle-outline</v-icon>
         <span>{{ parseError }}</span>
       </div>
 
-      <!-- ═══ TABS ═══ -->
-      <div v-if="xlsxData" class="sheets-container">
-        <div class="sheets-tabbar">
-          <button class="sheet-tab" :class="{ 'sheet-tab--active': activeTab === 'resumen' }" @click="activeTab = 'resumen'">
-            <v-icon size="13">mdi-file-chart-outline</v-icon> Resumen
-          </button>
-          <button class="sheet-tab" :class="{ 'sheet-tab--active': activeTab === 'items' }" @click="activeTab = 'items'">
-            <v-icon size="13">mdi-package-variant-closed</v-icon> Artículos
-            <span class="sheet-badge sheet-badge-purple">{{ xlsxData.items.length }}</span>
-          </button>
-          <button class="sheet-tab" :class="{ 'sheet-tab--active': activeTab === 'modifiers' }" @click="activeTab = 'modifiers'">
-            <v-icon size="13">mdi-tune-variant</v-icon> Modificadores
-            <span class="sheet-badge sheet-badge-orange">{{ xlsxData.modifiers.length }}</span>
-          </button>
-          <button class="sheet-tab" :class="{ 'sheet-tab--active': activeTab === 'payments' }" @click="activeTab = 'payments'">
-            <v-icon size="13">mdi-credit-card-outline</v-icon> Pagos
-            <span class="sheet-badge sheet-badge-green">{{ xlsxData.payments.length }}</span>
-          </button>
-          <button class="sheet-tab" :class="{ 'sheet-tab--active': activeTab === 'fees' }" @click="activeTab = 'fees'">
-            <v-icon size="13">mdi-percent-outline</v-icon> Comisiones
-          </button>
-          <button class="sheet-tab" :class="{ 'sheet-tab--active': activeTab === 'consumo', 'sheet-tab--loading': consumoLoading }" @click="activeTab = 'consumo'">
-            <v-icon size="13">mdi-package-down</v-icon> Consumo
-            <span v-if="consumo.length" class="sheet-badge sheet-badge-red">{{ consumo.length }}</span>
-            <v-progress-circular v-if="consumoLoading" size="10" width="2" indeterminate color="#ef4444" class="ml-1" />
-          </button>
-          <div class="sheets-tabbar-line"></div>
-        </div>
-
-        <div class="sheet-content">
-
-          <!-- TAB: RESUMEN -->
-          <div v-show="activeTab === 'resumen'" class="iv-section">
-            <div class="iv-section-header">
-              <div class="iv-section-icon" style="background:rgba(59,130,246,0.1)">
-                <v-icon size="16" color="#3b82f6">mdi-file-chart-outline</v-icon>
-              </div>
-              <div>
-                <div class="iv-section-title">RESUMEN DE VENTAS</div>
-                <div class="iv-section-sub">{{ xlsxData.location }} · {{ xlsxData.dateRange }}</div>
-              </div>
-            </div>
-
-            <div class="rs-two-col">
-              <!-- VENTAS -->
-              <div class="iv-card rs-card">
-                <div class="iv-card-header">
-                  <div class="iv-card-title">
-                    <v-icon size="14" color="#3b82f6" class="mr-1">mdi-cash-register</v-icon> VENTAS
-                  </div>
-                </div>
-                <div class="rs-rows">
-                  <div class="rs-row rs-total-row">
-                    <span class="rs-lbl rs-lbl-bold">Ventas Brutas</span>
-                    <span class="rs-val rs-val-big rs-pos">{{ fmt(xlsxData.summary.grossSales) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Devoluciones</span>
-                    <span class="rs-val rs-neg">{{ fmt(xlsxData.summary.returns) }}</span>
-                  </div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Descuentos</span>
-                    <span class="rs-val rs-neg">{{ fmt(xlsxData.summary.discounts) }}</span>
-                  </div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Comps</span>
-                    <span class="rs-val rs-neg">{{ fmt(xlsxData.summary.comps) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
-                  <div class="rs-row rs-total-row">
-                    <span class="rs-lbl rs-lbl-bold">Ventas Netas</span>
-                    <span class="rs-val rs-val-big rs-pos">{{ fmt(xlsxData.summary.netSales) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Impuestos</span>
-                    <span class="rs-val">{{ fmt(xlsxData.summary.salesTax) }}</span>
-                  </div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Propinas</span>
-                    <span class="rs-val rs-purple">{{ fmt(xlsxData.summary.tips) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
-                  <div class="rs-row rs-grand-total">
-                    <span class="rs-lbl rs-lbl-bold">TOTAL RECAUDADO</span>
-                    <span class="rs-val rs-val-grand rs-pos">{{ fmt(xlsxData.summary.totalCollected) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- PAGOS -->
-              <div class="iv-card rs-card">
-                <div class="iv-card-header">
-                  <div class="iv-card-title">
-                    <v-icon size="14" color="#10b981" class="mr-1">mdi-credit-card-outline</v-icon> PAGOS Y COMISIONES
-                  </div>
-                </div>
-                <div class="rs-rows">
-                  <div class="rs-row">
-                    <span class="rs-lbl">Tarjetas</span>
-                    <span class="rs-val rs-purple">{{ fmt(paymentTotals.card) }}</span>
-                  </div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Efectivo</span>
-                    <span class="rs-val rs-green">{{ fmt(paymentTotals.cash) }}</span>
-                  </div>
-                  <div class="rs-row">
-                    <span class="rs-lbl">Otros</span>
-                    <span class="rs-val">{{ fmt(paymentTotals.other) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
-                  <div class="rs-row rs-total-row">
-                    <span class="rs-lbl rs-lbl-bold">Total Pagos</span>
-                    <span class="rs-val rs-val-big rs-pos">{{ fmt(paymentTotals.total) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
-                  <div v-for="fee in xlsxData.fees" :key="fee.subtype" class="rs-row">
-                    <span class="rs-lbl">Fee: {{ feeLabel(fee.subtype) }}</span>
-                    <span class="rs-val rs-neg">{{ fmt(fee.amount) }}</span>
-                  </div>
-                  <div class="rs-row rs-sep"></div>
-                  <div class="rs-row rs-grand-total">
-                    <span class="rs-lbl rs-lbl-bold">TOTAL COMISIONES</span>
-                    <span class="rs-val rs-val-grand rs-neg">{{ fmt(totalFees) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB: ARTÍCULOS -->
-          <div v-show="activeTab === 'items'" class="iv-section">
-            <div class="iv-section-header">
-              <div class="iv-section-icon" style="background:rgba(139,92,246,0.1)">
-                <v-icon size="16" color="#8b5cf6">mdi-package-variant-closed</v-icon>
-              </div>
-              <div>
-                <div class="iv-section-title">ARTÍCULOS VENDIDOS</div>
-                <div class="iv-section-sub">{{ xlsxData.items.length }} artículos · {{ unmappedCount }} sin SKU</div>
-              </div>
-              <div v-if="mappingsLoading" class="enrich-badge">
-                <v-progress-circular size="14" width="2" indeterminate color="#8b5cf6" />
-                <span>Cargando mapeos...</span>
-              </div>
-            </div>
-
-            <!-- KPIs -->
-            <div class="kpi-grid kpi-grid-4">
-              <div class="kpi-card kpi-purple">
-                <div class="kpi-top">
-                  <span class="kpi-lbl">Artículos Distintos</span>
-                  <v-icon size="16" color="#8b5cf6">mdi-format-list-bulleted</v-icon>
-                </div>
-                <div class="kpi-val kpi-val-purple">{{ xlsxData.items.length }}</div>
-              </div>
-              <div class="kpi-card kpi-blue">
-                <div class="kpi-top">
-                  <span class="kpi-lbl">Unidades Vendidas</span>
-                  <v-icon size="16" color="#3b82f6">mdi-counter</v-icon>
-                </div>
-                <div class="kpi-val kpi-val-blue">{{ totalUnidades }}</div>
-              </div>
-              <div class="kpi-card kpi-green">
-                <div class="kpi-top">
-                  <span class="kpi-lbl">Ventas Brutas</span>
-                  <v-icon size="16" color="#10b981">mdi-cash</v-icon>
-                </div>
-                <div class="kpi-val kpi-val-green">{{ fmt(totalGrossSales) }}</div>
-              </div>
-              <div class="kpi-card kpi-green-dark">
-                <div class="kpi-top">
-                  <span class="kpi-lbl">Mapeados</span>
-                  <v-icon size="16" color="#059669">mdi-link-variant</v-icon>
-                </div>
-                <div class="kpi-val kpi-val-green-dark">{{ mappedCount }}/{{ xlsxData.items.length }}</div>
-              </div>
-            </div>
-
-            <!-- Tabla artículos -->
-            <div class="iv-card">
-              <div class="iv-card-header">
-                <div class="iv-card-title">
-                  <v-icon size="14" color="#8b5cf6" class="mr-1">mdi-table</v-icon> Detalle por Artículo
-                </div>
-                <div class="iv-card-chips">
-                  <div
-                    v-for="cat in categorias"
-                    :key="cat"
-                    class="cat-chip"
-                    :class="{ 'cat-chip--active': catFiltro === cat }"
-                    @click="catFiltro = catFiltro === cat ? '' : cat"
-                  >{{ cat }}</div>
-                </div>
-              </div>
-              <div class="art-tabla-wrap">
-                <table class="art-tabla">
-                  <thead>
-                    <tr>
-                      <th>ARTÍCULO</th>
-                      <th style="width:100px">VARIANTE</th>
-                      <th class="col-right" style="width:70px">CANT.</th>
-                      <th class="col-right" style="width:120px">BRUTAS</th>
-                      <th class="col-right" style="width:120px">NETAS</th>
-                      <th class="col-center" style="width:200px">SKU RECETA</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template v-for="(grp, cat) in itemsAgrupados" :key="cat">
-                      <tr class="tr-cat-header">
-                        <td colspan="6"><span class="cat-badge">{{ cat }}</span></td>
-                      </tr>
-                      <tr v-for="item in grp" :key="item.key" class="tr-item">
-                        <td class="td-nombre">{{ item.name }}</td>
-                        <td class="td-variante">{{ item.variation || '—' }}</td>
-                        <td class="td-num col-right">{{ item.qty }}</td>
-                        <td class="td-monto col-right">{{ fmt(item.grossSales) }}</td>
-                        <td class="td-monto col-right txt-green">{{ fmt(item.netSales) }}</td>
-                        <td class="col-center">
-                          <div class="mapping-cell">
-                            <span v-if="item.mappedSku" class="mapping-badge mapping-ok" @click="openMappingDialog(item)">
-                              <v-icon size="11">mdi-check-circle</v-icon>
-                              {{ item.mappedSku }}
-                              <span v-if="item.mappedRecetaNombre" class="mapping-nombre">{{ item.mappedRecetaNombre }}</span>
-                            </span>
-                            <button v-else class="mapping-badge mapping-warn" @click="openMappingDialog(item)">
-                              <v-icon size="11">mdi-alert-circle-outline</v-icon>
-                              Sin mapear
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB: MODIFICADORES -->
-          <div v-show="activeTab === 'modifiers'" class="iv-section">
-            <div class="iv-section-header">
-              <div class="iv-section-icon" style="background:rgba(245,158,11,0.1)">
-                <v-icon size="16" color="#f59e0b">mdi-tune-variant</v-icon>
-              </div>
-              <div>
-                <div class="iv-section-title">MODIFICADORES VENDIDOS</div>
-                <div class="iv-section-sub">{{ xlsxData.modifiers.length }} modificadores en {{ Object.keys(modifiersGrouped).length }} grupos</div>
-              </div>
-            </div>
-            <div class="iv-card">
-              <div class="iv-card-header">
-                <div class="iv-card-title">
-                  <v-icon size="14" color="#f59e0b" class="mr-1">mdi-tune-variant</v-icon>
-                  Detalle por Grupo
-                </div>
-                <div style="font-size:11px; color:rgba(var(--v-theme-on-surface),0.4)">
-                  Total: {{ fmt(totalModNetas) }} · {{ totalModUnidades }} uds
-                </div>
-              </div>
-              <div class="art-tabla-wrap">
-                <table class="art-tabla">
-                  <thead>
-                    <tr>
-                      <th>NOMBRE</th>
-                      <th class="col-right" style="width:70px">CANT.</th>
-                      <th class="col-right" style="width:130px">VR. ARTÍCULO</th>
-                      <th class="col-right" style="width:140px">SUBTOTAL</th>
-                      <th class="col-center" style="width:160px">INVENTARIO</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template v-for="(mods, grupo) in modifiersGrouped" :key="grupo">
-                      <tr class="tr-cat-header tr-cat-orange">
-                        <td colspan="5"><span class="cat-badge cat-badge-orange">{{ grupo }}</span></td>
-                      </tr>
-                      <tr v-for="(m, i) in mods" :key="i" class="tr-item">
-                        <td class="td-nombre">{{ m.name }}</td>
-                        <td class="td-num col-right">{{ m.netQty }}</td>
-                        <td class="td-monto col-right txt-dim">{{ m.netQty > 0 ? fmt(m.netSales / m.netQty) : '—' }}</td>
-                        <td class="td-monto col-right txt-orange">{{ m.netSales > 0 ? fmt(m.netSales) : '—' }}</td>
-                        <td class="col-center">
-                          <div class="mod-inv-cell">
-                            <span
-                              class="mod-inv-badge"
-                              :class="modificadoresConfigurados.has(m.name) ? 'mod-inv-ok' : 'mod-inv-warn'"
-                            >
-                              <v-icon size="11">{{ modificadoresConfigurados.has(m.name) ? 'mdi-check-circle' : 'mdi-alert-circle-outline' }}</v-icon>
-                              {{ modificadoresConfigurados.has(m.name) ? 'Configurado' : 'Sin config' }}
-                            </span>
-                            <button class="btn-config-mod" @click="openModConfigDialog(m)" title="Configurar impacto en inventario">
-                              <v-icon size="14">mdi-cog-outline</v-icon>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr class="tr-subtotal">
-                        <td class="subtotal-lbl">Subtotal {{ grupo }}</td>
-                        <td class="col-right subtotal-val">{{ mods.reduce((s,m) => s + m.netQty, 0) }}</td>
-                        <td class="col-right subtotal-val txt-dim">—</td>
-                        <td class="col-right subtotal-val txt-orange">{{ fmt(mods.reduce((s,m) => s + m.netSales, 0)) }}</td>
-                        <td></td>
-                      </tr>
-                    </template>
-                  </tbody>
-                  <tfoot>
-                    <tr class="tr-total">
-                      <td class="total-lbl">TOTAL MODIFICADORES</td>
-                      <td class="col-right total-val">{{ totalModUnidades }}</td>
-                      <td class="col-right total-val txt-dim">—</td>
-                      <td class="col-right total-val txt-orange">{{ fmt(totalModNetas) }}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB: PAGOS -->
-          <div v-show="activeTab === 'payments'" class="iv-section">
-            <div class="iv-section-header">
-              <div class="iv-section-icon" style="background:rgba(139,92,246,0.1)">
-                <v-icon size="16" color="#8b5cf6">mdi-credit-card-outline</v-icon>
-              </div>
-              <div>
-                <div class="iv-section-title">DETALLE DE PAGOS</div>
-                <div class="iv-section-sub">{{ xlsxData.payments.length }} transacciones</div>
-              </div>
-            </div>
-            <div class="kpi-grid kpi-grid-4">
-              <div class="kpi-card kpi-purple">
-                <div class="kpi-top"><span class="kpi-lbl">Tarjeta</span><v-icon size="16" color="#8b5cf6">mdi-credit-card</v-icon></div>
-                <div class="kpi-val kpi-val-purple">{{ fmt(paymentTotals.card) }}</div>
-              </div>
-              <div class="kpi-card kpi-green">
-                <div class="kpi-top"><span class="kpi-lbl">Efectivo</span><v-icon size="16" color="#10b981">mdi-cash</v-icon></div>
-                <div class="kpi-val kpi-val-green">{{ fmt(paymentTotals.cash) }}</div>
-              </div>
-              <div class="kpi-card kpi-blue">
-                <div class="kpi-top"><span class="kpi-lbl">Otros</span><v-icon size="16" color="#3b82f6">mdi-bank-transfer-out</v-icon></div>
-                <div class="kpi-val kpi-val-blue">{{ fmt(paymentTotals.other) }}</div>
-              </div>
-              <div class="kpi-card kpi-orange">
-                <div class="kpi-top"><span class="kpi-lbl">Propinas</span><v-icon size="16" color="#f59e0b">mdi-gift-outline</v-icon></div>
-                <div class="kpi-val kpi-val-orange">{{ fmt(paymentTotals.tips) }}</div>
-              </div>
-            </div>
-            <div class="iv-card">
-              <div class="art-tabla-wrap">
-                <table class="art-tabla">
-                  <thead>
-                    <tr>
-                      <th style="width:80px">MÉTODO</th>
-                      <th>PAYMENT ID</th>
-                      <th class="col-right" style="width:120px">TOTAL</th>
-                      <th class="col-right" style="width:100px">REEMBOLSO</th>
-                      <th class="col-right" style="width:120px">NETO</th>
-                      <th class="col-right" style="width:100px">PROPINA</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="p in xlsxData.payments" :key="p.paymentId" class="tr-item">
-                      <td>
-                        <span class="pay-method-badge" :class="'pay-' + p.method.toLowerCase()">{{ p.method }}</span>
-                      </td>
-                      <td class="td-sku" style="font-size:10px">{{ p.paymentId }}</td>
-                      <td class="td-monto col-right">{{ fmt(p.totalAmount) }}</td>
-                      <td class="td-monto col-right" :class="{ 'rs-neg': p.refunded }">{{ fmt(p.refunded) }}</td>
-                      <td class="td-monto col-right txt-green">{{ fmt(p.amount) }}</td>
-                      <td class="td-monto col-right" :class="{ 'rs-purple': p.tips > 0 }">{{ fmt(p.tips) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB: COMISIONES -->
-          <div v-show="activeTab === 'fees'" class="iv-section">
-            <div class="iv-section-header">
-              <div class="iv-section-icon" style="background:rgba(239,68,68,0.1)">
-                <v-icon size="16" color="#ef4444">mdi-percent-outline</v-icon>
-              </div>
-              <div>
-                <div class="iv-section-title">COMISIONES SQUARE</div>
-                <div class="iv-section-sub">Total: {{ fmt(totalFees) }}</div>
-              </div>
-            </div>
-            <div class="iv-card">
-              <div class="art-tabla-wrap">
-                <table class="art-tabla">
-                  <thead>
-                    <tr>
-                      <th>TIPO</th>
-                      <th class="col-right" style="width:140px">MONTO</th>
-                      <th class="col-right" style="width:100px">ENTRADAS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="f in xlsxData.fees" :key="f.subtype" class="tr-item">
-                      <td class="td-nombre">{{ f.subtype }}</td>
-                      <td class="td-monto col-right rs-neg">{{ fmt(f.amount) }}</td>
-                      <td class="td-num col-right">{{ f.entries }}</td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr class="tr-total">
-                      <td class="total-lbl">TOTAL</td>
-                      <td class="col-right total-val rs-neg">{{ fmt(totalFees) }}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB: CONSUMO -->
-          <div v-show="activeTab === 'consumo'" class="iv-section">
-            <div class="iv-section-header">
-              <div class="iv-section-icon" style="background:rgba(239,68,68,0.1)">
-                <v-icon size="16" color="#ef4444">mdi-package-down</v-icon>
-              </div>
-              <div>
-                <div class="iv-section-title">CONSUMO DE INVENTARIO</div>
-                <div class="iv-section-sub">Productos descontados según ventas del período</div>
-              </div>
-            </div>
-            <div v-if="consumoLoading" class="rs-dlg-loading">
-              <v-progress-circular indeterminate color="#ef4444" size="28" />
-              <span>Calculando consumo...</span>
-            </div>
-            <div v-else-if="!consumo.length" class="consumo-empty">
-              <v-icon size="32" color="rgba(var(--v-theme-on-surface),0.2)">mdi-package-variant-closed-remove</v-icon>
-              <span v-if="unmappedCount > 0">Mapea los artículos a SKUs para calcular el consumo</span>
-              <span v-else>No se encontraron componentes de inventario</span>
-            </div>
-            <template v-else>
-              <!-- KPIs consumo -->
-              <div class="kpi-grid kpi-grid-3">
-                <div class="kpi-card kpi-red">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Productos Afectados</span>
-                    <v-icon size="16" color="#ef4444">mdi-package-variant-closed</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-red">{{ consumo.length }}</div>
-                </div>
-                <div class="kpi-card kpi-orange">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Recetas Involucradas</span>
-                    <v-icon size="16" color="#f59e0b">mdi-chef-hat</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-orange">
-                    {{ new Set(consumo.flatMap(c => c.recetas.map(r => r.sku))).size }}
-                  </div>
-                </div>
-                <div class="kpi-card kpi-purple">
-                  <div class="kpi-top">
-                    <span class="kpi-lbl">Mayor Consumo</span>
-                    <v-icon size="16" color="#8b5cf6">mdi-trending-up</v-icon>
-                  </div>
-                  <div class="kpi-val kpi-val-purple" style="font-size:15px">
-                    {{ consumo[0]?.nombre || '—' }}
-                  </div>
-                </div>
-              </div>
-
-              <div class="iv-card">
-                <div class="iv-card-header">
-                  <div class="iv-card-title">
-                    <v-icon size="14" color="#ef4444" class="mr-1">mdi-clipboard-list-outline</v-icon>
-                    Detalle de Consumo por Producto
-                  </div>
-                  <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),0.4)">
-                    Agrupado por grupo de producto
-                  </div>
-                </div>
-                <div class="art-tabla-wrap">
-                  <table class="art-tabla">
-                    <thead>
-                      <tr>
-                        <th style="width:40px">#</th>
-                        <th style="width:70px">CÓDIGO</th>
-                        <th>DESCRIPCIÓN</th>
-                        <th style="width:70px" class="col-right">UND</th>
-                        <th style="width:140px" class="col-right">CONSUMO TOTAL</th>
-                        <th style="width:130px" class="col-center">RECETAS</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <template v-for="grp in consumoAgrupado" :key="grp.grupo">
-                        <tr class="tr-cat-header tr-cat-teal">
-                          <td colspan="6">
-                            <span class="cat-badge cat-badge-teal">
-                              {{ grp.grupo }} · {{ grp.grupoNombre }}
-                            </span>
-                          </td>
-                        </tr>
-                        <tr
-                          v-for="(c, idx) in grp.items"
-                          :key="c.codigo"
-                          class="tr-item tr-consumo"
-                        >
-                          <td class="td-idx">{{ idx + 1 }}</td>
-                          <td class="td-sku">{{ c.codigo }}</td>
-                          <td class="td-nombre">{{ c.nombre }}</td>
-                          <td class="col-right td-und">{{ c.und || '—' }}</td>
-                          <td class="col-right">
-                            <span class="consumo-total-val">{{ fmtDec(c.totalConsumo) }}</span>
-                          </td>
-                          <td class="col-center">
-                            <button class="btn-ver-recetas" @click="verRecetas(c)">
-                              <v-icon size="15" color="#8b5cf6">mdi-eye-outline</v-icon>
-                              <span>{{ c.recetas.length }} receta{{ c.recetas.length !== 1 ? 's' : '' }}</span>
-                            </button>
-                          </td>
-                        </tr>
-                      </template>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </template>
-          </div>
-
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ═══ DIALOG: RECETAS QUE USAN EL PRODUCTO ═══ -->
-    <v-dialog v-model="showRecetasDialog" max-width="620" scrollable>
-      <v-card v-if="recetasDialogItem" class="rcpopup">
-        <div class="rcpopup-header">
-          <div class="rcpopup-icon">
-            <v-icon size="18" color="white">mdi-package-variant-closed</v-icon>
-          </div>
-          <div class="rcpopup-title-wrap">
-            <div class="rcpopup-title">{{ recetasDialogItem.nombre }}</div>
-            <div class="rcpopup-sub">Código: {{ recetasDialogItem.codigo }} · {{ recetasDialogItem.und || '—' }}</div>
-          </div>
-          <v-btn icon variant="text" size="small" @click="showRecetasDialog = false">
-            <v-icon size="18">mdi-close</v-icon>
-          </v-btn>
-        </div>
-
-        <div class="rcpopup-total-row">
-          <span class="rcpopup-total-lbl">CONSUMO TOTAL DEL PERÍODO</span>
-          <span class="rcpopup-total-val">{{ fmtDec(recetasDialogItem.totalConsumo) }} {{ recetasDialogItem.und }}</span>
-        </div>
-
-        <div class="rcpopup-body">
-          <table class="art-tabla">
-            <thead>
-              <tr>
-                <th>RECETA</th>
-                <th class="col-right" style="width:100px">CANT/UNIDAD</th>
-                <th class="col-right" style="width:80px">VENDIDOS</th>
-                <th class="col-right" style="width:110px">CONSUMO</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in recetasDialogItem.recetas" :key="r.sku" class="tr-item">
-                <td>
-                  <div class="rcpopup-receta-nombre">{{ r.nombreReceta || r.sku }}</div>
-                  <div class="rcpopup-receta-sku">{{ r.sku }}</div>
-                </td>
-                <td class="col-right td-monto txt-dim">{{ fmtNum(r.cantPorUnidad) }}</td>
-                <td class="col-right td-num">{{ r.vendidos }}</td>
-                <td class="col-right">
-                  <span class="consumo-total-val" style="font-size:13px">{{ fmtDec(r.subtotal) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </v-card>
-    </v-dialog>
-
-    <!-- ═══ DIALOG: MAPEAR ARTÍCULO → SKU ═══ -->
-    <v-dialog v-model="showMappingDlg" max-width="560" scrollable>
-      <v-card class="rcpopup">
-        <div class="rcpopup-header" style="background: linear-gradient(135deg,#8b5cf6,#7c3aed)">
-          <div class="rcpopup-icon">
-            <v-icon size="18" color="white">mdi-link-variant</v-icon>
-          </div>
-          <div class="rcpopup-title-wrap">
-            <div class="rcpopup-title">MAPEAR ARTÍCULO</div>
-            <div class="rcpopup-sub">{{ mappingItem?.name }}{{ mappingItem?.variation ? ' · ' + mappingItem.variation : '' }}</div>
-          </div>
-          <v-btn icon variant="text" size="small" @click="showMappingDlg = false">
-            <v-icon size="18" color="white">mdi-close</v-icon>
-          </v-btn>
-        </div>
-        <div class="rcpopup-body" style="padding:20px">
-          <div style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5);margin-bottom:12px">
-            Selecciona la receta (SKU) que corresponde a este artículo de Square
-          </div>
-          <v-autocomplete
-            v-model="mappingSku"
-            :items="recetasList"
-            :item-title="r => r.codigo + ' — ' + r.nombre"
-            item-value="codigo"
-            label="Buscar receta por nombre o código..."
-            density="compact"
-            variant="outlined"
-            hide-details
-            clearable
-            :loading="recetasLoading"
-          >
-            <template #item="{ item, props }">
-              <v-list-item v-bind="props">
-                <template #prepend>
-                  <span style="font-family:monospace;font-size:11px;font-weight:700;color:#8b5cf6;margin-right:8px">{{ item.raw.codigo }}</span>
-                </template>
-                <template #append>
-                  <span v-if="item.raw.precio_venta" style="font-size:11px;color:#10b981;font-weight:600">{{ fmt(item.raw.precio_venta) }}</span>
-                </template>
-              </v-list-item>
-            </template>
-          </v-autocomplete>
-          <div v-if="mappingError" class="iv-error" style="margin-top:10px;border-radius:8px">
-            <v-icon size="14" color="#ef4444">mdi-alert-circle-outline</v-icon>
-            <span>{{ mappingError }}</span>
-          </div>
-        </div>
-        <div class="rs-dlg-actions">
-          <v-btn v-if="mappingItem?.mappedSku" variant="text" color="#ef4444" :loading="mappingDeleting" @click="deleteMapping">
-            <v-icon size="15" class="mr-1">mdi-link-variant-off</v-icon> Quitar mapeo
-          </v-btn>
+      <!-- ═══════════ SEDES DETECTADAS ═══════════ -->
+      <template v-if="sedes.length">
+        <div class="ivc-file-row">
+          <v-icon size="16" color="var(--success)">mdi-file-check-outline</v-icon>
+          <span class="ivc-file-name">{{ fileName }}</span>
+          <span class="ivc-file-meta">{{ sedes.length }} sede{{ sedes.length !== 1 ? 's' : '' }} detectada{{ sedes.length !== 1 ? 's' : '' }}</span>
           <v-spacer />
-          <v-btn variant="text" @click="showMappingDlg = false">Cancelar</v-btn>
-          <v-btn color="#8b5cf6" variant="flat" :loading="mappingSaving" :disabled="!mappingSku" @click="saveMapping">
-            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon> Guardar
-          </v-btn>
-        </div>
-      </v-card>
-    </v-dialog>
-
-    <!-- ═══ DIALOG: CONFIGURAR MODIFICADOR → INVENTARIO ═══ -->
-    <v-dialog v-model="showModConfigDlg" max-width="660" scrollable>
-      <v-card v-if="modConfigMod" class="rcpopup">
-        <div class="rcpopup-header" style="background: linear-gradient(135deg,#f59e0b,#d97706)">
-          <div class="rcpopup-icon">
-            <v-icon size="18" color="white">mdi-cog-outline</v-icon>
-          </div>
-          <div class="rcpopup-title-wrap">
-            <div class="rcpopup-title">{{ modConfigMod.name }}</div>
-            <div class="rcpopup-sub">Grupo: {{ modConfigMod.group }} · Configura qué ingredientes impacta este modificador</div>
-          </div>
-          <v-btn icon variant="text" size="small" @click="showModConfigDlg = false">
-            <v-icon size="18" color="white">mdi-close</v-icon>
-          </v-btn>
+          <button class="ivc-link" @click="limpiar">Cargar otro archivo</button>
         </div>
 
-        <div class="rcpopup-body">
-          <div v-if="modConfigLines.length === 0" class="config-empty">
-            <v-icon size="28" color="rgba(var(--v-theme-on-surface),0.2)">mdi-package-variant-closed-remove</v-icon>
-            <span>Sin configuración — agrega un ingrediente abajo</span>
-          </div>
-
-          <table v-else class="art-tabla">
-            <thead>
-              <tr>
-                <th>INGREDIENTE</th>
-                <th class="col-right" style="width:90px">CANT/UNIDAD</th>
-                <th class="col-center" style="width:80px">TIPO</th>
-                <th style="width:44px"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="ln in modConfigLines" :key="ln.id" class="tr-item">
-                <td>
-                  <div class="td-nombre">{{ ln.articulo_nombre }}</div>
-                  <div class="td-sku">{{ ln.articulo }} · {{ ln.und }}</div>
-                </td>
-                <td class="col-right td-monto">{{ fmtNum(ln.cant) }}</td>
-                <td class="col-center">
-                  <span class="tipo-badge" :class="ln.tipo === '+' ? 'tipo-suma' : 'tipo-resta'">
-                    {{ ln.tipo === '+' ? '+ SUMA' : '− RESTA' }}
-                  </span>
-                </td>
-                <td class="col-center">
-                  <v-btn
-                    icon size="x-small" variant="text" color="#ef4444"
-                    :loading="modDeletingId === ln.id"
-                    @click="deleteModLine(ln.id)"
-                  >
-                    <v-icon size="15">mdi-delete-outline</v-icon>
-                  </v-btn>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="avisoParser" class="ivc-alert ivc-alert-warn">
+          <v-icon size="18" color="var(--warning)">mdi-alert-outline</v-icon>
+          <span>{{ avisoParser }}</span>
         </div>
 
-        <div v-if="modSaveLineError" class="iv-error" style="margin:8px 16px 0; border-radius:8px">
-          <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
-          <span>{{ modSaveLineError }}</span>
+        <div class="ivc-sedes">
+          <div v-for="s in sedes" :key="s.location" class="ivc-sede"
+            :class="{ 'ivc-sede-off': !s.incluir, 'ivc-sede-mal': !s.control.cuadra }">
+
+            <!-- Cabecera de la sede -->
+            <div class="ivc-sede-hdr">
+              <label class="ivc-check">
+                <input type="checkbox" v-model="s.incluir" />
+              </label>
+              <div class="ivc-sede-id">
+                <div class="ivc-sede-loc">{{ s.location }}</div>
+                <div class="ivc-sede-meta">
+                  {{ s.items.length }} artículos · {{ s.modificadores.length }} modificadores
+                </div>
+              </div>
+
+              <div class="ivc-sede-cc">
+                <label class="ivc-label-sm">CENTRO DE COSTO</label>
+                <v-select v-model="s.ccosto" :items="ccostos" item-title="nombre" item-value="codigo"
+                  density="compact" variant="outlined" hide-details placeholder="Sin asignar"
+                  @update:model-value="onCambioCcosto(s)" />
+              </div>
+
+              <div class="ivc-sede-cc">
+                <label class="ivc-label-sm">CUENTA SQUARE (TARJETA)</label>
+                <v-select v-model="s.ctaSquare" :items="cuentasSquare" item-title="nombre_cta" item-value="codigo"
+                  density="compact" variant="outlined" hide-details placeholder="Sin asignar"
+                  @update:model-value="guardarCtaSquare(s)" />
+              </div>
+
+              <div class="ivc-sede-total">
+                <div class="ivc-sede-total-lbl">TOTAL RECIBIDO</div>
+                <div class="ivc-sede-total-val">{{ fmt(s.pagos.totalRecibido) }}</div>
+              </div>
+            </div>
+
+            <!-- Avisos por sede -->
+            <div v-if="!s.ccosto" class="ivc-sede-aviso ivc-sede-aviso-err">
+              <v-icon size="14" color="var(--error)">mdi-alert-circle-outline</v-icon>
+              No se pudo asociar “{{ s.location }}” a un centro de costo. Selecciónalo arriba.
+            </div>
+            <div v-else-if="s.autoAsignado || s.ctaSquareAuto" class="ivc-sede-aviso ivc-sede-aviso-info">
+              <v-icon size="14" color="var(--info)">mdi-information-outline</v-icon>
+              <div>
+                Asignado automáticamente:
+                <template v-if="s.autoAsignado">centro de costo <strong>{{ nombreCcosto(s.ccosto) }}</strong></template>
+                <template v-if="s.autoAsignado && s.ctaSquareAuto"> · </template>
+                <template v-if="s.ctaSquareAuto">cuenta <strong>{{ nombreCuenta(s.ctaSquare) }}</strong></template>.
+                Cámbialo si no corresponde; se guarda para la próxima vez.
+              </div>
+            </div>
+
+            <div v-if="!s.ctaSquare && s.ccosto" class="ivc-sede-aviso ivc-sede-aviso-err">
+              <v-icon size="14" color="var(--error)">mdi-bank-off-outline</v-icon>
+              Falta la cuenta de Square de esta sede. Selecciónala arriba.
+            </div>
+
+            <div v-if="!s.control.cuadra" class="ivc-sede-aviso ivc-sede-aviso-err">
+              <v-icon size="14" color="var(--error)">mdi-scale-balance</v-icon>
+              <div>
+                <strong>El archivo no cuadra en esta sede:</strong>
+                <div v-for="d in s.control.diferencias" :key="d">· {{ d }}</div>
+              </div>
+            </div>
+
+            <div v-if="s.yaImportado" class="ivc-sede-aviso ivc-sede-aviso-warn">
+              <v-icon size="14" color="var(--warning)">mdi-database-alert-outline</v-icon>
+              Ya hay {{ s.yaImportado }} registros para esta fecha y centro de costo.
+              <label class="ivc-check-inline">
+                <input type="checkbox" v-model="s.force" /> Reemplazar
+              </label>
+            </div>
+
+            <!-- Desglose, agrupado para que se lea de corrido -->
+            <div class="ivc-grupos">
+              <div class="ivc-grupo">
+                <div class="ivc-grupo-ttl">VENTAS</div>
+                <div class="ivc-sede-body">
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Ventas brutas</span>
+                    <span class="ivc-mini-val">{{ fmt(s.ventas.ventasBrutas) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Descuentos</span>
+                    <span class="ivc-mini-val ivc-neg">−{{ fmt(s.ventas.descuentos) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Devoluciones</span>
+                    <span class="ivc-mini-val" :class="s.ventas.devoluciones > 0 && 'ivc-neg'">
+                      {{ s.ventas.devoluciones > 0 ? '−' + fmt(s.ventas.devoluciones) : fmt(0) }}
+                    </span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Ventas netas</span>
+                    <span class="ivc-mini-val">{{ fmt(s.ventas.ventasNetas) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Impuestos</span>
+                    <span class="ivc-mini-val">{{ fmt(s.ventas.impuestos) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Propinas</span>
+                    <span class="ivc-mini-val">{{ fmt(s.ventas.propinas) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ivc-grupo">
+                <div class="ivc-grupo-ttl">FORMAS DE PAGO</div>
+                <div class="ivc-sede-body">
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Efectivo</span>
+                    <span class="ivc-mini-val">{{ fmt(s.pagos.efectivo) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Tarjeta</span>
+                    <span class="ivc-mini-val">{{ fmt(s.pagos.tarjeta) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Otros</span>
+                    <span class="ivc-mini-val">{{ fmt(s.pagos.otro) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Comisiones Square</span>
+                    <span class="ivc-mini-val ivc-neg">−{{ fmt(s.pagos.comisiones) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ivc-grupo">
+                <div class="ivc-grupo-ttl">VALORACIÓN E INVENTARIO</div>
+                <div class="ivc-sede-body">
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Venta a precio de lista</span>
+                    <span class="ivc-mini-val">{{ fmt(valoracion(s).listaTotal) }}</span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Otras comisiones (delivery)</span>
+                    <span class="ivc-mini-val" :class="otrasComisionesDe(s) > 0 && 'ivc-neg'">
+                      {{ otrasComisionesDe(s) > 0 ? '−' + fmt(otrasComisionesDe(s)) : fmt(0) }}
+                    </span>
+                  </div>
+                  <div class="ivc-mini">
+                    <span class="ivc-mini-lbl">Consumo de inventario</span>
+                    <span class="ivc-mini-val">
+                      <template v-if="s.consumoLoading">
+                        <v-progress-circular indeterminate size="12" width="2" />
+                      </template>
+                      <template v-else-if="s.consumo.length">{{ s.consumo.length }} artículos</template>
+                      <template v-else>—</template>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ver detalle antes de guardar -->
+            <div class="ivc-det-toggle">
+              <button class="ivc-det-btn" @click="s.verDetalle = !s.verDetalle">
+                <v-icon size="14">{{ s.verDetalle ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                {{ s.verDetalle ? 'Ocultar' : 'Ver' }} lo que se va a guardar
+              </button>
+              <span v-if="s.recetasError" class="ivc-det-warn ivc-det-err">
+                <v-icon size="13" color="var(--error)">mdi-alert-circle-outline</v-icon>
+                No se pudieron consultar las recetas ({{ s.recetasError }}): los precios que ves son
+                los del reporte, no los de tu lista. La comparación no es válida.
+              </span>
+              <span v-else-if="s.itemsSinReceta" class="ivc-det-warn">
+                <v-icon size="13" color="var(--warning)">mdi-alert-outline</v-icon>
+                {{ s.itemsSinReceta }} producto(s) sin receta: se usa el precio del reporte
+              </span>
+            </div>
+
+            <div v-if="s.verDetalle" class="ivc-det">
+              <div class="ivc-tabs">
+                <button class="ivc-tab" :class="s.tab === 'items' && 'ivc-tab-on'" @click="s.tab = 'items'">
+                  Productos vendidos <span class="ivc-tab-n">{{ s.items.length }}</span>
+                </button>
+                <button class="ivc-tab" :class="s.tab === 'mods' && 'ivc-tab-on'" @click="s.tab = 'mods'">
+                  Modificadores <span class="ivc-tab-n">{{ s.modificadores.length }}</span>
+                </button>
+                <button class="ivc-tab" :class="s.tab === 'consumo' && 'ivc-tab-on'" @click="s.tab = 'consumo'">
+                  Consumo de inventario <span class="ivc-tab-n">{{ s.consumo.length }}</span>
+                </button>
+              </div>
+
+              <!-- Productos vendidos -->
+              <div v-if="s.tab === 'items'" class="ivc-tabla-wrap">
+                <table class="ivc-tabla">
+                  <thead>
+                    <tr>
+                      <th>SKU</th><th>PRODUCTO</th><th>VARIANTE</th>
+                      <th class="r">CANT</th><th class="r">VR. UNIT<br><span class="ivc-th-sub">receta</span></th>
+                      <th class="r">SUBTOTAL<br><span class="ivc-th-sub">a precio de lista</span></th>
+                      <th class="r">VENTAS BRUTAS<br><span class="ivc-th-sub">lo cobrado</span></th>
+                      <th class="r">SOBREPRECIO<br><span class="ivc-th-sub">delivery +30%</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="it in s.items" :key="it.sku + it.nombre + it.variante">
+                      <td><span class="ivc-sku">{{ it.sku || '—' }}</span></td>
+                      <td class="ivc-td-nom">
+                        {{ it.nombre }}
+                        <span v-if="it.nombreReceta && it.nombreReceta !== it.nombre" class="ivc-td-alias">({{ it.nombreReceta }})</span>
+                      </td>
+                      <td class="dim">{{ it.variante || '—' }}</td>
+                      <td class="r">{{ it.cantidad }}</td>
+                      <td class="r">{{ fmt(it.precioVenta) }}</td>
+                      <td class="r b">{{ fmt(it.subtotal) }}</td>
+                      <td class="r dim">{{ fmt(it.ventasBrutas) }}</td>
+                      <td class="r" :class="(it.ventasBrutas - it.subtotal) > 0.005 && 'ivc-sobre'">
+                        {{ (it.ventasBrutas - it.subtotal) > 0.005 ? '+' + fmt(it.ventasBrutas - it.subtotal) : '—' }}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="3" class="r">TOTALES</td>
+                      <td class="r b">{{ sumaCant(s.items) }}</td>
+                      <td></td>
+                      <td class="r b">{{ fmt(sumaCampo(s.items, 'subtotal')) }}</td>
+                      <td class="r b">{{ fmt(sumaCampo(s.items, 'ventasBrutas')) }}</td>
+                      <td class="r b ivc-sobre">
+                        +{{ fmt(sumaCampo(s.items, 'ventasBrutas') - sumaCampo(s.items, 'subtotal')) }}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <!-- Conciliación: venta a precio de lista vs venta real de Square -->
+              <div v-if="s.tab === 'items'" class="ivc-conc">
+                <div class="ivc-conc-ttl">
+                  <v-icon size="14" color="var(--indigo)">mdi-scale-balance</v-icon>
+                  LAS DOS VALORACIONES DE ESTA VENTA
+                </div>
+                <div class="ivc-conc-body">
+                  <div class="ivc-conc-col">
+                    <div class="ivc-conc-lbl">A PRECIO DE LISTA (RECETAS)</div>
+                    <div class="ivc-conc-row">
+                      <span>Productos (precio de menú × cantidad)</span>
+                      <span>{{ fmt(valoracion(s).lista) }}</span>
+                    </div>
+                    <div class="ivc-conc-row">
+                      <span>Adiciones y modificadores cobrados</span>
+                      <span>{{ fmt(valoracion(s).mods) }}</span>
+                    </div>
+                    <div class="ivc-conc-row ivc-conc-row-tot">
+                      <span>Total a precio de lista</span>
+                      <span>{{ fmt(valoracion(s).listaTotal) }}</span>
+                    </div>
+                  </div>
+                  <div class="ivc-conc-col">
+                    <div class="ivc-conc-lbl">SEGÚN SQUARE (LO COBRADO)</div>
+                    <div class="ivc-conc-row ivc-conc-row-tot">
+                      <span>Ventas brutas del reporte</span>
+                      <span>{{ fmt(valoracion(s).csv) }}</span>
+                    </div>
+                    <div class="ivc-conc-row ivc-conc-dif"
+                      :class="Math.abs(valoracion(s).brecha) < 0.01 && 'ivc-conc-dif-ok'">
+                      <span>Diferencia</span>
+                      <span>{{ fmt(valoracion(s).brecha) }}</span>
+                    </div>
+                    <div class="ivc-conc-nota">
+                      <template v-if="valoracion(s).brecha > 0.01">
+                        Es el <strong>+30%</strong> con que se publican los platos en las plataformas
+                        de domicilio para cubrir su comisión. Entra a Square como venta, así que se
+                        provisiona como <strong>otras comisiones</strong>.
+                        Los pedidos <em>para recoger</em> llegan al precio normal y no suman aquí.
+                      </template>
+                      <template v-else-if="valoracion(s).brecha < -0.01">
+                        Square cobró por debajo de tu lista de precios. No hay sobreprecio que
+                        provisionar en esta sede.
+                      </template>
+                      <template v-else>
+                        No hubo ventas con sobreprecio de delivery en esta sede.
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Consumo de inventario -->
+              <div v-else-if="s.tab === 'consumo'" class="ivc-tabla-wrap">
+                <div v-if="s.consumoLoading" class="ivc-tabla-vacia">
+                  <v-progress-circular indeterminate size="18" width="2" /> Calculando consumo…
+                </div>
+                <div v-else-if="s.consumoError" class="ivc-tabla-vacia ivc-tabla-err">
+                  <v-icon size="16" color="var(--error)">mdi-alert-circle-outline</v-icon>
+                  {{ s.consumoError }}
+                </div>
+                <div v-else-if="!s.consumo.length" class="ivc-tabla-vacia">
+                  No se calculó consumo para esta sede.
+                </div>
+                <table v-else class="ivc-tabla">
+                  <thead>
+                    <tr>
+                      <th>CÓDIGO</th><th>ARTÍCULO</th><th>GRUPO</th>
+                      <th>UND</th><th class="r">CONSUMO</th><th>ORIGEN</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="c in s.consumo" :key="c.codigo">
+                      <td><span class="ivc-sku">{{ c.codigo }}</span></td>
+                      <td class="ivc-td-nom">{{ c.nombre }}</td>
+                      <td class="dim">{{ c.grupoNombre }}</td>
+                      <td class="dim">{{ c.und || '—' }}</td>
+                      <td class="r b" :class="c.totalConsumo < 0 && 'ivc-neg'">{{ num(c.totalConsumo) }}</td>
+                      <td class="ivc-td-origen">
+                        <span v-for="(r, i) in c.recetas" :key="i" class="ivc-chip"
+                          :title="`${r.cantPorUnidad} × ${r.vendidos} = ${num(r.subtotal)}`">
+                          {{ r.nombreReceta }} ×{{ r.vendidos }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4" class="r">ARTÍCULOS AFECTADOS</td>
+                      <td class="r b">{{ s.consumo.length }}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <!-- Modificadores -->
+              <div v-else class="ivc-tabla-wrap">
+                <div v-if="!s.modificadores.length" class="ivc-tabla-vacia">Sin modificadores en el archivo.</div>
+                <table v-else class="ivc-tabla">
+                  <thead>
+                    <tr>
+                      <th>GRUPO</th><th>MODIFICADOR</th>
+                      <th class="r">CANT</th>
+                      <th class="r">VR. UNIT<br><span class="ivc-th-sub">receta</span></th>
+                      <th class="r">A PRECIO DE LISTA</th>
+                      <th class="r">COBRADO</th>
+                      <th class="r">SOBREPRECIO<br><span class="ivc-th-sub">delivery +30%</span></th>
+                      <th>AFECTA INVENTARIO</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(m, i) in s.modificadores" :key="i">
+                      <td class="dim">{{ m.grupo }}</td>
+                      <td class="ivc-td-nom">{{ m.modificador }}</td>
+                      <td class="r">{{ m.cantidadNeta }}</td>
+                      <td class="r">
+                        <template v-if="m.precioLista">{{ fmt(m.precioLista) }}</template>
+                        <span v-else class="dim" title="Sin receta con ese nombre: se usa lo cobrado">—</span>
+                      </td>
+                      <td class="r b">{{ fmt(m.subtotalLista) }}</td>
+                      <td class="r dim">{{ fmt(m.ventasBrutas) }}</td>
+                      <td class="r" :class="(m.ventasBrutas - m.subtotalLista) > 0.005 && 'ivc-sobre'">
+                        {{ (m.ventasBrutas - m.subtotalLista) > 0.005 ? '+' + fmt(m.ventasBrutas - m.subtotalLista) : '—' }}
+                      </td>
+                      <td>
+                        <span v-if="mapeoDeMod(m.modificador).length" class="ivc-chip ivc-chip-ok">
+                          {{ mapeoDeMod(m.modificador).length }} artículo(s)
+                        </span>
+                        <span v-else class="dim">—</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Resultado del guardado -->
+            <div v-if="s.resultado" class="ivc-sede-aviso" :class="s.resultado.ok ? 'ivc-sede-aviso-ok' : 'ivc-sede-aviso-err'">
+              <v-icon size="14" :color="s.resultado.ok ? 'var(--success)' : 'var(--error)'">
+                {{ s.resultado.ok ? 'mdi-check-circle-outline' : 'mdi-close-circle-outline' }}
+              </v-icon>
+              {{ s.resultado.msg }}
+            </div>
+          </div>
         </div>
 
-        <div class="config-new-row">
-          <div class="config-new-title">
-            <v-icon size="13" color="#f59e0b" class="mr-1">mdi-plus-circle-outline</v-icon>
-            AGREGAR INGREDIENTE
+        <!-- ═══════════ TOTALES Y ACCIÓN ═══════════ -->
+        <div class="ivc-footer">
+          <div class="ivc-footer-tot">
+            <div class="ivc-footer-item">
+              <span class="ivc-footer-lbl">SEDES A IMPORTAR</span>
+              <span class="ivc-footer-val">{{ sedesListas.length }} de {{ sedes.length }}</span>
+            </div>
+            <div class="ivc-footer-item">
+              <span class="ivc-footer-lbl">A PRECIO DE LISTA</span>
+              <span class="ivc-footer-val">{{ fmt(totalLista) }}</span>
+            </div>
+            <div class="ivc-footer-item">
+              <span class="ivc-footer-lbl">VENTAS BRUTAS (SQUARE)</span>
+              <span class="ivc-footer-val">{{ fmt(totalBrutas) }}</span>
+            </div>
+            <div class="ivc-footer-item">
+              <span class="ivc-footer-lbl">TOTAL RECIBIDO</span>
+              <span class="ivc-footer-val ivc-footer-val-big">{{ fmt(totalRecibido) }}</span>
+            </div>
           </div>
-          <div class="config-new-fields">
-            <v-autocomplete
-              v-model="modNewLine.articulo"
-              :items="productosControlados"
-              item-title="nombre"
-              item-value="codigo"
-              return-object
-              label="Producto (ingrediente)"
-              density="compact"
-              variant="outlined"
-              hide-details
-              class="config-field-art"
-              @update:search="val => fetchProductosControlados(val)"
-            >
-              <template #item="{ item, props }">
-                <v-list-item v-bind="props">
-                  <template #append>
-                    <span style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4)">{{ item.raw.codigo }} · {{ item.raw.und }}</span>
-                  </template>
-                </v-list-item>
-              </template>
-            </v-autocomplete>
-
-            <v-text-field
-              v-model="modNewLine.cant"
-              label="Cant/Unidad"
-              density="compact"
-              variant="outlined"
-              hide-details
-              type="number"
-              min="0"
-              step="0.0001"
-              class="config-field-cant"
-            />
-
-            <v-btn-toggle v-model="modNewLine.tipo" mandatory density="compact" class="config-tipo-toggle">
-              <v-btn value="+" color="#10b981" size="small">+ SUMA</v-btn>
-              <v-btn value="-" color="#ef4444" size="small">− RESTA</v-btn>
-            </v-btn-toggle>
-
-            <v-btn
-              color="#f59e0b"
-              :loading="modSavingLine"
-              :disabled="!modNewLine.articulo || !modNewLine.cant"
-              @click="saveModNewLine"
-              size="small"
-            >
-              <v-icon size="16" class="mr-1">mdi-content-save-outline</v-icon>
-              Guardar
+          <div class="ivc-footer-act">
+            <div v-if="!bloqueo && sedesQueReemplazan.length" class="ivc-aviso-reemplazo">
+              <v-icon size="14" color="var(--error)">mdi-database-refresh-outline</v-icon>
+              Se <strong>reemplazarán</strong> los datos de
+              {{ sedesQueReemplazan.map(s => s.location).join(', ') }} en esta fecha.
+            </div>
+            <div v-if="bloqueo" class="ivc-bloqueo">
+              <v-icon size="14" color="var(--warning)">mdi-alert-outline</v-icon>
+              <div>
+                {{ bloqueo }}
+                <button v-if="sedesPorReemplazar.length" class="ivc-btn-reemplazar" @click="autorizarReemplazo">
+                  <v-icon size="14">mdi-database-refresh-outline</v-icon>
+                  Reemplazar {{ sedesPorReemplazar.length === 1 ? 'esa sede' : 'las ' + sedesPorReemplazar.length + ' sedes' }}
+                </button>
+              </div>
+            </div>
+            <v-btn color="success" variant="elevated" size="large" :loading="importando"
+              :disabled="!!bloqueo || importando" @click="importarTodas">
+              Importar {{ sedesListas.length }} sede{{ sedesListas.length !== 1 ? 's' : '' }}
             </v-btn>
           </div>
         </div>
-      </v-card>
-    </v-dialog>
 
-    <!-- ═══ DIALOG: CONFIRMAR GUARDAR ═══ -->
-    <v-dialog v-model="showSaveDlg" max-width="680" scrollable>
-      <v-card class="rcpopup">
-        <div class="rcpopup-header" style="background: linear-gradient(135deg,#0891b2,#0e7490)">
-          <div class="rcpopup-icon">
-            <v-icon size="18" color="white">mdi-database-import-outline</v-icon>
+        <div v-if="progreso" class="ivc-progreso">{{ progreso }}</div>
+      </template>
+
+      <!-- ═══════════ PROGRESO DE LA IMPORTACIÓN ═══════════ -->
+      <v-dialog v-model="dlgProgreso" max-width="620" persistent :scrim="'rgba(10,10,15,.6)'">
+        <div class="prg-card">
+          <div class="prg-hdr">
+            <div class="prg-hdr-icon" :class="terminado && (fallaron ? 'prg-icon-err' : 'prg-icon-ok')">
+              <v-progress-circular v-if="!terminado" indeterminate size="20" width="2" color="white" />
+              <v-icon v-else size="22" color="white">
+                {{ fallaron ? 'mdi-alert-circle-outline' : 'mdi-check-bold' }}
+              </v-icon>
+            </div>
+            <div>
+              <div class="prg-ttl">
+                {{ terminado ? (fallaron ? 'Importación con errores' : 'Importación completada') : 'Importando ventas…' }}
+              </div>
+              <div class="prg-sub">
+                {{ configFecha }} · {{ pasoActual }} de {{ totalPasos }} sede{{ totalPasos !== 1 ? 's' : '' }}
+              </div>
+            </div>
+            <div class="prg-pct">{{ Math.round(100 * pasoActual / (totalPasos || 1)) }}%</div>
           </div>
-          <div class="rcpopup-title-wrap">
-            <div class="rcpopup-title">REGISTRAR EN CONTABILIDAD</div>
-            <div class="rcpopup-sub">
-              Fecha: {{ configFecha }} · {{ ccostos.find(c => c.codigo === configCcosto)?.nombre || configCcosto }}
+
+          <div class="prg-barra">
+            <div class="prg-barra-fill" :class="terminado && fallaron && 'prg-barra-err'"
+              :style="{ width: (100 * pasoActual / (totalPasos || 1)) + '%' }"></div>
+          </div>
+
+          <div class="prg-lista">
+            <div v-for="(s, i) in sedesEnProceso" :key="s.location"
+              class="prg-paso" :class="'prg-paso-' + s.estado"
+              :style="{ '--d': (i * 45) + 'ms' }">
+              <div class="prg-paso-icon">
+                <v-progress-circular v-if="s.estado === 'guardando'" indeterminate size="15" width="2" color="var(--indigo)" />
+                <v-icon v-else-if="s.estado === 'ok'" size="17" color="var(--success)">mdi-check-circle</v-icon>
+                <v-icon v-else-if="s.estado === 'error'" size="17" color="var(--error)">mdi-close-circle</v-icon>
+                <span v-else class="prg-punto"></span>
+              </div>
+              <div class="prg-paso-txt">
+                <div class="prg-paso-loc">
+                  {{ s.location }}
+                  <span class="prg-paso-cc">→ {{ nombreCcosto(s.ccosto) }}</span>
+                </div>
+                <div class="prg-paso-det">
+                  <template v-if="s.estado === 'pendiente'">En espera</template>
+                  <template v-else-if="s.estado === 'guardando'">Guardando venta, gastos, inventario y banco…</template>
+                  <template v-else-if="s.estado === 'ok' && s.detalleGuardado">
+                    <span class="prg-chip">{{ s.detalleGuardado.total }} asientos</span>
+                    <span class="prg-chip">{{ s.detalleGuardado.detalles }} productos</span>
+                    <span class="prg-chip">{{ s.detalleGuardado.inventario }} artículos</span>
+                    <span class="prg-chip">{{ s.detalleGuardado.moviban }} mov. banco</span>
+                  </template>
+                  <template v-else-if="s.estado === 'ok'">Guardado</template>
+                  <template v-else class="prg-paso-err">{{ s.resultado?.msg }}</template>
+                </div>
+              </div>
+              <div class="prg-paso-monto">{{ fmt(s.pagos.totalRecibido) }}</div>
             </div>
           </div>
-          <v-btn icon variant="text" size="small" title="Configurar cuentas contables" @click="abrirCfgEditor">
-            <v-icon size="18" color="rgba(255,255,255,0.7)">mdi-cog-outline</v-icon>
-          </v-btn>
-          <v-btn icon variant="text" size="small" @click="showSaveDlg = false">
-            <v-icon size="18" color="white">mdi-close</v-icon>
-          </v-btn>
-        </div>
 
-        <!-- Advertencia: ubicación del XLSX vs centro de costo seleccionado -->
-        <div v-if="ubicacionMismatch" class="rs-loc-warn">
-          <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
-          <div>
-            <strong>Verificar centro de costo:</strong>
-            el archivo dice <em>"{{ xlsxData?.location }}"</em>
-            pero el CCosto seleccionado es <em>"{{ ccostos.find(c => c.codigo === configCcosto)?.nombre }}"</em>.
+          <div v-if="terminado" class="prg-resumen" :class="fallaron && 'prg-resumen-err'">
+            <template v-if="fallaron">
+              Se importaron {{ importadasOk }} de {{ totalPasos }} sedes. Las que fallaron no
+              escribieron nada: cada sede se guarda en su propia transacción.
+            </template>
+            <template v-else>
+              Se importaron las {{ totalPasos }} sedes por {{ fmt(totalRecibidoProceso) }} en total.
+            </template>
+          </div>
+
+          <div class="prg-pie">
+            <span v-if="!terminado" class="prg-espera">No cierres esta ventana…</span>
+            <v-spacer />
+            <v-btn v-if="terminado" :color="fallaron ? 'error' : 'success'" variant="flat"
+              @click="dlgProgreso = false">
+              Cerrar
+            </v-btn>
           </div>
         </div>
+      </v-dialog>
 
-        <!-- Advertencia: fecha seleccionada vs rango de fechas del XLSX -->
-        <div v-if="fechaMismatch" class="rs-loc-warn">
-          <v-icon size="15" color="#f59e0b">mdi-alert-outline</v-icon>
-          <div>
-            <strong>Verificar fecha:</strong>
-            el archivo corresponde al período <em>"{{ xlsxData?.dateRange }}"</em>
-            pero la fecha seleccionada es <em>"{{ configFecha }}"</em>.
-          </div>
-        </div>
-
-        <div v-if="saveError" class="iv-error" style="margin:16px 16px 0;border-radius:8px">
-          <v-icon size="16" color="#ef4444">mdi-alert-circle-outline</v-icon>
-          <span>{{ saveError }}</span>
-        </div>
-
-        <div v-if="!saveError && !configGeneral" class="rs-dlg-loading">
-          <v-progress-circular indeterminate color="#06b6d4" size="32" />
-          <span>Cargando configuración...</span>
-        </div>
-
-        <div v-if="!saveError && configGeneral" class="rcpopup-body" style="padding:24px 20px;text-align:center;color:rgba(var(--v-theme-on-surface),0.6);font-size:14px">
-          <v-icon size="20" color="#06b6d4" class="mr-1">mdi-information-outline</v-icon>
-          Se guardarán <strong>{{ previewResumen.filter(r => r.cuenta).length }}</strong> movimientos contables para el período seleccionado.<br>
-          <strong>{{ xlsxData?.location }}</strong> · {{ xlsxData?.dateRange }}
-        </div>
-
-        <div v-if="!saveError && configGeneral" class="rs-dlg-actions">
-          <v-btn variant="flat" color="#ef4444" @click="showSaveDlg = false">Cancelar</v-btn>
-          <v-btn
-            color="#0891b2"
-            variant="flat"
-            :loading="saving"
-            :disabled="previewResumen.filter(r => r.cuenta).length === 0"
-            @click="confirmarGuardar()"
-          >
-            <v-icon size="16" class="mr-1">mdi-content-save-outline</v-icon> Confirmar y Guardar
-          </v-btn>
-        </div>
-      </v-card>
-    </v-dialog>
-
-    <!-- ═══ DIALOG: CONFIGURAR CUENTAS CONTABLES ═══ -->
-    <v-dialog v-model="showCfgEditor" max-width="560" scrollable>
-      <v-card class="rcpopup">
-        <div class="rcpopup-header" style="background: linear-gradient(135deg,#475569,#334155)">
-          <div class="rcpopup-icon">
-            <v-icon size="18" color="white">mdi-cog-outline</v-icon>
-          </div>
-          <div class="rcpopup-title-wrap">
-            <div class="rcpopup-title">CONFIGURAR CUENTAS CONTABLES</div>
-            <div class="rcpopup-sub">Asigna una cuenta a cada concepto de importación Square</div>
-          </div>
-          <v-btn icon variant="text" size="small" @click="showCfgEditor = false">
-            <v-icon size="18" color="white">mdi-close</v-icon>
-          </v-btn>
-        </div>
-
-        <div class="rcpopup-body" style="padding:16px">
-          <div v-if="cuentasLoading2" class="rs-dlg-loading">
-            <v-progress-circular indeterminate color="#475569" size="28" />
-            <span>Cargando cuentas...</span>
-          </div>
-          <template v-else>
-            <div v-for="f in CFG_FIELDS" :key="f.key" class="cfg-editor-row">
-              <div class="cfg-editor-lbl">{{ f.label }}</div>
-              <v-autocomplete
-                v-model="editCfg[f.key]"
-                :items="cuentasContables"
-                item-title="cuenta"
-                item-value="codigo"
-                density="compact"
-                variant="outlined"
-                hide-details
-                clearable
-                placeholder="Sin asignar"
-                class="cfg-editor-select"
-                bg-color="rgb(var(--v-theme-surface))"
-              >
-                <template #prepend-inner>
-                  <span v-if="editCfg[f.key]" class="rs-dlg-cta-badge">{{ editCfg[f.key] }}</span>
-                </template>
-                <template #item="{ item, props }">
-                  <v-list-item v-bind="props">
-                    <template #prepend>
-                      <span style="font-family:monospace;font-size:11px;font-weight:700;color:#06b6d4;margin-right:8px">{{ item.raw.codigo }}</span>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-autocomplete>
-            </div>
-
-            <div v-if="saveCfgError" class="iv-error" style="margin-top:10px;border-radius:8px">
-              <v-icon size="15" color="#ef4444">mdi-alert-circle-outline</v-icon>
-              <span>{{ saveCfgError }}</span>
-            </div>
-          </template>
-        </div>
-
-        <div class="rs-dlg-actions">
-          <v-btn variant="text" @click="showCfgEditor = false">Cancelar</v-btn>
-          <v-btn
-            color="#475569"
-            variant="flat"
-            :loading="savingCfg"
-            :disabled="cuentasLoading2"
-            @click="guardarCfg"
-          >
-            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
-            Guardar Configuración
-          </v-btn>
-        </div>
-      </v-card>
-    </v-dialog>
-
-    <v-snackbar v-model="snackbarSuccess" color="#10b981" :timeout="3500" location="bottom center" rounded="pill">
-      <v-icon size="18" class="mr-2">mdi-check-circle</v-icon>
-      <strong>¡Guardado correctamente!</strong>
-    </v-snackbar>
-
+      <v-snackbar v-model="snackOk" color="success" timeout="4000">
+        Importación terminada
+      </v-snackbar>
+    </div>
   </MainLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { read, utils } from 'xlsx'
 import MainLayout from '../../components/layouts/MainLayout.vue'
+import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
+import { parseConsolidado, normalizar } from '../../utils/squareConsolidado'
 
 const authStore = useAuthStore()
-const empresaCodigo = computed(() => authStore.empresa || authStore.user?.empresa || '')
+const empresaCodigo = computed(() => authStore.empresa || '')
 
-// ─── Config ──────────────────────────────────────────
-const configFecha = ref(new Date().toISOString().slice(0, 10))
-const configCcosto = ref(null)
-const configCtaSquare = ref(null)
-const configCtaOtros = ref(null)
+// ─── Config ───────────────────────────────────────────
+const configFecha       = ref(new Date().toISOString().slice(0, 10))
+const configCtaOtros    = ref(null)
+const ctaOtrasComisiones = ref('')   // solo lectura: se configura en Configuración → General
 const configCtaEfectivo = ref(null)
-const ccostos = ref([])
-const ccostosLoading = ref(false)
-const cuentasBancarias = ref([])
-const cuentasLoading = ref(false)
+const ccostos           = ref([])
+const cuentasBancarias  = ref([])
+const modInventario     = ref([])
 
-// Extrae la fecha final (YYYY-MM-DD) del "Date range" del Sales Summary,
-// ej: "Jul 24, 2026 to Jul 24, 2026" → "2026-07-24"
-function extractEndDateFromRange(dateRange) {
-  if (!dateRange) return null
-  const parts = String(dateRange).split(/\s+to\s+/i)
-  const endStr = parts.length > 1 ? parts[1] : parts[0]
-  const d = new Date(endStr)
-  if (isNaN(d.getTime())) return null
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+// ─── Archivo ──────────────────────────────────────────
+const fileName    = ref('')
+const parseError  = ref('')
+const avisoParser = ref(null)
+const dragging    = ref(false)
+const sedes       = ref([])
+const periodo     = ref({ desde: '', hasta: '' })
+
+const importando = ref(false)
+const progreso   = ref('')
+const snackOk    = ref(false)
+
+const nombreCcosto = (cod) => ccostos.value.find(c => c.codigo === cod)?.nombre || cod
+const nombreCuenta = (cod) => cuentasBancarias.value.find(c => c.codigo === cod)?.nombre_cta || cod
+
+// Cuentas de Square activas: cada sede liquida en la suya
+const cuentasSquare = computed(() =>
+  cuentasBancarias.value.filter(c =>
+    c.estado !== 'INACTIVA' &&
+    (String(c.nombre_banco || '').toUpperCase().includes('SQUARE') ||
+     String(c.tipo_cuenta || '').toUpperCase().includes('SQUARE'))
+  )
+)
+
+/** Cuenta Square de una sede: la del centro de costo, o adivinada por nombre. */
+function adivinarCtaSquare(ccosto, location) {
+  const cc = ccostos.value.find(c => c.codigo === ccosto)
+  if (cc?.cta_square && cuentasBancarias.value.some(b => b.codigo === cc.cta_square)) {
+    return { codigo: cc.cta_square, auto: false }
+  }
+  // "SQUARE ALTAMONTE" ↔ sede "ALTAMONTE SPRINGS" / ccosto "ALTAMONTE"
+  const refs = [normalizar(cc?.nombre || ''), normalizar(location || '')].filter(Boolean)
+  for (const ref of refs) {
+    const hit = cuentasSquare.value.find(b => {
+      const n = normalizar(b.nombre_cta).replace(/^SQUARE ?/, '').trim()
+      return n && (ref === n || ref.startsWith(n + ' ') || n.startsWith(ref + ' ') || ref.includes(n) || n.includes(ref))
+    })
+    if (hit) return { codigo: hit.codigo, auto: true }
+  }
+  return { codigo: null, auto: false }
 }
 
-// ✓ La fecha seleccionada coincide con el rango de fechas del XLSX
-const fechaMatch = computed(() => {
-  if (!configFecha.value || !xlsxData.value?.dateRange) return false
-  return extractEndDateFromRange(xlsxData.value.dateRange) === configFecha.value
-})
+/** Guarda la cuenta Square en el centro de costo, para no repetirlo cada vez. */
+async function guardarCtaSquare(sede) {
+  if (!sede.ccosto) return
+  const cc = ccostos.value.find(c => c.codigo === sede.ccosto)
+  if (cc) cc.cta_square = sede.ctaSquare || ''
+  try {
+    await api.put(`/contabilidad/centrocostos/${sede.ccosto}`, {
+      nombre: cc?.nombre || nombreCcosto(sede.ccosto),
+      empresa: empresaCodigo.value,
+      cta_square: sede.ctaSquare || '',
+    })
+  } catch (e) { console.error('guardarCtaSquare:', e) }
+}
 
-// ✗ Hay archivo cargado pero la fecha no coincide
-const fechaMismatch = computed(() => {
-  if (!configFecha.value || !xlsxData.value?.dateRange) return false
-  const end = extractEndDateFromRange(xlsxData.value.dateRange)
-  return end !== null && end !== configFecha.value
-})
+/** Al cambiar el centro de costo, se recuerda el mapeo y se recalcula la cuenta. */
+function onCambioCcosto(sede) {
+  recordarMapeo(sede)
+  const m = adivinarCtaSquare(sede.ccosto, sede.location)
+  sede.ctaSquare = m.codigo
+}
 
-// Detecta si la ubicación del XLSX no coincide con el CCosto seleccionado
-const ubicacionMismatch = computed(() => {
-  if (!xlsxData.value?.location || !configCcosto.value) return false
-  const ccObj = ccostos.value.find(c => c.codigo === configCcosto.value)
-  if (!ccObj) return false
-  const normalize = s => String(s).toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  return !normalize(ccObj.nombre).includes(normalize(xlsxData.value.location)) &&
-         !normalize(xlsxData.value.location).includes(normalize(ccObj.nombre))
-})
+function fmt(v) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2,
+  }).format(parseFloat(v || 0))
+}
+/** Cantidades: hasta 3 decimales, sin ceros de relleno. */
+function num(v) {
+  const n = parseFloat(v || 0)
+  return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 })
+}
+const sumaCampo = (arr, campo) => arr.reduce((a, x) => a + (parseFloat(x[campo]) || 0), 0)
+const sumaCant  = (arr) => arr.reduce((a, x) => a + (parseFloat(x.cantidad) || 0), 0)
 
-// ✓ El centro de costo seleccionado coincide con la ubicación del XLSX
-const ccostoMatch = computed(() => {
-  if (!xlsxData.value?.location || !configCcosto.value) return false
-  return !ubicacionMismatch.value
-})
+// Dos valoraciones de la misma venta:
+//  · LISTA  = precio de la tabla de recetas × cantidad, más las adiciones
+//             (modificadores) cobradas. Es la venta a precio de menú.
+//  · SQUARE = lo realmente cobrado según el CSV.
+// La diferencia entre ambas es, sobre todo, el sobreprecio de las plataformas
+// de domicilio (DoorDash/Uber), que no viene identificado en el archivo.
+// Lo que se registra como "otras comisiones". Solo cuenta cuando Square cobro
+// MAS que el precio de lista (sobreprecio de plataformas). Si cobro menos, no
+// es una comision: son descuentos o ajustes de precio en caja, y no se registra.
+// El importador y la tarjeta usan esta misma funcion para que nunca muestren
+// una cifra distinta de la que se guarda.
+function otrasComisionesDe(sede) {
+  return Math.max(0, valoracion(sede).brecha)
+}
 
+function valoracion(sede) {
+  const lista = sumaCampo(sede.items, 'subtotal')          // receta x cantidad
+  const mods  = sumaCampo(sede.modificadores, 'subtotalLista') // receta x cantidad
+  const csv   = sede.ventas.ventasBrutas
+  return { lista, mods, listaTotal: lista + mods, csv, brecha: csv - (lista + mods) }
+}
+const mapeoDeMod = (nombre) =>
+  modInventario.value.filter(m => m.modificador === (nombre || '').trim())
+
+// ─── Carga de catálogos ───────────────────────────────
 async function fetchCcostos() {
   if (!empresaCodigo.value) return
-  ccostosLoading.value = true
   try {
-    const resp = await api.get('/ccostos', { params: { empresa: empresaCodigo.value } })
-    if (resp.data?.success) ccostos.value = resp.data.data
+    const r = await api.get('/ccostos', { params: { empresa: empresaCodigo.value } })
+    if (r.data?.success) ccostos.value = r.data.data
   } catch (e) { console.error('fetchCcostos:', e) }
-  finally { ccostosLoading.value = false }
 }
-
-async function fetchCuentasBancarias() {
-  if (!empresaCodigo.value) return
-  cuentasLoading.value = true
-  try {
-    const resp = await api.get('/cuentas-bancarias', { params: { empresa: empresaCodigo.value } })
-    if (resp.data?.success) cuentasBancarias.value = resp.data.data
-  } catch (e) { console.error('fetchCuentasBancarias:', e) }
-  finally { cuentasLoading.value = false }
-}
-
-async function fetchCtasBancariasPredeterminadas() {
+async function fetchCuentas() {
   if (!empresaCodigo.value) return
   try {
-    const resp = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
-    if (resp.data?.success) {
-      const cfg = resp.data.data
-      if (cfg.cta_bancaria_otros) configCtaOtros.value = cfg.cta_bancaria_otros
+    const r = await api.get('/cuentas-bancarias', { params: { empresa: empresaCodigo.value } })
+    if (r.data?.success) cuentasBancarias.value = r.data.data
+  } catch (e) { console.error('fetchCuentas:', e) }
+}
+async function fetchConfigGeneral() {
+  if (!empresaCodigo.value) return
+  try {
+    const r = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
+    if (r.data?.success) {
+      const cfg = r.data.data
+      if (cfg.cta_bancaria_otros)    configCtaOtros.value    = cfg.cta_bancaria_otros
       if (cfg.cta_bancaria_efectivo) configCtaEfectivo.value = cfg.cta_bancaria_efectivo
+      ctaOtrasComisiones.value = cfg.cta_otras_comisiones || ''
     }
-  } catch (e) { console.error('fetchCtasBancariasPredeterminadas:', e) }
+  } catch (e) { console.error('fetchConfigGeneral:', e) }
+}
+// Se guarda la promesa: si el usuario suelta el archivo antes de que termine
+// esta carga, el consumo se calcularía SIN los modificadores y quedaría
+// silenciosamente incompleto. calcularConsumo() la espera.
+let modInvPromise = null
+function fetchModInventario() {
+  modInvPromise = (async () => {
+    try {
+      const r = await api.get('/modificadores-inventario')
+      if (r.data?.success) modInventario.value = r.data.data
+    } catch (e) { console.error('fetchModInventario:', e) }
+  })()
+  return modInvPromise
 }
 
 onMounted(() => {
   fetchCcostos()
-  fetchCuentasBancarias()
-  fetchCtasBancariasPredeterminadas()
-  fetchRecetas()
-  fetchMappings()
+  fetchCuentas()
+  fetchConfigGeneral()
   fetchModInventario()
 })
 
-// ─── State ───────────────────────────────────────────
-const xlsxData = ref(null)
-const fileName = ref('')
-const parseError = ref('')
-const dragging = ref(false)
-const activeTab = ref('resumen')
-const catFiltro = ref('')
+// ─── Mapeo sede → centro de costo ─────────────────────
+// Se recuerda lo que el usuario elija, porque los nombres de Square no siempre
+// coinciden con los del centro de costo (ej. "ALTAMONTE SPRINGS" vs "ALTAMONTE").
+const claveMapeo = () => `_sqMapeoCcosto_${empresaCodigo.value}`
 
-// ─── Mappings ────────────────────────────────────────
-const mappings = ref([])
-const mappingsLoading = ref(false)
-const recetasList = ref([])
-const recetasLoading = ref(false)
-const showMappingDlg = ref(false)
-const mappingItem = ref(null)
-const mappingSku = ref(null)
-const mappingSaving = ref(false)
-const mappingDeleting = ref(false)
-const mappingError = ref('')
-
-async function fetchMappings() {
-  mappingsLoading.value = true
-  try {
-    const resp = await api.get('/square/item-mappings')
-    if (resp.data?.success) mappings.value = resp.data.data
-  } catch (e) { console.error('fetchMappings:', e) }
-  finally { mappingsLoading.value = false }
+function leerMapeos() {
+  try { return JSON.parse(localStorage.getItem(claveMapeo()) || '{}') } catch { return {} }
+}
+function recordarMapeo(sede) {
+  sede.autoAsignado = false
+  const m = leerMapeos()
+  if (sede.ccosto) m[normalizar(sede.location)] = sede.ccosto
+  else delete m[normalizar(sede.location)]
+  localStorage.setItem(claveMapeo(), JSON.stringify(m))
 }
 
-async function fetchRecetas() {
-  recetasLoading.value = true
-  try {
-    const resp = await api.get('/recetas', { params: { empresa: empresaCodigo.value } })
-    if (resp.data?.success) recetasList.value = resp.data.data
-  } catch (e) { console.error('fetchRecetas:', e) }
-  finally { recetasLoading.value = false }
-}
-
-function getMappingForItem(itemName, itemVariation) {
-  const name = (itemName || '').trim().toUpperCase()
-  const variation = (itemVariation || '').trim().toUpperCase()
-  return mappings.value.find(m =>
-    (m.item_name || '').trim().toUpperCase() === name &&
-    (m.item_variation || '').trim().toUpperCase() === variation
-  )
-}
-
-function openMappingDialog(item) {
-  mappingItem.value = item
-  mappingSku.value = item.mappedSku || null
-  mappingError.value = ''
-  showMappingDlg.value = true
-}
-
-async function saveMapping() {
-  if (!mappingSku.value || !mappingItem.value) return
-  mappingSaving.value = true
-  mappingError.value = ''
-  try {
-    await api.post('/square/item-mappings', {
-      item_name: mappingItem.value.name,
-      item_variation: mappingItem.value.variation || '',
-      sku: mappingSku.value
-    })
-    await fetchMappings()
-    applyMappingsToItems()
-    showMappingDlg.value = false
-    await calcularConsumo()
-  } catch (e) {
-    mappingError.value = e?.response?.data?.error || e.message
-  } finally { mappingSaving.value = false }
-}
-
-async function deleteMapping() {
-  if (!mappingItem.value) return
-  mappingDeleting.value = true
-  try {
-    const m = getMappingForItem(mappingItem.value.name, mappingItem.value.variation)
-    if (m) await api.delete(`/square/item-mappings/${m.id}`)
-    await fetchMappings()
-    applyMappingsToItems()
-    showMappingDlg.value = false
-    await calcularConsumo()
-  } catch (e) {
-    mappingError.value = e?.response?.data?.error || e.message
-  } finally { mappingDeleting.value = false }
-}
-
-function applyMappingsToItems() {
-  if (!xlsxData.value) return
-  for (const item of xlsxData.value.items) {
-    const m = getMappingForItem(item.name, item.variation)
-    item.mappedSku = m?.sku || null
-    item.mappedRecetaNombre = m?.receta_nombre || null
+/** Asocia el nombre de sede de Square con un centro de costo. */
+function adivinarCcosto(location) {
+  const guardado = leerMapeos()[normalizar(location)]
+  if (guardado && ccostos.value.some(c => c.codigo === guardado)) {
+    return { codigo: guardado, auto: false }
   }
+  const loc = normalizar(location)
+  const cands = ccostos.value.filter(c => c.activo !== 'NO')
+
+  let hit = cands.find(c => normalizar(c.nombre) === loc)
+  if (hit) return { codigo: hit.codigo, auto: true }
+
+  // "ALTAMONTE SPRINGS" ↔ "ALTAMONTE": uno empieza con el otro
+  hit = cands.find(c => {
+    const n = normalizar(c.nombre)
+    return n && (loc.startsWith(n + ' ') || n.startsWith(loc + ' '))
+  })
+  if (hit) return { codigo: hit.codigo, auto: true }
+
+  hit = cands.find(c => {
+    const n = normalizar(c.nombre)
+    return n && (loc.includes(n) || n.includes(loc))
+  })
+  if (hit) return { codigo: hit.codigo, auto: true }
+
+  return { codigo: null, auto: false }
 }
 
-// ─── Configuración modificadores → inventario ────────
-const showModConfigDlg = ref(false)
-const modConfigMod = ref(null)
-const modConfigLines = ref([])
-const productosControlados = ref([])
-const modNewLine = ref({ articulo: null, cant: '', tipo: '+' })
-const modSavingLine = ref(false)
-const modDeletingId = ref(null)
-const modSaveLineError = ref('')
-
-const modificadoresConfigurados = computed(() =>
-  new Set(allModInventario.value.map(m => m.modificador))
-)
-
-async function fetchProductosControlados(q = '') {
-  try {
-    const resp = await api.get('/productos/controlados', { params: q ? { q } : {} })
-    if (resp.data?.success) productosControlados.value = resp.data.data
-  } catch (e) { console.error('fetchProductosControlados:', e) }
-}
-
-function openModConfigDialog(mod) {
-  modConfigMod.value = mod
-  modConfigLines.value = allModInventario.value.filter(m => m.modificador === mod.name)
-  modNewLine.value = { articulo: null, cant: '', tipo: '+' }
-  modSaveLineError.value = ''
-  showModConfigDlg.value = true
-  fetchProductosControlados()
-}
-
-async function saveModNewLine() {
-  if (!modNewLine.value.articulo || !modNewLine.value.cant) return
-  modSavingLine.value = true
-  modSaveLineError.value = ''
-  try {
-    const codigo = typeof modNewLine.value.articulo === 'object'
-      ? modNewLine.value.articulo.codigo
-      : modNewLine.value.articulo
-    const resp = await api.post('/modificadores-inventario', {
-      modificador: modConfigMod.value.name,
-      articulo: codigo,
-      cant: parseFloat(modNewLine.value.cant),
-      tipo: modNewLine.value.tipo
-    })
-    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
-    await fetchModInventario()
-    modConfigLines.value = allModInventario.value.filter(m => m.modificador === modConfigMod.value.name)
-    modNewLine.value = { articulo: null, cant: '', tipo: '+' }
-    if (xlsxData.value) await calcularConsumo()
-  } catch (e) {
-    modSaveLineError.value = e?.response?.data?.error || e.message || 'Error al guardar'
-  } finally { modSavingLine.value = false }
-}
-
-async function deleteModLine(id) {
-  modDeletingId.value = id
-  try {
-    await api.delete(`/modificadores-inventario/${id}`)
-    await fetchModInventario()
-    modConfigLines.value = allModInventario.value.filter(m => m.modificador === modConfigMod.value.name)
-    if (xlsxData.value) await calcularConsumo()
-  } catch (e) { console.error('deleteModLine:', e) }
-  finally { modDeletingId.value = null }
-}
-
-// ─── Consumo ─────────────────────────────────────────
-const consumo = ref([])
-const consumoLoading = ref(false)
-const allModInventario = ref([])
-
-async function fetchModInventario() {
-  try {
-    const resp = await api.get('/modificadores-inventario')
-    if (resp.data?.success) allModInventario.value = resp.data.data
-  } catch (e) { console.error('fetchModInventario:', e) }
-}
-
-async function calcularConsumo() {
-  if (!xlsxData.value) return
-  const mappedItems = xlsxData.value.items.filter(i => i.mappedSku)
-  if (!mappedItems.length) { consumo.value = []; return }
-
-  const skus = [...new Set(mappedItems.map(i => i.mappedSku))]
-  consumoLoading.value = true
-  consumo.value = []
-  try {
-    const resp = await api.get('/detalle-productos/por-recetas', { params: { recetas: skus.join(',') } })
-    if (!resp.data?.success || !resp.data.data?.length) return
-
-    const cantMap = {}
-    for (const item of mappedItems) {
-      cantMap[item.mappedSku] = (cantMap[item.mappedSku] || 0) + item.qty
-    }
-
-    const nombreRecetaMap = {}
-    for (const item of mappedItems) {
-      if (!nombreRecetaMap[item.mappedSku]) {
-        nombreRecetaMap[item.mappedSku] = item.mappedRecetaNombre || item.name || item.mappedSku
-      }
-    }
-
-    const consumoMap = {}
-    for (const dp of resp.data.data) {
-      const receta = (dp.receta || '').trim()
-      const codArt = (dp.articulo || '').trim()
-      const nombre = (dp.articulo_nombre || codArt).trim()
-      const und = (dp.und || '').trim()
-      const cantRec = parseFloat(dp.cant) || 0
-      const vendidos = cantMap[receta] || 0
-      const total = cantRec * vendidos
-
-      const grupo = (dp.grupo || '').trim()
-      const grupoNombre = (dp.grupo_nombre || grupo || 'SIN GRUPO').trim()
-
-      if (!consumoMap[codArt]) {
-        consumoMap[codArt] = { codigo: codArt, nombre, und, grupo, grupoNombre, totalConsumo: 0, recetas: [] }
-      }
-      consumoMap[codArt].totalConsumo += total
-      consumoMap[codArt].recetas.push({
-        sku: receta,
-        nombreReceta: nombreRecetaMap[receta] || receta,
-        cantPorUnidad: cantRec,
-        vendidos,
-        subtotal: total
-      })
-    }
-
-    // Modificadores de inventario
-    for (const mod of (xlsxData.value?.modifiers || [])) {
-      const modNombre = (mod.name || '').trim()
-      const modMappings = allModInventario.value.filter(m => m.modificador === modNombre)
-      for (const mp of modMappings) {
-        const codArt = (mp.articulo || '').trim()
-        const nombre = (mp.articulo_nombre || codArt).trim()
-        const und = (mp.und || '').trim()
-        const grupo = (mp.grupo || '').trim()
-        const cantMp = parseFloat(mp.cant) || 0
-        const vendidos = mod.netQty || 0
-        const total = cantMp * vendidos
-        const delta = mp.tipo === '-' ? -total : total
-
-        if (!consumoMap[codArt]) {
-          consumoMap[codArt] = { codigo: codArt, nombre, und, grupo, grupoNombre: grupo || 'SIN GRUPO', totalConsumo: 0, recetas: [] }
-        }
-        consumoMap[codArt].totalConsumo += delta
-        consumoMap[codArt].recetas.push({
-          sku: mp.tipo === '-' ? 'MOD−' : 'MOD+',
-          nombreReceta: (mp.tipo === '-' ? '[RESTA] ' : '') + modNombre,
-          cantPorUnidad: cantMp,
-          vendidos,
-          subtotal: delta
-        })
-      }
-    }
-
-    consumo.value = Object.values(consumoMap).sort((a, b) => {
-      const g = a.grupo.localeCompare(b.grupo)
-      return g !== 0 ? g : a.nombre.localeCompare(b.nombre)
-    })
-  } catch (e) {
-    console.error('Error calcularConsumo:', e)
-  } finally { consumoLoading.value = false }
-}
-
-const consumoAgrupado = computed(() => {
-  const groups = {}
-  for (const c of consumo.value) {
-    const key = c.grupo || 'ZZZ'
-    if (!groups[key]) groups[key] = { grupo: c.grupo, grupoNombre: c.grupoNombre, items: [] }
-    groups[key].items.push(c)
-  }
-  return Object.values(groups).sort((a, b) => a.grupo.localeCompare(b.grupo))
-})
-
-const showRecetasDialog = ref(false)
-const recetasDialogItem = ref(null)
-
-function verRecetas(item) {
-  recetasDialogItem.value = item
-  showRecetasDialog.value = true
-}
-
-// ─── Guardar ─────────────────────────────────────────
-const showSaveDlg = ref(false)
-const saving = ref(false)
-const saveError = ref('')
-const snackbarSuccess = ref(false)
-const configGeneral = ref(null)
-
-// ── Config General: editor de cuentas ─────────────────
-const showCfgEditor = ref(false)
-const cuentasContables = ref([])
-const cuentasLoading2 = ref(false)
-const editCfg = ref({})
-const savingCfg = ref(false)
-const saveCfgError = ref('')
-
-const CFG_FIELDS = [
-  { key: 'cta_ventas',            label: 'Ventas Brutas − Devoluciones' },
-  { key: 'cta_descuentos_ventas', label: 'Descuentos en Ventas' },
-  { key: 'cta_impuestos',         label: 'Impuestos' },
-  { key: 'cta_propinas',          label: 'Propinas' },
-  { key: 'cta_comisiones',        label: 'Comisiones Square' },
-  { key: 'cta_egresos_impuestos', label: 'Egreso Impuestos' },
-  { key: 'cta_egresos_propinas',  label: 'Egreso Propinas' },
-]
-
-async function abrirCfgEditor() {
-  saveCfgError.value = ''
-  if (!cuentasContables.value.length) {
-    cuentasLoading2.value = true
-    try {
-      const resp = await api.get('/gastos/cuentas-contables', { params: { empresa: empresaCodigo.value } })
-      if (resp.data?.success) cuentasContables.value = resp.data.cuentas
-    } catch (e) { console.error('fetchCuentasContables:', e) }
-    finally { cuentasLoading2.value = false }
-  }
-  editCfg.value = configGeneral.value ? { ...configGeneral.value } : {}
-  showCfgEditor.value = true
-}
-
-async function guardarCfg() {
-  savingCfg.value = true
-  saveCfgError.value = ''
-  try {
-    const payload = { empresa: empresaCodigo.value }
-    for (const f of CFG_FIELDS) payload[f.key] = editCfg.value[f.key] || null
-    const resp = await api.put('/config-general', payload)
-    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
-    const r2 = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
-    if (r2.data?.success) configGeneral.value = r2.data.data
-    showCfgEditor.value = false
-  } catch (e) {
-    saveCfgError.value = e?.response?.data?.error || e.message || 'Error al guardar'
-  } finally { savingCfg.value = false }
-}
-
-async function abrirGuardarResumen() {
-  if (!xlsxData.value) return
-  saveError.value = ''
-  configGeneral.value = null
-  if (!configFecha.value || !configCcosto.value) {
-    saveError.value = 'Debes seleccionar Fecha y Centro de Costo antes de guardar.'
-    showSaveDlg.value = true
-    return
-  }
-  try {
-    const resp = await api.get('/config-general', { params: { empresa: empresaCodigo.value } })
-    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al leer configuración')
-    configGeneral.value = resp.data.data
-  } catch (e) {
-    saveError.value = e?.response?.data?.error || e.message || 'Error al cargar config_general'
-  }
-  showSaveDlg.value = true
-}
-
-// Preview de los 7 registros calculados con los datos actuales
-const previewResumen = computed(() => {
-  if (!xlsxData.value || !configGeneral.value) return []
-  const s = xlsxData.value.summary
-  const cfg = configGeneral.value
-  const ventasNetas = Math.abs((s.grossSales || 0) - Math.abs(s.returns || 0))
-  const descuentos = Math.abs(s.discounts || 0)
-  const impuestos = Math.abs(s.salesTax || 0)
-  const propinas = Math.abs(paymentTotals.value.tips || 0)
-  const comisiones = Math.abs(totalFees.value || 0)
-  return [
-    { label: 'Ventas Brutas − Devoluciones', campo: 'cta_ventas',            cuenta: cfg.cta_ventas,            valor: ventasNetas },
-    { label: 'Descuentos en Ventas',         campo: 'cta_descuentos_ventas', cuenta: cfg.cta_descuentos_ventas, valor: descuentos  },
-    { label: 'Impuestos',                    campo: 'cta_impuestos',         cuenta: cfg.cta_impuestos,         valor: impuestos   },
-    { label: 'Propinas',                     campo: 'cta_propinas',          cuenta: cfg.cta_propinas,          valor: propinas    },
-    { label: 'Comisiones Square',            campo: 'cta_comisiones',        cuenta: cfg.cta_comisiones,        valor: comisiones  },
-    { label: 'Egreso Impuestos',             campo: 'cta_egresos_impuestos', cuenta: cfg.cta_egresos_impuestos, valor: impuestos   },
-    { label: 'Egreso Propinas',              campo: 'cta_egresos_propinas',  cuenta: cfg.cta_egresos_propinas,  valor: propinas    },
-  ]
-})
-
-async function confirmarGuardar(force = false) {
-  saving.value = true
-  saveError.value = ''
-  try {
-    const s = xlsxData.value.summary
-    const ccostoObj = ccostos.value.find(c => c.codigo === configCcosto.value)
-
-    const ventas = {
-      ventasBrutas: s.grossSales,
-      devoluciones: Math.abs(s.returns),
-      descuentos: Math.abs(s.discounts),
-      ventasNetas: s.netSales,
-      ventasTarjetaRegalo: 0,
-      impuestos: s.salesTax,
-      propinas: paymentTotals.value.tips,
-      reembolsos: 0,
-      total: s.totalCollected
-    }
-    const pagos = {
-      totalRecibido: s.totalCollected,
-      efectivo: paymentTotals.value.cash,
-      tarjeta: paymentTotals.value.card,
-      otro: paymentTotals.value.other,
-      tarjetaRegalo: 0,
-      comisiones: totalFees.value,
-      totalNeto: s.totalCollected + totalFees.value
-    }
-
-    const mappedItems = xlsxData.value.items.filter(i => i.mappedSku).map(i => ({
-      sku: i.mappedSku,
-      nombre: i.name,
-      variante: i.variation || '',
-      categoria: i.category,
-      cantidad: i.qty,
-      ventasBrutas: i.grossSales,
-      ventasNetas: i.netSales
-    }))
-
-    const resp = await api.post('/square/importar-resumen', {
-      empresa: empresaCodigo.value,
-      fecha: configFecha.value,
-      ccosto: configCcosto.value,
-      ccostoNombre: ccostoObj?.nombre || configCcosto.value,
-      ventas,
-      pagos,
-      items: mappedItems,
-      consumoItems: consumo.value || [],
-      ctaSquare: configCtaSquare.value,
-      ctaOtros: configCtaOtros.value,
-      ctaEfectivo: configCtaEfectivo.value,
-      force,
-    })
-
-    if (resp.data?.conflict) {
-      saveError.value = `Ya existen ${resp.data.count || 0} registros para esta fecha/ccosto/empresa. Usa la versión anterior para reimportar con force.`
-      return
-    }
-    if (!resp.data?.success) throw new Error(resp.data?.error || 'Error al guardar')
-
-    showSaveDlg.value = false
-    snackbarSuccess.value = true
-    limpiar()
-  } catch (e) {
-    saveError.value = e?.response?.data?.error || e.message || 'Error al guardar'
-  } finally { saving.value = false }
-}
-
-// ─── Formatting ──────────────────────────────────────
-function fmt(val) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency', currency: 'USD',
-    minimumFractionDigits: 2, maximumFractionDigits: 2
-  }).format(parseFloat(val || 0))
-}
-
-function fmtNum(val) {
-  const n = parseFloat(val || 0)
-  const decimals = n % 1 === 0 ? 0 : Math.min(4,
-    (n.toString().split('.')[1] || '').replace(/0+$/, '').length
-  )
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: decimals > 0 ? 2 : 0,
-    maximumFractionDigits: 4
-  }).format(n)
-}
-
-function fmtDec(val) {
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2, maximumFractionDigits: 2
-  }).format(parseFloat(val || 0))
-}
-
-// ─── Computed ────────────────────────────────────────
-const categorias = computed(() => {
-  if (!xlsxData.value) return []
-  return [...new Set(xlsxData.value.items.map(i => i.category))]
-})
-
-const itemsFiltrados = computed(() => {
-  if (!xlsxData.value) return []
-  if (!catFiltro.value) return xlsxData.value.items
-  return xlsxData.value.items.filter(i => i.category === catFiltro.value)
-})
-
-const itemsAgrupados = computed(() => {
-  const groups = {}
-  for (const item of itemsFiltrados.value) {
-    if (!groups[item.category]) groups[item.category] = []
-    groups[item.category].push(item)
-  }
-  return groups
-})
-
-const totalUnidades = computed(() => (xlsxData.value?.items || []).reduce((s, i) => s + i.qty, 0))
-const totalGrossSales = computed(() => (xlsxData.value?.items || []).reduce((s, i) => s + i.grossSales, 0))
-const mappedCount = computed(() => (xlsxData.value?.items || []).filter(i => i.mappedSku).length)
-const unmappedCount = computed(() => (xlsxData.value?.items || []).filter(i => !i.mappedSku).length)
-
-const modifiersGrouped = computed(() => {
-  const groups = {}
-  for (const m of (xlsxData.value?.modifiers || [])) {
-    const g = m.group || 'SIN GRUPO'
-    if (!groups[g]) groups[g] = []
-    groups[g].push(m)
-  }
-  return groups
-})
-
-const paymentTotals = computed(() => {
-  const payments = xlsxData.value?.payments || []
-  const card = payments.filter(p => p.method === 'Card').reduce((s, p) => s + p.amount, 0)
-  const cash = payments.filter(p => p.method === 'Cash').reduce((s, p) => s + p.amount, 0)
-  const other = payments.filter(p => p.method === 'Other').reduce((s, p) => s + p.amount, 0)
-  const tips = payments.reduce((s, p) => s + (p.tips || 0), 0)
-  return { card, cash, other, total: card + cash + other, tips }
-})
-
-const totalFees = computed(() => (xlsxData.value?.fees || []).reduce((s, f) => s + f.amount, 0))
-
-const FEE_LABELS = {
-  'ADDITIONAL_FEE': 'International Payments Fee',
-}
-function feeLabel(subtype) {
-  return FEE_LABELS[String(subtype || '').toUpperCase()] || subtype
-}
-
-const totalModUnidades = computed(() =>
-  (xlsxData.value?.modifiers || []).reduce((s, m) => s + m.netQty, 0)
-)
-const totalModNetas = computed(() =>
-  (xlsxData.value?.modifiers || []).reduce((s, m) => s + m.netSales, 0)
-)
-
-// ─── XLSX Parser ─────────────────────────────────────
-function parseNum(val) {
-  if (val == null || val === '') return 0
-  if (typeof val === 'number') return val
-  let s = String(val).trim().replace(/^\$/, '').replace(/,/g, '')
-  return parseFloat(s) || 0
-}
-
-function parseQty(val) {
-  if (val == null) return 0
-  if (typeof val === 'number') return val
-  const m = String(val).match(/(\d+)/)
-  return m ? parseInt(m[1]) : 0
-}
-
-function parseXLSX(buffer) {
-  const wb = read(buffer, { type: 'array' })
-  const result = {
-    location: '',
-    dateRange: '',
-    summary: {},
-    items: [],
-    modifiers: [],
-    payments: [],
-    fees: [],
-    taxes: {}
-  }
-
-  // Sales Summary
-  const ss = wb.Sheets['Sales Summary']
-  if (ss) {
-    const data = utils.sheet_to_json(ss, { header: 1 })
-    for (const row of data) {
-      const key = String(row[0] || '').toLowerCase()
-      if (key === 'locations') result.location = row[1] || ''
-      if (key === 'date range') result.dateRange = row[1] || ''
-    }
-    const metricMap = {}
-    let inMetrics = false
-    for (const row of data) {
-      if (String(row[0] || '').toLowerCase() === 'metric') { inMetrics = true; continue }
-      if (inMetrics && row[0]) metricMap[String(row[0]).toLowerCase()] = parseNum(row[1])
-    }
-    result.summary = {
-      grossSales: metricMap['gross sales'] || 0,
-      totalItemSales: metricMap['total item sales'] || 0,
-      returns: metricMap['returns'] || 0,
-      discounts: metricMap['discounts'] || 0,
-      comps: metricMap['comps'] || 0,
-      netSales: metricMap['net sales'] || 0,
-      salesTax: metricMap['sales tax'] || 0,
-      tips: metricMap['tips (non-cash)'] || metricMap['tips'] || 0,
-      totalCollected: metricMap['total collected'] || 0
-    }
-  }
-
-  // Items
-  const is = wb.Sheets['Items']
-  if (is) {
-    const data = utils.sheet_to_json(is, { header: 1 })
-    let headerIdx = -1
-    for (let i = 0; i < data.length; i++) {
-      if (String(data[i][0] || '').toLowerCase() === 'category') { headerIdx = i; break }
-    }
-    if (headerIdx >= 0) {
-      for (let i = headerIdx + 1; i < data.length; i++) {
-        const row = data[i]
-        if (!row[0] && !row[1]) continue
-        result.items.push({
-          category: row[0] || '',
-          name: row[1] || '',
-          variation: row[2] || '',
-          grossSales: parseNum(row[3]),
-          netSales: parseNum(row[4]),
-          qty: parseQty(row[5]),
-          key: `${row[0]}-${row[1]}-${row[2] || ''}`,
-          mappedSku: null,
-          mappedRecetaNombre: null
-        })
-      }
-    }
-  }
-
-  // Modifiers
-  const ms = wb.Sheets['Modifiers']
-  if (ms) {
-    const data = utils.sheet_to_json(ms, { header: 1 })
-    let headerIdx = -1
-    for (let i = 0; i < data.length; i++) {
-      if (String(data[i][0] || '').toLowerCase().includes('modifier list')) { headerIdx = i; break }
-    }
-    if (headerIdx >= 0) {
-      for (let i = headerIdx + 1; i < data.length; i++) {
-        const row = data[i]
-        if (!row[0] && !row[1]) continue
-        result.modifiers.push({
-          group: row[0] || '',
-          name: row[1] || '',
-          grossSales: parseNum(row[2]),
-          netSales: parseNum(row[3]),
-          netQty: parseQty(row[4]),
-          orders: parseQty(row[5])
-        })
-      }
-    }
-  }
-
-  // Payments
-  const ps = wb.Sheets['Payments']
-  if (ps) {
-    const data = utils.sheet_to_json(ps, { header: 1 })
-    let headerIdx = -1
-    for (let i = 0; i < data.length; i++) {
-      if (String(data[i][0] || '').toLowerCase().includes('payment method')) { headerIdx = i; break }
-    }
-    if (headerIdx >= 0) {
-      for (let i = headerIdx + 1; i < data.length; i++) {
-        const row = data[i]
-        if (!row[0]) continue
-        result.payments.push({
-          method: row[0] || '',
-          paymentId: row[1] || '',
-          totalAmount: parseNum(row[2]),
-          refunded: parseNum(row[3]),
-          amount: parseNum(row[4]),
-          transferable: parseNum(row[5]),
-          tips: parseNum(row[6])
-        })
-      }
-    }
-  }
-
-  // Fees
-  const fs = wb.Sheets['Fees']
-  if (fs) {
-    const data = utils.sheet_to_json(fs, { header: 1 })
-    let headerIdx = -1
-    for (let i = 0; i < data.length; i++) {
-      if (String(data[i][0] || '').toLowerCase().includes('fee subtype')) { headerIdx = i; break }
-    }
-    if (headerIdx >= 0) {
-      for (let i = headerIdx + 1; i < data.length; i++) {
-        const row = data[i]
-        if (!row[0]) continue
-        result.fees.push({
-          subtype: row[0] || '',
-          amount: parseNum(row[1]),
-          entries: parseQty(row[2])
-        })
-      }
-    }
-  }
-
-  // Taxes
-  const ts = wb.Sheets['Taxes']
-  if (ts) {
-    const data = utils.sheet_to_json(ts, { header: 1 })
-    let inMetrics = false
-    for (const row of data) {
-      if (String(row[0] || '').toLowerCase() === 'metric') { inMetrics = true; continue }
-      if (inMetrics && row[0]) {
-        result.taxes[String(row[0])] = row[1]
-      }
-    }
-  }
-
-  return result
-}
-
-// ─── File handling ───────────────────────────────────
-async function processFile(file) {
-  parseError.value = ''
-  try {
-    const buffer = await file.arrayBuffer()
-    xlsxData.value = parseXLSX(buffer)
-    fileName.value = file.name
-    activeTab.value = 'resumen'
-    applyMappingsToItems()
-    await calcularConsumo()
-  } catch (e) {
-    parseError.value = `Error al parsear "${file.name}": ${e.message}`
-    console.error(e)
-  }
-}
-
+// ─── Lectura del archivo ──────────────────────────────
 function onDrop(e) {
   dragging.value = false
-  const file = e.dataTransfer.files[0]
-  if (file) processFile(file)
+  const f = e.dataTransfer.files?.[0]
+  if (f) leerArchivo(f)
+}
+function onPick(e) {
+  const f = e.target.files?.[0]
+  if (f) leerArchivo(f)
 }
 
-function onFileInput(e) {
-  const file = e.target.files[0]
-  if (file) processFile(file)
-  e.target.value = ''
+function decodificar(buffer) {
+  const bytes = new Uint8Array(buffer)
+  // BOM UTF-8
+  if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+    return new TextDecoder('utf-8').decode(bytes.subarray(3))
+  }
+  const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+  // Si aparecen caracteres de reemplazo, probablemente sea latin1
+  if (utf8.includes('�')) return new TextDecoder('windows-1252').decode(bytes)
+  return utf8
+}
+
+async function leerArchivo(file) {
+  parseError.value = ''
+  avisoParser.value = null
+  fileName.value = file.name
+  try {
+    const buffer = await file.arrayBuffer()
+    const texto = decodificar(buffer)
+    const r = parseConsolidado(texto, file.name)
+
+    periodo.value = r.periodo
+    // Se usa la fecha INICIAL: el reporte cubre una ventana de 12:00 pm a 3:00 am,
+    // es decir un día de operación que cruza la medianoche. El archivo
+    // "2026-08-16-2026-08-17" corresponde al día de negocio del 16.
+    if (r.periodo.desde) configFecha.value = r.periodo.desde
+    avisoParser.value = r.aviso
+
+    sedes.value = r.sedes.map(s => {
+      const m = adivinarCcosto(s.location)
+      const cta = adivinarCtaSquare(m.codigo, s.location)
+      return {
+        ...s,
+        ccosto: m.codigo,
+        autoAsignado: m.auto,
+        ctaSquare: cta.codigo,
+        ctaSquareAuto: cta.auto,
+        incluir: true,
+        force: false,
+        yaImportado: 0,
+        consumo: [],
+        consumoLoading: false,
+        consumoError: '',
+        recetasError: '',
+        itemsSinReceta: 0,
+        resultado: null,
+        estado: 'pendiente',   // pendiente | guardando | ok | error
+        detalleGuardado: null, // conteos que devuelve el backend
+        verDetalle: false,
+        tab: 'items',
+      }
+    })
+
+    if (!sedes.value.length) {
+      parseError.value = 'El archivo se leyó pero no trae sedes en la sección de resumen.'
+      return
+    }
+
+    for (const s of sedes.value) {
+      await enriquecerConRecetas(s)   // debe correr antes: fija precio y subtotal
+      await enriquecerModificadores(s)
+      calcularConsumo(s)
+    }
+    verificarYaImportado()
+  } catch (e) {
+    console.error(e)
+    sedes.value = []
+    parseError.value = e.message || 'No se pudo leer el archivo'
+  }
 }
 
 function limpiar() {
-  xlsxData.value = null
+  sedes.value = []
   fileName.value = ''
-  consumo.value = []
   parseError.value = ''
-  activeTab.value = 'resumen'
+  avisoParser.value = null
+  progreso.value = ''
+  periodo.value = { desde: '', hasta: '' }
+}
+
+// ─── Precio de venta desde las recetas ────────────────
+// El CSV de Square NO trae precio unitario, y detalle_ventas lo necesita
+// (vr_unit y subtotal). Se toma el precio de venta de la receta del SKU, igual
+// que hace el importador por sede; sin esto los productos vendidos quedarían
+// guardados en cero.
+async function enriquecerConRecetas(sede) {
+  const skus = [...new Set(sede.items.map(i => (i.sku || '').trim()).filter(Boolean))]
+  if (!skus.length) return
+  try {
+    const r = await api.get('/recetas/por-skus', { params: { skus: skus.join(',') } })
+    const mapa = {}
+    for (const rec of (r.data?.success ? r.data.data || [] : [])) {
+      mapa[String(rec.codigo || '').trim()] = rec
+    }
+    let sinReceta = 0
+    for (const item of sede.items) {
+      const sku = (item.sku || '').trim()
+      const rec = sku ? mapa[sku] : null
+      if (rec) {
+        item.nombreReceta = rec.nombre
+        item.precioVenta  = parseFloat(rec.precio_venta) || 0
+        item.subtotal     = item.cantidad * item.precioVenta
+      } else {
+        // Sin receta: se cae al precio implícito del propio reporte
+        item.precioVenta = item.cantidad ? item.ventasBrutas / item.cantidad : 0
+        item.subtotal    = item.ventasBrutas
+        if (sku) sinReceta++
+      }
+    }
+    sede.itemsSinReceta = sinReceta
+  } catch (e) {
+    console.error('enriquecerConRecetas:', e)
+    // Antes esto caía en silencio al precio del CSV y la comparación quedaba
+    // inservible (la venta "a precio de lista" salía igual al bruto de Square).
+    sede.recetasError = e?.response?.data?.error || e.message || 'No se pudieron consultar las recetas'
+    for (const item of sede.items) {
+      if (item.precioVenta === undefined) {
+        item.precioVenta = item.cantidad ? item.ventasBrutas / item.cantidad : 0
+        item.subtotal    = item.ventasBrutas
+      }
+    }
+  }
+}
+
+// Precio de lista de los modificadores. En el reporte de Square vienen por
+// NOMBRE, así que se buscan así en la tabla de recetas. Los que no existan
+// (o valgan 0, como "NO LECHUGA") se quedan con lo que cobró Square.
+async function enriquecerModificadores(sede) {
+  const nombres = [...new Set(sede.modificadores.map(m => (m.modificador || '').trim()).filter(Boolean))]
+  if (!nombres.length) return
+  try {
+    const r = await api.post('/recetas/por-nombres', { nombres })
+    const mapa = {}
+    for (const rec of (r.data?.success ? r.data.data || [] : [])) {
+      mapa[String(rec.nombre || '').trim().toUpperCase()] = parseFloat(rec.precio_venta) || 0
+    }
+    for (const m of sede.modificadores) {
+      const pv = mapa[(m.modificador || '').trim().toUpperCase()]
+      if (pv > 0) {
+        m.precioLista = pv
+        m.subtotalLista = (m.cantidadNeta || 0) * pv
+      } else {
+        m.precioLista = null
+        m.subtotalLista = m.ventasBrutas
+      }
+    }
+  } catch (e) {
+    console.error('enriquecerModificadores:', e)
+    for (const m of sede.modificadores) {
+      if (m.subtotalLista === undefined) { m.precioLista = null; m.subtotalLista = m.ventasBrutas }
+    }
+  }
+}
+
+// ─── Consumo de inventario por sede ───────────────────
+// Misma lógica que el importador por sede: se expanden las recetas de los SKUs
+// vendidos y luego se aplican los modificadores mapeados a inventario.
+async function calcularConsumo(sede) {
+  sede.consumoError = ''
+  const itemsConSku = sede.items.filter(i => i.sku && i.sku.trim() !== '')
+  if (!itemsConSku.length) {
+    sede.consumoError = 'Ningún producto del archivo trae SKU, así que no se puede calcular el consumo.'
+    return
+  }
+  sede.consumoLoading = true
+  try {
+    await modInvPromise            // los modificadores deben estar cargados
+    const skus = [...new Set(itemsConSku.map(i => i.sku.trim()))]
+    const r = await api.get('/detalle-productos/por-recetas', { params: { recetas: skus.join(',') } })
+    const filas = r.data?.success ? (r.data.data || []) : []
+    if (!filas.length) {
+      sede.consumoError = `Ninguno de los ${skus.length} SKU del reporte tiene receta con artículos de inventario (o los artículos no están marcados con control = SÍ).`
+    }
+
+    const cantPorSku = {}
+    const nombrePorSku = {}
+    for (const it of itemsConSku) {
+      const sku = it.sku.trim()
+      cantPorSku[sku] = (cantPorSku[sku] || 0) + it.cantidad
+      if (!nombrePorSku[sku]) nombrePorSku[sku] = it.nombre || sku
+    }
+
+    const mapa = {}
+    for (const dp of filas) {
+      const receta = (dp.receta || '').trim()
+      const codArt = (dp.articulo || '').trim()
+      const vendidos = cantPorSku[receta] || 0
+      const total = (parseFloat(dp.cant) || 0) * vendidos
+      if (!mapa[codArt]) {
+        mapa[codArt] = {
+          codigo: codArt,
+          nombre: (dp.articulo_nombre || codArt).trim(),
+          und: (dp.und || '').trim(),
+          grupo: (dp.grupo || '').trim(),
+          grupoNombre: (dp.grupo_nombre || dp.grupo || 'SIN GRUPO').trim(),
+          totalConsumo: 0,
+          recetas: [],
+        }
+      }
+      mapa[codArt].totalConsumo += total
+      mapa[codArt].recetas.push({
+        sku: receta,
+        nombreReceta: nombrePorSku[receta] || receta,
+        cantPorUnidad: parseFloat(dp.cant) || 0,
+        vendidos,
+        subtotal: total,
+      })
+    }
+
+    for (const mod of sede.modificadores) {
+      const nombreMod = (mod.modificador || '').trim()
+      for (const mp of modInventario.value.filter(m => m.modificador === nombreMod)) {
+        const codArt = (mp.articulo || '').trim()
+        const cantMp = parseFloat(mp.cant) || 0
+        const vendidos = mod.cantidadNeta || 0
+        const delta = (mp.tipo === '-' ? -1 : 1) * cantMp * vendidos
+        if (!mapa[codArt]) {
+          mapa[codArt] = {
+            codigo: codArt,
+            nombre: (mp.articulo_nombre || codArt).trim(),
+            und: (mp.und || '').trim(),
+            grupo: (mp.grupo || '').trim(),
+            grupoNombre: (mp.grupo || 'SIN GRUPO').trim(),
+            totalConsumo: 0,
+            recetas: [],
+          }
+        }
+        mapa[codArt].totalConsumo += delta
+        mapa[codArt].recetas.push({
+          sku: mp.tipo === '-' ? 'MOD−' : 'MOD+',
+          nombreReceta: (mp.tipo === '-' ? '[RESTA] ' : '') + nombreMod,
+          cantPorUnidad: cantMp,
+          vendidos,
+          subtotal: delta,
+        })
+      }
+    }
+
+    sede.consumo = Object.values(mapa)
+  } catch (e) {
+    console.error('calcularConsumo:', e)
+    sede.consumoError = e?.response?.data?.error || e.message || 'Error al calcular el consumo de inventario'
+  } finally {
+    sede.consumoLoading = false
+  }
+}
+
+// ─── Detección de importaciones previas ───────────────
+// Se hace con una llamada en seco al mismo endpoint de guardado: si ya existen
+// registros responde `conflict` sin escribir nada.
+async function verificarYaImportado() {
+  for (const s of sedes.value) {
+    s.yaImportado = 0
+    if (!s.ccosto) continue
+    try {
+      const r = await api.post('/square/importar-resumen', {
+        ...payloadDe(s), soloVerificar: true, force: false,
+      })
+      if (r.data?.conflict) s.yaImportado = r.data.total || r.data.count || 0
+    } catch { /* si el endpoint no soporta la verificación, se avisa al guardar */ }
+  }
+}
+
+function payloadDe(sede) {
+  return {
+    empresa: empresaCodigo.value,
+    fecha: configFecha.value,
+    ccosto: sede.ccosto,
+    ccostoNombre: nombreCcosto(sede.ccosto),
+    ventas: sede.ventas,
+    pagos: sede.pagos,
+    items: sede.items,
+    consumoItems: sede.consumo || [],
+    ctaSquare: sede.ctaSquare,          // propia de cada sede
+    ctaOtros: configCtaOtros.value,     // global de la empresa
+    ctaEfectivo: configCtaEfectivo.value,
+    // Sobreprecio de plataformas: se guarda en ventas.otras_comisiones y genera
+    // un gasto con la cuenta parametrizada en Configuración → General.
+    otrasComisiones: otrasComisionesDe(sede),
+  }
+}
+
+// ─── Totales y validaciones ───────────────────────────
+const sedesListas = computed(() => sedes.value.filter(s => s.incluir && s.ccosto && s.ctaSquare))
+const totalBrutas = computed(() => sedesListas.value.reduce((a, s) => a + s.ventas.ventasBrutas, 0))
+const totalLista  = computed(() => sedesListas.value.reduce((a, s) => a + valoracion(s).listaTotal, 0))
+const totalOtrasComisiones = computed(() =>
+  sedesListas.value.reduce((a, s) => a + otrasComisionesDe(s), 0)
+)
+const hayOtrasComisiones = computed(() => totalOtrasComisiones.value > 0.01)
+const totalRecibido = computed(() => sedesListas.value.reduce((a, s) => a + s.pagos.totalRecibido, 0))
+
+// Sedes marcadas para importar que ya tienen datos y aún no autorizaron el
+// reemplazo. El aviso de bloqueo sale en el pie, así que la acción para
+// resolverlo va ahí mismo en vez de obligar a buscar las casillas arriba.
+const sedesPorReemplazar = computed(() =>
+  sedes.value.filter(s => s.incluir && s.ccosto && s.yaImportado && !s.force)
+)
+function autorizarReemplazo() {
+  for (const s of sedesPorReemplazar.value) s.force = true
+}
+// Sedes que efectivamente van a sobreescribir datos existentes
+const sedesQueReemplazan = computed(() =>
+  sedes.value.filter(s => s.incluir && s.ccosto && s.yaImportado && s.force)
+)
+
+const bloqueo = computed(() => {
+  if (!sedes.value.length) return ''
+  if (!configFecha.value) return 'Falta la fecha de los movimientos.'
+  if (!configCtaOtros.value || !configCtaEfectivo.value) {
+    return 'Selecciona las cuentas de Efectivo y Otros pagos en la configuración.'
+  }
+  const sinCta = sedes.value.filter(s => s.incluir && s.ccosto && !s.ctaSquare)
+  if (sinCta.length) {
+    return `Falta la cuenta de Square de ${sinCta.map(s => s.location).join(', ')}.`
+  }
+  if (!sedesListas.value.length) return 'Ninguna sede está lista: revisa los centros de costo.'
+  // Sin esta espera se podría guardar con `consumo` todavía vacío y el descargue
+  // de inventario no quedaría registrado, sin ningún aviso.
+  const calculando = sedesListas.value.filter(s => s.consumoLoading)
+  if (calculando.length) {
+    return `Calculando el consumo de inventario de ${calculando.map(s => s.location).join(', ')}…`
+  }
+  const dupCc = new Set()
+  const dupCta = new Set()
+  for (const s of sedesListas.value) {
+    if (dupCc.has(s.ccosto)) return `Hay dos sedes asignadas al mismo centro de costo (${nombreCcosto(s.ccosto)}).`
+    dupCc.add(s.ccosto)
+    if (dupCta.has(s.ctaSquare)) return `Hay dos sedes usando la misma cuenta de Square (${nombreCuenta(s.ctaSquare)}).`
+    dupCta.add(s.ctaSquare)
+  }
+  const noCuadra = sedesListas.value.filter(s => !s.control.cuadra)
+  if (noCuadra.length) return `Los totales de ${noCuadra.map(s => s.location).join(', ')} no cuadran. Revisa el archivo.`
+  const pendientes = sedesListas.value.filter(s => s.yaImportado && !s.force)
+  if (pendientes.length) {
+    return `${pendientes.map(s => s.location).join(', ')} ya está importado. Marca "Reemplazar" o desmarca la sede.`
+  }
+  return ''
+})
+
+// Cambiar la fecha invalida la comprobación de "ya importado" y, sobre todo,
+// la casilla "Reemplazar": dejarla marcada de una fecha anterior haría que la
+// importación BORRARA los datos de la fecha nueva. Se reinicia y se revisa otra vez.
+watch(configFecha, () => {
+  for (const s of sedes.value) {
+    s.yaImportado = 0
+    s.force = false
+    s.resultado = null
+  }
+  if (sedes.value.length) verificarYaImportado()
+})
+
+// ─── Importación ──────────────────────────────────────
+// El popup va mostrando el avance sede por sede. Se trabaja sobre una copia
+// porque el bucle muta `incluir`, que es el campo por el que filtra `sedesListas`.
+const dlgProgreso    = ref(false)
+const sedesEnProceso = ref([])
+const pasoActual     = ref(0)
+const terminado      = ref(false)
+
+const totalPasos           = computed(() => sedesEnProceso.value.length)
+const importadasOk         = computed(() => sedesEnProceso.value.filter(s => s.estado === 'ok').length)
+const fallaron             = computed(() => sedesEnProceso.value.some(s => s.estado === 'error'))
+const totalRecibidoProceso = computed(() =>
+  sedesEnProceso.value.filter(s => s.estado === 'ok').reduce((a, s) => a + s.pagos.totalRecibido, 0)
+)
+
+// Pausa mínima para que cada paso se alcance a ver. Guardar una sede suele
+// tardar más que esto, así que en la práctica no agrega espera perceptible.
+const respiro = (ms = 260) => new Promise(r => setTimeout(r, ms))
+
+async function importarTodas() {
+  const aImportar = [...sedesListas.value]
+  if (!aImportar.length) return
+
+  for (const s of aImportar) {
+    s.estado = 'pendiente'
+    s.resultado = null
+    s.detalleGuardado = null
+  }
+  sedesEnProceso.value = aImportar
+  pasoActual.value = 0
+  terminado.value  = false
+  dlgProgreso.value = true
+  importando.value = true
+  progreso.value = ''
+
+  let ok = 0
+  try {
+    await respiro(320)   // deja entrar el popup antes del primer paso
+    for (const s of aImportar) {
+      s.estado = 'guardando'
+      progreso.value = `Importando ${s.location}…`
+      try {
+        const r = await api.post('/square/importar-resumen', { ...payloadDe(s), force: !!s.force })
+        if (r.data?.conflict) {
+          s.yaImportado = r.data.total || r.data.count || 0
+          s.estado = 'error'
+          s.resultado = { ok: false, msg: 'Ya existía; marca "Reemplazar" para sobreescribir.' }
+        } else if (r.data?.success) {
+          s.detalleGuardado = r.data.data || null
+          s.estado = 'ok'
+          s.resultado = { ok: true, msg: `Importado en ${nombreCcosto(s.ccosto)}.` }
+          s.incluir = false
+          ok++
+        } else {
+          s.estado = 'error'
+          s.resultado = { ok: false, msg: r.data?.error || 'Error al guardar' }
+        }
+      } catch (e) {
+        s.estado = 'error'
+        s.resultado = { ok: false, msg: e?.response?.data?.error || e.message || 'Error al guardar' }
+      }
+      pasoActual.value++
+      await respiro()
+    }
+    progreso.value = `Listo: ${ok} de ${aImportar.length} sede(s) importada(s).`
+    if (ok > 0) snackOk.value = true
+  } finally {
+    terminado.value = true
+    importando.value = false
+  }
 }
 </script>
 
 <style scoped>
-.iv-wrap { padding: 24px; max-width: 1280px; margin: 0 auto; }
+.ivc-wrap { padding: 24px; max-width: 1280px; margin: 0 auto; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; }
-.bc-root { font-size: 11px; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; }
-.bc-cat  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.4); }
-.bc-cur  { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.7); font-weight: 600; }
+.ivc-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+  border-radius: 12px; padding: 16px;
+}
+.ivc-card-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.ivc-card-ttl { font-size: 12px; font-weight: 800; letter-spacing: .5px; }
+.ivc-card-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), .45); margin-left: auto; }
+.ivc-cfg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.ivc-cfg-nota {
+  display: flex; align-items: flex-start; gap: 7px;
+  margin-top: 12px; padding: 9px 11px; border-radius: 8px;
+  background: var(--indigo-wash); color: var(--indigo);
+  font-size: 11.5px; line-height: 1.45;
+}
+.ivc-cfg-nota-warn { background: rgba(180,83,9,.12); color: var(--warning); }
+.ivc-field { display: flex; flex-direction: column; gap: 5px; }
+.ivc-label {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .8px;
+  color: rgba(var(--v-theme-on-surface), .5);
+}
+.ivc-label-sm { font-size: 9px; font-weight: 800; letter-spacing: .7px; color: rgba(var(--v-theme-on-surface), .45); }
+.ivc-input {
+  border: 1px solid rgba(var(--v-theme-on-surface), .18);
+  background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface));
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 100%;
+}
+.ivc-hint { font-size: 10.5px; }
+.ivc-hint-ok { color: var(--success); }
+.ivc-hint-warn { color: var(--warning); }
+.ivc-link {
+  border: none; background: transparent; cursor: pointer; padding: 0 2px;
+  font-size: 11.5px; font-weight: 700; color: var(--indigo); text-decoration: underline;
+}
 
-.iv-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.iv-header-left { display: flex; align-items: center; gap: 16px; }
-.iv-icon-wrap {
-  width: 52px; height: 52px; border-radius: 16px;
-  background: linear-gradient(135deg, #10b981, #059669);
+/* Zona de carga */
+.ivc-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 46px 24px; border-radius: 14px; cursor: pointer;
+  border: 2px dashed rgba(var(--v-theme-on-surface), .18);
+  background: rgba(var(--v-theme-on-surface), .02);
+  transition: border-color 150ms var(--ease-out), background-color 150ms var(--ease-out);
+}
+.ivc-drop:hover, .ivc-drop-on { border-color: var(--indigo); background: var(--indigo-wash); }
+.ivc-drop-ttl { font-size: 14px; font-weight: 700; }
+.ivc-drop-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface), .6); text-align: center; max-width: 520px; }
+.ivc-drop-sub2 { font-size: 11px; color: rgba(var(--v-theme-on-surface), .4); }
+
+.ivc-alert {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 11px 14px; border-radius: 10px; font-size: 12.5px; margin-bottom: 14px;
+}
+.ivc-alert-err  { background: rgba(220,38,38,.1);  color: var(--error); }
+.ivc-alert-warn { background: rgba(180,83,9,.12);  color: var(--warning); }
+
+.ivc-file-row {
+  display: flex; align-items: center; gap: 9px; margin-bottom: 14px;
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), .03);
+}
+.ivc-file-name { font-size: 12.5px; font-weight: 700; }
+.ivc-file-meta { font-size: 11px; color: rgba(var(--v-theme-on-surface), .5); }
+
+/* Sedes */
+.ivc-sedes { display: flex; flex-direction: column; gap: 12px; }
+.ivc-sede {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), .09);
+  border-left: 3px solid var(--success);
+  border-radius: 12px; padding: 14px 16px;
+  transition: opacity 150ms var(--ease-out);
+}
+.ivc-sede-off { opacity: .5; border-left-color: rgba(var(--v-theme-on-surface), .2); }
+.ivc-sede-mal { border-left-color: var(--error); }
+.ivc-sede-hdr { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ivc-check input, .ivc-check-inline input { width: 16px; height: 16px; accent-color: var(--success); cursor: pointer; }
+.ivc-check-inline { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; font-weight: 700; cursor: pointer; }
+.ivc-sede-id { min-width: 150px; }
+.ivc-sede-loc { font-size: 15px; font-weight: 800; }
+.ivc-sede-meta { font-size: 11px; color: rgba(var(--v-theme-on-surface), .5); margin-top: 1px; }
+.ivc-sede-cc { min-width: 210px; display: flex; flex-direction: column; gap: 4px; }
+.ivc-sede-total { margin-left: auto; text-align: right; }
+.ivc-sede-total-lbl { font-size: 9.5px; font-weight: 800; letter-spacing: .7px; color: rgba(var(--v-theme-on-surface), .45); }
+.ivc-sede-total-val { font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--success); }
+
+.ivc-sede-aviso {
+  display: flex; align-items: flex-start; gap: 7px;
+  margin-top: 10px; padding: 8px 11px; border-radius: 8px; font-size: 11.5px; line-height: 1.45;
+}
+.ivc-sede-aviso-err  { background: rgba(220,38,38,.1);  color: var(--error); }
+.ivc-sede-aviso-warn { background: rgba(180,83,9,.12);  color: var(--warning); }
+.ivc-sede-aviso-info { background: var(--indigo-wash);  color: var(--indigo); }
+.ivc-sede-aviso-ok   { background: rgba(21,128,61,.12); color: var(--success); }
+
+/* Rejilla de indicadores: etiqueta arriba y valor abajo, para que todas las
+   celdas queden alineadas aunque las etiquetas tengan largos muy distintos
+   (antes se comparaban en la misma línea y unas saltaban a dos renglones). */
+.ivc-grupos {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px dashed rgba(var(--v-theme-on-surface), .1);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.ivc-grupo-ttl {
+  font-size: 9px; font-weight: 800; letter-spacing: .9px;
+  color: rgba(var(--v-theme-on-surface), .35); margin-bottom: 7px;
+}
+.ivc-sede-body {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 12px 16px;
+}
+.ivc-mini { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ivc-mini-lbl {
+  font-size: 10px; font-weight: 600; line-height: 1.3;
+  letter-spacing: .2px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .45);
+}
+.ivc-mini-val {
+  font-size: 13.5px; font-weight: 700; line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+/* Separador antes del bloque de formas de pago */
+.ivc-mini-sep { border-left: 1px solid rgba(var(--v-theme-on-surface), .1); padding-left: 14px; }
+@media (max-width: 700px) { .ivc-mini-sep { border-left: none; padding-left: 0; } }
+.ivc-neg { color: var(--error); }
+
+/* Detalle antes de guardar */
+.ivc-det-toggle {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 10px; padding-top: 9px;
+  border-top: 1px dashed rgba(var(--v-theme-on-surface), .1);
+}
+.ivc-det-btn {
+  display: flex; align-items: center; gap: 5px;
+  border: none; background: transparent; cursor: pointer;
+  font-size: 11.5px; font-weight: 700; color: var(--indigo);
+  padding: 4px 6px; border-radius: 7px;
+}
+.ivc-det-btn:hover { background: var(--indigo-wash); }
+.ivc-det-warn { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--warning); }
+
+.ivc-det { margin-top: 10px; }
+.ivc-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 9px; }
+.ivc-tab {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .12);
+  background: transparent; color: rgba(var(--v-theme-on-surface), .6);
+  font-size: 11.5px; font-weight: 600;
+  padding: 6px 11px; border-radius: 8px; cursor: pointer;
+}
+.ivc-tab:hover { border-color: var(--indigo); color: var(--indigo); }
+.ivc-tab-on { background: var(--indigo-wash); border-color: var(--indigo); color: var(--indigo); }
+.ivc-tab-n {
+  font-size: 10px; font-weight: 800;
+  background: rgba(var(--v-theme-on-surface), .1);
+  padding: 1px 6px; border-radius: 9px;
+}
+.ivc-tabla-wrap {
+  max-height: 340px; overflow: auto;
+  border: 1px solid rgba(var(--v-theme-on-surface), .08); border-radius: 9px;
+}
+.ivc-tabla { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.ivc-tabla thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: rgb(var(--v-theme-surface));
+  text-align: left; padding: 8px 10px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .5px;
+  color: rgba(var(--v-theme-on-surface), .5);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .1);
+  white-space: nowrap;
+}
+.ivc-tabla tbody td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .04);
+}
+.ivc-tabla tbody tr:hover { background: rgba(var(--v-theme-on-surface), .025); }
+.ivc-tabla tfoot td {
+  position: sticky; bottom: 0;
+  background: rgba(var(--v-theme-on-surface), .04);
+  padding: 8px 10px; font-size: 10px; font-weight: 800; letter-spacing: .4px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .12);
+}
+.ivc-tabla .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ivc-tabla .b { font-weight: 800; }
+.ivc-tabla .dim { color: rgba(var(--v-theme-on-surface), .5); }
+.ivc-td-nom { font-weight: 600; }
+.ivc-td-alias { font-weight: 400; font-size: 10.5px; color: rgba(var(--v-theme-on-surface), .45); margin-left: 4px; }
+.ivc-td-origen { max-width: 320px; }
+.ivc-sku {
+  font-family: var(--font-mono, monospace); font-size: 10.5px; font-weight: 700;
+  background: rgba(var(--v-theme-on-surface), .07);
+  padding: 1px 6px; border-radius: 4px;
+}
+.ivc-chip {
+  display: inline-block; margin: 1px 3px 1px 0;
+  font-size: 10px; font-weight: 600;
+  background: rgba(var(--v-theme-on-surface), .07);
+  color: rgba(var(--v-theme-on-surface), .7);
+  padding: 1px 6px; border-radius: 4px;
+}
+.ivc-chip-ok { background: rgba(21,128,61,.14); color: var(--success); }
+.ivc-tabla-vacia {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 24px; font-size: 12px; color: rgba(var(--v-theme-on-surface), .5); text-align: center;
+}
+.ivc-tabla-err { color: var(--error); }
+.ivc-th-sub { font-weight: 600; opacity: .65; text-transform: none; letter-spacing: 0; }
+.ivc-sobre { color: var(--warning); font-weight: 700; }
+.ivc-det-err { color: var(--error); }
+
+/* Conciliación de las dos valoraciones */
+.ivc-conc {
+  margin-top: 10px; padding: 12px 14px; border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), .03);
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+.ivc-conc-ttl {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 800; letter-spacing: .7px;
+  color: rgba(var(--v-theme-on-surface), .55); margin-bottom: 10px;
+}
+.ivc-conc-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.ivc-conc-lbl {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .6px;
+  color: var(--indigo); margin-bottom: 6px;
+}
+.ivc-conc-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 3px 0; font-size: 11.5px; color: rgba(var(--v-theme-on-surface), .7);
+}
+.ivc-conc-row span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
+.ivc-conc-row-tot {
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .1);
+  margin-top: 4px; padding-top: 6px; font-weight: 800;
+  color: rgb(var(--v-theme-on-surface));
+}
+.ivc-conc-row-tot span:last-child { font-weight: 800; }
+.ivc-conc-dif { color: var(--warning); font-weight: 700; }
+.ivc-conc-dif-ok { color: var(--success); }
+.ivc-conc-nota {
+  font-size: 10.5px; line-height: 1.45;
+  color: rgba(var(--v-theme-on-surface), .45); margin-top: 6px;
+}
+
+/* Footer */
+.ivc-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  margin-top: 16px; padding: 16px 18px; border-radius: 12px;
+  background: rgba(var(--v-theme-on-surface), .03);
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+.ivc-footer-tot { display: flex; gap: 28px; flex-wrap: wrap; }
+.ivc-footer-item { display: flex; flex-direction: column; gap: 2px; }
+.ivc-footer-lbl { font-size: 9.5px; font-weight: 800; letter-spacing: .7px; color: rgba(var(--v-theme-on-surface), .45); }
+.ivc-footer-val { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ivc-footer-val-big { font-size: 21px; font-weight: 900; color: var(--success); }
+.ivc-footer-act { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ivc-bloqueo {
+  display: flex; align-items: flex-start; gap: 6px; max-width: 420px;
+  font-size: 11.5px; line-height: 1.45; color: var(--warning);
+}
+.ivc-btn-reemplazar {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 6px;
+  border: 1px solid var(--warning); background: transparent; color: var(--warning);
+  font-size: 11.5px; font-weight: 700; cursor: pointer;
+  padding: 5px 11px; border-radius: 8px;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+.ivc-btn-reemplazar:hover { background: var(--warning); color: white; }
+.ivc-aviso-reemplazo {
+  display: flex; align-items: center; gap: 6px; max-width: 380px;
+  font-size: 11.5px; line-height: 1.4; color: var(--error); font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) { .ivc-btn-reemplazar { transition: none; } }
+.ivc-progreso { margin-top: 10px; font-size: 12px; color: rgba(var(--v-theme-on-surface), .6); }
+
+/* ══════ POPUP DE PROGRESO ══════ */
+.prg-card {
+  background: rgb(var(--v-theme-surface));
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.4);
+  animation: prgEntra 240ms cubic-bezier(.23,1,.32,1);
+}
+/* Nunca desde scale(0): nada en la vida real aparece de la nada */
+@keyframes prgEntra {
+  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.prg-hdr {
+  display: flex; align-items: center; gap: 13px;
+  padding: 18px 20px 16px;
+}
+.prg-hdr-icon {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 6px 20px rgba(16,185,129,0.38); flex-shrink: 0;
+  background: var(--indigo);
+  transition: background-color 260ms cubic-bezier(.23,1,.32,1);
 }
-.iv-title { font-size: 21px; font-weight: 800; color: rgb(var(--v-theme-on-surface)); letter-spacing: 0.4px; margin: 0; }
-.iv-sub   { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); margin: 3px 0 0; }
-
-/* Config */
-.imp-cfg-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 16px; margin-bottom: 20px; overflow: hidden; }
-.imp-cfg-header { display: flex; align-items: center; gap: 10px; padding: 12px 18px; background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(6,182,212,0.03)); border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06); }
-.imp-cfg-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #06b6d4, #0891b2); display: flex; align-items: center; justify-content: center; }
-.imp-cfg-title { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; color: #06b6d4; text-transform: uppercase; }
-.imp-cfg-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.35); margin-left: auto; }
-.imp-cfg-fields { display: grid; grid-template-columns: auto 1fr 1fr 1fr 1fr; gap: 14px; padding: 14px 18px; align-items: end; }
-@media (max-width: 1100px) { .imp-cfg-fields { grid-template-columns: 1fr 1fr 1fr; } }
-@media (max-width: 700px) { .imp-cfg-fields { grid-template-columns: 1fr 1fr; } }
-.imp-cfg-field { display: flex; flex-direction: column; gap: 5px; }
-.imp-cfg-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.45); display: flex; align-items: center; }
-.imp-cfg-date { height: 40px; border-radius: 8px; padding: 0 10px; border: 1px solid rgba(var(--v-theme-on-surface), 0.2); background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); font-size: 13px; font-weight: 600; outline: none; font-family: inherit; }
-.imp-cfg-input-wrap { display: flex; align-items: center; gap: 6px; }
-.cfg-ok-icon { flex-shrink: 0; animation: cfg-ok-pop 0.25s ease; }
-@keyframes cfg-ok-pop {
-  from { transform: scale(0.5); opacity: 0; }
-  to   { transform: scale(1);   opacity: 1; }
+.prg-icon-ok  { background: var(--success); animation: prgPop 320ms cubic-bezier(.23,1,.32,1); }
+.prg-icon-err { background: var(--error);   animation: prgPop 320ms cubic-bezier(.23,1,.32,1); }
+@keyframes prgPop {
+  0%   { transform: scale(.88); }
+  55%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
 }
-.rs-loc-warn {
-  display: flex; align-items: flex-start; gap: 8px;
-  margin: 12px 16px 0; padding: 10px 12px; border-radius: 8px;
-  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
-  font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.75); line-height: 1.5;
+.prg-ttl { font-size: 15.5px; font-weight: 800; }
+.prg-sub { font-size: 11.5px; color: rgba(var(--v-theme-on-surface),.5); margin-top: 2px; }
+.prg-pct {
+  margin-left: auto; font-size: 19px; font-weight: 900;
+  font-variant-numeric: tabular-nums; color: rgba(var(--v-theme-on-surface),.35);
 }
-.imp-cfg-date:focus { border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6,182,212,0.15); }
-.imp-cfg-select { font-size: 13px; }
 
-/* Drop zone */
-.drop-zone { border: 2px dashed rgba(var(--v-theme-on-surface), 0.18); border-radius: 16px; padding: 32px 24px; cursor: pointer; transition: all 0.2s; background: rgb(var(--v-theme-surface)); text-align: center; min-height: 140px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
-.drop-zone:hover { border-color: #10b981; background: rgba(16,185,129,0.03); }
-.drop-zone--active { border-color: #10b981; background: rgba(16,185,129,0.06); }
-.drop-zone--loaded { border-style: solid; border-color: #10b981; background: rgba(16,185,129,0.04); }
-.drop-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.drop-icon-wrap { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
-.drop-icon-green { background: linear-gradient(135deg,#10b981,#059669); }
-.drop-title { font-size: 15px; font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-.drop-sub { font-size: 12px; color: rgba(var(--v-theme-on-surface), 0.45); }
-.drop-hint { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.3); margin-top: 4px; }
-.drop-loaded { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.drop-loaded-name { font-size: 13px; font-weight: 600; color: #10b981; word-break: break-all; }
-.drop-loaded-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.drop-loaded-stats { display: flex; gap: 14px; margin-top: 4px; }
-.drop-stat { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: rgba(var(--v-theme-on-surface), 0.6); }
-
-/* Action bar */
-.iv-action-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(6,182,212,0.25); border-radius: 12px; padding: 10px 16px; margin-bottom: 16px; }
-.iv-action-bar-left { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.iv-action-bar-right { display: flex; align-items: center; gap: 8px; }
-.iv-action-ok { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #10b981; }
-.iv-action-warn { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #f59e0b; }
-
-/* Error */
-.iv-error { display: flex; align-items: center; gap: 10px; background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #ef4444; }
-
-/* Tabs */
-.sheets-container { margin-top: 4px; }
-.sheets-tabbar { display: flex; align-items: flex-end; gap: 0; position: relative; }
-.sheet-tab { display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px; font-size: 12px; font-weight: 600; border: 1.5px solid rgba(var(--v-theme-on-surface), 0.12); border-bottom: none; border-radius: 8px 8px 0 0; background: rgba(var(--v-theme-on-surface), 0.03); color: rgba(var(--v-theme-on-surface), 0.45); cursor: pointer; margin-right: 3px; transition: all 0.15s; position: relative; bottom: -1.5px; outline: none; }
-.sheet-tab:hover { color: rgba(var(--v-theme-on-surface), 0.75); background: rgba(var(--v-theme-on-surface), 0.06); }
-.sheet-tab--active { background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface)); border-color: rgba(var(--v-theme-on-surface), 0.18); border-bottom-color: rgb(var(--v-theme-surface)); z-index: 2; font-weight: 700; }
-.sheet-tab--loading { opacity: 0.75; }
-.sheets-tabbar-line { flex: 1; border-bottom: 1.5px solid rgba(var(--v-theme-on-surface), 0.18); position: relative; bottom: -1.5px; }
-.sheet-badge { font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 20px; }
-.sheet-badge-purple { background: rgba(139,92,246,0.13); color: #8b5cf6; }
-.sheet-badge-orange { background: rgba(245,158,11,0.13); color: #d97706; }
-.sheet-badge-green { background: rgba(16,185,129,0.13); color: #10b981; }
-.sheet-badge-red { background: rgba(239,68,68,0.13); color: #ef4444; }
-.sheet-content { border: 1.5px solid rgba(var(--v-theme-on-surface), 0.18); border-top: none; border-radius: 0 8px 8px 8px; padding: 20px 20px 28px; background: rgb(var(--v-theme-surface)); position: relative; z-index: 1; }
-
-/* Sections */
-.iv-section { display: flex; flex-direction: column; gap: 16px; }
-.iv-section-header { display: flex; align-items: center; gap: 12px; }
-.iv-section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.iv-section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-.iv-section-sub { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.45); margin-top: 2px; }
-
-/* KPI */
-.kpi-grid { display: grid; gap: 12px; }
-.kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
-.kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
-@media (max-width: 900px) { .kpi-grid-4, .kpi-grid-3 { grid-template-columns: repeat(2, 1fr); } }
-.kpi-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 12px; padding: 14px 16px; }
-.kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.kpi-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.kpi-val { font-size: 20px; font-weight: 800; font-family: 'Courier New', monospace; }
-.kpi-blue { border-left: 3px solid #3b82f6; } .kpi-val-blue { color: #3b82f6; }
-.kpi-green { border-left: 3px solid #10b981; } .kpi-val-green { color: #10b981; }
-.kpi-green-dark { border-left: 3px solid #059669; } .kpi-val-green-dark { color: #059669; }
-.kpi-orange { border-left: 3px solid #f59e0b; } .kpi-val-orange { color: #f59e0b; }
-.kpi-purple { border-left: 3px solid #8b5cf6; } .kpi-val-purple { color: #8b5cf6; }
-.kpi-red { border-left: 3px solid #ef4444; } .kpi-val-red { color: #ef4444; }
-
-/* Cards */
-.iv-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 14px; overflow: hidden; }
-.iv-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07); flex-wrap: wrap; gap: 8px; }
-.iv-card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.7); display: flex; align-items: center; }
-.iv-card-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.mr-1 { margin-right: 4px; }
-.ml-1 { margin-left: 4px; }
-
-/* Resumen */
-.rs-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 760px) { .rs-two-col { grid-template-columns: 1fr; } }
-.rs-card { display: flex; flex-direction: column; }
-.rs-rows { display: flex; flex-direction: column; padding: 4px 0; }
-.rs-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 18px; gap: 12px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.04); }
-.rs-sep { height: 1px; background: rgba(var(--v-theme-on-surface), 0.1); margin: 4px 18px; padding: 0; border: none; }
-.rs-total-row { background: rgba(var(--v-theme-on-surface), 0.03); }
-.rs-grand-total { background: rgba(var(--v-theme-on-surface), 0.06); border-top: 2px solid rgba(var(--v-theme-on-surface), 0.12) !important; }
-.rs-lbl { font-size: 12.5px; color: rgba(var(--v-theme-on-surface), 0.75); flex: 1; }
-.rs-lbl-bold { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-.rs-val { font-family: 'Courier New', monospace; font-size: 13px; font-weight: 600; text-align: right; white-space: nowrap; color: rgba(var(--v-theme-on-surface), 0.7); }
-.rs-val-big { font-size: 15px; font-weight: 800; }
-.rs-val-grand { font-size: 17px; font-weight: 800; }
-.rs-pos { color: #10b981; }
-.rs-neg { color: #ef4444; }
-.rs-green { color: #10b981; }
-.rs-purple { color: #8b5cf6; }
-
-/* Table */
-.art-tabla-wrap { overflow-x: auto; }
-.art-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.art-tabla thead th { padding: 10px 12px; text-align: left; font-size: 9.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), 0.5); background: rgba(var(--v-theme-on-surface), 0.04); border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); white-space: nowrap; }
-.art-tabla td { padding: 9px 12px; }
-.tr-cat-header { background: rgba(139,92,246,0.04); border-top: 1px solid rgba(139,92,246,0.15); }
-.tr-cat-header td { padding: 7px 12px; }
-.cat-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: #8b5cf6; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); padding: 2px 10px; border-radius: 20px; }
-.tr-cat-orange { background: rgba(245,158,11,0.04); border-top: 1px solid rgba(245,158,11,0.15); }
-.cat-badge-orange { color: #d97706; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); }
-.tr-cat-teal { background: rgba(20,184,166,0.04); border-top: 1px solid rgba(20,184,166,0.2); }
-.cat-badge-teal { color: #0d9488; background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.25); }
-.tr-consumo { vertical-align: middle; }
-
-.btn-ver-recetas { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; cursor: pointer; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2); color: #8b5cf6; font-size: 11px; font-weight: 600; transition: all 0.15s; outline: none; }
-.btn-ver-recetas:hover { background: rgba(139,92,246,0.16); border-color: rgba(139,92,246,0.4); }
-
-.rcpopup-total-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(139,92,246,0.05); border-bottom: 1px solid rgba(var(--v-theme-on-surface),0.06); }
-.rcpopup-total-lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.5); }
-.rcpopup-total-val { font-family: 'Courier New', monospace; font-size: 16px; font-weight: 800; color: #8b5cf6; }
-.rcpopup-receta-nombre { font-weight: 600; font-size: 12.5px; }
-.rcpopup-receta-sku { font-family: 'Courier New', monospace; font-size: 10.5px; color: rgba(var(--v-theme-on-surface),0.4); }
-.tr-item { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.05); }
-.tr-item:hover { background: rgba(var(--v-theme-on-surface), 0.02); }
-.tr-total { background: rgba(var(--v-theme-on-surface), 0.07); border-top: 2px solid rgba(var(--v-theme-on-surface), 0.15); }
-.tr-total td { padding: 10px 12px; }
-.total-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface), 0.7); }
-.total-val { font-size: 13px; font-weight: 800; font-family: 'Courier New', monospace; }
-.col-right { text-align: right !important; }
-.col-center { text-align: center !important; }
-.td-nombre { font-weight: 600; color: rgb(var(--v-theme-on-surface)); }
-.td-variante { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.td-sku { font-family: 'Courier New', monospace; font-size: 11.5px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.td-num { font-weight: 700; color: rgb(var(--v-theme-on-surface)); }
-.td-monto { font-family: 'Courier New', monospace; font-weight: 500; }
-.td-idx { font-size: 11px; font-weight: 700; color: rgba(var(--v-theme-on-surface), 0.3); text-align: center; }
-.td-und { font-size: 11px; color: rgba(var(--v-theme-on-surface), 0.5); font-weight: 600; }
-.txt-green { color: #10b981; }
-.txt-orange { color: #f59e0b; }
-
-.cat-chip { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; cursor: pointer; border: 1px solid rgba(var(--v-theme-on-surface), 0.15); color: rgba(var(--v-theme-on-surface), 0.6); background: rgba(var(--v-theme-on-surface), 0.04); transition: all 0.15s; white-space: nowrap; }
-.cat-chip:hover { border-color: #8b5cf6; color: #8b5cf6; }
-.cat-chip--active { background: rgba(139,92,246,0.12); border-color: #8b5cf6; color: #8b5cf6; }
-
-/* Mapping badges */
-.mapping-cell { display: flex; align-items: center; justify-content: center; }
-.mapping-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; cursor: pointer; transition: all 0.15s; border: none; outline: none; }
-.mapping-ok { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.mapping-ok:hover { background: rgba(16,185,129,0.2); }
-.mapping-warn { background: rgba(245,158,11,0.1); color: #d97706; border: 1px solid rgba(245,158,11,0.2); }
-.mapping-warn:hover { background: rgba(245,158,11,0.2); }
-.mapping-nombre { font-size: 9px; font-weight: 500; color: rgba(var(--v-theme-on-surface), 0.5); margin-left: 4px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Payment method badges */
-.pay-method-badge { font-size: 9.5px; font-weight: 800; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.3px; }
-.pay-card { background: rgba(139,92,246,0.1); color: #8b5cf6; }
-.pay-cash { background: rgba(16,185,129,0.1); color: #10b981; }
-.pay-other { background: rgba(59,130,246,0.1); color: #3b82f6; }
-
-/* Modifier inventory config */
-.mod-inv-cell { display: flex; align-items: center; justify-content: center; gap: 5px; }
-.mod-inv-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
-.mod-inv-ok   { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.mod-inv-warn { background: rgba(245,158,11,0.1);  color: #d97706; border: 1px solid rgba(245,158,11,0.2); }
-.btn-config-mod { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; background: rgba(var(--v-theme-on-surface),0.06); border: 1px solid rgba(var(--v-theme-on-surface),0.12); color: rgba(var(--v-theme-on-surface),0.6); transition: all 0.15s; outline: none; }
-.btn-config-mod:hover { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #d97706; }
-.config-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 24px; color: rgba(var(--v-theme-on-surface),0.35); font-size: 12px; }
-.config-new-row { border-top: 1px solid rgba(var(--v-theme-on-surface),0.08); padding: 14px 16px; background: rgba(var(--v-theme-on-surface),0.02); }
-.config-new-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(var(--v-theme-on-surface),0.5); margin-bottom: 10px; display: flex; align-items: center; }
-.config-new-fields { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.config-field-art  { flex: 1; min-width: 200px; }
-.config-field-cant { width: 110px; flex-shrink: 0; }
-.config-tipo-toggle { flex-shrink: 0; }
-.tipo-badge { font-size: 9.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.3px; }
-.tipo-suma  { background: rgba(16,185,129,0.1);  color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.tipo-resta { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
-.txt-dim { color: rgba(var(--v-theme-on-surface),0.4); }
-.tr-subtotal { background: rgba(var(--v-theme-on-surface),0.03); border-top: 1px solid rgba(var(--v-theme-on-surface),0.08); }
-.tr-subtotal td { padding: 7px 12px; }
-.subtotal-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: rgba(var(--v-theme-on-surface),0.5); }
-.subtotal-val { font-size: 12px; font-weight: 700; font-family: 'Courier New', monospace; }
-
-/* Consumo */
-.consumo-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 24px; text-align: center; background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface), 0.08); border-radius: 14px; color: rgba(var(--v-theme-on-surface), 0.4); font-size: 13px; }
-.consumo-total-val { font-family: 'Courier New', monospace; font-size: 15px; font-weight: 800; color: #ef4444; }
-
-/* Enrich badge */
-.enrich-badge { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 11px; color: #8b5cf6; font-weight: 600; }
-
-/* Dialogs */
-.rcpopup { border-radius: 16px !important; overflow: hidden; }
-.rcpopup-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
-.rcpopup-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rcpopup-title-wrap { flex: 1; min-width: 0; }
-.rcpopup-title { font-size: 15px; font-weight: 800; color: white; }
-.rcpopup-sub { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
-.rcpopup-body { padding: 0; }
-.rs-dlg-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 16px; border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
-.rs-dlg-loading { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 48px 24px; font-size: 13px; color: rgba(var(--v-theme-on-surface), 0.5); }
-.rs-dlg-cta-badge {
-  font-family: 'Courier New', monospace; font-size: 11px; font-weight: 800;
-  background: rgba(6,182,212,0.1); color: #06b6d4;
-  border: 1px solid rgba(6,182,212,0.25);
-  border-radius: 4px; padding: 2px 6px;
+.prg-barra { height: 3px; background: rgba(var(--v-theme-on-surface),.08); }
+.prg-barra-fill {
+  height: 100%; background: var(--indigo);
+  transition: width 340ms cubic-bezier(.23,1,.32,1), background-color 260ms ease-out;
 }
-.cfg-editor-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+.prg-barra-err { background: var(--error); }
+
+.prg-lista { padding: 8px 10px; max-height: 45vh; overflow-y: auto; }
+.prg-paso {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 11px 10px; border-radius: 10px;
+  animation: prgFila 260ms cubic-bezier(.23,1,.32,1) both;
+  animation-delay: var(--d, 0ms);
+  transition: background-color 220ms ease-out, opacity 220ms ease-out;
 }
-.cfg-editor-row:last-child { border-bottom: none; }
-.cfg-editor-lbl {
-  font-size: 12px; font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.65);
-  min-width: 190px; flex-shrink: 0;
+@keyframes prgFila {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
 }
-.cfg-editor-select { flex: 1; }
+.prg-paso-pendiente { opacity: .45; }
+.prg-paso-guardando { background: var(--indigo-wash); }
+.prg-paso-error     { background: rgba(220,38,38,.08); }
+
+.prg-paso-icon {
+  width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+}
+.prg-punto {
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1.5px solid rgba(var(--v-theme-on-surface),.28);
+}
+.prg-paso-txt { flex: 1; min-width: 0; }
+.prg-paso-loc { font-size: 13px; font-weight: 700; }
+.prg-paso-cc  { font-weight: 500; font-size: 11.5px; color: rgba(var(--v-theme-on-surface),.5); margin-left: 4px; }
+.prg-paso-det {
+  font-size: 11px; color: rgba(var(--v-theme-on-surface),.55);
+  margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px; line-height: 1.5;
+}
+.prg-chip {
+  font-size: 10px; font-weight: 700;
+  background: rgba(21,128,61,.13); color: var(--success);
+  padding: 1px 7px; border-radius: 10px;
+  animation: prgFila 200ms ease-out both;
+}
+.prg-paso-monto {
+  font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+  margin-top: 1px; white-space: nowrap;
+}
+
+.prg-resumen {
+  margin: 4px 14px 0; padding: 11px 13px; border-radius: 10px;
+  background: rgba(21,128,61,.1); color: var(--success);
+  font-size: 12px; line-height: 1.5;
+  animation: prgFila 300ms cubic-bezier(.23,1,.32,1) both;
+}
+.prg-resumen-err { background: rgba(180,83,9,.12); color: var(--warning); }
+
+.prg-pie {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px 16px;
+}
+.prg-espera { font-size: 11.5px; color: rgba(var(--v-theme-on-surface),.45); }
+
+/* Sin movimiento: se conserva el cambio de opacidad y color, se quitan los
+   desplazamientos y los rebotes. */
+@media (prefers-reduced-motion: reduce) {
+  .prg-card, .prg-paso, .prg-chip, .prg-resumen { animation: none; }
+  .prg-icon-ok, .prg-icon-err { animation: none; }
+  .prg-barra-fill { transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ivc-drop, .ivc-sede { transition: none; }
+}
 </style>

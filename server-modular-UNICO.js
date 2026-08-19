@@ -161,8 +161,10 @@ app.get('/api/ccostos', async (req, res) => {
 
     try {
         // Por defecto solo centros de costo ACTIVOS (todos=1 para incluir inactivos)
+        // cta_square: cuenta bancaria de Square de esa sede (la usa el importador
+        // de ventas consolidado para hacer un asiento por centro de costo).
         const query = `
-            SELECT codigo, nombre
+            SELECT codigo, nombre, COALESCE(cta_square, '') AS cta_square
             FROM ccostos
             WHERE empresa = $1
             ${todos === '1' ? '' : `AND COALESCE(activo, 'SI') <> 'NO'`}
@@ -5402,6 +5404,34 @@ app.get('/api/recetas/por-skus', async (req, res) => {
     }
 });
 
+// POST /api/recetas/por-nombres — precio de venta de recetas buscadas por NOMBRE.
+// Lo usa el importador consolidado para los modificadores: en el reporte de
+// Square vienen identificados por nombre ("TOCINETA", "HUEVO DE CODORNIZ"), no
+// por SKU. Va por POST para no tener que escapar nombres con comas o signos.
+app.post('/api/recetas/por-nombres', async (req, res) => {
+    const { nombres } = req.body || {};
+    if (!Array.isArray(nombres) || nombres.length === 0) return res.json({ success: true, data: [] });
+    const lista = nombres.map(n => String(n || '').trim().toUpperCase()).filter(Boolean);
+    if (lista.length === 0) return res.json({ success: true, data: [] });
+    try {
+        // Puede haber varias recetas con el mismo nombre (p. ej. una en 0.00);
+        // se toma el precio mayor, que es el que realmente se cobra.
+        const result = await pool.query(
+            `SELECT UPPER(TRIM(nombre)) AS nombre,
+                    MAX(precio_venta)   AS precio_venta,
+                    MIN(TRIM(codigo::text)) AS codigo
+             FROM recetas
+             WHERE UPPER(TRIM(nombre)) = ANY($1)
+             GROUP BY UPPER(TRIM(nombre))`,
+            [lista]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Error POST /api/recetas/por-nombres:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/detalle-productos/por-recetas - Trae componentes de inventario por lista de SKUs (campo RECETA)
 // JOIN con productos para obtener nombre y unidad del ingrediente
 app.get('/api/detalle-productos/por-recetas', async (req, res) => {
@@ -9986,11 +10016,13 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
 
         const gruposFinal = gruposRes.rows.map(g => {
             const cuentasMap = cuentasPorGrupo[g.codigo] || new Map();
-            const cuentas = Array.from(cuentasMap.values()).map(c => ({
-                codigo: c.codigo, nombre: c.nombre,
-                valores: valoresArray(c.valores),
-                total: periodos.reduce((s, p) => s + (c.valores[p.key] || 0), 0)
-            }));
+            const cuentas = Array.from(cuentasMap.values())
+                .map(c => ({
+                    codigo: c.codigo, nombre: c.nombre,
+                    valores: valoresArray(c.valores),
+                    total: periodos.reduce((s, p) => s + (c.valores[p.key] || 0), 0)
+                }))
+                .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
             const esGrupoMateriaPrima = grupoMateriaPrimaCodigo && g.codigo === grupoMateriaPrimaCodigo;
             if (esGrupoMateriaPrima) {
                 cuentas.unshift({
@@ -10025,6 +10057,7 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
                 codigo: c.codigo, nombre: c.nombre, valores: valoresArray(c.valores),
                 total: periodos.reduce((s, p) => s + (c.valores[p.key] || 0), 0)
             })));
+            cuentas.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
             const subtotales = periodos.map((_, i) => cuentas.reduce((s, c) => s + c.valores[i], 0));
             const total = subtotales.reduce((s, v) => s + v, 0);
             gruposFinal.push({
@@ -10326,7 +10359,7 @@ app.get('/api/contabilidad/centrocostos', async (req, res) => {
 
         params.push(limit, offset);
         const dataRes = await pool.query(
-            `SELECT codigo, nombre, empresa, square_location_id, COALESCE(activo, 'SI') AS activo
+            `SELECT codigo, nombre, empresa, square_location_id, COALESCE(cta_square, '') AS cta_square, COALESCE(activo, 'SI') AS activo
              FROM ccostos ${whereClause}
              ORDER BY ${sortBy} ${sortOrd}
              LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -10367,7 +10400,7 @@ app.get('/api/contabilidad/centrocostos/:codigo', async (req, res) => {
         const { codigo } = req.params;
         const empresa = req.query.empresa || req.headers['x-empresa'];
         const result = await pool.query(
-            `SELECT codigo, nombre, empresa, square_location_id, COALESCE(activo, 'SI') AS activo
+            `SELECT codigo, nombre, empresa, square_location_id, COALESCE(cta_square, '') AS cta_square, COALESCE(activo, 'SI') AS activo
              FROM ccostos WHERE codigo = $1 AND empresa = $2`,
             [codigo, empresa]
         );
@@ -10409,14 +10442,16 @@ app.post('/api/contabilidad/centrocostos', async (req, res) => {
 app.put('/api/contabilidad/centrocostos/:codigo', async (req, res) => {
     try {
         const { codigo } = req.params;
-        const { nombre, empresa, square_location_id, activo } = req.body;
+        const { nombre, empresa, square_location_id, activo, cta_square } = req.body;
         if (!nombre) return res.status(400).json({ success: false, error: 'nombre es requerido' });
 
         const result = await pool.query(
             `UPDATE ccostos SET nombre = $1, square_location_id = $2,
-                    activo = COALESCE($3, activo, 'SI')
+                    activo = COALESCE($3, activo, 'SI'),
+                    cta_square = COALESCE($6, cta_square)
              WHERE codigo = $4 AND empresa = $5 RETURNING *`,
-            [nombre.trim(), square_location_id || '', activo === 'SI' || activo === 'NO' ? activo : null, codigo, empresa]
+            [nombre.trim(), square_location_id || '', activo === 'SI' || activo === 'NO' ? activo : null, codigo, empresa,
+             cta_square === undefined ? null : (cta_square || '')]
         );
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Centro de costos no encontrado' });
         res.json({ success: true, data: result.rows[0] });
@@ -12978,7 +13013,8 @@ app.put('/api/config-general', async (req, res) => {
     const allowed = [
         'cta_ventas', 'cta_comisiones', 'cta_descuentos_ventas',
         'cta_propinas', 'cta_impuestos', 'cta_egresos_impuestos',
-        'cta_egresos_propinas', 'tipo_moviban_ventas', 'cuenta_efectivo',
+        'cta_egresos_propinas', 'cta_otras_comisiones',
+        'tipo_moviban_ventas', 'cuenta_efectivo',
         'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo',
         'ccosto_proveeduria',
         'mp_afecta_inventario_default', 'mp_actualiza_costo_default',
@@ -13020,7 +13056,8 @@ app.post('/api/square/importar-resumen', async (req, res) => {
     const { empresa, fecha, ccosto, ccostoNombre, ventas, pagos,
             items = [], consumoItems = [],
             ctaSquare, ctaOtros, ctaEfectivo,
-            force } = req.body;
+            otrasComisiones = 0,
+            force, soloVerificar } = req.body;
     if (!empresa || !fecha || !ccosto) {
         return res.status(400).json({ success: false, error: 'empresa, fecha y ccosto son requeridos' });
     }
@@ -13082,6 +13119,24 @@ app.post('/api/square/importar-resumen', async (req, res) => {
 
         const totalDups = dupCount + dupVentasCount + dupDetalleCount + dupInvCount + dupMovCount;
         console.log(`[importar-resumen] DUPLICATE CHECK: fecha=${fecha} ccosto=${ccosto} empresa=${empresa} → gastos=${dupCount} ventas=${dupVentasCount} detalle=${dupDetalleCount} inv=${dupInvCount} moviban=${dupMovCount}`);
+
+        // Consulta en seco: la usa el importador consolidado para avisar, antes
+        // de guardar, cuáles sedes ya están importadas. Nunca escribe nada.
+        if (soloVerificar) {
+            await client.query('ROLLBACK');
+            return res.json({
+                success: true,
+                soloVerificar: true,
+                conflict: totalDups > 0,
+                count: dupCount,
+                countVentas: dupVentasCount,
+                countDetalle: dupDetalleCount,
+                countInventario: dupInvCount,
+                countMoviban: dupMovCount,
+                total: totalDups,
+            });
+        }
+
         if (totalDups > 0 && !force) {
             // Obtener fila de muestra para diagnóstico
             let sampleRow = null;
@@ -13144,28 +13199,37 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             }
         }
 
-        // 3. Calcular valores (siempre positivos con Math.abs)
-        const vBrutas   = Math.abs(parseFloat(ventas.ventasBrutas) || 0);
-        const vDevoluc  = Math.abs(parseFloat(ventas.devoluciones) || 0);
-        const vNetas    = Math.abs(parseFloat(ventas.ventasNetas)  || 0);
-        const descuentos = Math.abs(parseFloat(ventas.descuentos)  || 0);
-        const impuestos  = Math.abs(parseFloat(ventas.impuestos)   || 0);
-        const propinas   = Math.abs(parseFloat(ventas.propinas)    || 0);
-        const comisiones = Math.abs(parseFloat(pagos.comisiones)   || 0);
-        const efectivo   = Math.abs(parseFloat(pagos.efectivo)     || 0);
-        const tarjetas   = Math.abs(parseFloat(pagos.tarjeta)      || 0)
-                         + Math.abs(parseFloat(pagos.tarjetaRegalo) || 0);
-        const otros      = Math.abs(parseFloat(pagos.otro)         || 0);
+        // 3. Calcular valores (siempre positivos y redondeados a centavos).
+        //    El redondeo es necesario porque el importador consolidado SUMA
+        //    varias filas del reporte (p. ej. las formas de pago con tarjeta) y
+        //    la aritmética de punto flotante deja residuos como
+        //    451.26000000000005, que sin redondear terminan en la contabilidad.
+        const money = v => Math.round((Math.abs(parseFloat(v) || 0)) * 100) / 100;
+        const vBrutas    = money(ventas.ventasBrutas);
+        const vDevoluc   = money(ventas.devoluciones);
+        const vNetas     = money(ventas.ventasNetas);
+        const descuentos = money(ventas.descuentos);
+        const impuestos  = money(ventas.impuestos);
+        const propinas   = money(ventas.propinas);
+        const comisiones = money(pagos.comisiones);
+        const efectivo   = money(pagos.efectivo);
+        const tarjetas   = Math.round((money(pagos.tarjeta) + money(pagos.tarjetaRegalo)) * 100) / 100;
+        const otros      = money(pagos.otro);
+        // Sobreprecio de las plataformas de domicilio: lo calcula el importador
+        // como (ventas brutas de Square − venta valorada a precio de lista).
+        const otrasComis = money(otrasComisiones);
 
         // 4. INSERT en tabla ventas
         await client.query(
             `INSERT INTO ventas
                 (fecha, ccosto, ventas_brutas, devoluciones, descuentos, ventas_netas,
-                 impuestos, propinas, comisiones, tarjetas, efectivo, empresa, otros)
+                 impuestos, propinas, comisiones, tarjetas, efectivo, empresa, otros,
+                 otras_comisiones)
              VALUES ($1, $2, $3, $4, $5, $6,
-                     $7, $8, $9, $10, $11, $12, $13)`,
+                     $7, $8, $9, $10, $11, $12, $13, $14)`,
             [fecha, ccosto, vBrutas, vDevoluc, descuentos, vNetas,
-             impuestos, propinas, comisiones, tarjetas, efectivo, parseInt(empresa), otros]
+             impuestos, propinas, comisiones, tarjetas, efectivo, parseInt(empresa), otros,
+             otrasComis]
         );
 
         // 5. Bloquear tabla gastos y obtener MAX codigo
@@ -13177,7 +13241,9 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         );
         let seq = parseInt(maxRes.rows[0].max_codigo) + 1;
 
-        // 6. Definir los 7 registros de gastos
+        // 6. Definir los registros de gastos. El último (otras comisiones) solo
+        //    se genera si hay sobreprecio de plataformas y la cuenta está
+        //    parametrizada en Configuración → General.
         const records = [
             { cuenta: cfg.cta_ventas,            valor: vNetas     },
             { cuenta: cfg.cta_descuentos_ventas,  valor: descuentos },
@@ -13186,12 +13252,14 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             { cuenta: cfg.cta_comisiones,         valor: comisiones },
             { cuenta: cfg.cta_egresos_impuestos,  valor: impuestos  },
             { cuenta: cfg.cta_egresos_propinas,   valor: propinas   },
+            { cuenta: cfg.cta_otras_comisiones,   valor: otrasComis, omitirSiCero: true },
         ];
 
         // 7. Insertar cada registro en gastos
         const insertados = [];
         for (const rec of records) {
             if (!rec.cuenta || rec.cuenta.trim() === '') continue;
+            if (rec.omitirSiCero && !(rec.valor > 0)) continue;
             const codigo = String(seq).padStart(10, '0');
             await client.query(
                 `INSERT INTO gastos
@@ -13214,8 +13282,8 @@ app.post('/api/square/importar-resumen', async (req, res) => {
             const codigo  = item.sku  ? String(item.sku).substring(0, 6)       : null;
             const nombre  = item.nombre ? String(item.nombre).substring(0, 100) : '';
             const cant    = parseFloat(item.cantidad)         || 0;
-            const vrUnit  = Math.abs(parseFloat(item.precioVenta) || 0);
-            const subtot  = Math.abs(parseFloat(item.subtotal)    || 0);
+            const vrUnit  = money(item.precioVenta);
+            const subtot  = money(item.subtotal);
             await client.query(
                 `INSERT INTO detalle_ventas
                     (fecha, ccosto, codigo, nombre, cant, vr_unit, subtotal, empresa)
@@ -13240,6 +13308,10 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         }
 
         // 10. INSERT en moviban — 3 registros: Efectivo, Tarjeta, Otros
+        // Se bloquea la tabla igual que `gastos`: el número sale de MAX+1 y no
+        // hay índice único que lo respalde, así que dos importaciones a la vez
+        // podrían generar movimientos bancarios con el mismo número.
+        await client.query('LOCK TABLE moviban IN SHARE ROW EXCLUSIVE MODE');
         const maxMovRes = await client.query(
             `SELECT COALESCE(MAX(CAST(numero AS BIGINT)), 0) AS max_num
              FROM moviban WHERE empresa = $1`,
@@ -13248,10 +13320,9 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         let movSeq = parseInt(maxMovRes.rows[0].max_num) + 1;
 
         const nombreCcosto = (ccostoNombre || ccosto).toString().trim();
-        const valorEfectivo = Math.abs(parseFloat(pagos.efectivo)      || 0);
-        const valorTarjeta  = Math.abs(parseFloat(pagos.tarjeta)       || 0)
-                            + Math.abs(parseFloat(pagos.tarjetaRegalo) || 0);
-        const valorOtros    = Math.abs(parseFloat(pagos.otro)          || 0);
+        const valorEfectivo = efectivo;   // ya redondeados a centavos arriba
+        const valorTarjeta  = tarjetas;
+        const valorOtros    = otros;
 
         // La cuenta Square es el saldo bancario real: Square deposita las ventas
         // con tarjeta YA DESCONTADA su comisión, no el bruto. `comisiones` ya se
@@ -13259,7 +13330,7 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         // ingreso que entra al banco, para que el saldo de esa cuenta cuadre con
         // lo que Square efectivamente deposita. Math.max(0, …) evita un ingreso
         // negativo si algún día las comisiones superan el bruto de tarjeta.
-        const valorTarjetaNeto = Math.max(0, valorTarjeta - comisiones);
+        const valorTarjetaNeto = Math.max(0, Math.round((valorTarjeta - comisiones) * 100) / 100);
 
         const movibanRecords = [
             { concepto: `VENTAS EFECTIVO - ${nombreCcosto}`, ingreso: valorEfectivo,     banco: ctaEfectivo || null },
@@ -13337,7 +13408,8 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
                 SUM(COALESCE(v.comisiones, 0))     AS comisiones,
                 SUM(COALESCE(v.tarjetas, 0))       AS tarjetas,
                 SUM(COALESCE(v.efectivo, 0))       AS efectivo,
-                SUM(COALESCE(v.otros, 0))          AS otros
+                SUM(COALESCE(v.otros, 0))          AS otros,
+                SUM(COALESCE(v.otras_comisiones, 0)) AS otras_comisiones
             FROM ventas v
             WHERE v.empresa = $1
               AND v.fecha BETWEEN $2 AND $3
@@ -13359,9 +13431,11 @@ app.get('/api/tesoreria/ventas-periodo', async (req, res) => {
             acc.tarjetas       += parseFloat(r.tarjetas)       || 0;
             acc.efectivo       += parseFloat(r.efectivo)       || 0;
             acc.otros          += parseFloat(r.otros)          || 0;
+            acc.otras_comisiones += parseFloat(r.otras_comisiones) || 0;
             return acc;
         }, { ventas_brutas:0, devoluciones:0, descuentos:0, ventas_netas:0,
-             impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0 });
+             impuestos:0, propinas:0, comisiones:0, tarjetas:0, efectivo:0, otros:0,
+             otras_comisiones:0 });
 
         res.json({ success: true, data: result.rows, totals, total: result.rowCount });
     } catch (error) {
@@ -13498,6 +13572,32 @@ pool.query(`
         UNIQUE(empresa, usuario, modulo)
     )
 `).catch(() => {});
+
+// Cuenta bancaria de Square por centro de costo: cada sede liquida en su propia
+// cuenta (SQUARE OBT, SQUARE DOWNTOWN, SQUARE ALTAMONTE), a diferencia de las
+// cuentas de efectivo y "otros pagos", que son las mismas para toda la empresa
+// y viven en config_general.
+pool.query(`ALTER TABLE ccostos ADD COLUMN IF NOT EXISTS cta_square VARCHAR(10)`).catch(() => {});
+
+// "Otras comisiones": diferencia entre lo que Square reporta como ventas brutas
+// y la venta valorada a precio de lista (recetas + adiciones). Corresponde sobre
+// todo al sobreprecio con que se publican los productos en las plataformas de
+// domicilio, que luego esas plataformas descuentan como comisión.
+pool.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS otras_comisiones NUMERIC DEFAULT 0`).catch(() => {});
+// Igualar la escala a la del resto de columnas de dinero de `ventas`
+// (NUMERIC(100,7)); sin escala, Postgres guarda tal cual el ruido decimal de
+// los flotantes de JavaScript (p. ej. 437.70000000000005).
+pool.query(`
+    DO $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'ventas' AND column_name = 'otras_comisiones'
+                     AND numeric_scale IS DISTINCT FROM 7) THEN
+            ALTER TABLE ventas ALTER COLUMN otras_comisiones TYPE NUMERIC(100,7);
+        END IF;
+    END $$;
+`).catch(() => {});
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS cta_otras_comisiones VARCHAR(20)`).catch(() => {});
 
 // Pantallas ancladas como favoritas arriba del menú lateral, por usuario.
 // rutas guarda un JSON [{ path, name, icon }, ...] en el orden elegido.

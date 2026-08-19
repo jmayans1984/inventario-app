@@ -290,7 +290,7 @@ const seccionesBase = [
       { path: '/tesoreria/procesos/movimientos-bancarios', icon: 'mdi-swap-horizontal',       title: 'Movimientos Bancarios', desc: 'Registro de ingresos y egresos bancarios' },
       { path: '/tesoreria/procesos/conciliacion-cuentas',  icon: 'mdi-check-all',             title: 'Conciliación Bancaria', desc: 'Concilia movimientos con extractos' },
       { path: '/tesoreria/procesos/importar-ventas',       icon: 'mdi-file-import-outline',   title: 'Importar Ventas',       desc: 'Importa ventas desde archivos CSV' },
-      { path: '/tesoreria/procesos/importar-ventas-v2',    icon: 'mdi-file-import-outline',   title: 'Importar Ventas V 2.0', desc: 'Importación alternativa de ventas desde CSV' },
+      { path: '/tesoreria/procesos/importar-ventas-v2',    icon: 'mdi-file-multiple-outline', title: 'Importar Ventas (Todas las Sedes)', desc: 'Un solo archivo de Square con todas las sedes' },
       { path: '/tesoreria/procesos/facturas-compra',       icon: 'mdi-file-document-outline', title: 'Facturas de Compra',    desc: 'Facturas recibidas de proveedores', requiredTipo: 'CLIENTE' },
       { path: '/tesoreria/procesos/facturas-venta',        icon: 'mdi-file-send-outline',     title: 'Facturas de Venta',     desc: 'Facturas emitidas a clientes', requiredTipo: 'PROVEEDOR' },
     ],
