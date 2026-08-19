@@ -374,7 +374,6 @@ function imprimirEtiqueta(l) {
   .section-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
   .section-txt   { font-size: 6.5pt; line-height: 1.2; }
   .alerg-txt     { font-size: 6.5pt; font-weight: 700; line-height: 1.15; }
-  .instr-txt     { font-size: 6pt; font-style: italic; line-height: 1.15; }
 
   /* Footer: batch code + barcode */
   .lbl-barcode { padding: 3px 8px 5px; text-align: center; border-top: 1.5px solid #000; }
@@ -417,7 +416,6 @@ function imprimirEtiqueta(l) {
   .section-title { font-size: 8pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
   .section-txt   { font-size: 9pt; line-height: 1.35; }
   .alerg-txt     { font-size: 9pt; font-weight: 700; line-height: 1.3; }
-  .instr-txt     { font-size: 8.5pt; font-style: italic; line-height: 1.3; }
 
   /* Barcode */
   .lbl-barcode { padding: 6px 12px 8px; text-align: center; border-top: 1.5px solid #000; }
@@ -481,7 +479,7 @@ ${es3x4 ? `
     </div>
   </div>
 
-  ${(l.ingredientes || l.alergenos || l.instrucciones) ? `
+  ${(l.ingredientes || l.alergenos) ? `
   <div class="lbl-extra">
     ${l.ingredientes ? `
     <div>
@@ -495,11 +493,6 @@ ${es3x4 ? `
       <div class="alerg-txt">${l.alergenos}</div>
     </div>` : ''}
 
-    ${l.instrucciones ? `
-    <div>
-      <div class="section-title">Storage Instructions</div>
-      <div class="instr-txt">${l.instrucciones}</div>
-    </div>` : ''}
   </div>` : ''}
 
   <div class="lbl-barcode">
@@ -549,11 +542,6 @@ ${es3x4 ? `
       <div class="alerg-txt">${l.alergenos}</div>
     </div>` : ''}
 
-    ${l.instrucciones ? `
-    <div>
-      <div class="section-title">Storage Instructions</div>
-      <div class="instr-txt">${l.instrucciones}</div>
-    </div>` : ''}
   </div>
 
   <div class="lbl-barcode">
