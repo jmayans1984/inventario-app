@@ -66,7 +66,17 @@ app.use(cors({
 }));
 
 // Aumentar límite para soportar imágenes base64 (50MB)
-app.use(express.json({ limit: '50mb' }));
+// El webhook de Square firma el cuerpo CRUDO, asi que hay que conservarlo
+// antes de que express lo convierta a objeto. Solo para esa ruta, para no
+// duplicar en memoria el cuerpo de todas las peticiones.
+app.use(express.json({
+    limit: '50mb',
+    verify: (req, res, buf) => {
+        if (req.originalUrl && req.originalUrl.startsWith('/api/square/webhook')) {
+            req.rawBody = buf;
+        }
+    },
+}));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use((req, res, next) => {
@@ -21903,6 +21913,15 @@ app.get('/api/asistencia/diagnostico', async (req, res) => {
 });
 
 // ── FIN MÓDULO NÓMINA ────────────────────────────────────────────
+
+// ================================================================
+// SQUARE EN VIVO — ventas y consumo de inventario en tiempo real
+// Solo lectura/visualización: no escribe en la base. La contabilidad
+// sigue saliendo de la importación del CSV al cierre del día.
+// ================================================================
+const { crearSquareVivo } = require('./lib/square-vivo.js');
+const squareVivo = crearSquareVivo({ pool });
+squareVivo.registrar(app);
 
 // ================================================================
 // INICIAR SERVIDOR

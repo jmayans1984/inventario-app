@@ -69,6 +69,7 @@ export const MODULES = [
         icon: 'mdi-cogs',
         items: [
           { name: 'Importar Ventas',         icon: 'mdi-file-import-outline',        path: '/tesoreria/procesos/importar-ventas' },
+          { name: 'Ventas en Vivo',          icon: 'mdi-broadcast',                   path: '/tesoreria/procesos/ventas-vivo' },
           { name: 'Importar Ventas (Todas las Sedes)', icon: 'mdi-file-multiple-outline', path: '/tesoreria/procesos/importar-ventas-v2' },
           { name: 'Conciliación de Cuentas', icon: 'mdi-bank-check',                 path: '/tesoreria/procesos/conciliacion-cuentas' },
           { name: 'Movimientos Bancarios',   icon: 'mdi-swap-horizontal',             path: '/tesoreria/procesos/movimientos-bancarios' },
