@@ -67,7 +67,7 @@
                 :class="{ 'fav-item-active': isActive }"
                 @click="() => { navigate(); if (isMobile) drawer = false }"
               >
-                <v-icon size="15" class="fav-icon">{{ fav.icon }}</v-icon>
+                <v-icon size="15" class="fav-icon" :style="{ color: colorDeFavorito(fav.path) }">{{ fav.icon }}</v-icon>
                 <span class="fav-label-txt">{{ fav.name }}</span>
                 <span class="fav-reordenar">
                   <button
@@ -595,6 +595,15 @@ const currentModuleTitle = computed(() => {
   const found = MODULES.find(m => route.path === m.path || route.path.startsWith(m.path + '/'))
   return found?.name || 'INICIO'
 })
+
+// Color del módulo dueño de cada favorito (mismo criterio que arriba para
+// detectar el módulo activo). Así el icono de un favorito de Tesorería sale
+// azul, uno de Nómina rosado, etc. — se identifica el módulo de un vistazo
+// sin tener que leer el texto.
+function colorDeFavorito(path) {
+  const mod = MODULES.find(m => path === m.path || path.startsWith(m.path + '/'))
+  return mod?.color || 'var(--sidebar-accent)'
+}
 
 // ─── Bottom Navigation (mobile) ─────────────────────────────────────────────
 const bottomNavPriority = ['contabilidad', 'tesoreria', 'almacen', 'nomina']
