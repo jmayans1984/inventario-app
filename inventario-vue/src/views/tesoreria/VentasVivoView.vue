@@ -120,11 +120,23 @@
           <div v-else class="vv-scroll">
             <div v-if="!s.consumo.length" class="vv-vacio vv-vacio-sm"><p>Sin consumo calculado</p></div>
             <table v-else class="vv-tabla">
-              <thead><tr><th>ARTÍCULO</th><th class="r">CANTIDAD</th><th>UND</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>ARTÍCULO</th>
+                  <th class="r">INICIAL</th>
+                  <th class="r">CONSUMIDO</th>
+                  <th class="r">SALDO</th>
+                  <th>UND</th>
+                </tr>
+              </thead>
               <tbody>
-                <tr v-for="c in s.consumo" :key="c.codigo">
+                <tr v-for="c in s.consumo" :key="c.codigo" :class="c.saldo !== null && c.saldo < 0 && 'vv-negativo'">
                   <td>{{ c.nombre }}</td>
-                  <td class="r b">{{ num(c.cantidad) }}</td>
+                  <td class="r dim">{{ c.inicial === null ? '—' : num(c.inicial) }}</td>
+                  <td class="r">−{{ num(c.cantidad) }}</td>
+                  <td class="r b" :class="saldoClase(c)">
+                    {{ c.saldo === null ? '—' : num(c.saldo) }}
+                  </td>
                   <td class="dim">{{ c.und || '—' }}</td>
                 </tr>
               </tbody>
@@ -135,9 +147,10 @@
       </div>
 
       <div class="vv-nota">
-        El consumo de inventario es un cálculo informativo a partir de las recetas, independiente
-        por centro de costo. El descargue real lo sigue haciendo la importación del archivo de
-        Square al cierre del día.
+        <strong>Saldo proyectado</strong> = existencias con las que abrió el servicio, menos el
+        consumo calculado a partir de las recetas de lo vendido hasta ahora. Es una proyección
+        informativa e independiente por centro de costo: el descargue real de inventario lo sigue
+        haciendo la importación del archivo de Square al cierre del día.
       </div>
 
     </div>
@@ -185,6 +198,15 @@ const num = (v) => {
 const hora = (iso) => {
   if (!iso) return ''
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+}
+
+// Colorea el saldo proyectado: rojo si ya está en negativo, ámbar si queda
+// menos de lo que se lleva consumido (va camino a agotarse en la jornada).
+function saldoClase(c) {
+  if (c.saldo === null) return ''
+  if (c.saldo < 0) return 'vv-saldo-neg'
+  if (c.cantidad > 0 && c.saldo < c.cantidad) return 'vv-saldo-bajo'
+  return ''
 }
 
 // Pestaña activa de cada panel (por código de sede)
@@ -339,6 +361,9 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 .vv-tabla .r { text-align: right; font-variant-numeric: tabular-nums; }
 .vv-tabla .b { font-weight: 700; }
 .vv-tabla .dim { color: rgba(var(--v-theme-on-surface),.5); }
+.vv-saldo-neg  { color: var(--error); }
+.vv-saldo-bajo { color: var(--warning); }
+.vv-negativo td { background: rgba(220,38,38,.05); }
 .vv-nota { font-size: 10.5px; line-height: 1.45; color: rgba(var(--v-theme-on-surface),.45); margin-top: 10px; }
 
 @media (prefers-reduced-motion: reduce) {
