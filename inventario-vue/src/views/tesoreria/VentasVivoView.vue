@@ -70,7 +70,7 @@
           <div class="vv-tabs">
             <button class="vv-tab" :class="tabDe(s.codigo) === 'ordenes' && 'vv-tab-on'"
               @click="setTab(s.codigo, 'ordenes')">
-              Órdenes <span class="vv-tab-n">{{ s.listaOrdenes.length }}</span>
+              Órdenes <span class="vv-tab-n">{{ s.totalOrdenesDia ?? s.listaOrdenes.length }}</span>
             </button>
             <button class="vv-tab" :class="tabDe(s.codigo) === 'productos' && 'vv-tab-on'"
               @click="setTab(s.codigo, 'productos')">
@@ -84,7 +84,13 @@
 
           <div v-if="tabDe(s.codigo) === 'ordenes'" class="vv-scroll">
             <div v-if="!s.listaOrdenes.length" class="vv-vacio vv-vacio-sm"><p>Sin órdenes</p></div>
-            <TransitionGroup v-else name="vv-lista" tag="div" class="vv-ordenes">
+            <template v-else>
+              <div v-if="s.totalOrdenesDia > s.listaOrdenes.length" class="vv-recorte">
+                Mostrando las {{ s.listaOrdenes.length }} más recientes de {{ s.totalOrdenesDia }}.
+                Los totales de arriba sí incluyen toda la jornada.
+              </div>
+            </template>
+            <TransitionGroup v-if="s.listaOrdenes.length" name="vv-lista" tag="div" class="vv-ordenes">
               <div v-for="o in s.listaOrdenes" :key="o.id" class="vv-orden"
                 :class="{ 'vv-orden-cancelada': o.estado === 'CANCELED' }">
                 <div class="vv-orden-top">
@@ -361,6 +367,12 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 .vv-tabla .r { text-align: right; font-variant-numeric: tabular-nums; }
 .vv-tabla .b { font-weight: 700; }
 .vv-tabla .dim { color: rgba(var(--v-theme-on-surface),.5); }
+.vv-recorte {
+  font-size: 10.5px; line-height: 1.4;
+  color: rgba(var(--v-theme-on-surface),.5);
+  padding: 6px 8px; margin-bottom: 6px;
+  background: rgba(var(--v-theme-on-surface),.04); border-radius: 7px;
+}
 .vv-saldo-neg  { color: var(--error); }
 .vv-saldo-bajo { color: var(--warning); }
 .vv-negativo td { background: rgba(220,38,38,.05); }
