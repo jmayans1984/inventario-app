@@ -65,6 +65,9 @@
             {{ s.ordenes }} órden{{ s.ordenes !== 1 ? 'es' : '' }} ·
             {{ num(s.articulos) }} artículos ·
             {{ s.consumo.length }} insumo{{ s.consumo.length !== 1 ? 's' : '' }}
+            <template v-if="s.modificadores?.length">
+              · {{ s.modificadores.length }} adición{{ s.modificadores.length !== 1 ? 'es' : '' }}
+            </template>
           </div>
 
           <div class="vv-tabs">
