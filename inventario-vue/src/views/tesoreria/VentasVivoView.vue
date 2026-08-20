@@ -139,7 +139,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="c in s.consumo" :key="c.codigo" :class="c.saldo !== null && c.saldo < 0 && 'vv-negativo'">
+                <tr v-for="c in s.consumo" :key="c.codigo" :class="nivelSaldo(c) === 'critico' && 'vv-negativo'">
                   <td>{{ c.nombre }}</td>
                   <td class="r dim">{{ c.inicial === null ? '—' : num(c.inicial) }}</td>
                   <td class="r">−{{ num(c.cantidad) }}</td>
@@ -211,11 +211,22 @@ const hora = (iso) => {
 
 // Colorea el saldo proyectado: rojo si ya está en negativo, ámbar si queda
 // menos de lo que se lleva consumido (va camino a agotarse en la jornada).
-function saldoClase(c) {
-  if (c.saldo === null) return ''
-  if (c.saldo < 0) return 'vv-saldo-neg'
-  if (c.cantidad > 0 && c.saldo < c.cantidad) return 'vv-saldo-bajo'
+// Se marca en rojo cuando queda menos del 15% de lo que habia al abrir el
+// servicio: esperar a que llegue a cero avisa demasiado tarde para reponer.
+const UMBRAL_CRITICO = 0.15
+
+function nivelSaldo(c) {
+  if (c.saldo === null || c.saldo === undefined) return ''
+  if (c.saldo < 0) return 'critico'
+  if (c.inicial > 0 && c.saldo < c.inicial * UMBRAL_CRITICO) return 'critico'
+  // Ambar: queda menos de lo ya consumido en la jornada
+  if (c.cantidad > 0 && c.saldo < c.cantidad) return 'bajo'
   return ''
+}
+
+function saldoClase(c) {
+  const n = nivelSaldo(c)
+  return n === 'critico' ? 'vv-saldo-neg' : n === 'bajo' ? 'vv-saldo-bajo' : ''
 }
 
 // Pestaña activa de cada panel (por código de sede)
