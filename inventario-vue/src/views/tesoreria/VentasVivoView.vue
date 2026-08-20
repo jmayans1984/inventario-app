@@ -68,6 +68,9 @@
             <template v-if="s.modificadores?.length">
               · {{ s.modificadores.length }} adición{{ s.modificadores.length !== 1 ? 'es' : '' }}
             </template>
+            <template v-if="pctDelivery(s) > 0">
+              · <strong class="vv-meta-dlv">{{ pct(pctDelivery(s)) }}% delivery</strong>
+            </template>
           </div>
 
           <div v-if="hayPagos(s)" class="vv-pagos">
@@ -77,9 +80,9 @@
               <span class="vv-pb vv-pb-otros" :style="{ width: (s.pagos.pctOtros || 0) + '%' }"></span>
             </div>
             <div class="vv-pagos-leyenda">
-              <span class="vv-pl"><i class="vv-pl-dot vv-pl-tarjeta"></i>Tarjeta {{ fmt(s.pagos.tarjeta) }} · {{ num(s.pagos.pctTarjeta) }}%</span>
-              <span class="vv-pl"><i class="vv-pl-dot vv-pl-efectivo"></i>Efectivo {{ fmt(s.pagos.efectivo) }} · {{ num(s.pagos.pctEfectivo) }}%</span>
-              <span v-if="s.pagos.otros" class="vv-pl"><i class="vv-pl-dot vv-pl-otros"></i>Otros {{ fmt(s.pagos.otros) }} · {{ num(s.pagos.pctOtros) }}%</span>
+              <span class="vv-pl"><i class="vv-pl-dot vv-pl-tarjeta"></i>Tarjeta {{ fmt(s.pagos.tarjeta) }} · {{ pct(s.pagos.pctTarjeta) }}%</span>
+              <span class="vv-pl"><i class="vv-pl-dot vv-pl-efectivo"></i>Efectivo {{ fmt(s.pagos.efectivo) }} · {{ pct(s.pagos.pctEfectivo) }}%</span>
+              <span v-if="s.pagos.otros" class="vv-pl"><i class="vv-pl-dot vv-pl-otros"></i>Otros {{ fmt(s.pagos.otros) }} · {{ pct(s.pagos.pctOtros) }}%</span>
               <span v-if="s.pagos.propinas" class="vv-pl vv-pl-propina">Propinas {{ fmt(s.pagos.propinas) }}</span>
             </div>
           </div>
@@ -96,6 +99,10 @@
             <button class="vv-tab" :class="tabDe(s.codigo) === 'consumo' && 'vv-tab-on'"
               @click="setTab(s.codigo, 'consumo')">
               Inventario <span class="vv-tab-n">{{ s.consumo.length }}</span>
+            </button>
+            <button class="vv-tab" :class="tabDe(s.codigo) === 'canales' && 'vv-tab-on'"
+              @click="setTab(s.codigo, 'canales')">
+              Canales <span class="vv-tab-n">{{ (s.canales || []).length }}</span>
             </button>
           </div>
 
@@ -140,7 +147,7 @@
             </table>
           </div>
 
-          <div v-else class="vv-scroll">
+          <div v-else-if="tabDe(s.codigo) === 'consumo'" class="vv-scroll">
             <div v-if="s.consumo.length" class="vv-filtros">
               <button class="vv-filtro" :class="filtroDe(s.codigo) === 'todos' && 'vv-filtro-on'"
                 @click="setFiltro(s.codigo, 'todos')">
@@ -184,6 +191,29 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div v-else class="vv-scroll">
+            <div v-if="!(s.canales || []).length" class="vv-vacio vv-vacio-sm"><p>Sin datos de canal</p></div>
+            <template v-else>
+              <div class="vv-pagos-barra vv-canal-barra">
+                <span v-for="c in s.canales" :key="c.canal" class="vv-pb"
+                  :class="'vv-cg-' + c.grupo" :style="{ width: (c.pct || 0) + '%' }"></span>
+              </div>
+              <table class="vv-tabla">
+                <thead>
+                  <tr><th>CANAL</th><th class="r">ÓRD</th><th class="r">VENTA</th><th class="r">%</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in s.canales" :key="c.canal">
+                    <td><i class="vv-canal-dot" :class="'vv-cg-' + c.grupo"></i>{{ c.canal }}</td>
+                    <td class="r dim">{{ c.ordenes }}</td>
+                    <td class="r b">{{ fmt(c.ventas) }}</td>
+                    <td class="r">{{ pct(c.pct) }}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </template>
           </div>
 
         </div>
@@ -238,6 +268,10 @@ const num = (v) => {
   return (Math.round(n * 1000) / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 })
 }
 
+// Los porcentajes con 3 decimales ("67.532%") se leen mal; uno basta.
+const pct = (v) => (Math.round((parseFloat(v) || 0) * 10) / 10)
+  .toLocaleString('en-US', { maximumFractionDigits: 1 })
+
 const hora = (iso) => {
   if (!iso) return ''
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -269,6 +303,16 @@ const tabDe  = (codigo) => tabs.value[codigo] || 'ordenes'
 const setTab = (codigo, t) => { tabs.value = { ...tabs.value, [codigo]: t } }
 
 const hayPagos = (s) => s.pagos && (s.pagos.tarjeta || s.pagos.efectivo || s.pagos.otros || s.pagos.propinas)
+
+// Cuánto de la venta de la sede entró por plataformas de delivery. Es el número
+// que interesa vigilar: esas ventas cargan comisión y recargo de plataforma.
+function pctDelivery(s) {
+  const lista = s.canales || []
+  const total = lista.reduce((a, c) => a + c.ventas, 0)
+  if (!total) return 0
+  const dlv = lista.filter(c => c.grupo === 'delivery').reduce((a, c) => a + c.ventas, 0)
+  return (dlv / total) * 100
+}
 
 // Filtro por nivel de saldo (crítico/bajo/normal) y orden por columna,
 // ambos independientes por centro de costo.
@@ -471,6 +515,17 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 .vv-filtro-critico.vv-filtro-on { background: var(--error); }
 .vv-filtro-bajo.vv-filtro-on { background: var(--warning); }
 .vv-filtro-normal.vv-filtro-on { background: var(--success); }
+
+/* Canales de venta */
+.vv-canal-barra { margin-bottom: 10px; }
+.vv-canal-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  margin-right: 6px; vertical-align: middle;
+}
+.vv-cg-mostrador { background: var(--indigo); }
+.vv-cg-delivery  { background: var(--gold); }
+.vv-cg-online    { background: var(--success); }
+.vv-meta-dlv { color: var(--gold); font-weight: 700; }
 
 /* Desglose de medios de pago */
 .vv-pagos { margin-top: 10px; }
