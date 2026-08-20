@@ -70,6 +70,20 @@
             </template>
           </div>
 
+          <div v-if="hayPagos(s)" class="vv-pagos">
+            <div class="vv-pagos-barra">
+              <span class="vv-pb vv-pb-tarjeta" :style="{ width: (s.pagos.pctTarjeta || 0) + '%' }"></span>
+              <span class="vv-pb vv-pb-efectivo" :style="{ width: (s.pagos.pctEfectivo || 0) + '%' }"></span>
+              <span class="vv-pb vv-pb-otros" :style="{ width: (s.pagos.pctOtros || 0) + '%' }"></span>
+            </div>
+            <div class="vv-pagos-leyenda">
+              <span class="vv-pl"><i class="vv-pl-dot vv-pl-tarjeta"></i>Tarjeta {{ fmt(s.pagos.tarjeta) }} · {{ num(s.pagos.pctTarjeta) }}%</span>
+              <span class="vv-pl"><i class="vv-pl-dot vv-pl-efectivo"></i>Efectivo {{ fmt(s.pagos.efectivo) }} · {{ num(s.pagos.pctEfectivo) }}%</span>
+              <span v-if="s.pagos.otros" class="vv-pl"><i class="vv-pl-dot vv-pl-otros"></i>Otros {{ fmt(s.pagos.otros) }} · {{ num(s.pagos.pctOtros) }}%</span>
+              <span v-if="s.pagos.propinas" class="vv-pl vv-pl-propina">Propinas {{ fmt(s.pagos.propinas) }}</span>
+            </div>
+          </div>
+
           <div class="vv-tabs">
             <button class="vv-tab" :class="tabDe(s.codigo) === 'ordenes' && 'vv-tab-on'"
               @click="setTab(s.codigo, 'ordenes')">
@@ -127,19 +141,39 @@
           </div>
 
           <div v-else class="vv-scroll">
+            <div v-if="s.consumo.length" class="vv-filtros">
+              <button class="vv-filtro" :class="filtroDe(s.codigo) === 'todos' && 'vv-filtro-on'"
+                @click="setFiltro(s.codigo, 'todos')">
+                Todos <span class="vv-tab-n">{{ s.consumo.length }}</span>
+              </button>
+              <button class="vv-filtro vv-filtro-critico" :class="filtroDe(s.codigo) === 'critico' && 'vv-filtro-on'"
+                @click="setFiltro(s.codigo, 'critico')">
+                Crítico <span class="vv-tab-n">{{ conteoNivel(s, 'critico') }}</span>
+              </button>
+              <button class="vv-filtro vv-filtro-bajo" :class="filtroDe(s.codigo) === 'bajo' && 'vv-filtro-on'"
+                @click="setFiltro(s.codigo, 'bajo')">
+                Bajo <span class="vv-tab-n">{{ conteoNivel(s, 'bajo') }}</span>
+              </button>
+              <button class="vv-filtro vv-filtro-normal" :class="filtroDe(s.codigo) === 'normal' && 'vv-filtro-on'"
+                @click="setFiltro(s.codigo, 'normal')">
+                Normal <span class="vv-tab-n">{{ conteoNivel(s, 'normal') }}</span>
+              </button>
+            </div>
+
             <div v-if="!s.consumo.length" class="vv-vacio vv-vacio-sm"><p>Sin consumo calculado</p></div>
+            <div v-else-if="!consumoFiltrado(s).length" class="vv-vacio vv-vacio-sm"><p>Nada con este filtro</p></div>
             <table v-else class="vv-tabla">
               <thead>
                 <tr>
-                  <th>ARTÍCULO</th>
-                  <th class="r">INICIAL</th>
-                  <th class="r">CONSUMIDO</th>
-                  <th class="r">SALDO</th>
-                  <th>UND</th>
+                  <th class="vv-th" @click="ordenar(s.codigo, 'nombre')">ARTÍCULO<span class="vv-th-i">{{ flecha(s, 'nombre') }}</span></th>
+                  <th class="r vv-th" @click="ordenar(s.codigo, 'inicial')">INICIAL<span class="vv-th-i">{{ flecha(s, 'inicial') }}</span></th>
+                  <th class="r vv-th" @click="ordenar(s.codigo, 'cantidad')">CONSUMIDO<span class="vv-th-i">{{ flecha(s, 'cantidad') }}</span></th>
+                  <th class="r vv-th" @click="ordenar(s.codigo, 'saldo')">SALDO<span class="vv-th-i">{{ flecha(s, 'saldo') }}</span></th>
+                  <th class="vv-th" @click="ordenar(s.codigo, 'und')">UND<span class="vv-th-i">{{ flecha(s, 'und') }}</span></th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="c in s.consumo" :key="c.codigo" :class="nivelSaldo(c) === 'critico' && 'vv-negativo'">
+                <tr v-for="c in consumoFiltrado(s)" :key="c.codigo" :class="nivelSaldo(c) === 'critico' && 'vv-negativo'">
                   <td>{{ c.nombre }}</td>
                   <td class="r dim">{{ c.inicial === null ? '—' : num(c.inicial) }}</td>
                   <td class="r">−{{ num(c.cantidad) }}</td>
@@ -233,6 +267,47 @@ function saldoClase(c) {
 const tabs = ref({})
 const tabDe  = (codigo) => tabs.value[codigo] || 'ordenes'
 const setTab = (codigo, t) => { tabs.value = { ...tabs.value, [codigo]: t } }
+
+const hayPagos = (s) => s.pagos && (s.pagos.tarjeta || s.pagos.efectivo || s.pagos.otros || s.pagos.propinas)
+
+// Filtro por nivel de saldo (crítico/bajo/normal) y orden por columna,
+// ambos independientes por centro de costo.
+const filtroInv = ref({})
+const filtroDe  = (codigo) => filtroInv.value[codigo] || 'todos'
+const setFiltro = (codigo, f) => { filtroInv.value = { ...filtroInv.value, [codigo]: f } }
+
+function conteoNivel(s, nivel) {
+  return s.consumo.filter(c => (nivelSaldo(c) || 'normal') === nivel).length
+}
+
+const ordenInv = ref({})
+const ordenDe  = (codigo) => ordenInv.value[codigo] || { col: 'nombre', dir: 1 }
+function ordenar(codigo, col) {
+  const actual = ordenDe(codigo)
+  const dir = actual.col === col ? -actual.dir : 1
+  ordenInv.value = { ...ordenInv.value, [codigo]: { col, dir } }
+}
+function flecha(s, col) {
+  const o = ordenDe(s.codigo)
+  if (o.col !== col) return ''
+  return o.dir === 1 ? ' ▲' : ' ▼'
+}
+
+function consumoFiltrado(s) {
+  const filtro = filtroDe(s.codigo)
+  const lista = filtro === 'todos' ? s.consumo : s.consumo.filter(c => (nivelSaldo(c) || 'normal') === filtro)
+  const { col, dir } = ordenDe(s.codigo)
+  const arr = [...lista]
+  arr.sort((a, b) => {
+    if (col === 'nombre' || col === 'und') {
+      return dir * String(a[col] || '').localeCompare(String(b[col] || ''), 'es')
+    }
+    const va = a[col] === null || a[col] === undefined ? -Infinity : parseFloat(a[col])
+    const vb = b[col] === null || b[col] === undefined ? -Infinity : parseFloat(b[col])
+    return dir * (va - vb)
+  })
+  return arr
+}
 
 // El navegador mantiene abierta una conexión por la que el servidor empuja
 // cada cambio. Si se cae (proxy, suspensión del equipo) se reintenta sola.
@@ -377,6 +452,46 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
   color: rgba(var(--v-theme-on-surface),.45);
   border-bottom: 1px solid rgba(var(--v-theme-on-surface),.1);
 }
+.vv-th { cursor: pointer; user-select: none; white-space: nowrap; }
+.vv-th:hover { color: var(--indigo); }
+.vv-th-i { display: inline-block; width: 10px; color: var(--indigo); }
+
+/* Filtros por nivel de saldo */
+.vv-filtros { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+.vv-filtro {
+  display: flex; align-items: center; gap: 5px;
+  border: 1px solid rgba(var(--v-theme-on-surface),.12);
+  background: transparent; color: rgba(var(--v-theme-on-surface),.6);
+  font-size: 10.5px; font-weight: 600;
+  padding: 4px 9px; border-radius: 7px; cursor: pointer;
+}
+.vv-filtro:hover { border-color: rgba(var(--v-theme-on-surface),.3); }
+.vv-filtro-on { color: rgb(var(--v-theme-surface)); border-color: transparent; }
+.vv-filtro:not(.vv-filtro-critico):not(.vv-filtro-bajo):not(.vv-filtro-normal).vv-filtro-on { background: var(--indigo); }
+.vv-filtro-critico.vv-filtro-on { background: var(--error); }
+.vv-filtro-bajo.vv-filtro-on { background: var(--warning); }
+.vv-filtro-normal.vv-filtro-on { background: var(--success); }
+
+/* Desglose de medios de pago */
+.vv-pagos { margin-top: 10px; }
+.vv-pagos-barra {
+  display: flex; height: 6px; border-radius: 4px; overflow: hidden;
+  background: rgba(var(--v-theme-on-surface),.07);
+}
+.vv-pb { height: 100%; }
+.vv-pb-tarjeta  { background: var(--indigo); }
+.vv-pb-efectivo { background: var(--success); }
+.vv-pb-otros    { background: var(--gold); }
+.vv-pagos-leyenda {
+  display: flex; flex-wrap: wrap; gap: 3px 12px; margin-top: 6px;
+  font-size: 10.5px; color: rgba(var(--v-theme-on-surface),.55);
+}
+.vv-pl { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.vv-pl-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.vv-pl-tarjeta  { color: var(--indigo); }
+.vv-pl-efectivo { color: var(--success); }
+.vv-pl-otros    { color: var(--gold); }
+.vv-pl-propina  { color: rgba(var(--v-theme-on-surface),.4); font-style: italic; }
 .vv-tabla tbody td { padding: 5px 8px; border-bottom: 1px solid rgba(var(--v-theme-on-surface),.04); }
 .vv-tabla .r { text-align: right; font-variant-numeric: tabular-nums; }
 .vv-tabla .b { font-weight: 700; }
