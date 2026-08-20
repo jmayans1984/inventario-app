@@ -46,98 +46,98 @@
           icon="mdi-fire" color="var(--warning)" />
       </div>
 
-      <div class="vv-cols">
-
-        <!-- Órdenes que van entrando -->
-        <div class="vv-card">
-          <div class="vv-card-hdr">
-            <v-icon size="16" color="var(--indigo)">mdi-timeline-clock-outline</v-icon>
-            <span class="vv-card-ttl">ÓRDENES RECIENTES</span>
-            <span class="vv-card-sub">{{ ordenes.length }} en pantalla</span>
-          </div>
-
-          <div v-if="!ordenes.length" class="vv-vacio">
-            <v-icon size="38" color="rgba(var(--v-theme-on-surface),.15)">mdi-clock-outline</v-icon>
-            <p>Esperando la primera venta del día…</p>
-          </div>
-
-          <TransitionGroup v-else name="vv-lista" tag="div" class="vv-ordenes">
-            <div v-for="o in ordenes" :key="o.id" class="vv-orden" :class="{ 'vv-orden-cancelada': o.estado === 'CANCELED' }">
-              <div class="vv-orden-top">
-                <span class="vv-sede-chip">{{ o.sede }}</span>
-                <span class="vv-hora">{{ hora(o.creada) }}</span>
-                <v-spacer />
-                <span class="vv-orden-total">{{ fmt(o.total) }}</span>
-              </div>
-              <div class="vv-orden-items">
-                <span v-for="(it, i) in o.items" :key="i" class="vv-item">
-                  {{ num(it.cantidad) }}× {{ it.nombre }}
-                  <span v-if="it.variante" class="vv-item-var">{{ it.variante }}</span>
-                </span>
-              </div>
-              <div v-if="o.estado === 'CANCELED'" class="vv-cancelada-tag">Cancelada — no cuenta en los totales</div>
-            </div>
-          </TransitionGroup>
+      <!-- Un panel independiente por centro de costo -->
+      <div v-if="!sedes.length" class="vv-card">
+        <div class="vv-vacio">
+          <v-icon size="38" color="rgba(var(--v-theme-on-surface),.15)">mdi-clock-outline</v-icon>
+          <p>Esperando la primera venta del día…</p>
         </div>
+      </div>
 
-        <div class="vv-col-der">
+      <div v-else class="vv-paneles">
+        <div v-for="s in sedes" :key="s.codigo" class="vv-panel">
 
-          <!-- Por sede -->
-          <div class="vv-card">
-            <div class="vv-card-hdr">
-              <v-icon size="16" color="var(--success)">mdi-store-outline</v-icon>
-              <span class="vv-card-ttl">POR SEDE</span>
-            </div>
-            <div v-if="!sedes.length" class="vv-vacio vv-vacio-sm">
-              <p>Sin ventas todavía</p>
-            </div>
-            <div v-else class="vv-sedes">
-              <div v-for="s in sedes" :key="s.codigo" class="vv-sede">
-                <div class="vv-sede-fila">
-                  <span class="vv-sede-nom">{{ s.nombre }}</span>
-                  <span class="vv-sede-val">{{ fmt(s.ventas) }}</span>
-                </div>
-                <div class="vv-barra">
-                  <div class="vv-barra-fill" :style="{ width: pctSede(s) + '%' }"></div>
-                </div>
-                <div class="vv-sede-meta">
-                  {{ s.ordenes }} órden{{ s.ordenes !== 1 ? 'es' : '' }} · {{ num(s.articulos) }} artículos
-                </div>
-              </div>
-            </div>
+          <div class="vv-panel-hdr">
+            <div class="vv-panel-nom">{{ s.nombre }}</div>
+            <div class="vv-panel-total">{{ fmt(s.ventas) }}</div>
+          </div>
+          <div class="vv-panel-meta">
+            {{ s.ordenes }} órden{{ s.ordenes !== 1 ? 'es' : '' }} ·
+            {{ num(s.articulos) }} artículos ·
+            {{ s.consumo.length }} insumo{{ s.consumo.length !== 1 ? 's' : '' }}
           </div>
 
-          <!-- Consumo de inventario -->
-          <div class="vv-card">
-            <div class="vv-card-hdr">
-              <v-icon size="16" color="var(--warning)">mdi-fire</v-icon>
-              <span class="vv-card-ttl">CONSUMO DE INVENTARIO</span>
-              <span class="vv-card-sub">estimado</span>
-            </div>
-            <div v-if="!consumo.length" class="vv-vacio vv-vacio-sm">
-              <p>Sin consumo calculado</p>
-            </div>
-            <div v-else class="vv-tabla-wrap">
-              <table class="vv-tabla">
-                <thead>
-                  <tr><th>ARTÍCULO</th><th class="r">CANTIDAD</th><th>UND</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="c in consumo" :key="c.codigo">
-                    <td>{{ c.nombre }}</td>
-                    <td class="r b">{{ num(c.cantidad) }}</td>
-                    <td class="dim">{{ c.und || '—' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="vv-nota">
-              Cálculo informativo a partir de las recetas. El descargue real de inventario
-              lo sigue haciendo la importación del archivo de Square al cierre del día.
-            </div>
+          <div class="vv-tabs">
+            <button class="vv-tab" :class="tabDe(s.codigo) === 'ordenes' && 'vv-tab-on'"
+              @click="setTab(s.codigo, 'ordenes')">
+              Órdenes <span class="vv-tab-n">{{ s.listaOrdenes.length }}</span>
+            </button>
+            <button class="vv-tab" :class="tabDe(s.codigo) === 'productos' && 'vv-tab-on'"
+              @click="setTab(s.codigo, 'productos')">
+              Productos <span class="vv-tab-n">{{ s.productos.length }}</span>
+            </button>
+            <button class="vv-tab" :class="tabDe(s.codigo) === 'consumo' && 'vv-tab-on'"
+              @click="setTab(s.codigo, 'consumo')">
+              Inventario <span class="vv-tab-n">{{ s.consumo.length }}</span>
+            </button>
+          </div>
+
+          <div v-if="tabDe(s.codigo) === 'ordenes'" class="vv-scroll">
+            <div v-if="!s.listaOrdenes.length" class="vv-vacio vv-vacio-sm"><p>Sin órdenes</p></div>
+            <TransitionGroup v-else name="vv-lista" tag="div" class="vv-ordenes">
+              <div v-for="o in s.listaOrdenes" :key="o.id" class="vv-orden"
+                :class="{ 'vv-orden-cancelada': o.estado === 'CANCELED' }">
+                <div class="vv-orden-top">
+                  <span class="vv-hora">{{ hora(o.creada) }}</span>
+                  <v-spacer />
+                  <span class="vv-orden-total">{{ fmt(o.total) }}</span>
+                </div>
+                <div class="vv-orden-items">
+                  <span v-for="(it, i) in o.items" :key="i" class="vv-item">
+                    {{ num(it.cantidad) }}× {{ it.nombre }}
+                    <span v-if="it.variante" class="vv-item-var">{{ it.variante }}</span>
+                  </span>
+                </div>
+                <div v-if="o.estado === 'CANCELED'" class="vv-cancelada-tag">Cancelada — no suma</div>
+              </div>
+            </TransitionGroup>
+          </div>
+
+          <div v-else-if="tabDe(s.codigo) === 'productos'" class="vv-scroll">
+            <div v-if="!s.productos.length" class="vv-vacio vv-vacio-sm"><p>Sin productos</p></div>
+            <table v-else class="vv-tabla">
+              <thead><tr><th>PRODUCTO</th><th class="r">CANT</th><th class="r">TOTAL</th></tr></thead>
+              <tbody>
+                <tr v-for="p in s.productos" :key="p.sku || p.nombre">
+                  <td>{{ p.nombre }}</td>
+                  <td class="r b">{{ num(p.cantidad) }}</td>
+                  <td class="r dim">{{ fmt(p.total) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="vv-scroll">
+            <div v-if="!s.consumo.length" class="vv-vacio vv-vacio-sm"><p>Sin consumo calculado</p></div>
+            <table v-else class="vv-tabla">
+              <thead><tr><th>ARTÍCULO</th><th class="r">CANTIDAD</th><th>UND</th></tr></thead>
+              <tbody>
+                <tr v-for="c in s.consumo" :key="c.codigo">
+                  <td>{{ c.nombre }}</td>
+                  <td class="r b">{{ num(c.cantidad) }}</td>
+                  <td class="dim">{{ c.und || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
         </div>
+      </div>
+
+      <div class="vv-nota">
+        El consumo de inventario es un cálculo informativo a partir de las recetas, independiente
+        por centro de costo. El descargue real lo sigue haciendo la importación del archivo de
+        Square al cierre del día.
       </div>
 
     </div>
@@ -187,10 +187,10 @@ const hora = (iso) => {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
-function pctSede(s) {
-  const max = sedes.value.reduce((m, x) => Math.max(m, x.ventas), 0)
-  return max > 0 ? Math.max(3, (s.ventas / max) * 100) : 0
-}
+// Pestaña activa de cada panel (por código de sede)
+const tabs = ref({})
+const tabDe  = (codigo) => tabs.value[codigo] || 'ordenes'
+const setTab = (codigo, t) => { tabs.value = { ...tabs.value, [codigo]: t } }
 
 // El navegador mantiene abierta una conexión por la que el servidor empuja
 // cada cambio. Si se cae (proxy, suspensión del equipo) se reintenta sola.
@@ -255,9 +255,35 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 
 .vv-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
 
-.vv-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 1000px) { .vv-cols { grid-template-columns: 1fr; } }
-.vv-col-der { display: flex; flex-direction: column; gap: 16px; }
+/* Un panel por centro de costo */
+.vv-paneles { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+.vv-panel {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface),.08);
+  border-left: 3px solid var(--success);
+  border-radius: 12px; padding: 15px 16px;
+}
+.vv-panel-hdr { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.vv-panel-nom { font-size: 15px; font-weight: 800; }
+.vv-panel-total { font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--success); }
+.vv-panel-meta { font-size: 10.5px; color: rgba(var(--v-theme-on-surface),.45); margin-top: 2px; }
+
+.vv-tabs { display: flex; gap: 5px; margin: 12px 0 10px; flex-wrap: wrap; }
+.vv-tab {
+  display: flex; align-items: center; gap: 5px;
+  border: 1px solid rgba(var(--v-theme-on-surface),.12);
+  background: transparent; color: rgba(var(--v-theme-on-surface),.6);
+  font-size: 11px; font-weight: 600;
+  padding: 5px 10px; border-radius: 8px; cursor: pointer;
+}
+.vv-tab:hover { border-color: var(--indigo); color: var(--indigo); }
+.vv-tab-on { background: var(--indigo-wash); border-color: var(--indigo); color: var(--indigo); }
+.vv-tab-n {
+  font-size: 9.5px; font-weight: 800;
+  background: rgba(var(--v-theme-on-surface),.1);
+  padding: 1px 5px; border-radius: 8px;
+}
+.vv-scroll { max-height: 340px; overflow-y: auto; }
 
 .vv-card {
   background: rgb(var(--v-theme-surface));
@@ -285,11 +311,6 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 }
 .vv-orden-cancelada { border-left-color: var(--error); opacity: .6; }
 .vv-orden-top { display: flex; align-items: center; gap: 8px; }
-.vv-sede-chip {
-  font-size: 10px; font-weight: 800; letter-spacing: .3px;
-  background: var(--indigo-wash); color: var(--indigo);
-  padding: 2px 8px; border-radius: 10px;
-}
 .vv-hora { font-size: 11px; color: rgba(var(--v-theme-on-surface),.45); }
 .vv-orden-total { font-size: 14.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--success); }
 .vv-orden-items { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
@@ -305,20 +326,7 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 .vv-lista-enter-from { opacity: 0; transform: translateY(-8px); }
 .vv-lista-move { transition: transform 260ms cubic-bezier(.23,1,.32,1); }
 
-/* Sedes */
-.vv-sedes { display: flex; flex-direction: column; gap: 13px; }
-.vv-sede-fila { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.vv-sede-nom { font-size: 12.5px; font-weight: 700; }
-.vv-sede-val { font-size: 13.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.vv-barra { height: 5px; border-radius: 3px; background: rgba(var(--v-theme-on-surface),.07); margin: 5px 0 3px; overflow: hidden; }
-.vv-barra-fill {
-  height: 100%; border-radius: 3px; background: var(--success);
-  transition: width 420ms cubic-bezier(.23,1,.32,1);
-}
-.vv-sede-meta { font-size: 10.5px; color: rgba(var(--v-theme-on-surface),.45); }
 
-/* Consumo */
-.vv-tabla-wrap { max-height: 300px; overflow-y: auto; }
 .vv-tabla { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 .vv-tabla thead th {
   position: sticky; top: 0; background: rgb(var(--v-theme-surface));
@@ -335,6 +343,6 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 
 @media (prefers-reduced-motion: reduce) {
   .vv-estado-vivo .vv-punto { animation: none; }
-  .vv-lista-enter-active, .vv-lista-move, .vv-barra-fill { transition: none; }
+  .vv-lista-enter-active, .vv-lista-move { transition: none; }
 }
 </style>
