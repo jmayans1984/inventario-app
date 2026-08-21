@@ -78,13 +78,28 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Pantallas que administran permisos. Quedan vedadas automáticamente a
+  // cualquier usuario que tenga restricciones: si no, un usuario limitado entra
+  // aquí y se las quita. No depende de que el administrador se acuerde de
+  // marcar la casilla.
+  const RUTAS_ADMIN_PERMISOS = [
+    '/configuracion/permisos-usuarios',
+    '/configuracion/permisos-clientes',
+  ]
+
   /** ¿Esta ruta está bloqueada para el usuario actual? Se usa tanto en el menú
    *  lateral como en el guard del router: ocultar la opción no basta, hay que
    *  bloquear también la navegación directa por URL. */
   function rutaBloqueada(path) {
     if (!path) return false
     const dis = modulosDeshabilitados.value
-    if (!dis || !dis.length) return false
+    const restringido = Boolean(dis && dis.length)
+
+    if (restringido && RUTAS_ADMIN_PERMISOS.some(r => path === r || path.startsWith(r + '/'))) {
+      return true
+    }
+
+    if (!restringido) return false
     return dis.some(d => path === d || path.startsWith(d + '/'))
   }
 

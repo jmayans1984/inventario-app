@@ -18429,6 +18429,17 @@ app.get('/api/permisos-usuarios/:empresa/:usuarioCodigo', async (req, res) => {
 app.put('/api/permisos-usuarios/:empresa/:usuarioCodigo', async (req, res) => {
     try {
         const { empresa, usuarioCodigo } = req.params;
+
+        // Nadie edita sus propios permisos: si no, un usuario restringido entra
+        // a esta pantalla y se quita las restricciones que le pusieron.
+        const solicitante = String(req.get('X-Usuario') || '').trim();
+        if (solicitante && String(usuarioCodigo) === solicitante) {
+            return res.status(403).json({
+                success: false,
+                error: 'No puedes modificar tus propios permisos. Pídele a otro administrador que lo haga.',
+            });
+        }
+
         const { rutas_deshabilitadas, rutas_deshabilitadas_movil, rutas_deshabilitadas_completa } = req.body;
         const json = JSON.stringify(Array.isArray(rutas_deshabilitadas) ? rutas_deshabilitadas : []);
         const jsonMovil = JSON.stringify(Array.isArray(rutas_deshabilitadas_movil) ? rutas_deshabilitadas_movil : []);

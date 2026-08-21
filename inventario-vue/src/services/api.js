@@ -21,6 +21,13 @@ api.interceptors.request.use(
       config.headers['X-Empresa'] = empresaActual
     }
 
+    // Quién está actuando. El servidor lo usa para impedir que alguien edite
+    // sus propios permisos.
+    try {
+      const u = JSON.parse(localStorage.getItem('usuario') || 'null')
+      if (u?.codigo) config.headers['X-Usuario'] = String(u.codigo)
+    } catch { /* sesión ilegible, se omite */ }
+
     return config
   },
   (error) => {

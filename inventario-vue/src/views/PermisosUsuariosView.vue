@@ -55,13 +55,18 @@
               v-for="u in usuarios"
               :key="u.codigo"
               class="pc-cliente-card"
-              :class="{ 'pc-cliente-card--active': usuarioSeleccionado?.codigo === u.codigo }"
-              @click="seleccionarUsuario(u)"
+              :class="{
+                'pc-cliente-card--active': usuarioSeleccionado?.codigo === u.codigo,
+                'pc-cliente-card--self': esYo(u),
+              }"
+              @click="esYo(u) ? null : seleccionarUsuario(u)"
             >
-              <v-icon size="18" class="pc-cliente-icon">mdi-account-outline</v-icon>
+              <v-icon size="18" class="pc-cliente-icon">{{ esYo(u) ? 'mdi-account-lock-outline' : 'mdi-account-outline' }}</v-icon>
               <div class="pc-cliente-info">
                 <div class="pc-cliente-nombre">{{ u.nombre || u.usuario }}</div>
-                <div class="pc-cliente-cod">{{ u.usuario }}</div>
+                <div class="pc-cliente-cod">
+                  {{ u.usuario }}<template v-if="esYo(u)"> · tu propio usuario</template>
+                </div>
               </div>
               <v-icon v-if="usuarioSeleccionado?.codigo === u.codigo" size="16" color="#f59e0b">mdi-chevron-right</v-icon>
             </div>
@@ -307,6 +312,12 @@ async function cargarPermisosCliente() {
   }
 }
 
+// Nadie edita sus propios permisos: quitarse una restriccion a si mismo
+// dejaria sin efecto cualquier limite que le hayan puesto.
+function esYo(u) {
+  return String(u?.codigo) === String(authStore.usuario?.codigo)
+}
+
 async function cargarUsuarios() {
   usuarioSeleccionado.value = null
   usuarios.value = []
@@ -519,6 +530,15 @@ onMounted(() => {
 .pc-cliente-card--active {
   border-color: #f59e0b;
   background: rgba(245,158,11,0.12);
+}
+/* El propio usuario no se puede editar: se muestra, pero inerte */
+.pc-cliente-card--self {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pc-cliente-card--self:hover {
+  background: transparent;
+  border-color: rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .pc-cliente-icon {
