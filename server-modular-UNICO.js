@@ -59,10 +59,12 @@ app.use(cors({
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    // x-dispositivo-token: identifica el celular enrolado en el marcaje de
-    // asistencia. Sin él en esta lista el navegador bloquea el preflight y
-    // /asistencia/estado y /asistencia/marcar nunca llegan al servidor.
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-empresa', 'x-dispositivo-token']
+    // OJO: toda cabecera propia que mande el frontend TIENE que estar aquí. Si
+    // falta, el navegador bloquea el preflight y la petición nunca llega al
+    // servidor — se ve como "no cargan los datos", no como un error de CORS.
+    //   x-dispositivo-token: celular enrolado en el marcaje de asistencia.
+    //   x-usuario: quién actúa, para impedir que alguien edite sus permisos.
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-empresa', 'x-dispositivo-token', 'x-usuario']
 }));
 
 // Aumentar límite para soportar imágenes base64 (50MB)
