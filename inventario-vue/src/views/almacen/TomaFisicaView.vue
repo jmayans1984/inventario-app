@@ -323,6 +323,30 @@
         <p>No hay productos con control de inventario activo</p>
       </div>
 
+      <!-- DIALOG: MÉTODO DE ORDENACIÓN (solo bodega maestra) -->
+      <v-dialog v-model="dlgOrden" max-width="440" persistent>
+        <v-card>
+          <v-card-title class="d-flex align-center gap-2 pa-4">
+            <v-icon color="primary">mdi-sort</v-icon>
+            ¿Cómo quieres ordenar el conteo?
+          </v-card-title>
+          <v-card-text class="pa-4 pt-0">
+            Esta es la bodega maestra: puedes contar recorriendo los pasillos físicos
+            o revisando por tipo de producto.
+          </v-card-text>
+          <v-divider />
+          <v-card-actions class="pa-4" style="flex-direction:column;gap:8px;align-items:stretch">
+            <v-btn color="primary" variant="elevated" prepend-icon="mdi-map-marker-outline" @click="elegirOrden('ubicacion')">
+              Por Ubicación en Almacén
+            </v-btn>
+            <v-btn color="primary" variant="outlined" prepend-icon="mdi-shape-outline" @click="elegirOrden('grupo')">
+              Por Grupo de Productos
+            </v-btn>
+            <v-btn variant="text" @click="dlgOrden = false">Cancelar</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
       <!-- DIALOG CONFLICTO -->
       <v-dialog v-model="dlgConflicto" max-width="460">
         <v-card>
@@ -359,6 +383,7 @@ import PageHeader from '../../components/common/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../services/api'
 import { formatFecha } from '../../utils/formatters'
+import { bodegaMaestraService } from '../../services/bodega-maestra.service'
 
 const auth    = useAuthStore()
 const empresa = computed(() => auth.empresa)
@@ -390,6 +415,8 @@ const stockCargado  = ref(false)
 
 // ── UI ────────────────────────────────────────────────────────
 const guardando      = ref(false)
+const dlgOrden       = ref(false)
+const metodoOrden    = ref('grupo')   // 'grupo' | 'ubicacion' — solo se pregunta en bodega maestra
 const dlgConflicto   = ref(false)
 const dlgAyuda       = ref(false)
 const dlgExito       = ref(false)
@@ -421,6 +448,11 @@ async function cargarCcostos() {
 }
 cargarCcostos()
 
+const bodegaMaestraCC = ref(null)   // código del CC configurado como bodega maestra
+bodegaMaestraService.obtenerBodegaMaestra()
+  .then(d => { bodegaMaestraCC.value = d?.bodega_maestra || d?.data?.bodega_maestra || null })
+  .catch(() => {})
+
 // ── Cuando cambia el CC, resetear grid ───────────────────────
 function onCcostoChange() {
   productos.value  = []
@@ -428,14 +460,34 @@ function onCcostoChange() {
   stockCargado.value = false
   exitoMsg.value   = ''
   errorMsg.value   = ''
+  metodoOrden.value = 'grupo'
 }
 
 // ── Cargar stock actual ───────────────────────────────────────
-async function cargarStock() {
+// En la bodega maestra el conteo se puede hacer recorriendo pasillos físicos
+// o por tipo de producto — se pregunta antes de traer el stock. En las demás
+// sedes (puntos de venta) no aplica: siempre se agrupa por producto.
+function cargarStock() {
   errFecha.value  = fecha.value  ? '' : 'Requerido'
   errCcosto.value = ccosto.value ? '' : 'Requerido'
   if (errFecha.value || errCcosto.value) return
 
+  const esBodegaMaestra = bodegaMaestraCC.value && String(bodegaMaestraCC.value) === String(ccosto.value)
+  if (esBodegaMaestra) {
+    dlgOrden.value = true
+    return
+  }
+  metodoOrden.value = 'grupo'
+  ejecutarCargaStock()
+}
+
+function elegirOrden(metodo) {
+  metodoOrden.value = metodo
+  dlgOrden.value = false
+  ejecutarCargaStock()
+}
+
+async function ejecutarCargaStock() {
   loadingStock.value = true
   fisico.value       = {}
   busquedaProducto.value = ''
@@ -505,14 +557,22 @@ const productosFiltrados = computed(() => {
 })
 
 const productosAgrupados = computed(() => {
+  const porUbicacion = metodoOrden.value === 'ubicacion'
   const mapa = new Map()
   for (const p of productosFiltrados.value) {
-    const key    = p.grupo_codigo || '__sin_grupo__'
-    const nombre = p.grupo_nombre || 'Sin Grupo'
+    const key    = porUbicacion ? (p.ubicacion?.trim() || '__sin_ubicacion__') : (p.grupo_codigo || '__sin_grupo__')
+    const nombre = porUbicacion ? (p.ubicacion?.trim() || 'Sin Ubicación') : (p.grupo_nombre || 'Sin Grupo')
     if (!mapa.has(key)) mapa.set(key, { key, nombre, items: [] })
     mapa.get(key).items.push(p)
   }
-  return Array.from(mapa.values())
+  const grupos = Array.from(mapa.values())
+  // Por grupo ya vienen ordenados desde el backend (grupo_codigo, nombre).
+  // Por ubicación se arman al vuelo aquí, así que sí hay que ordenarlos.
+  if (porUbicacion) {
+    grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    for (const g of grupos) g.items.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  }
+  return grupos
 })
 
 // ── KPIs ─────────────────────────────────────────────────────
