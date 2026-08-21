@@ -533,11 +533,10 @@ watch(isMobile, (val) => {
 
 const currentDate = ref('')
 
+// Una sola definición para menú y router: si divergen, el menú podría ocultar
+// algo que el router sí deja pasar (o al revés).
 function rutaPermitida(path) {
-  if (!path) return true
-  const dis = authStore.modulosDeshabilitados
-  if (!dis || !dis.length) return true
-  return !dis.some(d => path === d || path.startsWith(d + '/'))
+  return !authStore.rutaBloqueada(path)
 }
 
 const modules = computed(() => {

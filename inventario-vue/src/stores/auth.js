@@ -11,6 +11,10 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false)
   const modoApp = ref('light')
   const modulosDeshabilitados = ref([])  // array de rutas deshabilitadas para esta empresa
+  // Promesa de la carga de permisos en curso. El guard del router la espera:
+  // si no, al entrar por URL directa evaluaría la lista todavía vacía y dejaría
+  // pasar al usuario a una ruta que tiene prohibida.
+  let permisosPendientes = null
 
   // Computed
   const userName = computed(() => usuario.value?.usuario || '')
@@ -31,16 +35,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function cargarPermisos(empresaCod) {
+  // Los permisos de EMPRESA (lo que un proveedor le habilita a su cliente) solo
+  // aplican a empresas CLIENTE. Los permisos por USUARIO aplican siempre: un
+  // usuario de almacén está limitado igual, sea la empresa CLIENTE o PROVEEDOR.
+  async function cargarPermisos(empresaCod, tipoEmpresa = null) {
+    const tarea = (async () => {
     const combinadas = new Set()
-    try {
-      const r = await fetch(`${API_BASE}/permisos-modulos/${empresaCod}`)
-      const j = await r.json()
-      if (j.success) {
-        ;[...(j.data?.rutas_deshabilitadas || []), ...(j.data?.rutas_deshabilitadas_completa || [])]
-          .forEach(p => combinadas.add(p))
-      }
-    } catch { /* sin permisos de cliente */ }
+
+    if (tipoEmpresa !== 'PROVEEDOR') {
+      try {
+        const r = await fetch(`${API_BASE}/permisos-modulos/${empresaCod}`)
+        const j = await r.json()
+        if (j.success) {
+          ;[...(j.data?.rutas_deshabilitadas || []), ...(j.data?.rutas_deshabilitadas_completa || [])]
+            .forEach(p => combinadas.add(p))
+        }
+      } catch { /* sin permisos de cliente */ }
+    }
 
     const usuarioCodigo = usuario.value?.codigo
     if (usuarioCodigo) {
@@ -55,6 +66,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     modulosDeshabilitados.value = Array.from(combinadas)
+    })()
+    permisosPendientes = tarea
+    return tarea
+  }
+
+  /** Espera a que termine la carga de permisos en curso, si la hay. */
+  async function esperarPermisos() {
+    if (permisosPendientes) {
+      try { await permisosPendientes } catch { /* si falla, se evalúa con lo que haya */ }
+    }
+  }
+
+  /** ¿Esta ruta está bloqueada para el usuario actual? Se usa tanto en el menú
+   *  lateral como en el guard del router: ocultar la opción no basta, hay que
+   *  bloquear también la navegación directa por URL. */
+  function rutaBloqueada(path) {
+    if (!path) return false
+    const dis = modulosDeshabilitados.value
+    if (!dis || !dis.length) return false
+    return dis.some(d => path === d || path.startsWith(d + '/'))
   }
 
   // El mismo usuario/clave tiene una fila (y un codigo) distinto por cada
@@ -79,9 +110,10 @@ export const useAuthStore = defineStore('auth', () => {
     // Siempre guardar tipo (aunque sea null/vacío, guardar string vacío)
     localStorage.setItem('empresaTipo', tipo || '')
 
-    // Cargar permisos de módulos solo para empresas CLIENTE
-    if (tipo !== 'PROVEEDOR' && empresaCod) {
-      cargarPermisos(empresaCod)
+    // Los permisos por usuario aplican a cualquier tipo de empresa; dentro de
+    // cargarPermisos se decide si además se piden los permisos de empresa.
+    if (empresaCod) {
+      cargarPermisos(empresaCod, tipo)
     } else {
       modulosDeshabilitados.value = []
     }
@@ -127,9 +159,9 @@ export const useAuthStore = defineStore('auth', () => {
       const savedTipo = localStorage.getItem('empresaTipo')
       empresaTipo.value = savedTipo || null  // carga siempre (null si vacío)
 
-      // Cargar permisos de módulos al restaurar sesión (solo para CLIENTE)
-      if (savedTipo !== 'PROVEEDOR' && savedEmpresa) {
-        cargarPermisos(savedEmpresa)
+      // Al restaurar sesión se recargan igual que en el login
+      if (savedEmpresa) {
+        cargarPermisos(savedEmpresa, savedTipo || null)
       }
     }
 
@@ -162,5 +194,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     loadFromLocalStorage,
     cargarPermisos,
+    rutaBloqueada,
+    esperarPermisos,
   }
 })

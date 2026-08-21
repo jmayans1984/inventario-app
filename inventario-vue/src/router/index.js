@@ -158,7 +158,7 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   try {
     const authStore = useAuthStore()
     if (!authStore.isAuthenticated) authStore.loadFromLocalStorage()
@@ -175,6 +175,16 @@ router.beforeEach((to, from, next) => {
       const tipoEmpresa = authStore.empresaTipo
       if (tipoEmpresa !== to.meta.requiredTipo) {
         // Usuario no tiene permiso para esta ruta, redirecciona a inicio
+        next('/')
+        return
+      }
+    }
+
+    // Permisos por usuario/empresa: ocultar la opción del menú no basta, hay
+    // que impedir también que se llegue escribiendo la URL a mano.
+    if (to.meta.requiresAuth && authStore.isAuthenticated) {
+      await authStore.esperarPermisos()
+      if (authStore.rutaBloqueada(to.path)) {
         next('/')
         return
       }
