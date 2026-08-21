@@ -51,6 +51,14 @@
             <v-icon size="17" class="menu-icon">mdi-star</v-icon>
             <span class="menu-label">FAVORITOS</span>
             <span class="fav-badge">{{ favoritos.length }}</span>
+            <button
+              class="fav-editar-btn"
+              :class="{ 'fav-editar-btn-on': editandoFavoritos }"
+              :title="editandoFavoritos ? 'Terminar de editar' : 'Reordenar o quitar favoritos'"
+              @click.stop="editandoFavoritos = !editandoFavoritos"
+            >
+              <v-icon size="13">{{ editandoFavoritos ? 'mdi-pencil' : 'mdi-pencil-outline' }}</v-icon>
+            </button>
             <v-icon size="14" class="menu-chevron" :class="{ rotated: favAbierto }">mdi-chevron-down</v-icon>
           </div>
 
@@ -69,27 +77,29 @@
               >
                 <v-icon size="15" class="fav-icon" :style="{ color: colorDeFavorito(fav.path) }">{{ fav.icon }}</v-icon>
                 <span class="fav-label-txt">{{ fav.name }}</span>
-                <span class="fav-reordenar">
-                  <button
-                    class="fav-mover"
-                    title="Subir"
-                    :disabled="idx === 0"
-                    @click.stop="moverFavorito(fav.path, -1)"
-                  >
-                    <v-icon size="13">mdi-chevron-up</v-icon>
+                <template v-if="editandoFavoritos">
+                  <span class="fav-reordenar">
+                    <button
+                      class="fav-mover"
+                      title="Subir"
+                      :disabled="idx === 0"
+                      @click.stop="moverFavorito(fav.path, -1)"
+                    >
+                      <v-icon size="13">mdi-chevron-up</v-icon>
+                    </button>
+                    <button
+                      class="fav-mover"
+                      title="Bajar"
+                      :disabled="idx === favoritos.length - 1"
+                      @click.stop="moverFavorito(fav.path, 1)"
+                    >
+                      <v-icon size="13">mdi-chevron-down</v-icon>
+                    </button>
+                  </span>
+                  <button class="fav-unpin" title="Quitar de favoritos" @click.stop="pedirToggleFavorito(fav)">
+                    <v-icon size="13">mdi-close</v-icon>
                   </button>
-                  <button
-                    class="fav-mover"
-                    title="Bajar"
-                    :disabled="idx === favoritos.length - 1"
-                    @click.stop="moverFavorito(fav.path, 1)"
-                  >
-                    <v-icon size="13">mdi-chevron-down</v-icon>
-                  </button>
-                </span>
-                <button class="fav-unpin" title="Quitar de favoritos" @click.stop="pedirToggleFavorito(fav)">
-                  <v-icon size="13">mdi-close</v-icon>
-                </button>
+                </template>
               </div>
             </router-link>
           </div>
@@ -556,6 +566,9 @@ const toggleCat = (key) => { openCats[key] = !openCats[key] }
 // Favoritos: desplegable como los módulos. Se recuerda la preferencia porque
 // con muchos accesos anclados la lista empuja los módulos fuera de la vista.
 const favAbierto = ref(localStorage.getItem('_favAbierto') !== '0')
+// Los favoritos abren en modo lectura; el lápiz habilita mover/quitar para
+// no exponer controles de edición sobre algo que se usa sobre todo para navegar.
+const editandoFavoritos = ref(false)
 function toggleFavoritos() {
   favAbierto.value = !favAbierto.value
   localStorage.setItem('_favAbierto', favAbierto.value ? '1' : '0')
@@ -1040,6 +1053,13 @@ const handleLogout = () => {
   color: var(--sidebar-accent); background: rgba(255,255,255,0.1);
   padding: 1px 6px; border-radius: 10px; margin-right: 2px;
 }
+.fav-editar-btn {
+  flex-shrink: 0; border: none; background: transparent; cursor: pointer;
+  color: rgba(255,255,255,0.35); line-height: 0; padding: 3px; border-radius: 5px;
+  transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out);
+}
+.fav-editar-btn:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.08); }
+.fav-editar-btn-on { color: var(--sidebar-accent); background: rgba(255,255,255,0.1); }
 /* Los favoritos cuelgan del encabezado, con la misma guía que los submenús */
 .fav-section .menu-item-open + div {
   border-left: 1px solid rgba(255,255,255,0.06);
@@ -1059,16 +1079,13 @@ const handleLogout = () => {
 .fav-unpin {
   flex-shrink: 0; border: none; background: transparent; cursor: pointer;
   color: rgba(255,255,255,0.3); line-height: 0; padding: 3px;
-  opacity: 0; transition: opacity 150ms var(--ease-out), color 150ms var(--ease-out);
+  transition: color 150ms var(--ease-out);
 }
-.fav-item:hover .fav-unpin { opacity: 1; }
 .fav-unpin:hover { color: rgba(255,255,255,0.8); }
 
 .fav-reordenar {
   flex-shrink: 0; display: flex; flex-direction: column;
-  opacity: 0; transition: opacity 150ms var(--ease-out);
 }
-.fav-item:hover .fav-reordenar { opacity: 1; }
 .fav-mover {
   border: none; background: transparent; cursor: pointer;
   color: rgba(255,255,255,0.35); line-height: 0; padding: 0;
