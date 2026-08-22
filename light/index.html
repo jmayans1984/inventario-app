@@ -254,11 +254,15 @@
                 btn.textContent = 'Entrando…';
                 btn.disabled = true;
                 const ok = await doLogin(saved.u, saved.p);
-                if (!ok) {
-                    clearSavedCredentials();
-                    btn.textContent = 'Iniciar Sesión';
-                    btn.disabled = false;
-                }
+                // Se reactiva siempre que la página siga aquí: si doLogin()
+                // navegó (login directo, una sola empresa) esto ya no importa
+                // porque la página se está descargando. Si falló, o si mostró
+                // el selector de empresas (varias empresas, sin navegar), el
+                // botón debe quedar disponible para que el usuario pueda
+                // intentar con otras credenciales.
+                if (!ok) clearSavedCredentials();
+                btn.textContent = 'Iniciar Sesión';
+                btn.disabled = false;
             }
         });
 
@@ -322,6 +326,7 @@
         async function iniciarSesion(event) {
             event.preventDefault();
             ocultarError();
+            document.getElementById('empresaSelector').innerHTML = '';
 
             const btn     = document.getElementById('btnLogin');
             const usuario = document.getElementById('usuario').value.trim();
