@@ -134,7 +134,7 @@
             align-items: center;
             gap: 12px;
         }
-        .scan-header.packing { background: linear-gradient(135deg, #6d28d9, #8b5cf6); }
+        .scan-header.packing { background: var(--surface); border-left: 3px solid var(--accent); }
         .scan-icon { font-size: 2rem; flex-shrink: 0; }
         .scan-header h2 { font-size: 16px; font-weight: 700; margin: 0 0 2px; }
         .scan-header p  { font-size: 12px; opacity: .85; margin: 0; }
@@ -170,9 +170,9 @@
             align-items: center;
             gap: 8px;
         }
-        .scan-feedback.ok    { display: flex; background: rgba(16,185,129,.15); color: #10b981; border: 1px solid rgba(16,185,129,.3); }
-        .scan-feedback.error { display: flex; background: rgba(239,68,68,.12);  color: #ef4444; border: 1px solid rgba(239,68,68,.3);  }
-        .scan-feedback.warn  { display: flex; background: rgba(245,158,11,.12); color: #d97706; border: 1px solid rgba(245,158,11,.3);  }
+        .scan-feedback.ok    { display: flex; background: var(--success-light); color: var(--success); border: 1px solid var(--success); }
+        .scan-feedback.error { display: flex; background: var(--danger-light);  color: var(--danger);  border: 1px solid var(--danger); }
+        .scan-feedback.warn  { display: flex; background: var(--warning-light); color: var(--warning); border: 1px solid var(--warning); }
 
         /* ── Stats Banner ────────────────────────────────────── */
         .scan-stats-banner {
@@ -200,11 +200,12 @@
             gap: 0;
             transition: border-color 0.2s;
         }
-        .scan-item.item-ok    { border-color: rgba(16,185,129,.5);  background: rgba(16,185,129,.04); }
-        .scan-item.item-falta { border-color: rgba(239,68,68,.4);   background: rgba(239,68,68,.03); }
-        .scan-item.item-sobre { border-color: rgba(245,158,11,.4);  background: rgba(245,158,11,.03); }
+        .scan-item.item-ok    { border-color: var(--success); background: var(--success-light); }
+        .scan-item.item-falta { border-color: var(--border-mid); }
+        .scan-item.item-sobre { border-color: var(--warning); background: var(--warning-light); }
         .scan-item-header { display: flex; align-items: center; gap: 10px; }
-        .scan-item-icon { font-size: 18px; flex-shrink: 0; }
+        .scan-item-icon { flex-shrink: 0; line-height: 0; }
+        .scan-item-icon svg { width: 20px; height: 20px; }
         .scan-item-body { flex: 1; min-width: 0; cursor: pointer; }
         .scan-item-body:active { opacity: .7; }
         .scan-item-name { font-weight: 700; font-size: 14px; color: var(--text-primary); }
@@ -234,8 +235,10 @@
             text-align: center;
             -webkit-tap-highlight-color: transparent;
         }
-        .btn-tap-completar:active { background: rgba(245,158,11,.18); }
-        .scan-grupo-header { font-size: 12px; font-weight: 700; color: var(--text-secondary); padding: 10px 16px 6px; text-transform: uppercase; letter-spacing: 0.3px; background: rgba(0,0,0,0.02); margin-top: 12px; margin-bottom: 6px; border-radius: 6px; }
+        .btn-tap-completar:active { background: var(--accent-light); }
+        .btn-tap-completar svg { width: 15px; height: 15px; vertical-align: -2px; margin-right: 4px; }
+        .scan-grupo-header { font-size: 11px; font-weight: 700; color: var(--text-secondary); padding: 14px 4px 6px; text-transform: uppercase; letter-spacing: 0.09em; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+        .scan-grupo-header svg { width: 14px; height: 14px; flex-shrink: 0; }
         .scan-counter {
             display: flex;
             flex-direction: row;
@@ -249,13 +252,13 @@
             gap: 2px;
             min-width: 45px;
         }
-        .scan-count-val { font-size: 18px; font-weight: 800; line-height: 1; }
-        .scan-count-req { font-size: 12px; color: var(--text-tertiary); line-height: 1; }
+        .scan-count-val { font-size: 19px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+        .scan-count-req { font-size: 13px; color: var(--text-secondary); line-height: 1; font-variant-numeric: tabular-nums; }
 
         /* Scanner input — indicador de estado activo */
         #scannerInput:focus {
-            border-color: #10b981 !important;
-            box-shadow: 0 0 0 3px rgba(16,185,129,.15);
+            border-color: var(--success) !important;
+            box-shadow: 0 0 0 3px var(--success-light);
         }
         .scanner-focus-hint {
             font-size: 12px;
@@ -264,8 +267,8 @@
             padding: 5px 0 8px;
             transition: color 0.2s;
         }
-        .scanner-focus-hint.activo { color: #10b981; }
-        .scanner-focus-hint.inactivo { color: #ef4444; cursor: pointer; }
+        .scanner-focus-hint.activo { color: var(--success); }
+        .scanner-focus-hint.inactivo { color: var(--danger); cursor: pointer; }
 
         /* Bottom sticky bar en escaneo */
         .scan-bottom-bar {
@@ -277,9 +280,10 @@
             gap: 10px;
             margin-top: 16px;
         }
-        .scan-bottom-bar button { flex: 1; padding: 14px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; }
-        .btn-finalizar { background: #047857; color: white; }
-        .btn-cancelar-scan { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3) !important; color: #ef4444; }
+        .scan-bottom-bar button { flex: 1; min-height: 50px; padding: 14px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .scan-bottom-bar button:active { transform: scale(0.98); }
+        .btn-finalizar { background: var(--success); color: #fff; }
+        .btn-cancelar-scan { background: transparent; border: 1px solid var(--border-mid) !important; color: var(--text-secondary); }
 
         /* ── Confirmación ───────────────────────────────────────── */
         .confirm-section { background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-color); padding: 16px; margin-bottom: 14px; }
@@ -456,18 +460,23 @@
         /* FIX 4: botones +/- por producto */
         .scan-adj-btn {
             flex-shrink: 0;
-            width: 32px; height: 32px;
-            border-radius: 8px;
-            border: 1.5px solid var(--border-color);
-            background: var(--bg-input);
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            border: 1px solid var(--border-mid);
+            background: var(--surface);
             color: var(--text-primary);
-            font-size: 18px; font-weight: 700;
+            font-size: 20px; font-weight: 700;
             cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             line-height: 1;
             padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform .1s ease-out, background .12s;
         }
-        .scan-adj-btn:active { background: var(--border-color); }
+        /* El :active usaba --border-color, que ahora es una linea del 8%:
+           el toque quedaba sin respuesta visible. */
+        .scan-adj-btn:active { background: var(--surface2); transform: scale(0.92); }
+        .scan-adj-plus { border-color: var(--accent); color: var(--accent-hover); }
         /* FIX 5: indicar que el nombre es clickeable */
         .scan-item-info { cursor: pointer; }
         .scan-item-info:active { opacity: .7; }
@@ -485,6 +494,7 @@
             text-align: center;
         }
         .scan-ocultos-banner:active { opacity: .8; }
+        .scan-ocultos-banner svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
         .item-oculto { opacity: .45; }
 
         /* Overlay cámara fullscreen */
@@ -501,7 +511,8 @@
 
         /* ── Utilidades ─────────────────────────────────────────── */
         .empty-state { text-align: center; padding: 50px 20px; color: var(--text-tertiary); }
-        .empty-state .empty-icon { font-size: 3rem; margin-bottom: 10px; }
+        .empty-state .empty-icon { margin-bottom: 12px; line-height: 0; display: flex; justify-content: center; }
+        .empty-state .empty-icon svg { width: 40px; height: 40px; opacity: .5; }
         .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-secondary); margin: 16px 0 10px; }
 
         /* ── Popup Pedido Completado ──────────────────────────── */
@@ -571,26 +582,29 @@
             border-bottom: 1px solid var(--border-color);
         }
         .scan-hero {
-            background: linear-gradient(135deg, #F5A623, #c97f0a);
-            border-radius: 14px;
-            padding: 10px 14px;
-            color: #fff;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 12px;
+            padding: 11px 14px;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 8px;
         }
-        .scan-hero-icon { font-size: 1.6rem; flex-shrink: 0; line-height: 1; }
+        .scan-hero-icon { flex-shrink: 0; line-height: 0; color: var(--accent); }
+        .scan-hero-icon svg { width: 24px; height: 24px; }
         .scan-hero-info { flex: 1; min-width: 0; }
         .scan-hero-title { font-size: 14px; font-weight: 800; line-height: 1.2; }
-        .scan-hero-sub { font-size: 12px; opacity: .92; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .scan-hero-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .scan-hero-stats { text-align: right; flex-shrink: 0; }
-        .scan-hero-count { font-size: 18px; font-weight: 800; line-height: 1; }
-        .scan-hero-pct { font-size: 11px; opacity: .92; margin-top: 3px; }
+        .scan-hero-count { font-size: 18px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+        .scan-hero-pct { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
 
         .scan-progress-track {
-            height: 5px;
-            background: var(--border-color);
+            height: 6px;
+            background: var(--surface2);
             border-radius: 3px;
             overflow: hidden;
             margin-bottom: 10px;
@@ -598,7 +612,7 @@
         .scan-progress-fill {
             height: 100%;
             width: 0%;
-            background: #10b981;
+            background: var(--success);
             border-radius: 3px;
             transition: width .4s ease;
         }
@@ -613,18 +627,57 @@
             border: 1.5px solid var(--border-color);
         }
         .scan-last-card.show { display: flex; animation: lastCardPop .25s ease; }
-        .scan-last-card.ok   { background: rgba(16,185,129,.10); border-color: rgba(16,185,129,.45); }
-        .scan-last-card.warn { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.45); }
-        .scan-last-card.over { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.45); }
-        .scan-last-icon { font-size: 30px; flex-shrink: 0; line-height: 1; }
+        .scan-last-card.ok   { background: var(--success-light); border-color: var(--success); }
+        .scan-last-card.warn { background: var(--warning-light); border-color: var(--warning); }
+        .scan-last-card.over { background: var(--warning-light); border-color: var(--warning); }
+        .scan-last-icon { flex-shrink: 0; line-height: 0; }
+        .scan-last-icon svg { width: 30px; height: 30px; }
         .scan-last-body { flex: 1; min-width: 0; }
         .scan-last-name { font-size: 14px; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .scan-last-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-        .scan-last-count { font-size: 26px; font-weight: 800; flex-shrink: 0; line-height: 1; }
+        .scan-last-count { font-size: 26px; font-weight: 800; flex-shrink: 0; line-height: 1; font-variant-numeric: tabular-nums; }
         .scan-last-count small { font-size: 13px; color: var(--text-tertiary); font-weight: 600; }
         @keyframes lastCardPop { from { transform: scale(.96); opacity: .4; } to { transform: scale(1); opacity: 1; } }
 
         .scan-item { scroll-margin-top: 210px; }
+
+        /* Etiqueta de estado bajo el nombre: dice en palabras lo que el color
+           e icono dicen en forma. Sin ella, distinguir 'faltan 2' de
+           'sobran 2' dependia de recordar que ambar = sobrante. */
+        .scan-item-estado {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+        .scan-item.item-ok    .scan-item-estado { color: var(--success); font-weight: 600; }
+        .scan-item.item-sobre .scan-item-estado { color: var(--warning); font-weight: 600; }
+
+        /* Control segmentado del filtro de ordenes */
+        .seg-group {
+            display: flex;
+            border: 1px solid var(--border-mid);
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--surface);
+            width: 100%;
+        }
+        .seg-group button {
+            flex: 1;
+            min-height: 44px;
+            padding: 10px 14px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: background .12s, color .12s;
+        }
+        .seg-group button + button { border-left: 1px solid var(--border); }
+        .seg-group button.seg-on { background: var(--accent); color: #1a1917; }
 
         /* ── Padding extra para despachos ────────────────────────── */
         #screen-escaneo {
@@ -645,23 +698,17 @@
         <!-- PANTALLA 1: LISTA DE ÓRDENES                       -->
         <!-- ══════════════════════════════════════════════════ -->
         <div id="screen-lista" class="screen active">
-            <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
-                <div style="display:flex;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;background:var(--bg-input)">
-                    <button id="btnOrdenesSoloActivas" onclick="filtrarOrdenes(false)" style="padding:10px 16px;border:none;background:var(--accent);color:white;font-size:13px;font-weight:700;cursor:pointer;flex:1">
-                        📋 Solo activas
-                    </button>
-                    <button id="btnOrdenesAll" onclick="filtrarOrdenes(true)" style="padding:10px 16px;border:none;background:transparent;color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;flex:1;border-left:1px solid var(--border-color)">
-                        ✓ Todas
-                    </button>
-                </div>
+            <div class="seg-group" style="margin-bottom:16px">
+                <button id="btnOrdenesSoloActivas" class="seg-on" onclick="filtrarOrdenes(false)">Solo activas</button>
+                <button id="btnOrdenesAll" onclick="filtrarOrdenes(true)">Todas</button>
             </div>
             <div id="listaOrdenes">
-                <div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div>
+                <div class="empty-state"><div class="empty-icon"><i data-icono="reloj_arena"></i></div><p>Cargando…</p></div>
             </div>
             <!-- Botón Análisis de Faltantes -->
             <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color)">
-                <button onclick="abrirAnalisisFaltantes()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-                    📊 Análisis de Faltantes
+                <button class="btn btn-secondary" style="width:100%" onclick="abrirAnalisisFaltantes()">
+                    <i data-icono="grafico"></i> Análisis de Faltantes
                 </button>
             </div>
         </div>
@@ -683,17 +730,17 @@
                 <div class="scan-progress-track"><div class="scan-progress-fill" id="scanProgressFill"></div></div>
                 <div class="scan-input-wrap">
                     <input type="text" id="scannerInput"
-                        placeholder="📡 Escanea o escribe el código…"
+                        placeholder="Escanea o escribe el código…"
                         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                         inputmode="numeric"
                         onkeydown="onScanKeydown(event)"
                         oninput="onScanInput(event)" />
-                    <button class="btn-camara" onclick="abrirCamara()" title="Usar cámara" style="display:none">📷</button>
-                    <button class="btn-camara" onclick="abrirCatalogoManual()" title="Agregar producto de la Bodega Maestra">📋</button>
-                    <button class="btn-buscar-scan" onclick="ejecutarScanManual()" title="Buscar código">🔍</button>
+                    <button class="btn-camara" onclick="abrirCamara()" title="Usar cámara" style="display:none"><i data-icono="camara"></i></button>
+                    <button class="btn-camara" onclick="abrirCatalogoManual()" title="Agregar producto de la Bodega Maestra"><i data-icono="conteo"></i></button>
+                    <button class="btn-buscar-scan" onclick="ejecutarScanManual()" title="Buscar código"><i data-icono="lupa"></i></button>
                 </div>
                 <!-- Indicador foco scanner -->
-                <div id="scannerFocusHint" class="scanner-focus-hint activo" onclick="document.getElementById('scannerInput').focus()" style="padding:4px 0 2px">📡 Scanner activo — listo para escanear</div>
+                <div id="scannerFocusHint" class="scanner-focus-hint activo" onclick="document.getElementById('scannerInput').focus()" style="padding:4px 0 2px">Scanner activo — listo para escanear</div>
             </div>
 
             <!-- Tarjeta grande del último escaneo -->
@@ -708,7 +755,7 @@
 
             <!-- OTROS -->
             <div style="margin-top:20px;margin-bottom:16px">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">📝 Otros</label>
+                <label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px">Observaciones</label>
                 <textarea id="observacionesField"
                     style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:14px;font-family:inherit;resize:vertical;min-height:80px;outline:none;box-sizing:border-box"
                     placeholder="Agrega notas o comentarios sobre este despacho..."
@@ -717,8 +764,8 @@
 
             <!-- Barra inferior fija -->
             <div class="scan-bottom-bar no-print">
-                <button class="btn-cancelar-scan" onclick="cancelarEscaneo()">✕ Cancelar</button>
-                <button class="btn-finalizar" onclick="finalizarEscaneo()">✓ Finalizar Escaneo</button>
+                <button class="btn-cancelar-scan" onclick="cancelarEscaneo()">Cancelar</button>
+                <button class="btn-finalizar" onclick="finalizarEscaneo()">Finalizar escaneo</button>
             </div>
         </div>
 
@@ -741,7 +788,7 @@
         <div class="bs-panel" onclick="event.stopPropagation()">
             <div class="bs-header">
                 <div class="bs-drag"></div>
-                <div class="bs-title">📡 Código no reconocido</div>
+                <div class="bs-title">Código no reconocido</div>
                 <div><span class="bs-barcode" id="bsBarcode"></span></div>
                 <div class="bs-subtitle">Selecciona el producto para asociar este código de barras</div>
             </div>
@@ -840,10 +887,11 @@
     <div id="versionBadge" style="position: fixed; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 700; z-index: 9999; font-family: monospace;">v2.5.7</div>
 
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+    <script src="iconos.js"></script>
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script src="permisos.js"></script>
-    <script src="almacen-despachos.js"></script>
+    <script src="almacen-despachos.js?v=20260822-iconos"></script>
     <script>
         // Mostrar versión en el badge
         document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;

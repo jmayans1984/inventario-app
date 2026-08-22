@@ -24,9 +24,9 @@
     --accent-ink: #7a4d05;
 
     /* Semánticos: reservados para ESTADO, nunca para decorar. */
-    --success:       #15803d;
+    --success:       #146c34;
     --success-light: rgba(21,128,61,0.12);
-    --warning:       #b45309;
+    --warning:       #9a4708;
     --warning-light: rgba(180,83,9,0.12);
     --danger:        #b91c1c;
     --danger-light:  rgba(185,28,28,0.12);
@@ -60,6 +60,20 @@
     --bg-secondary: #faf9f7;
     --bg-tertiary:  #eeebe6;
     --border-light: rgba(26,25,23,0.08);
+
+    /* Varias páginas de light/ usan estos nombres desde antes de que
+       existieran los actuales, y NADIE los habia definido: 159 usos en 14
+       archivos apuntaban a la nada. El efecto no era que se ignoraran, sino
+       peor — `border: 1px solid var(--border-color)` caia a currentColor
+       (borde negro en vez de linea sutil), `background: var(--bg-input)` a
+       transparente y `border-radius: var(--border-radius-md)` a 0 (esquina
+       cuadrada). Como apuntan a los tokens reales, siguen al tema solos. */
+    --bg-card:          var(--surface);
+    --bg-input:         var(--surface);
+    --border-color:     var(--border);
+    --border-radius-sm: var(--radius-sm);
+    --border-radius-md: var(--radius-md);
+    --border-radius-lg: var(--radius-lg);
 }
 
 /* ─── DARK MODE ─── */

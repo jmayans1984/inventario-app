@@ -45,6 +45,21 @@
         calculadora:  '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h4"/>',
         reloj:        '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         banco:        '<path d="M3 10h18M5 10V7l7-4 7 4v3M6 10v7M10 10v7M14 10v7M18 10v7M3 21h18"/>',
+
+        // ── Despachos / packing ──────────────────────────────────
+        escaner:      '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M3 12h18"/>',
+        ok:           '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
+        pendiente:    '<circle cx="12" cy="12" r="9"/>',
+        sobrante:     '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+        rayo:         '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+        ojo:          '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+        ojoTachado:   '<path d="M10.7 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a18 18 0 0 1-2.5 3.4M6.6 6.6A18 18 0 0 0 2 12s3.6 7 10 7a10.7 10.7 0 0 0 4.2-.8"/><path d="m2 2 20 20"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+        lupa:         '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        equis:        '<path d="M18 6 6 18M6 6l12 12"/>',
+        camara:       '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+        nota:         '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+        pin:          '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>',
+        reloj_arena:  '<path d="M6 2h12M6 22h12M6 2c0 4 3 5 6 10-3 5-6 6-6 10M18 2c0 4-3 5-6 10 3 5 6 6 6 10"/>',
     };
 
     function hidratar(raiz) {

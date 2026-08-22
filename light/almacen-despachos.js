@@ -75,7 +75,8 @@ function mostrarScreen(id) {
 async function cargarOrdenes() {
     const empresa = getEmpresa();
     document.getElementById('listaOrdenes').innerHTML =
-        '<div class="empty-state"><div class="empty-icon">⏳</div><p>Cargando...</p></div>';
+        '<div class="empty-state"><div class="empty-icon"><i data-icono="reloj_arena"></i></div><p>Cargando…</p></div>';
+    if (window.hidratarIconos) window.hidratarIconos(document.getElementById('listaOrdenes'));
     try {
         const res  = await fetchConTimeout(`${API_BASE}/almacen/despachos?empresa=${empresa}`);
         if (!res.ok) {
@@ -87,7 +88,8 @@ async function cargarOrdenes() {
         console.error('[CARGAR ÓRDENES ERROR]', e);
         const errMsg = e.message || 'Error de conexión';
         document.getElementById('listaOrdenes').innerHTML =
-            `<div class="empty-state"><div class="empty-icon">❌</div><p>Error cargando órdenes</p><p style="font-size:12px;color:var(--text-secondary);margin-top:8px">${errMsg}</p></div>`;
+            `<div class="empty-state"><div class="empty-icon" style="color:var(--danger)"><i data-icono="alerta"></i></div><p>No se pudieron cargar las órdenes</p><p style="font-size:12px;color:var(--text-secondary);margin-top:8px">${errMsg}</p><button class="btn btn-secondary" style="margin-top:14px" onclick="cargarOrdenes()">Reintentar</button></div>`;
+        if (window.hidratarIconos) window.hidratarIconos(document.getElementById('listaOrdenes'));
     }
 }
 
@@ -95,20 +97,12 @@ async function cargarOrdenes() {
 function filtrarOrdenes(mostrarAll) {
     mostrarCompletadas = mostrarAll;
 
-    // Actualizar estilos de botones
+    // Se alterna una clase en vez de pintar estilos inline: así el color
+    // sale del tema y no queda "blanco sobre ámbar" fijo en modo oscuro.
     const btnActivas = document.getElementById('btnOrdenesSoloActivas');
     const btnAll = document.getElementById('btnOrdenesAll');
-    if (mostrarAll) {
-        btnActivas.style.background = 'transparent';
-        btnActivas.style.color = 'var(--text-secondary)';
-        btnAll.style.background = 'var(--accent)';
-        btnAll.style.color = 'white';
-    } else {
-        btnActivas.style.background = 'var(--accent)';
-        btnActivas.style.color = 'white';
-        btnAll.style.background = 'transparent';
-        btnAll.style.color = 'var(--text-secondary)';
-    }
+    btnActivas.classList.toggle('seg-on', !mostrarAll);
+    btnAll.classList.toggle('seg-on', mostrarAll);
 
     // Recargar ordenes
     cargarOrdenes();
@@ -125,7 +119,8 @@ function renderLista(ordenes) {
     }
 
     if (!ordenes.length) {
-        el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No hay órdenes activas</p></div>`;
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon"><i data-icono="conteo"></i></div><p>No hay órdenes activas</p></div>`;
+        if (window.hidratarIconos) window.hidratarIconos(el);
         return;
     }
 
@@ -137,13 +132,14 @@ function renderLista(ordenes) {
             <div class="orden-card-header">
                 <div>
                     <div class="orden-id">#${o.id} · ${fmtFecha(o.fecha)}</div>
-                    <div class="orden-dest">${o.tipo === 'VENTA' ? '🛒' : '🏪'} ${o.destino_nombre || o.cc_destino_nombre || o.cc_destino || o.orden_compra || '—'}</div>
+                    <div class="orden-dest"><i data-icono="${o.tipo === 'VENTA' ? 'carrito' : 'almacen'}"></i>${o.destino_nombre || o.cc_destino_nombre || o.cc_destino || o.orden_compra || '—'}</div>
                     <div class="orden-meta">${o.total_items} productos · ${parseFloat(o.total_unidades||0).toFixed(0)} unidades</div>
                 </div>
                 <span class="estado-badge est-${o.estado}">${estadoLabel(o.estado)}</span>
             </div>
         </div>
     `).join('');
+    if (window.hidratarIconos) window.hidratarIconos(el);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -212,7 +208,7 @@ function renderDetalle() {
         </button>
 
         <div class="det-header-band">
-            <h2>🚚 Orden #${o.id}</h2>
+            <h2>Orden #${o.id}</h2>
             <p>${fmtFecha(o.fecha)} · ${o.cc_origen_nombre} → ${o.tipo === 'VENTA' ? (o.destino_nombre || o.orden_compra) : o.cc_destino_nombre}</p>
             <p style="margin-top:6px"><span class="estado-badge est-${est}">${estadoLabel(est)}</span></p>
         </div>
@@ -230,7 +226,7 @@ function renderDetalle() {
         </div>
 
         <div style="margin-bottom:16px">
-            <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">📝 Otros</label>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px">Observaciones</label>
             <textarea id="detalleObservacionesField"
                 style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:14px;font-family:inherit;resize:vertical;min-height:80px;outline:none;box-sizing:border-box"
                 placeholder="Agrega notas o comentarios sobre este despacho..."
@@ -238,19 +234,20 @@ function renderDetalle() {
         </div>
 
         <button class="btn-accion btn-picking" onclick="iniciarEscaneo('packing')" style="width:100%">
-            📦 Iniciar Packing
+            Iniciar packing
         </button>
 
         ${puedeConfirmar ? `
         <button class="btn-accion btn-confirmar" onclick="mostrarConfirmacion()">
-            ✅ Confirmar y Despachar
+            Confirmar y despachar
         </button>` : ''}
 
         ${est === 'COMPLETADO' ? `
         <button class="btn-accion btn-confirmar" onclick="imprimirReporte()">
-            🖨️ Imprimir Reporte
+            Imprimir reporte
         </button>` : ''}
     `;
+    if (window.hidratarIconos) window.hidratarIconos(document.getElementById('detalleContenido'));
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -263,7 +260,7 @@ function iniciarEscaneo(modo) {
 
     panel.innerHTML = `
       <div style="padding:28px 20px 24px;text-align:center">
-        <div style="font-size:2.2rem;margin-bottom:10px">📦</div>
+        <div style="line-height:0;margin-bottom:12px;color:var(--text-tertiary)"><i data-icono="almacen"></i></div>
         <div style="font-size:19px;font-weight:800;margin-bottom:6px;color:var(--text-primary)">Iniciar Packing</div>
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">¿Cómo quieres visualizar los productos?</div>
 
@@ -297,6 +294,7 @@ function iniciarEscaneo(modo) {
       </div>
     `;
 
+    if (window.hidratarIconos) window.hidratarIconos(panel);
     overlay.classList.add('open');
 }
 
@@ -337,9 +335,9 @@ function renderEscaneo() {
     const campo = 'cant_packing';
 
     document.getElementById('scanHero').innerHTML = `
-        <div class="scan-hero-icon">📦</div>
+        <div class="scan-hero-icon"><i data-icono="camion"></i></div>
         <div class="scan-hero-info">
-            <div class="scan-hero-title">📦 PACKING — Despacho</div>
+            <div class="scan-hero-title">PACKING — Despacho</div>
             <div class="scan-hero-sub">${ordenActiva.destino_nombre || ordenActiva.cc_destino_nombre || ordenActiva.cc_destino || ordenActiva.orden_compra} · #${ordenActiva.id}</div>
         </div>
         <div class="scan-hero-stats">
@@ -355,6 +353,8 @@ function renderEscaneo() {
     // Ocultar tarjeta de último escaneo al (re)entrar
     const lastCard = document.getElementById('scanLastCard');
     if (lastCard) { lastCard.className = 'scan-last-card'; lastCard.innerHTML = ''; }
+
+    if (window.hidratarIconos) window.hidratarIconos(document.getElementById('scanHero'));
 
     renderScanList(campo);
     actualizarStatsBanner(campo); // pinta contador + barra de progreso iniciales
@@ -402,7 +402,7 @@ function renderScanList(campo) {
     const ocCnt = itemsOcultos.size;
     const ocBanner = ocCnt > 0 ? `
         <div class="scan-ocultos-banner" onclick="toggleOcultos()">
-            ${mostrandoOcultos ? '🙈' : '👁️'}
+            <i data-icono="${mostrandoOcultos ? 'ojoTachado' : 'ojo'}"></i>
             ${ocCnt} producto${ocCnt > 1 ? 's' : ''} completado${ocCnt > 1 ? 's' : ''}
             ${mostrandoOcultos ? '— toca para ocultar' : '— toca para ver'}
         </div>` : '';
@@ -412,8 +412,8 @@ function renderScanList(campo) {
         let grupoLabel;
         if (modoVisualizacion === 'ubicacion') {
             grupoLabel = grupoKey === '~~~SIN_UBICACION'
-                ? '📦 Sin ubicación específica'
-                : `📍 ${grupoKey}`;
+                ? '<i data-icono="almacen"></i>Sin ubicación específica'
+                : `<i data-icono="pin"></i>${grupoKey}`;
         } else {
             const [, grupoNombre] = grupoKey.split('|');
             grupoLabel = grupoNombre;
@@ -423,6 +423,9 @@ function renderScanList(campo) {
     });
 
     el.innerHTML = html;
+    // Los <i data-icono> recién inyectados no existían al cargar la página,
+    // así que hay que hidratarlos a mano.
+    if (window.hidratarIconos) window.hidratarIconos(el);
     actualizarStatsBanner(campo); // mantener contador + progreso sincronizados
 }
 
@@ -470,11 +473,11 @@ function mostrarUltimoEscaneo(item, campo, delta) {
     const req = parseFloat(item.cant_requerida) || 0;
     const esc = parseFloat(item[campo]) || 0;
     const dif = esc - req;
-    let cls, icon, color;
-    if (req === 0)      { cls = 'ok';   icon = '✅'; color = '#10b981'; }
-    else if (dif < 0)   { cls = 'warn'; icon = '⚠️'; color = '#d97706'; }
-    else if (dif === 0) { cls = 'ok';   icon = '✅'; color = '#10b981'; }
-    else                { cls = 'over'; icon = '🔴'; color = '#d97706'; }
+    let cls, icono, color;
+    if (req === 0)      { cls = 'ok';   icono = 'ok';          color = 'var(--success)'; }
+    else if (dif < 0)   { cls = 'warn'; icono = 'reloj_arena'; color = 'var(--text-primary)'; }
+    else if (dif === 0) { cls = 'ok';   icono = 'ok';          color = 'var(--success)'; }
+    else                { cls = 'over'; icono = 'sobrante';    color = 'var(--warning)'; }
 
     const signo = delta > 0 ? `+${delta}` : `${delta}`;
     const meta  = req === 0 ? `Último escaneo · ${signo}`
@@ -483,13 +486,14 @@ function mostrarUltimoEscaneo(item, campo, delta) {
                 :             `Último escaneo · ${signo} · sobran ${dif}`;
 
     card.innerHTML = `
-        <div class="scan-last-icon">${icon}</div>
+        <div class="scan-last-icon" style="color:${color}"><i data-icono="${icono}"></i></div>
         <div class="scan-last-body">
             <div class="scan-last-name">${item.producto_nombre}</div>
             <div class="scan-last-meta">${meta}</div>
         </div>
         <div class="scan-last-count" style="color:${color}">${esc}${req > 0 ? `<small>/${req}</small>` : ''}</div>
     `;
+    if (window.hidratarIconos) window.hidratarIconos(card);
     // Reiniciar animación de aparición en cada escaneo
     card.className = 'scan-last-card';
     void card.offsetWidth;
@@ -500,11 +504,22 @@ function renderScanItem(item, campo) {
     const req  = parseFloat(item.cant_requerida) || 0;
     const esc  = parseFloat(item[campo]) || 0;
     const dif  = esc - req;
-    let cls = '', icon = '', colorBarra = '#e5e7eb', colorContador = 'var(--text-tertiary)';
-    if (esc === 0)    { cls = '';           icon = '⬜'; }
-    else if (dif < 0) { cls = 'item-falta'; icon = '⚠️'; colorBarra = '#ef4444'; colorContador = '#ef4444'; }
-    else if (dif > 0) { cls = 'item-sobre'; icon = '🔴'; colorBarra = '#f59e0b'; colorContador = '#f59e0b'; }
-    else              { cls = 'item-ok';    icon = '✅'; colorBarra = '#10b981'; colorContador = '#10b981'; }
+    // El estado no se apoya solo en el color: cada uno tiene su propio icono
+    // y su etiqueta, para que se distinga a contraluz o con la pantalla sucia.
+    let cls = '', icono = '', etiqueta = '';
+    let colorBarra = 'var(--surface2)', colorContador = 'var(--text-secondary)';
+    if (esc === 0) {
+        cls = '';           icono = 'pendiente'; etiqueta = 'Pendiente';
+    } else if (dif < 0) {
+        cls = 'item-falta'; icono = 'reloj_arena'; etiqueta = `Faltan ${req - esc}`;
+        colorBarra = 'var(--accent)'; colorContador = 'var(--text-primary)';
+    } else if (dif > 0) {
+        cls = 'item-sobre'; icono = 'sobrante'; etiqueta = `Sobran ${dif}`;
+        colorBarra = 'var(--warning)'; colorContador = 'var(--warning)';
+    } else {
+        cls = 'item-ok';    icono = 'ok'; etiqueta = 'Completo';
+        colorBarra = 'var(--success)'; colorContador = 'var(--success)';
+    }
 
     const cod        = item.producto_codigo;
     const pct        = req > 0 ? Math.min(100, Math.round((esc / req) * 100)) : 0;
@@ -513,9 +528,10 @@ function renderScanItem(item, campo) {
 
     return `<div class="scan-item ${cls}${ocultoCls}" id="si-${cod}">
         <div class="scan-item-header">
-            <div class="scan-item-icon">${icon}</div>
+            <div class="scan-item-icon" style="color:${colorContador}"><i data-icono="${icono}"></i></div>
             <div class="scan-item-body" onclick="mostrarEntradaManual('${cod}','${campo}')">
                 <div class="scan-item-name">${item.producto_nombre}</div>
+                <div class="scan-item-estado">${etiqueta}</div>
             </div>
             <div class="scan-counter">
                 <button class="scan-adj-btn" onclick="ajustarCantidad('${cod}','${campo}',-1)">−</button>
@@ -529,7 +545,7 @@ function renderScanItem(item, campo) {
         <div class="scan-item-progress">
             <div class="scan-item-progress-bar" style="width:${pct}%;background:${colorBarra}"></div>
         </div>
-        ${enProgreso ? `<button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')">⚡ Tap para completar — faltan ${req - esc}</button>` : ''}
+        ${enProgreso ? `<button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')"><i data-icono="rayo"></i>Completar los ${req - esc} que faltan</button>` : ''}
     </div>`;
 }
 
@@ -840,8 +856,8 @@ async function procesarScanAgrupado(barcode, cantidadEscaneos) {
             item[campo] = parseFloat(dataS.data[campo]) || 0;
             const nuevo = parseFloat(item[campo]);
             const req   = parseFloat(item.cant_requerida);
-            const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`
-                        : nuevo === req ? `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`
+            const msg   = nuevo < req  ? `${item.producto_nombre}${sufijo} — ${nuevo}/${req} · falta ${req-nuevo}`
+                        : nuevo === req ? `${item.producto_nombre}${sufijo} — completo (${nuevo}/${req})`
                         :                 `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`;
             showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
             actualizarFilaScan(item, campo);
@@ -892,8 +908,8 @@ async function procesarScan(barcode) {
                             const nuevo = parseFloat(item[campo]);
                             const req   = parseFloat(item.cant_requerida);
                             const sufijo = factor > 1 ? ` (×${factor})` : '';
-                            const msg   = nuevo < req  ? `⚠️ ${item.producto_nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`
-                                        : nuevo === req ? `✅ ${item.producto_nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`
+                            const msg   = nuevo < req  ? `${item.producto_nombre}${sufijo} — ${nuevo}/${req} · falta ${req-nuevo}`
+                                        : nuevo === req ? `${item.producto_nombre}${sufijo} — completo (${nuevo}/${req})`
                                         :                 `🔴 ${item.producto_nombre}${sufijo} — Sobrante: ${nuevo}/${req}`;
                             showFeedback(nuevo <= req ? (nuevo < req ? 'warn' : 'ok') : 'warn', msg);
                             actualizarFilaScan(item, campo);
@@ -934,7 +950,7 @@ async function procesarScan(barcode) {
                 cant_packing: 0
             };
             ordenActiva.detalle.push(item);
-            showFeedback('ok', `✅ ${nombre} agregado a la orden`);
+            showFeedback('ok', `${nombre} agregado a la orden`);
         }
 
         // FIX: usar factor registrado en BD sin preguntar
@@ -980,9 +996,9 @@ async function procesarScan(barcode) {
         const nuevo = parseFloat(item[campo]);
         const req   = parseFloat(item.cant_requerida);
         const sufijo = delta > 1 ? ` (×${delta})` : '';
-        if (req === 0)         showFeedback('ok',   `✅ ${nombre}${sufijo} — agregado (${nuevo})`);
-        else if (nuevo < req)  showFeedback('warn', `⚠️ ${nombre}${sufijo} — ${nuevo}/${req} (falta ${req-nuevo})`);
-        else if (nuevo === req) showFeedback('ok',   `✅ ${nombre}${sufijo} — ¡Completo! (${nuevo}/${req})`);
+        if (req === 0)         showFeedback('ok',   `${nombre}${sufijo} — agregado (${nuevo})`);
+        else if (nuevo < req)  showFeedback('warn', `${nombre}${sufijo} — ${nuevo}/${req} · falta ${req-nuevo}`);
+        else if (nuevo === req) showFeedback('ok',   `${nombre}${sufijo} — completo (${nuevo}/${req})`);
         else                   showFeedback('warn',  `🔴 ${nombre}${sufijo} — Sobrante: ${nuevo}/${req}`);
 
         // 7. Actualizar solo la fila del producto escaneado
@@ -1164,7 +1180,7 @@ function tapParaCompletar(codigo, campo) {
         <button id="btnConfirmarTapCompletar"
           style="width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
                  background:#10b981;color:white;font-size:16px;font-weight:700;margin-bottom:12px">
-          ✅ Confirmar — Marcar como completo
+          Confirmar — marcar como completo
         </button>
         <button id="btnCancelarTapCompletar"
           style="width:100%;padding:13px;border-radius:14px;border:1px solid rgba(239,68,68,.3);
@@ -1174,6 +1190,7 @@ function tapParaCompletar(codigo, campo) {
       </div>
     `;
 
+    if (window.hidratarIconos) window.hidratarIconos(panel);
     overlay.classList.add('open');
     document.getElementById('btnConfirmarTapCompletar').onclick = async () => {
         overlay.classList.remove('open');
@@ -1197,7 +1214,7 @@ function setupScannerAutoFocus() {
         if (hint) { hint.textContent = '📡 Scanner activo — listo para escanear'; hint.className = 'scanner-focus-hint activo'; }
     });
     inp.addEventListener('blur', () => {
-        if (hint) { hint.textContent = '⚠️ Scanner inactivo — toca aquí para activar'; hint.className = 'scanner-focus-hint inactivo'; }
+        if (hint) { hint.textContent = 'Scanner inactivo — toca aquí para activar'; hint.className = 'scanner-focus-hint inactivo'; }
         const escaneoActivo = document.getElementById('screen-escaneo').classList.contains('active');
         const bsOpen        = document.getElementById('bsOverlay').classList.contains('open');
         const camaraOpen    = document.getElementById('camaraOverlay').classList.contains('activo');
@@ -1245,16 +1262,16 @@ function preguntarPacking(item) {
 
         panel.innerHTML = `
           <div style="padding:24px 16px 24px;text-align:center">
-            <div style="font-size:3.5rem;margin-bottom:10px">✅</div>
+            <div style="line-height:0;margin-bottom:12px;color:var(--success)"><i data-icono="ok"></i></div>
             <div style="font-size:18px;font-weight:800;margin-bottom:8px;line-height:1.3">${item.producto_nombre}</div>
             <div style="font-size:14px;color:var(--text-secondary);margin-bottom:26px">
-              Picking completo — <strong style="color:#10b981">${parseFloat(item.cant_requerida)} unidades</strong><br><br>
+              Picking completo — <strong style="color:var(--success)">${parseFloat(item.cant_requerida)} unidades</strong><br><br>
               <strong style="color:var(--text-primary);font-size:15px">¿También hacer packing de este producto ahora?</strong>
             </div>
             <button id="btnSiPacking"
               style="width:100%;padding:16px;border-radius:14px;border:none;cursor:pointer;
-                     background:#8b5cf6;color:white;font-size:16px;font-weight:700;margin-bottom:12px">
-              📦 Sí, también packing
+                     background:var(--accent);color:#1a1917;font-size:16px;font-weight:700;margin-bottom:12px">
+              Sí, también packing
             </button>
             <button id="btnNoPacking"
               style="width:100%;padding:13px;border-radius:14px;border:2px solid var(--border-color);
@@ -1264,7 +1281,8 @@ function preguntarPacking(item) {
           </div>
         `;
 
-        overlay.classList.add('open');
+        if (window.hidratarIconos) window.hidratarIconos(panel);
+    overlay.classList.add('open');
         document.getElementById('btnSiPacking').onclick  = () => cerrar(true);
         document.getElementById('btnNoPacking').onclick  = () => cerrar(false);
     });
@@ -1756,6 +1774,7 @@ function mostrarAsociadorBarcode(barcode) {
         </div>
     `;
 
+    if (window.hidratarIconos) window.hidratarIconos(panel);
     overlay.classList.add('open');
 }
 
@@ -2147,7 +2166,8 @@ function mostrarDialogoFactor(nombre, factor, esCodigo = false) {
           </div>
         `;
 
-        overlay.classList.add('open');
+        if (window.hidratarIconos) window.hidratarIconos(panel);
+    overlay.classList.add('open');
     });
 }
 
@@ -2187,6 +2207,7 @@ async function abrirCatalogoManual() {
             <button class="bs-cancel" onclick="cerrarCatalogoManual()">Cancelar</button>
         </div>
     `;
+    if (window.hidratarIconos) window.hidratarIconos(panel);
     overlay.classList.add('open');
     await cargarCatalogoManual();
 }
