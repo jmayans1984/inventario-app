@@ -81,6 +81,17 @@
         return Array.from(combinadas);
     }
 
+    // A qué página "hub" (el menú del módulo) volver si esta página está
+    // bloqueada. Se deduce del nombre del archivo para no tener que declararlo
+    // en cada meta tag por separado.
+    function paginaHub() {
+        const archivo = (location.pathname.split('/').pop() || '');
+        if (archivo.startsWith('contabilidad-')) return 'contabilidad.html';
+        if (archivo.startsWith('tesoreria-'))    return 'tesoreria.html';
+        if (archivo.startsWith('nomina-'))       return 'nomina.html';
+        return 'almacen.html';
+    }
+
     async function aplicarPermisos() {
         const bloqueadas = await permisosBloqueadosMovil();
 
@@ -88,7 +99,7 @@
         // no se entra ni escribiéndola directo en la barra de direcciones.
         const metaPermiso = document.querySelector('meta[name="permiso"]');
         if (metaPermiso && coincide(bloqueadas, metaPermiso.content)) {
-            window.location.replace('almacen.html');
+            window.location.replace(paginaHub());
             return;
         }
 

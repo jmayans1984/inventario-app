@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Contabilidad - RestManager Pro</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Oculto hasta que permisos.js confirme el acceso: evita el parpadeo
+           de ver el menú completo por una fracción de segundo y que luego
+           desaparezcan ítems. */
+        [data-permiso] { visibility: hidden; }
+    </style>
 </head>
 <body>
     <!-- Top bar injected by header.js -->
@@ -21,7 +27,7 @@
         <!-- PROCESOS -->
         <div class="section-label">Procesos</div>
         <div class="section-group">
-            <a class="section-item" href="contabilidad-gastos.html">
+            <a class="section-item" href="contabilidad-gastos.html" data-permiso="/contabilidad/procesos/gastos">
                 <div class="item-icon icon-green">💰</div>
                 <div class="item-body">
                     <div class="item-name">Gestión de Gastos</div>
@@ -34,7 +40,7 @@
         <!-- REPORTES -->
         <div class="section-label">Reportes</div>
         <div class="section-group">
-            <a class="section-item" href="contabilidad-reportes.html">
+            <a class="section-item" href="contabilidad-reportes.html" data-permiso="/contabilidad/reportes/gastos">
                 <div class="item-icon icon-green">📈</div>
                 <div class="item-body">
                     <div class="item-name">Reporte de Gastos</div>
@@ -48,5 +54,6 @@
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script src="permisos.js"></script>
 </body>
 </html>

@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Tesorería - RestManager Pro</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Oculto hasta que permisos.js confirme el acceso: evita el parpadeo
+           de ver el menú completo por una fracción de segundo y que luego
+           desaparezcan ítems. */
+        [data-permiso] { visibility: hidden; }
+    </style>
 </head>
 <body>
     <!-- Top bar injected by header.js -->
@@ -21,7 +27,7 @@
         <!-- PROCESOS -->
         <div class="section-label">Procesos</div>
         <div class="section-group">
-            <a class="section-item" href="tesoreria-movimientos.html">
+            <a class="section-item" href="tesoreria-movimientos.html" data-permiso="/tesoreria/procesos/movimientos-bancarios">
                 <div class="item-icon icon-amber">🏦</div>
                 <div class="item-body">
                     <div class="item-name">Movimientos Bancarios</div>
@@ -29,7 +35,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="tesoreria-facturas-compra.html">
+            <a class="section-item" href="tesoreria-facturas-compra.html" data-permiso="/tesoreria/procesos/facturas-compra">
                 <div class="item-icon icon-amber">🧾</div>
                 <div class="item-body">
                     <div class="item-name" id="tituloFacturas">Gestión de Facturas de Compra</div>
@@ -42,7 +48,7 @@
         <!-- REPORTES -->
         <div class="section-label">Reportes</div>
         <div class="section-group">
-            <a class="section-item" href="tesoreria-reporte.html">
+            <a class="section-item" href="tesoreria-reporte.html" data-permiso="/tesoreria/reportes/movimiento-cuentas">
                 <div class="item-icon icon-amber">📈</div>
                 <div class="item-body">
                     <div class="item-name">Movimientos por Cuenta Bancaria</div>
@@ -56,6 +62,7 @@
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script src="permisos.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(async () => {

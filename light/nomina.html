@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Nómina - RestManager Pro</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Oculto hasta que permisos.js confirme el acceso: evita el parpadeo
+           de ver el menú completo por una fracción de segundo y que luego
+           desaparezcan ítems. */
+        [data-permiso] { visibility: hidden; }
+    </style>
 </head>
 <body>
     <!-- Top bar injected by header.js -->
@@ -21,7 +27,7 @@
         <!-- PROCESOS -->
         <div class="section-label">Procesos</div>
         <div class="section-group">
-            <a class="section-item" href="nomina-horario-semanal.html">
+            <a class="section-item" href="nomina-horario-semanal.html" data-permiso="/nomina/procesos/horario">
                 <div class="item-icon icon-violet">📅</div>
                 <div class="item-body">
                     <div class="item-name">Horario Semanal</div>
@@ -29,7 +35,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="nomina-liquidacion.html">
+            <a class="section-item" href="nomina-liquidacion.html" data-permiso="/nomina/procesos/liquidacion">
                 <div class="item-icon icon-violet">🧮</div>
                 <div class="item-body">
                     <div class="item-name">Liquidación de Nómina</div>
@@ -42,7 +48,7 @@
         <!-- INFORMES -->
         <div class="section-label">Informes</div>
         <div class="section-group">
-            <a class="section-item" href="nomina-reporte-horario.html">
+            <a class="section-item" href="nomina-reporte-horario.html" data-permiso="/nomina/reportes/horario">
                 <div class="item-icon icon-violet">🕐</div>
                 <div class="item-body">
                     <div class="item-name">Horario para Publicar</div>
@@ -50,7 +56,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="nomina-recibos.html">
+            <a class="section-item" href="nomina-recibos.html" data-permiso="/nomina/reportes/recibos">
                 <div class="item-icon icon-violet">📄</div>
                 <div class="item-body">
                     <div class="item-name">Recibos de Pago</div>
@@ -64,5 +70,6 @@
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script src="permisos.js"></script>
 </body>
 </html>
