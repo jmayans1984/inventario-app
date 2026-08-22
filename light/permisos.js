@@ -81,6 +81,51 @@
         return Array.from(combinadas);
     }
 
+    // Submódulos que EXISTEN en la versión móvil, por módulo. Si todos los de
+    // un módulo quedan bloqueados, el módulo entero desaparece del inicio:
+    // llevar al usuario a un menú vacío es peor que no mostrarle la opción.
+    //
+    // Ojo: si algún día se agrega una pantalla nueva a light/, hay que sumarla
+    // aquí además de ponerle su data-permiso — si no, el módulo podría ocultarse
+    // aunque esa pantalla nueva sí esté permitida.
+    const SUBMODULOS = {
+        almacen: [
+            '/almacen/procesos/gestion-inventario',
+            '/almacen/procesos/toma-fisica',
+            '/almacen/procesos/ordenes-compra',
+            '/almacen/procesos/despachos',
+            '/almacen/reportes/kardex',
+            '/almacen/reportes/consumos',
+            '/almacen/reportes/consumo-insumos',
+            '/almacen/reportes/movimiento-producto',
+            '/almacen/reportes/alertas-stock',
+            '/almacen/reportes/toma-fisica',
+        ],
+        contabilidad: [
+            '/contabilidad/procesos/gastos',
+            '/contabilidad/reportes/gastos',
+        ],
+        tesoreria: [
+            '/tesoreria/procesos/movimientos-bancarios',
+            '/tesoreria/procesos/facturas-compra',
+            '/tesoreria/reportes/movimiento-cuentas',
+        ],
+        nomina: [
+            '/nomina/procesos/horario',
+            '/nomina/procesos/liquidacion',
+            '/nomina/reportes/horario',
+            '/nomina/reportes/recibos',
+        ],
+        // Facturación es una pantalla "en desarrollo", sin submódulos reales:
+        // con la regla de arriba queda oculta siempre, que es lo correcto.
+        facturacion: [],
+    };
+
+    function moduloTieneAlgoActivo(modulo, bloqueadas) {
+        const subs = SUBMODULOS[modulo] || [];
+        return subs.some(ruta => !coincide(bloqueadas, ruta));
+    }
+
     // A qué página "hub" (el menú del módulo) volver si esta página está
     // bloqueada. Se deduce del nombre del archivo para no tener que declararlo
     // en cada meta tag por separado.
@@ -112,6 +157,16 @@
                 el.remove()
             } else {
                 el.style.visibility = 'visible'
+            }
+        })
+
+        // Inicio: un módulo sin ningún submódulo disponible se oculta entero.
+        document.querySelectorAll('[data-modulo]').forEach(el => {
+            const modulo = el.getAttribute('data-modulo')
+            if (moduloTieneAlgoActivo(modulo, bloqueadas)) {
+                el.style.visibility = 'visible'
+            } else {
+                el.remove()
             }
         })
     }

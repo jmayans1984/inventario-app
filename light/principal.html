@@ -145,35 +145,37 @@
 
         <!-- Modules -->
         <div class="modules-grid" id="modulesGrid" style="margin-top:24px;">
-            <a class="module-card" href="contabilidad.html">
-                <div class="module-icon module-icon-contabilidad">📊</div>
+            <a class="module-card" href="contabilidad.html" data-modulo="contabilidad">
+                <div class="module-icon module-icon-contabilidad"><i data-icono="contabilidad"></i></div>
                 <span class="module-label">Contabilidad</span>
             </a>
 
-            <a class="module-card" href="tesoreria.html">
-                <div class="module-icon module-icon-tesoreria">💰</div>
+            <a class="module-card" href="tesoreria.html" data-modulo="tesoreria">
+                <div class="module-icon module-icon-tesoreria"><i data-icono="tesoreria"></i></div>
                 <span class="module-label">Tesorería</span>
             </a>
 
-            <a class="module-card" href="almacen.html">
-                <div class="module-icon module-icon-almacen">📦</div>
+            <a class="module-card" href="almacen.html" data-modulo="almacen">
+                <div class="module-icon module-icon-almacen"><i data-icono="almacen"></i></div>
                 <span class="module-label">Almacén</span>
             </a>
 
-            <a class="module-card" href="nomina.html">
-                <div class="module-icon module-icon-nomina">👥</div>
+            <a class="module-card" href="nomina.html" data-modulo="nomina">
+                <div class="module-icon module-icon-nomina"><i data-icono="nomina"></i></div>
                 <span class="module-label">Nómina</span>
             </a>
 
-            <a class="module-card" href="facturacion.html">
-                <div class="module-icon module-icon-facturacion">🧾</div>
+            <a class="module-card" href="facturacion.html" data-modulo="facturacion">
+                <div class="module-icon module-icon-facturacion"><i data-icono="facturacion"></i></div>
                 <span class="module-label">Facturación</span>
             </a>
         </div>
     </div>
 
+    <script src="iconos.js"></script>
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script src="permisos.js"></script>
     <script>
         const API_BASE = 'https://inventario-app-production-e8c8.up.railway.app/api';
 
