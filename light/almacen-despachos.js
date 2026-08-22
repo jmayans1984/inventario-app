@@ -165,6 +165,10 @@ function renderDetalle() {
     const puedePackear  = (est === 'EN_PICKING' && algoPicado) || est === 'EN_PACKING';
     const puedeConfirmar= est === 'EN_PACKING' || (est === 'EN_PICKING' && algoPicado);
 
+    // Totales para el resumen de la cabecera
+    const totalUnidades = o.detalle.reduce((a, i) => a + (parseFloat(i.cant_requerida) || 0), 0);
+    const packeados     = o.detalle.filter(i => (parseFloat(i.cant_packing) || 0) > 0).length;
+
     // Agrupar por grupo_nombre, ordenar por grupo_codigo
     const grupos = {};
     o.detalle.forEach(item => {
@@ -180,21 +184,21 @@ function renderDetalle() {
     let filasHtml = '';
     gruposOrdenados.forEach(grupoKey => {
         const [, grupoNombre] = grupoKey.split('|');
-        filasHtml += `<tr><td colspan="4" style="padding-top:12px;padding-bottom:6px;font-weight:600;color:var(--text-secondary);font-size:12px;border-bottom:2px solid var(--border-color)">${grupoNombre}</td></tr>`;
+        filasHtml += `<tr class="det-grupo"><td colspan="4">${grupoNombre}</td></tr>`;
 
         grupos[grupoKey].forEach(item => {
             const req  = parseFloat(item.cant_requerida) || 0;
             const pack = parseFloat(item.cant_packing)   || 0;
             const dif  = pack - req;
             const rowCls = pack === 0 ? '' : dif < 0 ? 'row-falta' : dif > 0 ? 'row-sobre' : 'row-ok';
-            const difStr = pack === 0 ? '<span style="color:var(--text-tertiary)">—</span>'
-                         : dif === 0 ? '<span class="dif-ok">✓</span>'
+            const difStr = pack === 0 ? '<span class="num-vacio">—</span>'
+                         : dif === 0 ? '<span class="dif-ok">Ok</span>'
                          : dif  < 0  ? `<span class="dif-falta">${dif}</span>`
                                      : `<span class="dif-sobre">+${dif}</span>`;
             filasHtml += `<tr class="${rowCls}">
                 <td><div class="prod-nombre">${item.producto_nombre}</div></td>
                 <td class="num-cell">${req}</td>
-                <td class="num-cell">${pack || '—'}</td>
+                <td class="num-cell">${pack || '<span class="num-vacio">—</span>'}</td>
                 <td class="num-cell">${difStr}</td>
             </tr>`;
         });
@@ -203,23 +207,35 @@ function renderDetalle() {
     const filas = filasHtml;
 
     document.getElementById('detalleContenido').innerHTML = `
-        <button class="btn btn-secondary no-print" onclick="mostrarScreen('lista');cargarOrdenes()" style="margin-bottom:14px">
-            ← Volver a la lista
+        <button class="btn btn-secondary no-print" onclick="mostrarScreen('lista');cargarOrdenes()" style="margin-bottom:16px">
+            <i data-icono="volver"></i> Volver a la lista
         </button>
 
-        <div class="det-header-band">
-            <h2>Orden #${o.id}</h2>
-            <p>${fmtFecha(o.fecha)} · ${o.cc_origen_nombre} → ${o.tipo === 'VENTA' ? (o.destino_nombre || o.orden_compra) : o.cc_destino_nombre}</p>
-            <p style="margin-top:6px"><span class="estado-badge est-${est}">${estadoLabel(est)}</span></p>
+        <div class="det-header-band est-${est}">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                <h2>Orden #${o.id}</h2>
+                <span class="estado-badge est-${est}">${estadoLabel(est)}</span>
+            </div>
+            <p style="margin-bottom:6px">${fmtFecha(o.fecha)}</p>
+            <p class="det-ruta">
+                <strong>${o.cc_origen_nombre}</strong>
+                <i data-icono="flecha"></i>
+                <strong>${o.tipo === 'VENTA' ? (o.destino_nombre || o.orden_compra) : o.cc_destino_nombre}</strong>
+            </p>
+            <div class="det-resumen">
+                <div><b>${o.detalle.length}</b><span>Productos</span></div>
+                <div><b>${totalUnidades}</b><span>Unidades</span></div>
+                <div><b>${packeados}</b><span>Ya packeados</span></div>
+            </div>
         </div>
 
         <div style="overflow-x:auto;margin-bottom:16px">
             <table class="det-table">
                 <thead><tr>
                     <th>Producto</th>
-                    <th style="text-align:center">Req.</th>
-                    <th style="text-align:center">Pack.</th>
-                    <th style="text-align:center">Dif.</th>
+                    <th class="num">Pedido</th>
+                    <th class="num">Packeado</th>
+                    <th class="num">Dif.</th>
                 </tr></thead>
                 <tbody>${filas}</tbody>
             </table>

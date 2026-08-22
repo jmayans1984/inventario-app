@@ -60,6 +60,8 @@
         nota:         '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
         pin:          '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>',
         reloj_arena:  '<path d="M6 2h12M6 22h12M6 2c0 4 3 5 6 10-3 5-6 6-6 10M18 2c0 4-3 5-6 10 3 5 6 6 6 10"/>',
+        flecha:       '<path d="M5 12h14M13 6l6 6-6 6"/>',
+        volver:       '<path d="M19 12H5M11 18l-6-6 6-6"/>',
     };
 
     function hidratar(raiz) {
