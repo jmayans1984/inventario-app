@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Almacén - RestManager Pro</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Oculto hasta que permisos.js confirme el acceso: evita el parpadeo
+           de ver el menú completo por una fracción de segundo y que luego
+           desaparezcan ítems. */
+        [data-permiso] { visibility: hidden; }
+    </style>
 </head>
 <body>
     <!-- Top bar injected by header.js -->
@@ -21,7 +27,7 @@
         <!-- PROCESOS -->
         <div class="section-label">Procesos</div>
         <div class="section-group">
-            <a class="section-item" href="almacen-gestion.html">
+            <a class="section-item" href="almacen-gestion.html" data-permiso="/almacen/procesos/gestion-inventario">
                 <div class="item-icon icon-blue">📝</div>
                 <div class="item-body">
                     <div class="item-name">Gestión de Inventario</div>
@@ -29,7 +35,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-toma-fisica.html">
+            <a class="section-item" href="almacen-toma-fisica.html" data-permiso="/almacen/procesos/toma-fisica">
                 <div class="item-icon icon-blue">📦</div>
                 <div class="item-body">
                     <div class="item-name">Toma Física de Inventario</div>
@@ -37,7 +43,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-ordenes-compra.html">
+            <a class="section-item" href="almacen-ordenes-compra.html" data-permiso="/almacen/procesos/ordenes-compra">
                 <div class="item-icon icon-blue">📋</div>
                 <div class="item-body">
                     <div class="item-name">Órdenes de Compra</div>
@@ -45,7 +51,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-despachos.html">
+            <a class="section-item" href="almacen-despachos.html" data-permiso="/almacen/procesos/despachos">
                 <div class="item-icon icon-teal">🚚</div>
                 <div class="item-body">
                     <div class="item-name">Despachos de Bodega</div>
@@ -58,7 +64,7 @@
         <!-- INFORMES -->
         <div class="section-label">Informes</div>
         <div class="section-group">
-            <a class="section-item" href="almacen-kardex.html">
+            <a class="section-item" href="almacen-kardex.html" data-permiso="/almacen/reportes/kardex">
                 <div class="item-icon icon-indigo">📈</div>
                 <div class="item-body">
                     <div class="item-name">Kardex por Período</div>
@@ -66,7 +72,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-consumos.html">
+            <a class="section-item" href="almacen-consumos.html" data-permiso="/almacen/reportes/consumos">
                 <div class="item-icon icon-indigo">📉</div>
                 <div class="item-body">
                     <div class="item-name">Consumos de Productos</div>
@@ -74,7 +80,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-consumo-insumos.html">
+            <a class="section-item" href="almacen-consumo-insumos.html" data-permiso="/almacen/reportes/consumo-insumos">
                 <div class="item-icon icon-indigo">📦</div>
                 <div class="item-body">
                     <div class="item-name">Consumo de Insumos</div>
@@ -82,7 +88,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-movimiento-producto.html">
+            <a class="section-item" href="almacen-movimiento-producto.html" data-permiso="/almacen/reportes/movimiento-producto">
                 <div class="item-icon icon-indigo">🔄</div>
                 <div class="item-body">
                     <div class="item-name">Movimiento por Producto</div>
@@ -90,7 +96,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-reporte-ordenes.html">
+            <a class="section-item" href="almacen-reporte-ordenes.html" data-permiso="/almacen/procesos/ordenes-compra">
                 <div class="item-icon icon-indigo">🛒</div>
                 <div class="item-body">
                     <div class="item-name">Reporte Órdenes de Compra</div>
@@ -98,7 +104,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-informes-despachos.html">
+            <a class="section-item" href="almacen-informes-despachos.html" data-permiso="/almacen/procesos/despachos">
                 <div class="item-icon icon-indigo">🖨️</div>
                 <div class="item-body">
                     <div class="item-name">Despachos de Bodega</div>
@@ -106,7 +112,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-alertas-stock.html">
+            <a class="section-item" href="almacen-alertas-stock.html" data-permiso="/almacen/reportes/alertas-stock">
                 <div class="item-icon icon-red">⚠️</div>
                 <div class="item-body">
                     <div class="item-name">Alertas de Stock</div>
@@ -114,7 +120,7 @@
                 </div>
                 <svg class="item-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M1 1l6 5.5L1 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
-            <a class="section-item" href="almacen-reporte-toma-fisica.html">
+            <a class="section-item" href="almacen-reporte-toma-fisica.html" data-permiso="/almacen/reportes/toma-fisica">
                 <div class="item-icon icon-indigo">📋</div>
                 <div class="item-body">
                     <div class="item-name">Faltantes y Sobrantes</div>
@@ -129,5 +135,6 @@
 
     <script src="theme.js"></script>
     <script src="header.js"></script>
+    <script src="permisos.js"></script>
 </body>
 </html>
