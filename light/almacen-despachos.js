@@ -260,7 +260,7 @@ function iniciarEscaneo(modo) {
 
     panel.innerHTML = `
       <div style="padding:28px 20px 24px;text-align:center">
-        <div style="line-height:0;margin-bottom:12px;color:var(--text-tertiary)"><i data-icono="almacen"></i></div>
+        <div style="line-height:0;margin-bottom:14px;font-size:38px;color:var(--text-tertiary)"><i data-icono="almacen"></i></div>
         <div style="font-size:19px;font-weight:800;margin-bottom:6px;color:var(--text-primary)">Iniciar Packing</div>
         <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">¿Cómo quieres visualizar los productos?</div>
 
@@ -1262,7 +1262,7 @@ function preguntarPacking(item) {
 
         panel.innerHTML = `
           <div style="padding:24px 16px 24px;text-align:center">
-            <div style="line-height:0;margin-bottom:12px;color:var(--success)"><i data-icono="ok"></i></div>
+            <div style="line-height:0;margin-bottom:14px;font-size:46px;color:var(--success)"><i data-icono="ok"></i></div>
             <div style="font-size:18px;font-weight:800;margin-bottom:8px;line-height:1.3">${item.producto_nombre}</div>
             <div style="font-size:14px;color:var(--text-secondary);margin-bottom:26px">
               Picking completo — <strong style="color:var(--success)">${parseFloat(item.cant_requerida)} unidades</strong><br><br>

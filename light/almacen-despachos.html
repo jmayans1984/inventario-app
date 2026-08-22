@@ -51,7 +51,8 @@
         }
         .orden-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
         .orden-id    { font-size: 12px; color: var(--text-tertiary); font-family: monospace; }
-        .orden-dest  { font-size: 16px; font-weight: 700; margin: 4px 0; }
+        .orden-dest  { font-size: 16px; font-weight: 700; margin: 4px 0; display: flex; align-items: center; gap: 7px; }
+        .orden-dest svg { width: 17px; height: 17px; flex-shrink: 0; opacity: .75; }
         .orden-meta  { font-size: 12px; color: var(--text-secondary); }
         .estado-badge {
             padding: 4px 10px;
@@ -452,9 +453,11 @@
         /* Botón cámara + búsqueda junto al input */
         .scan-input-wrap { display: flex; gap: 8px; align-items: center; }
         .scan-input-wrap #scannerInput { flex: 1; }
-        .btn-camara  { flex-shrink: 0; width: 52px; height: 52px; border-radius: 12px; border: 2px solid #3b82f6; background: var(--bg-card); font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-camara  { flex-shrink: 0; width: 52px; height: 52px; border-radius: 12px; border: 1px solid var(--border-mid); background: var(--surface); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-camara svg { width: 22px; height: 22px; }
         /* FIX 3: botón buscar manual */
-        .btn-buscar-scan { flex-shrink: 0; width: 52px; height: 52px; border-radius: 12px; border: 2px solid #047857; background: #047857; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-buscar-scan { flex-shrink: 0; width: 52px; height: 52px; border-radius: 12px; border: none; background: var(--success); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-buscar-scan svg { width: 22px; height: 22px; }
         .btn-buscar-scan:active { opacity: .8; }
 
         /* FIX 4: botones +/- por producto */
@@ -891,7 +894,7 @@
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script src="permisos.js"></script>
-    <script src="almacen-despachos.js?v=20260822-iconos"></script>
+    <script src="almacen-despachos.js?v=20260822-iconos2"></script>
     <script>
         // Mostrar versión en el badge
         document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;

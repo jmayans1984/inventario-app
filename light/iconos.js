@@ -69,6 +69,13 @@
             if (!trazo) return;
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('viewBox', '0 0 24 24');
+            // Tamaño por defecto en 1em: un SVG sin width/height se estira al
+            // tamaño por defecto del navegador (300x150) y aparece gigante.
+            // Al ir en em, el icono acompaña al texto que tiene al lado. Son
+            // atributos de presentación, la prioridad más baja: cualquier
+            // regla CSS de tamaño los sigue ganando.
+            svg.setAttribute('width', '1em');
+            svg.setAttribute('height', '1em');
             svg.setAttribute('fill', 'none');
             svg.setAttribute('stroke', 'currentColor');
             svg.setAttribute('stroke-width', '1.75');
