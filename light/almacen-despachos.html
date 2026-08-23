@@ -262,22 +262,47 @@
             border-radius: 3px;
             transition: width 0.4s ease;
         }
-        .btn-tap-completar {
-            width: 100%;
+        /* Un producto a medio escanear ofrece dos salidas: completarlo, o
+           cerrarlo con lo que lleva. Van juntos para que la decision se tome
+           de una vez y el producto salga de la vista. */
+        .scan-item-acciones {
+            display: flex;
+            gap: 8px;
             margin-top: 10px;
-            padding: 9px 12px;
+        }
+        .btn-tap-completar,
+        .btn-cerrar-parcial {
+            flex: 1;
+            min-height: 40px;
+            padding: 9px 10px;
             border-radius: 9px;
-            border: 1.5px solid rgba(245,158,11,.4);
-            background: rgba(245,158,11,.08);
-            color: #d97706;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
             text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
             -webkit-tap-highlight-color: transparent;
+            transition: background .12s;
         }
-        .btn-tap-completar:active { background: var(--accent-light); }
-        .btn-tap-completar svg { width: 15px; height: 15px; vertical-align: -2px; margin-right: 4px; }
+        .btn-tap-completar {
+            border: 1px solid var(--accent);
+            background: var(--accent-light);
+            color: var(--accent-ink);
+        }
+        [data-theme="dark"] .btn-tap-completar { color: var(--accent); }
+        .btn-tap-completar:active { background: var(--surface2); }
+        .btn-cerrar-parcial {
+            border: 1px solid var(--border-mid);
+            background: var(--surface);
+            color: var(--text-secondary);
+        }
+        .btn-cerrar-parcial:active { background: var(--surface2); }
+        .btn-tap-completar svg,
+        .btn-cerrar-parcial svg { width: 15px; height: 15px; flex-shrink: 0; }
         .scan-grupo-header { font-size: 11px; font-weight: 700; color: var(--text-secondary); padding: 14px 4px 6px; text-transform: uppercase; letter-spacing: 0.09em; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
         .scan-grupo-header svg { width: 14px; height: 14px; flex-shrink: 0; }
         .scan-counter {
@@ -525,16 +550,26 @@
         .scan-item-info:active { opacity: .7; }
         /* FIX 6: banner de ocultos + estilo tenue */
         .scan-ocultos-banner {
-            background: rgba(16,185,129,.08);
-            border: 1px solid rgba(16,185,129,.2);
+            background: var(--surface);
+            border: 1px solid var(--border-mid);
             border-radius: 10px;
             padding: 10px 14px;
             margin-bottom: 10px;
             font-size: 13px;
             font-weight: 600;
-            color: #10b981;
+            color: var(--text-secondary);
             cursor: pointer;
             text-align: center;
+        }
+        /* Si entre los ocultos hay alguno cerrado sin completar, el banner lo
+           dice: es faltante que se va a despachar y conviene no perderlo de
+           vista solo porque la fila desaparecio. */
+        .scan-ocultos-banner .ocultos-parcial {
+            display: block;
+            margin-top: 3px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--warning);
         }
         .scan-ocultos-banner:active { opacity: .8; }
         .scan-ocultos-banner svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
@@ -934,7 +969,7 @@
     <script src="theme.js"></script>
     <script src="header.js"></script>
     <script src="permisos.js"></script>
-    <script src="almacen-despachos.js?v=20260822-detalle"></script>
+    <script src="almacen-despachos.js?v=20260822-ocultar"></script>
     <script>
         // Mostrar versión en el badge
         document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;

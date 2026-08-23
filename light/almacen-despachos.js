@@ -416,11 +416,19 @@ function renderScanList(campo) {
     }
 
     const ocCnt = itemsOcultos.size;
+    // Entre los ocultos puede haber productos cerrados sin completar: eso es
+    // faltante que se va a despachar, y no debe quedar invisible solo porque
+    // la fila se escondio.
+    const ocIncompletos = ordenActiva.detalle.filter(i =>
+        itemsOcultos.has(i.producto_codigo) &&
+        (parseFloat(i[campo]) || 0) < (parseFloat(i.cant_requerida) || 0)
+    ).length;
     const ocBanner = ocCnt > 0 ? `
         <div class="scan-ocultos-banner" onclick="toggleOcultos()">
             <i data-icono="${mostrandoOcultos ? 'ojoTachado' : 'ojo'}"></i>
-            ${ocCnt} producto${ocCnt > 1 ? 's' : ''} completado${ocCnt > 1 ? 's' : ''}
+            ${ocCnt} producto${ocCnt > 1 ? 's' : ''} oculto${ocCnt > 1 ? 's' : ''}
             ${mostrandoOcultos ? '— toca para ocultar' : '— toca para ver'}
+            ${ocIncompletos > 0 ? `<span class="ocultos-parcial">${ocIncompletos} cerrado${ocIncompletos > 1 ? 's' : ''} sin completar</span>` : ''}
         </div>` : '';
 
     let html = ocBanner;
@@ -561,8 +569,28 @@ function renderScanItem(item, campo) {
         <div class="scan-item-progress">
             <div class="scan-item-progress-bar" style="width:${pct}%;background:${colorBarra}"></div>
         </div>
-        ${enProgreso ? `<button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')"><i data-icono="rayo"></i>Completar los ${req - esc} que faltan</button>` : ''}
+        ${enProgreso ? `<div class="scan-item-acciones">
+            <button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')"><i data-icono="rayo"></i>Completar (${req - esc})</button>
+            <button class="btn-cerrar-parcial" onclick="cerrarParcial('${cod}','${campo}')"><i data-icono="ojoTachado"></i>Ocultar con ${esc}</button>
+        </div>` : ''}
     </div>`;
+}
+
+/** Cierra un producto con lo que se lleva escaneado y lo saca de la vista.
+ *  No toca la cantidad: si van 4 de 6, se despachan 4 y el faltante queda
+ *  registrado. Es solo de presentacion y se revierte desde el banner de
+ *  ocultos, asi que no pide confirmacion. */
+function cerrarParcial(codigo, campo) {
+    const item = ordenActiva.detalle.find(d => d.producto_codigo === codigo);
+    if (!item) return;
+
+    itemsOcultos.add(codigo);
+    renderScanList(campo);
+
+    const esc = parseFloat(item[campo]) || 0;
+    const req = parseFloat(item.cant_requerida) || 0;
+    showFeedback('warn', `${item.producto_nombre} cerrado con ${esc}/${req} · falta ${req - esc}`);
+    refocusInput();
 }
 
 // FIX 6: toggle mostrar/ocultar completados
