@@ -42,10 +42,10 @@
         <KpiCard :index="1" label="Margen bruto" :value="fmt(totales.margen)"
           icon="mdi-chart-line" color="var(--indigo)"
           :hint="`materia prima ${fmt(totales.costoMP)} · ${pct(pctCostoGlobal)}% del bruto`" />
-        <KpiCard :index="2" label="Proyección de cierre" :value="fmt(totales.proyeccion)"
-          icon="mdi-trending-up" color="var(--gold)"
-          :hint="hintProyeccion"
-          :trend="trendProyeccion" :trend-up="trendProyeccionUp" />
+        <KpiCard :index="2" :label="`De un ${nombreDia} normal`"
+          :value="pctDelPromedioGlobal === null ? '—' : pct(pctDelPromedioGlobal) + '%'"
+          icon="mdi-calendar-check-outline" color="var(--gold)"
+          :hint="hintPromedio" />
         <KpiCard :index="3" label="Propinas" :value="fmt(totales.propinas)"
           icon="mdi-cash-fast" color="var(--warning)"
           :hint="`${pct(pctPropinasGlobal)}% sobre la venta`" />
@@ -88,14 +88,12 @@
               <span>Margen</span>
             </div>
             <div>
-              <b>{{ fmt(s.proyeccion) }}</b>
-              <span>Proyectado</span>
+              <b>{{ fmt(s.ritmoHora) }}</b>
+              <span>Por hora</span>
             </div>
-            <div v-if="s.pctVsPromedio !== null && s.pctVsPromedio !== undefined">
-              <b :class="s.pctVsPromedio >= 0 ? 'vv-arriba' : 'vv-abajo'">
-                {{ s.pctVsPromedio >= 0 ? '+' : '' }}{{ pct(s.pctVsPromedio) }}%
-              </b>
-              <span>vs {{ nombreDia }} normal</span>
+            <div v-if="s.pctDelPromedio !== null && s.pctDelPromedio !== undefined">
+              <b :class="s.pctDelPromedio >= 100 ? 'vv-arriba' : ''">{{ pct(s.pctDelPromedio) }}%</b>
+              <span>de un {{ nombreDia }}</span>
             </div>
           </div>
           <div v-if="s.articulosSinCosto" class="vv-aviso-costo">
@@ -284,7 +282,7 @@ let reintento = null
 
 const totales = computed(() => datos.value?.totales || {
   ventas: 0, ordenes: 0, articulos: 0, costoMP: 0, margen: 0, propinas: 0,
-  proyeccion: 0, promedioDia: 0,
+  promedioDia: 0,
 })
 
 const ticketGlobal      = computed(() => totales.value.ordenes > 0 ? totales.value.ventas / totales.value.ordenes : 0)
@@ -300,26 +298,20 @@ const nombreDia = computed(() => {
   return new Date(a, m - 1, dd).toLocaleDateString('es', { weekday: 'long' })
 })
 
-const pctVsPromedioGlobal = computed(() => {
+// Cuánto del promedio de este día se lleva alcanzado. Antes aquí había una
+// proyección de cierre; se quitó porque extrapolaba el ritmo de la hora pico
+// hasta el final del turno y sobreestimaba hasta 3x. Este número, en cambio,
+// es comprobable: es venta real contra promedio real.
+const pctDelPromedioGlobal = computed(() => {
   const p = totales.value.promedioDia
-  if (!p || !totales.value.proyeccion) return null
-  return ((totales.value.proyeccion - p) / p) * 100
+  if (!p) return null
+  return (totales.value.ventas / p) * 100
 })
 
-const hintProyeccion = computed(() => {
+const hintPromedio = computed(() => {
   const p = totales.value.promedioDia
-  if (!p) return 'a este ritmo hasta el cierre'
+  if (!p) return 'sin historial suficiente'
   return `un ${nombreDia.value} normal cierra en ${fmt(p)}`
-})
-
-const trendProyeccion = computed(() => {
-  const v = pctVsPromedioGlobal.value
-  if (v === null) return ''
-  return `${v >= 0 ? '+' : ''}${pct(v)}% vs ${nombreDia.value} normal`
-})
-const trendProyeccionUp = computed(() => {
-  const v = pctVsPromedioGlobal.value
-  return v === null ? null : v >= 0
 })
 const sedes   = computed(() => datos.value?.sedes || [])
 const ordenes = computed(() => datos.value?.ordenes || [])
