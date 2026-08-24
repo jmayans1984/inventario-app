@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="mostrar" max-width="500px">
+  <v-dialog v-model="mostrar" max-width="620px">
     <template #activator="{ props }">
       <v-btn v-bind="props" color="primary" size="small">
         <v-icon>mdi-bell-plus</v-icon>
@@ -24,15 +24,8 @@
             class="mb-3"
           />
 
-          <v-textarea
-            v-model="formData.mensaje"
-            label="Descripción (¿Qué cambió?)"
-            placeholder="Detalla los cambios, mejoras o nuevas características..."
-            variant="outlined"
-            density="compact"
-            rows="4"
-            class="mb-3"
-          />
+          <div class="text-caption mb-1" style="opacity:.7">Descripción (¿Qué cambió?)</div>
+          <EditorAviso v-model="formData.mensaje" class="mb-3" />
         </div>
 
         <v-divider class="my-4" />
@@ -62,6 +55,7 @@
 <script setup>
 import { ref } from 'vue'
 import adminActualizacionesService from '../services/admin-actualizaciones.service.js'
+import EditorAviso from './EditorAviso.vue'
 
 const mostrar = ref(false)
 const cargando = ref(false)

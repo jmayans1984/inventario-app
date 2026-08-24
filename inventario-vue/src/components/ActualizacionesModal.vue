@@ -45,7 +45,11 @@
                   <span class="update-time">{{ formatFecha(act.fecha_creacion) }}</span>
                 </div>
 
-                <p class="update-description">{{ act.mensaje }}</p>
+                <!-- El aviso viene con formato. Se pasa SIEMPRE por el
+                     sanitizador antes de pintarlo: v-html con contenido de la
+                     base sin filtrar sería una vía de inyección hacia el panel
+                     de todos los usuarios. -->
+                <div class="update-description aviso-fmt" v-html="limpio(act.mensaje)"></div>
               </div>
             </div>
           </div>
@@ -70,6 +74,7 @@
 </template>
 
 <script setup>
+import { sanitizarHtml } from '../utils/sanitizarHtml.js'
 import { ref, watch, defineProps, defineEmits } from 'vue'
 import { notificacionesService } from '../services/notificaciones.service'
 
@@ -139,6 +144,10 @@ function formatFecha(fecha) {
 function cerrar() {
   mostrar.value = false
 }
+
+// Los avisos se guardan con formato; se limpian aquí antes de mostrarlos.
+const limpio = (html) => sanitizarHtml(html)
+
 </script>
 
 <style scoped>
@@ -234,10 +243,13 @@ function cerrar() {
 }
 
 .update-description {
-  color: #6b7280;
+  color: rgba(var(--v-theme-on-surface), .72);
   font-size: 0.85rem;
   line-height: 1.6;
-  white-space: pre-wrap;
+  /* Antes era pre-wrap porque el aviso era texto plano y los saltos de linea
+     venian del propio texto. Ahora trae formato: los saltos los dan <p> y
+     <br>, y mantener pre-wrap agregaria espacios en blanco de sobra. */
+  white-space: normal;
   word-break: break-word;
   margin: 0;
 }
