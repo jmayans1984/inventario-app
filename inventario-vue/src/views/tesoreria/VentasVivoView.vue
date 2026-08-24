@@ -43,7 +43,7 @@
           :value="fmt(totales.costoMP)"
           icon="mdi-food-variant" color="var(--indigo)"
           :hint="`food cost ${pct(pctCostoGlobal)}% de la venta`" />
-        <KpiCard :index="2" :label="`De un ${nombreDia} normal`"
+        <KpiCard :index="2" :label="etiquetaPromedio"
           :value="pctDelPromedioGlobal === null ? '—' : pct(pctDelPromedioGlobal) + '%'"
           icon="mdi-calendar-check-outline" color="var(--gold)"
           :hint="hintPromedio" />
@@ -88,13 +88,9 @@
               <b>{{ pct(s.pctCosto) }}%</b>
               <span>Food cost</span>
             </div>
-            <div>
-              <b>{{ fmt(s.ritmoHora) }}</b>
-              <span>Por hora</span>
-            </div>
             <div v-if="s.pctDelPromedio !== null && s.pctDelPromedio !== undefined">
               <b :class="s.pctDelPromedio >= 100 ? 'vv-arriba' : ''">{{ pct(s.pctDelPromedio) }}%</b>
-              <span>de un {{ nombreDia }}</span>
+              <span>de {{ s.muestrasDia }} {{ nombreDiaPlural }}</span>
             </div>
           </div>
           <div v-if="s.productosSinCosto" class="vv-aviso-costo">
@@ -110,9 +106,9 @@
               <span class="vv-pb vv-pb-otros" :style="{ width: (s.pagos.pctOtros || 0) + '%' }"></span>
             </div>
             <div class="vv-pagos-leyenda">
-              <span class="vv-pl"><i class="vv-pl-dot vv-pl-tarjeta"></i>Tarjeta {{ fmt(s.pagos.tarjeta) }} · {{ pct(s.pagos.pctTarjeta) }}%</span>
-              <span class="vv-pl"><i class="vv-pl-dot vv-pl-efectivo"></i>Efectivo {{ fmt(s.pagos.efectivo) }} · {{ pct(s.pagos.pctEfectivo) }}%</span>
-              <span v-if="s.pagos.otros" class="vv-pl"><i class="vv-pl-dot vv-pl-otros"></i>Otros {{ fmt(s.pagos.otros) }} · {{ pct(s.pagos.pctOtros) }}%</span>
+              <span class="vv-pl"><i class="vv-pl-dot vv-pl-tarjeta"></i>Tarjeta {{ fmt(s.pagos.tarjeta) }}</span>
+              <span class="vv-pl"><i class="vv-pl-dot vv-pl-efectivo"></i>Efectivo {{ fmt(s.pagos.efectivo) }}</span>
+              <span v-if="s.pagos.otros" class="vv-pl"><i class="vv-pl-dot vv-pl-otros"></i>Otros {{ fmt(s.pagos.otros) }}</span>
               <span v-if="s.pagos.propinas" class="vv-pl vv-pl-propina">Propinas {{ fmt(s.pagos.propinas) }} · {{ pct(s.pagos.pctPropinas) }}%</span>
             </div>
           </div>
@@ -172,7 +168,13 @@
                   <td>{{ p.nombre }}</td>
                   <td class="r b">{{ num(p.cantidad) }}</td>
                   <td class="r dim">{{ fmt(p.total) }}</td>
-                  <td class="r dim">{{ p.costo == null ? '—' : fmt(p.costo) }}</td>
+                  <td class="r dim">
+                    <template v-if="p.costo == null">—</template>
+                    <template v-else>
+                      {{ fmt(p.costo) }}
+                      <span v-if="p.total > 0" class="vv-fc">{{ pct((p.costo / p.total) * 100) }}%</span>
+                    </template>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -207,7 +209,6 @@
                   <th class="r vv-th" @click="ordenar(s.codigo, 'inicial')">INICIAL<span class="vv-th-i">{{ flecha(s, 'inicial') }}</span></th>
                   <th class="r vv-th" @click="ordenar(s.codigo, 'cantidad')">CONSUMIDO<span class="vv-th-i">{{ flecha(s, 'cantidad') }}</span></th>
                   <th class="r vv-th" @click="ordenar(s.codigo, 'saldo')">SALDO<span class="vv-th-i">{{ flecha(s, 'saldo') }}</span></th>
-                  <th class="vv-th" @click="ordenar(s.codigo, 'horasParaAgotar')">ALCANZA<span class="vv-th-i">{{ flecha(s, 'horasParaAgotar') }}</span></th>
                   <th class="vv-th" @click="ordenar(s.codigo, 'und')">UND<span class="vv-th-i">{{ flecha(s, 'und') }}</span></th>
                 </tr>
               </thead>
@@ -218,9 +219,6 @@
                   <td class="r">−{{ num(c.cantidad) }}</td>
                   <td class="r b" :class="saldoClase(c)">
                     {{ c.saldo === null ? '—' : num(c.saldo) }}
-                  </td>
-                  <td :class="c.agotaEn ? 'vv-agota' : 'dim'">
-                    {{ c.agotaEn ? 'hasta ' + hora(c.agotaEn) : (c.saldo > 0 ? 'toda la jornada' : '—') }}
                   </td>
                   <td class="dim">{{ c.und || '—' }}</td>
                 </tr>
@@ -290,7 +288,7 @@ let reintento = null
 
 const totales = computed(() => datos.value?.totales || {
   ventas: 0, ordenes: 0, articulos: 0, costoMP: 0, propinas: 0,
-  promedioDia: 0,
+  promedioDia: 0, muestrasDia: 0,
 })
 
 const ticketGlobal      = computed(() => totales.value.ordenes > 0 ? totales.value.ventas / totales.value.ordenes : 0)
@@ -316,10 +314,27 @@ const pctDelPromedioGlobal = computed(() => {
   return (totales.value.ventas / p) * 100
 })
 
+// Plural del dia para poder decir "de 8 domingos" y no dejar dudas sobre
+// contra que se compara: es el promedio de las ultimas semanas, no el dia
+// anterior.
+const nombreDiaPlural = computed(() => {
+  const d = nombreDia.value
+  return d.endsWith('s') ? d : d + 's'   // lunes/martes ya son plurales
+})
+
+const etiquetaPromedio = computed(() => {
+  const n = totales.value.muestrasDia
+  return n ? `Promedio de ${n} ${nombreDiaPlural.value}` : `De un ${nombreDia.value} normal`
+})
+
 const hintPromedio = computed(() => {
   const p = totales.value.promedioDia
+  const n = totales.value.muestrasDia
   if (!p) return 'sin historial suficiente'
-  return `un ${nombreDia.value} normal cierra en ${fmt(p)}`
+  // Sin el conteo (backend viejo, o sin historial) se omite el numero en vez
+  // de imprimir "undefined" en pantalla.
+  if (!n) return `un ${nombreDia.value} normal cierra en ${fmt(p)}`
+  return `esos ${n} ${nombreDiaPlural.value} cerraron en ${fmt(p)} en promedio`
 })
 const sedes   = computed(() => datos.value?.sedes || [])
 const ordenes = computed(() => datos.value?.ordenes || [])
@@ -635,8 +650,14 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
   border-radius: 7px; padding: 6px 9px;
 }
 
-/* Hora estimada de agotamiento */
-.vv-agota { color: var(--warning); font-weight: 700; white-space: nowrap; }
+/* Porcentaje de materia prima de cada plato, bajo el monto */
+.vv-fc {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface),.45);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Desglose de medios de pago */
 .vv-pagos { margin-top: 10px; }
