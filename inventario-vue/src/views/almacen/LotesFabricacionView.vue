@@ -452,6 +452,7 @@ ${es3x4 ? `
     </div>
     <div class="top-badge">
       <div class="badge-title">PRODUCTION<br>BATCH</div>
+      <div class="badge-sub">${l.codigo}</div>
     </div>
   </div>
 
