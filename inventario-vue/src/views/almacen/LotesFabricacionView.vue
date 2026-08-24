@@ -372,8 +372,8 @@ function imprimirEtiqueta(l) {
   /* Additional information */
   .lbl-extra { flex: 1; padding: 2px 8px; display: flex; flex-direction: column; gap: 1px; }
   .section-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 0px; margin-bottom: 0px; }
-  .section-txt   { font-size: 6.5pt; line-height: 1.05; }
-  .alerg-txt     { font-size: 6.5pt; font-weight: 700; line-height: 1.05; }
+  .section-txt   { font-size: 6.5pt; line-height: 1.2; }
+  .alerg-txt     { font-size: 6.5pt; font-weight: 700; line-height: 1.2; }
 
   /* Footer: batch code + barcode */
   .lbl-barcode { padding: 1px 8px 2px; text-align: center; border-top: 1.5px solid #000; }
