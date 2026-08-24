@@ -17924,6 +17924,9 @@ pool.query(`CREATE TABLE IF NOT EXISTS sistema_tareas (
     tarea VARCHAR(50) PRIMARY KEY,
     ultima_ejecucion TIMESTAMP
 )`).catch(() => {});
+// Columnas para dejar rastro de un fallo de la tarea (ver el catch mas abajo)
+pool.query(`ALTER TABLE sistema_tareas ADD COLUMN IF NOT EXISTS ultimo_error VARCHAR(400)`).catch(() => {});
+pool.query(`ALTER TABLE sistema_tareas ADD COLUMN IF NOT EXISTS error_en TIMESTAMP`).catch(() => {});
 
 // Intervalo configurable desde Configuración General (empresas.recalculo_recetas_horas).
 // Como el catálogo de recetas es único para toda la instalación, se respeta el
@@ -17951,10 +17954,16 @@ async function ejecutarRecalculoRecetasSiToca() {
 
         // Empresas a recalcular: el principal + cada empresa que tenga capa propia
         // de costos de artículos (que es lo que hace variar el costo de sus recetas).
+        // Los dos lados del UNION se normalizan a texto: empresas.codigo es
+        // integer y articulo_costo_empresa.empresa es varchar, y Postgres
+        // rechaza el UNION con "UNION types integer and character varying
+        // cannot be matched". Al estar dentro del try general, esa excepcion
+        // se tragaba en silencio y la tarea no llegaba nunca a marcar su
+        // ultima ejecucion: quedo 31 dias sin recalcular sin avisar a nadie.
         const empresasRes = await pool.query(`
-            SELECT codigo FROM empresas WHERE tipo_empresa = 'PROVEEDOR'
+            SELECT TRIM(codigo::text) AS codigo FROM empresas WHERE tipo_empresa = 'PROVEEDOR'
             UNION
-            SELECT DISTINCT empresa AS codigo FROM articulo_costo_empresa
+            SELECT DISTINCT TRIM(empresa::text) AS codigo FROM articulo_costo_empresa
         `);
         const empresas = empresasRes.rows.map(r => r.codigo).filter(Boolean);
 
@@ -17976,12 +17985,24 @@ async function ejecutarRecalculoRecetasSiToca() {
         }
 
         await pool.query(
-            `INSERT INTO sistema_tareas (tarea, ultima_ejecucion) VALUES ('recalculo_recetas', NOW())
-             ON CONFLICT (tarea) DO UPDATE SET ultima_ejecucion = NOW()`
+            `INSERT INTO sistema_tareas (tarea, ultima_ejecucion, ultimo_error, error_en)
+             VALUES ('recalculo_recetas', NOW(), NULL, NULL)
+             ON CONFLICT (tarea) DO UPDATE SET ultima_ejecucion = NOW(), ultimo_error = NULL, error_en = NULL`
         );
         console.log(`[recalculo-recetas] Recalculo automatico OK para ${okCount}/${empresas.length} empresa(s)`);
     } catch (err) {
-        console.error('[recalculo-recetas] Error verificando ultima ejecucion:', err.message);
+        // Este catch se trago un error de SQL durante 31 dias sin que nadie lo
+        // notara: la tarea simplemente dejo de correr y los costos de las
+        // recetas se quedaron congelados. Ahora el fallo queda registrado en la
+        // propia tabla de tareas, para que se pueda ver desde la aplicacion en
+        // vez de depender de que alguien lea los logs del servidor.
+        console.error('[recalculo-recetas] FALLO el recalculo automatico:', err.message);
+        pool.query(
+            `INSERT INTO sistema_tareas (tarea, ultima_ejecucion, ultimo_error, error_en)
+             VALUES ('recalculo_recetas', NULL, $1, NOW())
+             ON CONFLICT (tarea) DO UPDATE SET ultimo_error = $1, error_en = NOW()`,
+            [String(err.message).slice(0, 400)]
+        ).catch(() => {});
     }
 }
 
