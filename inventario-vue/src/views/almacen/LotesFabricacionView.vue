@@ -342,41 +342,41 @@ function imprimirEtiqueta(l) {
 
   /* Top strip: icon box + badge type "FRAGILE" */
   .lbl-top { display: flex; align-items: stretch; border-bottom: 1.5px solid #000; }
-  .top-icon-box { width: 22%; border-right: 1.5px solid #000; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .top-icon-box { width: 22%; border-right: 1.5px solid #000; padding: 3px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
   .top-icon { width: 18px; height: 18px; border: 1.5px solid #000; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9pt; font-weight: 900; }
   .top-icon-cap { font-size: 5.5pt; text-align: center; line-height: 1.2; color: #333; text-transform: uppercase; }
-  .top-badge { flex: 1; padding: 4px 6px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; }
+  .top-badge { flex: 1; padding: 3px 6px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; }
   .badge-title { font-size: 7.5pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
   .badge-sub   { font-size: 6pt; font-weight: 700; text-transform: uppercase; color: #333; margin-top: 1px; }
 
   /* Product title bar – centered, no lot reference (shown in footer) */
-  .lbl-header-bar { padding: 4px 8px; border-bottom: 1.5px solid #000; text-align: center; }
+  .lbl-header-bar { padding: 3px 8px; border-bottom: 1.5px solid #000; text-align: center; }
   .prod-name { font-size: 12pt; font-weight: 900; text-transform: uppercase; line-height: 1.05; }
 
   /* Net weight / servings boxes */
-  .weight-row { display: flex; gap: 4px; padding: 3px 8px; border-bottom: 1px solid #000; }
-  .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 2px 3px; }
+  .weight-row { display: flex; gap: 4px; padding: 1px 8px; border-bottom: 1px solid #000; }
+  .w-box { flex: 1; text-align: center; border: 1px solid #000; padding: 1px 3px; }
   .w-lbl { font-size: 5.5pt; text-transform: uppercase; font-weight: 700; }
   .w-val { font-size: 7.5pt; font-weight: 900; }
 
   /* From/To style dates section */
   .two-col { display: flex; border-bottom: 1px solid #000; }
-  .col { flex: 1; padding: 3px 6px; }
+  .col { flex: 1; padding: 1px 6px; }
   .col:first-child { border-right: 1px solid #000; }
-  .col-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-  .col-row { font-size: 6.5pt; line-height: 1.4; }
+  .col-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
+  .col-row { font-size: 6.5pt; line-height: 1.25; }
   .col-lbl { color: #555; }
   .col-val { font-weight: 700; margin-left: 2px; font-size: 8pt; }
   .col-warn { display: inline-block; margin-top: 2px; font-size: 5.5pt; font-weight: 900; text-transform: uppercase; border: 1px solid #000; padding: 1px 4px; border-radius: 3px; }
 
   /* Additional information */
-  .lbl-extra { flex: 1; padding: 3px 8px; display: flex; flex-direction: column; gap: 2px; }
-  .section-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
-  .section-txt   { font-size: 6.5pt; line-height: 1.2; }
-  .alerg-txt     { font-size: 6.5pt; font-weight: 700; line-height: 1.15; }
+  .lbl-extra { flex: 1; padding: 2px 8px; display: flex; flex-direction: column; gap: 1px; }
+  .section-title { font-size: 6pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 0px; margin-bottom: 0px; }
+  .section-txt   { font-size: 6.5pt; line-height: 1.05; }
+  .alerg-txt     { font-size: 6.5pt; font-weight: 700; line-height: 1.05; }
 
   /* Footer: batch code + barcode */
-  .lbl-barcode { padding: 3px 8px 5px; text-align: center; border-top: 1.5px solid #000; }
+  .lbl-barcode { padding: 1px 8px 2px; text-align: center; border-top: 1.5px solid #000; }
   .footer-title { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
   .lbl-barcode svg { max-width: 100%; }
   .bc-num { font-size: 6.5pt; margin-top: 1px; font-family: monospace; letter-spacing: 0.5px; }
