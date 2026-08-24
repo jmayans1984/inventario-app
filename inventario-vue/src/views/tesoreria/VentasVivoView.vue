@@ -37,13 +37,18 @@
       <!-- Totales del día -->
       <div class="vv-kpis">
         <KpiCard :index="0" label="Ventas de hoy" :value="fmt(totales.ventas)"
-          icon="mdi-cash-multiple" color="var(--success)" value-color="var(--success)" />
-        <KpiCard :index="1" label="Órdenes" :value="String(totales.ordenes)"
-          icon="mdi-receipt-text-outline" color="var(--indigo)" />
-        <KpiCard :index="2" label="Artículos vendidos" :value="num(totales.articulos)"
-          icon="mdi-package-variant" color="var(--gold)" />
-        <KpiCard :index="3" label="Insumos afectados" :value="String(consumo.length)"
-          icon="mdi-fire" color="var(--warning)" />
+          icon="mdi-cash-multiple" color="var(--success)" value-color="var(--success)"
+          :hint="`${totales.ordenes} órdenes · ticket ${fmt(ticketGlobal)}`" />
+        <KpiCard :index="1" label="Margen bruto" :value="fmt(totales.margen)"
+          icon="mdi-chart-line" color="var(--indigo)"
+          :hint="`materia prima ${fmt(totales.costoMP)} · ${pct(pctCostoGlobal)}% del bruto`" />
+        <KpiCard :index="2" label="Proyección de cierre" :value="fmt(totales.proyeccion)"
+          icon="mdi-trending-up" color="var(--gold)"
+          :hint="hintProyeccion"
+          :trend="trendProyeccion" :trend-up="trendProyeccionUp" />
+        <KpiCard :index="3" label="Propinas" :value="fmt(totales.propinas)"
+          icon="mdi-cash-fast" color="var(--warning)"
+          :hint="`${pct(pctPropinasGlobal)}% sobre la venta`" />
       </div>
 
       <!-- Un panel independiente por centro de costo -->
@@ -73,6 +78,31 @@
             </template>
           </div>
 
+          <div class="vv-metricas">
+            <div>
+              <b>{{ fmt(s.ticket) }}</b>
+              <span>Ticket prom.</span>
+            </div>
+            <div>
+              <b :class="s.pctMargen < 0 ? 'vv-saldo-neg' : ''">{{ pct(s.pctMargen) }}%</b>
+              <span>Margen</span>
+            </div>
+            <div>
+              <b>{{ fmt(s.proyeccion) }}</b>
+              <span>Proyectado</span>
+            </div>
+            <div v-if="s.pctVsPromedio !== null && s.pctVsPromedio !== undefined">
+              <b :class="s.pctVsPromedio >= 0 ? 'vv-arriba' : 'vv-abajo'">
+                {{ s.pctVsPromedio >= 0 ? '+' : '' }}{{ pct(s.pctVsPromedio) }}%
+              </b>
+              <span>vs {{ nombreDia }} normal</span>
+            </div>
+          </div>
+          <div v-if="s.articulosSinCosto" class="vv-aviso-costo">
+            {{ s.articulosSinCosto }} insumo{{ s.articulosSinCosto !== 1 ? 's' : '' }} sin costo cargado —
+            el margen real es algo menor
+          </div>
+
           <div v-if="hayPagos(s)" class="vv-pagos">
             <div class="vv-pagos-barra">
               <span class="vv-pb vv-pb-tarjeta" :style="{ width: (s.pagos.pctTarjeta || 0) + '%' }"></span>
@@ -83,7 +113,7 @@
               <span class="vv-pl"><i class="vv-pl-dot vv-pl-tarjeta"></i>Tarjeta {{ fmt(s.pagos.tarjeta) }} · {{ pct(s.pagos.pctTarjeta) }}%</span>
               <span class="vv-pl"><i class="vv-pl-dot vv-pl-efectivo"></i>Efectivo {{ fmt(s.pagos.efectivo) }} · {{ pct(s.pagos.pctEfectivo) }}%</span>
               <span v-if="s.pagos.otros" class="vv-pl"><i class="vv-pl-dot vv-pl-otros"></i>Otros {{ fmt(s.pagos.otros) }} · {{ pct(s.pagos.pctOtros) }}%</span>
-              <span v-if="s.pagos.propinas" class="vv-pl vv-pl-propina">Propinas {{ fmt(s.pagos.propinas) }}</span>
+              <span v-if="s.pagos.propinas" class="vv-pl vv-pl-propina">Propinas {{ fmt(s.pagos.propinas) }} · {{ pct(s.pagos.pctPropinas) }}%</span>
             </div>
           </div>
 
@@ -176,6 +206,7 @@
                   <th class="r vv-th" @click="ordenar(s.codigo, 'inicial')">INICIAL<span class="vv-th-i">{{ flecha(s, 'inicial') }}</span></th>
                   <th class="r vv-th" @click="ordenar(s.codigo, 'cantidad')">CONSUMIDO<span class="vv-th-i">{{ flecha(s, 'cantidad') }}</span></th>
                   <th class="r vv-th" @click="ordenar(s.codigo, 'saldo')">SALDO<span class="vv-th-i">{{ flecha(s, 'saldo') }}</span></th>
+                  <th class="vv-th" @click="ordenar(s.codigo, 'horasParaAgotar')">ALCANZA<span class="vv-th-i">{{ flecha(s, 'horasParaAgotar') }}</span></th>
                   <th class="vv-th" @click="ordenar(s.codigo, 'und')">UND<span class="vv-th-i">{{ flecha(s, 'und') }}</span></th>
                 </tr>
               </thead>
@@ -186,6 +217,9 @@
                   <td class="r">−{{ num(c.cantidad) }}</td>
                   <td class="r b" :class="saldoClase(c)">
                     {{ c.saldo === null ? '—' : num(c.saldo) }}
+                  </td>
+                  <td :class="c.agotaEn ? 'vv-agota' : 'dim'">
+                    {{ c.agotaEn ? 'hasta ' + hora(c.agotaEn) : (c.saldo > 0 ? 'toda la jornada' : '—') }}
                   </td>
                   <td class="dim">{{ c.und || '—' }}</td>
                 </tr>
@@ -248,7 +282,45 @@ const sedesSinAsociar = ref([])
 let fuente = null
 let reintento = null
 
-const totales = computed(() => datos.value?.totales || { ventas: 0, ordenes: 0, articulos: 0 })
+const totales = computed(() => datos.value?.totales || {
+  ventas: 0, ordenes: 0, articulos: 0, costoMP: 0, margen: 0, propinas: 0,
+  proyeccion: 0, promedioDia: 0,
+})
+
+const ticketGlobal      = computed(() => totales.value.ordenes > 0 ? totales.value.ventas / totales.value.ordenes : 0)
+const pctCostoGlobal    = computed(() => totales.value.ventas > 0 ? (totales.value.costoMP / totales.value.ventas) * 100 : 0)
+const pctPropinasGlobal = computed(() => totales.value.ventas > 0 ? (totales.value.propinas / totales.value.ventas) * 100 : 0)
+
+// El nombre del día se usa para que "vs promedio" diga contra qué compara:
+// un lunes y un sábado no se parecen, y sin el nombre el número no dice nada.
+const nombreDia = computed(() => {
+  const d = datos.value?.dia
+  if (!d) return 'día'
+  const [a, m, dd] = d.split('-').map(Number)
+  return new Date(a, m - 1, dd).toLocaleDateString('es', { weekday: 'long' })
+})
+
+const pctVsPromedioGlobal = computed(() => {
+  const p = totales.value.promedioDia
+  if (!p || !totales.value.proyeccion) return null
+  return ((totales.value.proyeccion - p) / p) * 100
+})
+
+const hintProyeccion = computed(() => {
+  const p = totales.value.promedioDia
+  if (!p) return 'a este ritmo hasta el cierre'
+  return `un ${nombreDia.value} normal cierra en ${fmt(p)}`
+})
+
+const trendProyeccion = computed(() => {
+  const v = pctVsPromedioGlobal.value
+  if (v === null) return ''
+  return `${v >= 0 ? '+' : ''}${pct(v)}% vs ${nombreDia.value} normal`
+})
+const trendProyeccionUp = computed(() => {
+  const v = pctVsPromedioGlobal.value
+  return v === null ? null : v >= 0
+})
 const sedes   = computed(() => datos.value?.sedes || [])
 const ordenes = computed(() => datos.value?.ordenes || [])
 const consumo = computed(() => datos.value?.consumo || [])
@@ -346,8 +418,13 @@ function consumoFiltrado(s) {
     if (col === 'nombre' || col === 'und') {
       return dir * String(a[col] || '').localeCompare(String(b[col] || ''), 'es')
     }
-    const va = a[col] === null || a[col] === undefined ? -Infinity : parseFloat(a[col])
-    const vb = b[col] === null || b[col] === undefined ? -Infinity : parseFloat(b[col])
+    // Los nulos (sin dato) van siempre al final, suba o baje el orden: son
+    // ausencia de informacion, no un valor bajo.
+    const va = a[col] === null || a[col] === undefined ? null : parseFloat(a[col])
+    const vb = b[col] === null || b[col] === undefined ? null : parseFloat(b[col])
+    if (va === null && vb === null) return 0
+    if (va === null) return 1
+    if (vb === null) return -1
     return dir * (va - vb)
   })
   return arr
@@ -526,6 +603,40 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 .vv-cg-delivery  { background: var(--gold); }
 .vv-cg-online    { background: var(--success); }
 .vv-meta-dlv { color: var(--gold); font-weight: 700; }
+
+/* Franja de metricas de la sede */
+.vv-metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface),.07);
+}
+.vv-metricas div { line-height: 1.2; min-width: 0; }
+.vv-metricas b {
+  display: block; font-size: 15px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vv-metricas span {
+  font-size: 9.5px; color: rgba(var(--v-theme-on-surface),.5);
+  text-transform: uppercase; letter-spacing: .05em; font-weight: 600;
+}
+.vv-arriba { color: var(--success); }
+.vv-abajo  { color: var(--warning); }
+
+/* Aviso cuando faltan costos: sin el, el margen se leeria como exacto */
+.vv-aviso-costo {
+  margin-top: 9px;
+  font-size: 10.5px; line-height: 1.4;
+  color: var(--warning);
+  background: rgba(180,83,9,.08);
+  border-radius: 7px; padding: 6px 9px;
+}
+
+/* Hora estimada de agotamiento */
+.vv-agota { color: var(--warning); font-weight: 700; white-space: nowrap; }
 
 /* Desglose de medios de pago */
 .vv-pagos { margin-top: 10px; }
