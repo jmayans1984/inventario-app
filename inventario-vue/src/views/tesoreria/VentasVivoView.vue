@@ -39,9 +39,10 @@
         <KpiCard :index="0" label="Ventas de hoy" :value="fmt(totales.ventas)"
           icon="mdi-cash-multiple" color="var(--success)" value-color="var(--success)"
           :hint="`${totales.ordenes} órdenes · ticket ${fmt(ticketGlobal)}`" />
-        <KpiCard :index="1" label="Margen bruto" :value="fmt(totales.margen)"
-          icon="mdi-chart-line" color="var(--indigo)"
-          :hint="`materia prima ${fmt(totales.costoMP)} · ${pct(pctCostoGlobal)}% del bruto`" />
+        <KpiCard :index="1" label="Materia prima"
+          :value="fmt(totales.costoMP)"
+          icon="mdi-food-variant" color="var(--indigo)"
+          :hint="`food cost ${pct(pctCostoGlobal)}% de la venta`" />
         <KpiCard :index="2" :label="`De un ${nombreDia} normal`"
           :value="pctDelPromedioGlobal === null ? '—' : pct(pctDelPromedioGlobal) + '%'"
           icon="mdi-calendar-check-outline" color="var(--gold)"
@@ -84,8 +85,8 @@
               <span>Ticket prom.</span>
             </div>
             <div>
-              <b :class="s.pctMargen < 0 ? 'vv-saldo-neg' : ''">{{ pct(s.pctMargen) }}%</b>
-              <span>Margen</span>
+              <b>{{ pct(s.pctCosto) }}%</b>
+              <span>Food cost</span>
             </div>
             <div>
               <b>{{ fmt(s.ritmoHora) }}</b>
@@ -96,9 +97,10 @@
               <span>de un {{ nombreDia }}</span>
             </div>
           </div>
-          <div v-if="s.articulosSinCosto" class="vv-aviso-costo">
-            {{ s.articulosSinCosto }} insumo{{ s.articulosSinCosto !== 1 ? 's' : '' }} sin costo cargado —
-            el margen real es algo menor
+          <div v-if="s.productosSinCosto" class="vv-aviso-costo">
+            {{ s.productosSinCosto }} producto{{ s.productosSinCosto !== 1 ? 's' : '' }} sin costo de receta
+            <template v-if="s.nombresSinCosto?.length">({{ s.nombresSinCosto.join(', ') }}<template v-if="s.productosSinCosto > s.nombresSinCosto.length">…</template>)</template>
+            — el food cost real es mayor
           </div>
 
           <div v-if="hayPagos(s)" class="vv-pagos">
@@ -164,12 +166,13 @@
           <div v-else-if="tabDe(s.codigo) === 'productos'" class="vv-scroll">
             <div v-if="!s.productos.length" class="vv-vacio vv-vacio-sm"><p>Sin productos</p></div>
             <table v-else class="vv-tabla">
-              <thead><tr><th>PRODUCTO</th><th class="r">CANT</th><th class="r">TOTAL</th></tr></thead>
+              <thead><tr><th>PRODUCTO</th><th class="r">CANT</th><th class="r">TOTAL</th><th class="r">M. PRIMA</th></tr></thead>
               <tbody>
                 <tr v-for="p in s.productos" :key="p.sku || p.nombre">
                   <td>{{ p.nombre }}</td>
                   <td class="r b">{{ num(p.cantidad) }}</td>
                   <td class="r dim">{{ fmt(p.total) }}</td>
+                  <td class="r dim">{{ p.costo == null ? '—' : fmt(p.costo) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -252,6 +255,11 @@
       </div>
 
       <div class="vv-nota">
+        <strong>Food cost</strong> = costo de materia prima de las recetas vendidas, sobre la venta
+        bruta. Sale del costo cargado en cada receta, así que refleja la receta completa y no solo
+        los insumos con control de inventario. No incluye nómina, arriendo, comisiones ni empaques:
+        no es utilidad.
+        <br><br>
         <strong>Saldo proyectado</strong> = existencias con las que abrió el servicio, menos el
         consumo calculado a partir de las recetas de lo vendido hasta ahora. Es una proyección
         informativa e independiente por centro de costo: el descargue real de inventario lo sigue
@@ -281,7 +289,7 @@ let fuente = null
 let reintento = null
 
 const totales = computed(() => datos.value?.totales || {
-  ventas: 0, ordenes: 0, articulos: 0, costoMP: 0, margen: 0, propinas: 0,
+  ventas: 0, ordenes: 0, articulos: 0, costoMP: 0, propinas: 0,
   promedioDia: 0,
 })
 
@@ -618,7 +626,7 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
 .vv-arriba { color: var(--success); }
 .vv-abajo  { color: var(--warning); }
 
-/* Aviso cuando faltan costos: sin el, el margen se leeria como exacto */
+/* Aviso cuando faltan costos: sin el, el food cost se leeria como exacto */
 .vv-aviso-costo {
   margin-top: 9px;
   font-size: 10.5px; line-height: 1.4;
