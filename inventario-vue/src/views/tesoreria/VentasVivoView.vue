@@ -178,6 +178,11 @@
                 </tr>
               </tbody>
             </table>
+            <div v-if=s.productos.length class="vv-nota-tabla">
+              El porcentaje se calcula sobre lo que realmente se cobró. En las ventas por
+              delivery el precio lleva el recargo de la plataforma, así que ahí el porcentaje
+              sale <strong>más bajo</strong> que el de la ficha de la receta.
+            </div>
           </div>
 
           <div v-else-if="tabDe(s.codigo) === 'consumo'" class="vv-scroll">
@@ -649,6 +654,20 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
   background: rgba(180,83,9,.08);
   border-radius: 7px; padding: 6px 9px;
 }
+
+/* Aclaracion al pie de una tabla: el dato de arriba necesita contexto para
+   no leerse mal, pero no debe competir con el */
+.vv-nota-tabla {
+  margin-top: 10px;
+  padding: 8px 10px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  /* .55 daba 3.86:1 sobre el fondo tintado, bajo el minimo de 4.5 */
+  color: rgba(var(--v-theme-on-surface),.70);
+  background: rgba(var(--v-theme-on-surface),.035);
+  border-radius: 7px;
+}
+.vv-nota-tabla strong { color: rgba(var(--v-theme-on-surface),.75); }
 
 /* Porcentaje de materia prima de cada plato, bajo el monto */
 .vv-fc {
