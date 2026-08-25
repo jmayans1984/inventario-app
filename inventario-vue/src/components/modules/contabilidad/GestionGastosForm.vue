@@ -172,15 +172,26 @@
                 <v-text-field
                   v-model="form.numero_cheque"
                   autocomplete="off"
-                  label="N° Cheque"
+                  :label="form.sin_cheque ? 'Sin cheque' : 'N° Cheque'"
                   variant="outlined"
                   density="comfortable"
                   hide-details
                   type="text"
                   inputmode="numeric"
-                  placeholder="0"
+                  :placeholder="form.sin_cheque ? 'Zelle, transferencia, débito…' : '0'"
+                  :disabled="form.sin_cheque"
                   prepend-inner-icon="mdi-checkbook"
                   @input="form.numero_cheque = form.numero_cheque.replace(/[^0-9]/g, '')"
+                />
+                <!-- La cuenta lleva chequera, pero no todo lo que sale de ella
+                     es un cheque: Zelle, transferencia o débito salen de la
+                     misma cuenta sin consumir un numero. -->
+                <v-checkbox
+                  v-model="form.sin_cheque"
+                  label="Pagado sin cheque (Zelle, transferencia…)"
+                  density="compact"
+                  hide-details
+                  class="chk-sin-cheque"
                 />
               </div>
             </div>
@@ -385,9 +396,10 @@
                 </span>
                 <span v-else class="resumen-val">{{ nombreFormaPago }}</span>
               </div>
-              <div v-if="!form.por_pagar && muestraCheque && form.numero_cheque" class="resumen-row">
+              <div v-if="!form.por_pagar && muestraCheque" class="resumen-row">
                 <span class="resumen-lbl">N° Cheque</span>
-                <span class="resumen-val">{{ form.numero_cheque }}</span>
+                <span v-if="form.numero_cheque" class="resumen-val">{{ form.numero_cheque }}</span>
+                <span v-else class="resumen-val val-cxp">Sin cheque</span>
               </div>
               <div class="resumen-row">
                 <span class="resumen-lbl">Movimiento bancario</span>
@@ -1095,7 +1107,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, nextTick } from 'vue'
 import { useGestionGastosStore } from '../../../stores/gestiongastos'
 import { gestionGastosService } from '../../../services/gestiongastos.service'
 import { proveedoresService } from '../../../services/proveedores.service'
@@ -1392,6 +1404,7 @@ const formVacio = () => {
     proveedor: '',
     forma_pago: '',
     numero_cheque: '',
+    sin_cheque: false,
     es_ingreso: false,
     por_pagar: false,
     lineas: [lineaVacia()],
@@ -1412,11 +1425,32 @@ const muestraCheque = computed(() => {
   const v = parseInt(cuentaSeleccionada.value?.cheque)
   return (!isNaN(v) && v > 0) || !!form.value.numero_cheque
 })
+// Al abrir un gasto existente se reemplaza el formulario entero, y eso dispara
+// el watch de la cuenta como si el usuario la hubiera cambiado: volveria a
+// proponer un numero de cheque y borraria la marca de "sin cheque" que traia
+// guardada. Mientras dura la carga los watches se quedan quietos.
+const cargandoGasto = ref(false)
+
 watch(() => form.value.forma_pago, () => {
+  if (cargandoGasto.value) return
+  // Cambiar de cuenta arranca de cero: la marca de "sin cheque" pertenecia a
+  // la cuenta anterior.
+  form.value.sin_cheque = false
   if (muestraCheque.value) {
     if (!form.value.numero_cheque) form.value.numero_cheque = String(cuentaSeleccionada.value.cheque)
   } else {
     form.value.numero_cheque = ''
+  }
+})
+
+// Marcar "sin cheque" borra el numero para que no se guarde ni consuma el
+// consecutivo de la chequera. Al desmarcarlo se vuelve a proponer.
+watch(() => form.value.sin_cheque, (sin) => {
+  if (cargandoGasto.value) return
+  if (sin) {
+    form.value.numero_cheque = ''
+  } else if (!form.value.numero_cheque && cuentaSeleccionada.value?.cheque) {
+    form.value.numero_cheque = String(cuentaSeleccionada.value.cheque)
   }
 })
 
@@ -1427,6 +1461,7 @@ watch(() => form.value.por_pagar, (on) => {
   if (!on) return
   form.value.forma_pago    = ''
   form.value.numero_cheque = ''
+  form.value.sin_cheque    = false
   form.value.es_ingreso    = false
 })
 
@@ -1787,6 +1822,7 @@ watch(() => props.open, async (val) => {
   errorMsg.value = ''
   step.value = 0
   if (props.gasto?.codigo) {
+    cargandoGasto.value = true
     try {
       const gastoFresco = await gestionGastosService.getGasto(props.gasto.codigo)
       const gasto = gastoFresco.data || gastoFresco
@@ -1797,6 +1833,9 @@ watch(() => props.open, async (val) => {
         proveedor: gasto.proveedor || '',
         forma_pago: gasto.forma_pago || '',
         numero_cheque: gasto.numero_cheque ? String(gasto.numero_cheque) : '',
+        // Un gasto ya guardado sin numero, en una cuenta con chequera, se pago
+        // por otra via: la casilla debe abrirse marcada y no reproponer nada.
+        sin_cheque: !gasto.numero_cheque,
         es_ingreso: gasto.es_ingreso === true,
         por_pagar: gasto.por_pagar === 'SI',
         lineas: [{
@@ -1820,6 +1859,11 @@ watch(() => props.open, async (val) => {
     } catch (err) {
       console.error('Error cargando gasto:', err)
       errorMsg.value = 'No se pudo cargar el gasto'
+    } finally {
+      // Se libera despues de que los watches hayan corrido con los datos ya
+      // puestos; a partir de ahi los cambios si son del usuario.
+      await nextTick()
+      cargandoGasto.value = false
     }
   } else {
     form.value = formVacio()
@@ -2073,6 +2117,15 @@ function cerrar() {
 .field-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .field-col-full { flex: 1 1 100%; min-width: 0; }
 .field-col-half { flex: 1 1 260px; min-width: 220px; }
+
+/* La casilla cuelga del campo de cheque, no es un campo aparte: va pegada
+   debajo y con letra menor para que se lea como una aclaracion suya. */
+.chk-sin-cheque { margin-top: 2px; }
+.chk-sin-cheque :deep(.v-label) {
+  font-size: 12px;
+  opacity: 1;
+  color: rgba(var(--v-theme-on-surface), .72);
+}
 .field-col-3 { flex: 1 1 200px; min-width: 180px; }
 .field-col-amt { width: 220px; flex-shrink: 0; }
 .field-col-amt-full { flex: 1 1 180px; min-width: 160px; }
