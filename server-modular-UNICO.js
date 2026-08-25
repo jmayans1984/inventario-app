@@ -20092,8 +20092,18 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
         const cuentaContable = (cuentaNomina && cuentaNomina !== 'NOMINA') ? truncate(cuentaNomina, 3) : null;
 
         // 8. Insertar gastos
-        // fechaPago: fecha indicada por el usuario (cuando realmente pagó via ADP)
-        // entry.fecha: fecha contable del período (para prorrateo mensual de P&G)
+        // Aqui se separan dos fechas que NO son la misma cosa:
+        //   entry.fecha  = fecha CONTABLE del segmento. Cuando la semana cruza
+        //                  dos meses hay dos segmentos y esta fecha cae en el
+        //                  ultimo dia del mes que corresponde a cada uno. Es la
+        //                  que consulta el Estado de Resultados, asi que es la
+        //                  que decide en que mes pesa el gasto.
+        //   fechaGasto   = fecha en que realmente salio la plata (ADP). Solo
+        //                  se usa para el movimiento bancario, que es lo que
+        //                  luego se concilia contra el extracto.
+        // Antes el INSERT usaba fechaGasto para los dos segmentos, asi que el
+        // prorrateo se calculaba bien pero los dos gastos terminaban en el mes
+        // del pago: la parte de julio aparecia dentro de agosto.
         const fechaGasto = fechaPago || finStr; // usar fecha de pago si existe, sino fin período
         const gastosCreados = [];
         for (const entry of entries) {
@@ -20106,7 +20116,7 @@ app.put('/api/nomina/liquidaciones/:id/aprobar', async (req, res) => {
                     `INSERT INTO gastos (codigo, fecha, factura, proveedor, ccosto,
                                          forma_pago, cuenta, concepto, subtotal, impuestos, total, empresa, estado)
                      VALUES ($1, $2, NULL, NULL, $3, $4, $5, $6, $7, 0, $7, $8, 'PENDIENTE')`,
-                    [codigo, fechaGasto, ccostoSafe, formaPago, cuentaContable,
+                    [codigo, entry.fecha, ccostoSafe, formaPago, cuentaContable,
                      entry.concepto, entry.costo, l.empresa]
                 );
                 gastosCreados.push({ codigo, fecha: entry.fecha, ccosto: ccostoSafe, total: entry.costo });
