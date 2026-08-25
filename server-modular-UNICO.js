@@ -9906,7 +9906,9 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         const rangoHasta = periodos[periodos.length - 1].hasta;
 
         const [cfgRes, gruposRes, ccostosRes] = await Promise.all([
-            pool.query(`SELECT cta_materia_prima, valor_estimado_inventario_final FROM config_general WHERE empresa = $1`, [emp]),
+            pool.query(`SELECT cta_materia_prima, valor_estimado_inventario_final,
+                               cta_descuentos_ventas, cta_devoluciones
+                        FROM config_general WHERE empresa = $1`, [emp]),
             pool.query(`SELECT TRIM(codigo) AS codigo, TRIM(nombre) AS nombre, TRIM(tipo) AS tipo FROM grupo_gastos ORDER BY codigo ASC`),
             pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [emp]),
         ]);
@@ -10004,12 +10006,24 @@ app.get('/api/contabilidad/estado-resultados', async (req, res) => {
         const comprasMPPorPeriodo = {};
         comprasMPRes.rows.forEach(r => { comprasMPPorPeriodo[r.periodo_key] = parseFloat(r.total) || 0; });
 
-        // ── Ventas netas por CC y período (para % de asignación de MP) ───
+        // ── Ventas por CC y período ─────────────────────────────────────
+        // Sirve para dos cosas: repartir la materia prima entre sedes y ser el
+        // denominador de todos los porcentajes del informe. Tiene que medirse
+        // igual que la linea de ingresos que se contabiliza al importar (ver
+        // vContable en el importador de Square): se parte de las brutas y solo
+        // se descuenta lo que NO tenga cuenta propia, porque lo que si la tiene
+        // ya aparece como gasto mas abajo. Con las netas, los porcentajes se
+        // calculaban sobre una base menor que la venta del propio informe.
+        const restaDesc = cfgRes.rows[0]?.cta_descuentos_ventas?.trim() ? 0 : 1;
+        const restaDev  = cfgRes.rows[0]?.cta_devoluciones?.trim()      ? 0 : 1;
         const ventasRes = await pool.query(
-            `SELECT ccosto, TO_CHAR(fecha::date, 'YYYY-MM') AS periodo_key, COALESCE(SUM(ventas_netas), 0) AS ventas
+            `SELECT ccosto, TO_CHAR(fecha::date, 'YYYY-MM') AS periodo_key,
+                    COALESCE(SUM(COALESCE(ventas_brutas,0)
+                                 - $4::int * COALESCE(descuentos,0)
+                                 - $5::int * COALESCE(devoluciones,0)), 0) AS ventas
              FROM ventas WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3
              GROUP BY ccosto, periodo_key`,
-            [emp, rangoDesde, rangoHasta]
+            [emp, rangoDesde, rangoHasta, restaDesc, restaDev]
         );
         const ventasPorPeriodoCC = {};
         ventasRes.rows.forEach(r => {
@@ -13329,8 +13343,26 @@ app.post('/api/square/importar-resumen', async (req, res) => {
         // 6. Definir los registros de gastos. El último (otras comisiones) solo
         //    se genera si hay sobreprecio de plataformas y la cuenta está
         //    parametrizada en Configuración → General.
+        // El ingreso que se contabiliza parte de las ventas BRUTAS. Antes se
+        // contabilizaba vNetas, que ya viene con los descuentos y las
+        // devoluciones restados, y ademas se registraba cada deduccion como
+        // gasto en su propia cuenta: el resultado era restarlas dos veces.
+        //
+        // Solo se descuenta aqui lo que NO tenga una cuenta parametrizada,
+        // porque eso es lo que no va a aparecer como gasto mas abajo. Asi el
+        // calculo se ajusta solo el dia que se configure una cuenta nueva, sin
+        // tener que acordarse de venir a tocar esta linea.
+        // Mismo criterio que el filtro de abajo: una cuenta en blanco o con
+        // solo espacios no genera gasto, asi que aqui si hay que restarla.
+        const tieneCuenta = c => !!(c && String(c).trim());
+        const vContable = Math.round((
+            vBrutas
+            - (tieneCuenta(cfg.cta_descuentos_ventas) ? 0 : descuentos)
+            - (tieneCuenta(cfg.cta_devoluciones)      ? 0 : vDevoluc)
+        ) * 100) / 100;
+
         const records = [
-            { cuenta: cfg.cta_ventas,            valor: vNetas     },
+            { cuenta: cfg.cta_ventas,            valor: vContable  },
             { cuenta: cfg.cta_descuentos_ventas,  valor: descuentos },
             { cuenta: cfg.cta_devoluciones,       valor: vDevoluc   },
             { cuenta: cfg.cta_impuestos,          valor: impuestos  },
