@@ -91,7 +91,7 @@
         <!-- Cuenta Contable -->
         <div class="filter-group-modern">
           <label class="filter-label-modern">
-            <v-icon size="16" color="var(--purple)">mdi-book-outline</v-icon>
+            <v-icon size="16" color="var(--indigo)">mdi-book-outline</v-icon>
             <span>Cuenta Contable</span>
           </label>
           <div class="select-wrapper">
@@ -101,7 +101,24 @@
                 {{ c.nombre_cta || c.nombre || c.cuenta }}
               </option>
             </select>
-            <v-icon size="16" color="var(--purple)" class="select-icon">mdi-chevron-down</v-icon>
+            <v-icon size="16" color="var(--indigo)" class="select-icon">mdi-chevron-down</v-icon>
+          </div>
+        </div>
+
+        <!-- Centro de Costo -->
+        <div class="filter-group-modern">
+          <label class="filter-label-modern">
+            <v-icon size="16" color="var(--info)">mdi-office-building-outline</v-icon>
+            <span>Centro de Costo</span>
+          </label>
+          <div class="select-wrapper">
+            <select v-model="filtros.ccosto" class="filter-select-modern">
+              <option value="">TODOS LOS CENTROS</option>
+              <option v-for="c in centrosCostos" :key="c.codigo" :value="c.codigo">
+                {{ c.nombre || c.codigo }}
+              </option>
+            </select>
+            <v-icon size="16" color="var(--info)" class="select-icon">mdi-chevron-down</v-icon>
           </div>
         </div>
 
@@ -287,11 +304,13 @@ const filtros = ref({
   proveedor: '',
   cuentaBancaria: '',
   cuentaContable: '',
+  ccosto: '',
 })
 
 const proveedores         = ref([])
 const cuentasBancarias    = ref([])
 const cuentasContables    = ref([])
+const centrosCostos       = ref([])
 const gastos              = ref([])
 const loading             = ref(false)
 const generandoPdf        = ref(false)
@@ -301,16 +320,20 @@ const empresaInfo         = ref({})
 // ── Cargar listas de selectores al montar ────────────────────────
 onMounted(async () => {
   try {
-    const [prov, cb, cc, emp] = await Promise.all([
+    const api = (await import('../../services/api')).default
+    const [prov, cb, cc, emp, ccos] = await Promise.all([
       proveedoresService.getProveedores({ limit: 2000 }),
       cuentasBancariasService.getCuentas({ limit: 500 }),
       cuentasContablesService.getCuentasContables({ limit: 500 }),
-      import('../../services/api').then(m => m.default.get('/empresa/info', { params: { empresa: auth.empresa } })),
+      api.get('/empresa/info', { params: { empresa: auth.empresa } }),
+      api.get('/ccostos', { params: { empresa: auth.empresa } }),
     ])
     proveedores.value      = Array.isArray(prov)      ? prov      : (prov.data      || [])
     cuentasBancarias.value = Array.isArray(cb)        ? cb        : (cb.data        || [])
     cuentasContables.value = Array.isArray(cc)        ? cc        : (cc.data        || [])
     empresaInfo.value      = emp.data?.data || {}
+    const listaCc = ccos.data?.data || ccos.data || []
+    centrosCostos.value    = Array.isArray(listaCc) ? listaCc : []
   } catch (err) {
     console.error('Error cargando opciones:', err)
   }
@@ -330,6 +353,7 @@ async function consultar() {
     if (filtros.value.proveedor)      params.proveedor      = filtros.value.proveedor
     if (filtros.value.cuentaBancaria) params.cuentaBancaria = filtros.value.cuentaBancaria
     if (filtros.value.cuentaContable) params.cuentaContable = filtros.value.cuentaContable
+    if (filtros.value.ccosto)         params.ccosto         = filtros.value.ccosto
 
     const res = await gestionGastosService.getReporte(params)
     gastos.value = res.gastos || res.data || []
@@ -394,6 +418,9 @@ async function consultarComparacion() {
     if (filtros.value.proveedor)      params.proveedor      = filtros.value.proveedor
     if (filtros.value.cuentaBancaria) params.cuentaBancaria = filtros.value.cuentaBancaria
     if (filtros.value.cuentaContable) params.cuentaContable = filtros.value.cuentaContable
+    // El periodo anterior tiene que traerse con el MISMO centro de costo; si no,
+    // se compararia una sede contra la empresa entera.
+    if (filtros.value.ccosto)         params.ccosto         = filtros.value.ccosto
     const res = await gestionGastosService.getReporte(params)
     gastosAnterior.value = res.gastos || res.data || []
     comparacionLista.value = true
@@ -473,6 +500,11 @@ function filtroCuentaLabel() {
   if (!filtros.value.cuentaContable) return 'TODAS LAS CUENTAS CONTABLES'
   const cc = cuentasContables.value.find(x => x.codigo === filtros.value.cuentaContable)
   return cc ? cc.cuenta : filtros.value.cuentaContable
+}
+function filtroCcostoLabel() {
+  if (!filtros.value.ccosto) return 'TODOS LOS CENTROS'
+  const c = centrosCostos.value.find(x => x.codigo === filtros.value.ccosto)
+  return c ? (c.nombre || c.codigo) : filtros.value.ccosto
 }
 
 // ── GENERAR PDF ──────────────────────────────────────────────────
@@ -615,10 +647,11 @@ async function generarPDF() {
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(6)
         doc.setTextColor(...C_TEXT)
-        const cw = TW / 3
+        const cw = TW / 4
         doc.text(`Proveedor: ${filtroProveedorLabel()}`,    ML,        y + 6.2)
         doc.text(`Banco: ${filtroBancoLabel()}`,            ML + cw,   y + 6.2)
         doc.text(`Cuenta: ${filtroCuentaLabel()}`,          ML + cw*2, y + 6.2)
+        doc.text(`Centro: ${filtroCcostoLabel()}`,          ML + cw*3, y + 6.2)
         doc.line(ML, y + 8.2, PW - MR, y + 8.2)
         // Espacio generoso entre filtros y primer grupo
         y += 13

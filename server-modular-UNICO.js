@@ -7307,7 +7307,7 @@ app.post('/api/gastos/crear', async (req, res) => {
 
 // GET /api/gastos/reporte - Reporte de gastos (con todos los filtros)
 app.get('/api/gastos/reporte', async (req, res) => {
-    const { empresa, fechaInicial, fechaFinal, proveedor, cuentaBancaria, cuentaContable } = req.query;
+    const { empresa, fechaInicial, fechaFinal, proveedor, cuentaBancaria, cuentaContable, ccosto } = req.query;
 
     if (!empresa || !fechaInicial || !fechaFinal) {
         return res.status(400).json({ success: false, error: 'Faltan parámetros obligatorios' });
@@ -7360,6 +7360,14 @@ app.get('/api/gastos/reporte', async (req, res) => {
         if (cuentaContable) {
             query += ` AND g.cuenta = $${paramIndex}`;
             params.push(cuentaContable);
+            paramIndex++;
+        }
+
+        // Se compara con TRIM porque ccosto es un varchar de ancho fijo y los
+        // valores guardados arrastran espacios segun por donde entro el gasto.
+        if (ccosto) {
+            query += ` AND TRIM(g.ccosto) = TRIM($${paramIndex})`;
+            params.push(ccosto);
             paramIndex++;
         }
 
