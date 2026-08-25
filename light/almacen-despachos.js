@@ -1357,17 +1357,35 @@ function actualizarFilaScan(item, campo) {
         if (countVal)    { countVal.textContent = esc; countVal.style.color = colorContador; }
         if (progressBar) { progressBar.style.width = pct + '%'; progressBar.style.background = colorBarra; }
 
-        let tapBtn = el.querySelector('.btn-tap-completar');
+        // El bloque de acciones (Completar + Ocultar) es el mismo que arma
+        // renderScanList para la tarjeta completa. Antes esta funcion solo
+        // gestionaba el boton de Completar, asi que tras el primer escaneo de
+        // un producto (que llega por aqui, sin pasar por el render completo)
+        // el boton de Ocultar no existia todavia: aparecia recien en el
+        // siguiente render completo, por ejemplo al escanear otro producto.
+        let acciones = el.querySelector('.scan-item-acciones');
         if (enProgreso) {
-            if (!tapBtn) {
-                tapBtn = document.createElement('button');
-                tapBtn.className = 'btn-tap-completar';
-                el.appendChild(tapBtn);
+            if (!acciones) {
+                acciones = document.createElement('div');
+                acciones.className = 'scan-item-acciones';
+                // El texto va en un <span> aparte, no como texto suelto tras el
+                // <i>: hidratarIconos reemplaza el <i> por un <svg> con
+                // replaceWith, y sin el span no queda un nodo estable donde
+                // despues escribir el numero que va cambiando en cada escaneo.
+                acciones.innerHTML =
+                    '<button class="btn-tap-completar"><i data-icono="rayo"></i><span></span></button>' +
+                    '<button class="btn-cerrar-parcial"><i data-icono="ojoTachado"></i><span></span></button>';
+                el.appendChild(acciones);
+                if (window.hidratarIconos) window.hidratarIconos(acciones);
             }
-            tapBtn.textContent = `⚡ Tap para completar — faltan ${req - esc}`;
-            tapBtn.onclick = () => tapParaCompletar(item.producto_codigo, campo);
-        } else if (tapBtn) {
-            tapBtn.remove();
+            const tapBtn    = acciones.querySelector('.btn-tap-completar');
+            const cerrarBtn = acciones.querySelector('.btn-cerrar-parcial');
+            tapBtn.querySelector('span').textContent    = `Completar (${req - esc})`;
+            tapBtn.onclick                               = () => tapParaCompletar(item.producto_codigo, campo);
+            cerrarBtn.querySelector('span').textContent = `Ocultar con ${esc}`;
+            cerrarBtn.onclick                            = () => cerrarParcial(item.producto_codigo, campo);
+        } else if (acciones) {
+            acciones.remove();
         }
 
         actualizarStatsBanner(campo);
