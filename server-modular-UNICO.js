@@ -4832,6 +4832,61 @@ app.put('/api/tesoreria/movimientos/:numero/editar', async (req, res) => {
 // Si el movimiento es un abono de una cuenta por pagar (existe en
 // gasto_pagos), se rechaza: hay que reversarlo desde Tesorería > Cuentas por
 // Pagar, que ya sabe restaurar el saldo correctamente.
+// Una transferencia son DOS filas: la que sale de la cuenta origen y la que
+// entra en la destino. Se crean juntas (ver POST /api/tesoreria/movimientos)
+// con numeros consecutivos N y N+1, y sin ninguna columna que las enlace, asi
+// que la pareja hay que reconocerla: numero contiguo, mismo dia, mismo
+// concepto y montos espejo. Si algo de eso no cuadra devuelve null y se borra
+// solo la fila pedida: es preferible dejar una pierna viva a llevarse por
+// delante un movimiento que no era su pareja.
+async function piernaHermanaTransferencia(client, mov, empresa) {
+    if (mov.tipo !== 'TRA') return null;
+    const n = parseInt(mov.numero, 10);
+    if (!Number.isFinite(n)) return null;
+
+    const ing = parseFloat(mov.ingreso || 0);
+    const egr = parseFloat(mov.egreso  || 0);
+    if (ing <= 0 && egr <= 0) return null;
+
+    // Si esta fila es la salida, su pareja es la siguiente; si es la entrada,
+    // la anterior.
+    const candidato = egr > 0 ? n + 1 : n - 1;
+
+    const r = await client.query(
+        `SELECT numero, gasto, ingreso, egreso, banco FROM moviban
+         WHERE empresa = $1 AND tipo = 'TRA'
+           AND numero ~ '^[0-9]+$' AND CAST(numero AS BIGINT) = $2
+           AND fecha = $3 AND COALESCE(TRIM(concepto),'') = COALESCE(TRIM($4),'')
+         FOR UPDATE`,
+        [empresa, candidato, mov.fecha, mov.concepto]
+    );
+    // Montos espejo: lo que sale de una tiene que entrar en la otra.
+    const espejo = (o) => egr > 0
+        ? Math.abs(parseFloat(o.ingreso || 0) - egr) < 0.005
+        : Math.abs(parseFloat(o.egreso  || 0) - ing) < 0.005;
+
+    if (r.rowCount === 1 && espejo(r.rows[0])) return r.rows[0];
+
+    // Segundo intento, para las transferencias viejas cuya numeracion quedo
+    // corrupta (una version anterior sumaba 1 a un numero que era texto, asi
+    // que el destino salia con un '1' pegado al final en vez de N+1). Ahi el
+    // numero no sirve para emparejar y hay que ir por el resto: mismo dia,
+    // mismo concepto, otra cuenta y monto espejo. Se exige UNA sola
+    // coincidencia: si ese dia hubo dos transferencias iguales no hay forma de
+    // saber cual es cual, y entonces es mas seguro no tocar la otra.
+    const alt = await client.query(
+        `SELECT numero, gasto, ingreso, egreso, banco FROM moviban
+         WHERE empresa = $1 AND tipo = 'TRA' AND numero <> $2
+           AND fecha = $3 AND COALESCE(TRIM(concepto),'') = COALESCE(TRIM($4),'')
+           AND COALESCE(banco,'') <> COALESCE($5,'')
+           AND ($6::numeric > 0 AND ABS(COALESCE(ingreso,0) - $6::numeric) < 0.005
+             OR $7::numeric > 0 AND ABS(COALESCE(egreso,0)  - $7::numeric) < 0.005)
+         FOR UPDATE`,
+        [empresa, mov.numero, mov.fecha, mov.concepto, mov.banco, egr, ing]
+    );
+    return alt.rowCount === 1 ? alt.rows[0] : null;
+}
+
 app.delete('/api/tesoreria/movimientos/:numero', async (req, res) => {
     const { numero } = req.params;
     const empresa = req.query.empresa || req.body?.empresa;
@@ -4844,7 +4899,8 @@ app.delete('/api/tesoreria/movimientos/:numero', async (req, res) => {
         await client.query('BEGIN');
 
         const movRes = await client.query(
-            `SELECT numero, tipo, gasto FROM moviban WHERE numero = $1 AND empresa = $2 FOR UPDATE`,
+            `SELECT numero, tipo, gasto, fecha, concepto, ingreso, egreso, banco
+             FROM moviban WHERE numero = $1 AND empresa = $2 FOR UPDATE`,
             [numero, empresa]
         );
         if (movRes.rowCount === 0) {
@@ -4853,9 +4909,14 @@ app.delete('/api/tesoreria/movimientos/:numero', async (req, res) => {
         }
         const mov = movRes.rows[0];
 
+        // Si es transferencia, las dos piernas se van juntas: dejar una viva
+        // descuadra el saldo de la cuenta contraria.
+        const hermana = await piernaHermanaTransferencia(client, mov, empresa);
+        const numeros = hermana ? [mov.numero, hermana.numero] : [mov.numero];
+
         const pagoRes = await client.query(
-            `SELECT id FROM gasto_pagos WHERE moviban = $1 AND empresa = $2::int`,
-            [numero, empresa]
+            `SELECT id FROM gasto_pagos WHERE moviban = ANY($1) AND empresa = $2::int`,
+            [numeros, empresa]
         );
         if (pagoRes.rowCount > 0) {
             await client.query('ROLLBACK');
@@ -4866,27 +4927,39 @@ app.delete('/api/tesoreria/movimientos/:numero', async (req, res) => {
         }
 
         let gastosEliminados = [];
-        if (conGasto && mov.gasto) {
-            const gastoRes = await client.query(
-                `SELECT codigo, grupo FROM gastos WHERE codigo = $1 AND empresa = $2`,
-                [mov.gasto, empresa]
-            );
-            if (gastoRes.rows.length) {
+        if (conGasto) {
+            // Las dos piernas suelen copiar el mismo codigo de gasto; se
+            // deduplica para no intentar borrarlo dos veces.
+            const codigos = [...new Set([mov.gasto, hermana?.gasto].filter(Boolean))];
+            for (const cod of codigos) {
+                const gastoRes = await client.query(
+                    `SELECT codigo, grupo FROM gastos WHERE codigo = $1 AND empresa = $2`,
+                    [cod, empresa]
+                );
+                if (!gastoRes.rows.length) continue;
                 const { grupo } = gastoRes.rows[0];
                 const delRes = await client.query(
                     grupo
                         ? `DELETE FROM gastos WHERE grupo = $1 AND empresa = $2 RETURNING codigo`
                         : `DELETE FROM gastos WHERE codigo = $1 AND empresa = $2 RETURNING codigo`,
-                    [grupo || mov.gasto, empresa]
+                    [grupo || cod, empresa]
                 );
-                gastosEliminados = delRes.rows.map(r => r.codigo);
+                gastosEliminados.push(...delRes.rows.map(r => r.codigo));
             }
         }
 
-        await client.query(`DELETE FROM moviban WHERE numero = $1 AND empresa = $2`, [numero, empresa]);
+        await client.query(`DELETE FROM moviban WHERE numero = ANY($1) AND empresa = $2`, [numeros, empresa]);
 
         await client.query('COMMIT');
-        res.json({ success: true, data: { numero, gastos_eliminados: gastosEliminados } });
+        res.json({
+            success: true,
+            data: {
+                numero,
+                numeros_eliminados: numeros,
+                pierna_hermana: hermana ? hermana.numero : null,
+                gastos_eliminados: gastosEliminados
+            }
+        });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error en DELETE /api/tesoreria/movimientos/:numero:', error);

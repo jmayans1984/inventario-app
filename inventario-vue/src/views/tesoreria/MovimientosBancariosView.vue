@@ -520,6 +520,17 @@
             por <strong>{{ formatMoneda(parseFloat(movAEliminar.ingreso) > 0 ? movAEliminar.ingreso : movAEliminar.egreso) }}</strong>.
           </p>
 
+          <!-- Una transferencia son dos asientos, uno en cada cuenta. Se
+               borran juntos, asi que conviene decirlo antes y no despues. -->
+          <div v-if="movAEliminar.tipo === 'TRA'" class="confirm-info">
+            <v-icon size="16" color="var(--indigo)">mdi-swap-horizontal</v-icon>
+            <span>
+              Es una transferencia: se eliminarán <strong>los dos asientos</strong>,
+              el de la cuenta de origen y el de la de destino. Si solo se borrara uno,
+              el saldo de la otra cuenta quedaría descuadrado.
+            </span>
+          </div>
+
           <div v-if="eliminarConGasto" class="confirm-warning">
             <v-icon size="16" color="var(--error)">mdi-alert-outline</v-icon>
             <span>
