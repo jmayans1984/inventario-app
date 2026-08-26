@@ -143,72 +143,92 @@
            inventario y no son un dato cerrado.
       ══════════════════════════════════════════════════════ -->
       <div class="dx-band">
-        <div class="dx-band-head dx-band-head-filtros">
+        <div class="dx-band-head">
           <span class="dx-band-title">ANÁLISIS DE VENTAS</span>
+          <span v-if="comparativo" class="dx-band-note">
+            Del 1 al {{ comparativo.hastaDia }} de cada mes
+          </span>
+        </div>
 
-          <div class="dx-filtros">
-            <select v-model="ccostoSel" class="dx-sel" title="Centro de costo">
-              <option value="">Toda la empresa</option>
-              <option v-for="c in centrosCostos" :key="c.codigo" :value="c.codigo">
-                {{ c.nombre || c.codigo }}
-              </option>
-            </select>
+        <!-- Los controles van en su propia franja hundida. Metidos en la
+             cabecera junto al titulo quedaban apretados contra el borde y
+             se leian como parte del titulo, no como algo que se toca. -->
+        <div class="dx-filtros">
+          <select v-model="ccostoSel" class="dx-sel" title="Centro de costo">
+            <option value="">Toda la empresa</option>
+            <option v-for="c in centrosCostos" :key="c.codigo" :value="c.codigo">
+              {{ c.nombre || c.codigo }}
+            </option>
+          </select>
 
-            <div class="dx-meses">
-              <span
-                v-for="(k, i) in mesesSel"
-                :key="k"
-                class="dx-mes-chip"
-                :style="{ '--mc': colorSerie(i) }"
-              >
-                <i class="dx-mes-dot"></i>
-                {{ etiquetaMes(k) }}
-                <button
-                  v-if="mesesSel.length > 1"
-                  class="dx-mes-x"
-                  :title="`Quitar ${etiquetaMes(k)}`"
-                  @click="quitarMes(k)"
-                >×</button>
-              </span>
-            </div>
+          <span class="dx-filtros-sep"></span>
 
-            <select
-              v-if="mesesDisponibles.length && mesesSel.length < 6"
-              class="dx-sel dx-sel-add"
-              title="Agregar un mes a la comparación"
-              @change="agregarMes($event.target.value); $event.target.value = ''"
+          <!-- Los chips SON la leyenda de los dos graficos: cada uno lleva el
+               color de su serie. Por eso ApexCharts va sin leyenda propia. -->
+          <div class="dx-meses">
+            <span
+              v-for="(k, i) in mesesSel"
+              :key="k"
+              class="dx-mes-chip"
+              :class="{ 'dx-mes-ref': i === 0 }"
+              :style="{ '--mc': colorSerie(i) }"
             >
-              <option value="">+ Mes</option>
-              <option v-for="mm in mesesDisponibles" :key="mm.key" :value="mm.key">
-                {{ mm.label }}
-              </option>
-            </select>
+              <i class="dx-mes-dot"></i>
+              {{ etiquetaMes(k) }}
+              <button
+                v-if="mesesSel.length > 1"
+                class="dx-mes-x"
+                :title="`Quitar ${etiquetaMes(k)}`"
+                @click="quitarMes(k)"
+              >
+                <v-icon size="12">mdi-close</v-icon>
+              </button>
+            </span>
           </div>
+
+          <select
+            v-if="mesesDisponibles.length && mesesSel.length < 6"
+            class="dx-sel dx-sel-add"
+            title="Agregar un mes a la comparación"
+            @change="agregarMes($event.target.value); $event.target.value = ''"
+          >
+            <option value="">+ Comparar mes</option>
+            <option v-for="mm in mesesDisponibles" :key="mm.key" :value="mm.key">
+              {{ mm.label }}
+            </option>
+          </select>
         </div>
 
         <template v-if="comparativo">
           <!-- Las brutas van fuera del grafico: contra ellas, devoluciones o
                comisiones serian una linea de un pixel. -->
           <div class="dx-comp-titular">
-            <div class="dx-comp-tit-lbl">
-              VENTAS BRUTAS · {{ etiquetaMes(mesesSel[0]) }} · del 1 al {{ comparativo.hastaDia }}<template v-if="ccostoSel"> · {{ nombreCcosto }}</template>
+            <div class="dx-comp-tit-izq">
+              <div class="dx-comp-tit-lbl">
+                Ventas brutas · {{ etiquetaMes(mesesSel[0]) }}
+                <template v-if="ccostoSel"> · {{ nombreCcosto }}</template>
+              </div>
+              <div class="dx-comp-tit-val">{{ fmt(comparativo.brutas[0]) }}</div>
             </div>
-            <div class="dx-comp-tit-val">{{ fmt(comparativo.brutas[0]) }}</div>
-            <div v-if="comparativo.brutas.length > 1" class="dx-comp-tit-vs">
-              <span :class="claseVar(varBrutas)">
-                <v-icon size="14">{{ (varBrutas || 0) >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
+            <div v-if="comparativo.brutas.length > 1" class="dx-comp-tit-der">
+              <span class="dx-comp-delta" :class="claseVar(varBrutas)">
+                <v-icon size="16">{{ (varBrutas || 0) >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
                 {{ textoVar(varBrutas) }}
               </span>
               <span class="dx-comp-tit-ant">
-                contra {{ fmt(comparativo.brutas[1]) }} de {{ etiquetaMes(mesesSel[1]) }} al mismo día
+                {{ fmt(comparativo.brutas[1]) }} en {{ etiquetaMes(mesesSel[1]) }}
               </span>
             </div>
           </div>
 
-          <div class="dx-comp-wrap">
+          <!-- Cada grafico dice que es. Antes eran dos lienzos seguidos y
+               habia que deducirlo del eje. -->
+          <div class="dx-graf">
+            <div class="dx-graf-cap">Acumulado día a día</div>
             <div ref="curvaRef" class="dx-curva"></div>
           </div>
-          <div class="dx-comp-wrap">
+          <div class="dx-graf">
+            <div class="dx-graf-cap">Deducciones y recargos</div>
             <div ref="compRef" class="dx-comp"></div>
           </div>
         </template>
@@ -569,7 +589,9 @@ function renderCurva() {
       gradient: { shadeIntensity: 1, opacityFrom: 0.32, opacityTo: 0.03, stops: [0, 100] },
     },
     grid: { borderColor: grid, strokeDashArray: 4, padding: { left: 4, right: 8 } },
-    legend: { show: true, position: 'top', horizontalAlign: 'right', labels: { colors: fg }, markers: { radius: 3 } },
+    // Sin leyenda: los chips del filtro ya dicen que color es cada mes, y
+    // repetirlo aqui gasta alto util y obliga a leer lo mismo dos veces.
+    legend: { show: false },
     dataLabels: { enabled: false },
     tooltip: {
       shared: true, intersect: false,
@@ -636,7 +658,7 @@ function renderComp() {
 
   chartComp = new ApexCharts(compRef.value, {
     chart: {
-      type: 'bar', height: 300, toolbar: { show: false },
+      type: 'bar', height: 320, toolbar: { show: false },
       fontFamily: "'Plus Jakarta Sans', sans-serif", background: 'transparent',
       animations: { enabled: true, speed: 450 },
     },
@@ -647,7 +669,7 @@ function renderComp() {
     })),
     // Barras horizontales: las etiquetas ("Comisiones delivery") no caben
     // bajo una barra vertical sin girarse o cortarse.
-    plotOptions: { bar: { horizontal: true, barHeight: '68%', borderRadius: 3, borderRadiusApplication: 'end' } },
+    plotOptions: { bar: { horizontal: true, barHeight: '62%', borderRadius: 3, borderRadiusApplication: 'end' } },
     colors: (c.meses || []).map((_, i) => serie[i % serie.length]),
     xaxis: {
       categories: ord.map(x => x.label),
@@ -659,8 +681,16 @@ function renderComp() {
     },
     yaxis: { labels: { style: { colors: fg, fontSize: '11.5px' } } },
     grid: { borderColor: grid, strokeDashArray: 4 },
-    legend: { position: 'top', horizontalAlign: 'right', labels: { colors: fg }, markers: { radius: 3 } },
-    dataLabels: { enabled: false },
+    legend: { show: false },
+    // Con dos meses las cifras caben sobre la barra y ahorran ir al tooltip.
+    // De tres en adelante las barras se estrechan y el numero no entra.
+    dataLabels: {
+      enabled: (c.meses || []).length <= 2,
+      formatter: (v) => (v ? '$' + Math.round(v).toLocaleString('en-US') : ''),
+      offsetX: 26,
+      style: { fontSize: '10px', fontWeight: 700, colors: [fg] },
+      background: { enabled: false },
+    },
     tooltip: {
       shared: true, intersect: false,
       y: { formatter: (v) => fmt(v) },
@@ -1168,102 +1198,80 @@ function fmt(val) {
 @media (max-width: 640px) {
 }
 
-/* ── Mes contra mes ────────────────────────────────────────── */
-/* Las ventas brutas van fuera del gráfico: contra ellas, devoluciones
-   o comisiones serían una línea de un píxel. */
-.dx-comp-titular {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 14px 15px 4px;
-}
-.dx-comp-tit-lbl {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: .09em;
-  color: rgba(var(--v-theme-on-surface), .58);
-  width: 100%;
-}
-.dx-comp-tit-val {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -.03em;
-  line-height: 1.1;
-}
-.dx-comp-tit-vs {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.dx-comp-tit-vs > span:first-child {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 13px;
-  font-weight: 800;
-}
-.dx-comp-tit-ant {
-  font-size: 12px;
-  color: rgba(var(--v-theme-on-surface), .55);
-}
-.dx-comp-wrap { padding: 0 8px 10px; }
-.dx-comp { width: 100%; }
 
-/* ── Filtros del análisis de ventas ────────────────────────── */
-/* La cabecera pasa de una línea a un bloque que envuelve: con el selector
-   de centro, los chips de mes y el botón de agregar, en móvil no cabe. */
-.dx-band-head-filtros {
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px 15px;
+
+
+@media (max-width: 700px) {
 }
+
+/* ══════════════════════════════════════════════════════════════
+   ANÁLISIS DE VENTAS
+   ══════════════════════════════════════════════════════════════ */
+
+/* Franja de controles. Va hundida y con su propio borde para que se lea
+   como "esto se toca", separada del contenido que produce. */
 .dx-filtros {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-left: auto;
+  padding: 10px 15px;
+  background: rgba(var(--v-theme-on-surface), .028);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
 }
+.dx-filtros-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: rgba(var(--v-theme-on-surface), .12);
+}
+
 .dx-sel {
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 700;
   color: rgb(var(--v-theme-on-surface));
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface), .18);
   border-radius: 8px;
-  padding: 5px 9px;
+  padding: 6px 10px;
   cursor: pointer;
-  max-width: 190px;
+  max-width: 200px;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
+.dx-sel:hover { border-color: rgba(var(--v-theme-on-surface), .34); }
 .dx-sel:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .dx-sel-add {
   color: var(--gold);
+  border-color: rgba(var(--v-theme-on-surface), .22);
   border-style: dashed;
-  font-weight: 700;
+  margin-left: auto;
 }
+.dx-sel-add:hover { border-color: var(--gold); }
 
 .dx-meses { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-/* Cada chip lleva el color de su serie en el gráfico: sin eso, con cuatro
-   meses encima hay que ir a la leyenda para saber cuál es cuál. */
+
+/* Cada chip lleva el color de su serie: es la leyenda de los dos gráficos,
+   por eso ApexCharts va sin la suya. */
 .dx-mes-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 5px 6px 5px 9px;
   border-radius: 999px;
-  border: 1px solid rgba(var(--v-theme-on-surface), .14);
-  background: rgba(var(--v-theme-on-surface), .035);
+  /* Respaldo primero: si el navegador no soporta color-mix, la declaracion
+     entera se invalida y el chip quedaria sin borde ni fondo. */
+  border: 1px solid rgba(var(--v-theme-on-surface), .16);
+  background: rgba(var(--v-theme-on-surface), .04);
+  border-color: color-mix(in srgb, var(--mc) 35%, transparent);
+  background: color-mix(in srgb, var(--mc) 9%, transparent);
+  color: rgb(var(--v-theme-on-surface));
   white-space: nowrap;
 }
+/* El primero manda en el corte y en el orden: se marca con el borde lleno. */
+.dx-mes-ref { border-color: var(--mc); }
 .dx-mes-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -1271,20 +1279,86 @@ function fmt(val) {
   flex-shrink: 0;
 }
 .dx-mes-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
   border: none;
+  border-radius: 50%;
   background: none;
   cursor: pointer;
-  font-size: 15px;
-  line-height: 1;
-  padding: 0 1px;
   color: rgba(var(--v-theme-on-surface), .45);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.dx-mes-x:hover { color: var(--error); }
-.dx-mes-x:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; border-radius: 3px; }
+.dx-mes-x:hover { background: var(--error-wash); color: var(--error); }
+.dx-mes-x:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+/* ── Titular: la cifra grande a la izquierda, la comparación a la derecha,
+   alineadas por su línea base para que se lean como una sola frase. ── */
+.dx-comp-titular {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 16px 15px 10px;
+}
+.dx-comp-tit-izq { display: flex; flex-direction: column; gap: 2px; }
+.dx-comp-tit-lbl {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .55);
+}
+.dx-comp-tit-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -.035em;
+  line-height: 1.05;
+}
+.dx-comp-tit-der {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.dx-comp-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+.dx-comp-tit-ant {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: rgba(var(--v-theme-on-surface), .5);
+}
+
+/* ── Cada gráfico con su rótulo ── */
+.dx-graf { padding: 4px 8px 12px; }
+.dx-graf-cap {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .48);
+  padding: 6px 7px 0;
+}
+.dx-curva, .dx-comp { width: 100%; }
 
 @media (max-width: 700px) {
-  .dx-filtros { margin-left: 0; width: 100%; }
   .dx-sel { max-width: 100%; }
+  .dx-sel-add { margin-left: 0; }
+  .dx-filtros-sep { display: none; }
+  .dx-comp-tit-der { align-items: flex-start; }
 }
 
 </style>
