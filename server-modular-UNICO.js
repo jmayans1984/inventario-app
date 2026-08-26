@@ -10904,10 +10904,13 @@ app.get('/api/dashboard/resumen', async (req, res) => {
 //   nomina → semanas del mes que todavia no se han liquidado. Es el hueco mas
 //            caro que puede tener un resultado mensual: el gasto existe pero
 //            no pesa todavia, asi que la utilidad se ve mejor de lo que es.
+//   comp   → mes contra mes, recortando AMBOS al mismo tramo de dias.
 //
-// Los signos vitales (materia prima %, nomina %, utilidad %) NO se calculan
-// aqui a proposito: el panel los toma del Estado de Resultados. Repetir esa
-// formula seria garantizar que los dos numeros se separen con el tiempo.
+// Todo sale de la tabla `ventas`, que es lo que reporto Square: cifras
+// exactas. Aqui no entran materia prima ni utilidad a proposito — dependen
+// de la valorizacion de inventario, que a su vez depende de que se haya
+// hecho la toma fisica. Ponerlas en el panel de inicio con una meta y un
+// semaforo les daria una precision que hoy no tienen.
 app.get('/api/dashboard/panel', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
@@ -10953,6 +10956,66 @@ app.get('/api/dashboard/panel', async (req, res) => {
             curva.anterior.push(Math.round(accB * 100) / 100);
         }
 
+        // ── Comparativo mes contra mes, mismo tramo de dias ──────────────
+        // El corte es AYER, nunca hoy: la jornada en curso esta a medias y
+        // arrastraria la comparacion hacia abajo. Y se recorta ademas al
+        // ultimo dia que realmente tiene ventas importadas: si la importacion
+        // va atrasada, comparar contra un dia sin datos diria que el mes va
+        // peor cuando lo que falta es el archivo.
+        const diaAyer = new Date(hoy.getTime() - 86400000);
+        const topeAyer = (diaAyer.getFullYear() === y && diaAyer.getMonth() + 1 === m)
+            ? diaAyer.getDate()
+            : diasMesActual;
+        const hastaDia = Math.min(topeAyer, ultimoDiaConVenta);
+
+        const CONCEPTOS = [
+            { clave: 'descuentos',   label: 'Descuentos',           col: 'descuentos' },
+            { clave: 'propinas',     label: 'Propinas',             col: 'propinas' },
+            { clave: 'taxes',        label: 'Impuestos',            col: 'impuestos' },
+            { clave: 'comPos',       label: 'Comisiones POS',       col: 'comisiones' },
+            { clave: 'comDelivery',  label: 'Comisiones delivery',  col: 'otras_comisiones' },
+            { clave: 'devoluciones', label: 'Devoluciones',         col: 'devoluciones' },
+        ];
+
+        let comparativo = null;
+        if (hastaDia >= 1) {
+            const sumas = async (desde, hasta) => {
+                const cols = ['ventas_brutas', ...CONCEPTOS.map(c => c.col)]
+                    .map(c => `COALESCE(SUM(${c}), 0) AS ${c}`).join(', ');
+                const r = await pool.query(
+                    `SELECT ${cols} FROM ventas
+                      WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3
+                        AND EXTRACT(DAY FROM fecha) <= $4`,
+                    [empresa, desde, hasta, hastaDia]
+                );
+                return r.rows[0] || {};
+            };
+            const [ca, cb] = await Promise.all([
+                sumas(ini(y, m), fin(y, m)),
+                sumas(ini(mesAntY, mesAntM), fin(mesAntY, mesAntM)),
+            ]);
+            const num = (v) => Math.round((parseFloat(v) || 0) * 100) / 100;
+            // Sin base no hay porcentaje: un concepto que arranca de cero no
+            // subio "infinito", es nuevo. Se devuelve null y lo dice la vista.
+            const varPct = (a, b) => (b > 0 ? ((a - b) / b) * 100 : null);
+
+            comparativo = {
+                hastaDia,
+                brutas: {
+                    actual: num(ca.ventas_brutas),
+                    anterior: num(cb.ventas_brutas),
+                    variacion: varPct(num(ca.ventas_brutas), num(cb.ventas_brutas)),
+                },
+                conceptos: CONCEPTOS.map(c => ({
+                    clave: c.clave,
+                    label: c.label,
+                    actual: num(ca[c.col]),
+                    anterior: num(cb[c.col]),
+                    variacion: varPct(num(ca[c.col]), num(cb[c.col])),
+                })),
+            };
+        }
+
         // ── Semanas de nomina sin liquidar dentro del mes ────────────────
         const semanasRes = await pool.query(
             `SELECT s.id, s.semana_inicio::text AS inicio, s.semana_fin::text AS fin
@@ -10988,6 +11051,7 @@ app.get('/api/dashboard/panel', async (req, res) => {
                     etiquetaActual:   new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long' }),
                     etiquetaAnterior: new Date(mesAntY, mesAntM - 1, 1).toLocaleDateString('es-CO', { month: 'long' }),
                 },
+                comparativo,
                 nominaPendiente: {
                     semanas: semanasRes.rows.length,
                     detalle: semanasRes.rows,

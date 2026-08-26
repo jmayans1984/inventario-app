@@ -78,29 +78,37 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
-           SIGNOS VITALES — vienen del Estado de Resultados
+           COMPARATIVO DEL MES — solo cifras exactas de Square.
+           Materia prima y utilidad quedan fuera a proposito: dependen
+           de la toma fisica de inventario, asi que no son un dato
+           cerrado y no deben presentarse como si lo fueran.
       ══════════════════════════════════════════════════════ -->
-      <div class="dx-band">
+      <div v-if="comparativo" class="dx-band">
         <div class="dx-band-head">
-          <span class="dx-band-title">SIGNOS VITALES · {{ nombreMes }}</span>
-          <span class="dx-band-note">Contra las metas de la operación</span>
-          <button class="dx-band-link" @click="irA('/contabilidad/reportes/estado-resultados')">Estado de resultados</button>
+          <span class="dx-band-title">MES CONTRA MES</span>
+          <span class="dx-band-note">
+            Del 1 al {{ comparativo.hastaDia }} de {{ etiquetaComp }}
+          </span>
         </div>
-        <div class="dx-vitales">
-          <div v-for="v in vitales" :key="v.clave" class="dx-vital">
-            <div class="dx-vital-lbl">{{ v.label }}</div>
-            <div v-if="cargandoVitales" class="dx-skel dx-skel-lg"></div>
-            <template v-else>
-              <div class="dx-vital-val" :style="{ color: v.color }">{{ v.pct.toFixed(1) }}%</div>
-              <div class="dx-vital-barra">
-                <span :style="{ width: Math.min(100, v.pct) + '%', background: v.color }"></span>
-                <i class="dx-vital-marca" :style="{ left: Math.min(100, v.meta) + '%' }"></i>
-              </div>
-              <div class="dx-vital-meta">
-                meta {{ v.mayorEsMejor ? '≥' : '≤' }} {{ v.meta }}% · {{ fmt(v.valor) }}
-              </div>
-            </template>
+
+        <!-- Las brutas van aparte: en el mismo eje que los demas conceptos
+             los aplastarian y no se veria nada. -->
+        <div class="dx-comp-titular">
+          <div class="dx-comp-tit-lbl">VENTAS BRUTAS</div>
+          <div class="dx-comp-tit-val">{{ fmt(comparativo.brutas.actual) }}</div>
+          <div class="dx-comp-tit-vs">
+            <span :class="claseVar(comparativo.brutas.variacion)">
+              <v-icon size="14">{{ (comparativo.brutas.variacion || 0) >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
+              {{ textoVar(comparativo.brutas.variacion) }}
+            </span>
+            <span class="dx-comp-tit-ant">
+              {{ fmt(comparativo.brutas.anterior) }} el mes pasado al mismo día
+            </span>
           </div>
+        </div>
+
+        <div class="dx-comp-wrap">
+          <div ref="compRef" class="dx-comp"></div>
         </div>
       </div>
 
@@ -383,82 +391,6 @@ function trendIcon(v) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SIGNOS VITALES
-// Los porcentajes NO se recalculan aqui: se leen del mismo Estado de
-// Resultados que ve el usuario. Repetir la formula seria garantizar que
-// el panel y el informe terminen diciendo cosas distintas.
-// ══════════════════════════════════════════════════════════════
-
-// Rangos de referencia de la industria de restaurantes. Viven aqui de
-// momento; el paso natural es moverlos a Configuracion para que cada
-// empresa fije los suyos.
-const METAS = {
-  materiaPrima: { label: 'MATERIA PRIMA', meta: 33, mayorEsMejor: false },
-  nomina:       { label: 'NÓMINA',        meta: 32, mayorEsMejor: false },
-  utilidad:     { label: 'UTILIDAD NETA', meta: 12, mayorEsMejor: true  },
-}
-
-const vitalesRaw      = ref(null)
-const cargandoVitales = ref(true)
-
-const nombreMes = computed(() => {
-  const m = ahora.value.toLocaleDateString('es-CO', { month: 'long' })
-  return m.charAt(0).toUpperCase() + m.slice(1)
-})
-
-// Verde si cumple la meta, ambar si se pasa por poco, rojo si se pasa feo.
-function colorVital(pct, meta, mayorEsMejor) {
-  const cumple = mayorEsMejor ? pct >= meta : pct <= meta
-  if (cumple) return 'var(--success)'
-  const desvio = mayorEsMejor ? (meta - pct) / meta : (pct - meta) / meta
-  return desvio <= 0.15 ? 'var(--warning)' : 'var(--error)'
-}
-
-const vitales = computed(() =>
-  Object.entries(METAS).map(([clave, cfg]) => {
-    const v = vitalesRaw.value?.[clave] || { valor: 0, pct: 0 }
-    return {
-      clave, ...cfg,
-      valor: v.valor,
-      pct: v.pct,
-      color: colorVital(v.pct, cfg.meta, cfg.mayorEsMejor),
-    }
-  })
-)
-
-async function cargarVitales() {
-  if (!empresa.value) { cargandoVitales.value = false; return }
-  try {
-    const mes = `${ahora.value.getFullYear()}-${String(ahora.value.getMonth() + 1).padStart(2, '0')}`
-    const res = await api.get('/contabilidad/estado-resultados', {
-      params: { empresa: empresa.value, modo: 'mensual', mes },
-    })
-    const d = res.data
-    if (!d?.success) return
-
-    const base = d.ventasNetasPorPeriodo?.[0] || 0
-    const pct  = (v) => (base > 0 ? (v / base) * 100 : 0)
-    // El grupo de nomina se busca por nombre porque su codigo lo define cada
-    // empresa al armar su plan de cuentas.
-    const grupoNomina = (d.grupos || []).find(g => /PERSONAL|NOMINA|NÓMINA/i.test(g.nombre || ''))
-    const consumoMP   = d.kpis?.consumoMP || 0
-    const utilidad    = d.kpis?.utilidadNeta || 0
-    const nomina      = grupoNomina?.total || 0
-
-    vitalesRaw.value = {
-      materiaPrima: { valor: consumoMP, pct: pct(consumoMP) },
-      nomina:       { valor: nomina,    pct: pct(nomina) },
-      utilidad:     { valor: utilidad,  pct: pct(utilidad) },
-      ventasBase:   base,
-    }
-  } catch (e) {
-    console.error('vitales:', e)
-  } finally {
-    cargandoVitales.value = false
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
 // CURVA DEL MES + NÓMINA PENDIENTE
 // ══════════════════════════════════════════════════════════════
 const panel    = ref(null)
@@ -554,8 +486,81 @@ async function cargarPanel() {
       panel.value = res.data.data
       await nextTick()
       renderCurva()
+      renderComp()
     }
   } catch (e) { console.error('panel:', e) }
+}
+
+// ══════════════════════════════════════════════════════════════
+// COMPARATIVO MES CONTRA MES
+// ══════════════════════════════════════════════════════════════
+const compRef = ref(null)
+let chartComp = null
+
+const comparativo = computed(() => panel.value?.comparativo || null)
+
+const etiquetaComp = computed(() => {
+  const c = panel.value?.curva
+  if (!c) return ''
+  return `${c.etiquetaActual} vs ${c.etiquetaAnterior}`
+})
+
+function claseVar(v) {
+  if (v === null || v === undefined) return 'dx-trend-neutral'
+  return v >= 0 ? 'dx-trend-up' : 'dx-trend-down'
+}
+function textoVar(v) {
+  if (v === null || v === undefined) return 'sin base para comparar'
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
+}
+
+function renderComp() {
+  const c = comparativo.value
+  if (!compRef.value || !c?.conceptos?.length) return
+  chartComp?.destroy()
+  const oscuro = esOscuro()
+  const fg   = oscuro ? '#b3aa9a' : '#6b6459'
+  const grid = oscuro ? 'rgba(245,241,232,.07)' : 'rgba(27,24,21,.07)'
+  const oro  = oscuro ? '#f0a83c' : '#b8720b'
+  const gris = oscuro ? '#756c5c' : '#a39c8e'
+  const [etA, etB] = etiquetaComp.value.split(' vs ')
+
+  // De mayor a menor segun el mes en curso: lo que mas pesa, arriba.
+  const ord = [...c.conceptos].sort((a, b) => b.actual - a.actual)
+
+  chartComp = new ApexCharts(compRef.value, {
+    chart: {
+      type: 'bar', height: 300, toolbar: { show: false },
+      fontFamily: "'Plus Jakarta Sans', sans-serif", background: 'transparent',
+      animations: { enabled: true, speed: 450 },
+    },
+    theme: { mode: oscuro ? 'dark' : 'light' },
+    series: [
+      { name: etA || 'Este mes',     data: ord.map(x => x.actual) },
+      { name: etB || 'Mes anterior', data: ord.map(x => x.anterior) },
+    ],
+    // Barras horizontales: las etiquetas ("Comisiones delivery") no caben
+    // bajo una barra vertical sin girarse o cortarse.
+    plotOptions: { bar: { horizontal: true, barHeight: '68%', borderRadius: 3, borderRadiusApplication: 'end' } },
+    colors: [oro, gris],
+    xaxis: {
+      categories: ord.map(x => x.label),
+      labels: {
+        style: { colors: fg, fontSize: '11px' },
+        formatter: (v) => '$' + Math.round(Number(v) / 1000) + 'k',
+      },
+      axisBorder: { show: false }, axisTicks: { show: false },
+    },
+    yaxis: { labels: { style: { colors: fg, fontSize: '11.5px' } } },
+    grid: { borderColor: grid, strokeDashArray: 4 },
+    legend: { position: 'top', horizontalAlign: 'right', labels: { colors: fg }, markers: { radius: 3 } },
+    dataLabels: { enabled: false },
+    tooltip: {
+      shared: true, intersect: false,
+      y: { formatter: (v) => fmt(v) },
+    },
+  })
+  chartComp.render()
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -589,23 +594,18 @@ const atencion = computed(() => {
     })
   }
 
-  // Un vital fuera de meta se expresa en dolares, no en puntos: "1 punto por
-  // encima" no dice nada; "son $1,138 del margen del mes" si.
-  const base = vitalesRaw.value?.ventasBase || 0
-  if (!cargandoVitales.value && base > 0) {
-    for (const v of vitales.value) {
-      const fuera = v.mayorEsMejor ? v.pct < v.meta : v.pct > v.meta
-      if (!fuera) continue
-      const puntos = Math.abs(v.pct - v.meta)
-      out.push({
-        id: 'vital-' + v.clave,
-        titulo: `${v.label} ${puntos.toFixed(1)} puntos ${v.mayorEsMejor ? 'bajo' : 'sobre'} la meta`,
-        descripcion: `${v.pct.toFixed(1)}% contra ${v.meta}% · esto es lo que representa en el mes`,
-        monto: (puntos / 100) * base,
-        color: v.color,
-        ruta: '/contabilidad/reportes/estado-resultados',
-      })
-    }
+  // Las comisiones de delivery no existian el mes pasado y ahora si: es un
+  // costo nuevo que conviene ver, no una desviacion contra una meta.
+  const cd = comparativo.value?.conceptos?.find(x => x.clave === 'comDelivery')
+  if (cd?.actual > 0 && cd.variacion === null) {
+    out.push({
+      id: 'com-delivery',
+      titulo: 'Comisiones de delivery, nuevas este mes',
+      descripcion: 'El mes pasado no hubo. Sale del sobreprecio de las plataformas',
+      monto: cd.actual,
+      color: 'var(--warning)',
+      ruta: '/contabilidad/reportes/estado-resultados',
+    })
   }
 
   return out.sort((a, b) => (b.monto || 0) - (a.monto || 0))
@@ -726,7 +726,6 @@ onMounted(() => {
   cargarResumen()
   cargarAlertas()
   cargarClima()
-  cargarVitales()
   cargarPanel()
   conectarVivo()
 })
@@ -736,6 +735,7 @@ onUnmounted(() => {
   // uno deja la conexion abierta, el otro un nodo y sus listeners.
   fuenteVivo?.close()
   chartCurva?.destroy()
+  chartComp?.destroy()
 })
 
 // ── Formatters ────────────────────────────────────────────────
@@ -937,7 +937,7 @@ function fmt(val) {
 
 /* ── Últimos gastos ── */
 /* ══════════════════════════════════════════════════════════════
-   BANDAS DEL PANEL (hoy en vivo · signos vitales · curva · atención)
+   BANDAS DEL PANEL (hoy en vivo · mes contra mes · curva · atención)
    Todas comparten el mismo marco para que el inicio se lea como una
    sola pieza y no como cuatro widgets pegados.
    ══════════════════════════════════════════════════════════════ */
@@ -1025,41 +1025,7 @@ function fmt(val) {
 .dx-pct-warn { color: var(--warning); background: var(--warning-wash); }
 .dx-pct-bad  { color: var(--error);   background: var(--error-wash); }
 
-/* ── Signos vitales ────────────────────────────────────────── */
-.dx-vitales { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.dx-vital {
-  padding: 15px;
-  border-right: 1px solid rgba(var(--v-theme-on-surface), .08);
-  display: flex; flex-direction: column; gap: 7px;
-}
-.dx-vital:last-child { border-right: none; }
-.dx-vital-lbl {
-  font-size: 10.5px; font-weight: 800; letter-spacing: .09em;
-  color: rgba(var(--v-theme-on-surface), .58);
-}
-.dx-vital-val {
-  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-  font-size: 30px; font-weight: 600; letter-spacing: -.03em; line-height: 1;
-}
-.dx-vital-barra {
-  position: relative; height: 5px; border-radius: 999px;
-  background: rgba(var(--v-theme-on-surface), .08);
-}
-.dx-vital-barra span {
-  display: block; height: 100%; border-radius: 999px;
-  transition: width var(--dur-slow) var(--ease-out);
-}
 /* La marca es la meta: sin ella el porcentaje es un número suelto. */
-.dx-vital-marca {
-  position: absolute; top: -2px; bottom: -2px; width: 2px;
-  background: rgba(var(--v-theme-on-surface), .38);
-  border-radius: 1px;
-}
-.dx-vital-meta {
-  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-  font-size: 11px; color: rgba(var(--v-theme-on-surface), .55);
-}
-.dx-skel-lg { height: 30px; width: 78px; }
 
 /* ── Curva del mes ─────────────────────────────────────────── */
 .dx-curva-wrap { padding: 6px 8px 10px; }
@@ -1093,11 +1059,53 @@ function fmt(val) {
 .dx-body-solo { grid-template-columns: 1fr !important; }
 
 @media (max-width: 640px) {
-  .dx-vivo-sede, .dx-vital {
-    border-right: none;
-    border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
-  }
-  .dx-vivo-sede:last-child, .dx-vital:last-child { border-bottom: none; }
 }
+
+/* ── Mes contra mes ────────────────────────────────────────── */
+/* Las ventas brutas van fuera del gráfico: contra ellas, devoluciones
+   o comisiones serían una línea de un píxel. */
+.dx-comp-titular {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 14px 15px 4px;
+}
+.dx-comp-tit-lbl {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  color: rgba(var(--v-theme-on-surface), .58);
+  width: 100%;
+}
+.dx-comp-tit-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+  line-height: 1.1;
+}
+.dx-comp-tit-vs {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dx-comp-tit-vs > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 800;
+}
+.dx-comp-tit-ant {
+  font-size: 12px;
+  color: rgba(var(--v-theme-on-surface), .55);
+}
+.dx-comp-wrap { padding: 0 8px 10px; }
+.dx-comp { width: 100%; }
 
 </style>
