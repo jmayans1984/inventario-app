@@ -10897,14 +10897,23 @@ app.get('/api/dashboard/resumen', async (req, res) => {
 
 // GET /api/dashboard/panel — datos del panel de inicio que no cubre /resumen
 //
-// Devuelve dos cosas que el panel necesita y ningun otro endpoint da masticadas:
-//   curva  → ventas acumuladas dia a dia del mes en curso contra el mismo
-//            tramo del mes anterior. Responde "¿voy bien este mes?", que es
-//            justo lo que un KPI con porcentaje no termina de contestar.
-//   nomina → semanas del mes que todavia no se han liquidado. Es el hueco mas
-//            caro que puede tener un resultado mensual: el gasto existe pero
-//            no pesa todavia, asi que la utilidad se ve mejor de lo que es.
-//   comp   → mes contra mes, recortando AMBOS al mismo tramo de dias.
+// Parametros:
+//   empresa (req)
+//   ccosto  → limita todo a una sede. Sin el, la empresa completa.
+//   meses   → lista YYYY-MM separada por comas, hasta 6. El PRIMERO es el de
+//             referencia: manda en el corte de dias, en el titular y en el
+//             orden de las barras. Por defecto, mes en curso + anterior.
+//
+// Devuelve:
+//   curva  → ventas acumuladas dia a dia, una serie por mes pedido. Responde
+//            "¿voy bien este mes?", que es justo lo que un KPI con porcentaje
+//            no termina de contestar.
+//   comp   → descuentos, propinas, impuestos y comisiones de cada mes,
+//            recortando TODOS al mismo tramo de dias para que se puedan
+//            comparar entre si.
+//   nomina → semanas del mes en curso sin liquidar. Es el hueco mas caro que
+//            puede tener un resultado mensual: el gasto existe pero no pesa
+//            todavia, asi que la utilidad se ve mejor de lo que es.
 //
 // Todo sale de la tabla `ventas`, que es lo que reporto Square: cifras
 // exactas. Aqui no entran materia prima ni utilidad a proposito — dependen
@@ -10915,108 +10924,140 @@ app.get('/api/dashboard/panel', async (req, res) => {
     const { empresa } = req.query;
     if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
 
+    // Centro de costo opcional. Se compara con TRIM porque ccosto es varchar
+    // de ancho fijo y los valores guardados arrastran espacios.
+    const ccosto = (req.query.ccosto || '').trim() || null;
+
     try {
         const hoy = new Date();
         const y = hoy.getFullYear(), m = hoy.getMonth() + 1;
         const ini = (yy, mm) => `${yy}-${String(mm).padStart(2, '0')}-01`;
         const fin = (yy, mm) => `${yy}-${String(mm).padStart(2, '0')}-${String(new Date(yy, mm, 0).getDate()).padStart(2, '0')}`;
-        const mesAntY = m === 1 ? y - 1 : y;
-        const mesAntM = m === 1 ? 12 : m - 1;
+        const MESES = ['enero','febrero','marzo','abril','mayo','junio',
+                       'julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
-        const serieDia = async (desde, hasta) => {
+        // ── Meses a comparar ────────────────────────────────────────────
+        // El primero es el de referencia: manda en el corte de dias, en el
+        // titular y en el orden de las barras. Por defecto, el mes en curso
+        // y el anterior; el usuario puede agregar los que quiera.
+        const pedidos = String(req.query.meses || '')
+            .split(',').map(x => x.trim()).filter(x => /^\d{4}-\d{2}$/.test(x));
+
+        let claves;
+        if (pedidos.length) {
+            claves = [...new Set(pedidos)].slice(0, 6);
+        } else {
+            const aY = m === 1 ? y - 1 : y;
+            const aM = m === 1 ? 12 : m - 1;
+            claves = [`${y}-${String(m).padStart(2, '0')}`, `${aY}-${String(aM).padStart(2, '0')}`];
+        }
+
+        const meses = claves.map(k => {
+            const [yy, mm] = k.split('-').map(Number);
+            return {
+                key: k, anio: yy, mes: mm,
+                label: `${MESES[mm - 1].charAt(0).toUpperCase()}${MESES[mm - 1].slice(1)} ${yy}`,
+                desde: ini(yy, mm), hasta: fin(yy, mm),
+                dias: new Date(yy, mm, 0).getDate(),
+            };
+        });
+
+        const filtroCC = ccosto ? ' AND TRIM(ccosto) = TRIM($4)' : '';
+        const args = (extra) => ccosto ? [...extra, ccosto] : extra;
+
+        // ── Serie diaria de cada mes ────────────────────────────────────
+        const serieDia = async (mesInfo) => {
             const r = await pool.query(
                 `SELECT EXTRACT(DAY FROM fecha)::int AS dia, COALESCE(SUM(ventas_brutas), 0) AS total
-                 FROM ventas WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3
+                 FROM ventas WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3${filtroCC}
                  GROUP BY dia ORDER BY dia`,
-                [empresa, desde, hasta]
+                args([empresa, mesInfo.desde, mesInfo.hasta])
             );
             const porDia = {};
             r.rows.forEach(x => { porDia[x.dia] = parseFloat(x.total) || 0; });
             return porDia;
         };
+        const series = await Promise.all(meses.map(serieDia));
 
-        const [actual, anterior] = await Promise.all([
-            serieDia(ini(y, m), fin(y, m)),
-            serieDia(ini(mesAntY, mesAntM), fin(mesAntY, mesAntM)),
-        ]);
+        // El eje llega hasta el mes mas largo del conjunto: si uno tiene 31
+        // dias y otro 30, recortar a 30 esconderia el ultimo dia del primero.
+        const diasEje = Math.max(...meses.map(x => x.dias));
 
-        // Se acumula hasta el ultimo dia con venta del mes en curso: dibujar la
-        // curva hasta fin de mes la haria caer a plano y parecer un desplome.
-        const diasMesActual = new Date(y, m, 0).getDate();
-        const ultimoDiaConVenta = Math.max(0, ...Object.keys(actual).map(Number));
-        const diasMesAnterior = new Date(mesAntY, mesAntM, 0).getDate();
+        // Corte del mes de referencia. Se acumula solo hasta su ultimo dia con
+        // venta: dibujar la curva hasta fin de mes la dejaria plana y pareceria
+        // un desplome.
+        const ultimoConVenta = (obj) => Math.max(0, ...Object.keys(obj).map(Number));
+        const refUltimo = ultimoConVenta(series[0]);
 
-        const curva = { dias: [], actual: [], anterior: [] };
-        let accA = 0, accB = 0;
-        for (let d = 1; d <= diasMesActual; d++) {
-            accA += actual[d] || 0;
-            if (d <= diasMesAnterior) accB += anterior[d] || 0;
-            curva.dias.push(d);
-            curva.actual.push(d <= ultimoDiaConVenta ? Math.round(accA * 100) / 100 : null);
-            curva.anterior.push(Math.round(accB * 100) / 100);
-        }
+        const curva = { dias: [], series: [] };
+        for (let d = 1; d <= diasEje; d++) curva.dias.push(d);
 
-        // ── Comparativo mes contra mes, mismo tramo de dias ──────────────
+        meses.forEach((mi, idx) => {
+            const porDia = series[idx];
+            const tope = idx === 0 ? refUltimo : mi.dias;
+            let acc = 0;
+            const data = [];
+            for (let d = 1; d <= diasEje; d++) {
+                if (d <= mi.dias) acc += porDia[d] || 0;
+                data.push(d <= tope ? Math.round(acc * 100) / 100 : null);
+            }
+            curva.series.push({ key: mi.key, label: mi.label, data });
+        });
+
+        // ── Comparativo por concepto, mismo tramo de dias en todos ──────
         // El corte es AYER, nunca hoy: la jornada en curso esta a medias y
         // arrastraria la comparacion hacia abajo. Y se recorta ademas al
-        // ultimo dia que realmente tiene ventas importadas: si la importacion
-        // va atrasada, comparar contra un dia sin datos diria que el mes va
-        // peor cuando lo que falta es el archivo.
+        // ultimo dia con ventas importadas del mes de referencia: si la
+        // importacion va atrasada, comparar contra un dia sin datos diria que
+        // el mes va peor cuando lo que falta es el archivo.
+        const refEsMesActual = meses[0].anio === y && meses[0].mes === m;
         const diaAyer = new Date(hoy.getTime() - 86400000);
-        const topeAyer = (diaAyer.getFullYear() === y && diaAyer.getMonth() + 1 === m)
-            ? diaAyer.getDate()
-            : diasMesActual;
-        const hastaDia = Math.min(topeAyer, ultimoDiaConVenta);
+        const topeAyer = refEsMesActual
+            ? ((diaAyer.getFullYear() === y && diaAyer.getMonth() + 1 === m) ? diaAyer.getDate() : meses[0].dias)
+            : meses[0].dias;
+        const hastaDia = Math.min(topeAyer, refEsMesActual ? refUltimo : meses[0].dias);
 
         const CONCEPTOS = [
-            { clave: 'descuentos',   label: 'Descuentos',           col: 'descuentos' },
-            { clave: 'propinas',     label: 'Propinas',             col: 'propinas' },
-            { clave: 'taxes',        label: 'Impuestos',            col: 'impuestos' },
-            { clave: 'comPos',       label: 'Comisiones POS',       col: 'comisiones' },
-            { clave: 'comDelivery',  label: 'Comisiones delivery',  col: 'otras_comisiones' },
-            { clave: 'devoluciones', label: 'Devoluciones',         col: 'devoluciones' },
+            { clave: 'descuentos',   label: 'Descuentos',          col: 'descuentos' },
+            { clave: 'propinas',     label: 'Propinas',            col: 'propinas' },
+            { clave: 'taxes',        label: 'Impuestos',           col: 'impuestos' },
+            { clave: 'comPos',       label: 'Comisiones POS',      col: 'comisiones' },
+            { clave: 'comDelivery',  label: 'Comisiones delivery', col: 'otras_comisiones' },
+            { clave: 'devoluciones', label: 'Devoluciones',        col: 'devoluciones' },
         ];
 
         let comparativo = null;
         if (hastaDia >= 1) {
-            const sumas = async (desde, hasta) => {
-                const cols = ['ventas_brutas', ...CONCEPTOS.map(c => c.col)]
-                    .map(c => `COALESCE(SUM(${c}), 0) AS ${c}`).join(', ');
+            const cols = ['ventas_brutas', ...CONCEPTOS.map(c => c.col)]
+                .map(c => `COALESCE(SUM(${c}), 0) AS ${c}`).join(', ');
+            const filtroCC5 = ccosto ? ' AND TRIM(ccosto) = TRIM($5)' : '';
+            const sumas = async (mi) => {
                 const r = await pool.query(
                     `SELECT ${cols} FROM ventas
                       WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3
-                        AND EXTRACT(DAY FROM fecha) <= $4`,
-                    [empresa, desde, hasta, hastaDia]
+                        AND EXTRACT(DAY FROM fecha) <= $4${filtroCC5}`,
+                    args([empresa, mi.desde, mi.hasta, hastaDia])
                 );
                 return r.rows[0] || {};
             };
-            const [ca, cb] = await Promise.all([
-                sumas(ini(y, m), fin(y, m)),
-                sumas(ini(mesAntY, mesAntM), fin(mesAntY, mesAntM)),
-            ]);
+            const totales = await Promise.all(meses.map(sumas));
             const num = (v) => Math.round((parseFloat(v) || 0) * 100) / 100;
-            // Sin base no hay porcentaje: un concepto que arranca de cero no
-            // subio "infinito", es nuevo. Se devuelve null y lo dice la vista.
-            const varPct = (a, b) => (b > 0 ? ((a - b) / b) * 100 : null);
 
             comparativo = {
                 hastaDia,
-                brutas: {
-                    actual: num(ca.ventas_brutas),
-                    anterior: num(cb.ventas_brutas),
-                    variacion: varPct(num(ca.ventas_brutas), num(cb.ventas_brutas)),
-                },
+                meses: meses.map(x => ({ key: x.key, label: x.label })),
+                brutas: totales.map(t => num(t.ventas_brutas)),
                 conceptos: CONCEPTOS.map(c => ({
                     clave: c.clave,
                     label: c.label,
-                    actual: num(ca[c.col]),
-                    anterior: num(cb[c.col]),
-                    variacion: varPct(num(ca[c.col]), num(cb[c.col])),
+                    valores: totales.map(t => num(t[c.col])),
                 })),
             };
         }
 
-        // ── Semanas de nomina sin liquidar dentro del mes ────────────────
+        // ── Semanas de nomina sin liquidar dentro del mes en curso ───────
+        // Va sin filtro de centro a proposito: una liquidacion cubre a toda la
+        // empresa, no se puede partir por sede.
         const semanasRes = await pool.query(
             `SELECT s.id, s.semana_inicio::text AS inicio, s.semana_fin::text AS fin
              FROM nom_semana s
@@ -11046,11 +11087,9 @@ app.get('/api/dashboard/panel', async (req, res) => {
         res.json({
             success: true,
             data: {
-                curva: {
-                    ...curva,
-                    etiquetaActual:   new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long' }),
-                    etiquetaAnterior: new Date(mesAntY, mesAntM - 1, 1).toLocaleDateString('es-CO', { month: 'long' }),
-                },
+                ccosto,
+                meses: meses.map(x => ({ key: x.key, label: x.label })),
+                curva,
                 comparativo,
                 nominaPendiente: {
                     semanas: semanasRes.rows.length,

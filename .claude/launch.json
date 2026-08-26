@@ -1,29 +1,24 @@
-﻿{
-    "version":  "0.0.1",
-    "configurations":  [
-                           {
-                               "port":  5173,
-                               "runtimeExecutable":  "npm",
-                               "name":  "vue-dev",
-                               "runtimeArgs":  [
-                                                   "run",
-                                                   "dev",
-                                                   "--prefix",
-                                                   "inventario-vue"
-                                               ]
-                           },
-                           {
-                               "port":  8099,
-                               "runtimeExecutable":  "npx",
-                               "name":  "light-static",
-                               "runtimeArgs":  [
-                                                   "-y",
-                                                   "http-server",
-                                                   "light",
-                                                   "-p",
-                                                   "8099",
-                                                   "-c-1"
-                                               ]
-                           }
-                       ]
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "vue-dev",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev", "--prefix", "inventario-vue"],
+            "port": 5173
+        },
+        {
+            "name": "vue-local-api",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev", "--prefix", "inventario-vue", "--", "--port", "5199"],
+            "port": 5199,
+            "autoPort": false
+        },
+        {
+            "name": "light-static",
+            "runtimeExecutable": "npx",
+            "runtimeArgs": ["-y", "http-server", "light", "-p", "8099", "-c-1"],
+            "port": 8099
+        }
+    ]
 }

@@ -78,41 +78,6 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
-           COMPARATIVO DEL MES — solo cifras exactas de Square.
-           Materia prima y utilidad quedan fuera a proposito: dependen
-           de la toma fisica de inventario, asi que no son un dato
-           cerrado y no deben presentarse como si lo fueran.
-      ══════════════════════════════════════════════════════ -->
-      <div v-if="comparativo" class="dx-band">
-        <div class="dx-band-head">
-          <span class="dx-band-title">MES CONTRA MES</span>
-          <span class="dx-band-note">
-            Del 1 al {{ comparativo.hastaDia }} de {{ etiquetaComp }}
-          </span>
-        </div>
-
-        <!-- Las brutas van aparte: en el mismo eje que los demas conceptos
-             los aplastarian y no se veria nada. -->
-        <div class="dx-comp-titular">
-          <div class="dx-comp-tit-lbl">VENTAS BRUTAS</div>
-          <div class="dx-comp-tit-val">{{ fmt(comparativo.brutas.actual) }}</div>
-          <div class="dx-comp-tit-vs">
-            <span :class="claseVar(comparativo.brutas.variacion)">
-              <v-icon size="14">{{ (comparativo.brutas.variacion || 0) >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
-              {{ textoVar(comparativo.brutas.variacion) }}
-            </span>
-            <span class="dx-comp-tit-ant">
-              {{ fmt(comparativo.brutas.anterior) }} el mes pasado al mismo día
-            </span>
-          </div>
-        </div>
-
-        <div class="dx-comp-wrap">
-          <div ref="compRef" class="dx-comp"></div>
-        </div>
-      </div>
-
-      <!-- ══════════════════════════════════════════════════════
            KPIs FINANCIEROS CON TENDENCIA
       ══════════════════════════════════════════════════════ -->
       <div class="dx-kpis">
@@ -168,19 +133,88 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
-           CURVA DEL MES — acumulado contra el mes anterior
+           ANÁLISIS DE VENTAS
+           Un solo filtro (centro de costo + meses) manda en los dos
+           graficos. Duplicarlo obligaria a sincronizarlos y a que el
+           usuario entienda que son el mismo filtro puesto dos veces.
+
+           Solo cifras exactas de Square: materia prima y utilidad quedan
+           fuera a proposito, porque dependen de la toma fisica de
+           inventario y no son un dato cerrado.
       ══════════════════════════════════════════════════════ -->
       <div class="dx-band">
-        <div class="dx-band-head">
-          <span class="dx-band-title">VENTAS ACUMULADAS</span>
-          <span class="dx-band-note">{{ etiquetaCurva }}</span>
-          <span v-if="deltaCurva !== null" class="dx-curva-delta" :class="deltaCurva >= 0 ? 'dx-trend-up' : 'dx-trend-down'">
-            <v-icon size="14">{{ deltaCurva >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
-            {{ Math.abs(deltaCurva).toFixed(1) }}% al mismo día
-          </span>
+        <div class="dx-band-head dx-band-head-filtros">
+          <span class="dx-band-title">ANÁLISIS DE VENTAS</span>
+
+          <div class="dx-filtros">
+            <select v-model="ccostoSel" class="dx-sel" title="Centro de costo">
+              <option value="">Toda la empresa</option>
+              <option v-for="c in centrosCostos" :key="c.codigo" :value="c.codigo">
+                {{ c.nombre || c.codigo }}
+              </option>
+            </select>
+
+            <div class="dx-meses">
+              <span
+                v-for="(k, i) in mesesSel"
+                :key="k"
+                class="dx-mes-chip"
+                :style="{ '--mc': colorSerie(i) }"
+              >
+                <i class="dx-mes-dot"></i>
+                {{ etiquetaMes(k) }}
+                <button
+                  v-if="mesesSel.length > 1"
+                  class="dx-mes-x"
+                  :title="`Quitar ${etiquetaMes(k)}`"
+                  @click="quitarMes(k)"
+                >×</button>
+              </span>
+            </div>
+
+            <select
+              v-if="mesesDisponibles.length && mesesSel.length < 6"
+              class="dx-sel dx-sel-add"
+              title="Agregar un mes a la comparación"
+              @change="agregarMes($event.target.value); $event.target.value = ''"
+            >
+              <option value="">+ Mes</option>
+              <option v-for="mm in mesesDisponibles" :key="mm.key" :value="mm.key">
+                {{ mm.label }}
+              </option>
+            </select>
+          </div>
         </div>
-        <div class="dx-curva-wrap">
-          <div ref="curvaRef" class="dx-curva"></div>
+
+        <template v-if="comparativo">
+          <!-- Las brutas van fuera del grafico: contra ellas, devoluciones o
+               comisiones serian una linea de un pixel. -->
+          <div class="dx-comp-titular">
+            <div class="dx-comp-tit-lbl">
+              VENTAS BRUTAS · {{ etiquetaMes(mesesSel[0]) }} · del 1 al {{ comparativo.hastaDia }}<template v-if="ccostoSel"> · {{ nombreCcosto }}</template>
+            </div>
+            <div class="dx-comp-tit-val">{{ fmt(comparativo.brutas[0]) }}</div>
+            <div v-if="comparativo.brutas.length > 1" class="dx-comp-tit-vs">
+              <span :class="claseVar(varBrutas)">
+                <v-icon size="14">{{ (varBrutas || 0) >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
+                {{ textoVar(varBrutas) }}
+              </span>
+              <span class="dx-comp-tit-ant">
+                contra {{ fmt(comparativo.brutas[1]) }} de {{ etiquetaMes(mesesSel[1]) }} al mismo día
+              </span>
+            </div>
+          </div>
+
+          <div class="dx-comp-wrap">
+            <div ref="curvaRef" class="dx-curva"></div>
+          </div>
+          <div class="dx-comp-wrap">
+            <div ref="compRef" class="dx-comp"></div>
+          </div>
+        </template>
+
+        <div v-else class="dx-panel-empty">
+          <span>Sin ventas registradas en el período seleccionado</span>
         </div>
       </div>
 
@@ -284,7 +318,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import ApexCharts from 'apexcharts'
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
@@ -397,46 +431,95 @@ const panel    = ref(null)
 const curvaRef = ref(null)
 let chartCurva = null
 
-const etiquetaCurva = computed(() => {
-  const c = panel.value?.curva
-  if (!c) return ''
-  const cap = (t) => (t || '').charAt(0).toUpperCase() + (t || '').slice(1)
-  return `${cap(c.etiquetaActual)} vs ${cap(c.etiquetaAnterior)}`
-})
+// ── Filtro compartido por los dos graficos ────────────────────────────
+const centrosCostos = ref([])
+const ccostoSel = ref('')
 
-// Diferencia contra el mes anterior EN EL MISMO DIA del mes, no contra su
-// cierre: comparar 24 dias contra 31 siempre daria negativo.
-const deltaCurva = computed(() => {
-  const c = panel.value?.curva
-  if (!c?.actual?.length) return null
-  let i = -1
-  for (let k = c.actual.length - 1; k >= 0; k--) {
-    if (c.actual[k] != null) { i = k; break }
+const claveMes = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+
+// Por defecto, mes en curso y anterior. El primero manda: es el de
+// referencia para el corte de dias y para el titular.
+const mesesSel = ref([
+  claveMes(new Date()),
+  claveMes(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
+])
+
+const NOMBRE_MES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+function etiquetaMes(k) {
+  if (!k) return ''
+  const [yy, mm] = k.split('-').map(Number)
+  return `${NOMBRE_MES[mm - 1]} ${yy}`
+}
+
+// Dos años hacia atras: alcanza para comparar contra el mismo mes del año
+// pasado, que es la comparacion que de verdad se usa en un negocio con
+// temporadas.
+const mesesDisponibles = computed(() => {
+  const out = []
+  const hoyD = new Date()
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(hoyD.getFullYear(), hoyD.getMonth() - i, 1)
+    const k = claveMes(d)
+    if (!mesesSel.value.includes(k)) out.push({ key: k, label: etiquetaMes(k) })
   }
-  if (i < 0) return null
-  const a = c.actual[i], b = c.anterior[i]
-  if (!b) return null
-  return ((a - b) / b) * 100
+  return out
 })
 
-// Paleta de los graficos. Naranja para el mes en curso, indigo para el
-// anterior: es el par mas seguro para daltonismo (rojo-verde no los
-// confunde) y los cuatro tonos estan medidos contra su fondo.
+const nombreCcosto = computed(() => {
+  const c = centrosCostos.value.find(x => x.codigo === ccostoSel.value)
+  return c ? (c.nombre || c.codigo) : ''
+})
+
+function agregarMes(k) {
+  if (!k || mesesSel.value.includes(k) || mesesSel.value.length >= 6) return
+  mesesSel.value = [...mesesSel.value, k]
+}
+function quitarMes(k) {
+  if (mesesSel.value.length <= 1) return
+  mesesSel.value = mesesSel.value.filter(x => x !== k)
+}
+
+async function cargarCentros() {
+  if (!empresa.value) return
+  try {
+    const r = await api.get('/ccostos', { params: { empresa: empresa.value } })
+    const lista = r.data?.data || r.data || []
+    centrosCostos.value = Array.isArray(lista) ? lista : []
+  } catch (e) { console.error('ccostos:', e) }
+}
+
+// Cualquier cambio del filtro vuelve a pedir los datos y repinta.
+watch([ccostoSel, mesesSel], () => { cargarPanel() }, { deep: true })
+
+// Paleta de los graficos, hasta seis meses comparados a la vez. El primero
+// es siempre el mes de referencia y va en naranja; el segundo en indigo, que
+// es el par mas seguro para daltonismo (rojo-verde no los confunde).
 //
-//   claro  naranja #ea580c 3.56:1 · indigo #4f46e5 6.29:1
-//   oscuro naranja #fb923c 7.66:1 · indigo #818cf8 5.81:1
+// Los doce tonos estan medidos contra su fondo y ninguno baja de 3:1, que es
+// el minimo para lineas y barras con significado:
 //
-// El minimo para lineas y barras con significado es 3:1. El gris que habia
-// antes para el mes anterior daba 2.73:1 en claro — por debajo del minimo,
-// y por eso se perdia contra el fondo blanco.
+//   claro   naranja 3.56 · indigo 6.29 · cian 5.36 · rosa 4.60 · verde 5.02 · violeta 5.70
+//   oscuro  naranja 7.66 · indigo 5.81 · cian 9.60 · rosa 6.55 · verde 9.95 · violeta 6.56
+//
+// El gris que se usaba antes para el mes anterior daba 2.73:1 en claro — por
+// debajo del minimo, y por eso la serie se perdia contra el fondo blanco.
+const SERIES_CLARO  = ['#ea580c', '#4f46e5', '#0e7490', '#db2777', '#15803d', '#7c3aed']
+const SERIES_OSCURO = ['#fb923c', '#818cf8', '#22d3ee', '#f472b6', '#4ade80', '#c084fc']
+
+function colorSerie(i) {
+  const p = esOscuro() ? SERIES_OSCURO : SERIES_CLARO
+  return p[i % p.length]
+}
+
 function paletaGrafico() {
   const oscuro = esOscuro()
   return {
     oscuro,
-    actual:   oscuro ? '#fb923c' : '#ea580c',
-    anterior: oscuro ? '#818cf8' : '#4f46e5',
-    fg:       oscuro ? '#b3aa9a' : '#6b6459',
-    grid:     oscuro ? 'rgba(245,241,232,.07)' : 'rgba(27,24,21,.07)',
+    serie: oscuro ? SERIES_OSCURO : SERIES_CLARO,
+    fg:    oscuro ? '#b3aa9a' : '#6b6459',
+    grid:  oscuro ? 'rgba(245,241,232,.07)' : 'rgba(27,24,21,.07)',
   }
 }
 
@@ -447,10 +530,9 @@ function esOscuro() {
 
 function renderCurva() {
   const c = panel.value?.curva
-  if (!curvaRef.value || !c?.dias?.length) return
+  if (!curvaRef.value || !c?.series?.length) return
   chartCurva?.destroy()
-  const { oscuro, actual, anterior, fg, grid } = paletaGrafico()
-  const [etA, etB] = etiquetaCurva.value.split(' vs ')
+  const { oscuro, serie, fg, grid } = paletaGrafico()
 
   chartCurva = new ApexCharts(curvaRef.value, {
     chart: {
@@ -459,10 +541,7 @@ function renderCurva() {
       animations: { enabled: true, speed: 500 },
     },
     theme: { mode: oscuro ? 'dark' : 'light' },
-    series: [
-      { name: etA || 'Este mes',     data: c.actual },
-      { name: etB || 'Mes anterior', data: c.anterior },
-    ],
+    series: c.series.map(x => ({ name: x.label, data: x.data })),
     xaxis: {
       categories: c.dias,
       labels: { style: { colors: fg, fontSize: '11px' } },
@@ -475,13 +554,18 @@ function renderCurva() {
         formatter: (v) => '$' + Math.round(v / 1000) + 'k',
       },
     },
-    // El mes en curso va solido y con relleno; el anterior es la referencia,
-    // asi que va punteado y sin relleno para que no compitan.
-    colors: [actual, anterior],
-    stroke: { curve: 'smooth', width: [3, 2], dashArray: [0, 5] },
+    // El mes de referencia va solido y con relleno; los demas son la
+    // comparacion, asi que van punteados y sin relleno para que no compitan.
+    // Que no dependan solo del color tambien ayuda a quien no distingue tonos.
+    colors: c.series.map((_, i) => serie[i % serie.length]),
+    stroke: {
+      curve: 'smooth',
+      width: c.series.map((_, i) => (i === 0 ? 3 : 2)),
+      dashArray: c.series.map((_, i) => (i === 0 ? 0 : 5)),
+    },
     fill: {
-      type: ['gradient', 'solid'],
-      opacity: [1, 0],
+      type: c.series.map((_, i) => (i === 0 ? 'gradient' : 'solid')),
+      opacity: c.series.map((_, i) => (i === 0 ? 1 : 0)),
       gradient: { shadeIntensity: 1, opacityFrom: 0.32, opacityTo: 0.03, stops: [0, 100] },
     },
     grid: { borderColor: grid, strokeDashArray: 4, padding: { left: 4, right: 8 } },
@@ -499,7 +583,13 @@ function renderCurva() {
 async function cargarPanel() {
   if (!empresa.value) return
   try {
-    const res = await api.get('/dashboard/panel', { params: { empresa: empresa.value } })
+    const res = await api.get('/dashboard/panel', {
+      params: {
+        empresa: empresa.value,
+        ccosto: ccostoSel.value || undefined,
+        meses: mesesSel.value.join(','),
+      },
+    })
     if (res.data?.success) {
       panel.value = res.data.data
       await nextTick()
@@ -517,10 +607,13 @@ let chartComp = null
 
 const comparativo = computed(() => panel.value?.comparativo || null)
 
-const etiquetaComp = computed(() => {
-  const c = panel.value?.curva
-  if (!c) return ''
-  return `${c.etiquetaActual} vs ${c.etiquetaAnterior}`
+// Solo tiene sentido contra el segundo mes de la lista: con seis series, un
+// unico porcentaje en el titular tendria que elegir uno, y el natural es el
+// que el usuario puso justo al lado del de referencia.
+const varBrutas = computed(() => {
+  const b = comparativo.value?.brutas
+  if (!b || b.length < 2 || !b[1]) return null
+  return ((b[0] - b[1]) / b[1]) * 100
 })
 
 function claseVar(v) {
@@ -536,11 +629,10 @@ function renderComp() {
   const c = comparativo.value
   if (!compRef.value || !c?.conceptos?.length) return
   chartComp?.destroy()
-  const { oscuro, actual, anterior, fg, grid } = paletaGrafico()
-  const [etA, etB] = etiquetaComp.value.split(' vs ')
+  const { oscuro, serie, fg, grid } = paletaGrafico()
 
-  // De mayor a menor segun el mes en curso: lo que mas pesa, arriba.
-  const ord = [...c.conceptos].sort((a, b) => b.actual - a.actual)
+  // De mayor a menor segun el mes de referencia: lo que mas pesa, arriba.
+  const ord = [...c.conceptos].sort((a, b) => (b.valores[0] || 0) - (a.valores[0] || 0))
 
   chartComp = new ApexCharts(compRef.value, {
     chart: {
@@ -549,14 +641,14 @@ function renderComp() {
       animations: { enabled: true, speed: 450 },
     },
     theme: { mode: oscuro ? 'dark' : 'light' },
-    series: [
-      { name: etA || 'Este mes',     data: ord.map(x => x.actual) },
-      { name: etB || 'Mes anterior', data: ord.map(x => x.anterior) },
-    ],
+    series: (c.meses || []).map((mi, i) => ({
+      name: mi.label,
+      data: ord.map(x => x.valores[i] ?? 0),
+    })),
     // Barras horizontales: las etiquetas ("Comisiones delivery") no caben
     // bajo una barra vertical sin girarse o cortarse.
     plotOptions: { bar: { horizontal: true, barHeight: '68%', borderRadius: 3, borderRadiusApplication: 'end' } },
-    colors: [actual, anterior],
+    colors: (c.meses || []).map((_, i) => serie[i % serie.length]),
     xaxis: {
       categories: ord.map(x => x.label),
       labels: {
@@ -611,12 +703,12 @@ const atencion = computed(() => {
   // Las comisiones de delivery no existian el mes pasado y ahora si: es un
   // costo nuevo que conviene ver, no una desviacion contra una meta.
   const cd = comparativo.value?.conceptos?.find(x => x.clave === 'comDelivery')
-  if (cd?.actual > 0 && cd.variacion === null) {
+  if (cd?.valores?.[0] > 0 && cd.valores.length > 1 && !cd.valores[1]) {
     out.push({
       id: 'com-delivery',
       titulo: 'Comisiones de delivery, nuevas este mes',
       descripcion: 'El mes pasado no hubo. Sale del sobreprecio de las plataformas',
-      monto: cd.actual,
+      monto: cd.valores[0],
       color: 'var(--warning)',
       ruta: '/contabilidad/reportes/estado-resultados',
     })
@@ -740,6 +832,7 @@ onMounted(() => {
   cargarResumen()
   cargarAlertas()
   cargarClima()
+  cargarCentros()
   cargarPanel()
   conectarVivo()
 })
@@ -1121,5 +1214,77 @@ function fmt(val) {
 }
 .dx-comp-wrap { padding: 0 8px 10px; }
 .dx-comp { width: 100%; }
+
+/* ── Filtros del análisis de ventas ────────────────────────── */
+/* La cabecera pasa de una línea a un bloque que envuelve: con el selector
+   de centro, los chips de mes y el botón de agregar, en móvil no cabe. */
+.dx-band-head-filtros {
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 15px;
+}
+.dx-filtros {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.dx-sel {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), .18);
+  border-radius: 8px;
+  padding: 5px 9px;
+  cursor: pointer;
+  max-width: 190px;
+}
+.dx-sel:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.dx-sel-add {
+  color: var(--gold);
+  border-style: dashed;
+  font-weight: 700;
+}
+
+.dx-meses { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+/* Cada chip lleva el color de su serie en el gráfico: sin eso, con cuatro
+   meses encima hay que ir a la leyenda para saber cuál es cuál. */
+.dx-mes-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .14);
+  background: rgba(var(--v-theme-on-surface), .035);
+  white-space: nowrap;
+}
+.dx-mes-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--mc);
+  flex-shrink: 0;
+}
+.dx-mes-x {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 1px;
+  color: rgba(var(--v-theme-on-surface), .45);
+}
+.dx-mes-x:hover { color: var(--error); }
+.dx-mes-x:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; border-radius: 3px; }
+
+@media (max-width: 700px) {
+  .dx-filtros { margin-left: 0; width: 100%; }
+  .dx-sel { max-width: 100%; }
+}
 
 </style>
