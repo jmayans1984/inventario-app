@@ -419,6 +419,27 @@ const deltaCurva = computed(() => {
   return ((a - b) / b) * 100
 })
 
+// Paleta de los graficos. Naranja para el mes en curso, indigo para el
+// anterior: es el par mas seguro para daltonismo (rojo-verde no los
+// confunde) y los cuatro tonos estan medidos contra su fondo.
+//
+//   claro  naranja #ea580c 3.56:1 · indigo #4f46e5 6.29:1
+//   oscuro naranja #fb923c 7.66:1 · indigo #818cf8 5.81:1
+//
+// El minimo para lineas y barras con significado es 3:1. El gris que habia
+// antes para el mes anterior daba 2.73:1 en claro — por debajo del minimo,
+// y por eso se perdia contra el fondo blanco.
+function paletaGrafico() {
+  const oscuro = esOscuro()
+  return {
+    oscuro,
+    actual:   oscuro ? '#fb923c' : '#ea580c',
+    anterior: oscuro ? '#818cf8' : '#4f46e5',
+    fg:       oscuro ? '#b3aa9a' : '#6b6459',
+    grid:     oscuro ? 'rgba(245,241,232,.07)' : 'rgba(27,24,21,.07)',
+  }
+}
+
 function esOscuro() {
   return document.documentElement.classList.contains('v-theme--dark') ||
          document.body.classList.contains('v-theme--dark')
@@ -428,10 +449,7 @@ function renderCurva() {
   const c = panel.value?.curva
   if (!curvaRef.value || !c?.dias?.length) return
   chartCurva?.destroy()
-  const oscuro = esOscuro()
-  const fg   = oscuro ? '#b3aa9a' : '#6b6459'
-  const grid = oscuro ? 'rgba(245,241,232,.07)' : 'rgba(27,24,21,.07)'
-  const oro  = oscuro ? '#f0a83c' : '#b8720b'
+  const { oscuro, actual, anterior, fg, grid } = paletaGrafico()
   const [etA, etB] = etiquetaCurva.value.split(' vs ')
 
   chartCurva = new ApexCharts(curvaRef.value, {
@@ -459,12 +477,12 @@ function renderCurva() {
     },
     // El mes en curso va solido y con relleno; el anterior es la referencia,
     // asi que va punteado y sin relleno para que no compitan.
-    colors: [oro, fg],
+    colors: [actual, anterior],
     stroke: { curve: 'smooth', width: [3, 2], dashArray: [0, 5] },
     fill: {
       type: ['gradient', 'solid'],
       opacity: [1, 0],
-      gradient: { shadeIntensity: 1, opacityFrom: 0.28, opacityTo: 0.02, stops: [0, 100] },
+      gradient: { shadeIntensity: 1, opacityFrom: 0.32, opacityTo: 0.03, stops: [0, 100] },
     },
     grid: { borderColor: grid, strokeDashArray: 4, padding: { left: 4, right: 8 } },
     legend: { show: true, position: 'top', horizontalAlign: 'right', labels: { colors: fg }, markers: { radius: 3 } },
@@ -518,11 +536,7 @@ function renderComp() {
   const c = comparativo.value
   if (!compRef.value || !c?.conceptos?.length) return
   chartComp?.destroy()
-  const oscuro = esOscuro()
-  const fg   = oscuro ? '#b3aa9a' : '#6b6459'
-  const grid = oscuro ? 'rgba(245,241,232,.07)' : 'rgba(27,24,21,.07)'
-  const oro  = oscuro ? '#f0a83c' : '#b8720b'
-  const gris = oscuro ? '#756c5c' : '#a39c8e'
+  const { oscuro, actual, anterior, fg, grid } = paletaGrafico()
   const [etA, etB] = etiquetaComp.value.split(' vs ')
 
   // De mayor a menor segun el mes en curso: lo que mas pesa, arriba.
@@ -542,7 +556,7 @@ function renderComp() {
     // Barras horizontales: las etiquetas ("Comisiones delivery") no caben
     // bajo una barra vertical sin girarse o cortarse.
     plotOptions: { bar: { horizontal: true, barHeight: '68%', borderRadius: 3, borderRadiusApplication: 'end' } },
-    colors: [oro, gris],
+    colors: [actual, anterior],
     xaxis: {
       categories: ord.map(x => x.label),
       labels: {
