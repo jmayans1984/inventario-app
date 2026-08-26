@@ -10895,6 +10895,113 @@ app.get('/api/dashboard/resumen', async (req, res) => {
     }
 });
 
+// GET /api/dashboard/panel — datos del panel de inicio que no cubre /resumen
+//
+// Devuelve dos cosas que el panel necesita y ningun otro endpoint da masticadas:
+//   curva  → ventas acumuladas dia a dia del mes en curso contra el mismo
+//            tramo del mes anterior. Responde "¿voy bien este mes?", que es
+//            justo lo que un KPI con porcentaje no termina de contestar.
+//   nomina → semanas del mes que todavia no se han liquidado. Es el hueco mas
+//            caro que puede tener un resultado mensual: el gasto existe pero
+//            no pesa todavia, asi que la utilidad se ve mejor de lo que es.
+//
+// Los signos vitales (materia prima %, nomina %, utilidad %) NO se calculan
+// aqui a proposito: el panel los toma del Estado de Resultados. Repetir esa
+// formula seria garantizar que los dos numeros se separen con el tiempo.
+app.get('/api/dashboard/panel', async (req, res) => {
+    const { empresa } = req.query;
+    if (!empresa) return res.status(400).json({ success: false, error: 'empresa requerida' });
+
+    try {
+        const hoy = new Date();
+        const y = hoy.getFullYear(), m = hoy.getMonth() + 1;
+        const ini = (yy, mm) => `${yy}-${String(mm).padStart(2, '0')}-01`;
+        const fin = (yy, mm) => `${yy}-${String(mm).padStart(2, '0')}-${String(new Date(yy, mm, 0).getDate()).padStart(2, '0')}`;
+        const mesAntY = m === 1 ? y - 1 : y;
+        const mesAntM = m === 1 ? 12 : m - 1;
+
+        const serieDia = async (desde, hasta) => {
+            const r = await pool.query(
+                `SELECT EXTRACT(DAY FROM fecha)::int AS dia, COALESCE(SUM(ventas_brutas), 0) AS total
+                 FROM ventas WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3
+                 GROUP BY dia ORDER BY dia`,
+                [empresa, desde, hasta]
+            );
+            const porDia = {};
+            r.rows.forEach(x => { porDia[x.dia] = parseFloat(x.total) || 0; });
+            return porDia;
+        };
+
+        const [actual, anterior] = await Promise.all([
+            serieDia(ini(y, m), fin(y, m)),
+            serieDia(ini(mesAntY, mesAntM), fin(mesAntY, mesAntM)),
+        ]);
+
+        // Se acumula hasta el ultimo dia con venta del mes en curso: dibujar la
+        // curva hasta fin de mes la haria caer a plano y parecer un desplome.
+        const diasMesActual = new Date(y, m, 0).getDate();
+        const ultimoDiaConVenta = Math.max(0, ...Object.keys(actual).map(Number));
+        const diasMesAnterior = new Date(mesAntY, mesAntM, 0).getDate();
+
+        const curva = { dias: [], actual: [], anterior: [] };
+        let accA = 0, accB = 0;
+        for (let d = 1; d <= diasMesActual; d++) {
+            accA += actual[d] || 0;
+            if (d <= diasMesAnterior) accB += anterior[d] || 0;
+            curva.dias.push(d);
+            curva.actual.push(d <= ultimoDiaConVenta ? Math.round(accA * 100) / 100 : null);
+            curva.anterior.push(Math.round(accB * 100) / 100);
+        }
+
+        // ── Semanas de nomina sin liquidar dentro del mes ────────────────
+        const semanasRes = await pool.query(
+            `SELECT s.id, s.semana_inicio::text AS inicio, s.semana_fin::text AS fin
+             FROM nom_semana s
+             WHERE s.empresa = $1
+               AND s.semana_fin >= $2::date AND s.semana_fin <= $3::date
+               AND NOT EXISTS (
+                   SELECT 1 FROM nom_liquidacion l
+                    WHERE l.semana_id = s.id AND l.estado IN ('APROBADA', 'PAGADA')
+               )
+             ORDER BY s.semana_inicio`,
+            [empresa, ini(y, m), fin(y, m)]
+        );
+
+        // Costo estimado por semana: promedio de las ultimas 4 liquidaciones
+        // aprobadas. Es una aproximacion declarada, no un calculo: el numero
+        // exacto solo sale al liquidar, y correr la proyeccion real por
+        // empleado en cada carga del panel costaria decenas de consultas.
+        const promRes = await pool.query(
+            `SELECT AVG(total_bruto + COALESCE(total_aportes_er, 0)) AS prom
+             FROM (SELECT total_bruto, total_aportes_er FROM nom_liquidacion
+                    WHERE empresa = $1 AND estado IN ('APROBADA', 'PAGADA')
+                    ORDER BY semana_fin DESC LIMIT 4) u`,
+            [empresa]
+        );
+        const promSemana = parseFloat(promRes.rows[0]?.prom || 0);
+
+        res.json({
+            success: true,
+            data: {
+                curva: {
+                    ...curva,
+                    etiquetaActual:   new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long' }),
+                    etiquetaAnterior: new Date(mesAntY, mesAntM - 1, 1).toLocaleDateString('es-CO', { month: 'long' }),
+                },
+                nominaPendiente: {
+                    semanas: semanasRes.rows.length,
+                    detalle: semanasRes.rows,
+                    montoEstimado: Math.round(promSemana * semanasRes.rows.length * 100) / 100,
+                    esEstimado: true,
+                },
+            },
+        });
+    } catch (error) {
+        console.error('Error GET /api/dashboard/panel:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/contabilidad/gastos - Listar gastos (sin JOINs por ahora)
 app.get('/api/contabilidad/gastos', async (req, res) => {
     try {

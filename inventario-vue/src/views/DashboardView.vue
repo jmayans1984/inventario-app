@@ -49,19 +49,57 @@
           </div>
         </div>
 
-        <!-- Pronóstico 5 días (real) -->
-        <div v-if="pronostico.length" class="dx-forecast">
-          <div v-for="(d, i) in pronostico" :key="i" class="dx-fc-day">
-            <div class="dx-fc-name">{{ d.dia }}</div>
-            <div class="dx-fc-icon">{{ d.icono }}</div>
-            <div class="dx-fc-temps">
-              <span class="dx-fc-max">{{ d.max }}°</span>
-              <span class="dx-fc-min">{{ d.min }}°</span>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════
+           HOY EN VIVO — se alimenta del SSE de Square
+      ══════════════════════════════════════════════════════ -->
+      <div v-if="vivoSedes.length" class="dx-band">
+        <div class="dx-band-head">
+          <span class="dx-pulse" :class="{ 'dx-pulse-off': !vivoConectado }"></span>
+          <span class="dx-band-title">HOY EN VIVO</span>
+          <span class="dx-band-note">
+            {{ vivoConectado ? 'Square · en tiempo real' : 'Reconectando…' }}
+          </span>
+          <button class="dx-band-link" @click="irA('/tesoreria/procesos/ventas-vivo')">Ver detalle</button>
+        </div>
+        <div class="dx-vivo">
+          <div v-for="sd in vivoSedes" :key="sd.codigo" class="dx-vivo-sede">
+            <div class="dx-vivo-nombre">{{ sd.nombre }}</div>
+            <div class="dx-vivo-monto">{{ fmt(sd.ventas) }}</div>
+            <div class="dx-vivo-pie">
+              <span>{{ sd.ordenes }} {{ sd.ordenes === 1 ? 'orden' : 'órdenes' }}</span>
+              <span v-if="sd.pctDelPromedio != null" class="dx-vivo-pct" :class="clasePct(sd.pctDelPromedio)">
+                {{ Math.round(sd.pctDelPromedio) }}% de un {{ nombreDiaHoy }}
+              </span>
             </div>
-            <div class="dx-fc-rain" :style="{ opacity: d.lluvia > 0 ? 1 : .25 }">
-              <v-icon size="9" color="#7dd3fc">mdi-water</v-icon>
-              {{ d.lluvia }}%
-            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════
+           SIGNOS VITALES — vienen del Estado de Resultados
+      ══════════════════════════════════════════════════════ -->
+      <div class="dx-band">
+        <div class="dx-band-head">
+          <span class="dx-band-title">SIGNOS VITALES · {{ nombreMes }}</span>
+          <span class="dx-band-note">Contra las metas de la operación</span>
+          <button class="dx-band-link" @click="irA('/contabilidad/reportes/estado-resultados')">Estado de resultados</button>
+        </div>
+        <div class="dx-vitales">
+          <div v-for="v in vitales" :key="v.clave" class="dx-vital">
+            <div class="dx-vital-lbl">{{ v.label }}</div>
+            <div v-if="cargandoVitales" class="dx-skel dx-skel-lg"></div>
+            <template v-else>
+              <div class="dx-vital-val" :style="{ color: v.color }">{{ v.pct.toFixed(1) }}%</div>
+              <div class="dx-vital-barra">
+                <span :style="{ width: Math.min(100, v.pct) + '%', background: v.color }"></span>
+                <i class="dx-vital-marca" :style="{ left: Math.min(100, v.meta) + '%' }"></i>
+              </div>
+              <div class="dx-vital-meta">
+                meta {{ v.mayorEsMejor ? '≥' : '≤' }} {{ v.meta }}% · {{ fmt(v.valor) }}
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -104,23 +142,6 @@
           </div>
         </div>
 
-        <div class="dx-kpi stagger-in" style="--kc:var(--indigo); --stagger-index:2" @click="irA('/tesoreria/procesos/movimientos-bancarios')">
-          <div class="dx-kpi-head">
-            <span class="dx-kpi-lbl">SALDO BANCARIO</span>
-            <div class="dx-kpi-ic" style="background:var(--indigo-wash)">
-              <v-icon size="17" color="var(--indigo)">mdi-bank-outline</v-icon>
-            </div>
-          </div>
-          <div class="dx-kpi-val">
-            <span v-if="!cargando">{{ fmt(resumen?.saldoBancario?.total) }}</span>
-            <span v-else class="dx-skel"></span>
-          </div>
-          <div v-if="!cargando && resumen?.saldoBancario?.variacion !== null" class="dx-kpi-trend" :class="trendClass(resumen?.saldoBancario?.variacion)">
-            <v-icon size="13">{{ trendIcon(resumen?.saldoBancario?.variacion) }}</v-icon>
-            {{ Math.abs(resumen?.saldoBancario?.variacion || 0).toFixed(1) }}% vs mes anterior
-          </div>
-        </div>
-
         <div class="dx-kpi stagger-in" style="--kc:var(--gold); --stagger-index:3" @click="irA('/tesoreria/procesos/facturas-venta')">
           <div class="dx-kpi-head">
             <span class="dx-kpi-lbl">FACTURAS PENDIENTES</span>
@@ -139,9 +160,52 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
+           CURVA DEL MES — acumulado contra el mes anterior
+      ══════════════════════════════════════════════════════ -->
+      <div class="dx-band">
+        <div class="dx-band-head">
+          <span class="dx-band-title">VENTAS ACUMULADAS</span>
+          <span class="dx-band-note">{{ etiquetaCurva }}</span>
+          <span v-if="deltaCurva !== null" class="dx-curva-delta" :class="deltaCurva >= 0 ? 'dx-trend-up' : 'dx-trend-down'">
+            <v-icon size="14">{{ deltaCurva >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
+            {{ Math.abs(deltaCurva).toFixed(1) }}% al mismo día
+          </span>
+        </div>
+        <div class="dx-curva-wrap">
+          <div ref="curvaRef" class="dx-curva"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════
+           REQUIERE ATENCIÓN — ordenado por impacto en dinero
+      ══════════════════════════════════════════════════════ -->
+      <div v-if="atencion.length" class="dx-band">
+        <div class="dx-band-head">
+          <span class="dx-band-title">REQUIERE ATENCIÓN</span>
+          <span class="dx-band-note">Ordenado por impacto en dinero</span>
+        </div>
+        <div
+          v-for="a in atencion"
+          :key="a.id"
+          class="dx-atencion"
+          :class="{ 'dx-atencion-click': a.ruta }"
+          @click="a.ruta && irA(a.ruta)"
+        >
+          <span class="dx-atencion-sev" :style="{ background: a.color }"></span>
+          <div class="dx-atencion-cuerpo">
+            <div class="dx-atencion-titulo">{{ a.titulo }}</div>
+            <div class="dx-atencion-desc">{{ a.descripcion }}</div>
+          </div>
+          <span class="dx-atencion-monto" :style="{ color: a.color }">
+            {{ a.monto ? fmt(a.monto) : '—' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════
            CUERPO: CENTRO DE ALERTAS + ACCESOS + ACTIVIDAD
       ══════════════════════════════════════════════════════ -->
-      <div class="dx-body">
+      <div class="dx-body dx-body-solo">
 
         <!-- ── Centro de alertas ── -->
         <div class="dx-panel dx-alerts">
@@ -203,64 +267,6 @@
           </div>
         </div>
 
-        <!-- ── Columna derecha ── -->
-        <div class="dx-right">
-
-          <!-- Accesos directos a módulos -->
-          <div class="dx-panel">
-            <div class="dx-panel-header">
-              <div class="dx-panel-title">
-                <div class="dx-panel-title-ic" style="background:rgba(6,182,212,.1)">
-                  <v-icon size="15" color="#06b6d4">mdi-view-grid-outline</v-icon>
-                </div>
-                ACCESOS DIRECTOS
-              </div>
-            </div>
-            <div class="dx-mods">
-              <div
-                v-for="m in modulos"
-                :key="m.path"
-                class="dx-mod"
-                :style="{ '--mc': m.color }"
-                @click="irA(m.path)"
-              >
-                <div class="dx-mod-ic" :style="{ background: m.bg }">
-                  <v-icon size="18" color="white">{{ m.icono }}</v-icon>
-                </div>
-                <span class="dx-mod-lbl">{{ m.nombre }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Últimos gastos -->
-          <div class="dx-panel">
-            <div class="dx-panel-header">
-              <div class="dx-panel-title">
-                <div class="dx-panel-title-ic" style="background:rgba(139,92,246,.1)">
-                  <v-icon size="15" color="#8b5cf6">mdi-receipt-text-outline</v-icon>
-                </div>
-                ÚLTIMOS GASTOS
-              </div>
-              <button class="dx-panel-link" @click="irA('/contabilidad/procesos/gastos')">Ver todos</button>
-            </div>
-            <div v-if="cargando" class="dx-panel-loading">
-              <v-progress-circular indeterminate size="20" width="2" color="#8b5cf6" />
-            </div>
-            <template v-else>
-              <div v-if="!(resumen?.ultimosGastos || []).length" class="dx-panel-empty">
-                <span>Sin gastos recientes</span>
-              </div>
-              <div v-for="g in (resumen?.ultimosGastos || []).slice(0, 5)" :key="g.codigo" class="dx-gasto-row">
-                <div class="dx-gasto-info">
-                  <div class="dx-gasto-prov">{{ g.proveedor_nombre }}</div>
-                  <div class="dx-gasto-meta">{{ fmtFecha(g.fecha) }}<template v-if="g.concepto"> · {{ g.concepto }}</template></div>
-                </div>
-                <span class="dx-gasto-val">{{ fmt(g.total) }}</span>
-              </div>
-            </template>
-          </div>
-
-        </div>
       </div>
 
     </div>
@@ -270,7 +276,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import ApexCharts from 'apexcharts'
 import { useRouter } from 'vue-router'
 import MainLayout from '../components/layouts/MainLayout.vue'
 import ActualizacionesModal from '../components/ActualizacionesModal.vue'
@@ -311,7 +318,6 @@ const greetingEmoji = computed(() => {
 // ── Clima REAL — Open-Meteo (gratis, sin API key) ─────────────
 // Coordenadas: Orlando, FL
 const clima = ref(null)
-const pronostico = ref([])
 const climaError = ref(false)
 
 // Mapa de códigos WMO → icono + descripción en español
@@ -334,8 +340,7 @@ async function cargarClima() {
     const url = 'https://api.open-meteo.com/v1/forecast'
       + '?latitude=28.5384&longitude=-81.3789'
       + '&current=temperature_2m,weather_code'
-      + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
-      + '&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=6'
+      + '&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=1'
     const res = await fetch(url)
     const json = await res.json()
 
@@ -346,19 +351,6 @@ async function cargarClima() {
       condicion: w.condicion,
     }
 
-    const diasNombre = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-    const d = json.daily
-    pronostico.value = (d?.time || []).slice(1, 6).map((fecha, i) => {
-      const idx = i + 1
-      const wd = wmo(d.weather_code[idx])
-      return {
-        dia: diasNombre[new Date(fecha + 'T12:00:00').getDay()],
-        icono: wd.icono,
-        max: Math.round(d.temperature_2m_max[idx]),
-        min: Math.round(d.temperature_2m_min[idx]),
-        lluvia: d.precipitation_probability_max?.[idx] ?? 0,
-      }
-    })
   } catch (e) {
     console.error('cargarClima:', e)
     climaError.value = true
@@ -388,6 +380,272 @@ function trendClass(v, invertir = false) {
 }
 function trendIcon(v) {
   return (v || 0) >= 0 ? 'mdi-trending-up' : 'mdi-trending-down'
+}
+
+// ══════════════════════════════════════════════════════════════
+// SIGNOS VITALES
+// Los porcentajes NO se recalculan aqui: se leen del mismo Estado de
+// Resultados que ve el usuario. Repetir la formula seria garantizar que
+// el panel y el informe terminen diciendo cosas distintas.
+// ══════════════════════════════════════════════════════════════
+
+// Rangos de referencia de la industria de restaurantes. Viven aqui de
+// momento; el paso natural es moverlos a Configuracion para que cada
+// empresa fije los suyos.
+const METAS = {
+  materiaPrima: { label: 'MATERIA PRIMA', meta: 33, mayorEsMejor: false },
+  nomina:       { label: 'NÓMINA',        meta: 32, mayorEsMejor: false },
+  utilidad:     { label: 'UTILIDAD NETA', meta: 12, mayorEsMejor: true  },
+}
+
+const vitalesRaw      = ref(null)
+const cargandoVitales = ref(true)
+
+const nombreMes = computed(() => {
+  const m = ahora.value.toLocaleDateString('es-CO', { month: 'long' })
+  return m.charAt(0).toUpperCase() + m.slice(1)
+})
+
+// Verde si cumple la meta, ambar si se pasa por poco, rojo si se pasa feo.
+function colorVital(pct, meta, mayorEsMejor) {
+  const cumple = mayorEsMejor ? pct >= meta : pct <= meta
+  if (cumple) return 'var(--success)'
+  const desvio = mayorEsMejor ? (meta - pct) / meta : (pct - meta) / meta
+  return desvio <= 0.15 ? 'var(--warning)' : 'var(--error)'
+}
+
+const vitales = computed(() =>
+  Object.entries(METAS).map(([clave, cfg]) => {
+    const v = vitalesRaw.value?.[clave] || { valor: 0, pct: 0 }
+    return {
+      clave, ...cfg,
+      valor: v.valor,
+      pct: v.pct,
+      color: colorVital(v.pct, cfg.meta, cfg.mayorEsMejor),
+    }
+  })
+)
+
+async function cargarVitales() {
+  if (!empresa.value) { cargandoVitales.value = false; return }
+  try {
+    const mes = `${ahora.value.getFullYear()}-${String(ahora.value.getMonth() + 1).padStart(2, '0')}`
+    const res = await api.get('/contabilidad/estado-resultados', {
+      params: { empresa: empresa.value, modo: 'mensual', mes },
+    })
+    const d = res.data
+    if (!d?.success) return
+
+    const base = d.ventasNetasPorPeriodo?.[0] || 0
+    const pct  = (v) => (base > 0 ? (v / base) * 100 : 0)
+    // El grupo de nomina se busca por nombre porque su codigo lo define cada
+    // empresa al armar su plan de cuentas.
+    const grupoNomina = (d.grupos || []).find(g => /PERSONAL|NOMINA|NÓMINA/i.test(g.nombre || ''))
+    const consumoMP   = d.kpis?.consumoMP || 0
+    const utilidad    = d.kpis?.utilidadNeta || 0
+    const nomina      = grupoNomina?.total || 0
+
+    vitalesRaw.value = {
+      materiaPrima: { valor: consumoMP, pct: pct(consumoMP) },
+      nomina:       { valor: nomina,    pct: pct(nomina) },
+      utilidad:     { valor: utilidad,  pct: pct(utilidad) },
+      ventasBase:   base,
+    }
+  } catch (e) {
+    console.error('vitales:', e)
+  } finally {
+    cargandoVitales.value = false
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// CURVA DEL MES + NÓMINA PENDIENTE
+// ══════════════════════════════════════════════════════════════
+const panel    = ref(null)
+const curvaRef = ref(null)
+let chartCurva = null
+
+const etiquetaCurva = computed(() => {
+  const c = panel.value?.curva
+  if (!c) return ''
+  const cap = (t) => (t || '').charAt(0).toUpperCase() + (t || '').slice(1)
+  return `${cap(c.etiquetaActual)} vs ${cap(c.etiquetaAnterior)}`
+})
+
+// Diferencia contra el mes anterior EN EL MISMO DIA del mes, no contra su
+// cierre: comparar 24 dias contra 31 siempre daria negativo.
+const deltaCurva = computed(() => {
+  const c = panel.value?.curva
+  if (!c?.actual?.length) return null
+  let i = -1
+  for (let k = c.actual.length - 1; k >= 0; k--) {
+    if (c.actual[k] != null) { i = k; break }
+  }
+  if (i < 0) return null
+  const a = c.actual[i], b = c.anterior[i]
+  if (!b) return null
+  return ((a - b) / b) * 100
+})
+
+function esOscuro() {
+  return document.documentElement.classList.contains('v-theme--dark') ||
+         document.body.classList.contains('v-theme--dark')
+}
+
+function renderCurva() {
+  const c = panel.value?.curva
+  if (!curvaRef.value || !c?.dias?.length) return
+  chartCurva?.destroy()
+  const oscuro = esOscuro()
+  const fg   = oscuro ? '#b3aa9a' : '#6b6459'
+  const grid = oscuro ? 'rgba(245,241,232,.07)' : 'rgba(27,24,21,.07)'
+  const oro  = oscuro ? '#f0a83c' : '#b8720b'
+  const [etA, etB] = etiquetaCurva.value.split(' vs ')
+
+  chartCurva = new ApexCharts(curvaRef.value, {
+    chart: {
+      type: 'area', height: 240, toolbar: { show: false },
+      fontFamily: "'Plus Jakarta Sans', sans-serif", background: 'transparent',
+      animations: { enabled: true, speed: 500 },
+    },
+    theme: { mode: oscuro ? 'dark' : 'light' },
+    series: [
+      { name: etA || 'Este mes',     data: c.actual },
+      { name: etB || 'Mes anterior', data: c.anterior },
+    ],
+    xaxis: {
+      categories: c.dias,
+      labels: { style: { colors: fg, fontSize: '11px' } },
+      axisBorder: { show: false }, axisTicks: { show: false },
+      tickAmount: 10,
+    },
+    yaxis: {
+      labels: {
+        style: { colors: fg, fontSize: '11px' },
+        formatter: (v) => '$' + Math.round(v / 1000) + 'k',
+      },
+    },
+    // El mes en curso va solido y con relleno; el anterior es la referencia,
+    // asi que va punteado y sin relleno para que no compitan.
+    colors: [oro, fg],
+    stroke: { curve: 'smooth', width: [3, 2], dashArray: [0, 5] },
+    fill: {
+      type: ['gradient', 'solid'],
+      opacity: [1, 0],
+      gradient: { shadeIntensity: 1, opacityFrom: 0.28, opacityTo: 0.02, stops: [0, 100] },
+    },
+    grid: { borderColor: grid, strokeDashArray: 4, padding: { left: 4, right: 8 } },
+    legend: { show: true, position: 'top', horizontalAlign: 'right', labels: { colors: fg }, markers: { radius: 3 } },
+    dataLabels: { enabled: false },
+    tooltip: {
+      shared: true, intersect: false,
+      x: { formatter: (v) => 'Día ' + v },
+      y: { formatter: (v) => (v == null ? '—' : fmt(v)) },
+    },
+  })
+  chartCurva.render()
+}
+
+async function cargarPanel() {
+  if (!empresa.value) return
+  try {
+    const res = await api.get('/dashboard/panel', { params: { empresa: empresa.value } })
+    if (res.data?.success) {
+      panel.value = res.data.data
+      await nextTick()
+      renderCurva()
+    }
+  } catch (e) { console.error('panel:', e) }
+}
+
+// ══════════════════════════════════════════════════════════════
+// REQUIERE ATENCIÓN — lo mismo de siempre, pero ordenado por plata
+// ══════════════════════════════════════════════════════════════
+const atencion = computed(() => {
+  const out = []
+  const np = panel.value?.nominaPendiente
+
+  if (np?.semanas > 0) {
+    const n = np.semanas
+    out.push({
+      id: 'nomina-pendiente',
+      titulo: `${n} semana${n > 1 ? 's' : ''} de nómina sin liquidar`,
+      descripcion: 'El gasto todavía no pesa en el mes, así que la utilidad se ve mejor de lo que es',
+      monto: np.montoEstimado,
+      color: 'var(--error)',
+      ruta: '/nomina/procesos/liquidacion',
+    })
+  }
+
+  const fp = resumen.value?.facturasPend
+  if (fp?.cantidad > 0) {
+    out.push({
+      id: 'facturas',
+      titulo: `${fp.cantidad} factura${fp.cantidad > 1 ? 's' : ''} pendiente${fp.cantidad > 1 ? 's' : ''} de cobro`,
+      descripcion: 'Cuentas por cobrar abiertas',
+      monto: fp.valor,
+      color: 'var(--warning)',
+      ruta: '/tesoreria/procesos/facturas-venta',
+    })
+  }
+
+  // Un vital fuera de meta se expresa en dolares, no en puntos: "1 punto por
+  // encima" no dice nada; "son $1,138 del margen del mes" si.
+  const base = vitalesRaw.value?.ventasBase || 0
+  if (!cargandoVitales.value && base > 0) {
+    for (const v of vitales.value) {
+      const fuera = v.mayorEsMejor ? v.pct < v.meta : v.pct > v.meta
+      if (!fuera) continue
+      const puntos = Math.abs(v.pct - v.meta)
+      out.push({
+        id: 'vital-' + v.clave,
+        titulo: `${v.label} ${puntos.toFixed(1)} puntos ${v.mayorEsMejor ? 'bajo' : 'sobre'} la meta`,
+        descripcion: `${v.pct.toFixed(1)}% contra ${v.meta}% · esto es lo que representa en el mes`,
+        monto: (puntos / 100) * base,
+        color: v.color,
+        ruta: '/contabilidad/reportes/estado-resultados',
+      })
+    }
+  }
+
+  return out.sort((a, b) => (b.monto || 0) - (a.monto || 0))
+})
+
+// ══════════════════════════════════════════════════════════════
+// HOY EN VIVO — mismo SSE que alimenta Ventas en Vivo
+// ══════════════════════════════════════════════════════════════
+const vivoSedes     = ref([])
+const vivoConectado = ref(false)
+let fuenteVivo = null
+
+const nombreDiaHoy = computed(() =>
+  ahora.value.toLocaleDateString('es-CO', { weekday: 'long' })
+)
+
+function clasePct(p) {
+  if (p >= 100) return 'dx-pct-ok'
+  if (p >= 85)  return 'dx-pct-warn'
+  return 'dx-pct-bad'
+}
+
+function conectarVivo() {
+  if (!empresa.value) return
+  const base = api.defaults.baseURL || ''
+  try {
+    fuenteVivo = new EventSource(`${base}/square/vivo/stream?empresa=${encodeURIComponent(empresa.value)}`)
+    fuenteVivo.onmessage = (ev) => {
+      try {
+        const d = JSON.parse(ev.data)
+        vivoConectado.value = true
+        vivoSedes.value = (d.sedes || []).filter(x => x.ventas > 0)
+      } catch { /* trama incompleta: se ignora y se espera la siguiente */ }
+    }
+    // Si Square no esta configurado o la conexion cae, la franja simplemente
+    // no aparece: es informacion extra, no debe romper el panel.
+    fuenteVivo.onerror = () => { vivoConectado.value = false }
+  } catch (e) {
+    console.error('vivo:', e)
+  }
 }
 
 // ── Alertas ───────────────────────────────────────────────────
@@ -463,26 +721,21 @@ async function eliminarAlerta(idx) {
   }
 }
 
-// ── Accesos directos a módulos ────────────────────────────────
-// Paleta curada de acentos por módulo — deriva del dúo oro/índigo de marca
-// en vez de tonos aleatorios; cada módulo mantiene su identidad visual
-// para navegación rápida, sin romper la coherencia general.
-const modulos = [
-  { nombre: 'Contabilidad',  path: '/contabilidad', icono: 'mdi-calculator-variant',     color: '#4F46E5', bg: '#4F46E5' },
-  { nombre: 'Tesorería',     path: '/tesoreria',    icono: 'mdi-bank-transfer',          color: '#B8720B', bg: '#B8720B' },
-  { nombre: 'Almacén',       path: '/almacen',      icono: 'mdi-warehouse',              color: '#15803D', bg: '#15803D' },
-  { nombre: 'Proveeduría',   path: '/produccion',   icono: 'mdi-factory',                color: '#B45309', bg: '#B45309' },
-  { nombre: 'Recetas',       path: '/recetas',      icono: 'mdi-chef-hat',               color: '#BE185D', bg: '#BE185D' },
-  { nombre: 'Nómina',        path: '/nomina',       icono: 'mdi-account-group-outline',  color: '#0284C7', bg: '#0284C7' },
-  { nombre: 'Gerencia',      path: '/gerencia',     icono: 'mdi-chart-areaspline',       color: '#0F766E', bg: '#0F766E' },
-  { nombre: 'Formatos/Docs', path: '/formatos',     icono: 'mdi-file-document-outline',  color: '#7C3AED', bg: '#7C3AED' },
-  { nombre: 'Configuración', path: '/configuracion',icono: 'mdi-cog-outline',            color: '#6B6459', bg: '#6B6459' },
-]
 
 onMounted(() => {
   cargarResumen()
   cargarAlertas()
   cargarClima()
+  cargarVitales()
+  cargarPanel()
+  conectarVivo()
+})
+
+onUnmounted(() => {
+  // El SSE y el grafico sobreviven al desmontaje si no se sueltan a mano:
+  // uno deja la conexion abierta, el otro un nodo y sus listeners.
+  fuenteVivo?.close()
+  chartCurva?.destroy()
 })
 
 // ── Formatters ────────────────────────────────────────────────
@@ -491,13 +744,6 @@ function fmt(val) {
     style: 'currency', currency: 'USD',
     minimumFractionDigits: 2, maximumFractionDigits: 2
   }).format(parseFloat(val || 0))
-}
-
-function fmtFecha(f) {
-  if (!f) return '—'
-  const s = String(f).split('T')[0]
-  const [y, m, d] = s.split('-')
-  return `${m}/${d}/${y}`
 }
 </script>
 
@@ -561,27 +807,8 @@ function fmtFecha(f) {
 @keyframes dxPulse { 0%,100% { opacity: .4 } 50% { opacity: .9 } }
 
 /* Pronóstico */
-.dx-forecast {
-  position: relative;
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
-}
-.dx-fc-day {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 12px; padding: 10px 6px;
-  transition: background .15s;
-}
-.dx-fc-day:hover { background: rgba(255,255,255,.1); }
-.dx-fc-name { font-size: 10px; font-weight: 800; color: rgba(255,255,255,.65); text-transform: uppercase; letter-spacing: .5px; }
-.dx-fc-icon { font-size: 22px; line-height: 1.2; }
-.dx-fc-temps { display: flex; gap: 6px; align-items: baseline; }
-.dx-fc-max { font-size: 13px; font-weight: 800; color: white; }
-.dx-fc-min { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.4); }
-.dx-fc-rain { display: flex; align-items: center; gap: 2px; font-size: 10px; font-weight: 700; color: #7dd3fc; }
 
 @media (max-width: 800px) {
-  .dx-forecast { grid-template-columns: repeat(5, 1fr); }
   .dx-clock { display: none; }
 }
 
@@ -618,7 +845,6 @@ function fmtFecha(f) {
 /* ══ CUERPO ═════════════════════════════════════════════════ */
 .dx-body { display: grid; grid-template-columns: 1fr 330px; gap: 16px; align-items: start; }
 @media (max-width: 1000px) { .dx-body { grid-template-columns: 1fr; } }
-.dx-right { display: flex; flex-direction: column; gap: 16px; }
 
 .dx-panel {
   background: var(--surface);
@@ -708,29 +934,170 @@ function fmtFecha(f) {
 .dx-alert-more:hover { background: rgba(var(--v-theme-on-surface), .08); }
 
 /* ── Accesos directos ── */
-.dx-mods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.dx-mod {
-  display: flex; flex-direction: column; align-items: center; gap: 7px;
-  padding: 14px 6px; border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  cursor: pointer; transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms var(--ease-out);
-}
-.dx-mod:hover { border-color: var(--mc); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.07); }
-.dx-mod-ic {
-  width: 40px; height: 40px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 3px 8px rgba(0,0,0,.16);
-}
-.dx-mod-lbl { font-size: 10.5px; font-weight: 700; color: rgba(var(--v-theme-on-surface), .7); }
 
 /* ── Últimos gastos ── */
-.dx-gasto-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 7px 8px; border-radius: 9px; transition: background .15s;
+/* ══════════════════════════════════════════════════════════════
+   BANDAS DEL PANEL (hoy en vivo · signos vitales · curva · atención)
+   Todas comparten el mismo marco para que el inicio se lea como una
+   sola pieza y no como cuatro widgets pegados.
+   ══════════════════════════════════════════════════════════════ */
+.dx-band {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), .1);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+  overflow: hidden;
 }
-.dx-gasto-row:hover { background: rgba(var(--v-theme-on-surface), .035); }
-.dx-gasto-info { min-width: 0; }
-.dx-gasto-prov { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dx-gasto-meta { font-size: 10px; color: rgba(var(--v-theme-on-surface), .45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.dx-gasto-val { flex-shrink: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--gold); }
+.dx-band-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 15px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+.dx-band-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  color: rgba(var(--v-theme-on-surface), .78);
+}
+.dx-band-note {
+  font-size: 11.5px;
+  color: rgba(var(--v-theme-on-surface), .5);
+}
+.dx-band-link {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--gold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.dx-band-link:hover { text-decoration: underline; }
+.dx-band-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+/* El punto late solo mientras la conexión está viva: si se cae, se apaga
+   en vez de seguir animando y mintiendo sobre el estado. */
+.dx-pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+  animation: dxPulse 2.4s cubic-bezier(.4, 0, .6, 1) infinite;
+}
+.dx-pulse-off { background: rgba(var(--v-theme-on-surface), .25); animation: none; }
+@keyframes dxPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(21, 128, 61, .45); }
+  70%  { box-shadow: 0 0 0 7px rgba(21, 128, 61, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(21, 128, 61, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .dx-pulse { animation: none; } }
+
+/* ── Hoy en vivo ───────────────────────────────────────────── */
+.dx-vivo { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+.dx-vivo-sede {
+  padding: 13px 15px;
+  border-right: 1px solid rgba(var(--v-theme-on-surface), .08);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.dx-vivo-sede:last-child { border-right: none; }
+.dx-vivo-nombre {
+  font-size: 11px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .58);
+}
+.dx-vivo-monto {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 23px; font-weight: 600; letter-spacing: -.02em;
+}
+.dx-vivo-pie {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), .6);
+}
+.dx-vivo-pct {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-weight: 700; font-size: 11.5px;
+  padding: 1px 7px; border-radius: 999px;
+}
+.dx-pct-ok   { color: var(--success); background: var(--success-wash); }
+.dx-pct-warn { color: var(--warning); background: var(--warning-wash); }
+.dx-pct-bad  { color: var(--error);   background: var(--error-wash); }
+
+/* ── Signos vitales ────────────────────────────────────────── */
+.dx-vitales { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.dx-vital {
+  padding: 15px;
+  border-right: 1px solid rgba(var(--v-theme-on-surface), .08);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.dx-vital:last-child { border-right: none; }
+.dx-vital-lbl {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .09em;
+  color: rgba(var(--v-theme-on-surface), .58);
+}
+.dx-vital-val {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 30px; font-weight: 600; letter-spacing: -.03em; line-height: 1;
+}
+.dx-vital-barra {
+  position: relative; height: 5px; border-radius: 999px;
+  background: rgba(var(--v-theme-on-surface), .08);
+}
+.dx-vital-barra span {
+  display: block; height: 100%; border-radius: 999px;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+/* La marca es la meta: sin ella el porcentaje es un número suelto. */
+.dx-vital-marca {
+  position: absolute; top: -2px; bottom: -2px; width: 2px;
+  background: rgba(var(--v-theme-on-surface), .38);
+  border-radius: 1px;
+}
+.dx-vital-meta {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 11px; color: rgba(var(--v-theme-on-surface), .55);
+}
+.dx-skel-lg { height: 30px; width: 78px; }
+
+/* ── Curva del mes ─────────────────────────────────────────── */
+.dx-curva-wrap { padding: 6px 8px 10px; }
+.dx-curva { width: 100%; }
+.dx-curva-delta {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 12px; font-weight: 700;
+}
+
+/* ── Requiere atención ─────────────────────────────────────── */
+.dx-atencion {
+  display: flex; align-items: center; gap: 13px;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .07);
+}
+.dx-atencion:last-child { border-bottom: none; }
+.dx-atencion-click { cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.dx-atencion-click:hover { background: rgba(var(--v-theme-on-surface), .035); }
+.dx-atencion-sev { width: 3px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
+.dx-atencion-cuerpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dx-atencion-titulo { font-size: 13.5px; font-weight: 700; }
+.dx-atencion-desc { font-size: 12px; color: rgba(var(--v-theme-on-surface), .58); }
+.dx-atencion-monto {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 16px; font-weight: 800; white-space: nowrap;
+}
+
+/* Sin la columna derecha, el centro de alertas ocupa todo el ancho. */
+.dx-body-solo { grid-template-columns: 1fr !important; }
+
+@media (max-width: 640px) {
+  .dx-vivo-sede, .dx-vital {
+    border-right: none;
+    border-bottom: 1px solid rgba(var(--v-theme-on-surface), .08);
+  }
+  .dx-vivo-sede:last-child, .dx-vital:last-child { border-bottom: none; }
+}
+
 </style>
