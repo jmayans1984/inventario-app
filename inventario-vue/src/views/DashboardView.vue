@@ -533,6 +533,17 @@ function colorSerie(i) {
   return p[i % p.length]
 }
 
+// Etiqueta de eje. Redondear siempre a miles repite marcas: con topes de
+// ~7k, Apex reparte las marcas cada ~650 y varias caen en el mismo millar,
+// asi que el eje mostraba "$1k $1k $2k $2k". Con un decimal por debajo de
+// 10k cada marca queda distinta.
+function fmtEje(v) {
+  const n = Number(v) || 0
+  if (Math.abs(n) >= 10000) return '$' + Math.round(n / 1000) + 'k'
+  if (Math.abs(n) >= 1000)  return '$' + (n / 1000).toFixed(1) + 'k'
+  return '$' + Math.round(n)
+}
+
 function paletaGrafico() {
   const oscuro = esOscuro()
   return {
@@ -571,7 +582,7 @@ function renderCurva() {
     yaxis: {
       labels: {
         style: { colors: fg, fontSize: '11px' },
-        formatter: (v) => '$' + Math.round(v / 1000) + 'k',
+        formatter: (v) => fmtEje(v),
       },
     },
     // El mes de referencia va solido y con relleno; los demas son la
@@ -675,22 +686,17 @@ function renderComp() {
       categories: ord.map(x => x.label),
       labels: {
         style: { colors: fg, fontSize: '11px' },
-        formatter: (v) => '$' + Math.round(Number(v) / 1000) + 'k',
+        formatter: (v) => fmtEje(v),
       },
       axisBorder: { show: false }, axisTicks: { show: false },
     },
     yaxis: { labels: { style: { colors: fg, fontSize: '11.5px' } } },
     grid: { borderColor: grid, strokeDashArray: 4 },
     legend: { show: false },
-    // Con dos meses las cifras caben sobre la barra y ahorran ir al tooltip.
-    // De tres en adelante las barras se estrechan y el numero no entra.
-    dataLabels: {
-      enabled: (c.meses || []).length <= 2,
-      formatter: (v) => (v ? '$' + Math.round(v).toLocaleString('en-US') : ''),
-      offsetX: 26,
-      style: { fontSize: '10px', fontWeight: 700, colors: [fg] },
-      background: { enabled: false },
-    },
+    // Sin cifras sobre las barras: caen encima del relleno y ningun color de
+    // texto funciona a la vez sobre el naranja, el indigo y el fondo. El dato
+    // exacto esta en el tooltip.
+    dataLabels: { enabled: false },
     tooltip: {
       shared: true, intersect: false,
       y: { formatter: (v) => fmt(v) },
