@@ -68,9 +68,12 @@ export const MODULES = [
         name: 'Procesos',
         icon: 'mdi-cogs',
         items: [
-          { name: 'Importar Ventas',         icon: 'mdi-file-import-outline',        path: '/tesoreria/procesos/importar-ventas' },
-          { name: 'Ventas en Vivo',          icon: 'mdi-broadcast',                   path: '/tesoreria/procesos/ventas-vivo' },
           { name: 'Importar Ventas (Todas las Sedes)', icon: 'mdi-file-multiple-outline', path: '/tesoreria/procesos/importar-ventas-v2' },
+          // Oculto del menú y del buscador: reemplazado por "Importar Ventas
+          // (Todas las Sedes)". La ruta sigue activa (no se borra la vista)
+          // por si queda algo pendiente que dependa de ella.
+          { name: 'Importar Ventas',         icon: 'mdi-file-import-outline',        path: '/tesoreria/procesos/importar-ventas', hidden: true },
+          { name: 'Ventas en Vivo',          icon: 'mdi-broadcast',                   path: '/tesoreria/procesos/ventas-vivo' },
           { name: 'Conciliación de Cuentas', icon: 'mdi-bank-check',                 path: '/tesoreria/procesos/conciliacion-cuentas' },
           { name: 'Movimientos Bancarios',   icon: 'mdi-swap-horizontal',             path: '/tesoreria/procesos/movimientos-bancarios' },
           { name: 'Cuentas por Pagar',       icon: 'mdi-cash-clock',                  path: '/tesoreria/procesos/cuentas-por-pagar' },
