@@ -258,7 +258,7 @@
           <!-- Fecha de pago -->
           <div class="drw-field mt-3">
             <label>Fecha de pago (cuando ADP pagó los empleados)</label>
-            <input v-model="fechaPagoAprobar" type="date" class="drw-input" />
+            <CampoFecha v-model="fechaPagoAprobar" class="drw-input" />
             <span style="font-size:10px;color:rgba(var(--v-theme-on-surface),0.4);margin-top:3px;display:block">
               Se usará como fecha en gastos y movimiento bancario. Si no la indicas, se usa la fecha fin del período.
             </span>
@@ -367,11 +367,11 @@
           <div class="drw-grid-2">
             <div class="drw-field">
               <label>Inicio de período</label>
-              <input v-model="nuevaLiqInicio" type="date" class="drw-input" @change="calcNuevaFin" />
+              <CampoFecha v-model="nuevaLiqInicio" class="drw-input" @change="calcNuevaFin" />
             </div>
             <div class="drw-field">
               <label>Fin de período</label>
-              <input v-model="nuevaLiqFin" type="date" class="drw-input" :readonly="!!nuevaLiqSemanaId" />
+              <CampoFecha v-model="nuevaLiqFin" class="drw-input" :readonly="!!nuevaLiqSemanaId" />
             </div>
           </div>
           <div v-if="nuevaLiqInicio && nuevaLiqFin" class="periodo-preview">

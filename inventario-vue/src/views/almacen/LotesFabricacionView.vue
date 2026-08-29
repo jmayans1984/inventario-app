@@ -102,12 +102,12 @@
             <div class="form-row-2">
               <div class="field-group">
                 <label class="field-label">Fecha de Fabricación *</label>
-                <input v-model="form.fecha_fab" type="date" class="field-input" :class="{ 'field-error': err.fecha_fab }" />
+                <CampoFecha v-model="form.fecha_fab" class="field-input" :class="{ 'field-error': err.fecha_fab }" />
                 <span v-if="err.fecha_fab" class="error-txt">{{ err.fecha_fab }}</span>
               </div>
               <div class="field-group">
                 <label class="field-label">Fecha de Vencimiento</label>
-                <input v-model="form.fecha_vence" type="date" class="field-input" />
+                <CampoFecha v-model="form.fecha_vence" class="field-input" />
                 <span class="hint-txt" v-if="diasVencimiento">
                   Sugerido: {{ fmtFecha(diasVencimientoStr) }} ({{ diasVencimiento }} días)
                 </span>

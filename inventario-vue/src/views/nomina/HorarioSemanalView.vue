@@ -199,7 +199,7 @@
         <v-card-text>
           <div class="drw-field mb-3">
             <label>Semana que inicia (Lunes)</label>
-            <input v-model="nuevaSemanaInicio" type="date" class="drw-input" />
+            <CampoFecha v-model="nuevaSemanaInicio" class="drw-input" />
           </div>
           <div v-if="nuevaSemanaFin" style="font-size:12px;color:rgba(var(--v-theme-on-surface),0.5)">
             Período: {{ fmtFecha(nuevaSemanaInicio) }} — {{ fmtFecha(nuevaSemanaFin) }}

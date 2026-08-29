@@ -261,9 +261,8 @@
             </div>
             <div class="form-field">
               <label class="field-label">FECHA <span class="req">*</span></label>
-              <input
+              <CampoFecha
                 v-model="form.fecha"
-                type="date"
                 class="field-input"
                 :class="{ error: formErrors.fecha }"
               />
@@ -407,9 +406,8 @@
             </div>
             <div class="form-field">
               <label class="field-label">FECHA <span class="req">*</span></label>
-              <input
+              <CampoFecha
                 v-model="editForm.fecha"
-                type="date"
                 class="field-input"
                 :class="{ error: editFormErrors.fecha }"
               />

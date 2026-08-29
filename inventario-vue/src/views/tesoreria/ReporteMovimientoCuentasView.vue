@@ -48,7 +48,7 @@
           </div>
           <div class="filtro-content">
             <label class="filtro-label">Desde</label>
-            <input type="date" v-model="fechaInicio" class="rm-date" @change="onFiltroChange" />
+            <CampoFecha v-model="fechaInicio" class="rm-date" @change="onFiltroChange" />
           </div>
         </div>
 
@@ -59,7 +59,7 @@
           </div>
           <div class="filtro-content">
             <label class="filtro-label">Hasta</label>
-            <input type="date" v-model="fechaFin" class="rm-date" @change="onFiltroChange" />
+            <CampoFecha v-model="fechaFin" class="rm-date" @change="onFiltroChange" />
           </div>
         </div>
 

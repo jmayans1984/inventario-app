@@ -6,6 +6,7 @@ import '@mdi/font/css/materialdesignicons.css'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import CampoFecha from './components/common/CampoFecha.vue'
 
 const vuetify = createVuetify({
   theme: {
@@ -67,4 +68,9 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(vuetify)
+
+// Se registra global porque sustituye a <input type="date"> en 35 vistas:
+// importarlo una por una solo agregaria ruido a cada archivo.
+app.component('CampoFecha', CampoFecha)
+
 app.mount('#app')

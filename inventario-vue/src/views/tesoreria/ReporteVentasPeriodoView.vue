@@ -30,9 +30,9 @@
             <span>Período</span>
           </div>
           <div class="dates-row">
-            <input v-model="fechaInicio" type="date" class="date-input" />
+            <CampoFecha v-model="fechaInicio" class="date-input" />
             <v-icon size="15" color="rgba(255,255,255,0.3)">mdi-arrow-right</v-icon>
-            <input v-model="fechaFin" type="date" class="date-input" />
+            <CampoFecha v-model="fechaFin" class="date-input" />
           </div>
         </div>
 

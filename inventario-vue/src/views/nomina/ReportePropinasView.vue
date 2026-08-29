@@ -13,11 +13,11 @@
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
           <div class="drw-field" style="width:160px">
             <label>Fecha Inicio</label>
-            <input v-model="filtros.fechaInicio" type="date" class="drw-input" />
+            <CampoFecha v-model="filtros.fechaInicio" class="drw-input" />
           </div>
           <div class="drw-field" style="width:160px">
             <label>Fecha Fin</label>
-            <input v-model="filtros.fechaFin" type="date" class="drw-input" />
+            <CampoFecha v-model="filtros.fechaFin" class="drw-input" />
           </div>
           <div class="drw-field" style="width:230px">
             <label>Empleado (opcional)</label>

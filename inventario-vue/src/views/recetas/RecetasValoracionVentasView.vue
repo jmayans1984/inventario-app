@@ -19,12 +19,12 @@
         <div class="vv-filtros-row">
           <div class="filtro-group">
             <label class="filtro-label">Fecha inicio</label>
-            <v-text-field v-model="fechaInicio" type="date" variant="outlined" density="compact"
+            <CampoFecha v-model="fechaInicio" variant="outlined" density="compact"
               hide-details style="min-width:160px" />
           </div>
           <div class="filtro-group">
             <label class="filtro-label">Fecha fin</label>
-            <v-text-field v-model="fechaFin" type="date" variant="outlined" density="compact"
+            <CampoFecha v-model="fechaFin" variant="outlined" density="compact"
               hide-details style="min-width:160px" />
           </div>
           <div class="filtro-group" style="min-width:220px">

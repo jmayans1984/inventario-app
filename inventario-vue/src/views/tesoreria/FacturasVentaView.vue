@@ -349,7 +349,7 @@
           <div class="form-fields">
             <div class="field-group">
               <label class="field-label">Fecha de pago <span class="req">*</span></label>
-              <input v-model="formPago.fecha" type="date" class="field-input" :max="hoy" />
+              <CampoFecha v-model="formPago.fecha" class="field-input" :max="hoy" />
             </div>
 
             <div class="field-group">

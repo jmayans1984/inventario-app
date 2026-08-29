@@ -18,7 +18,7 @@
         <div class="ivc-cfg-grid">
           <div class="ivc-field">
             <label class="ivc-label">FECHA DE LOS MOVIMIENTOS</label>
-            <input v-model="configFecha" type="date" class="ivc-input" />
+            <CampoFecha v-model="configFecha" class="ivc-input" />
             <span v-if="periodo.desde && configFecha !== periodo.desde" class="ivc-hint ivc-hint-warn">
               El día de operación del archivo es {{ periodo.desde }}
               <button class="ivc-link" @click="configFecha = periodo.desde">usar esa</button>

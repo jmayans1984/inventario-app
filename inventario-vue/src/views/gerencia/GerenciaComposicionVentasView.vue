@@ -10,9 +10,9 @@
         <template #actions>
           <div class="cv-controles">
             <div class="cv-fechas">
-              <input type="date" v-model="desde" class="cv-date" aria-label="Desde" />
+              <CampoFecha v-model="desde" class="cv-date" aria-label="Desde" />
               <span class="cv-date-sep">→</span>
-              <input type="date" v-model="hasta" class="cv-date" aria-label="Hasta" />
+              <CampoFecha v-model="hasta" class="cv-date" aria-label="Hasta" />
             </div>
             <div class="cv-presets">
               <button v-for="p in PRESETS" :key="p.label" class="cv-preset" @click="aplicarPreset(p)">

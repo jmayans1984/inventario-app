@@ -37,9 +37,9 @@
             </option>
           </select>
           <div class="cp-fechas">
-            <input type="date" v-model="desde" class="cp-date" autocomplete="off" />
+            <CampoFecha v-model="desde" class="cp-date" autocomplete="off" />
             <span class="cp-date-sep">→</span>
-            <input type="date" v-model="hasta" class="cp-date" autocomplete="off" />
+            <CampoFecha v-model="hasta" class="cp-date" autocomplete="off" />
           </div>
           <v-btn color="#0369a1" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
             Actualizar
@@ -327,9 +327,8 @@
               </div>
             </div>
 
-            <v-text-field
-              v-model="pagoForm.fecha"
-              type="date" label="Fecha del pago *" autocomplete="off"
+            <CampoFecha
+              v-model="pagoForm.fecha" label="Fecha del pago *" autocomplete="off"
               variant="outlined" density="comfortable" hide-details class="mb-3"
             />
 
@@ -440,9 +439,8 @@
               </tfoot>
             </table>
 
-            <v-text-field
-              v-model="pagoMultipleForm.fecha"
-              type="date" label="Fecha del pago *" autocomplete="off"
+            <CampoFecha
+              v-model="pagoMultipleForm.fecha" label="Fecha del pago *" autocomplete="off"
               variant="outlined" density="comfortable" hide-details class="mt-4 mb-3"
             />
 

@@ -41,14 +41,14 @@
           </label>
           <div class="dates-row-modern">
             <div class="date-input-wrapper">
-              <input v-model="filtros.fechaInicial" type="date" class="date-input-modern" title="Fecha inicial" />
+              <CampoFecha v-model="filtros.fechaInicial" class="date-input-modern" title="Fecha inicial" />
               <v-icon size="14" color="rgba(var(--v-theme-on-surface), 0.4)" class="input-icon">mdi-calendar</v-icon>
             </div>
             <div class="dates-separator">
               <v-icon size="14" color="rgba(var(--v-theme-on-surface), 0.3)">mdi-arrow-right</v-icon>
             </div>
             <div class="date-input-wrapper">
-              <input v-model="filtros.fechaFinal" type="date" class="date-input-modern" title="Fecha final" />
+              <CampoFecha v-model="filtros.fechaFinal" class="date-input-modern" title="Fecha final" />
               <v-icon size="14" color="rgba(var(--v-theme-on-surface), 0.4)" class="input-icon">mdi-calendar</v-icon>
             </div>
           </div>

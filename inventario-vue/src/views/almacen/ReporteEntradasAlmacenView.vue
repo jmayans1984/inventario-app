@@ -12,20 +12,18 @@
       <div class="ea-form-card">
         <div class="ea-form-row">
           <div class="ea-field">
-            <v-text-field
+            <CampoFecha
               v-model="filtros.desde"
               label="Desde"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details
             />
           </div>
           <div class="ea-field">
-            <v-text-field
+            <CampoFecha
               v-model="filtros.hasta"
               label="Hasta"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details

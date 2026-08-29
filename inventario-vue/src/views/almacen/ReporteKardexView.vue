@@ -13,10 +13,9 @@
         <div class="kx-form-row">
 
           <div class="kx-field">
-            <v-text-field
+            <CampoFecha
               v-model="fecha"
               label="Fecha *"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details="auto"

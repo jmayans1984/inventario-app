@@ -13,10 +13,9 @@
         <div class="rc-form-row">
 
           <div class="rc-field">
-            <v-text-field
+            <CampoFecha
               v-model="fechaIni"
               label="Fecha Desde *"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details="auto"
@@ -25,10 +24,9 @@
           </div>
 
           <div class="rc-field">
-            <v-text-field
+            <CampoFecha
               v-model="fechaFin"
               label="Fecha Hasta *"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details="auto"

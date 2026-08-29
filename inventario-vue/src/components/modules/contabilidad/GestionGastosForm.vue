@@ -62,11 +62,10 @@
 
             <div class="field-row">
               <div class="field-col-3">
-                <v-text-field
+                <CampoFecha
                   v-model="form.fecha"
                   autocomplete="off"
                   label="Fecha *"
-                  type="date"
                   variant="outlined"
                   density="comfortable"
                   hide-details

@@ -28,9 +28,8 @@
               FECHA
             </label>
             <div class="imp-cfg-input-wrap">
-              <input
+              <CampoFecha
                 v-model="configFecha"
-                type="date"
                 class="imp-cfg-date"
               />
               <v-icon v-if="fechaMatch" size="18" color="success" class="cfg-ok-icon" title="Fecha coincide con el archivo">mdi-check-circle</v-icon>

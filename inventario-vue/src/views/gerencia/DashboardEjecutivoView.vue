@@ -40,11 +40,11 @@
         <div class="filtro-dates">
           <div class="date-field">
             <label>Desde</label>
-            <input v-model="fechaInicio" type="date" class="date-input" @change="quickActivo=''" />
+            <CampoFecha v-model="fechaInicio" class="date-input" @change="quickActivo=''" />
           </div>
           <div class="date-field">
             <label>Hasta</label>
-            <input v-model="fechaFin" type="date" class="date-input" @change="quickActivo=''" />
+            <CampoFecha v-model="fechaFin" class="date-input" @change="quickActivo=''" />
           </div>
           <v-btn color="#06b6d4" variant="flat" size="small" @click="cargar">Aplicar</v-btn>
         </div>

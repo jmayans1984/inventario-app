@@ -15,9 +15,9 @@
 
           <input v-if="modo === 'mes'" type="month" v-model="mesSel" class="mes-input" />
           <template v-else>
-            <input type="date" v-model="fDesde" class="mes-input" title="Desde" />
+            <CampoFecha v-model="fDesde" class="mes-input" title="Desde" />
             <span class="rango-sep">→</span>
-            <input type="date" v-model="fHasta" class="mes-input" title="Hasta (día del corte)" />
+            <CampoFecha v-model="fHasta" class="mes-input" title="Hasta (día del corte)" />
           </template>
 
           <v-btn color="primary" variant="flat" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">

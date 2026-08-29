@@ -243,7 +243,7 @@
           <div class="nueva-footer-campos">
             <div class="footer-field">
               <div class="footer-field-label">Fecha de entrega <span style="color:#ef4444">*</span></div>
-              <v-text-field v-model="nuevaFechaEntrega" type="date" variant="outlined" density="compact"
+              <CampoFecha v-model="nuevaFechaEntrega" variant="outlined" density="compact"
                 hide-details :error="fechaError" style="min-width:180px" />
             </div>
             <div class="footer-field" style="flex:1">
@@ -494,7 +494,7 @@
           <div class="nueva-footer-campos">
             <div class="footer-field">
               <div class="footer-field-label">Fecha de entrega <span style="color:#ef4444">*</span></div>
-              <v-text-field v-model="editFechaEntrega" type="date" variant="outlined" density="compact"
+              <CampoFecha v-model="editFechaEntrega" variant="outlined" density="compact"
                 hide-details style="min-width:180px" />
             </div>
             <div class="footer-field" style="flex:1">

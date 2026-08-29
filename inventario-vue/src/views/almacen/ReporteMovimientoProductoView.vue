@@ -13,10 +13,9 @@
         <div class="mp-form-row">
 
           <div class="mp-field">
-            <v-text-field
+            <CampoFecha
               v-model="fechaInicio"
               label="Fecha inicio *"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details="auto"
@@ -25,10 +24,9 @@
           </div>
 
           <div class="mp-field">
-            <v-text-field
+            <CampoFecha
               v-model="fechaFin"
               label="Fecha fin *"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details="auto"

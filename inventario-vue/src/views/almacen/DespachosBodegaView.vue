@@ -27,9 +27,8 @@
 
       <!-- FILTROS -->
       <div class="db-filtros">
-        <v-text-field
+        <CampoFecha
           v-model="filtroFecha"
-          type="date"
           label="Fecha"
           density="compact"
           variant="outlined"
@@ -151,7 +150,7 @@
               <div class="sheet-hdr"><v-icon size="15" color="success">mdi-information-outline</v-icon><span class="sheet-ttl">Información de la Orden</span></div>
               <v-row dense class="mt-2">
                 <v-col cols="12" sm="3">
-                  <v-text-field v-model="form.fecha" type="date" label="Fecha *" density="compact" variant="outlined"
+                  <CampoFecha v-model="form.fecha" label="Fecha *" density="compact" variant="outlined"
                     :error-messages="errFecha" />
                 </v-col>
                 <v-col cols="12" sm="3">

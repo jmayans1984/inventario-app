@@ -13,12 +13,12 @@
         <div class="rn-filters-row">
           <div class="filter-group">
             <div class="filter-label">FECHA INICIO</div>
-            <v-text-field v-model="filtros.fechaInicio" type="date" variant="outlined" density="compact"
+            <CampoFecha v-model="filtros.fechaInicio" variant="outlined" density="compact"
               hide-details style="min-width:160px" />
           </div>
           <div class="filter-group">
             <div class="filter-label">FECHA FIN</div>
-            <v-text-field v-model="filtros.fechaFin" type="date" variant="outlined" density="compact"
+            <CampoFecha v-model="filtros.fechaFin" variant="outlined" density="compact"
               hide-details style="min-width:160px" />
           </div>
           <v-btn color="secondary" variant="flat" rounded="lg" :loading="cargando" @click="cargar" height="40">

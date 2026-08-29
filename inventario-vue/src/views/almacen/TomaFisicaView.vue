@@ -79,10 +79,9 @@
         <div class="tf-form-row">
 
           <div class="tf-field">
-            <v-text-field
+            <CampoFecha
               v-model="fecha"
               label="Fecha *"
-              type="date"
               variant="outlined"
               density="compact"
               hide-details="auto"

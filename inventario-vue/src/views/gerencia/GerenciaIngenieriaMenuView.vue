@@ -24,9 +24,9 @@
         </div>
         <div class="im-header-right">
           <div class="im-fechas">
-            <input type="date" v-model="desde" class="im-date" />
+            <CampoFecha v-model="desde" class="im-date" />
             <span class="im-date-sep">→</span>
-            <input type="date" v-model="hasta" class="im-date" />
+            <CampoFecha v-model="hasta" class="im-date" />
           </div>
           <v-btn color="#d97706" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
             Actualizar

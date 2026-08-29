@@ -37,11 +37,11 @@
           <div class="ac-dates">
             <div class="ac-date-field">
               <span class="ac-date-lbl">Desde</span>
-              <input type="date" v-model="desde" class="ac-date-input" />
+              <CampoFecha v-model="desde" class="ac-date-input" />
             </div>
             <div class="ac-date-field">
               <span class="ac-date-lbl">Hasta</span>
-              <input type="date" v-model="hasta" class="ac-date-input" />
+              <CampoFecha v-model="hasta" class="ac-date-input" />
             </div>
           </div>
           <v-btn color="#0891b2" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">

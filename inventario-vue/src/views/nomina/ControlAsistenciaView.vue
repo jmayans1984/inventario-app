@@ -30,7 +30,7 @@
       <!-- ── DÍA ── -->
       <div v-show="tab === 'dia'" class="ca-card">
         <div class="ca-card-head">
-          <input v-model="fecha" type="date" class="ca-input-fecha" @change="cargarDia" />
+          <CampoFecha v-model="fecha" class="ca-input-fecha" @change="cargarDia" />
           <span class="ca-card-sub">{{ marcajes.length }} marcajes</span>
         </div>
         <div v-if="cargandoDia" class="ca-loading">

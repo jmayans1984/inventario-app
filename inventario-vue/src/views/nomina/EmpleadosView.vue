@@ -114,7 +114,7 @@
               <div class="drw-grid-2">
                 <div class="drw-field"><label>NOMBRE *</label><input v-model="form.nombre" @input="form.nombre=form.nombre.toUpperCase()" class="drw-input" /></div>
                 <div class="drw-field"><label>APELLIDO *</label><input v-model="form.apellido" @input="form.apellido=form.apellido.toUpperCase()" class="drw-input" /></div>
-                <div class="drw-field"><label>FECHA NACIMIENTO</label><input v-model="form.fecha_nacimiento" type="date" class="drw-input" /></div>
+                <div class="drw-field"><label>FECHA NACIMIENTO</label><CampoFecha v-model="form.fecha_nacimiento" class="drw-input" /></div>
                 <div class="drw-field"><label>EMAIL</label><input v-model="form.email" @input="form.email=form.email.toUpperCase()" type="email" class="drw-input" /></div>
                 <div class="drw-field"><label>TELÉFONO</label><input v-model="form.telefono" @input="form.telefono=form.telefono.toUpperCase()" class="drw-input" /></div>
                 <div class="drw-field"><label>SSN</label><input v-model="form.ssn" @input="form.ssn=form.ssn.toUpperCase()" class="drw-input" placeholder="XXX-XX-XXXX" /></div>
@@ -154,14 +154,14 @@
                 <div class="drw-field"><label>CENTRO DE COSTO</label>
                   <v-select v-model="form.ccosto" :items="ccostos" item-title="nombre" item-value="codigo" clearable density="compact" variant="outlined"></v-select>
                 </div>
-                <div class="drw-field"><label>FECHA INGRESO *</label><input v-model="form.fecha_ingreso" type="date" class="drw-input" /></div>
+                <div class="drw-field"><label>FECHA INGRESO *</label><CampoFecha v-model="form.fecha_ingreso" class="drw-input" /></div>
                 <div class="drw-field"><label>ESTADO</label>
                   <v-select v-model="form.estado" :items="[{title:'ACTIVO',value:'ACTIVO'},{title:'INACTIVO',value:'INACTIVO'},{title:'LICENCIA',value:'LICENCIA'}]" density="compact" variant="outlined"></v-select>
                 </div>
-                <div class="drw-field" v-if="form.estado==='INACTIVO'"><label>FECHA RETIRO</label><input v-model="form.fecha_retiro" type="date" class="drw-input" /></div>
+                <div class="drw-field" v-if="form.estado==='INACTIVO'"><label>FECHA RETIRO</label><CampoFecha v-model="form.fecha_retiro" class="drw-input" /></div>
                 <div class="drw-field drw-span-2" v-if="form.estado==='INACTIVO'"><label>MOTIVO RETIRO</label><input v-model="form.motivo_retiro" @input="form.motivo_retiro=form.motivo_retiro.toUpperCase()" class="drw-input" /></div>
                 <div class="drw-field"><label># PERMISO DE TRABAJO</label><input v-model="form.permiso_trabajo" @input="form.permiso_trabajo=form.permiso_trabajo.toUpperCase()" class="drw-input" /></div>
-                <div class="drw-field"><label>VENCIMIENTO PERMISO</label><input v-model="form.fecha_vencimiento_permiso" type="date" class="drw-input" /></div>
+                <div class="drw-field"><label>VENCIMIENTO PERMISO</label><CampoFecha v-model="form.fecha_vencimiento_permiso" class="drw-input" /></div>
               </div>
             </div>
 
