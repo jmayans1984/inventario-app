@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch, shallowRef } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getActivePinia } from 'pinia'
 import { useAuthStore } from './stores/auth'
@@ -11,12 +11,25 @@ import { useCommandPalette } from './composables/useCommandPalette'
 
 const route = useRoute()
 const lastFocused = ref(null)
-const commandPaletteOpen = ref(false)
 const appTheme = ref('light')
 
-// Los stores se inicializan solo cuando Pinia está listo
+// Estos dos composables son refs propios de Vue (singletons), sin ninguna
+// dependencia de Pinia: se inicializan siempre, aquí mismo. Antes se copiaba
+// "open" a un ref local dentro del guard de abajo — pero copiar un ref
+// COMO VALOR de otro ref (en vez de usarlo directamente) dejaba ese ref
+// local con un objeto adentro, que en la plantilla siempre es verdadero:
+// por eso el buscador se abría solo al cargar la página.
+const { openCalc } = useCalculadora()
+const { open: commandPaletteOpen } = useCommandPalette()
+
+// Los stores sí dependen de Pinia: se inicializan solo cuando está listo.
 let authStore = null
 let appStore = null
+if (getActivePinia()) {
+  authStore = useAuthStore()
+  appStore = useAppStore()
+  appTheme.value = appStore.tema
+}
 
 const appClasses = computed(() => ({
   'treasury-module': route.path.startsWith('/tesoreria'),
@@ -26,21 +39,6 @@ const appClasses = computed(() => ({
   'recipes-module': route.path.startsWith('/recetas'),
   'payroll-module': route.path.startsWith('/nomina'),
 }))
-
-let openCalc = () => {}
-let calculateOpen = ref(false)
-
-// Inicializar composables y stores cuando Pinia esté listo
-if (getActivePinia()) {
-  const { openCalc: _openCalc } = useCalculadora()
-  const { open: _commandPaletteOpen } = useCommandPalette()
-  openCalc = _openCalc
-  commandPaletteOpen.value = _commandPaletteOpen
-
-  authStore = useAuthStore()
-  appStore = useAppStore()
-  appTheme.value = appStore.tema
-}
 
 function onFocusIn(e) {
   const el = e.target
