@@ -216,14 +216,23 @@ function alElegirEnCalendario(fecha) {
    envolver el input en un contenedor y eso anularía las clases que cada
    pantalla usa para dar ancho y posición al campo dentro de su flex.
    El SVG lleva currentColor codificado como %23 para que el color siga al
-   texto y funcione igual en tema claro y oscuro. */
+   texto y funcione igual en tema claro y oscuro.
+
+   Todo con !important: ahora que el campo también hace match con la clase
+   propia de cada pantalla (.ivc-input, .drw-input…, ver el comentario sobre
+   scopeIdPadre más arriba), esa clase suele traer su propio "background:"
+   o "padding:" en forma abreviada — y una forma abreviada reinicia TODAS
+   las propiedades que no menciona, borrando el icono aunque nunca haya
+   tenido intención de tocarlo. El icono y su zona de clic son un contrato
+   de este componente, no algo que una clase ajena deba poder pisar sin
+   querer. */
 .cf-input {
-  padding-right: 32px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3' y='4.5' width='18' height='17' rx='2'/%3E%3Cpath d='M3 9.5h18M8 2.5v4M16 2.5v4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 9px center;
-  background-size: 17px 17px;
+  padding-right: 32px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3' y='4.5' width='18' height='17' rx='2'/%3E%3Cpath d='M3 9.5h18M8 2.5v4M16 2.5v4'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 9px center !important;
+  background-size: 17px 17px !important;
   cursor: text;
 }
-.cf-input:disabled { background-image: none; padding-right: 14px; }
+.cf-input:disabled { background-image: none !important; padding-right: 14px !important; }
 </style>
