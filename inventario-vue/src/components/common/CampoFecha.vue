@@ -23,6 +23,13 @@
 
   El calendario va en un v-menu, que Vuetify saca a su capa de overlay: no
   ocupa lugar en el flujo y por eso tampoco altera ningún layout.
+
+  Sobre cómo se abre ese calendario: el campo nativo lo abría al pulsar su
+  iconito, no al hacer clic en cualquier parte, porque el resto del campo es
+  para escribir. Aquí se respeta lo mismo — en el modo Vuetify con el icono
+  del propio componente, y en el modo pelado con un icono dibujado de fondo
+  cuya zona de clic se detecta por la posición del puntero. Así no hace falta
+  envolver el input en nada.
 -->
 <template>
   <v-text-field
@@ -32,10 +39,12 @@
     inputmode="numeric"
     autocomplete="off"
     placeholder="MM/DD/AAAA"
+    append-inner-icon="mdi-calendar"
     :model-value="texto"
     :disabled="disabled"
     v-bind="$attrs"
     @update:model-value="alEscribirTexto"
+    @click:append-inner="abrir = !abrir"
     @blur="alSalir"
     @keydown.down.prevent="abrir = true"
     @keydown.esc="abrir = false"
@@ -48,10 +57,12 @@
     inputmode="numeric"
     autocomplete="off"
     placeholder="MM/DD/AAAA"
+    class="cf-input"
     :value="texto"
     :disabled="disabled"
     v-bind="$attrs"
     @input="alEscribirInput"
+    @mousedown="quizasAbrir"
     @blur="alSalir"
     @keydown.down.prevent="abrir = true"
     @keydown.esc="abrir = false"
@@ -105,6 +116,22 @@ const texto   = ref(isoAUsuario(props.modelValue))
 // El menú se ancla al elemento real del campo, sea el <input> o la raíz del
 // v-text-field.
 const anclaMenu = computed(() => (esVuetify.value ? campoV.value?.$el : campo.value) || undefined)
+
+// Ancho de la zona del icono, en píxeles. Coincide con el padding derecho que
+// le pone el estilo de abajo.
+const ZONA_ICONO = 32
+
+// Solo abre el calendario si el clic cayó sobre el icono. En el resto del
+// campo el clic tiene que colocar el cursor para escribir, como en cualquier
+// caja de texto.
+function quizasAbrir(e) {
+  if (props.disabled) return
+  const el = e.currentTarget
+  if (e.offsetX >= el.clientWidth - ZONA_ICONO) {
+    e.preventDefault()          // que no se pierda el foco al abrir el menú
+    abrir.value = !abrir.value
+  }
+}
 
 // Si el valor cambia desde afuera (se carga un registro, se limpia un filtro),
 // el texto lo sigue. Mientras se escribe no se toca: reformatear a media
@@ -165,3 +192,20 @@ function alElegirEnCalendario(fecha) {
   abrir.value = false
 }
 </script>
+
+<style scoped>
+/* El icono va de fondo, no como elemento: agregar un <span> obligaría a
+   envolver el input en un contenedor y eso anularía las clases que cada
+   pantalla usa para dar ancho y posición al campo dentro de su flex.
+   El SVG lleva currentColor codificado como %23 para que el color siga al
+   texto y funcione igual en tema claro y oscuro. */
+.cf-input {
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3' y='4.5' width='18' height='17' rx='2'/%3E%3Cpath d='M3 9.5h18M8 2.5v4M16 2.5v4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 17px 17px;
+  cursor: text;
+}
+.cf-input:disabled { background-image: none; padding-right: 14px; }
+</style>
