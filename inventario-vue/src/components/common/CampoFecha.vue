@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, computed, useAttrs, watch } from 'vue'
+import { ref, computed, useAttrs, watch, getCurrentInstance, onMounted } from 'vue'
 import { isoAUsuario, usuarioAIso, enmascarar } from '../../utils/fechaUS.js'
 
 // Las clases y demás atributos deben caer sobre el campo, no sobre la raíz
@@ -112,6 +112,24 @@ const campo   = ref(null)
 const campoV  = ref(null)
 const abrir   = ref(false)
 const texto   = ref(isoAUsuario(props.modelValue))
+
+// El componente rinde el campo junto al v-menu del calendario, así que para
+// Vue son dos raíces (un fragmento). Vue solo copia el atributo de estilos
+// "scoped" del padre a la raíz cuando el hijo tiene una única raíz — con dos
+// nunca lo hace. Por eso las clases propias de cada pantalla (.ivc-input,
+// .drw-input, .rm-date…) se aplicaban al campo pero su selector, que exige
+// ese atributo, no encontraba con qué hacer match: el campo se quedaba sin
+// borde, sin fondo, sin nada de lo que esa clase define.
+// Vue sí deja ese atributo disponible en el vnode aunque no lo copie solo,
+// así que se copia a mano al elemento real del campo.
+const instancia    = getCurrentInstance()
+const scopeIdPadre = instancia?.vnode?.scopeId
+function aplicarScopeDelPadre() {
+  if (!scopeIdPadre) return
+  const el = esVuetify.value ? campoV.value?.$el : campo.value
+  if (el && !el.hasAttribute(scopeIdPadre)) el.setAttribute(scopeIdPadre, '')
+}
+onMounted(aplicarScopeDelPadre)
 
 // El menú se ancla al elemento real del campo, sea el <input> o la raíz del
 // v-text-field.
