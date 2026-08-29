@@ -21,7 +21,10 @@
 
         /* ── Lista de órdenes ──────────────────────────────────── */
         .filtro-fecha { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-        .filtro-fecha input[type=date] {
+        /* El campo pasa a type=text al convertirlo a MM/DD/AAAA (ver
+           campo-fecha.js), asi que hay que reconocerlo por su marca. */
+        .filtro-fecha input[type=date],
+        .filtro-fecha input[data-campo-fecha] {
             border: 1px solid var(--border-color);
             background: var(--bg-card);
             color: var(--text-primary);
@@ -967,6 +970,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
     <script src="iconos.js"></script>
     <script src="theme.js"></script>
+    <script src="campo-fecha.js"></script>
     <script src="header.js"></script>
     <script src="permisos.js"></script>
     <script src="almacen-despachos.js?v=20260825-ocultar2"></script>

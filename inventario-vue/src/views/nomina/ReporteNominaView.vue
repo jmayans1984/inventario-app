@@ -25,8 +25,10 @@
             <v-icon start>mdi-magnify</v-icon>Generar Reporte
           </v-btn>
           <v-spacer />
-          <v-btn v-if="kpis" variant="flat" color="secondary" rounded="lg" height="40" :loading="generandoPDF" @click="exportarPDF">
-            <v-icon start>mdi-file-pdf-box</v-icon>Exportar PDF
+          <v-btn v-if="kpis" variant="flat" color="secondary" rounded="lg" height="40"
+            :loading="generandoPDF" :disabled="pdfFila !== null" @click="exportarPDF"
+            title="Informe consolidado de todo el período filtrado">
+            <v-icon start>mdi-file-pdf-box</v-icon>Exportar todo el período
           </v-btn>
         </div>
       </div>
@@ -71,6 +73,7 @@
                 <th class="ta-r">APORTES ER</th>
                 <th class="ta-r">NETO</th>
                 <th class="ta-r">COSTO EMPRESA</th>
+                <th class="ta-c">PDF</th>
               </tr>
             </thead>
             <tbody>
@@ -85,6 +88,23 @@
                 <td class="ta-r font-mono text-warning">{{ fmt(r.total_aportes_er) }}</td>
                 <td class="ta-r font-mono text-success">{{ fmt(r.total_neto) }}</td>
                 <td class="ta-r font-mono text-purple">{{ fmt(r.costo_empresa) }}</td>
+                <td class="ta-c">
+                  <!-- Imprime SOLO esta nomina. Antes habia que estrechar el
+                       filtro de fechas hasta dejar una sola fila y recien
+                       entonces exportar. -->
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="x-small"
+                    color="secondary"
+                    :loading="pdfFila === r.id"
+                    :disabled="generandoPDF || (pdfFila !== null && pdfFila !== r.id)"
+                    :title="`PDF de la nómina del ${fmtFecha(r.semana_inicio)} al ${fmtFecha(r.semana_fin)}`"
+                    @click="exportarPDFNomina(r)"
+                  >
+                    <v-icon size="19">mdi-file-pdf-box</v-icon>
+                  </v-btn>
+                </td>
               </tr>
             </tbody>
             <tfoot>
@@ -96,6 +116,7 @@
                 <td class="ta-r font-mono text-warning">{{ fmt(kpis.total_aportes_er) }}</td>
                 <td class="ta-r font-mono text-success">{{ fmt(kpis.total_neto) }}</td>
                 <td class="ta-r font-mono text-purple">{{ fmt(kpis.costo_total_empresa) }}</td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
@@ -342,6 +363,19 @@ const getEmpresa = () => authStore.empresaCodigo || authStore.empresa || localSt
 
 const cargando = ref(false)
 const generandoPDF = ref(false)
+// Guarda el id de la nomina que se esta imprimiendo, para que gire solo el
+// boton de esa fila y no los de todas.
+const pdfFila = ref(null)
+
+// Dias que abarca un rango ISO. Se cuenta en UTC a proposito: con fechas
+// locales, un cambio de horario de verano dentro del rango deja un resultado
+// con decimales y el redondeo suma o resta un dia.
+function rangoDias(desde, hasta) {
+  if (!desde || !hasta) return 0
+  const [y1, m1, d1] = String(desde).split('T')[0].split('-').map(Number)
+  const [y2, m2, d2] = String(hasta).split('T')[0].split('-').map(Number)
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000) + 1
+}
 const kpis = ref(null)
 const datos = ref([])
 const vistaActiva = ref('periodo')
@@ -451,12 +485,39 @@ function fmtFecha(s) {
   return `${m}/${d}/${y}`
 }
 
+// Consolidado de todo el periodo filtrado.
 async function exportarPDF() {
   if (!kpis.value) return
   generandoPDF.value = true
   try {
+    await generarPDF(filtros.value.fechaInicio, filtros.value.fechaFin)
+  } finally {
+    generandoPDF.value = false
+  }
+}
+
+// Una sola nomina, la de la fila. Reusa el mismo generador acotando el rango
+// a esa semana: el informe sale con la estructura y los totales que el
+// usuario ya conoce, pero de una unica liquidacion.
+async function exportarPDFNomina(fila) {
+  if (!fila) return
+  pdfFila.value = fila.id
+  try {
+    await generarPDF(
+      String(fila.semana_inicio).split('T')[0],
+      String(fila.semana_fin).split('T')[0],
+    )
+  } finally {
+    pdfFila.value = null
+  }
+}
+
+async function generarPDF(fechaInicio, fechaFin) {
+  try {
     const empresa = getEmpresa()
-    const base = { empresa, fechaInicio: filtros.value.fechaInicio, fechaFin: filtros.value.fechaFin }
+    const base = { empresa, fechaInicio, fechaFin }
+    // Una liquidacion cabe en una semana; el consolidado abarca varias.
+    const esUnaNomina = rangoDias(fechaInicio, fechaFin) <= 7
 
     // Cargar todas las vistas en paralelo
     const [rPer, rMes, rEmp, rCc, rImp] = await Promise.all([
@@ -467,7 +528,9 @@ async function exportarPDF() {
       fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'impuestos' })}`).then(r => r.json()),
     ])
 
-    const k = kpis.value
+    // Los KPIs se toman de la respuesta, no del estado de la pantalla: al
+    // imprimir una sola fila el rango es otro y los de arriba no corresponden.
+    const k = rPer.kpis || kpis.value
     const periodo   = rPer.data   || []
     const meses     = agruparPorMes(rMes.data || [])
     const empleados = rEmp.data   || []
@@ -706,8 +769,10 @@ async function exportarPDF() {
       <title>Reporte de Nómina</title>
       <style>${css}</style></head>
       <body>
-        <h1>REPORTE DE NÓMINA</h1>
-        <div class="sub">Período: ${fmtFecha(filtros.value.fechaInicio)} — ${fmtFecha(filtros.value.fechaFin)}</div>
+        <h1>${esUnaNomina ? 'NÓMINA' : 'REPORTE DE NÓMINA'}</h1>
+        <div class="sub">${esUnaNomina
+          ? `Semana del ${fmtFecha(fechaInicio)} al ${fmtFecha(fechaFin)}`
+          : `Período: ${fmtFecha(fechaInicio)} — ${fmtFecha(fechaFin)}`}</div>
         ${kpiHTML}
         ${tPeriodo}
         ${tMeses}
@@ -722,9 +787,8 @@ async function exportarPDF() {
     win.document.close()
     win.focus()
   } catch (e) {
-    console.error(e)
-  } finally {
-    generandoPDF.value = false
+    console.error('Error generando el PDF de nómina:', e)
+    alert('No se pudo generar el PDF. Revisa la consola para el detalle.')
   }
 }
 
@@ -732,6 +796,9 @@ onMounted(cargar)
 </script>
 
 <style scoped>
+/* Columna del botón de PDF por fila */
+.ta-c { text-align: center; }
+
 .rn-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
 .rn-filters-card { background: rgb(var(--v-theme-surface)); border: 1px solid rgba(var(--v-theme-on-surface),.08); border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; }

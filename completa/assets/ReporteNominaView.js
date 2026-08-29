@@ -1,4 +1,4 @@
-import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S as l,Ur as u,Zr as d,_r as f,ei as p,fr as m,gr as h,hr as g,jr as _,kr as v,mr as y,pr as b,ur as x,vr as S,x as ee}from"./index.js";import{t as te}from"./MainLayout.js";import{t as ne}from"./PageHeader.js";import{t as C}from"./KpiCard.js";var re={class:`rn-container`},ie={class:`rn-filters-card`},ae={class:`rn-filters-row`},oe={class:`filter-group`},se={class:`filter-group`},ce={key:1,class:`kpi-grid`},le={key:2,class:`rn-tabs-card`},ue={class:`rn-tabs-header`},de=[`onClick`],fe={key:0,class:`rn-empty`},pe={key:1,class:`rn-table-wrap`},me={class:`rn-table`},he={class:`periodo-label`},ge={class:`periodo-sub`},_e={class:`ta-r`},ve={class:`ta-r font-mono`},w={class:`ta-r font-mono text-error`},T={class:`ta-r font-mono text-warning`},E={class:`ta-r font-mono text-success`},D={class:`ta-r font-mono text-purple`},O={class:`rn-tfoot`},k={class:`ta-r`},A={class:`ta-r font-mono`},j={class:`ta-r font-mono text-error`},M={class:`ta-r font-mono text-warning`},N={class:`ta-r font-mono text-success`},P={class:`ta-r font-mono text-purple`},F={key:2,class:`rn-table-wrap`},ye={class:`rn-nota`},be={class:`rn-table`},xe={class:`rn-mes-head`},Se={class:`mes-sub`},Ce={class:`ta-r font-mono`},we={class:`ta-r font-mono`},Te={class:`ta-r font-mono`},Ee={class:`ta-r font-mono text-error`},De={class:`ta-r font-mono text-warning`},Oe={class:`ta-r font-mono text-success`},ke={class:`ta-r font-mono text-purple`},Ae={class:`periodo-label`},je={key:0,class:`badge-partido`,title:`Esta nómina cruza dos meses: solo se muestra la parte que corresponde a este mes`},Me={class:`periodo-sub`},Ne={class:`ta-r font-mono`},Pe={class:`ta-r font-mono`},Fe={class:`ta-r font-mono`},Ie={class:`ta-r font-mono`},Le={class:`ta-r font-mono text-error`},Re={class:`ta-r font-mono text-warning`},ze={class:`ta-r font-mono text-success`},Be={class:`ta-r font-mono text-purple`},Ve={class:`rn-tfoot`},He={class:`ta-r font-mono`},Ue={class:`ta-r font-mono text-error`},We={class:`ta-r font-mono text-warning`},Ge={class:`ta-r font-mono text-success`},Ke={class:`ta-r font-mono text-purple`},qe={key:3,class:`rn-table-wrap`},Je={class:`rn-table`},Ye={class:`font-weight-medium`},Xe={class:`ta-c`},Ze={class:`ta-r`},Qe={class:`ta-r font-mono`},$e={class:`ta-r font-mono`},et={class:`ta-r font-mono`},tt={class:`ta-r font-mono text-error`},nt={class:`ta-r font-mono text-warning`},rt={class:`ta-r font-mono text-success`},it={class:`ta-r font-mono text-purple`},at={class:`rn-tfoot`},ot={class:`ta-r font-mono`},st={class:`ta-r font-mono text-error`},ct={class:`ta-r font-mono text-warning`},I={class:`ta-r font-mono text-success`},lt={class:`ta-r font-mono text-purple`},ut={key:4,class:`rn-table-wrap`},dt={class:`rn-table`},ft={class:`font-weight-medium`},pt={class:`ta-c text-caption font-mono`,style:{color:`rgba(var(--v-theme-on-surface),.5)`}},mt={class:`ta-r`},ht={class:`ta-r font-mono`},gt={class:`ta-r font-mono`},_t={class:`ta-r font-mono text-purple`},vt={class:`ta-r`},yt={class:`pct-bar-wrap`},bt={class:`pct-label`},xt={class:`rn-tfoot`},St={class:`ta-r font-mono`},Ct={class:`ta-r font-mono text-purple`},wt={key:5,class:`rn-table-wrap`},Tt={class:`rn-table`},Et={class:`periodo-label`},Dt={class:`periodo-sub`},Ot={class:`ta-r font-mono`},kt={class:`ta-r font-mono`},At={class:`ta-r font-mono`},jt={class:`ta-r font-mono`},Mt={class:`ta-r font-mono`},Nt={class:`ta-r font-mono`},Pt={class:`ta-r font-mono`},Ft={class:`ta-r font-mono`},It={class:`ta-r font-mono text-error font-weight-bold`},Lt={class:`rn-tfoot`},Rt={class:`ta-r font-mono`},zt={class:`ta-r font-mono`},Bt={class:`ta-r font-mono`},Vt={class:`ta-r font-mono`},Ht={class:`ta-r font-mono`},Ut={class:`ta-r font-mono`},Wt={class:`ta-r font-mono`},Gt={class:`ta-r font-mono`},Kt={class:`ta-r font-mono text-error font-weight-bold`},L=o({__name:`ReporteNominaView`,setup(o){let L=r(),R=()=>L.empresaCodigo||L.empresa||localStorage.getItem(`empresaActual`),z=u(!1),B=u(!1),V=u(null),H=u([]),U=u(`periodo`);u({periodo:[],empleado:[],ccosto:[],impuestos:[]});let W=new Date().getFullYear(),G=u({fechaInicio:`${W}-01-01`,fechaFin:`${W}-12-31`}),qt=[{val:`periodo`,label:`Por Período`,icon:`mdi-calendar-range-outline`},{val:`meses`,label:`Por Mes`,icon:`mdi-calendar-month-outline`},{val:`empleado`,label:`Por Empleado`,icon:`mdi-account-group-outline`},{val:`ccosto`,label:`Por Centro de Costo`,icon:`mdi-sitemap-outline`},{val:`impuestos`,label:`Impuestos y Taxes`,icon:`mdi-receipt-text-outline`}],Jt=[`Enero`,`Febrero`,`Marzo`,`Abril`,`Mayo`,`Junio`,`Julio`,`Agosto`,`Septiembre`,`Octubre`,`Noviembre`,`Diciembre`];function Yt(e){if(!e)return`—`;let[t,n]=String(e).split(`-`);return`${Jt[parseInt(n,10)-1]||n} ${t}`}let K=[`total_bruto`,`total_deducciones`,`total_aportes_er`,`total_neto`,`costo_empresa`];function q(e){let t=new Map;for(let n of e){t.has(n.mes)||t.set(n.mes,{mes:n.mes,nombre:Yt(n.mes),filas:[],totales:Object.fromEntries(K.map(e=>[e,0])),dias:0,horas:0});let e=t.get(n.mes);e.filas.push(n);for(let t of K)e.totales[t]+=parseFloat(n[t]||0);e.dias+=parseFloat(n.dias_en_mes||0),e.horas+=parseFloat(n.horas_en_mes||0)}return[...t.values()]}let Xt=m(()=>q(H.value)),Zt=m(()=>H.value.reduce((e,t)=>e+parseFloat(t.costo_bruto||0),0)),J=m(()=>H.value.reduce((e,t)=>e+parseFloat(t.costo_total||0),0));function Y(e){let t=J.value;return t>0?parseFloat(e)/t*100:0}async function X(){z.value=!0;try{let e=R(),t=new URLSearchParams({empresa:e,fechaInicio:G.value.fechaInicio,fechaFin:G.value.fechaFin,vista:U.value}),n=await(await fetch(`${i}/nomina/reporte?${t}`)).json();if(!n.success)throw Error(n.error);V.value=n.kpis,H.value=n.data||[]}catch(e){console.error(e)}finally{z.value=!1}}async function Qt(e){U.value=e,await X()}function Z(e){return`$`+(parseFloat(e)||0).toLocaleString(`en-US`,{minimumFractionDigits:2,maximumFractionDigits:2})}function Q(e){return(parseFloat(e)||0).toLocaleString(`en-US`,{minimumFractionDigits:2,maximumFractionDigits:2})}function $(e){if(!e)return`—`;let[t,n,r]=String(e).split(`T`)[0].split(`-`);return`${n}/${r}/${t}`}async function $t(){if(V.value){B.value=!0;try{let e={empresa:R(),fechaInicio:G.value.fechaInicio,fechaFin:G.value.fechaFin},[t,n,r,a,o]=await Promise.all([fetch(`${i}/nomina/reporte?${new URLSearchParams({...e,vista:`periodo`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...e,vista:`meses`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...e,vista:`empleado`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...e,vista:`ccosto`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...e,vista:`impuestos`})}`).then(e=>e.json())]),s=V.value,c=t.data||[],l=q(n.data||[]),u=r.data||[],d=a.data||[],f=o.data||[],p=d.reduce((e,t)=>e+parseFloat(t.costo_bruto||0),0),m=d.reduce((e,t)=>e+parseFloat(t.costo_total||0),0);f.reduce((e,t)=>e+parseFloat(t.total_impuestos||0),0);let h=`
+import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S as l,Ur as u,Zr as d,_r as f,ei as p,fr as m,gr as h,hr as g,jr as _,kr as v,mr as y,pr as b,ur as x,vr as S,x as C}from"./index.js";import{t as w}from"./MainLayout.js";import{t as T}from"./PageHeader.js";import{t as E}from"./KpiCard.js";var ee={class:`rn-container`},te={class:`rn-filters-card`},ne={class:`rn-filters-row`},re={class:`filter-group`},ie={class:`filter-group`},ae={key:1,class:`kpi-grid`},oe={key:2,class:`rn-tabs-card`},se={class:`rn-tabs-header`},ce=[`onClick`],le={key:0,class:`rn-empty`},ue={key:1,class:`rn-table-wrap`},de={class:`rn-table`},fe={class:`periodo-label`},pe={class:`periodo-sub`},me={class:`ta-r`},he={class:`ta-r font-mono`},ge={class:`ta-r font-mono text-error`},_e={class:`ta-r font-mono text-warning`},ve={class:`ta-r font-mono text-success`},ye={class:`ta-r font-mono text-purple`},be={class:`ta-c`},D={class:`rn-tfoot`},O={class:`ta-r`},k={class:`ta-r font-mono`},A={class:`ta-r font-mono text-error`},j={class:`ta-r font-mono text-warning`},M={class:`ta-r font-mono text-success`},N={class:`ta-r font-mono text-purple`},xe={key:2,class:`rn-table-wrap`},Se={class:`rn-nota`},Ce={class:`rn-table`},we={class:`rn-mes-head`},Te={class:`mes-sub`},Ee={class:`ta-r font-mono`},De={class:`ta-r font-mono`},Oe={class:`ta-r font-mono`},ke={class:`ta-r font-mono text-error`},Ae={class:`ta-r font-mono text-warning`},je={class:`ta-r font-mono text-success`},Me={class:`ta-r font-mono text-purple`},Ne={class:`periodo-label`},Pe={key:0,class:`badge-partido`,title:`Esta nómina cruza dos meses: solo se muestra la parte que corresponde a este mes`},Fe={class:`periodo-sub`},Ie={class:`ta-r font-mono`},Le={class:`ta-r font-mono`},Re={class:`ta-r font-mono`},ze={class:`ta-r font-mono`},Be={class:`ta-r font-mono text-error`},Ve={class:`ta-r font-mono text-warning`},He={class:`ta-r font-mono text-success`},Ue={class:`ta-r font-mono text-purple`},We={class:`rn-tfoot`},Ge={class:`ta-r font-mono`},Ke={class:`ta-r font-mono text-error`},qe={class:`ta-r font-mono text-warning`},Je={class:`ta-r font-mono text-success`},Ye={class:`ta-r font-mono text-purple`},Xe={key:3,class:`rn-table-wrap`},Ze={class:`rn-table`},Qe={class:`font-weight-medium`},$e={class:`ta-c`},et={class:`ta-r`},tt={class:`ta-r font-mono`},nt={class:`ta-r font-mono`},rt={class:`ta-r font-mono`},it={class:`ta-r font-mono text-error`},at={class:`ta-r font-mono text-warning`},ot={class:`ta-r font-mono text-success`},st={class:`ta-r font-mono text-purple`},ct={class:`rn-tfoot`},lt={class:`ta-r font-mono`},ut={class:`ta-r font-mono text-error`},dt={class:`ta-r font-mono text-warning`},ft={class:`ta-r font-mono text-success`},pt={class:`ta-r font-mono text-purple`},mt={key:4,class:`rn-table-wrap`},ht={class:`rn-table`},gt={class:`font-weight-medium`},_t={class:`ta-c text-caption font-mono`,style:{color:`rgba(var(--v-theme-on-surface),.5)`}},vt={class:`ta-r`},yt={class:`ta-r font-mono`},bt={class:`ta-r font-mono`},xt={class:`ta-r font-mono text-purple`},P={class:`ta-r`},St={class:`pct-bar-wrap`},Ct={class:`pct-label`},wt={class:`rn-tfoot`},Tt={class:`ta-r font-mono`},Et={class:`ta-r font-mono text-purple`},Dt={key:5,class:`rn-table-wrap`},Ot={class:`rn-table`},kt={class:`periodo-label`},At={class:`periodo-sub`},jt={class:`ta-r font-mono`},Mt={class:`ta-r font-mono`},Nt={class:`ta-r font-mono`},Pt={class:`ta-r font-mono`},Ft={class:`ta-r font-mono`},It={class:`ta-r font-mono`},Lt={class:`ta-r font-mono`},Rt={class:`ta-r font-mono`},zt={class:`ta-r font-mono text-error font-weight-bold`},Bt={class:`rn-tfoot`},Vt={class:`ta-r font-mono`},Ht={class:`ta-r font-mono`},Ut={class:`ta-r font-mono`},Wt={class:`ta-r font-mono`},Gt={class:`ta-r font-mono`},Kt={class:`ta-r font-mono`},qt={class:`ta-r font-mono`},Jt={class:`ta-r font-mono`},Yt={class:`ta-r font-mono text-error font-weight-bold`},F=o({__name:`ReporteNominaView`,setup(o){let F=r(),I=()=>F.empresaCodigo||F.empresa||localStorage.getItem(`empresaActual`),L=u(!1),R=u(!1),z=u(null);function Xt(e,t){if(!e||!t)return 0;let[n,r,i]=String(e).split(`T`)[0].split(`-`).map(Number),[a,o,s]=String(t).split(`T`)[0].split(`-`).map(Number);return Math.round((Date.UTC(a,o-1,s)-Date.UTC(n,r-1,i))/864e5)+1}let B=u(null),V=u([]),H=u(`periodo`);u({periodo:[],empleado:[],ccosto:[],impuestos:[]});let U=new Date().getFullYear(),W=u({fechaInicio:`${U}-01-01`,fechaFin:`${U}-12-31`}),Zt=[{val:`periodo`,label:`Por Período`,icon:`mdi-calendar-range-outline`},{val:`meses`,label:`Por Mes`,icon:`mdi-calendar-month-outline`},{val:`empleado`,label:`Por Empleado`,icon:`mdi-account-group-outline`},{val:`ccosto`,label:`Por Centro de Costo`,icon:`mdi-sitemap-outline`},{val:`impuestos`,label:`Impuestos y Taxes`,icon:`mdi-receipt-text-outline`}],Qt=[`Enero`,`Febrero`,`Marzo`,`Abril`,`Mayo`,`Junio`,`Julio`,`Agosto`,`Septiembre`,`Octubre`,`Noviembre`,`Diciembre`];function $t(e){if(!e)return`—`;let[t,n]=String(e).split(`-`);return`${Qt[parseInt(n,10)-1]||n} ${t}`}let G=[`total_bruto`,`total_deducciones`,`total_aportes_er`,`total_neto`,`costo_empresa`];function K(e){let t=new Map;for(let n of e){t.has(n.mes)||t.set(n.mes,{mes:n.mes,nombre:$t(n.mes),filas:[],totales:Object.fromEntries(G.map(e=>[e,0])),dias:0,horas:0});let e=t.get(n.mes);e.filas.push(n);for(let t of G)e.totales[t]+=parseFloat(n[t]||0);e.dias+=parseFloat(n.dias_en_mes||0),e.horas+=parseFloat(n.horas_en_mes||0)}return[...t.values()]}let en=m(()=>K(V.value)),tn=m(()=>V.value.reduce((e,t)=>e+parseFloat(t.costo_bruto||0),0)),q=m(()=>V.value.reduce((e,t)=>e+parseFloat(t.costo_total||0),0));function J(e){let t=q.value;return t>0?parseFloat(e)/t*100:0}async function Y(){L.value=!0;try{let e=I(),t=new URLSearchParams({empresa:e,fechaInicio:W.value.fechaInicio,fechaFin:W.value.fechaFin,vista:H.value}),n=await(await fetch(`${i}/nomina/reporte?${t}`)).json();if(!n.success)throw Error(n.error);B.value=n.kpis,V.value=n.data||[]}catch(e){console.error(e)}finally{L.value=!1}}async function nn(e){H.value=e,await Y()}function X(e){return`$`+(parseFloat(e)||0).toLocaleString(`en-US`,{minimumFractionDigits:2,maximumFractionDigits:2})}function Z(e){return(parseFloat(e)||0).toLocaleString(`en-US`,{minimumFractionDigits:2,maximumFractionDigits:2})}function Q(e){if(!e)return`—`;let[t,n,r]=String(e).split(`T`)[0].split(`-`);return`${n}/${r}/${t}`}async function rn(){if(B.value){R.value=!0;try{await $(W.value.fechaInicio,W.value.fechaFin)}finally{R.value=!1}}}async function an(e){if(e){z.value=e.id;try{await $(String(e.semana_inicio).split(`T`)[0],String(e.semana_fin).split(`T`)[0])}finally{z.value=null}}}async function $(e,t){try{let n={empresa:I(),fechaInicio:e,fechaFin:t},r=Xt(e,t)<=7,[a,o,s,c,l]=await Promise.all([fetch(`${i}/nomina/reporte?${new URLSearchParams({...n,vista:`periodo`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...n,vista:`meses`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...n,vista:`empleado`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...n,vista:`ccosto`})}`).then(e=>e.json()),fetch(`${i}/nomina/reporte?${new URLSearchParams({...n,vista:`impuestos`})}`).then(e=>e.json())]),u=a.kpis||B.value,d=a.data||[],f=K(o.data||[]),p=s.data||[],m=c.data||[],h=l.data||[],g=m.reduce((e,t)=>e+parseFloat(t.costo_bruto||0),0),_=m.reduce((e,t)=>e+parseFloat(t.costo_total||0),0);h.reduce((e,t)=>e+parseFloat(t.total_impuestos||0),0);let v=`
       <div class="section">
         <div class="section-title">Por Período</div>
         <table>
@@ -6,26 +6,26 @@ import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S a
             <th>PERÍODO</th><th>EMPL.</th><th>BRUTO</th><th>DEDUCCIONES</th><th>APORTES ER</th><th>NETO</th><th>COSTO EMPRESA</th>
           </tr></thead>
           <tbody>
-            ${c.map(e=>`<tr>
-              <td>${$(e.semana_inicio)} — ${$(e.semana_fin)}</td>
+            ${d.map(e=>`<tr>
+              <td>${Q(e.semana_inicio)} — ${Q(e.semana_fin)}</td>
               <td>${e.empleados}</td>
-              <td>${Z(e.total_bruto)}</td>
-              <td class="text-red">${Z(e.total_deducciones)}</td>
-              <td class="text-amber">${Z(e.total_aportes_er)}</td>
-              <td class="text-green">${Z(e.total_neto)}</td>
-              <td class="text-purple">${Z(e.costo_empresa)}</td>
+              <td>${X(e.total_bruto)}</td>
+              <td class="text-red">${X(e.total_deducciones)}</td>
+              <td class="text-amber">${X(e.total_aportes_er)}</td>
+              <td class="text-green">${X(e.total_neto)}</td>
+              <td class="text-purple">${X(e.costo_empresa)}</td>
             </tr>`).join(``)}
           </tbody>
           <tfoot><tr class="tfoot">
-            <td>TOTAL</td><td>${s.total_empleados}</td>
-            <td>${Z(s.total_bruto)}</td>
-            <td class="text-red">${Z(s.total_deducciones)}</td>
-            <td class="text-amber">${Z(s.total_aportes_er)}</td>
-            <td class="text-green">${Z(s.total_neto)}</td>
-            <td class="text-purple">${Z(s.costo_total_empresa)}</td>
+            <td>TOTAL</td><td>${u.total_empleados}</td>
+            <td>${X(u.total_bruto)}</td>
+            <td class="text-red">${X(u.total_deducciones)}</td>
+            <td class="text-amber">${X(u.total_aportes_er)}</td>
+            <td class="text-green">${X(u.total_neto)}</td>
+            <td class="text-purple">${X(u.costo_total_empresa)}</td>
           </tr></tfoot>
         </table>
-      </div>`,g=`
+      </div>`,y=`
       <div class="section">
         <div class="section-title">Reparto por Mes</div>
         <div class="nota">Las nóminas que cruzan dos meses se reparten según las horas trabajadas en cada mes; si no hay horario cargado, por días calendario.</div>
@@ -34,44 +34,44 @@ import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S a
             <th>MES / NÓMINA</th><th>DÍAS</th><th>HORAS</th><th>% NÓM.</th><th>BRUTO</th><th>DEDUCCIONES</th><th>APORTES ER</th><th>NETO</th><th>COSTO EMPRESA</th>
           </tr></thead>
           <tbody>
-            ${l.map(e=>`
+            ${f.map(e=>`
               <tr class="mes-head">
                 <td>${e.nombre} <span style="font-weight:400;color:#9ca3af">(${e.filas.length} nómina${e.filas.length===1?``:`s`})</span></td>
                 <td>${e.dias}</td>
-                <td>${Q(e.horas)}</td>
+                <td>${Z(e.horas)}</td>
                 <td>—</td>
-                <td>${Z(e.totales.total_bruto)}</td>
-                <td class="text-red">${Z(e.totales.total_deducciones)}</td>
-                <td class="text-amber">${Z(e.totales.total_aportes_er)}</td>
-                <td class="text-green">${Z(e.totales.total_neto)}</td>
-                <td class="text-purple">${Z(e.totales.costo_empresa)}</td>
+                <td>${X(e.totales.total_bruto)}</td>
+                <td class="text-red">${X(e.totales.total_deducciones)}</td>
+                <td class="text-amber">${X(e.totales.total_aportes_er)}</td>
+                <td class="text-green">${X(e.totales.total_neto)}</td>
+                <td class="text-purple">${X(e.totales.costo_empresa)}</td>
               </tr>
               ${e.filas.map(e=>`<tr>
                 <td style="padding-left:24px">
-                  ${$(e.semana_inicio)} — ${$(e.semana_fin)}
+                  ${Q(e.semana_inicio)} — ${Q(e.semana_fin)}
                   ${e.periodo_partido?`<span class="badge parcial">PARCIAL</span>`:``}
                 </td>
                 <td>${e.dias_en_mes}</td>
-                <td>${Q(e.horas_en_mes)}</td>
-                <td>${Q(e.porcentaje)}%</td>
-                <td>${Z(e.total_bruto)}</td>
-                <td class="text-red">${Z(e.total_deducciones)}</td>
-                <td class="text-amber">${Z(e.total_aportes_er)}</td>
-                <td class="text-green">${Z(e.total_neto)}</td>
-                <td class="text-purple">${Z(e.costo_empresa)}</td>
+                <td>${Z(e.horas_en_mes)}</td>
+                <td>${Z(e.porcentaje)}%</td>
+                <td>${X(e.total_bruto)}</td>
+                <td class="text-red">${X(e.total_deducciones)}</td>
+                <td class="text-amber">${X(e.total_aportes_er)}</td>
+                <td class="text-green">${X(e.total_neto)}</td>
+                <td class="text-purple">${X(e.costo_empresa)}</td>
               </tr>`).join(``)}
             `).join(``)}
           </tbody>
           <tfoot><tr class="tfoot">
             <td colspan="4">TOTAL</td>
-            <td>${Z(s.total_bruto)}</td>
-            <td class="text-red">${Z(s.total_deducciones)}</td>
-            <td class="text-amber">${Z(s.total_aportes_er)}</td>
-            <td class="text-green">${Z(s.total_neto)}</td>
-            <td class="text-purple">${Z(s.costo_total_empresa)}</td>
+            <td>${X(u.total_bruto)}</td>
+            <td class="text-red">${X(u.total_deducciones)}</td>
+            <td class="text-amber">${X(u.total_aportes_er)}</td>
+            <td class="text-green">${X(u.total_neto)}</td>
+            <td class="text-purple">${X(u.costo_total_empresa)}</td>
           </tr></tfoot>
         </table>
-      </div>`,_=`
+      </div>`,b=`
       <div class="section">
         <div class="section-title">Por Empleado</div>
         <table>
@@ -79,29 +79,29 @@ import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S a
             <th>EMPLEADO</th><th>TIPO</th><th>NÓM.</th><th>HRS REG</th><th>HRS OT</th><th>BRUTO</th><th>DEDUCCIONES</th><th>APORTES ER</th><th>NETO</th><th>COSTO EMP.</th>
           </tr></thead>
           <tbody>
-            ${u.map(e=>`<tr>
+            ${p.map(e=>`<tr>
               <td>${e.nombre||`—`}</td>
               <td><span class="badge ${e.tipo_empleado===`W2`?`w2`:`c1099`}">${e.tipo_empleado||`—`}</span></td>
               <td>${e.total_nominas}</td>
-              <td>${Q(e.horas_regulares)}</td>
-              <td>${Q(e.horas_overtime)}</td>
-              <td>${Z(e.total_bruto)}</td>
-              <td class="text-red">${Z(e.total_deducciones)}</td>
-              <td class="text-amber">${Z(e.total_aportes_er)}</td>
-              <td class="text-green">${Z(e.total_neto)}</td>
-              <td class="text-purple">${Z(e.costo_empresa)}</td>
+              <td>${Z(e.horas_regulares)}</td>
+              <td>${Z(e.horas_overtime)}</td>
+              <td>${X(e.total_bruto)}</td>
+              <td class="text-red">${X(e.total_deducciones)}</td>
+              <td class="text-amber">${X(e.total_aportes_er)}</td>
+              <td class="text-green">${X(e.total_neto)}</td>
+              <td class="text-purple">${X(e.costo_empresa)}</td>
             </tr>`).join(``)}
           </tbody>
           <tfoot><tr class="tfoot">
             <td colspan="5">TOTAL</td>
-            <td>${Z(s.total_bruto)}</td>
-            <td class="text-red">${Z(s.total_deducciones)}</td>
-            <td class="text-amber">${Z(s.total_aportes_er)}</td>
-            <td class="text-green">${Z(s.total_neto)}</td>
-            <td class="text-purple">${Z(s.costo_total_empresa)}</td>
+            <td>${X(u.total_bruto)}</td>
+            <td class="text-red">${X(u.total_deducciones)}</td>
+            <td class="text-amber">${X(u.total_aportes_er)}</td>
+            <td class="text-green">${X(u.total_neto)}</td>
+            <td class="text-purple">${X(u.costo_total_empresa)}</td>
           </tr></tfoot>
         </table>
-      </div>`,v=`
+      </div>`,x=`
       <div class="section">
         <div class="section-title">Por Centro de Costo</div>
         <table>
@@ -109,24 +109,24 @@ import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S a
             <th>CENTRO DE COSTO</th><th>CÓD.</th><th>EMPL.</th><th>HORAS</th><th>COSTO BRUTO</th><th>COSTO TOTAL</th><th>% DEL TOTAL</th>
           </tr></thead>
           <tbody>
-            ${d.map(e=>{let t=m>0?(parseFloat(e.costo_total)/m*100).toFixed(1):`0.0`,n=Math.max(2,Math.round(parseFloat(t)));return`<tr>
+            ${m.map(e=>{let t=_>0?(parseFloat(e.costo_total)/_*100).toFixed(1):`0.0`,n=Math.max(2,Math.round(parseFloat(t)));return`<tr>
                 <td>${e.ccosto_nombre}</td>
                 <td>${e.ccosto}</td>
                 <td>${e.empleados}</td>
-                <td>${Q(e.horas)}</td>
-                <td>${Z(e.costo_bruto)}</td>
-                <td class="text-purple">${Z(e.costo_total)}</td>
+                <td>${Z(e.horas)}</td>
+                <td>${X(e.costo_bruto)}</td>
+                <td class="text-purple">${X(e.costo_total)}</td>
                 <td><span class="pct-bar" style="width:${n}px"></span> ${t}%</td>
               </tr>`}).join(``)}
           </tbody>
           <tfoot><tr class="tfoot">
             <td colspan="4">TOTAL</td>
-            <td>${Z(p)}</td>
-            <td class="text-purple">${Z(m)}</td>
+            <td>${X(g)}</td>
+            <td class="text-purple">${X(_)}</td>
             <td>100%</td>
           </tr></tfoot>
         </table>
-      </div>`,y=`
+      </div>`,S=`
       <div class="section">
         <div class="section-title">Impuestos y Taxes</div>
         <table>
@@ -134,41 +134,41 @@ import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S a
             <th>PERÍODO</th><th>FED.INC.TAX</th><th>SS EMP.</th><th>SS ER</th><th>MED.EMP.</th><th>MED.ER</th><th>FUTA</th><th>SUTA</th><th>W.COMP</th><th class="text-red">TOTAL IMP.</th>
           </tr></thead>
           <tbody>
-            ${f.map(e=>`<tr>
-              <td>${$(e.semana_inicio)} — ${$(e.semana_fin)}</td>
-              <td>${Z(e.federal_income_tax)}</td>
-              <td>${Z(e.ss_emp)}</td>
-              <td>${Z(e.ss_er)}</td>
-              <td>${Z(e.medicare_emp)}</td>
-              <td>${Z(e.medicare_er)}</td>
-              <td>${Z(e.futa)}</td>
-              <td>${Z(e.suta)}</td>
-              <td>${Z(e.workers_comp)}</td>
-              <td class="text-red" style="font-weight:700">${Z(e.total_impuestos)}</td>
+            ${h.map(e=>`<tr>
+              <td>${Q(e.semana_inicio)} — ${Q(e.semana_fin)}</td>
+              <td>${X(e.federal_income_tax)}</td>
+              <td>${X(e.ss_emp)}</td>
+              <td>${X(e.ss_er)}</td>
+              <td>${X(e.medicare_emp)}</td>
+              <td>${X(e.medicare_er)}</td>
+              <td>${X(e.futa)}</td>
+              <td>${X(e.suta)}</td>
+              <td>${X(e.workers_comp)}</td>
+              <td class="text-red" style="font-weight:700">${X(e.total_impuestos)}</td>
             </tr>`).join(``)}
           </tbody>
           <tfoot><tr class="tfoot">
             <td>TOTAL</td>
-            <td>${Z(s.federal_income_tax)}</td>
-            <td>${Z(s.social_security_emp)}</td>
-            <td>${Z(s.social_security_er)}</td>
-            <td>${Z(s.medicare_emp)}</td>
-            <td>${Z(s.medicare_er)}</td>
-            <td>${Z(s.futa)}</td>
-            <td>${Z(s.suta)}</td>
-            <td>${Z(s.workers_comp)}</td>
-            <td class="text-red">${Z(+s.federal_income_tax+ +s.social_security_emp+ +s.social_security_er+ +s.medicare_emp+ +s.medicare_er+ +s.futa+ +s.suta+ +s.workers_comp)}</td>
+            <td>${X(u.federal_income_tax)}</td>
+            <td>${X(u.social_security_emp)}</td>
+            <td>${X(u.social_security_er)}</td>
+            <td>${X(u.medicare_emp)}</td>
+            <td>${X(u.medicare_er)}</td>
+            <td>${X(u.futa)}</td>
+            <td>${X(u.suta)}</td>
+            <td>${X(u.workers_comp)}</td>
+            <td class="text-red">${X(+u.federal_income_tax+ +u.social_security_emp+ +u.social_security_er+ +u.medicare_emp+ +u.medicare_er+ +u.futa+ +u.suta+ +u.workers_comp)}</td>
           </tr></tfoot>
         </table>
-      </div>`,b=`
+      </div>`,C=`
       <div class="kpi-row">
-        <div class="kpi"><div class="kpi-lbl">BRUTO PAGADO</div><div class="kpi-val">${Z(s.total_bruto)}</div></div>
-        <div class="kpi"><div class="kpi-lbl">DEDUCCIONES EMP.</div><div class="kpi-val text-red">${Z(s.total_deducciones)}</div></div>
-        <div class="kpi"><div class="kpi-lbl">NETO PAGADO</div><div class="kpi-val text-green">${Z(s.total_neto)}</div></div>
-        <div class="kpi"><div class="kpi-lbl">APORTES EMPLEADOR</div><div class="kpi-val text-amber">${Z(s.total_aportes_er)}</div></div>
-        <div class="kpi"><div class="kpi-lbl">COSTO TOTAL EMPRESA</div><div class="kpi-val text-purple">${Z(s.costo_total_empresa)}</div></div>
-        <div class="kpi"><div class="kpi-lbl">NÓMINAS / EMPLEADOS</div><div class="kpi-val">${s.total_nominas} / ${s.total_empleados}</div></div>
-      </div>`,x=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+        <div class="kpi"><div class="kpi-lbl">BRUTO PAGADO</div><div class="kpi-val">${X(u.total_bruto)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">DEDUCCIONES EMP.</div><div class="kpi-val text-red">${X(u.total_deducciones)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">NETO PAGADO</div><div class="kpi-val text-green">${X(u.total_neto)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">APORTES EMPLEADOR</div><div class="kpi-val text-amber">${X(u.total_aportes_er)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">COSTO TOTAL EMPRESA</div><div class="kpi-val text-purple">${X(u.costo_total_empresa)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">NÓMINAS / EMPLEADOS</div><div class="kpi-val">${u.total_nominas} / ${u.total_empleados}</div></div>
+      </div>`,w=`<!DOCTYPE html><html><head><meta charset="UTF-8">
       <title>Reporte de Nómina</title>
       <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -203,12 +203,12 @@ import{$r as e,A as t,Dr as n,Ft as r,It as i,Lr as a,Mt as o,Nr as s,Q as c,S a
       @media print { body { padding: 12px; } }
     </style></head>
       <body>
-        <h1>REPORTE DE NÓMINA</h1>
-        <div class="sub">Período: ${$(G.value.fechaInicio)} — ${$(G.value.fechaFin)}</div>
-        ${b}
-        ${h}
-        ${g}
-        ${_}
+        <h1>${r?`NÓMINA`:`REPORTE DE NÓMINA`}</h1>
+        <div class="sub">${r?`Semana del ${Q(e)} al ${Q(t)}`:`Período: ${Q(e)} — ${Q(t)}`}</div>
+        ${C}
         ${v}
         ${y}
-      </body></html>`,S=window.open(``,`_blank`);if(!S){alert(`Activa los pop-ups para generar el PDF`);return}S.document.write(x),S.document.close(),S.focus()}catch(e){console.error(e)}finally{B.value=!1}}}return n(X),(n,r)=>{let i=s(`CampoFecha`);return v(),y(te,null,{default:a(()=>[b(`div`,re,[S(ne,{title:`Reporte de Nómina`,description:`Análisis de costos por período, empleado, centro de costo e impuestos`,crumbs:[`Nómina`,`Reportes`,`Reporte de Nómina`]}),b(`div`,ie,[b(`div`,ae,[b(`div`,oe,[r[2]||=b(`div`,{class:`filter-label`},`FECHA INICIO`,-1),S(i,{modelValue:G.value.fechaInicio,"onUpdate:modelValue":r[0]||=e=>G.value.fechaInicio=e,variant:`outlined`,density:`compact`,"hide-details":``,style:{"min-width":`160px`}},null,8,[`modelValue`])]),b(`div`,se,[r[3]||=b(`div`,{class:`filter-label`},`FECHA FIN`,-1),S(i,{modelValue:G.value.fechaFin,"onUpdate:modelValue":r[1]||=e=>G.value.fechaFin=e,variant:`outlined`,density:`compact`,"hide-details":``,style:{"min-width":`160px`}},null,8,[`modelValue`])]),S(l,{color:`secondary`,variant:`flat`,rounded:`lg`,loading:z.value,onClick:X,height:`40`},{default:a(()=>[S(c,{start:``},{default:a(()=>[...r[4]||=[f(`mdi-magnify`,-1)]]),_:1}),r[5]||=f(`Generar Reporte `,-1)]),_:1},8,[`loading`]),S(ee),V.value?(v(),y(l,{key:0,variant:`flat`,color:`secondary`,rounded:`lg`,height:`40`,loading:B.value,onClick:$t},{default:a(()=>[S(c,{start:``},{default:a(()=>[...r[6]||=[f(`mdi-file-pdf-box`,-1)]]),_:1}),r[7]||=f(`Exportar PDF `,-1)]),_:1},8,[`loading`])):g(``,!0)])]),z.value?(v(),y(t,{key:0,indeterminate:``,color:`secondary`,height:`3`,class:`mb-4`})):g(``,!0),V.value?(v(),h(`div`,ce,[S(C,{index:0,label:`Bruto Pagado`,value:Z(V.value.total_bruto),icon:`mdi-cash-multiple`,color:`var(--indigo)`},null,8,[`value`]),S(C,{index:1,label:`Deducciones Emp.`,value:Z(V.value.total_deducciones),icon:`mdi-minus-circle-outline`,color:`var(--error)`,"value-color":`var(--error)`},null,8,[`value`]),S(C,{index:2,label:`Neto Pagado`,value:Z(V.value.total_neto),icon:`mdi-bank-transfer-out`,color:`var(--success)`,"value-color":`var(--success)`},null,8,[`value`]),S(C,{index:3,label:`Aportes Empleador`,value:Z(V.value.total_aportes_er),icon:`mdi-office-building-outline`,color:`var(--gold)`,"value-color":`var(--gold)`},null,8,[`value`]),S(C,{index:4,label:`Costo Total Empresa`,value:Z(V.value.costo_total_empresa),icon:`mdi-domain`,color:`var(--indigo)`,"value-color":`var(--indigo)`},null,8,[`value`]),S(C,{index:5,label:`Nóminas / Empleados`,value:`${V.value.total_nominas} / ${V.value.total_empleados}`,icon:`mdi-account-group-outline`,color:`var(--indigo)`,"value-color":`var(--indigo)`},null,8,[`value`])])):g(``,!0),V.value||H.value.length?(v(),h(`div`,le,[b(`div`,ue,[(v(),h(x,null,_(qt,e=>b(`button`,{key:e.val,class:d([`rn-tab`,{"rn-tab--active":U.value===e.val}]),onClick:t=>Qt(e.val)},[S(c,{size:`15`,class:`mr-1`},{default:a(()=>[f(p(e.icon),1)]),_:2},1024),f(p(e.label),1)],10,de)),64))]),!z.value&&H.value.length===0?(v(),h(`div`,fe,[S(c,{size:`40`,color:`rgba(var(--v-theme-on-surface),.15)`,class:`mb-2`},{default:a(()=>[...r[8]||=[f(`mdi-file-search-outline`,-1)]]),_:1}),r[9]||=b(`div`,null,`No hay nóminas aprobadas en el período seleccionado`,-1)])):U.value===`periodo`&&H.value.length?(v(),h(`div`,pe,[b(`table`,me,[r[11]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`PERÍODO`),b(`th`,{class:`ta-r`},`EMPLEADOS`),b(`th`,{class:`ta-r`},`BRUTO`),b(`th`,{class:`ta-r`},`DEDUCCIONES`),b(`th`,{class:`ta-r`},`APORTES ER`),b(`th`,{class:`ta-r`},`NETO`),b(`th`,{class:`ta-r`},`COSTO EMPRESA`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(H.value,e=>(v(),h(`tr`,{key:e.id},[b(`td`,null,[b(`div`,he,p($(e.semana_inicio)),1),b(`div`,ge,`al `+p($(e.semana_fin)),1)]),b(`td`,_e,p(e.empleados),1),b(`td`,ve,p(Z(e.total_bruto)),1),b(`td`,w,p(Z(e.total_deducciones)),1),b(`td`,T,p(Z(e.total_aportes_er)),1),b(`td`,E,p(Z(e.total_neto)),1),b(`td`,D,p(Z(e.costo_empresa)),1)]))),128))]),b(`tfoot`,null,[b(`tr`,O,[r[10]||=b(`td`,null,[b(`strong`,null,`TOTAL`)],-1),b(`td`,k,p(V.value.total_empleados),1),b(`td`,A,p(Z(V.value.total_bruto)),1),b(`td`,j,p(Z(V.value.total_deducciones)),1),b(`td`,M,p(Z(V.value.total_aportes_er)),1),b(`td`,N,p(Z(V.value.total_neto)),1),b(`td`,P,p(Z(V.value.costo_total_empresa)),1)])])])])):U.value===`meses`&&H.value.length?(v(),h(`div`,F,[b(`div`,ye,[S(c,{size:`15`,color:`var(--indigo)`},{default:a(()=>[...r[12]||=[f(`mdi-information-outline`,-1)]]),_:1}),r[13]||=b(`span`,null,[f(` Las nóminas que cruzan dos meses se reparten entre ellos según las `),b(`strong`,null,`horas trabajadas en cada mes`),f(`. Cuando la nómina no tiene horario cargado, el reparto se hace por días calendario. `)],-1)]),b(`table`,be,[r[19]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`MES / NÓMINA`),b(`th`,{class:`ta-r`},`DÍAS`),b(`th`,{class:`ta-r`},`HORAS`),b(`th`,{class:`ta-r`},`% NÓMINA`),b(`th`,{class:`ta-r`},`BRUTO`),b(`th`,{class:`ta-r`},`DEDUCCIONES`),b(`th`,{class:`ta-r`},`APORTES ER`),b(`th`,{class:`ta-r`},`NETO`),b(`th`,{class:`ta-r`},`COSTO EMPRESA`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(Xt.value,e=>(v(),h(x,{key:e.mes},[b(`tr`,xe,[b(`td`,null,[S(c,{size:`15`,class:`mr-1`},{default:a(()=>[...r[14]||=[f(`mdi-calendar-month-outline`,-1)]]),_:1}),b(`strong`,null,p(e.nombre),1),b(`span`,Se,p(e.filas.length)+` nómina`+p(e.filas.length===1?``:`s`),1)]),b(`td`,Ce,p(e.dias),1),b(`td`,we,p(Q(e.horas)),1),r[15]||=b(`td`,{class:`ta-r`},`—`,-1),b(`td`,Te,p(Z(e.totales.total_bruto)),1),b(`td`,Ee,p(Z(e.totales.total_deducciones)),1),b(`td`,De,p(Z(e.totales.total_aportes_er)),1),b(`td`,Oe,p(Z(e.totales.total_neto)),1),b(`td`,ke,p(Z(e.totales.costo_empresa)),1)]),(v(!0),h(x,null,_(e.filas,t=>(v(),h(`tr`,{key:e.mes+`_`+t.liquidacion_id,class:`rn-mes-detalle`},[b(`td`,null,[b(`div`,Ae,[f(p($(t.semana_inicio))+` — `+p($(t.semana_fin))+` `,1),t.periodo_partido?(v(),h(`span`,je,[S(c,{size:`10`},{default:a(()=>[...r[16]||=[f(`mdi-call-split`,-1)]]),_:1}),r[17]||=f(`PARCIAL `,-1)])):g(``,!0)]),b(`div`,Me,p(t.prorrateo_por_horas?`Repartido por horas trabajadas`:`Repartido por días calendario`),1)]),b(`td`,Ne,p(t.dias_en_mes),1),b(`td`,Pe,p(Q(t.horas_en_mes)),1),b(`td`,Fe,p(Q(t.porcentaje))+`%`,1),b(`td`,Ie,p(Z(t.total_bruto)),1),b(`td`,Le,p(Z(t.total_deducciones)),1),b(`td`,Re,p(Z(t.total_aportes_er)),1),b(`td`,ze,p(Z(t.total_neto)),1),b(`td`,Be,p(Z(t.costo_empresa)),1)]))),128))],64))),128))]),b(`tfoot`,null,[b(`tr`,Ve,[r[18]||=b(`td`,{colspan:`4`},[b(`strong`,null,`TOTAL`)],-1),b(`td`,He,p(Z(V.value.total_bruto)),1),b(`td`,Ue,p(Z(V.value.total_deducciones)),1),b(`td`,We,p(Z(V.value.total_aportes_er)),1),b(`td`,Ge,p(Z(V.value.total_neto)),1),b(`td`,Ke,p(Z(V.value.costo_total_empresa)),1)])])])])):U.value===`empleado`&&H.value.length?(v(),h(`div`,qe,[b(`table`,Je,[r[21]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`EMPLEADO`),b(`th`,{class:`ta-c`},`TIPO`),b(`th`,{class:`ta-r`},`NÓMINAS`),b(`th`,{class:`ta-r`},`HRS REG`),b(`th`,{class:`ta-r`},`HRS OT`),b(`th`,{class:`ta-r`},`BRUTO`),b(`th`,{class:`ta-r`},`DEDUCCIONES`),b(`th`,{class:`ta-r`},`APORTES ER`),b(`th`,{class:`ta-r`},`NETO`),b(`th`,{class:`ta-r`},`COSTO EMP.`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(H.value,e=>(v(),h(`tr`,{key:e.empleado_id},[b(`td`,Ye,p(e.nombre),1),b(`td`,Xe,[b(`span`,{class:d(e.tipo_empleado===`W2`?`badge-w2`:`badge-1099`)},p(e.tipo_empleado),3)]),b(`td`,Ze,p(e.total_nominas),1),b(`td`,Qe,p(Q(e.horas_regulares)),1),b(`td`,$e,p(Q(e.horas_overtime)),1),b(`td`,et,p(Z(e.total_bruto)),1),b(`td`,tt,p(Z(e.total_deducciones)),1),b(`td`,nt,p(Z(e.total_aportes_er)),1),b(`td`,rt,p(Z(e.total_neto)),1),b(`td`,it,p(Z(e.costo_empresa)),1)]))),128))]),b(`tfoot`,null,[b(`tr`,at,[r[20]||=b(`td`,{colspan:`5`},[b(`strong`,null,`TOTAL`)],-1),b(`td`,ot,p(Z(V.value.total_bruto)),1),b(`td`,st,p(Z(V.value.total_deducciones)),1),b(`td`,ct,p(Z(V.value.total_aportes_er)),1),b(`td`,I,p(Z(V.value.total_neto)),1),b(`td`,lt,p(Z(V.value.costo_total_empresa)),1)])])])])):U.value===`ccosto`&&H.value.length?(v(),h(`div`,ut,[b(`table`,dt,[r[24]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`CENTRO DE COSTO`),b(`th`,{class:`ta-c`},`CÓD.`),b(`th`,{class:`ta-r`},`EMPLEADOS`),b(`th`,{class:`ta-r`},`HORAS`),b(`th`,{class:`ta-r`},`COSTO BRUTO`),b(`th`,{class:`ta-r`},`COSTO TOTAL`),b(`th`,{class:`ta-r`},`% DEL TOTAL`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(H.value,t=>(v(),h(`tr`,{key:t.ccosto},[b(`td`,ft,p(t.ccosto_nombre),1),b(`td`,pt,p(t.ccosto),1),b(`td`,mt,p(t.empleados),1),b(`td`,ht,p(Q(t.horas)),1),b(`td`,gt,p(Z(t.costo_bruto)),1),b(`td`,_t,p(Z(t.costo_total)),1),b(`td`,vt,[b(`div`,yt,[b(`div`,{class:`pct-bar`,style:e({width:Y(t.costo_total)+`%`})},null,4),b(`span`,bt,p(Y(t.costo_total).toFixed(1))+`%`,1)])])]))),128))]),b(`tfoot`,null,[b(`tr`,xt,[r[22]||=b(`td`,{colspan:`4`},[b(`strong`,null,`TOTAL`)],-1),b(`td`,St,p(Z(Zt.value)),1),b(`td`,Ct,p(Z(J.value)),1),r[23]||=b(`td`,{class:`ta-r`},`100%`,-1)])])])])):U.value===`impuestos`&&H.value.length?(v(),h(`div`,wt,[b(`table`,Tt,[r[26]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`PERÍODO`),b(`th`,{class:`ta-r`},`FED. INC. TAX`),b(`th`,{class:`ta-r`},`SS EMP.`),b(`th`,{class:`ta-r`},`SS ER`),b(`th`,{class:`ta-r`},`MEDICARE EMP.`),b(`th`,{class:`ta-r`},`MEDICARE ER`),b(`th`,{class:`ta-r`},`FUTA`),b(`th`,{class:`ta-r`},`SUTA`),b(`th`,{class:`ta-r`},`W.COMP`),b(`th`,{class:`ta-r text-error`},`TOTAL IMP.`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(H.value,e=>(v(),h(`tr`,{key:e.semana_inicio},[b(`td`,null,[b(`div`,Et,p($(e.semana_inicio)),1),b(`div`,Dt,`al `+p($(e.semana_fin)),1)]),b(`td`,Ot,p(Z(e.federal_income_tax)),1),b(`td`,kt,p(Z(e.ss_emp)),1),b(`td`,At,p(Z(e.ss_er)),1),b(`td`,jt,p(Z(e.medicare_emp)),1),b(`td`,Mt,p(Z(e.medicare_er)),1),b(`td`,Nt,p(Z(e.futa)),1),b(`td`,Pt,p(Z(e.suta)),1),b(`td`,Ft,p(Z(e.workers_comp)),1),b(`td`,It,p(Z(e.total_impuestos)),1)]))),128))]),b(`tfoot`,null,[b(`tr`,Lt,[r[25]||=b(`td`,null,[b(`strong`,null,`TOTAL`)],-1),b(`td`,Rt,p(Z(V.value.federal_income_tax)),1),b(`td`,zt,p(Z(V.value.social_security_emp)),1),b(`td`,Bt,p(Z(V.value.social_security_er)),1),b(`td`,Vt,p(Z(V.value.medicare_emp)),1),b(`td`,Ht,p(Z(V.value.medicare_er)),1),b(`td`,Ut,p(Z(V.value.futa)),1),b(`td`,Wt,p(Z(V.value.suta)),1),b(`td`,Gt,p(Z(V.value.workers_comp)),1),b(`td`,Kt,p(Z(+V.value.federal_income_tax+ +V.value.social_security_emp+ +V.value.social_security_er+ +V.value.medicare_emp+ +V.value.medicare_er+ +V.value.futa+ +V.value.suta+ +V.value.workers_comp)),1)])])])])):g(``,!0)])):g(``,!0)])]),_:1})}}},[[`__scopeId`,`data-v-c6c4f3ef`]]);export{L as default};
+        ${b}
+        ${x}
+        ${S}
+      </body></html>`,T=window.open(``,`_blank`);if(!T){alert(`Activa los pop-ups para generar el PDF`);return}T.document.write(w),T.document.close(),T.focus()}catch(e){console.error(`Error generando el PDF de nómina:`,e),alert(`No se pudo generar el PDF. Revisa la consola para el detalle.`)}}return n(Y),(n,r)=>{let i=s(`CampoFecha`);return v(),y(w,null,{default:a(()=>[b(`div`,ee,[S(T,{title:`Reporte de Nómina`,description:`Análisis de costos por período, empleado, centro de costo e impuestos`,crumbs:[`Nómina`,`Reportes`,`Reporte de Nómina`]}),b(`div`,te,[b(`div`,ne,[b(`div`,re,[r[2]||=b(`div`,{class:`filter-label`},`FECHA INICIO`,-1),S(i,{modelValue:W.value.fechaInicio,"onUpdate:modelValue":r[0]||=e=>W.value.fechaInicio=e,variant:`outlined`,density:`compact`,"hide-details":``,style:{"min-width":`160px`}},null,8,[`modelValue`])]),b(`div`,ie,[r[3]||=b(`div`,{class:`filter-label`},`FECHA FIN`,-1),S(i,{modelValue:W.value.fechaFin,"onUpdate:modelValue":r[1]||=e=>W.value.fechaFin=e,variant:`outlined`,density:`compact`,"hide-details":``,style:{"min-width":`160px`}},null,8,[`modelValue`])]),S(l,{color:`secondary`,variant:`flat`,rounded:`lg`,loading:L.value,onClick:Y,height:`40`},{default:a(()=>[S(c,{start:``},{default:a(()=>[...r[4]||=[f(`mdi-magnify`,-1)]]),_:1}),r[5]||=f(`Generar Reporte `,-1)]),_:1},8,[`loading`]),S(C),B.value?(v(),y(l,{key:0,variant:`flat`,color:`secondary`,rounded:`lg`,height:`40`,loading:R.value,disabled:z.value!==null,onClick:rn,title:`Informe consolidado de todo el período filtrado`},{default:a(()=>[S(c,{start:``},{default:a(()=>[...r[6]||=[f(`mdi-file-pdf-box`,-1)]]),_:1}),r[7]||=f(`Exportar todo el período `,-1)]),_:1},8,[`loading`,`disabled`])):g(``,!0)])]),L.value?(v(),y(t,{key:0,indeterminate:``,color:`secondary`,height:`3`,class:`mb-4`})):g(``,!0),B.value?(v(),h(`div`,ae,[S(E,{index:0,label:`Bruto Pagado`,value:X(B.value.total_bruto),icon:`mdi-cash-multiple`,color:`var(--indigo)`},null,8,[`value`]),S(E,{index:1,label:`Deducciones Emp.`,value:X(B.value.total_deducciones),icon:`mdi-minus-circle-outline`,color:`var(--error)`,"value-color":`var(--error)`},null,8,[`value`]),S(E,{index:2,label:`Neto Pagado`,value:X(B.value.total_neto),icon:`mdi-bank-transfer-out`,color:`var(--success)`,"value-color":`var(--success)`},null,8,[`value`]),S(E,{index:3,label:`Aportes Empleador`,value:X(B.value.total_aportes_er),icon:`mdi-office-building-outline`,color:`var(--gold)`,"value-color":`var(--gold)`},null,8,[`value`]),S(E,{index:4,label:`Costo Total Empresa`,value:X(B.value.costo_total_empresa),icon:`mdi-domain`,color:`var(--indigo)`,"value-color":`var(--indigo)`},null,8,[`value`]),S(E,{index:5,label:`Nóminas / Empleados`,value:`${B.value.total_nominas} / ${B.value.total_empleados}`,icon:`mdi-account-group-outline`,color:`var(--indigo)`,"value-color":`var(--indigo)`},null,8,[`value`])])):g(``,!0),B.value||V.value.length?(v(),h(`div`,oe,[b(`div`,se,[(v(),h(x,null,_(Zt,e=>b(`button`,{key:e.val,class:d([`rn-tab`,{"rn-tab--active":H.value===e.val}]),onClick:t=>nn(e.val)},[S(c,{size:`15`,class:`mr-1`},{default:a(()=>[f(p(e.icon),1)]),_:2},1024),f(p(e.label),1)],10,ce)),64))]),!L.value&&V.value.length===0?(v(),h(`div`,le,[S(c,{size:`40`,color:`rgba(var(--v-theme-on-surface),.15)`,class:`mb-2`},{default:a(()=>[...r[8]||=[f(`mdi-file-search-outline`,-1)]]),_:1}),r[9]||=b(`div`,null,`No hay nóminas aprobadas en el período seleccionado`,-1)])):H.value===`periodo`&&V.value.length?(v(),h(`div`,ue,[b(`table`,de,[r[13]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`PERÍODO`),b(`th`,{class:`ta-r`},`EMPLEADOS`),b(`th`,{class:`ta-r`},`BRUTO`),b(`th`,{class:`ta-r`},`DEDUCCIONES`),b(`th`,{class:`ta-r`},`APORTES ER`),b(`th`,{class:`ta-r`},`NETO`),b(`th`,{class:`ta-r`},`COSTO EMPRESA`),b(`th`,{class:`ta-c`},`PDF`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(V.value,e=>(v(),h(`tr`,{key:e.id},[b(`td`,null,[b(`div`,fe,p(Q(e.semana_inicio)),1),b(`div`,pe,`al `+p(Q(e.semana_fin)),1)]),b(`td`,me,p(e.empleados),1),b(`td`,he,p(X(e.total_bruto)),1),b(`td`,ge,p(X(e.total_deducciones)),1),b(`td`,_e,p(X(e.total_aportes_er)),1),b(`td`,ve,p(X(e.total_neto)),1),b(`td`,ye,p(X(e.costo_empresa)),1),b(`td`,be,[S(l,{icon:``,variant:`text`,size:`x-small`,color:`secondary`,loading:z.value===e.id,disabled:R.value||z.value!==null&&z.value!==e.id,title:`PDF de la nómina del ${Q(e.semana_inicio)} al ${Q(e.semana_fin)}`,onClick:t=>an(e)},{default:a(()=>[S(c,{size:`19`},{default:a(()=>[...r[10]||=[f(`mdi-file-pdf-box`,-1)]]),_:1})]),_:1},8,[`loading`,`disabled`,`title`,`onClick`])])]))),128))]),b(`tfoot`,null,[b(`tr`,D,[r[11]||=b(`td`,null,[b(`strong`,null,`TOTAL`)],-1),b(`td`,O,p(B.value.total_empleados),1),b(`td`,k,p(X(B.value.total_bruto)),1),b(`td`,A,p(X(B.value.total_deducciones)),1),b(`td`,j,p(X(B.value.total_aportes_er)),1),b(`td`,M,p(X(B.value.total_neto)),1),b(`td`,N,p(X(B.value.costo_total_empresa)),1),r[12]||=b(`td`,null,null,-1)])])])])):H.value===`meses`&&V.value.length?(v(),h(`div`,xe,[b(`div`,Se,[S(c,{size:`15`,color:`var(--indigo)`},{default:a(()=>[...r[14]||=[f(`mdi-information-outline`,-1)]]),_:1}),r[15]||=b(`span`,null,[f(` Las nóminas que cruzan dos meses se reparten entre ellos según las `),b(`strong`,null,`horas trabajadas en cada mes`),f(`. Cuando la nómina no tiene horario cargado, el reparto se hace por días calendario. `)],-1)]),b(`table`,Ce,[r[21]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`MES / NÓMINA`),b(`th`,{class:`ta-r`},`DÍAS`),b(`th`,{class:`ta-r`},`HORAS`),b(`th`,{class:`ta-r`},`% NÓMINA`),b(`th`,{class:`ta-r`},`BRUTO`),b(`th`,{class:`ta-r`},`DEDUCCIONES`),b(`th`,{class:`ta-r`},`APORTES ER`),b(`th`,{class:`ta-r`},`NETO`),b(`th`,{class:`ta-r`},`COSTO EMPRESA`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(en.value,e=>(v(),h(x,{key:e.mes},[b(`tr`,we,[b(`td`,null,[S(c,{size:`15`,class:`mr-1`},{default:a(()=>[...r[16]||=[f(`mdi-calendar-month-outline`,-1)]]),_:1}),b(`strong`,null,p(e.nombre),1),b(`span`,Te,p(e.filas.length)+` nómina`+p(e.filas.length===1?``:`s`),1)]),b(`td`,Ee,p(e.dias),1),b(`td`,De,p(Z(e.horas)),1),r[17]||=b(`td`,{class:`ta-r`},`—`,-1),b(`td`,Oe,p(X(e.totales.total_bruto)),1),b(`td`,ke,p(X(e.totales.total_deducciones)),1),b(`td`,Ae,p(X(e.totales.total_aportes_er)),1),b(`td`,je,p(X(e.totales.total_neto)),1),b(`td`,Me,p(X(e.totales.costo_empresa)),1)]),(v(!0),h(x,null,_(e.filas,t=>(v(),h(`tr`,{key:e.mes+`_`+t.liquidacion_id,class:`rn-mes-detalle`},[b(`td`,null,[b(`div`,Ne,[f(p(Q(t.semana_inicio))+` — `+p(Q(t.semana_fin))+` `,1),t.periodo_partido?(v(),h(`span`,Pe,[S(c,{size:`10`},{default:a(()=>[...r[18]||=[f(`mdi-call-split`,-1)]]),_:1}),r[19]||=f(`PARCIAL `,-1)])):g(``,!0)]),b(`div`,Fe,p(t.prorrateo_por_horas?`Repartido por horas trabajadas`:`Repartido por días calendario`),1)]),b(`td`,Ie,p(t.dias_en_mes),1),b(`td`,Le,p(Z(t.horas_en_mes)),1),b(`td`,Re,p(Z(t.porcentaje))+`%`,1),b(`td`,ze,p(X(t.total_bruto)),1),b(`td`,Be,p(X(t.total_deducciones)),1),b(`td`,Ve,p(X(t.total_aportes_er)),1),b(`td`,He,p(X(t.total_neto)),1),b(`td`,Ue,p(X(t.costo_empresa)),1)]))),128))],64))),128))]),b(`tfoot`,null,[b(`tr`,We,[r[20]||=b(`td`,{colspan:`4`},[b(`strong`,null,`TOTAL`)],-1),b(`td`,Ge,p(X(B.value.total_bruto)),1),b(`td`,Ke,p(X(B.value.total_deducciones)),1),b(`td`,qe,p(X(B.value.total_aportes_er)),1),b(`td`,Je,p(X(B.value.total_neto)),1),b(`td`,Ye,p(X(B.value.costo_total_empresa)),1)])])])])):H.value===`empleado`&&V.value.length?(v(),h(`div`,Xe,[b(`table`,Ze,[r[23]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`EMPLEADO`),b(`th`,{class:`ta-c`},`TIPO`),b(`th`,{class:`ta-r`},`NÓMINAS`),b(`th`,{class:`ta-r`},`HRS REG`),b(`th`,{class:`ta-r`},`HRS OT`),b(`th`,{class:`ta-r`},`BRUTO`),b(`th`,{class:`ta-r`},`DEDUCCIONES`),b(`th`,{class:`ta-r`},`APORTES ER`),b(`th`,{class:`ta-r`},`NETO`),b(`th`,{class:`ta-r`},`COSTO EMP.`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(V.value,e=>(v(),h(`tr`,{key:e.empleado_id},[b(`td`,Qe,p(e.nombre),1),b(`td`,$e,[b(`span`,{class:d(e.tipo_empleado===`W2`?`badge-w2`:`badge-1099`)},p(e.tipo_empleado),3)]),b(`td`,et,p(e.total_nominas),1),b(`td`,tt,p(Z(e.horas_regulares)),1),b(`td`,nt,p(Z(e.horas_overtime)),1),b(`td`,rt,p(X(e.total_bruto)),1),b(`td`,it,p(X(e.total_deducciones)),1),b(`td`,at,p(X(e.total_aportes_er)),1),b(`td`,ot,p(X(e.total_neto)),1),b(`td`,st,p(X(e.costo_empresa)),1)]))),128))]),b(`tfoot`,null,[b(`tr`,ct,[r[22]||=b(`td`,{colspan:`5`},[b(`strong`,null,`TOTAL`)],-1),b(`td`,lt,p(X(B.value.total_bruto)),1),b(`td`,ut,p(X(B.value.total_deducciones)),1),b(`td`,dt,p(X(B.value.total_aportes_er)),1),b(`td`,ft,p(X(B.value.total_neto)),1),b(`td`,pt,p(X(B.value.costo_total_empresa)),1)])])])])):H.value===`ccosto`&&V.value.length?(v(),h(`div`,mt,[b(`table`,ht,[r[26]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`CENTRO DE COSTO`),b(`th`,{class:`ta-c`},`CÓD.`),b(`th`,{class:`ta-r`},`EMPLEADOS`),b(`th`,{class:`ta-r`},`HORAS`),b(`th`,{class:`ta-r`},`COSTO BRUTO`),b(`th`,{class:`ta-r`},`COSTO TOTAL`),b(`th`,{class:`ta-r`},`% DEL TOTAL`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(V.value,t=>(v(),h(`tr`,{key:t.ccosto},[b(`td`,gt,p(t.ccosto_nombre),1),b(`td`,_t,p(t.ccosto),1),b(`td`,vt,p(t.empleados),1),b(`td`,yt,p(Z(t.horas)),1),b(`td`,bt,p(X(t.costo_bruto)),1),b(`td`,xt,p(X(t.costo_total)),1),b(`td`,P,[b(`div`,St,[b(`div`,{class:`pct-bar`,style:e({width:J(t.costo_total)+`%`})},null,4),b(`span`,Ct,p(J(t.costo_total).toFixed(1))+`%`,1)])])]))),128))]),b(`tfoot`,null,[b(`tr`,wt,[r[24]||=b(`td`,{colspan:`4`},[b(`strong`,null,`TOTAL`)],-1),b(`td`,Tt,p(X(tn.value)),1),b(`td`,Et,p(X(q.value)),1),r[25]||=b(`td`,{class:`ta-r`},`100%`,-1)])])])])):H.value===`impuestos`&&V.value.length?(v(),h(`div`,Dt,[b(`table`,Ot,[r[28]||=b(`thead`,null,[b(`tr`,null,[b(`th`,null,`PERÍODO`),b(`th`,{class:`ta-r`},`FED. INC. TAX`),b(`th`,{class:`ta-r`},`SS EMP.`),b(`th`,{class:`ta-r`},`SS ER`),b(`th`,{class:`ta-r`},`MEDICARE EMP.`),b(`th`,{class:`ta-r`},`MEDICARE ER`),b(`th`,{class:`ta-r`},`FUTA`),b(`th`,{class:`ta-r`},`SUTA`),b(`th`,{class:`ta-r`},`W.COMP`),b(`th`,{class:`ta-r text-error`},`TOTAL IMP.`)])],-1),b(`tbody`,null,[(v(!0),h(x,null,_(V.value,e=>(v(),h(`tr`,{key:e.semana_inicio},[b(`td`,null,[b(`div`,kt,p(Q(e.semana_inicio)),1),b(`div`,At,`al `+p(Q(e.semana_fin)),1)]),b(`td`,jt,p(X(e.federal_income_tax)),1),b(`td`,Mt,p(X(e.ss_emp)),1),b(`td`,Nt,p(X(e.ss_er)),1),b(`td`,Pt,p(X(e.medicare_emp)),1),b(`td`,Ft,p(X(e.medicare_er)),1),b(`td`,It,p(X(e.futa)),1),b(`td`,Lt,p(X(e.suta)),1),b(`td`,Rt,p(X(e.workers_comp)),1),b(`td`,zt,p(X(e.total_impuestos)),1)]))),128))]),b(`tfoot`,null,[b(`tr`,Bt,[r[27]||=b(`td`,null,[b(`strong`,null,`TOTAL`)],-1),b(`td`,Vt,p(X(B.value.federal_income_tax)),1),b(`td`,Ht,p(X(B.value.social_security_emp)),1),b(`td`,Ut,p(X(B.value.social_security_er)),1),b(`td`,Wt,p(X(B.value.medicare_emp)),1),b(`td`,Gt,p(X(B.value.medicare_er)),1),b(`td`,Kt,p(X(B.value.futa)),1),b(`td`,qt,p(X(B.value.suta)),1),b(`td`,Jt,p(X(B.value.workers_comp)),1),b(`td`,Yt,p(X(+B.value.federal_income_tax+ +B.value.social_security_emp+ +B.value.social_security_er+ +B.value.medicare_emp+ +B.value.medicare_er+ +B.value.futa+ +B.value.suta+ +B.value.workers_comp)),1)])])])])):g(``,!0)])):g(``,!0)])]),_:1})}}},[[`__scopeId`,`data-v-8b833dc8`]]);export{F as default};
