@@ -248,18 +248,18 @@ function getEmpresa() {
 
 const empresa = computed(() => getEmpresa())
 
-// ── Fechas por defecto: mes actual ──────────────────────────────
-function primerDiaMes() {
+// ── Fecha por defecto: ayer (hoy - 1) ────────────────────────────
+// Se arma con los componentes locales de la fecha, no con toISOString():
+// esa convierte a UTC y en Orlando (UTC-4/-5) puede correr el día.
+function ayerIso() {
   const hoy = new Date()
-  return new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0, 10)
-}
-function ultimoDiaMes() {
-  const hoy = new Date()
-  return new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().slice(0, 10)
+  hoy.setDate(hoy.getDate() - 1)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${hoy.getFullYear()}-${p(hoy.getMonth() + 1)}-${p(hoy.getDate())}`
 }
 
-const fechaInicio          = ref(primerDiaMes())
-const fechaFin             = ref(ultimoDiaMes())
+const fechaInicio          = ref(ayerIso())
+const fechaFin             = ref(ayerIso())
 const ccostosSeleccionados = ref([])
 const ccostos              = ref([])
 const ccostosLoading       = ref(false)
