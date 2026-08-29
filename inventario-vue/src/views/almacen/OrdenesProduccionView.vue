@@ -290,7 +290,7 @@ function fmtNum(v) {
 function fmtFecha(s) {
   if (!s) return '—'
   const [y, m, d] = String(s).split('T')[0].split('-')
-  return `${d}/${m}/${y}`
+  return `${m}/${d}/${y}`
 }
 
 // ── Ingredientes recalculados según cantidad ────────────────────────────────

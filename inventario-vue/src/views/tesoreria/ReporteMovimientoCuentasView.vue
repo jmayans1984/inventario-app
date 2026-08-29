@@ -354,7 +354,7 @@ function fmtFecha(f) {
     // en zonas negativas (ej. UTC-5) retrocede al día anterior
     const s = String(f).split('T')[0]
     const [y, m, d] = s.split('-')
-    return `${d}/${m}/${y}`
+    return `${m}/${d}/${y}`
   } catch { return String(f) }
 }
 

@@ -430,7 +430,11 @@ function fmtFecha(f) {
   if (!f) return '—'
   const d = new Date(f)
   if (isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+  // En UTC porque la fecha viene del servidor sin hora: en zonas negativas,
+  // leerla en local retrocede un dia.
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  return `${mm}/${dd}/${d.getUTCFullYear()}`
 }
 
 function fmtMonto(v) {

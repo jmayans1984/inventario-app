@@ -378,7 +378,7 @@
             <div class="resumen-card">
               <div class="resumen-row">
                 <span class="resumen-lbl">Fecha</span>
-                <span class="resumen-val">{{ form.fecha }}</span>
+                <span class="resumen-val">{{ fmtFecha(form.fecha) }}</span>
               </div>
               <div class="resumen-row">
                 <span class="resumen-lbl">Factura</span>
@@ -1981,6 +1981,15 @@ function cerrar() {
   emit('update:open', false)
   emit('close')
 }
+// Formato de fecha unico de la app: MM/DD/AAAA. Se reordena la cadena en vez
+// de construir un Date, porque new Date('YYYY-MM-DD') se interpreta en UTC y
+// en zonas negativas (UTC-5) muestra el dia anterior.
+function fmtFecha(f) {
+  if (!f) return '—'
+  const [y, m, d] = String(f).split('T')[0].split('-')
+  return (y && m && d) ? `${m}/${d}/${y}` : String(f)
+}
+
 </script>
 
 <style scoped>

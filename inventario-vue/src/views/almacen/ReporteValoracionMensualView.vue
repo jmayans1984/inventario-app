@@ -745,7 +745,7 @@ function esParcial(conteo) {
 function fmtFecha(f) {
   if (!f) return '—'
   const [y, m, d] = String(f).slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
+  return `${m}/${d}/${y}`
 }
 
 const productosFiltrados = computed(() => {

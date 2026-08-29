@@ -272,7 +272,7 @@ function fmtFecha(f) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   const yy = d.getFullYear();
-  return `${dd}/${mm}/${yy}`;
+  return `${mm}/${dd}/${yy}`;
 }
 
 async function cargar() {
@@ -390,7 +390,7 @@ function numeroDia(f) {
 
 function fmtFechaLarga(f) {
   const d = new Date(f + 'T12:00:00');
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
 function nombreDiaSemana(f) {

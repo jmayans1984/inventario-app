@@ -399,7 +399,7 @@ async function exportarPDF() {
       // Fecha
       doc.setFontSize(7)
       doc.setTextColor(160, 160, 160)
-      doc.text(`Generado: ${new Date().toLocaleString('en-US')}`, ML, PH - 6)
+      doc.text(`Generado: ${fechaHoraGen()}`, ML, PH - 6)
       doc.setTextColor(0, 0, 0)
     })
 
@@ -410,6 +410,15 @@ async function exportarPDF() {
 }
 
 onMounted(cargar)
+// Sello del pie del PDF en MM/DD/AAAA. toLocaleString('en-US') acierta el
+// orden pero omite el cero a la izquierda ("8/26/2026"), asi que el formato
+// no queda igual al del resto de los informes.
+function fechaHoraGen() {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 </script>
 
 <style scoped>

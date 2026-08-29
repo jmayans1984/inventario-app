@@ -355,7 +355,7 @@
             Ajuste ya existe
           </v-card-title>
           <v-card-text class="pa-4 pt-0">
-            Ya existe un ajuste de inventario para <strong>{{ fecha }}</strong> en el CC <strong>{{ ccosto }}</strong>
+            Ya existe un ajuste de inventario para <strong>{{ fmtFecha(fecha) }}</strong> en el CC <strong>{{ ccosto }}</strong>
             con <strong>{{ conflictCount }}</strong> registro(s). ¿Qué deseas hacer?
           </v-card-text>
           <v-divider />
@@ -670,6 +670,15 @@ async function guardar(mode = 'new') {
     guardando.value = false
   }
 }
+// Formato de fecha unico de la app: MM/DD/AAAA. Se reordena la cadena en vez
+// de construir un Date, porque new Date('YYYY-MM-DD') se interpreta en UTC y
+// en zonas negativas (UTC-5) muestra el dia anterior.
+function fmtFecha(f) {
+  if (!f) return '—'
+  const [y, m, d] = String(f).split('T')[0].split('-')
+  return (y && m && d) ? `${m}/${d}/${y}` : String(f)
+}
+
 </script>
 
 <style scoped>

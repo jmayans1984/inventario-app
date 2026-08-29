@@ -370,7 +370,7 @@ function estadoLabel(estado) {
 function fmtFechaCorta(f) {
   if (!f) return ''
   const d = new Date(String(f).substring(0, 10) + 'T12:00:00')
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
 }
 
 onMounted(() => {

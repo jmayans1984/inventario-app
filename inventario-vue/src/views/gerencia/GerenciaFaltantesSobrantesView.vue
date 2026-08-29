@@ -682,7 +682,8 @@ function fmtPct(v) {
 }
 function fmtFecha(v) {
   if (!v) return '—'
-  return new Date(v).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+  const [y, m, d] = String(v).split('T')[0].split('-')
+  return (y && m && d) ? `${m}/${d}/${y}` : String(v)
 }
 
 onMounted(async () => {

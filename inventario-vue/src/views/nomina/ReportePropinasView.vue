@@ -219,7 +219,7 @@ function fmtNum(v) { return parseFloat(v||0).toFixed(1) }
 function fmtFechaRango() {
   const [yi,mi,di] = filtros.value.fechaInicio.split('-')
   const [yf,mf,df] = filtros.value.fechaFin.split('-')
-  return `${di}/${mi}/${yi} — ${df}/${mf}/${yf}`
+  return `${mi}/${di}/${yi} — ${mf}/${df}/${yf}`
 }
 
 const ESTILOS_REPORTE = `

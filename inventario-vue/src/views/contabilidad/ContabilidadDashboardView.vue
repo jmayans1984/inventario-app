@@ -181,14 +181,20 @@ const data = ref({
 
 const empresa = ref(localStorage.getItem('empresa') || '')
 
-const fechaHoy = computed(() => {
-  const hoy = new Date()
-  return hoy.toLocaleDateString('es-CO')
-})
+// Formato de fecha unico de la app: MM/DD/AAAA. Se arma a mano en vez de
+// usar toLocaleDateString con un locale, porque 'es-CO' rinde D/M/AAAA y
+// cualquier locale depende de la tabla del navegador.
+function fechaMMDDAAAA(d) {
+  if (!d || isNaN(d.getTime())) return '—'
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${mm}/${dd}/${d.getFullYear()}`
+}
+
+const fechaHoy = computed(() => fechaMMDDAAAA(new Date()))
 
 function formatFecha(fecha) {
-  const d = new Date(fecha)
-  return d.toLocaleDateString('es-CO')
+  return fechaMMDDAAAA(new Date(fecha))
 }
 
 async function cargarDashboard() {

@@ -312,7 +312,10 @@ function fmtPct(v) {
 }
 function fmtFecha(v) {
   if (!v) return ''
-  return new Date(v).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', timeZone: 'UTC' })
+  // MM/DD/AAAA como en el resto de la app. Se reordena la cadena: un locale
+  // decide el orden por su cuenta y 'es-*' pone el dia primero.
+  const [y, m, d] = String(v).split('T')[0].split('-')
+  return (y && m && d) ? `${m}/${d}/${y}` : String(v)
 }
 
 // ── Detalle por cuenta ───────────────────────────────────────────────────────

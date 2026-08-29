@@ -784,7 +784,7 @@ function formatFecha(fecha) {
   if (diff < 60) return 'Ahora'
   if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`
   if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`
-  return d.toLocaleDateString('es', { day: '2-digit', month: 'short' })
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`
 }
 
 const toggleTema = () => appStore.toggleTema()

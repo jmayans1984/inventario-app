@@ -526,7 +526,7 @@
             <div class="conflict-info">
               <div class="conflict-row">
                 <span class="conflict-label">Fecha</span>
-                <span class="conflict-val">{{ fecha }}</span>
+                <span class="conflict-val">{{ fmtFecha(fecha) }}</span>
               </div>
               <div class="conflict-row">
                 <span class="conflict-label">{{ tipoOp === 'TRASLADO' ? 'CC Origen' : 'Centro de Costo' }}</span>
@@ -624,7 +624,7 @@
                     {{ mov.tipo_fe }}
                   </v-chip>
                   <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),.5);margin-top:4px;font-family:monospace">
-                    {{ mov.fecha }}
+                    {{ fmtFecha(mov.fecha) }}
                   </div>
                 </div>
 
@@ -1398,6 +1398,15 @@ function aplicarOcr() {
   cantidades.value = nuevasCantidades
   cerrarOcr()
 }
+// Formato de fecha unico de la app: MM/DD/AAAA. Se reordena la cadena en vez
+// de construir un Date, porque new Date('YYYY-MM-DD') se interpreta en UTC y
+// en zonas negativas (UTC-5) muestra el dia anterior.
+function fmtFecha(f) {
+  if (!f) return '—'
+  const [y, m, d] = String(f).split('T')[0].split('-')
+  return (y && m && d) ? `${m}/${d}/${y}` : String(f)
+}
+
 </script>
 
 <style scoped>
