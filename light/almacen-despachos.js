@@ -2526,8 +2526,8 @@ function cerrarCamara() {
 // ── Helpers ───────────────────────────────────────────────────
 function fmtFecha(f) {
     if (!f) return '—';
-    const d = new Date(String(f).substring(0, 10) + 'T12:00:00');
-    return d.toLocaleDateString('es', { day:'2-digit', month:'short', year:'numeric' });
+    const [y, m, d] = String(f).split('T')[0].split('-');
+    return (y && m && d) ? `${m}/${d}/${y}` : String(f);
 }
 
 function estadoLabel(e) {

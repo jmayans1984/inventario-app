@@ -584,7 +584,7 @@ function mostrarModalSoporte(soporte, factura) {
 
                     <div>
                         <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600;">Fecha de Subida</div>
-                        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${new Date(soporte.fecha_subida).toLocaleString('es-CO')}</div>
+                        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">${fmtFechaHoraUS(soporte.fecha_subida)}</div>
                     </div>
                 </div>
 
@@ -623,4 +623,14 @@ function formatMoneyFC(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(parseFloat(value || 0));
+}
+
+// Fecha y hora en MM/DD/AAAA. Aqui si se construye un Date porque el valor
+// trae hora real (no es una fecha suelta), asi que no hay corrimiento de dia.
+function fmtFechaHoraUS(v) {
+    if (!v) return '-';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }

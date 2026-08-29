@@ -31,7 +31,7 @@ function fmtFecha(f) {
     if (!f) return '';
     const s = String(f).split('T')[0];
     const [y, m, d] = s.split('-');
-    return `${d}/${m}/${y}`;
+    return `${m}/${d}/${y}`;
 }
 
 // ── Init ──────────────────────────────────────────────────────────

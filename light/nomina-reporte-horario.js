@@ -187,7 +187,7 @@ function renderTodo() {
         }
 
         html += `<div style="font-size:9px;color:var(--text-tertiary);text-align:center;padding-top:8px;border-top:1px solid var(--border);margin-top:10px">
-            ${cc.nombre} · ${fmtFecha(semanaActual.semana_inicio)} al ${fmtFecha(semanaActual.semana_fin)} · ${emps.length} empleado(s) · Generado ${new Date().toLocaleDateString('es-US')}
+            ${cc.nombre} · ${fmtFecha(semanaActual.semana_inicio)} al ${fmtFecha(semanaActual.semana_fin)} · ${emps.length} empleado(s) · Generado ${fmtHoy()}
         </div></div>`;
     });
 
@@ -267,7 +267,7 @@ function imprimirPDF() {
             body += `<p style="text-align:center;color:#aaa;padding:20px;font-size:11px">Sin empleados asignados a este centro esta semana.</p>`;
         }
 
-        body += `<div class="pie">${cc.nombre} &nbsp;·&nbsp; ${fmtFecha(semanaActual.semana_inicio)} al ${fmtFecha(semanaActual.semana_fin)} &nbsp;·&nbsp; ${emps.length} empleado(s) &nbsp;·&nbsp; Generado ${new Date().toLocaleDateString('es-US')}</div>
+        body += `<div class="pie">${cc.nombre} &nbsp;·&nbsp; ${fmtFecha(semanaActual.semana_inicio)} al ${fmtFecha(semanaActual.semana_fin)} &nbsp;·&nbsp; ${emps.length} empleado(s) &nbsp;·&nbsp; Generado ${fmtHoy()}</div>
         </div>`;
     });
 
@@ -277,4 +277,12 @@ function imprimirPDF() {
     ventana.document.close();
     ventana.focus();
     setTimeout(() => ventana.print(), 500);
+}
+
+// Sello del pie del informe. 'es-US' acierta el orden pero omite el cero a la
+// izquierda ("8/26/2026"), asi que no queda igual al resto de los informes.
+function fmtHoy() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()}`;
 }

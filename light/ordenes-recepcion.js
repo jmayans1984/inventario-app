@@ -527,8 +527,10 @@ uploadZone.addEventListener('drop', (e) => {
 
 function formatearFecha(fecha) {
     if (!fecha) return '-';
-    const f = new Date(fecha);
-    return `${f.getDate().toString().padStart(2, '0')}/${(f.getMonth() + 1).toString().padStart(2, '0')}/${f.getFullYear()}`;
+    // Se reordena la cadena en vez de construir un Date: 'YYYY-MM-DD' se
+    // interpreta en UTC y en zonas negativas retrocede un dia.
+    const [y, m, d] = String(fecha).split('T')[0].split('-');
+    return (y && m && d) ? `${m}/${d}/${y}` : String(fecha);
 }
 
 function formatearMoneda(valor) {

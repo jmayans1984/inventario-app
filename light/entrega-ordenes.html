@@ -298,7 +298,7 @@
             div.className = 'delivery-card';
 
             // Formatear fecha
-            const fecha = orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-ES') : '-';
+            const fecha = fmtFechaUS(orden.fecha_entrega);
 
             // Observaciones
             const observaciones = orden.observaciones || '-';
@@ -441,7 +441,7 @@
                 `;
 
                 soportes.forEach((soporte, index) => {
-                    const fecha = soporte.fecha_subida ? new Date(soporte.fecha_subida).toLocaleString('es-ES') : '-';
+                    const fecha = fmtFechaHoraUS(soporte.fecha_subida);
                     const imagenSrc = soporte.archivo_data.startsWith('data:') ? soporte.archivo_data : 'data:image/png;base64,' + soporte.archivo_data;
 
                     contenidoHTML += `
@@ -691,11 +691,11 @@
                                     <div class="section-header">Detalles de la Orden</div>
                                     <div class="info-item">
                                         <span class="info-label">Fecha Orden:</span>
-                                        <span class="info-value">${new Date(orden.fecha).toLocaleDateString('es-ES')}</span>
+                                        <span class="info-value">${fmtFechaUS(orden.fecha)}</span>
                                     </div>
                                     <div class="info-item">
                                         <span class="info-label">Fecha Entrega:</span>
-                                        <span class="info-value">${orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-ES') : '-'}</span>
+                                        <span class="info-value">${fmtFechaUS(orden.fecha_entrega)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -993,6 +993,28 @@
                 alert('❌ Error al actualizar estado de la orden');
             }
         }
+    
+// Formato de fecha unico de la app: MM/DD/AAAA. Se reordena la cadena en vez
+// de usar toLocaleDateString: 'es-CO' y 'es-ES' rinden D/M/AAAA, y construir
+// un Date desde 'YYYY-MM-DD' lo interpreta en UTC, que en zonas negativas
+// muestra el dia anterior.
+function fmtFechaUS(f) {
+    if (!f) return '-';
+    const [y, m, d] = String(f).split('T')[0].split('-');
+    return (y && m && d) ? `${m}/${d}/${y}` : String(f);
+}
+
+    
+// Fecha y hora en MM/DD/AAAA. Aqui si se construye un Date porque el valor
+// trae hora real (no es una fecha suelta), asi que no hay corrimiento de dia.
+function fmtFechaHoraUS(v) {
+    if (!v) return '-';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
     </script>
 </body>
 </html>

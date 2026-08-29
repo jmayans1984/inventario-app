@@ -110,8 +110,8 @@ function renderizarTarjetasOrdenes(ordenes) {
 
     ordenes.forEach(orden => {
         const colorEstado = obtenerColorEstado(orden.estado);
-        const fechaFormato = new Date(orden.fecha).toLocaleDateString('es-CO');
-        const fechaEntregaFormato = orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-CO') : '-';
+        const fechaFormato = fmtFechaUS(orden.fecha);
+        const fechaEntregaFormato = fmtFechaUS(orden.fecha_entrega);
 
         html += `
             <div style="
@@ -222,8 +222,8 @@ async function verDetallesOrden(codigo) {
 }
 
 function mostrarModalDetallesOrden(orden, detalles) {
-    const fechaFormato = new Date(orden.fecha).toLocaleDateString('es-CO');
-    const fechaEntregaFormato = orden.fecha_entrega ? new Date(orden.fecha_entrega).toLocaleDateString('es-CO') : '-';
+    const fechaFormato = fmtFechaUS(orden.fecha);
+    const fechaEntregaFormato = fmtFechaUS(orden.fecha_entrega);
 
     let detallesHTML = '';
 
@@ -784,7 +784,7 @@ async function cargarSoporteExistente(codigo) {
             document.getElementById('tamanoImagen').textContent = tamanioKB + ' KB';
 
             // Mostrar fecha formateada
-            const fecha = new Date(data.soporte.fecha_subida).toLocaleString('es-ES');
+            const fecha = fmtFechaHoraUS(data.soporte.fecha_subida);
             document.getElementById('fechaSoporte').textContent = fecha;
         } else {
             document.getElementById('sinSoporteDiv').style.display = 'block';
@@ -820,4 +820,23 @@ function limpiarFiltrosOrdenes() {
             Selecciona filtros y presiona Buscar
         </div>
     `;
+}
+// Formato de fecha unico de la app: MM/DD/AAAA. Se reordena la cadena en vez
+// de usar toLocaleDateString: 'es-CO' y 'es-ES' rinden D/M/AAAA, y construir
+// un Date desde 'YYYY-MM-DD' lo interpreta en UTC, que en zonas negativas
+// muestra el dia anterior.
+function fmtFechaUS(f) {
+    if (!f) return '-';
+    const [y, m, d] = String(f).split('T')[0].split('-');
+    return (y && m && d) ? `${m}/${d}/${y}` : String(f);
+}
+
+// Fecha y hora en MM/DD/AAAA. Aqui si se construye un Date porque el valor
+// trae hora real (no es una fecha suelta), asi que no hay corrimiento de dia.
+function fmtFechaHoraUS(v) {
+    if (!v) return '-';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getMonth() + 1)}/${p(d.getDate())}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
