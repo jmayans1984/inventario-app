@@ -605,7 +605,16 @@ const authStore = useAuthStore()
 const empresaCodigo = computed(() => authStore.empresa || '')
 
 // ─── Config ───────────────────────────────────────────
-const configFecha       = ref(new Date().toISOString().slice(0, 10))
+// Por defecto, ayer: es el día completo más reciente con ventas cerradas.
+// Se arma con los componentes locales de la fecha, no con toISOString():
+// esa convierte a UTC y en Orlando (UTC-4/-5) puede correr el día.
+function ayerIso() {
+  const hoy = new Date()
+  hoy.setDate(hoy.getDate() - 1)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${hoy.getFullYear()}-${p(hoy.getMonth() + 1)}-${p(hoy.getDate())}`
+}
+const configFecha       = ref(ayerIso())
 const configCtaOtros    = ref(null)
 const ctaOtrasComisiones = ref('')   // solo lectura: se configura en Configuración → General
 const configCtaEfectivo = ref(null)
