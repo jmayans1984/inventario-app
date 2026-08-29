@@ -18,13 +18,21 @@
         <div class="ivc-cfg-grid">
           <div class="ivc-field">
             <label class="ivc-label">FECHA DE LOS MOVIMIENTOS</label>
-            <CampoFecha v-model="configFecha" class="ivc-input" />
-            <span v-if="periodo.desde && configFecha !== periodo.desde" class="ivc-hint ivc-hint-warn">
+            <div class="ivc-input-wrap">
+              <CampoFecha
+                v-model="configFecha"
+                class="ivc-input"
+                :class="{ 'ivc-input-ok': fechaCoincide, 'ivc-input-warn': fechaNoCoincide }"
+              />
+              <v-icon v-if="fechaCoincide" class="ivc-input-check" size="18" color="var(--success)">mdi-check-circle</v-icon>
+            </div>
+            <span v-if="fechaNoCoincide" class="ivc-hint ivc-hint-warn">
+              <v-icon size="12" color="var(--warning)">mdi-alert-circle</v-icon>
               El día de operación del archivo es {{ periodo.desde }}
               <button class="ivc-link" @click="configFecha = periodo.desde">usar esa</button>
             </span>
-            <span v-else-if="periodo.desde" class="ivc-hint ivc-hint-ok">
-              Día de operación {{ periodo.desde }}<template v-if="periodo.hasta !== periodo.desde"> (cierre {{ periodo.hasta }})</template>
+            <span v-else-if="fechaCoincide" class="ivc-hint ivc-hint-ok">
+              Coincide con el día de operación del archivo<template v-if="periodo.hasta !== periodo.desde"> (cierre {{ periodo.hasta }})</template>
             </span>
           </div>
           <div class="ivc-field">
@@ -636,6 +644,11 @@ const snackOk    = ref(false)
 
 const nombreCcosto = (cod) => ccostos.value.find(c => c.codigo === cod)?.nombre || cod
 const nombreCuenta = (cod) => cuentasBancarias.value.find(c => c.codigo === cod)?.nombre_cta || cod
+
+// Coincidencia entre la fecha elegida y el día de operación real del archivo
+// cargado. Solo hay algo que validar una vez que se leyó un archivo.
+const fechaCoincide   = computed(() => !!periodo.value.desde && configFecha.value === periodo.value.desde)
+const fechaNoCoincide = computed(() => !!periodo.value.desde && configFecha.value !== periodo.value.desde)
 
 // Cuentas de Square activas: cada sede liquida en la suya
 const cuentasSquare = computed(() =>
@@ -1279,8 +1292,18 @@ async function importarTodas() {
   border: 1px solid rgba(var(--v-theme-on-surface), .18);
   background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface));
   border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 100%;
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
-.ivc-hint { font-size: 10.5px; }
+/* El check queda encimado dentro del campo, a la izquierda del icono propio
+   del calendario que ya trae CampoFecha (ese vive a 9px del borde derecho,
+   así que el check se pone un poco más adentro para no pisarlo). */
+.ivc-input-wrap { position: relative; }
+.ivc-input-check { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+/* background-color, no "background": la forma abreviada reinicia el
+   background-image del icono del calendario que pone CampoFecha. */
+.ivc-input-ok   { border-color: var(--success) !important; background-color: rgba(21,128,61,.06) !important; }
+.ivc-input-warn { border-color: var(--warning) !important; background-color: rgba(180,83,9,.06) !important; }
+.ivc-hint { font-size: 10.5px; display: flex; align-items: center; gap: 4px; }
 .ivc-hint-ok { color: var(--success); }
 .ivc-hint-warn { color: var(--warning); }
 .ivc-link {
