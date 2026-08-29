@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, shallowRef } from 'vue'
 import { useRoute } from 'vue-router'
+import { getActivePinia } from 'pinia'
 import { useAuthStore } from './stores/auth'
 import { useAppStore } from './stores/app'
 import MiniCalculadora from './components/MiniCalculadora.vue'
@@ -8,13 +9,15 @@ import CommandPalette from './components/common/CommandPalette.vue'
 import { useCalculadora } from './composables/useCalculadora'
 import { useCommandPalette } from './composables/useCommandPalette'
 
-const authStore = useAuthStore()
-const appStore  = useAppStore()
 const route = useRoute()
+const lastFocused = ref(null)
+const commandPaletteOpen = ref(false)
+const appTheme = ref('light')
 
-const { openCalc } = useCalculadora()
-const lastFocused  = ref(null)
-const { open: commandPaletteOpen } = useCommandPalette()
+// Los stores se inicializan solo cuando Pinia está listo
+let authStore = null
+let appStore = null
+
 const appClasses = computed(() => ({
   'treasury-module': route.path.startsWith('/tesoreria'),
   'accounting-module': route.path.startsWith('/contabilidad'),
@@ -23,6 +26,21 @@ const appClasses = computed(() => ({
   'recipes-module': route.path.startsWith('/recetas'),
   'payroll-module': route.path.startsWith('/nomina'),
 }))
+
+let openCalc = () => {}
+let calculateOpen = ref(false)
+
+// Inicializar composables y stores cuando Pinia esté listo
+if (getActivePinia()) {
+  const { openCalc: _openCalc } = useCalculadora()
+  const { open: _commandPaletteOpen } = useCommandPalette()
+  openCalc = _openCalc
+  commandPaletteOpen.value = _commandPaletteOpen
+
+  authStore = useAuthStore()
+  appStore = useAppStore()
+  appTheme.value = appStore.tema
+}
 
 function onFocusIn(e) {
   const el = e.target
@@ -41,13 +59,24 @@ function onKeyDown(e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault()
     e.stopPropagation()
-    if (authStore.isAuthenticated) commandPaletteOpen.value = true
+    if (authStore && authStore.isAuthenticated) commandPaletteOpen.value = true
   }
 }
 
 onMounted(() => {
-  authStore.loadFromLocalStorage()
-  appStore.loadFromLocalStorage()
+  // Re-inicializa si no se pudo hacer en setup
+  if (!authStore || !appStore) {
+    try {
+      authStore = useAuthStore()
+      appStore = useAppStore()
+      if (appStore) appTheme.value = appStore.tema
+    } catch {
+      // Si aún no está listo, continúa
+    }
+  }
+
+  if (authStore) authStore.loadFromLocalStorage()
+  if (appStore) appStore.loadFromLocalStorage()
   document.addEventListener('focusin', onFocusIn, true)
   document.addEventListener('keydown', onKeyDown, true)
 })
@@ -59,7 +88,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <v-app :theme="appStore.tema" :class="appClasses">
+  <v-app :theme="appTheme" :class="appClasses">
     <router-view />
     <MiniCalculadora />
     <CommandPalette v-model="commandPaletteOpen" />

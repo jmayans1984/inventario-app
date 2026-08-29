@@ -61,6 +61,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { getActivePinia } from 'pinia'
 import { MODULES } from '../../utils/constants'
 import { useAuthStore } from '../../stores/auth'
 import busquedaGlobalService from '../../services/busqueda-global.service'
@@ -69,7 +70,12 @@ const props = defineProps({ modelValue: { type: Boolean, default: false } })
 const emit = defineEmits(['update:modelValue'])
 
 const router = useRouter()
-const auth = useAuthStore()
+let auth = null
+try {
+  auth = useAuthStore()
+} catch {
+  // Pinia no está inicializado aún
+}
 const inputRef = ref(null)
 const q = ref('')
 const activo = ref(0)
@@ -86,7 +92,7 @@ const pantallas = computed(() => {
     for (const grupo of mod.children || []) {
       for (const item of grupo.items || []) {
         if (item.hidden) continue
-        if (item.requiredTipo && item.requiredTipo !== auth.empresaTipo) continue
+        if (item.requiredTipo && auth && item.requiredTipo !== auth.empresaTipo) continue
         out.push({ titulo: item.name, subtitulo: `${mod.name} · ${grupo.name}`, icono: item.icon, ruta: item.path })
       }
     }

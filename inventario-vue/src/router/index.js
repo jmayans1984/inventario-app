@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { getActivePinia } from 'pinia'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
@@ -159,6 +160,12 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+  // Si Pinia no está inicializado aún (p.ej. durante HMR), continúa sin guardia
+  if (!getActivePinia()) {
+    next()
+    return
+  }
+
   try {
     const authStore = useAuthStore()
     if (!authStore.isAuthenticated) authStore.loadFromLocalStorage()
@@ -197,7 +204,7 @@ router.beforeEach(async (to, from, next) => {
       next()
     }
   } catch (e) {
-    // Si Pinia no está inicializado aún, solo continúa
+    // Si hay otro error, solo continúa
     next()
   }
 })
