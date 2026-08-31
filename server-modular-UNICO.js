@@ -12348,7 +12348,8 @@ function mapCxp(r) {
 
 // ═══════════════ BÚSQUEDA GLOBAL (Ctrl+K) ═══════════════
 // GET /api/busqueda-global?empresa=&q= — busca proveedores, productos,
-// artículos, cuentas bancarias, centros de costo y facturas/gastos.
+// artículos, cuentas bancarias, centros de costo, facturas/gastos y
+// movimientos bancarios.
 app.get('/api/busqueda-global', async (req, res) => {
     try {
         const empresa = req.query.empresa;
@@ -12357,7 +12358,7 @@ app.get('/api/busqueda-global', async (req, res) => {
         const like = `%${q}%`;
         const LIMITE = 6;
 
-        const [proveedores, productos, articulos, cuentas, ccostos, gastos] = await Promise.all([
+        const [proveedores, productos, articulos, cuentas, ccostos, gastos, movimientos] = await Promise.all([
             pool.query(
                 `SELECT codigo, nombre, nombre_com FROM proveedores
                  WHERE empresa = $1 AND (nombre ILIKE $2 OR nombre_com ILIKE $2 OR codigo ILIKE $2)
@@ -12391,8 +12392,15 @@ app.get('/api/busqueda-global', async (req, res) => {
             pool.query(
                 `SELECT g.codigo, g.factura, g.concepto, g.total, p.nombre AS proveedor_nombre
                  FROM gastos g LEFT JOIN proveedores p ON p.codigo = g.proveedor AND p.empresa = g.empresa
-                 WHERE g.empresa = $1 AND (g.factura ILIKE $2 OR g.concepto ILIKE $2 OR p.nombre ILIKE $2)
+                 WHERE g.empresa = $1 AND (g.factura ILIKE $2 OR g.concepto ILIKE $2 OR p.nombre ILIKE $2 OR CAST(g.codigo AS TEXT) ILIKE $2)
                  ORDER BY g.fecha DESC LIMIT ${LIMITE}`,
+                [empresa, like]
+            ).catch(() => ({ rows: [] })),
+            pool.query(
+                `SELECT m.numero, m.concepto, m.fecha, m.ingreso, m.egreso, COALESCE(p.nombre, m.beneficia) AS beneficiario
+                 FROM moviban m LEFT JOIN proveedores p ON CAST(p.codigo AS TEXT) = CAST(m.beneficia AS TEXT) AND p.empresa = m.empresa
+                 WHERE m.empresa = $1 AND (m.concepto ILIKE $2 OR p.nombre ILIKE $2 OR CAST(m.beneficia AS TEXT) ILIKE $2 OR CAST(m.numero AS TEXT) ILIKE $2)
+                 ORDER BY m.fecha DESC LIMIT ${LIMITE}`,
                 [empresa, like]
             ).catch(() => ({ rows: [] })),
         ]);
@@ -12425,9 +12433,15 @@ app.get('/api/busqueda-global', async (req, res) => {
             })),
             ...gastos.rows.map(r => ({
                 tipo: 'Gasto / Factura', icono: 'mdi-receipt-text-outline',
-                titulo: r.factura ? `Factura ${r.factura}` : (r.concepto || r.codigo),
-                subtitulo: `${r.proveedor_nombre || ''}${r.total ? ' · $' + Number(r.total).toLocaleString('en-US') : ''}`,
+                titulo: r.factura ? `Factura ${r.factura}` : (r.concepto || `Gasto ${r.codigo}`),
+                subtitulo: `Código ${r.codigo}${r.proveedor_nombre ? ' · ' + r.proveedor_nombre : ''}${r.total ? ' · $' + Number(r.total).toLocaleString('en-US') : ''}`,
                 ruta: '/contabilidad/procesos/gastos', buscar: r.factura || r.proveedor_nombre || '',
+            })),
+            ...movimientos.rows.map(r => ({
+                tipo: 'Movimiento Bancario', icono: 'mdi-swap-horizontal',
+                titulo: r.concepto || `Movimiento ${r.numero}`,
+                subtitulo: `Código ${r.numero}${r.beneficiario ? ' · ' + r.beneficiario : ''}${(r.ingreso || r.egreso) ? ' · $' + Number(r.ingreso || r.egreso).toLocaleString('en-US') : ''}`,
+                ruta: '/tesoreria/procesos/movimientos-bancarios', buscar: r.concepto || r.beneficiario || '',
             })),
         ];
 
