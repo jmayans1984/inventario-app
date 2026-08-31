@@ -8,9 +8,9 @@
             "port": 5173
         },
         {
-            "name": "vue-local-api",
+            "name": "vue-dev-local-api",
             "runtimeExecutable": "npm",
-            "runtimeArgs": ["run", "dev", "--prefix", "inventario-vue", "--", "--port", "5199"],
+            "runtimeArgs": ["run", "dev:local", "--prefix", "inventario-vue", "--", "--port", "5199"],
             "port": 5199,
             "autoPort": false
         },
@@ -19,6 +19,12 @@
             "runtimeExecutable": "npx",
             "runtimeArgs": ["-y", "http-server", "light", "-p", "8099", "-c-1"],
             "port": 8099
+        },
+        {
+            "name": "backend-local",
+            "runtimeExecutable": "node",
+            "runtimeArgs": ["server.js"],
+            "port": 3000
         }
     ]
 }

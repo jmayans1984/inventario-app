@@ -109,7 +109,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
       await fetchGastos()
       return item
     } catch (err) {
-      error.value = err.response?.data?.message || 'Error al actualizar el gasto'
+      error.value = err.response?.data?.error || 'Error al actualizar el gasto'
       throw err
     }
   }
@@ -126,7 +126,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
         guardarEnCache()
       }
     } catch (err) {
-      error.value = err.response?.data?.message || 'Error al eliminar el gasto'
+      error.value = err.response?.data?.error || 'Error al eliminar el gasto'
       throw err
     } finally {
       loading.value = false

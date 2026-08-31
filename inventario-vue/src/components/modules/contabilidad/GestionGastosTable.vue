@@ -244,6 +244,16 @@
       </v-card-text>
     </v-card>
   </v-dialog>
+
+  <!-- Antes, un error al eliminar (p.ej. una cuenta por pagar con abonos)
+       solo se mandaba a console.error: el usuario apretaba el botón, no
+       pasaba nada visible y no había forma de saber por qué. -->
+  <v-snackbar v-model="errorSnack" color="error" :timeout="6000" location="bottom">
+    {{ errorSnackMsg }}
+    <template #actions>
+      <v-btn variant="text" size="small" @click="errorSnack = false">Cerrar</v-btn>
+    </template>
+  </v-snackbar>
 </template>
 
 <script setup>
@@ -260,6 +270,11 @@ const auth = useAuthStore()
 
 // ── Set de gastos con entradas de almacén ──
 const gastosConEntradas = ref(new Set())
+
+// ── Error al eliminar: antes se perdía en la consola sin que el usuario
+//    se enterara de nada ──
+const errorSnack    = ref(false)
+const errorSnackMsg = ref('')
 
 async function cargarGastosConEntradas() {
   try {
@@ -578,7 +593,12 @@ async function eliminar(codigo) {
     try {
       await store.eliminarGasto(codigo)
     } catch (err) {
+      // Antes esto se perdía en la consola: el usuario no se enteraba de
+      // que el borrado había fallado (p.ej. una cuenta por pagar con
+      // abonos, o cualquier otro rechazo del backend).
       console.error('Error al eliminar:', err)
+      errorSnackMsg.value = err.response?.data?.error || err.message || 'No se pudo eliminar el gasto.'
+      errorSnack.value = true
     }
   }
 }

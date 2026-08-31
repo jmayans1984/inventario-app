@@ -12134,10 +12134,16 @@ app.delete('/api/contabilidad/gastos/:codigo', async (req, res) => {
             await client.query('DELETE FROM moviban WHERE gasto = $1 AND empresa = $2', [grupoKeyDel, empresa]);
         } else {
             const totalRestante = parseFloat(restantesRes.rows[0].total) || 0;
+            // $1::numeric: sin el cast, Postgres infiere el tipo del parámetro
+            // por el otro lado del CASE (el literal "0", que lee como integer)
+            // y el UPDATE revienta apenas el total recalculado queda con
+            // decimales — que es exactamente lo normal al borrar UNA línea de
+            // una factura de varias. Mismo bug que ya se había corregido en
+            // la eliminación de transferencias (piernaHermanaTransferencia).
             await client.query(
                 `UPDATE moviban
-                 SET ingreso = CASE WHEN ingreso > 0 THEN $1 ELSE 0 END,
-                     egreso  = CASE WHEN egreso  > 0 THEN $1 ELSE 0 END
+                 SET ingreso = CASE WHEN ingreso > 0 THEN $1::numeric ELSE 0 END,
+                     egreso  = CASE WHEN egreso  > 0 THEN $1::numeric ELSE 0 END
                  WHERE gasto = $2 AND empresa = $3`,
                 [totalRestante, grupoKeyDel, empresa]
             );
