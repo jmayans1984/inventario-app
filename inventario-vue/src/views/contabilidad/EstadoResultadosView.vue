@@ -369,16 +369,13 @@ async function abrirEdicion(gasto) {
 }
 
 function handleGuardadoGasto(gastoActualizado) {
-  // Actualizar el gasto en todos los cachés donde aparezca
-  for (const cuenta in gastosCache.value) {
-    const lista = gastosCache.value[cuenta]
-    const idx = lista.findIndex(g => g.codigo === gastoActualizado.codigo)
-    if (idx !== -1) {
-      const nuevaLista = [...lista]
-      nuevaLista[idx] = { ...nuevaLista[idx], ...gastoActualizado }
-      gastosCache.value = { ...gastosCache.value, [cuenta]: nuevaLista }
-    }
-  }
+  // Recalcular todo el informe: el total y la utilidad por cuenta dependen
+  // del valor de este gasto, y si cambió de cuenta contable hay que
+  // sacarlo de una fila y sumarlo a otra. Antes solo se corregía el
+  // renglón dentro del detalle ya abierto (sin tocar los totales de
+  // arriba), así que había que F5 para ver el cambio reflejado de verdad
+  // — es lo mismo que hace cargar().
+  cargar()
 }
 
 // ── Carga ───────────────────────────────────────────────────────────────────
