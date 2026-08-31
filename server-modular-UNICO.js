@@ -12074,6 +12074,99 @@ app.put('/api/contabilidad/gastos/:codigo', async (req, res) => {
     }
 });
 
+// DELETE /api/contabilidad/gastos/lote — elimina TODAS las líneas de una
+// misma factura de una sola vez (body: { codigos: [...], empresa }).
+// Va ANTES de la ruta /:codigo para que Express no confunda "lote" con un
+// código de gasto.
+app.delete('/api/contabilidad/gastos/lote', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { codigos, empresa } = req.body || {};
+        if (!Array.isArray(codigos) || codigos.length === 0 || !empresa) {
+            return res.status(400).json({ success: false, error: 'codigos (arreglo) y empresa son requeridos' });
+        }
+
+        await client.query('BEGIN');
+
+        // 0. Igual que en el borrado individual: una cuenta por pagar con
+        //    abonos no se borra sin antes reversar los pagos.
+        const abonosRes = await client.query(
+            `SELECT COUNT(*)::int AS n
+             FROM gasto_pagos gp
+             JOIN gastos g ON g.grupo = gp.grupo AND g.empresa = gp.empresa
+             WHERE g.codigo = ANY($1::text[]) AND g.empresa = $2`,
+            [codigos, empresa]
+        );
+        if (abonosRes.rows[0].n > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                error: 'Uno de estos gastos es una cuenta por pagar con abonos registrados. Reversa los pagos en Tesorería antes de eliminarlos.'
+            });
+        }
+
+        // 1. Grupos (moviban compartido) que quedan afectados por este borrado.
+        //    COALESCE(grupo, codigo): los gastos de antes de que existiera la
+        //    columna "grupo" tienen su propio moviban por línea, así que se
+        //    tratan como un grupo de una sola línea — igual que ya se hacía
+        //    en el borrado individual.
+        const gruposRes = await client.query(
+            `SELECT DISTINCT COALESCE(grupo, codigo) AS grupo_key
+             FROM gastos WHERE codigo = ANY($1::text[]) AND empresa = $2`,
+            [codigos, empresa]
+        );
+        const gruposAfectados = gruposRes.rows.map(r => r.grupo_key);
+
+        // 2. Eliminar todas las líneas pedidas de una vez.
+        const delRes = await client.query(
+            `DELETE FROM gastos WHERE codigo = ANY($1::text[]) AND empresa = $2 RETURNING codigo`,
+            [codigos, empresa]
+        );
+        if (!delRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Ningún gasto encontrado para eliminar' });
+        }
+
+        // 3. Por cada grupo afectado: si no queda ninguna línea, se borra el
+        //    moviban compartido; si quedan, se recalcula su total.
+        for (const grupoKey of gruposAfectados) {
+            const restantesRes = await client.query(
+                `SELECT COALESCE(SUM(total), 0) AS total, COUNT(*)::int AS n
+                 FROM gastos WHERE grupo = $1 AND empresa = $2`,
+                [grupoKey, empresa]
+            );
+            if (restantesRes.rows[0].n === 0) {
+                await client.query('DELETE FROM moviban WHERE gasto = $1 AND empresa = $2', [grupoKey, empresa]);
+            } else {
+                const totalRestante = parseFloat(restantesRes.rows[0].total) || 0;
+                // $1::numeric — ver el comentario equivalente en el borrado
+                // individual, mismo bug (Postgres infiere integer del "0" del
+                // otro lado del CASE si no se castea).
+                await client.query(
+                    `UPDATE moviban
+                     SET ingreso = CASE WHEN ingreso > 0 THEN $1::numeric ELSE 0 END,
+                         egreso  = CASE WHEN egreso  > 0 THEN $1::numeric ELSE 0 END
+                     WHERE gasto = $2 AND empresa = $3`,
+                    [totalRestante, grupoKey, empresa]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: `${delRes.rows.length} gasto(s) eliminado(s)`,
+            codigos: delRes.rows.map(r => r.codigo),
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error DELETE /api/contabilidad/gastos/lote:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 // DELETE /api/contabilidad/gastos/:codigo - Eliminar gasto + moviban asociado
 app.delete('/api/contabilidad/gastos/:codigo', async (req, res) => {
     const client = await pool.connect();

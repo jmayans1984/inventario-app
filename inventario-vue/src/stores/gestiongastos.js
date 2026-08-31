@@ -133,6 +133,24 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
     }
   }
 
+  // Borra de un golpe todas las líneas de una factura dividida (mismo grupo).
+  async function eliminarGastosGrupo(codigos) {
+    loading.value = true
+    error.value = null
+    try {
+      await gestionGastosService.eliminarGrupo(codigos)
+      const set = new Set(codigos)
+      gastos.value = gastos.value.filter(g => !set.has(g.codigo))
+      total.value = Math.max(0, total.value - codigos.length)
+      guardarEnCache()
+    } catch (err) {
+      error.value = err.response?.data?.error || 'Error al eliminar el grupo de gastos'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function getProximoCodigo() {
     try {
       return await gestionGastosService.getProximoCodigo()
@@ -273,6 +291,7 @@ export const useGestionGastosStore = defineStore('gestiongastos', () => {
     crearGastoMultiple,
     actualizarGasto,
     eliminarGasto,
+    eliminarGastosGrupo,
     getProximoCodigo,
     setFilters,
     setSelectedIds,

@@ -92,6 +92,21 @@ export const gestionGastosService = {
     }
   },
 
+  // Borra TODAS las líneas de una misma factura de un solo golpe (mismo
+  // moviban compartido). No confundir con eliminarMultiples: esa es una
+  // eliminación en lote genérica sin la lógica de recalcular/borrar el
+  // moviban compartido, y no está conectada a esta pantalla.
+  async eliminarGrupo(codigos) {
+    try {
+      const empresa = getEmpresaActiva()
+      const response = await api.delete(`${ENDPOINT}/lote`, { data: { codigos, empresa } })
+      return response.data
+    } catch (error) {
+      console.error('Error eliminando grupo de gastos:', error)
+      throw error
+    }
+  },
+
   async eliminarMultiples(codigos) {
     try {
       const empresa = getEmpresaActiva()

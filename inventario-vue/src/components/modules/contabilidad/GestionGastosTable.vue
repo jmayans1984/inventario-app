@@ -144,7 +144,7 @@
                   @click="gastosConEntradas.has(gasto.codigo) && verEntradas(gasto)"
                   :title="gastosConEntradas.has(gasto.codigo) ? 'Ver entradas de almacén' : 'Sin entradas de almacén'"
                 />
-                <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="eliminar(gasto.codigo)" :loading="store.loading" title="Eliminar" />
+                <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="eliminar(gasto)" :loading="store.loading" title="Eliminar" />
               </div>
             </td>
           </tr>
@@ -588,18 +588,31 @@ function irAPagina(p) {
   currentPage.value = p
 }
 
-async function eliminar(codigo) {
-  if (confirm('¿Estás seguro de que quieres eliminar este gasto?')) {
-    try {
-      await store.eliminarGasto(codigo)
-    } catch (err) {
-      // Antes esto se perdía en la consola: el usuario no se enteraba de
-      // que el borrado había fallado (p.ej. una cuenta por pagar con
-      // abonos, o cualquier otro rechazo del backend).
-      console.error('Error al eliminar:', err)
-      errorSnackMsg.value = err.response?.data?.error || err.message || 'No se pudo eliminar el gasto.'
-      errorSnack.value = true
+async function eliminar(gasto) {
+  const grupo = grupoDe(gasto)
+
+  // Una factura dividida en varias líneas (mismo grupo, mismo moviban):
+  // antes había que borrarlas una por una. Ahora se avisa que son varias y,
+  // si el usuario confirma, se borran todas de un solo golpe.
+  const pregunta = grupo
+    ? `Este gasto es parte de una factura dividida en ${grupo.count} líneas (códigos: ${grupo.codigos.join(', ')}).\n\n¿Eliminar las ${grupo.count} líneas?`
+    : '¿Estás seguro de que quieres eliminar este gasto?'
+
+  if (!confirm(pregunta)) return
+
+  try {
+    if (grupo) {
+      await store.eliminarGastosGrupo(grupo.codigos)
+    } else {
+      await store.eliminarGasto(gasto.codigo)
     }
+  } catch (err) {
+    // Antes esto se perdía en la consola: el usuario no se enteraba de
+    // que el borrado había fallado (p.ej. una cuenta por pagar con
+    // abonos, o cualquier otro rechazo del backend).
+    console.error('Error al eliminar:', err)
+    errorSnackMsg.value = err.response?.data?.error || err.message || 'No se pudo eliminar el gasto.'
+    errorSnack.value = true
   }
 }
 
