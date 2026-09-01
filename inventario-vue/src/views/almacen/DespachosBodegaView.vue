@@ -540,12 +540,111 @@
               :loading="completandoVenta" @click="completarDespachoVenta(detalleActivo)">
               Despachar (Salida por Venta)
             </v-btn>
+            <!-- Confirmar un traslado. Hasta ahora esto solo se podía hacer desde
+                 la versión light: acá no había con qué cerrar la orden, ni
+                 siquiera después de reversarla. -->
+            <v-btn v-if="puedeConfirmarDespacho"
+              variant="flat" color="success" style="color:white" prepend-icon="mdi-truck-check-outline"
+              :disabled="hayCambiosCantidades || totalDespachado === 0"
+              :title="hayCambiosCantidades ? 'Guardá las cantidades antes de confirmar'
+                    : totalDespachado === 0 ? 'No hay cantidades despachadas para registrar'
+                    : 'Registra los movimientos de inventario y cierra la orden'"
+              @click="dlgConfirmar = true">
+              Confirmar Despacho
+            </v-btn>
             <v-btn v-if="detalleActivo.estado === 'COMPLETADO' && detalleActivo.tipo !== 'VENTA'"
               variant="tonal" color="warning" prepend-icon="mdi-undo-variant"
               :loading="reversando === detalleActivo.id" @click="reversar(detalleActivo)">
               Reversar
             </v-btn>
             <v-btn variant="flat" color="error" @click="cerrarDetalle" style="color:white">Cerrar</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- ═══════════════ DIALOG CONFIRMAR DESPACHO ═══════════════ -->
+      <!-- Mismo resumen previo que la light antes de registrar: faltantes,
+           sobrantes y sin diferencias, con el aviso de que se registra lo
+           realmente despachado y no lo requerido. -->
+      <v-dialog v-model="dlgConfirmar" max-width="560" scrollable>
+        <v-card rounded="lg" class="dlg-card" v-if="detalleActivo">
+          <div class="dlg-header" style="background:linear-gradient(135deg,#10b981,#059669)">
+            <div class="dlg-header-left">
+              <div class="dlg-header-icon"><v-icon color="white" size="20">mdi-truck-check-outline</v-icon></div>
+              <div>
+                <div class="dlg-title">Confirmar Despacho #{{ detalleActivo.id }}</div>
+                <div class="dlg-sub">{{ detalleActivo.cc_origen_nombre }} → {{ detalleActivo.cc_destino_nombre }}</div>
+              </div>
+            </div>
+            <v-btn icon variant="text" color="white" size="small" :disabled="confirmandoDespacho"
+              @click="dlgConfirmar=false"><v-icon>mdi-close</v-icon></v-btn>
+          </div>
+
+          <v-card-text class="pa-5" style="max-height:60vh;overflow-y:auto">
+            <div v-if="resumenConfirmacion.faltantes.length" class="conf-sec conf-sec-falta">
+              <div class="conf-tit" style="color:var(--error)">
+                <v-icon size="15">mdi-alert-circle-outline</v-icon>
+                Faltantes ({{ resumenConfirmacion.faltantes.length }})
+              </div>
+              <div v-for="i in resumenConfirmacion.faltantes" :key="i.producto_codigo" class="conf-item">
+                <div>
+                  <div class="conf-nom">{{ i.producto_nombre }}</div>
+                  <div class="conf-nums">req {{ i.req }} · despachado {{ i.env }}</div>
+                </div>
+                <span class="dif-falta">{{ i.env - i.req }}</span>
+              </div>
+            </div>
+
+            <div v-if="resumenConfirmacion.sobrantes.length" class="conf-sec conf-sec-sobra">
+              <div class="conf-tit" style="color:var(--warning)">
+                <v-icon size="15">mdi-alert-outline</v-icon>
+                Sobrantes ({{ resumenConfirmacion.sobrantes.length }})
+              </div>
+              <div v-for="i in resumenConfirmacion.sobrantes" :key="i.producto_codigo" class="conf-item">
+                <div>
+                  <div class="conf-nom">{{ i.producto_nombre }}</div>
+                  <div class="conf-nums">req {{ i.req }} · despachado {{ i.env }}</div>
+                </div>
+                <span class="dif-sobre">+{{ i.env - i.req }}</span>
+              </div>
+            </div>
+
+            <div v-if="resumenConfirmacion.ok.length" class="conf-sec conf-sec-ok">
+              <div class="conf-tit" style="color:var(--success)">
+                <v-icon size="15">mdi-check-circle-outline</v-icon>
+                Sin diferencias ({{ resumenConfirmacion.ok.length }})
+              </div>
+              <div v-for="i in resumenConfirmacion.ok" :key="i.producto_codigo" class="conf-item">
+                <div class="conf-nom">{{ i.producto_nombre }}</div>
+                <span class="dif-ok">✓</span>
+              </div>
+            </div>
+
+            <!-- Las líneas en cero no generan movimiento: el backend las saltea.
+                 Decirlo acá evita que alguien cierre la orden creyendo que se
+                 despachó algo que en realidad nunca salió. -->
+            <v-alert v-if="resumenConfirmacion.enCero" type="info" variant="tonal" density="compact" class="mb-3">
+              {{ resumenConfirmacion.enCero }} línea(s) quedan en cero y no generarán movimiento de inventario.
+            </v-alert>
+
+            <v-alert v-if="resumenConfirmacion.faltantes.length || resumenConfirmacion.sobrantes.length"
+              type="warning" variant="tonal" density="compact" class="mb-0">
+              Hay diferencias. El despacho se registrará con las cantidades despachadas, no con las requeridas.
+            </v-alert>
+          </v-card-text>
+
+          <v-divider />
+          <v-card-actions class="pa-4">
+            <div class="conf-total">
+              Se registrarán <strong>{{ resumenConfirmacion.lineasConMovimiento }}</strong> línea(s) ·
+              salida de {{ detalleActivo.cc_origen_nombre }} y entrada a {{ detalleActivo.cc_destino_nombre }}
+            </div>
+            <v-spacer />
+            <v-btn variant="text" :disabled="confirmandoDespacho" @click="dlgConfirmar=false">Cancelar</v-btn>
+            <v-btn variant="flat" color="success" style="color:white" prepend-icon="mdi-truck-check-outline"
+              :loading="confirmandoDespacho" @click="confirmarDespacho">
+              Confirmar y Registrar
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -723,6 +822,10 @@ const cargandoEditar = ref(false)
 // texto porque salen de <input>; se convierten a número al comparar y enviar.
 const cantEdit            = ref({})
 const guardandoCantidades = ref(false)
+
+// Confirmación de despacho (traslado). Genera los movimientos de inventario.
+const dlgConfirmar       = ref(false)
+const confirmandoDespacho = ref(false)
 
 // Dialog análisis de faltantes
 const dlgAnalisis = ref(false)
@@ -992,6 +1095,58 @@ async function guardarCantidades() {
     alert(e?.response?.data?.error || 'Error al guardar las cantidades')
   } finally {
     guardandoCantidades.value = false
+  }
+}
+
+// ── Confirmación del despacho ─────────────────────────────────
+// Los despachos por VENTA tienen su propio botón: cierran además la orden de
+// compra y generan SALIDA POR VENTA en vez de un traslado.
+const puedeConfirmarDespacho = computed(() =>
+  !!detalleActivo.value &&
+  detalleActivo.value.tipo !== 'VENTA' &&
+  detalleActivo.value.estado !== 'COMPLETADO' &&
+  detalleActivo.value.estado !== 'CANCELADO'
+)
+
+const totalDespachado = computed(() =>
+  (detalleActivo.value?.detalle || []).reduce((s, i) => s + cantPack(i), 0)
+)
+
+// Mismo corte que hace la light antes de registrar: qué salió de menos, qué de
+// más y qué cuadró. Se calcula sobre lo GUARDADO (cantPack lee el formulario,
+// pero el botón exige no tener cambios pendientes), que es lo que el backend
+// va a usar para armar los movimientos.
+const resumenConfirmacion = computed(() => {
+  const faltantes = [], sobrantes = [], ok = []
+  let enCero = 0
+  for (const item of detalleActivo.value?.detalle || []) {
+    const env = cantPack(item)
+    const req = parseFloat(item.cant_requerida) || 0
+    const fila = { producto_codigo: item.producto_codigo, producto_nombre: item.producto_nombre, req, env }
+    if (env === 0) enCero++
+    if (env < req)      faltantes.push(fila)
+    else if (env > req) sobrantes.push(fila)
+    else                ok.push(fila)
+  }
+  return {
+    faltantes, sobrantes, ok, enCero,
+    // El backend saltea las líneas en cero (if (!cant || cant <= 0) continue)
+    lineasConMovimiento: (detalleActivo.value?.detalle || []).filter(i => cantPack(i) > 0).length,
+  }
+})
+
+async function confirmarDespacho() {
+  if (!detalleActivo.value) return
+  confirmandoDespacho.value = true
+  try {
+    await api.post(`/almacen/despachos/${detalleActivo.value.id}/confirmar`, { empresa: empresa.value })
+    dlgConfirmar.value = false
+    dlgDetalle.value   = false
+    await cargar()
+  } catch (e) {
+    alert(e?.response?.data?.error || 'Error al confirmar el despacho')
+  } finally {
+    confirmandoDespacho.value = false
   }
 }
 
@@ -1791,6 +1946,25 @@ onMounted(async () => {
   background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface));
 }
 .cant-input:focus { outline: none; border-color: var(--indigo); }
+
+/* Resumen previo a confirmar */
+.conf-sec { border: 1px solid; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+.conf-sec-falta { border-color: rgba(239,68,68,.3); }
+.conf-sec-sobra { border-color: rgba(245,158,11,.3); }
+.conf-sec-ok    { border-color: rgba(16,185,129,.3); }
+.conf-tit {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px;
+  margin-bottom: 8px;
+}
+.conf-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 4px 0; border-top: 1px solid rgba(var(--v-theme-on-surface),.05);
+}
+.conf-item:first-of-type { border-top: none; }
+.conf-nom  { font-size: 12px; font-weight: 600; }
+.conf-nums { font-size: 10.5px; font-family: monospace; color: rgba(var(--v-theme-on-surface),.5); }
+.conf-total { font-size: 11px; color: rgba(var(--v-theme-on-surface),.6); max-width: 60%; line-height: 1.4; }
 /* Las flechitas del input numérico no caben en una celda de 70px y encima
    dejan el número descentrado. */
 .cant-input::-webkit-outer-spin-button,
