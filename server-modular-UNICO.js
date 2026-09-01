@@ -12625,18 +12625,31 @@ app.get('/api/busqueda-global', async (req, res) => {
                 titulo: r.nombre, subtitulo: r.codigo,
                 ruta: '/contabilidad/configuracion/centros-costos', buscar: r.nombre,
             })),
-            ...gastos.rows.map(r => ({
-                tipo: 'Gasto / Factura', icono: 'mdi-receipt-text-outline',
-                titulo: r.factura ? `Factura ${r.factura}` : (r.concepto || `Gasto ${r.codigo}`),
-                subtitulo: `Código ${r.codigo}${r.proveedor_nombre ? ' · ' + r.proveedor_nombre : ''}${r.total ? ' · $' + Number(r.total).toLocaleString('en-US') : ''}`,
-                ruta: '/contabilidad/procesos/gastos', buscar: r.factura || r.proveedor_nombre || '',
-            })),
-            ...movimientos.rows.map(r => ({
-                tipo: 'Movimiento Bancario', icono: 'mdi-swap-horizontal',
-                titulo: r.concepto || `Movimiento ${r.numero}`,
-                subtitulo: `Código ${r.numero}${r.beneficiario ? ' · ' + r.beneficiario : ''}${(r.ingreso || r.egreso) ? ' · $' + Number(r.ingreso || r.egreso).toLocaleString('en-US') : ''}`,
-                ruta: '/tesoreria/procesos/movimientos-bancarios', buscar: r.concepto || r.beneficiario || '',
-            })),
+            ...gastos.rows.map(r => {
+                // pg devuelve numeric como STRING: '0.0000' es truthy, así que
+                // hay que convertir antes de decidir si el monto se muestra.
+                const total = parseFloat(r.total) || 0;
+                return {
+                    tipo: 'Gasto / Factura', icono: 'mdi-receipt-text-outline',
+                    titulo: r.factura ? `Factura ${r.factura}` : (r.concepto || `Gasto ${r.codigo}`),
+                    subtitulo: `Código ${r.codigo}${r.proveedor_nombre ? ' · ' + r.proveedor_nombre : ''}${total ? ' · $' + total.toLocaleString('en-US') : ''}`,
+                    ruta: '/contabilidad/procesos/gastos', buscar: r.factura || r.proveedor_nombre || '',
+                };
+            }),
+            ...movimientos.rows.map(r => {
+                // Un movimiento tiene ingreso O egreso; el otro viene en cero.
+                // Con los strings de pg, (r.ingreso || r.egreso) se quedaba con
+                // el '0.0000' del ingreso y todo salía como $0.
+                const ingreso = parseFloat(r.ingreso) || 0;
+                const egreso  = parseFloat(r.egreso)  || 0;
+                const monto   = ingreso || egreso;
+                return {
+                    tipo: 'Movimiento Bancario', icono: 'mdi-swap-horizontal',
+                    titulo: r.concepto || `Movimiento ${r.numero}`,
+                    subtitulo: `Código ${r.numero}${r.beneficiario ? ' · ' + r.beneficiario : ''}${monto ? ' · $' + monto.toLocaleString('en-US') : ''}`,
+                    ruta: '/tesoreria/procesos/movimientos-bancarios', buscar: r.concepto || r.beneficiario || '',
+                };
+            }),
         ];
 
         res.json({ success: true, data });
