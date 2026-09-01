@@ -1498,8 +1498,27 @@ app.patch('/api/almacen/despachos/:id/cantidades', async (req, res) => {
             actualizadas += r.rowCount;
         }
 
+        // Registrar packing sobre una orden PENDIENTE la pasa a EN_PACKING, lo
+        // mismo que hace la light al escanear. No es cosmético: su pantalla de
+        // confirmación lee cant_packing SOLO si la orden está en EN_PACKING, y
+        // si no lee cant_picking — que ya no se usa. Dejarla en PENDIENTE haría
+        // que la light mostrara como faltante todo lo que se cargó desde acá.
+        // Se exige actualizadas > 0: un payload cuyos códigos no pertenezcan a
+        // esta orden no actualiza nada, y sin esa condición le cambiaba igual
+        // el estado — la orden aparecía "en packing" sin que se hubiera
+        // registrado una sola cantidad.
+        let estadoNuevo = estado;
+        if (actualizadas > 0 && estado === 'PENDIENTE' &&
+            items.some(it => it && it.cant_packing !== undefined && it.cant_packing !== null)) {
+            await client.query(
+                `UPDATE ordenes_despacho SET estado='EN_PACKING' WHERE id=$1 AND empresa=$2::integer`,
+                [req.params.id, empresa]
+            );
+            estadoNuevo = 'EN_PACKING';
+        }
+
         await client.query('COMMIT');
-        res.json({ success: true, actualizadas });
+        res.json({ success: true, actualizadas, estado: estadoNuevo });
     } catch (e) {
         await client.query('ROLLBACK');
         console.error('Error PATCH /api/almacen/despachos/:id/cantidades:', e.message);

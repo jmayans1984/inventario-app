@@ -471,7 +471,7 @@
                  evita tener que teclear una por una cuando salió todo completo. -->
             <div v-if="puedeEditarCantidades" class="cant-toolbar mb-3">
               <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-flash"
-                :title="`Pone la cantidad requerida en ${campoDestino === 'packing' ? 'PACKING' : 'PICKING'} para todas las líneas`"
+                title="Pone la cantidad requerida en todas las líneas"
                 @click="autocompletarCantidades">
                 Completar todo
               </v-btn>
@@ -491,26 +491,18 @@
                 <tr>
                   <th>PRODUCTO</th>
                   <th style="width:70px;text-align:center">REQ.</th>
-                  <th style="width:70px;text-align:center">PICKING</th>
-                  <th style="width:70px;text-align:center">PACKING</th>
+                  <th style="width:80px;text-align:center">DESPACHADO</th>
                   <th style="width:80px;text-align:center">DIF.</th>
                 </tr>
               </thead>
               <tbody>
                 <template v-for="grupo in detalleAgrupado" :key="grupo.nombre">
                   <tr class="det-grupo-row">
-                    <td colspan="5" class="det-grupo-cell">{{ grupo.nombre }}</td>
+                    <td colspan="4" class="det-grupo-cell">{{ grupo.nombre }}</td>
                   </tr>
                   <tr v-for="item in grupo.items" :key="item.id" :class="difClass(item)">
                     <td><div class="item-nom">{{ item.producto_nombre }}</div></td>
                     <td class="ta-c num-cell">{{ item.cant_requerida }}</td>
-                    <td class="ta-c num-cell">
-                      <input v-if="puedeEditarCantidades && cantEdit[item.producto_codigo]"
-                        v-model="cantEdit[item.producto_codigo].picking"
-                        type="number" min="0" step="any" class="cant-input"
-                        @focus="$event.target.select()" />
-                      <template v-else>{{ item.cant_picking || 0 }}</template>
-                    </td>
                     <td class="ta-c num-cell">
                       <input v-if="puedeEditarCantidades && cantEdit[item.producto_codigo]"
                         v-model="cantEdit[item.producto_codigo].packing"
@@ -925,20 +917,14 @@ const puedeEditarCantidades = computed(() =>
   detalleActivo.value.estado !== 'CANCELADO'
 )
 
-// Qué columna llena "Completar todo". Sigue la etapa en la que va la orden,
-// igual que la light, donde el botón "Completar" actúa sobre el campo del modo
-// de escaneo activo: si ya se está en packing, se completa packing.
-const campoDestino = computed(() =>
-  detalleActivo.value?.estado === 'EN_PACKING' ? 'packing' : 'picking'
-)
-
-// Cantidades efectivas: mientras se edita vale lo que hay en el formulario, no
-// lo último guardado — así la columna DIF. y el color de la fila se mueven en
-// vivo mientras se escribe.
-function cantPick(item) {
-  const e = cantEdit.value[item.producto_codigo]
-  return parseFloat(e ? e.picking : item.cant_picking) || 0
-}
+// Cantidad efectiva: mientras se edita vale lo que hay en el formulario, no lo
+// último guardado — así la columna DIF. y el color de la fila se mueven en vivo
+// mientras se escribe.
+//
+// Solo packing. La light tiene modoEscaneo fijo en 'packing' ("siempre
+// 'packing' (no hay picking)"), así que en la práctica cant_picking no se usa:
+// el proceso es un solo conteo al despachar. Mostrar dos columnas acá era
+// pedir un dato que nadie llena.
 function cantPack(item) {
   const e = cantEdit.value[item.producto_codigo]
   return parseFloat(e ? e.packing : item.cant_packing) || 0
@@ -947,10 +933,7 @@ function cantPack(item) {
 function iniciarCantEdit(orden) {
   const mapa = {}
   for (const item of orden?.detalle || []) {
-    mapa[item.producto_codigo] = {
-      picking: String(parseFloat(item.cant_picking) || 0),
-      packing: String(parseFloat(item.cant_packing) || 0),
-    }
+    mapa[item.producto_codigo] = { packing: String(parseFloat(item.cant_packing) || 0) }
   }
   cantEdit.value = mapa
 }
@@ -960,18 +943,16 @@ const hayCambiosCantidades = computed(() => {
   for (const item of detalleActivo.value?.detalle || []) {
     const e = cantEdit.value[item.producto_codigo]
     if (!e) continue
-    if ((parseFloat(e.picking) || 0) !== (parseFloat(item.cant_picking) || 0)) return true
     if ((parseFloat(e.packing) || 0) !== (parseFloat(item.cant_packing) || 0)) return true
   }
   return false
 })
 
 function autocompletarCantidades() {
-  const campo = campoDestino.value
   for (const item of detalleActivo.value?.detalle || []) {
     const e = cantEdit.value[item.producto_codigo]
     if (!e) continue
-    e[campo] = String(parseFloat(item.cant_requerida) || 0)
+    e.packing = String(parseFloat(item.cant_requerida) || 0)
   }
 }
 
@@ -989,13 +970,10 @@ async function guardarCantidades() {
     for (const item of detalleActivo.value.detalle || []) {
       const e = cantEdit.value[item.producto_codigo]
       if (!e) continue
-      const pick = parseFloat(e.picking) || 0
       const pack = parseFloat(e.packing) || 0
-      const cambio = { producto_codigo: item.producto_codigo }
-      let hay = false
-      if (pick !== (parseFloat(item.cant_picking) || 0)) { cambio.cant_picking = pick; hay = true }
-      if (pack !== (parseFloat(item.cant_packing) || 0)) { cambio.cant_packing = pack; hay = true }
-      if (hay) items.push(cambio)
+      if (pack !== (parseFloat(item.cant_packing) || 0)) {
+        items.push({ producto_codigo: item.producto_codigo, cant_packing: pack })
+      }
     }
     if (!items.length) return
 
@@ -1018,7 +996,7 @@ async function guardarCantidades() {
 }
 
 function difVal(item) {
-  const base = cantPack(item) || cantPick(item) || 0
+  const base = cantPack(item)
   const req  = parseFloat(item.cant_requerida) || 0
   const dif  = base - req
   if (dif === 0) return '✓'
@@ -1026,7 +1004,7 @@ function difVal(item) {
 }
 
 function difValClass(item) {
-  const base = cantPack(item) || cantPick(item) || 0
+  const base = cantPack(item)
   const req  = parseFloat(item.cant_requerida) || 0
   const dif  = base - req
   if (dif === 0) return 'dif-ok'
@@ -1034,7 +1012,7 @@ function difValClass(item) {
 }
 
 function difClass(item) {
-  const base = cantPack(item) || cantPick(item) || 0
+  const base = cantPack(item)
   const req  = parseFloat(item.cant_requerida) || 0
   if (base === 0) return ''
   const dif  = base - req
