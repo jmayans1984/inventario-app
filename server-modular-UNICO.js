@@ -3476,13 +3476,21 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
         const [ccRes, bodegaRes, cfgRes] = await Promise.all([
             pool.query(`SELECT codigo, nombre FROM ccostos WHERE empresa = $1 AND COALESCE(activo,'SI') <> 'NO' ORDER BY nombre`, [emp]),
             pool.query(`SELECT bodega_maestra FROM empresas WHERE codigo = $1`, [emp]),
-            pool.query(`SELECT cta_materia_prima, valor_estimado_inventario_final FROM config_general WHERE empresa = $1`, [emp]),
+            pool.query(`SELECT cta_materia_prima, valor_estimado_inventario_final,
+                               cta_descuentos_ventas, cta_devoluciones
+                        FROM config_general WHERE empresa = $1`, [emp]),
         ]);
         const bodegaMaestra   = bodegaRes.rows[0]?.bodega_maestra || null;
         const ctaMateriaPrima = cfgRes.rows[0]?.cta_materia_prima || null;
         const valorEstimadoInventarioFinal = cfgRes.rows[0]?.valor_estimado_inventario_final != null
             ? parseFloat(cfgRes.rows[0].valor_estimado_inventario_final)
             : null;
+
+        // Mismos interruptores que usa el Estado de Resultados para medir la
+        // venta: si el concepto tiene cuenta contable propia ya se contabiliza
+        // aparte y no se resta acá; si no la tiene, se resta de las brutas.
+        const restaDescVM = cfgRes.rows[0]?.cta_descuentos_ventas?.trim() ? 0 : 1;
+        const restaDevVM  = cfgRes.rows[0]?.cta_devoluciones?.trim()      ? 0 : 1;
 
         // ── Ventanas de cierre ────────────────────────────────────────────
         // Cierre del mes: [hasta, hasta + gracia]
@@ -3610,12 +3618,23 @@ app.get('/api/almacen/valoracion-mensual', async (req, res) => {
             valorizarCortes(tomasInicial),
             valorizarCortes(tomasFinal),
             gastosMPQuery,
+            // Las ventas se miden EXACTAMENTE igual que en el Estado de
+            // Resultados: se parte de las brutas y solo se descuenta lo que NO
+            // tenga cuenta contable propia, porque lo que sí la tiene ya
+            // aparece como gasto en ese informe. Antes acá se usaban las netas,
+            // una base menor: el % de participación de cada sede y el food cost
+            // no coincidían con los del P&G sobre el mismo mes.
+            // Ojo: esto NO es "ventas brutas" a secas — con descuentos
+            // configurados y devoluciones sin configurar, brutas puras daría
+            // por encima del P&G.
             pool.query(
-                `SELECT ccosto, COALESCE(SUM(ventas_netas), 0) AS ventas
+                `SELECT ccosto, COALESCE(SUM(COALESCE(ventas_brutas,0)
+                                            - $4::int * COALESCE(descuentos,0)
+                                            - $5::int * COALESCE(devoluciones,0)), 0) AS ventas
                  FROM ventas
                  WHERE empresa = $1 AND fecha >= $2 AND fecha <= $3
                  GROUP BY ccosto`,
-                [emp, desde, hasta]
+                [emp, desde, hasta, restaDescVM, restaDevVM]
             )
         ]);
 

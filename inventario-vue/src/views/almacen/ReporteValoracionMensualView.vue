@@ -419,15 +419,16 @@
           </div>
           <p class="vm-card-note">
             El consumo real total (<b>{{ fmt(data.kpis.consumoReal) }}</b>) se distribuye entre los centros de costo
-            que tuvieron ventas en el período, en proporción a su participación sobre el total de ventas netas
+            que tuvieron ventas en el período, en proporción a su participación sobre el total de ventas
             (<b>{{ fmt(data.kpis.totalVentasBase) }}</b>). La bodega maestra y los centros sin ventas (p.ej. administración) no reciben asignación.
+            La venta se mide igual que en el Estado de Resultados, para que el food cost de los dos informes coincida.
           </p>
           <div class="vm-table-wrap">
             <table class="vm-table">
               <thead>
                 <tr>
                   <th>CENTRO DE COSTO</th>
-                  <th class="tr">VENTAS NETAS</th>
+                  <th class="tr">VENTAS</th>
                   <th class="tr">% VENTAS</th>
                   <th class="tr">CONSUMO MP ASIGNADO</th>
                   <th class="tr">FOOD COST %</th>
