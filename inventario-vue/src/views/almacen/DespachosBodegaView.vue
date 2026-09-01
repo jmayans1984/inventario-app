@@ -441,7 +441,7 @@
                 prepend-icon="mdi-pencil" :loading="cargandoEditar" :disabled="cargandoEditar" @click="abrirEditar(detalleActivo)">
                 Editar
               </v-btn>
-              <v-btn icon variant="text" color="white" size="small" :disabled="cargandoEditar" @click="dlgDetalle=false"><v-icon>mdi-close</v-icon></v-btn>
+              <v-btn icon variant="text" color="white" size="small" :disabled="cargandoEditar" @click="cerrarDetalle"><v-icon>mdi-close</v-icon></v-btn>
             </div>
           </div>
 
@@ -466,6 +466,25 @@
             </div>
             <div v-if="detalleActivo.observaciones" class="det-obs mb-4">{{ detalleActivo.observaciones }}</div>
 
+            <!-- Barra de edición de cantidades. La versión light llena las
+                 cantidades escaneando; acá se escriben a mano, y este botón
+                 evita tener que teclear una por una cuando salió todo completo. -->
+            <div v-if="puedeEditarCantidades" class="cant-toolbar mb-3">
+              <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-flash"
+                :title="`Pone la cantidad requerida en ${campoDestino === 'packing' ? 'PACKING' : 'PICKING'} para todas las líneas`"
+                @click="autocompletarCantidades">
+                Completar todo
+              </v-btn>
+              <v-btn v-if="hayCambiosCantidades" size="small" variant="text" color="grey"
+                prepend-icon="mdi-undo" @click="resetCantidades">
+                Descartar
+              </v-btn>
+              <v-spacer />
+              <span v-if="hayCambiosCantidades" class="cant-dirty">
+                <v-icon size="13">mdi-circle-medium</v-icon>Cambios sin guardar
+              </span>
+            </div>
+
             <!-- Tabla de detalle agrupada por grupo -->
             <table class="detalle-table">
               <thead>
@@ -485,10 +504,22 @@
                   <tr v-for="item in grupo.items" :key="item.id" :class="difClass(item)">
                     <td><div class="item-nom">{{ item.producto_nombre }}</div></td>
                     <td class="ta-c num-cell">{{ item.cant_requerida }}</td>
-                    <td class="ta-c num-cell">{{ item.cant_picking || 0 }}</td>
-                    <td class="ta-c num-cell">{{ item.cant_packing || 0 }}</td>
+                    <td class="ta-c num-cell">
+                      <input v-if="puedeEditarCantidades && cantEdit[item.producto_codigo]"
+                        v-model="cantEdit[item.producto_codigo].picking"
+                        type="number" min="0" step="any" class="cant-input"
+                        @focus="$event.target.select()" />
+                      <template v-else>{{ item.cant_picking || 0 }}</template>
+                    </td>
+                    <td class="ta-c num-cell">
+                      <input v-if="puedeEditarCantidades && cantEdit[item.producto_codigo]"
+                        v-model="cantEdit[item.producto_codigo].packing"
+                        type="number" min="0" step="any" class="cant-input"
+                        @focus="$event.target.select()" />
+                      <template v-else>{{ item.cant_packing || 0 }}</template>
+                    </td>
                     <td class="ta-c">
-                      <span v-if="detalleActivo.estado==='COMPLETADO' || parseFloat(item.cant_packing)>0"
+                      <span v-if="detalleActivo.estado==='COMPLETADO' || cantPack(item) > 0"
                         :class="difValClass(item)">
                         {{ difVal(item) }}
                       </span>
@@ -505,6 +536,11 @@
             <v-btn variant="tonal" color="success" prepend-icon="mdi-printer-outline" @click="imprimirDespacho(detalleActivo)">
               Imprimir Reporte
             </v-btn>
+            <v-btn v-if="puedeEditarCantidades" variant="flat" color="primary" style="color:white"
+              prepend-icon="mdi-content-save-outline" :disabled="!hayCambiosCantidades"
+              :loading="guardandoCantidades" @click="guardarCantidades">
+              Guardar cantidades
+            </v-btn>
             <v-spacer />
             <!-- Completar despacho por VENTA: genera salida por venta y pasa la orden de compra a EN REPARTO -->
             <v-btn v-if="detalleActivo.tipo === 'VENTA' && detalleActivo.estado !== 'COMPLETADO' && detalleActivo.estado !== 'CANCELADO'"
@@ -517,7 +553,7 @@
               :loading="reversando === detalleActivo.id" @click="reversar(detalleActivo)">
               Reversar
             </v-btn>
-            <v-btn variant="flat" color="error" @click="dlgDetalle=false" style="color:white">Cerrar</v-btn>
+            <v-btn variant="flat" color="error" @click="cerrarDetalle" style="color:white">Cerrar</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -687,6 +723,14 @@ const ventasDetalleActivo     = ref(null) // { codigo, nombre }
 const dlgDetalle    = ref(false)
 const detalleActivo = ref(null)
 const cargandoEditar = ref(false)
+
+// Edición manual de picking/packing desde la versión completa. En la light
+// estas cantidades se llenan escaneando; acá se escriben a mano y se guardan
+// todas juntas con el botón.
+// { [producto_codigo]: { picking: '3', packing: '0' } } — se guardan como
+// texto porque salen de <input>; se convierten a número al comparar y enviar.
+const cantEdit            = ref({})
+const guardandoCantidades = ref(false)
 
 // Dialog análisis de faltantes
 const dlgAnalisis = ref(false)
@@ -871,8 +915,110 @@ function estadoColor(e) {
   return { PENDIENTE:'#f59e0b', EN_PICKING:'#3b82f6', EN_PACKING:'#8b5cf6', COMPLETADO:'#10b981', CANCELADO:'#6b7280' }[e] || '#047857'
 }
 
+// ── Edición de cantidades (picking / packing) ─────────────────
+// Una orden COMPLETADA ya generó sus movimientos de inventario y una CANCELADA
+// está cerrada: en ambas el backend rechaza el cambio, así que tampoco se
+// ofrece acá.
+const puedeEditarCantidades = computed(() =>
+  !!detalleActivo.value &&
+  detalleActivo.value.estado !== 'COMPLETADO' &&
+  detalleActivo.value.estado !== 'CANCELADO'
+)
+
+// Qué columna llena "Completar todo". Sigue la etapa en la que va la orden,
+// igual que la light, donde el botón "Completar" actúa sobre el campo del modo
+// de escaneo activo: si ya se está en packing, se completa packing.
+const campoDestino = computed(() =>
+  detalleActivo.value?.estado === 'EN_PACKING' ? 'packing' : 'picking'
+)
+
+// Cantidades efectivas: mientras se edita vale lo que hay en el formulario, no
+// lo último guardado — así la columna DIF. y el color de la fila se mueven en
+// vivo mientras se escribe.
+function cantPick(item) {
+  const e = cantEdit.value[item.producto_codigo]
+  return parseFloat(e ? e.picking : item.cant_picking) || 0
+}
+function cantPack(item) {
+  const e = cantEdit.value[item.producto_codigo]
+  return parseFloat(e ? e.packing : item.cant_packing) || 0
+}
+
+function iniciarCantEdit(orden) {
+  const mapa = {}
+  for (const item of orden?.detalle || []) {
+    mapa[item.producto_codigo] = {
+      picking: String(parseFloat(item.cant_picking) || 0),
+      packing: String(parseFloat(item.cant_packing) || 0),
+    }
+  }
+  cantEdit.value = mapa
+}
+
+const hayCambiosCantidades = computed(() => {
+  if (!puedeEditarCantidades.value) return false
+  for (const item of detalleActivo.value?.detalle || []) {
+    const e = cantEdit.value[item.producto_codigo]
+    if (!e) continue
+    if ((parseFloat(e.picking) || 0) !== (parseFloat(item.cant_picking) || 0)) return true
+    if ((parseFloat(e.packing) || 0) !== (parseFloat(item.cant_packing) || 0)) return true
+  }
+  return false
+})
+
+function autocompletarCantidades() {
+  const campo = campoDestino.value
+  for (const item of detalleActivo.value?.detalle || []) {
+    const e = cantEdit.value[item.producto_codigo]
+    if (!e) continue
+    e[campo] = String(parseFloat(item.cant_requerida) || 0)
+  }
+}
+
+function resetCantidades() {
+  iniciarCantEdit(detalleActivo.value)
+}
+
+async function guardarCantidades() {
+  if (!detalleActivo.value || !hayCambiosCantidades.value) return
+  guardandoCantidades.value = true
+  try {
+    // Solo se mandan las líneas que cambiaron: si alguien está escaneando en
+    // paralelo desde la light, no se pisan las que acá no se tocaron.
+    const items = []
+    for (const item of detalleActivo.value.detalle || []) {
+      const e = cantEdit.value[item.producto_codigo]
+      if (!e) continue
+      const pick = parseFloat(e.picking) || 0
+      const pack = parseFloat(e.packing) || 0
+      const cambio = { producto_codigo: item.producto_codigo }
+      let hay = false
+      if (pick !== (parseFloat(item.cant_picking) || 0)) { cambio.cant_picking = pick; hay = true }
+      if (pack !== (parseFloat(item.cant_packing) || 0)) { cambio.cant_packing = pack; hay = true }
+      if (hay) items.push(cambio)
+    }
+    if (!items.length) return
+
+    await api.patch(`/almacen/despachos/${detalleActivo.value.id}/cantidades`,
+      { empresa: empresa.value, items })
+
+    // Se recarga desde el servidor en vez de parchear el objeto local: así lo
+    // que queda en pantalla es lo que de verdad quedó guardado, incluidos los
+    // escaneos que hayan entrado mientras tanto desde la versión light.
+    const res = await api.get(`/almacen/despachos/${detalleActivo.value.id}`,
+      { params: { empresa: empresa.value } })
+    detalleActivo.value = res.data?.data
+    iniciarCantEdit(detalleActivo.value)
+    await cargar()   // los totales de la tabla de atrás dependen de estas cantidades
+  } catch (e) {
+    alert(e?.response?.data?.error || 'Error al guardar las cantidades')
+  } finally {
+    guardandoCantidades.value = false
+  }
+}
+
 function difVal(item) {
-  const base = parseFloat(item.cant_packing) || parseFloat(item.cant_picking) || 0
+  const base = cantPack(item) || cantPick(item) || 0
   const req  = parseFloat(item.cant_requerida) || 0
   const dif  = base - req
   if (dif === 0) return '✓'
@@ -880,7 +1026,7 @@ function difVal(item) {
 }
 
 function difValClass(item) {
-  const base = parseFloat(item.cant_packing) || parseFloat(item.cant_picking) || 0
+  const base = cantPack(item) || cantPick(item) || 0
   const req  = parseFloat(item.cant_requerida) || 0
   const dif  = base - req
   if (dif === 0) return 'dif-ok'
@@ -888,7 +1034,7 @@ function difValClass(item) {
 }
 
 function difClass(item) {
-  const base = parseFloat(item.cant_packing) || parseFloat(item.cant_picking) || 0
+  const base = cantPack(item) || cantPick(item) || 0
   const req  = parseFloat(item.cant_requerida) || 0
   if (base === 0) return ''
   const dif  = base - req
@@ -1229,12 +1375,22 @@ async function abrirAnalisisFaltantes() {
 async function abrirDetalle(d) {
   dlgDetalle.value  = true
   detalleActivo.value = null
+  cantEdit.value = {}
   try {
     const res = await api.get(`/almacen/despachos/${d.id}`, { params: { empresa: empresa.value } })
     detalleActivo.value = res.data?.data
+    iniciarCantEdit(detalleActivo.value)
   } catch (e) {
     console.error(e)
   }
+}
+
+// Cerrar el diálogo con cantidades escritas y sin guardar las perdería sin
+// aviso — justo el caso de quien usa "Completar todo" y no se fija en el botón.
+function cerrarDetalle() {
+  if (hayCambiosCantidades.value &&
+      !confirm('Hay cantidades sin guardar. ¿Cerrar y descartar los cambios?')) return
+  dlgDetalle.value = false
 }
 
 async function completarDespachoVenta(d) {
@@ -1643,6 +1799,25 @@ onMounted(async () => {
 .item-cod { font-size: 11px; color: rgba(var(--v-theme-on-surface),.4); font-family: monospace; }
 .item-nom { font-weight: 600; font-size: 13px; }
 .num-cell { font-family: monospace; font-size: 13px; }
+
+/* Edición de cantidades */
+.cant-toolbar { display: flex; align-items: center; gap: 8px; }
+.cant-dirty {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 11px; font-weight: 600; color: var(--warning);
+}
+.cant-input {
+  width: 60px; padding: 3px 6px; text-align: center;
+  font-family: monospace; font-size: 13px;
+  border: 1px solid rgba(var(--v-theme-on-surface),.2); border-radius: 6px;
+  background: rgb(var(--v-theme-surface)); color: rgb(var(--v-theme-on-surface));
+}
+.cant-input:focus { outline: none; border-color: var(--indigo); }
+/* Las flechitas del input numérico no caben en una celda de 70px y encima
+   dejan el número descentrado. */
+.cant-input::-webkit-outer-spin-button,
+.cant-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cant-input { -moz-appearance: textfield; appearance: textfield; }
 
 .dif-ok    { color: var(--success); font-weight: 700; }
 .dif-falta { color: var(--error); font-weight: 700; }

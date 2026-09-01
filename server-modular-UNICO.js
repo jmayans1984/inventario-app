@@ -1433,6 +1433,82 @@ app.patch('/api/almacen/despachos/:id/scan', async (req, res) => {
     }
 });
 
+// PATCH /api/almacen/despachos/:id/cantidades — fija cantidades ABSOLUTAS de
+// picking/packing para varias líneas de una vez.
+// Body: { empresa, items: [{ producto_codigo, cant_picking?, cant_packing? }] }
+//
+// No confundir con /scan, que SUMA un delta: ese es el camino del escáner,
+// donde cada lectura vale +1. Este es el de la edición manual desde la versión
+// completa, donde el usuario escribe la cantidad final que quiere dejar. Con
+// deltas habría que calcularlos contra lo que el navegador tenía cargado, y si
+// alguien está escaneando en paralelo desde la versión light ese número ya
+// cambió: se guardaría una cantidad equivocada sin que nadie se entere.
+app.patch('/api/almacen/despachos/:id/cantidades', async (req, res) => {
+    const empresa = req.body.empresa || req.headers['x-empresa'];
+    const items   = req.body.items;
+    if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, error: 'items (arreglo) es requerido' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const rOrden = await client.query(
+            `SELECT estado FROM ordenes_despacho WHERE id=$1 AND empresa=$2::integer`,
+            [req.params.id, empresa]
+        );
+        if (rOrden.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, error: 'Orden no encontrada' });
+        }
+        // Una orden COMPLETADA ya generó sus movimientos de inventario: cambiarle
+        // las cantidades ahora dejaría el inventario sin cuadrar contra la orden.
+        // Para corregirla hay que reversarla primero (ya existe ese botón).
+        const estado = rOrden.rows[0].estado;
+        if (estado === 'COMPLETADO') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, error: 'La orden ya está completada. Reversala primero para poder cambiar las cantidades.' });
+        }
+        if (estado === 'CANCELADO') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, error: 'La orden está cancelada.' });
+        }
+
+        let actualizadas = 0;
+        for (const it of items) {
+            const cod = it && it.producto_codigo;
+            if (!cod) continue;
+            // Solo se tocan las columnas que vengan en el payload: así se puede
+            // guardar el picking sin pisar lo que el escáner haya dejado en
+            // packing (y al revés).
+            const pick = (it.cant_picking === undefined || it.cant_picking === null)
+                ? null : Math.max(0, parseFloat(it.cant_picking) || 0);
+            const pack = (it.cant_packing === undefined || it.cant_packing === null)
+                ? null : Math.max(0, parseFloat(it.cant_packing) || 0);
+            if (pick === null && pack === null) continue;
+
+            // ::numeric explícito — sin el cast, un parámetro nulo dentro del
+            // COALESCE deja a Postgres sin tipo que inferir y la consulta falla.
+            const r = await client.query(`
+                UPDATE ordenes_despacho_detalle
+                SET cant_picking = COALESCE($1::numeric, cant_picking),
+                    cant_packing = COALESCE($2::numeric, cant_packing)
+                WHERE orden_id=$3 AND producto_codigo=$4
+            `, [pick, pack, req.params.id, cod]);
+            actualizadas += r.rowCount;
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, actualizadas });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Error PATCH /api/almacen/despachos/:id/cantidades:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
+});
+
 // POST /api/almacen/despachos/:id/confirmar — genera movimientos en inventario y cierra la orden
 app.post('/api/almacen/despachos/:id/confirmar', async (req, res) => {
     const empresa = req.body.empresa || req.headers['x-empresa'];
