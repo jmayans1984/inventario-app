@@ -21017,6 +21017,75 @@ app.get('/api/nomina/reporte', async (req, res) => {
             `, [empresa, fechaInicio, fechaFin]);
             rows = r.rows;
 
+        } else if (vista === 'horas') {
+            // Horas y salario base por trabajador.
+            //
+            // El salario base sale de la LIQUIDACIÓN, no de la ficha del
+            // empleado: la ficha pudo cambiar después de pagar, y el informe
+            // tiene que mostrar con qué se pagó realmente.
+            //
+            // Para los de día laborado no sirve ll.valor_hora — en varias
+            // líneas viene en 0 — así que la tarifa se deriva de lo pagado:
+            // bruto_base / días. Para el fijo semanal se promedia por
+            // liquidación, porque sumarlo daría el fijo multiplicado por la
+            // cantidad de semanas del rango.
+            const r = await pool.query(`
+                SELECT
+                    ll.empleado_id,
+                    COALESCE(e.nombre||' '||e.apellido, e.nombre, 'Empleado '||ll.empleado_id) AS nombre,
+                    COALESCE(e.tipo_empleado, ll.tipo_empleado, '—') AS tipo_empleado,
+                    CASE WHEN BOOL_OR(ll.es_por_dia)    THEN 'POR DÍA'
+                         WHEN BOOL_OR(ll.es_monto_fijo) THEN 'FIJO SEMANAL'
+                         ELSE 'POR HORA' END AS tipo_salario,
+                    CASE
+                      WHEN BOOL_OR(ll.es_por_dia) THEN
+                        COALESCE(SUM(ll.bruto_base) / NULLIF(SUM(ll.dias_trabajados),0), MAX(e.valor_dia), 0)
+                      WHEN BOOL_OR(ll.es_monto_fijo) THEN
+                        COALESCE(SUM(ll.bruto_base) / NULLIF(COUNT(DISTINCT l.id),0), MAX(e.monto_fijo_semanal), 0)
+                      ELSE COALESCE(MAX(ll.valor_hora), 0)
+                    END AS salario_base,
+                    COALESCE(MAX(ll.valor_hora_ot),0)      AS valor_hora_ot,
+                    COUNT(DISTINCT l.id)                   AS nominas,
+                    COALESCE(SUM(ll.horas_regulares),0)    AS horas_regulares,
+                    COALESCE(SUM(ll.horas_overtime),0)     AS horas_overtime,
+                    COALESCE(SUM(ll.horas_regulares),0) + COALESCE(SUM(ll.horas_overtime),0) AS horas_totales,
+                    COALESCE(SUM(ll.dias_trabajados),0)    AS dias_trabajados,
+                    COALESCE(SUM(ll.total_bruto),0)        AS total_bruto
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll ON ll.liquidacion_id = l.id
+                LEFT JOIN nom_empleados e ON e.id = ll.empleado_id
+                WHERE l.empresa=$1 AND l.estado='APROBADA'
+                  AND l.semana_inicio>=$2 AND l.semana_fin<=$3
+                GROUP BY ll.empleado_id, e.nombre, e.apellido, e.tipo_empleado, ll.tipo_empleado
+                ORDER BY total_bruto DESC
+            `, [empresa, fechaInicio, fechaFin]);
+            rows = r.rows;
+
+        } else if (vista === 'horas_ccosto') {
+            // Horas de cada trabajador en cada centro de costo. La vista
+            // 'ccosto' ya existía pero solo da el total del centro, sin decir
+            // quién puso esas horas.
+            const r = await pool.query(`
+                SELECT
+                    ll.empleado_id,
+                    COALESCE(e.nombre||' '||e.apellido, e.nombre, 'Empleado '||ll.empleado_id) AS nombre,
+                    lc.ccosto,
+                    COALESCE(cc.nombre, lc.ccosto) AS ccosto_nombre,
+                    COALESCE(SUM(lc.horas),0)       AS horas,
+                    COALESCE(SUM(lc.costo_bruto),0) AS costo_bruto,
+                    COALESCE(SUM(lc.costo_total),0) AS costo_total
+                FROM nom_liquidacion l
+                JOIN nom_liquidacion_linea ll  ON ll.liquidacion_id = l.id
+                JOIN nom_liquidacion_ccosto lc ON lc.linea_id = ll.id
+                LEFT JOIN nom_empleados e ON e.id = ll.empleado_id
+                LEFT JOIN ccostos cc ON cc.codigo = lc.ccosto AND cc.empresa = l.empresa
+                WHERE l.empresa=$1 AND l.estado='APROBADA'
+                  AND l.semana_inicio>=$2 AND l.semana_fin<=$3
+                GROUP BY ll.empleado_id, e.nombre, e.apellido, lc.ccosto, cc.nombre
+                ORDER BY nombre, costo_total DESC
+            `, [empresa, fechaInicio, fechaFin]);
+            rows = r.rows;
+
         } else if (vista === 'impuestos') {
             // Por tipo de impuesto/deducción — resumen en columnas
             const r = await pool.query(`
