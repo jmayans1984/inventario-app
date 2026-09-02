@@ -494,8 +494,11 @@
               <thead>
                 <tr>
                   <th>CONCEPTO</th>
-                  <th class="tr">HOY</th>
-                  <th class="tr">{{ comparativo ? fmtFechaCorta(comparativo.fechaAnterior) : 'SEM. ANTERIOR' }}</th>
+                  <!-- La fecha, no "hoy": lo que se importa es la venta del
+                       día anterior, así que el encabezado tiene que decir de
+                       qué día se está hablando. -->
+                  <th class="tr">{{ fmtFechaColumna(configFecha) }}</th>
+                  <th class="tr">{{ comparativo ? fmtFechaColumna(comparativo.fechaAnterior) : 'SEM. ANTERIOR' }}</th>
                   <th class="tr">DIFERENCIA</th>
                   <th class="tr">%</th>
                 </tr>
@@ -1454,10 +1457,15 @@ const resumenPorSede = computed(() => {
   }))
 })
 
-function fmtFechaCorta(iso) {
+// Encabezado de columna: día de la semana abreviado + fecha. El día va porque
+// la gracia de la comparación es justamente que sean el mismo día de la
+// semana, y así se ve de una.
+function fmtFechaColumna(iso) {
   if (!iso) return ''
-  const [y, m, d] = String(iso).split('-')
-  return `${m}/${d}/${y}`
+  const [y, m, d] = String(iso).split('-').map(Number)
+  const dias = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+  const dia = dias[new Date(y, m - 1, d).getDay()]
+  return `${dia} ${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`
 }
 
 // Variación DESPUÉS de importar, ya con los datos escritos: acá sí se usa el
