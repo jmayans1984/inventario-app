@@ -114,7 +114,7 @@
                     :loading="horasFila === r.id"
                     :disabled="horasFila !== null && horasFila !== r.id"
                     :title="`Horas trabajadas del ${fmtFecha(r.semana_inicio)} al ${fmtFecha(r.semana_fin)}`"
-                    @click="abrirHoras(r)"
+                    @click="exportarHoras(r)"
                   >
                     <v-icon size="19">mdi-clock-outline</v-icon>
                   </v-btn>
@@ -359,130 +359,6 @@
         </div>
       </div>
 
-      <!-- ═══════════ HORAS TRABAJADAS ═══════════ -->
-      <v-dialog v-model="dlgHoras" max-width="1100" scrollable>
-        <v-card rounded="lg">
-          <v-card-title class="hr-dlg-hdr">
-            <v-icon color="white" size="20" class="mr-2">mdi-clock-outline</v-icon>
-            <div>
-              <div class="hr-dlg-ttl">Horas Trabajadas</div>
-              <div class="hr-dlg-sub" v-if="horasRango">
-                {{ fmtFecha(horasRango.desde) }} — {{ fmtFecha(horasRango.hasta) }}
-              </div>
-            </div>
-            <v-spacer />
-            <v-btn icon variant="text" color="white" size="small" @click="dlgHoras = false">
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-          </v-card-title>
-
-          <v-card-text class="pa-5" style="max-height:72vh;overflow-y:auto">
-            <div v-if="cargandoHoras" class="hr-cargando">
-              <v-progress-circular indeterminate size="26" width="3" color="primary" />
-              <span>Cargando horas…</span>
-            </div>
-
-            <template v-else-if="horasEmpleados.length">
-              <!-- ── Cuadro 1: por trabajador ── -->
-              <div class="hr-sec-ttl">
-                <v-icon size="15" color="primary">mdi-account-group-outline</v-icon>
-                POR TRABAJADOR
-              </div>
-              <div class="rn-table-wrap">
-                <table class="rn-table">
-                  <thead>
-                    <tr>
-                      <th>TRABAJADOR</th>
-                      <th class="ta-c">TIPO</th>
-                      <th class="ta-c">SALARIO BASE</th>
-                      <th class="ta-r">VALOR</th>
-                      <th class="ta-r">H. REG.</th>
-                      <th class="ta-r">H. EXTRA</th>
-                      <th class="ta-r">DÍAS</th>
-                      <th class="ta-r">BRUTO</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="e in horasEmpleados" :key="e.empleado_id">
-                      <td class="font-weight-medium">{{ e.nombre }}</td>
-                      <td class="ta-c">
-                        <span class="hr-chip" :class="e.tipo_empleado === 'W2' ? 'hr-chip-w2' : 'hr-chip-1099'">
-                          {{ e.tipo_empleado }}
-                        </span>
-                      </td>
-                      <td class="ta-c"><span class="hr-chip-sal">{{ e.tipo_salario }}</span></td>
-                      <td class="ta-r font-mono">{{ fmt(e.salario_base) }}</td>
-                      <td class="ta-r font-mono">{{ +e.horas_regulares ? fmtNum(e.horas_regulares) : '—' }}</td>
-                      <td class="ta-r font-mono text-warning">{{ +e.horas_overtime ? fmtNum(e.horas_overtime) : '—' }}</td>
-                      <td class="ta-r font-mono">{{ +e.dias_trabajados || '—' }}</td>
-                      <td class="ta-r font-mono font-weight-bold">{{ fmt(e.total_bruto) }}</td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr class="rn-tfoot">
-                      <td colspan="4"><strong>TOTAL {{ horasEmpleados.length }} TRABAJADORES</strong></td>
-                      <td class="ta-r font-mono"><strong>{{ fmtNum(totalHoras.reg) }}</strong></td>
-                      <td class="ta-r font-mono text-warning"><strong>{{ fmtNum(totalHoras.ot) }}</strong></td>
-                      <td class="ta-r font-mono"><strong>{{ totalHoras.dias || '—' }}</strong></td>
-                      <td class="ta-r font-mono"><strong>{{ fmt(totalHoras.bruto) }}</strong></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              <!-- ── Cuadro 2: horas por trabajador en cada centro de costo ── -->
-              <!-- En matriz y no en lista: así se ve de una quién se reparte
-                   entre sedes y cuánto pone en cada una. -->
-              <div class="hr-sec-ttl mt-6">
-                <v-icon size="15" color="primary">mdi-sitemap-outline</v-icon>
-                HORAS POR CENTRO DE COSTO
-              </div>
-              <div class="rn-table-wrap">
-                <table class="rn-table">
-                  <thead>
-                    <tr>
-                      <th>TRABAJADOR</th>
-                      <th v-for="cc in ccostosHoras" :key="cc" class="ta-r">{{ cc }}</th>
-                      <th class="ta-r">TOTAL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="fila in matrizHoras" :key="fila.empleado_id">
-                      <td class="font-weight-medium">{{ fila.nombre }}</td>
-                      <td v-for="cc in ccostosHoras" :key="cc" class="ta-r font-mono"
-                        :class="{ 'hr-cero': !fila.horas[cc] }">
-                        {{ fila.horas[cc] ? fmtNum(fila.horas[cc]) : '—' }}
-                      </td>
-                      <td class="ta-r font-mono font-weight-bold">{{ fmtNum(fila.total) }}</td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr class="rn-tfoot">
-                      <td><strong>TOTAL</strong></td>
-                      <td v-for="cc in ccostosHoras" :key="cc" class="ta-r font-mono">
-                        <strong>{{ fmtNum(totalPorCcosto[cc]) }}</strong>
-                      </td>
-                      <td class="ta-r font-mono"><strong>{{ fmtNum(totalHorasCcosto) }}</strong></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </template>
-
-            <div v-else class="hr-vacio">
-              <v-icon size="40" color="var(--ink-400)">mdi-clock-alert-outline</v-icon>
-              <p>No hay horas registradas para esta nómina.</p>
-            </div>
-          </v-card-text>
-
-          <v-divider />
-          <v-card-actions class="pa-4">
-            <v-spacer />
-            <v-btn variant="flat" color="primary" @click="dlgHoras = false">Cerrar</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-
     </div>
   </MainLayout>
 </template>
@@ -505,89 +381,154 @@ const generandoPDF = ref(false)
 // boton de esa fila y no los de todas.
 const pdfFila = ref(null)
 
-// ── Horas trabajadas de una nómina ────────────────────────────
-const dlgHoras       = ref(false)
-const cargandoHoras  = ref(false)
-const horasFila      = ref(null)   // id de la fila cuyo botón está girando
-const horasRango     = ref(null)   // { desde, hasta } de la nómina abierta
-const horasEmpleados = ref([])     // vista 'horas'
-const horasCcosto    = ref([])     // vista 'horas_ccosto'
+// ── Horas trabajadas: informe listo para imprimir en pestaña nueva ──
+// Mismo camino que el PDF de la nómina: se arma el HTML y se abre en otra
+// pestaña, donde el usuario hace Ctrl+P / Guardar como PDF.
+const horasFila = ref(null)
 
-async function abrirHoras(fila) {
+async function exportarHoras(fila) {
   if (!fila) return
   horasFila.value = fila.id
-  const desde = String(fila.semana_inicio).split('T')[0]
-  const hasta = String(fila.semana_fin).split('T')[0]
-  horasRango.value = { desde, hasta }
-  horasEmpleados.value = []
-  horasCcosto.value = []
-  cargandoHoras.value = true
-  dlgHoras.value = true
   try {
-    const base = { empresa: getEmpresa(), fechaInicio: desde, fechaFin: hasta }
+    const desde = String(fila.semana_inicio).split('T')[0]
+    const hasta = String(fila.semana_fin).split('T')[0]
+    const base  = { empresa: getEmpresa(), fechaInicio: desde, fechaFin: hasta }
+
     const [rEmp, rCc] = await Promise.all([
       fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'horas' })}`).then(r => r.json()),
       fetch(`${API_BASE}/nomina/reporte?${new URLSearchParams({ ...base, vista: 'horas_ccosto' })}`).then(r => r.json()),
     ])
-    horasEmpleados.value = rEmp?.data || []
-    horasCcosto.value    = rCc?.data  || []
+    const empleados = rEmp?.data || []
+    const porCc     = rCc?.data  || []
+
+    // ── Cuadro 1: por trabajador ──
+    const tot = empleados.reduce((t, e) => ({
+      reg:   t.reg   + (parseFloat(e.horas_regulares) || 0),
+      ot:    t.ot    + (parseFloat(e.horas_overtime)  || 0),
+      dias:  t.dias  + (parseFloat(e.dias_trabajados) || 0),
+      bruto: t.bruto + (parseFloat(e.total_bruto)     || 0),
+    }), { reg: 0, ot: 0, dias: 0, bruto: 0 })
+
+    const filasEmp = empleados.map(e => `
+      <tr>
+        <td>${e.nombre}</td>
+        <td class="c"><span class="badge ${e.tipo_empleado === 'W2' ? 'w2' : 'c1099'}">${e.tipo_empleado}</span></td>
+        <td class="c"><span class="badge tipo">${e.tipo_salario}</span></td>
+        <td>${fmt(e.salario_base)}</td>
+        <td>${+e.horas_regulares ? fmtNum(e.horas_regulares) : '—'}</td>
+        <td class="text-amber">${+e.horas_overtime ? fmtNum(e.horas_overtime) : '—'}</td>
+        <td>${+e.dias_trabajados || '—'}</td>
+        <td class="b">${fmt(e.total_bruto)}</td>
+      </tr>`).join('')
+
+    // ── Cuadro 2: matriz trabajador × centro de costo ──
+    // En matriz y no en lista plana: así se ve de una quién se reparte entre
+    // sedes y cuánto pone en cada una.
+    const sumaCc = {}
+    for (const r of porCc) {
+      const cc = r.ccosto_nombre || r.ccosto
+      sumaCc[cc] = (sumaCc[cc] || 0) + (parseFloat(r.horas) || 0)
+    }
+    const ccs = Object.keys(sumaCc).sort((a, b) => sumaCc[b] - sumaCc[a])
+
+    const mapa = new Map()
+    for (const r of porCc) {
+      if (!mapa.has(r.empleado_id)) mapa.set(r.empleado_id, { nombre: r.nombre, horas: {}, total: 0 })
+      const f = mapa.get(r.empleado_id)
+      const cc = r.ccosto_nombre || r.ccosto
+      const h  = parseFloat(r.horas) || 0
+      f.horas[cc] = (f.horas[cc] || 0) + h
+      f.total += h
+    }
+    const matriz = [...mapa.values()].sort((a, b) => b.total - a.total)
+    const totalGeneral = matriz.reduce((s, f) => s + f.total, 0)
+
+    const filasCc = matriz.map(f => `
+      <tr>
+        <td>${f.nombre}</td>
+        ${ccs.map(cc => `<td class="${f.horas[cc] ? '' : 'cero'}">${f.horas[cc] ? fmtNum(f.horas[cc]) : '—'}</td>`).join('')}
+        <td class="b">${fmtNum(f.total)}</td>
+      </tr>`).join('')
+
+    const css = `
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 24px; background: white; }
+      h1 { font-size: 18px; font-weight: 900; color: #be185d; margin-bottom: 4px; }
+      .sub { font-size: 11px; color: #888; margin-bottom: 22px; }
+      .section { margin-bottom: 30px; }
+      .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; color: #be185d; border-bottom: 2px solid #ec4899; padding-bottom: 4px; margin-bottom: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 10px; }
+      th { background: #fdf2f8; padding: 5px 9px; text-align: right; font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #9ca3af; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+      th:first-child { text-align: left; }
+      td { padding: 4px 9px; text-align: right; border-bottom: 1px solid #f3f4f6; }
+      td:first-child { text-align: left; font-weight: 500; }
+      td.c { text-align: center; }
+      td.b { font-weight: 700; }
+      td.cero { color: #d1d5db; }
+      tr:nth-child(even) { background: #fafafa; }
+      .tfoot td { background: #fdf2f8; font-weight: 700; font-size: 10.5px; border-top: 2px solid #f9a8d4; padding: 5px 9px; }
+      .badge { font-size: 8.5px; font-weight: 700; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+      .w2    { background: #dcfce7; color: #15803d; }
+      .c1099 { background: #ede9fe; color: #7c3aed; }
+      .tipo  { background: #f3f4f6; color: #4b5563; }
+      .text-amber { color: #b45309; }
+      @media print { body { padding: 12px; } .section { page-break-inside: avoid; } }
+    `
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <title>Horas Trabajadas ${fmtFecha(desde)} - ${fmtFecha(hasta)}</title>
+      <style>${css}</style></head>
+      <body>
+        <h1>HORAS TRABAJADAS</h1>
+        <div class="sub">Semana del ${fmtFecha(desde)} al ${fmtFecha(hasta)}</div>
+
+        <div class="section">
+          <div class="section-title">Por Trabajador</div>
+          <table>
+            <thead><tr>
+              <th>TRABAJADOR</th><th style="text-align:center">TIPO</th>
+              <th style="text-align:center">SALARIO BASE</th><th>VALOR</th>
+              <th>H. REG.</th><th>H. EXTRA</th><th>DÍAS</th><th>BRUTO</th>
+            </tr></thead>
+            <tbody>${filasEmp || '<tr><td colspan="8">Sin datos</td></tr>'}</tbody>
+            <tfoot><tr class="tfoot">
+              <td colspan="4">TOTAL ${empleados.length} TRABAJADORES</td>
+              <td>${fmtNum(tot.reg)}</td>
+              <td class="text-amber">${fmtNum(tot.ot)}</td>
+              <td>${tot.dias || '—'}</td>
+              <td>${fmt(tot.bruto)}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Horas por Centro de Costo</div>
+          <table>
+            <thead><tr>
+              <th>TRABAJADOR</th>${ccs.map(cc => `<th>${cc}</th>`).join('')}<th>TOTAL</th>
+            </tr></thead>
+            <tbody>${filasCc || `<tr><td colspan="${ccs.length + 2}">Sin datos</td></tr>`}</tbody>
+            <tfoot><tr class="tfoot">
+              <td>TOTAL</td>
+              ${ccs.map(cc => `<td>${fmtNum(sumaCc[cc])}</td>`).join('')}
+              <td>${fmtNum(totalGeneral)}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </body></html>`
+
+    const win = window.open('', '_blank')
+    if (!win) { alert('Activa los pop-ups para generar el informe'); return }
+    win.document.write(html)
+    win.document.close()
+    win.focus()
   } catch (e) {
-    console.error('horas trabajadas:', e)
+    console.error('Error generando el informe de horas:', e)
+    alert('No se pudo generar el informe. Revisa la consola para el detalle.')
   } finally {
-    cargandoHoras.value = false
     horasFila.value = null
   }
 }
-
-const totalHoras = computed(() => {
-  const t = { reg: 0, ot: 0, dias: 0, bruto: 0 }
-  for (const e of horasEmpleados.value) {
-    t.reg   += parseFloat(e.horas_regulares) || 0
-    t.ot    += parseFloat(e.horas_overtime)  || 0
-    t.dias  += parseFloat(e.dias_trabajados) || 0
-    t.bruto += parseFloat(e.total_bruto)     || 0
-  }
-  return t
-})
-
-// Columnas de la matriz: los centros de costo que aparecen, ordenados por el
-// total de horas para que las sedes con más peso queden a la izquierda.
-const ccostosHoras = computed(() => {
-  const suma = {}
-  for (const r of horasCcosto.value) {
-    const cc = r.ccosto_nombre || r.ccosto
-    suma[cc] = (suma[cc] || 0) + (parseFloat(r.horas) || 0)
-  }
-  return Object.keys(suma).sort((a, b) => suma[b] - suma[a])
-})
-
-const matrizHoras = computed(() => {
-  const porEmpleado = new Map()
-  for (const r of horasCcosto.value) {
-    const id = r.empleado_id
-    if (!porEmpleado.has(id)) {
-      porEmpleado.set(id, { empleado_id: id, nombre: r.nombre, horas: {}, total: 0 })
-    }
-    const fila = porEmpleado.get(id)
-    const cc = r.ccosto_nombre || r.ccosto
-    const h  = parseFloat(r.horas) || 0
-    fila.horas[cc] = (fila.horas[cc] || 0) + h
-    fila.total += h
-  }
-  return [...porEmpleado.values()].sort((a, b) => b.total - a.total)
-})
-
-const totalPorCcosto = computed(() => {
-  const t = {}
-  for (const cc of ccostosHoras.value) {
-    t[cc] = matrizHoras.value.reduce((s, f) => s + (f.horas[cc] || 0), 0)
-  }
-  return t
-})
-
-const totalHorasCcosto = computed(() =>
-  matrizHoras.value.reduce((s, f) => s + f.total, 0)
-)
 
 // Dias que abarca un rango ISO. Se cuenta en UTC a proposito: con fechas
 // locales, un cambio de horario de verano dentro del rango deja un resultado
@@ -1021,30 +962,8 @@ onMounted(cargar)
 /* Columna del botón de PDF por fila */
 .ta-c { text-align: center; }
 
-/* ── Diálogo de horas trabajadas ── */
-.hr-dlg-hdr {
-  display: flex; align-items: center; gap: 4px; padding: 14px 18px;
-  background: linear-gradient(135deg, var(--indigo), #4338ca); color: #fff;
-}
-.hr-dlg-ttl { font-size: 15px; font-weight: 800; line-height: 1.2; }
-.hr-dlg-sub { font-size: 11.5px; opacity: .85; }
-.hr-cargando, .hr-vacio {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; padding: 46px 0; color: rgba(var(--v-theme-on-surface), .55); font-size: 13px;
-}
-.hr-sec-ttl {
-  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
-  font-size: 10.5px; font-weight: 800; letter-spacing: .6px; color: var(--indigo);
-}
-.hr-chip, .hr-chip-sal {
-  display: inline-block; padding: 1px 8px; border-radius: 999px;
-  font-size: 10px; font-weight: 800; letter-spacing: .3px; white-space: nowrap;
-}
-.hr-chip-w2   { background: rgba(21,128,61,.14);  color: var(--success); }
-.hr-chip-1099 { background: rgba(79,70,229,.14);  color: var(--indigo); }
-.hr-chip-sal  { background: rgba(var(--v-theme-on-surface),.07); color: rgba(var(--v-theme-on-surface),.7); }
-/* Un cero se lee más rápido como raya tenue que como número */
-.hr-cero { color: rgba(var(--v-theme-on-surface), .25); }
+/* El informe de horas se imprime en una pestaña nueva con sus propios
+   estilos embebidos (ver exportarHoras), así que acá no lleva CSS. */
 
 .rn-container { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
