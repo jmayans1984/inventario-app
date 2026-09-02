@@ -105,7 +105,8 @@ export const MODULES = [
         { name: 'Precio de Costo', icon: 'mdi-cash-edit', path: '/almacen/configuracion/costos-productos' },
         { name: 'Precios de Compra / Venta', icon: 'mdi-tag-multiple-outline', path: '/almacen/configuracion/precios', requiredTipo: 'PROVEEDOR' },
         { name: 'Control de Stock', icon: 'mdi-package-variant-closed', path: '/almacen/configuracion/control-stock', requiredTipo: 'PROVEEDOR' },
-        { name: 'Control de Inventario', icon: 'mdi-tune-variant', path: '/almacen/configuracion/control-inventario' },
+        // Oculto del menú y del buscador; la ruta y la vista siguen intactas.
+        { name: 'Control de Inventario', icon: 'mdi-tune-variant', path: '/almacen/configuracion/control-inventario', hidden: true },
         { name: 'Impresión de Códigos de Barras', icon: 'mdi-barcode', path: '/almacen/configuracion/impresion-barcodes' },
         { name: 'Grupo de Productos', icon: 'mdi-folder-multiple-outline', path: '/almacen/configuracion/grupo-productos' },
         { name: 'Etiquetas de Producto', icon: 'mdi-label-outline', path: '/almacen/configuracion/etiquetas-producto' },
