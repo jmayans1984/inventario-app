@@ -13632,31 +13632,35 @@ app.get('/api/square/comparativo-dia', async (req, res) => {
         const rFechas = await pool.query(`SELECT ($1::date - INTERVAL '7 days')::date::text AS anterior`, [fecha]);
         const fechaAnterior = rFechas.rows[0].anterior;
 
+        // Todas las columnas de la tabla ventas, para que el resumen del día
+        // pueda compararlas una por una y no solo el total.
+        const CAMPOS = ['ventas_brutas', 'descuentos', 'devoluciones', 'ventas_netas',
+                        'impuestos', 'propinas', 'comisiones', 'otras_comisiones',
+                        'efectivo', 'tarjetas', 'otros'];
+
         const totalesDe = async (f) => {
+            const sumas = CAMPOS.map(c => `COALESCE(SUM(COALESCE(v.${c},0)),0) AS ${c}`).join(',\n                        ');
             const r = await pool.query(
                 `SELECT v.ccosto,
                         COALESCE(cc.nombre, v.ccosto) AS nombre,
-                        COALESCE(SUM(COALESCE(v.tarjetas,0) + COALESCE(v.efectivo,0) + COALESCE(v.otros,0)), 0) AS recibido,
-                        COALESCE(SUM(COALESCE(v.ventas_brutas,0)), 0) AS brutas
+                        ${sumas},
+                        COALESCE(SUM(COALESCE(v.tarjetas,0) + COALESCE(v.efectivo,0) + COALESCE(v.otros,0)), 0) AS recibido
                  FROM ventas v
                  LEFT JOIN ccostos cc ON cc.codigo = v.ccosto AND cc.empresa = v.empresa
                  WHERE v.empresa = $1 AND v.fecha::date = $2::date
                  GROUP BY v.ccosto, cc.nombre
-                 ORDER BY 3 DESC`,
+                 ORDER BY recibido DESC`,
                 [empresa, f]
             );
-            const porCcosto = r.rows.map(x => ({
-                ccosto: x.ccosto,
-                nombre: x.nombre,
-                recibido: parseFloat(x.recibido) || 0,
-                brutas: parseFloat(x.brutas) || 0,
-            }));
-            return {
-                recibido: porCcosto.reduce((s, x) => s + x.recibido, 0),
-                brutas:   porCcosto.reduce((s, x) => s + x.brutas, 0),
-                sedes:    porCcosto.length,
-                porCcosto,
-            };
+            const num = (x) => parseFloat(x) || 0;
+            const porCcosto = r.rows.map(x => {
+                const fila = { ccosto: x.ccosto, nombre: x.nombre, recibido: num(x.recibido) };
+                for (const c of CAMPOS) fila[c] = num(x[c]);
+                return fila;
+            });
+            const total = { recibido: porCcosto.reduce((s, x) => s + x.recibido, 0) };
+            for (const c of CAMPOS) total[c] = porCcosto.reduce((s, x) => s + x[c], 0);
+            return { ...total, brutas: total.ventas_brutas, sedes: porCcosto.length, porCcosto };
         };
 
         const [actual, anterior] = await Promise.all([totalesDe(fecha), totalesDe(fechaAnterior)]);

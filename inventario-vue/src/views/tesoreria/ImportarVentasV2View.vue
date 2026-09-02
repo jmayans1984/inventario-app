@@ -469,6 +469,82 @@
           </div>
         </div>
 
+        <!-- ═══════════ RESUMEN DEL DÍA ═══════════ -->
+        <!-- Todo lo que se va a guardar en la tabla ventas, línea por línea,
+             contra el mismo día de la semana anterior. Se ve ANTES de
+             importar: si algo viene fuera de lo normal, es el momento de
+             notarlo, no después de haber guardado. -->
+        <div v-if="sedesListas.length" class="ivc-card ivc-resumen mb-4">
+          <div class="ivc-card-hdr">
+            <v-icon size="15" color="var(--indigo)">mdi-clipboard-text-clock-outline</v-icon>
+            <span class="ivc-card-ttl">RESUMEN DEL DÍA</span>
+            <span class="ivc-card-sub">{{ fmtFechaDia(configFecha) }}</span>
+            <v-spacer />
+            <span v-if="cargandoComparativo" class="ivc-res-cargando">
+              <v-progress-circular indeterminate size="12" width="2" />
+              comparando…
+            </span>
+            <span v-else-if="comparativo && !comparativo.anterior.sedes" class="ivc-res-nobase">
+              Sin ventas el {{ fmtFechaDia(comparativo.fechaAnterior) }} para comparar
+            </span>
+          </div>
+
+          <div class="ivc-res-wrap">
+            <table class="ivc-res-tabla">
+              <thead>
+                <tr>
+                  <th>CONCEPTO</th>
+                  <th class="tr">HOY</th>
+                  <th class="tr">{{ comparativo ? fmtFechaCorta(comparativo.fechaAnterior) : 'SEM. ANTERIOR' }}</th>
+                  <th class="tr">DIFERENCIA</th>
+                  <th class="tr">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="grupo in resumenGrupos" :key="grupo.nombre">
+                  <tr class="ivc-res-grupo">
+                    <td colspan="5">{{ grupo.nombre }}</td>
+                  </tr>
+                  <tr v-for="f in grupo.filas" :key="f.campo"
+                    :class="{ 'ivc-res-destacada': f.destacada }">
+                    <td>{{ f.label }}</td>
+                    <td class="tr ivc-res-num">{{ fmt(f.hoy) }}</td>
+                    <td class="tr ivc-res-num ivc-res-ant">{{ hayBase ? fmt(f.ant) : '—' }}</td>
+                    <!-- Sin diferencia no se escribe "+$0.00": ensucia la
+                         columna y hace ver como cambio algo que no cambió. -->
+                    <td class="tr ivc-res-num" :class="claseDelta(f)">
+                      {{ !hayBase || f.delta === 0 ? '—' : (f.delta > 0 ? '+' : '') + fmt(f.delta) }}
+                    </td>
+                    <td class="tr ivc-res-pct" :class="claseDelta(f)">
+                      {{ f.pct === null ? '—' : (f.pct >= 0 ? '+' : '') + f.pct.toFixed(1) + '%' }}
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Por sede: un total que baja puede ser una sola sede floja y el
+               resto normal; sin este detalle no se distingue. -->
+          <div v-if="hayBase" class="ivc-res-sedes">
+            <div class="ivc-res-sedes-ttl">TOTAL RECIBIDO POR SEDE</div>
+            <div v-for="s in resumenPorSede" :key="s.ccosto" class="ivc-res-sede">
+              <span class="ivc-res-sede-nom">{{ s.nombre }}</span>
+              <span class="ivc-res-num">{{ fmt(s.hoy) }}</span>
+              <span class="ivc-res-num ivc-res-ant">{{ s.ant ? fmt(s.ant) : '—' }}</span>
+              <span class="ivc-res-pct" :class="s.ant ? (s.hoy >= s.ant ? 'ivc-up' : 'ivc-down') : 'ivc-nd'">
+                {{ s.ant ? (s.hoy >= s.ant ? '+' : '') + (((s.hoy - s.ant) / s.ant) * 100).toFixed(1) + '%' : 'sin base' }}
+              </span>
+            </div>
+          </div>
+
+          <div v-if="hayBase && comparativo.anterior.sedes !== sedesListas.length" class="ivc-res-aviso">
+            <v-icon size="13">mdi-alert-outline</v-icon>
+            Ese día hubo {{ comparativo.anterior.sedes }} sede(s) con ventas y hoy se van a importar
+            {{ sedesListas.length }}: los totales no son comparables directamente.
+          </div>
+        </div>
+
         <!-- ═══════════ TOTALES Y ACCIÓN ═══════════ -->
         <div class="ivc-footer">
           <div class="ivc-footer-tot">
@@ -487,26 +563,6 @@
             <div class="ivc-footer-item">
               <span class="ivc-footer-lbl">TOTAL RECIBIDO</span>
               <span class="ivc-footer-val ivc-footer-val-big">{{ fmt(totalRecibido) }}</span>
-            </div>
-            <!-- Comparativo contra el mismo día de la semana anterior, con lo
-                 que trae el archivo. Se ve antes de importar: si el día viene
-                 muy fuera de lo normal, conviene mirarlo antes de guardar. -->
-            <div v-if="variacionPrevia" class="ivc-footer-item ivc-footer-comp">
-              <span class="ivc-footer-lbl">
-                VS. {{ fmtFechaDia(comparativo.fechaAnterior).toUpperCase() }}
-              </span>
-              <span v-if="variacionPrevia.sinBase" class="ivc-footer-comp-nd">
-                sin ventas ese día
-              </span>
-              <span v-else class="ivc-footer-comp-val"
-                :class="variacionPrevia.delta >= 0 ? 'ivc-comp-up' : 'ivc-comp-down'">
-                <v-icon size="15">{{ variacionPrevia.delta >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
-                {{ variacionPrevia.delta >= 0 ? '+' : '' }}{{ fmt(variacionPrevia.delta) }}
-                <small>({{ variacionPrevia.pct >= 0 ? '+' : '' }}{{ variacionPrevia.pct.toFixed(1) }}%)</small>
-              </span>
-              <span v-if="!variacionPrevia.sinBase" class="ivc-footer-comp-ant">
-                ese día: {{ fmt(variacionPrevia.ant) }}
-              </span>
             </div>
           </div>
           <div class="ivc-footer-act">
@@ -1307,20 +1363,102 @@ async function cargarComparativo() {
   }
 }
 
-// Variación ANTES de importar: se compara lo que trae el archivo contra lo
-// que quedó guardado ese día de la semana pasada. No se usa
-// comparativo.actual porque ese sale de la base, y acá justamente lo que
-// interesa es el archivo que todavía no se ha guardado — si el día ya estaba
-// importado, comparar base contra base daría siempre lo mismo.
-const variacionPrevia = computed(() => {
-  const c = comparativo.value
-  if (!c || !sedesListas.value.length) return null
-  const hoy = totalRecibido.value
-  const ant = c.anterior.recibido
-  if (!ant) return { sinBase: true, hoy, ant: 0, delta: hoy, pct: null }
-  const delta = hoy - ant
-  return { sinBase: false, hoy, ant, delta, pct: (delta / ant) * 100 }
+// ── Resumen del día ───────────────────────────────────────────────────
+// Lo que trae el archivo, con el MISMO mapeo que usa el importador al
+// escribir en la tabla ventas. Si esto se desalinea del backend, el resumen
+// mostraría una cosa y se guardaría otra.
+const resumenHoy = computed(() => {
+  const t = {
+    ventas_brutas: 0, descuentos: 0, devoluciones: 0, ventas_netas: 0,
+    impuestos: 0, propinas: 0, comisiones: 0, otras_comisiones: 0,
+    efectivo: 0, tarjetas: 0, otros: 0, recibido: 0,
+  }
+  for (const s of sedesListas.value) {
+    t.ventas_brutas    += s.ventas.ventasBrutas || 0
+    t.descuentos       += s.ventas.descuentos   || 0
+    t.devoluciones     += s.ventas.devoluciones || 0
+    t.ventas_netas     += s.ventas.ventasNetas  || 0
+    t.impuestos        += s.ventas.impuestos    || 0
+    t.propinas         += s.ventas.propinas     || 0
+    t.comisiones       += s.pagos.comisiones    || 0
+    t.otras_comisiones += otrasComisionesDe(s)  || 0
+    t.efectivo         += s.pagos.efectivo      || 0
+    t.tarjetas         += (s.pagos.tarjeta || 0) + (s.pagos.tarjetaRegalo || 0)
+    t.otros            += s.pagos.otro          || 0
+    t.recibido         += s.pagos.totalRecibido || 0
+  }
+  return t
 })
+
+// Hay con qué comparar solo si esa semana hubo ventas ese día.
+const hayBase = computed(() => !!comparativo.value?.anterior?.sedes)
+
+const GRUPOS_RESUMEN = [
+  { nombre: 'VENTAS', campos: [
+    ['ventas_brutas', 'Ventas brutas'],
+    ['descuentos',    'Descuentos'],
+    ['devoluciones',  'Devoluciones'],
+    ['ventas_netas',  'Ventas netas', true],
+  ]},
+  { nombre: 'IMPUESTOS Y PROPINAS', campos: [
+    ['impuestos', 'Impuestos'],
+    ['propinas',  'Propinas'],
+  ]},
+  { nombre: 'COMISIONES', campos: [
+    ['comisiones',       'Comisiones Square'],
+    ['otras_comisiones', 'Otras comisiones (delivery)'],
+  ]},
+  { nombre: 'FORMAS DE PAGO', campos: [
+    ['efectivo', 'Efectivo'],
+    ['tarjetas', 'Tarjeta'],
+    ['otros',    'Otros'],
+    ['recibido', 'Total recibido', true],
+  ]},
+]
+
+const resumenGrupos = computed(() => {
+  const hoy = resumenHoy.value
+  const ant = comparativo.value?.anterior || {}
+  return GRUPOS_RESUMEN.map(g => ({
+    nombre: g.nombre,
+    filas: g.campos.map(([campo, label, destacada]) => {
+      const h = hoy[campo] || 0
+      const a = ant[campo] || 0
+      return {
+        campo, label, destacada: !!destacada,
+        hoy: h, ant: a,
+        delta: h - a,
+        // Sin base no hay porcentaje: un +100% contra cero no dice nada.
+        pct: hayBase.value && a ? ((h - a) / a) * 100 : null,
+      }
+    }),
+  }))
+})
+
+// Un descuento o una comisión que SUBE es peor, no mejor: el verde/rojo se
+// invierte para esos conceptos.
+const CAMPOS_INVERSOS = ['descuentos', 'devoluciones', 'comisiones', 'otras_comisiones']
+function claseDelta(f) {
+  if (!hayBase.value || f.delta === 0) return 'ivc-nd'
+  const bueno = CAMPOS_INVERSOS.includes(f.campo) ? f.delta < 0 : f.delta > 0
+  return bueno ? 'ivc-up' : 'ivc-down'
+}
+
+const resumenPorSede = computed(() => {
+  const ant = comparativo.value?.anterior?.porCcosto || []
+  return sedesListas.value.map(s => ({
+    ccosto: s.ccosto,
+    nombre: nombreCcosto(s.ccosto),
+    hoy: s.pagos.totalRecibido || 0,
+    ant: ant.find(x => String(x.ccosto) === String(s.ccosto))?.recibido || 0,
+  }))
+})
+
+function fmtFechaCorta(iso) {
+  if (!iso) return ''
+  const [y, m, d] = String(iso).split('-')
+  return `${m}/${d}/${y}`
+}
 
 // Variación DESPUÉS de importar, ya con los datos escritos: acá sí se usa el
 // total del día según la base.
@@ -1686,24 +1824,55 @@ async function importarTodas() {
 .ivc-footer-val-big { font-size: 21px; font-weight: 900; color: var(--success); }
 .ivc-footer-act { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
-/* Comparativo vs. el mismo día de la semana anterior, en la barra de totales */
-.ivc-footer-comp {
-  padding-left: 20px;
-  border-left: 1px solid rgba(var(--v-theme-on-surface), .12);
+/* ── Resumen del día vs. el mismo día de la semana anterior ── */
+.ivc-res-cargando, .ivc-res-nobase {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: rgba(var(--v-theme-on-surface), .5);
 }
-.ivc-footer-comp-val {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums;
+.ivc-res-wrap { overflow-x: auto; }
+.ivc-res-tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ivc-res-tabla thead th {
+  padding: 6px 10px; text-align: left;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .6px;
+  color: rgba(var(--v-theme-on-surface), .45);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), .1);
+  white-space: nowrap;
 }
-.ivc-footer-comp-val small { font-size: 12.5px; font-weight: 700; }
-.ivc-comp-up   { color: var(--success); }
-.ivc-comp-down { color: var(--error); }
-.ivc-footer-comp-ant,
-.ivc-footer-comp-nd {
-  font-size: 10.5px; color: rgba(var(--v-theme-on-surface), .5);
-  font-variant-numeric: tabular-nums;
+.ivc-res-tabla td { padding: 5px 10px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), .05); }
+.ivc-res-tabla .tr { text-align: right; }
+.ivc-res-grupo td {
+  padding: 8px 10px 4px; font-size: 9.5px; font-weight: 800; letter-spacing: .6px;
+  color: var(--indigo); border-bottom: none;
 }
-.ivc-footer-comp-nd { font-size: 13px; font-weight: 600; }
+.ivc-res-num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.ivc-res-pct { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.ivc-res-ant { color: rgba(var(--v-theme-on-surface), .5); font-weight: 500; }
+.ivc-res-destacada td {
+  background: rgba(var(--v-theme-on-surface), .035);
+  font-weight: 800; font-size: 13px;
+}
+.ivc-up   { color: var(--success); }
+.ivc-down { color: var(--error); }
+.ivc-nd   { color: rgba(var(--v-theme-on-surface), .35); }
+
+.ivc-res-sedes {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+.ivc-res-sedes-ttl {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .6px;
+  color: rgba(var(--v-theme-on-surface), .45); margin-bottom: 5px;
+}
+.ivc-res-sede {
+  display: grid; grid-template-columns: 1fr auto auto 72px;
+  gap: 12px; align-items: center; padding: 3px 10px; font-size: 12px;
+}
+.ivc-res-sede-nom { color: rgba(var(--v-theme-on-surface), .75); }
+.ivc-res-sede .ivc-res-pct { text-align: right; }
+.ivc-res-aviso {
+  margin-top: 10px; display: flex; align-items: center; gap: 5px;
+  font-size: 11.5px; color: var(--warning);
+}
 .ivc-bloqueo {
   display: flex; align-items: flex-start; gap: 6px; max-width: 420px;
   font-size: 11.5px; line-height: 1.45; color: var(--warning);
