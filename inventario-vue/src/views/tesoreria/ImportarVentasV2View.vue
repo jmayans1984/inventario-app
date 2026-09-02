@@ -488,6 +488,26 @@
               <span class="ivc-footer-lbl">TOTAL RECIBIDO</span>
               <span class="ivc-footer-val ivc-footer-val-big">{{ fmt(totalRecibido) }}</span>
             </div>
+            <!-- Comparativo contra el mismo día de la semana anterior, con lo
+                 que trae el archivo. Se ve antes de importar: si el día viene
+                 muy fuera de lo normal, conviene mirarlo antes de guardar. -->
+            <div v-if="variacionPrevia" class="ivc-footer-item ivc-footer-comp">
+              <span class="ivc-footer-lbl">
+                VS. {{ fmtFechaDia(comparativo.fechaAnterior).toUpperCase() }}
+              </span>
+              <span v-if="variacionPrevia.sinBase" class="ivc-footer-comp-nd">
+                sin ventas ese día
+              </span>
+              <span v-else class="ivc-footer-comp-val"
+                :class="variacionPrevia.delta >= 0 ? 'ivc-comp-up' : 'ivc-comp-down'">
+                <v-icon size="15">{{ variacionPrevia.delta >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
+                {{ variacionPrevia.delta >= 0 ? '+' : '' }}{{ fmt(variacionPrevia.delta) }}
+                <small>({{ variacionPrevia.pct >= 0 ? '+' : '' }}{{ variacionPrevia.pct.toFixed(1) }}%)</small>
+              </span>
+              <span v-if="!variacionPrevia.sinBase" class="ivc-footer-comp-ant">
+                ese día: {{ fmt(variacionPrevia.ant) }}
+              </span>
+            </div>
           </div>
           <div class="ivc-footer-act">
             <div v-if="!bloqueo && sedesQueReemplazan.length" class="ivc-aviso-reemplazo">
@@ -1236,8 +1256,14 @@ watch(configFecha, () => {
     s.force = false
     s.resultado = null
   }
-  if (sedes.value.length) verificarYaImportado()
+  if (sedes.value.length) {
+    verificarYaImportado()
+    cargarComparativo()   // cambió el día: cambia contra qué se compara
+  }
 })
+
+// Al cargar un archivo ya se puede comparar, sin esperar a importar.
+watch(() => sedes.value.length, (n) => { if (n) cargarComparativo() })
 
 // ─── Importación ──────────────────────────────────────
 // El popup va mostrando el avance sede por sede. Se trabaja sobre una copia
@@ -1281,9 +1307,23 @@ async function cargarComparativo() {
   }
 }
 
-// Variación contra la semana pasada. null cuando no hay con qué comparar
-// (primera vez que se importa ese día de la semana), para no mostrar un
-// +100% que no significa nada.
+// Variación ANTES de importar: se compara lo que trae el archivo contra lo
+// que quedó guardado ese día de la semana pasada. No se usa
+// comparativo.actual porque ese sale de la base, y acá justamente lo que
+// interesa es el archivo que todavía no se ha guardado — si el día ya estaba
+// importado, comparar base contra base daría siempre lo mismo.
+const variacionPrevia = computed(() => {
+  const c = comparativo.value
+  if (!c || !sedesListas.value.length) return null
+  const hoy = totalRecibido.value
+  const ant = c.anterior.recibido
+  if (!ant) return { sinBase: true, hoy, ant: 0, delta: hoy, pct: null }
+  const delta = hoy - ant
+  return { sinBase: false, hoy, ant, delta, pct: (delta / ant) * 100 }
+})
+
+// Variación DESPUÉS de importar, ya con los datos escritos: acá sí se usa el
+// total del día según la base.
 const variacion = computed(() => {
   const c = comparativo.value
   if (!c) return null
@@ -1645,6 +1685,25 @@ async function importarTodas() {
 .ivc-footer-val { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ivc-footer-val-big { font-size: 21px; font-weight: 900; color: var(--success); }
 .ivc-footer-act { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* Comparativo vs. el mismo día de la semana anterior, en la barra de totales */
+.ivc-footer-comp {
+  padding-left: 20px;
+  border-left: 1px solid rgba(var(--v-theme-on-surface), .12);
+}
+.ivc-footer-comp-val {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.ivc-footer-comp-val small { font-size: 12.5px; font-weight: 700; }
+.ivc-comp-up   { color: var(--success); }
+.ivc-comp-down { color: var(--error); }
+.ivc-footer-comp-ant,
+.ivc-footer-comp-nd {
+  font-size: 10.5px; color: rgba(var(--v-theme-on-surface), .5);
+  font-variant-numeric: tabular-nums;
+}
+.ivc-footer-comp-nd { font-size: 13px; font-weight: 600; }
 .ivc-bloqueo {
   display: flex; align-items: flex-start; gap: 6px; max-width: 420px;
   font-size: 11.5px; line-height: 1.45; color: var(--warning);
