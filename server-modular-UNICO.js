@@ -13606,6 +13606,68 @@ app.put('/api/config-general', async (req, res) => {
     }
 });
 
+// GET /api/square/comparativo-dia?empresa=&fecha=YYYY-MM-DD
+// Compara un día contra el MISMO DÍA DE LA SEMANA anterior (fecha − 7 días).
+// Se usa al cerrar la importación para ver de una si el día subió o bajó.
+//
+// Comparar contra "el día anterior" a secas no diría nada en un restaurante:
+// un lunes siempre va a parecer pésimo al lado de un domingo. Contra el mismo
+// día de la semana pasada sí es comparable.
+//
+// El monto es lo RECIBIDO (tarjetas + efectivo + otros), que es el mismo total
+// que muestra el resumen de la importación.
+app.get('/api/square/comparativo-dia', async (req, res) => {
+    try {
+        const empresa = req.query.empresa || req.headers['x-empresa'];
+        const fecha   = req.query.fecha;
+        if (!empresa || !fecha) {
+            return res.status(400).json({ success: false, error: 'empresa y fecha son requeridas' });
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+            return res.status(400).json({ success: false, error: 'fecha debe venir como YYYY-MM-DD' });
+        }
+
+        // La resta la hace Postgres sobre el tipo date: hacerlo en JS con
+        // new Date() correría el día en una zona negativa como la de Orlando.
+        const rFechas = await pool.query(`SELECT ($1::date - INTERVAL '7 days')::date::text AS anterior`, [fecha]);
+        const fechaAnterior = rFechas.rows[0].anterior;
+
+        const totalesDe = async (f) => {
+            const r = await pool.query(
+                `SELECT v.ccosto,
+                        COALESCE(cc.nombre, v.ccosto) AS nombre,
+                        COALESCE(SUM(COALESCE(v.tarjetas,0) + COALESCE(v.efectivo,0) + COALESCE(v.otros,0)), 0) AS recibido,
+                        COALESCE(SUM(COALESCE(v.ventas_brutas,0)), 0) AS brutas
+                 FROM ventas v
+                 LEFT JOIN ccostos cc ON cc.codigo = v.ccosto AND cc.empresa = v.empresa
+                 WHERE v.empresa = $1 AND v.fecha::date = $2::date
+                 GROUP BY v.ccosto, cc.nombre
+                 ORDER BY 3 DESC`,
+                [empresa, f]
+            );
+            const porCcosto = r.rows.map(x => ({
+                ccosto: x.ccosto,
+                nombre: x.nombre,
+                recibido: parseFloat(x.recibido) || 0,
+                brutas: parseFloat(x.brutas) || 0,
+            }));
+            return {
+                recibido: porCcosto.reduce((s, x) => s + x.recibido, 0),
+                brutas:   porCcosto.reduce((s, x) => s + x.brutas, 0),
+                sedes:    porCcosto.length,
+                porCcosto,
+            };
+        };
+
+        const [actual, anterior] = await Promise.all([totalesDe(fecha), totalesDe(fechaAnterior)]);
+
+        res.json({ success: true, fecha, fechaAnterior, actual, anterior });
+    } catch (error) {
+        console.error('Error GET /api/square/comparativo-dia:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // POST /api/square/importar-resumen
 // Inserta hasta 7 registros en gastos + 1 registro en ventas (transacción atómica)
 // Body: { empresa, fecha, ccosto, ventas: {...}, pagos: {...}, force }

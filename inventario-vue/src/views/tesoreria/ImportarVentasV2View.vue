@@ -583,6 +583,55 @@
             </template>
           </div>
 
+          <!-- ── Comparativo contra el mismo día de la semana anterior ── -->
+          <div v-if="terminado && (cargandoComparativo || comparativo)" class="prg-comp">
+            <div v-if="cargandoComparativo" class="prg-comp-load">
+              <v-progress-circular indeterminate size="13" width="2" />
+              Comparando con la semana pasada…
+            </div>
+
+            <template v-else-if="variacion">
+              <div class="prg-comp-hdr">
+                <span class="prg-comp-lbl">vs. {{ fmtFechaDia(comparativo.fechaAnterior) }}</span>
+                <span v-if="!variacion.sinBase" class="prg-comp-badge"
+                  :class="variacion.delta >= 0 ? 'prg-comp-up' : 'prg-comp-down'">
+                  <v-icon size="13">{{ variacion.delta >= 0 ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
+                  {{ variacion.delta >= 0 ? '+' : '' }}{{ fmt(variacion.delta) }}
+                  ({{ variacion.pct >= 0 ? '+' : '' }}{{ variacion.pct.toFixed(1) }}%)
+                </span>
+              </div>
+
+              <div v-if="variacion.sinBase" class="prg-comp-nobase">
+                No hay ventas registradas ese día para comparar.
+              </div>
+
+              <template v-else>
+                <div class="prg-comp-tot">
+                  <span>{{ fmtFechaDia(comparativo.fecha) }}</span>
+                  <b>{{ fmt(variacion.hoy) }}</b>
+                  <span class="prg-comp-vs">vs</span>
+                  <b class="prg-comp-ant">{{ fmt(variacion.ant) }}</b>
+                </div>
+
+                <!-- Por sede: un total que baja puede ser una sola sede floja
+                     y el resto normal; sin este detalle no se distingue. -->
+                <div class="prg-comp-sedes">
+                  <div v-for="c in comparativo.actual.porCcosto" :key="c.ccosto" class="prg-comp-sede">
+                    <span class="prg-comp-sede-nom">{{ c.nombre }}</span>
+                    <span class="prg-comp-sede-val">{{ fmt(c.recibido) }}</span>
+                    <span class="prg-comp-sede-pct" :class="pctSedeClase(c)">{{ pctSedeTexto(c) }}</span>
+                  </div>
+                </div>
+
+                <div v-if="comparativo.anterior.sedes !== comparativo.actual.sedes" class="prg-comp-aviso">
+                  <v-icon size="12">mdi-alert-outline</v-icon>
+                  Ese día hubo {{ comparativo.anterior.sedes }} sede(s) con ventas y hoy
+                  {{ comparativo.actual.sedes }}: el total no es comparable directamente.
+                </div>
+              </template>
+            </template>
+          </div>
+
           <div class="prg-pie">
             <span v-if="!terminado" class="prg-espera">No cierres esta ventana…</span>
             <v-spacer />
@@ -1209,6 +1258,68 @@ const totalRecibidoProceso = computed(() =>
 // tardar más que esto, así que en la práctica no agrega espera perceptible.
 const respiro = (ms = 260) => new Promise(r => setTimeout(r, ms))
 
+// ── Comparativo contra el mismo día de la semana anterior ─────────────
+// Se pide al terminar de importar, ya con los datos escritos: así el total
+// del día sale de la base y no de lo que quedó en memoria.
+const comparativo       = ref(null)
+const cargandoComparativo = ref(false)
+
+async function cargarComparativo() {
+  cargandoComparativo.value = true
+  comparativo.value = null
+  try {
+    const r = await api.get('/square/comparativo-dia', {
+      params: { empresa: empresaCodigo.value, fecha: configFecha.value },
+    })
+    if (r.data?.success) comparativo.value = r.data
+  } catch (e) {
+    // El comparativo es informativo: si falla, la importación ya se hizo y el
+    // resumen se muestra igual sin esta línea.
+    console.error('comparativo-dia:', e)
+  } finally {
+    cargandoComparativo.value = false
+  }
+}
+
+// Variación contra la semana pasada. null cuando no hay con qué comparar
+// (primera vez que se importa ese día de la semana), para no mostrar un
+// +100% que no significa nada.
+const variacion = computed(() => {
+  const c = comparativo.value
+  if (!c) return null
+  const hoy = c.actual.recibido
+  const ant = c.anterior.recibido
+  if (!ant) return { sinBase: true, hoy, ant: 0, delta: hoy, pct: null }
+  const delta = hoy - ant
+  return { sinBase: false, hoy, ant, delta, pct: (delta / ant) * 100 }
+})
+
+// Variación de una sede contra lo que hizo esa misma sede la semana pasada.
+// Si esa sede no vendió ese día no hay porcentaje que calcular.
+function anteriorDeSede(c) {
+  return comparativo.value?.anterior.porCcosto.find(x => x.ccosto === c.ccosto)?.recibido || 0
+}
+function pctSedeTexto(c) {
+  const ant = anteriorDeSede(c)
+  if (!ant) return 'sin base'
+  const pct = ((c.recibido - ant) / ant) * 100
+  return (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%'
+}
+function pctSedeClase(c) {
+  const ant = anteriorDeSede(c)
+  if (!ant) return 'prg-comp-sede-nd'
+  return c.recibido >= ant ? 'prg-comp-up' : 'prg-comp-down'
+}
+
+// Fecha larga con el día de la semana, en MM/DD/AAAA como el resto de la app.
+function fmtFechaDia(iso) {
+  if (!iso) return ''
+  const [y, m, d] = String(iso).split('-').map(Number)
+  const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+  const dia = dias[new Date(y, m - 1, d).getDay()]
+  return `${dia} ${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`
+}
+
 async function importarTodas() {
   const aImportar = [...sedesListas.value]
   if (!aImportar.length) return
@@ -1221,6 +1332,7 @@ async function importarTodas() {
   sedesEnProceso.value = aImportar
   pasoActual.value = 0
   terminado.value  = false
+  comparativo.value = null   // si se reimporta, no dejar el comparativo viejo
   dlgProgreso.value = true
   importando.value = true
   progreso.value = ''
@@ -1259,6 +1371,7 @@ async function importarTodas() {
   } finally {
     terminado.value = true
     importando.value = false
+    if (ok > 0) cargarComparativo()
   }
 }
 </script>
@@ -1644,6 +1757,54 @@ async function importarTodas() {
   animation: prgFila 300ms cubic-bezier(.23,1,.32,1) both;
 }
 .prg-resumen-err { background: rgba(180,83,9,.12); color: var(--warning); }
+
+/* Comparativo contra el mismo día de la semana anterior */
+.prg-comp {
+  margin-top: 10px; padding: 12px 14px; border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), .04);
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+.prg-comp-load {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: rgba(var(--v-theme-on-surface), .6);
+}
+.prg-comp-hdr { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.prg-comp-lbl {
+  font-size: 10px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), .5);
+}
+.prg-comp-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+}
+.prg-comp-up   { color: var(--success); background: rgba(21,128,61,.12); }
+.prg-comp-down { color: var(--error);   background: rgba(220,38,38,.12); }
+.prg-comp-tot {
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 13px;
+}
+.prg-comp-tot b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.prg-comp-vs  { font-size: 11px; color: rgba(var(--v-theme-on-surface), .4); }
+.prg-comp-ant { color: rgba(var(--v-theme-on-surface), .55); font-weight: 600; }
+.prg-comp-sedes {
+  margin-top: 9px; padding-top: 8px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .07);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.prg-comp-sede { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.prg-comp-sede-nom { flex: 1; color: rgba(var(--v-theme-on-surface), .75); }
+.prg-comp-sede-val { font-variant-numeric: tabular-nums; font-weight: 600; }
+.prg-comp-sede-pct {
+  min-width: 62px; text-align: right;
+  font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: none; padding: 0;
+}
+.prg-comp-sede-nd { color: rgba(var(--v-theme-on-surface), .35); font-weight: 500; }
+.prg-comp-nobase, .prg-comp-aviso {
+  margin-top: 7px; font-size: 11.5px; color: rgba(var(--v-theme-on-surface), .55);
+  display: flex; align-items: center; gap: 4px;
+}
+.prg-comp-aviso { color: var(--warning); }
 
 .prg-pie {
   display: flex; align-items: center; gap: 10px;
