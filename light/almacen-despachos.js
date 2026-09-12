@@ -547,7 +547,12 @@ function renderScanItem(item, campo) {
 
     const cod        = item.producto_codigo;
     const pct        = req > 0 ? Math.min(100, Math.round((esc / req) * 100)) : 0;
-    const enProgreso = esc > 0 && dif < 0;
+    // Antes solo se mostraba el bloque de acciones (Completar/Ocultar) si
+    // faltaba (dif < 0). Si te pasabas de la cantidad, o escaneabas un
+    // producto que no estaba en el listado (llega con cant_requerida=0, asi
+    // que cualquier escaneo ya es "sobrante"), dif > 0 y el bloque entero
+    // desaparecia sin dar forma de ocultarlo.
+    const mostrarAcciones = esc > 0 && dif !== 0;
     const ocultoCls  = itemsOcultos.has(cod) ? ' item-oculto' : '';
 
     return `<div class="scan-item ${cls}${ocultoCls}" id="si-${cod}">
@@ -569,8 +574,8 @@ function renderScanItem(item, campo) {
         <div class="scan-item-progress">
             <div class="scan-item-progress-bar" style="width:${pct}%;background:${colorBarra}"></div>
         </div>
-        ${enProgreso ? `<div class="scan-item-acciones">
-            <button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')"><i data-icono="rayo"></i>Completar (${req - esc})</button>
+        ${mostrarAcciones ? `<div class="scan-item-acciones">
+            ${dif < 0 ? `<button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')"><i data-icono="rayo"></i>Completar (${req - esc})</button>` : ''}
             <button class="btn-cerrar-parcial" onclick="cerrarParcial('${cod}','${campo}')"><i data-icono="ojoTachado"></i>Ocultar con ${esc}</button>
         </div>` : ''}
     </div>`;
@@ -1346,7 +1351,10 @@ function actualizarFilaScan(item, campo) {
         else              { cls = 'item-ok';    icon = '✅'; colorBarra = '#10b981'; colorContador = '#10b981'; }
 
         const pct        = req > 0 ? Math.min(100, Math.round((esc / req) * 100)) : 0;
-        const enProgreso = esc > 0 && dif < 0;
+        // Mismo criterio que renderScanItem: tambien hay que poder ocultar
+        // un sobrante (o un producto fuera de lista, que llega como
+        // sobrante puro con requerida=0), no solo un faltante.
+        const mostrarAcciones = esc > 0 && dif !== 0;
 
         el.className = `scan-item ${cls}${itemsOcultos.has(item.producto_codigo) ? ' item-oculto' : ''}`;
 
@@ -1364,7 +1372,7 @@ function actualizarFilaScan(item, campo) {
         // el boton de Ocultar no existia todavia: aparecia recien en el
         // siguiente render completo, por ejemplo al escanear otro producto.
         let acciones = el.querySelector('.scan-item-acciones');
-        if (enProgreso) {
+        if (mostrarAcciones) {
             if (!acciones) {
                 acciones = document.createElement('div');
                 acciones.className = 'scan-item-acciones';
@@ -1380,8 +1388,13 @@ function actualizarFilaScan(item, campo) {
             }
             const tapBtn    = acciones.querySelector('.btn-tap-completar');
             const cerrarBtn = acciones.querySelector('.btn-cerrar-parcial');
-            tapBtn.querySelector('span').textContent    = `Completar (${req - esc})`;
-            tapBtn.onclick                               = () => tapParaCompletar(item.producto_codigo, campo);
+            // "Completar" solo tiene sentido si falta (dif < 0): con
+            // sobrante, req - esc ya es negativo y no hay nada que completar.
+            tapBtn.style.display = dif < 0 ? '' : 'none';
+            if (dif < 0) {
+                tapBtn.querySelector('span').textContent = `Completar (${req - esc})`;
+                tapBtn.onclick                            = () => tapParaCompletar(item.producto_codigo, campo);
+            }
             cerrarBtn.querySelector('span').textContent = `Ocultar con ${esc}`;
             cerrarBtn.onclick                            = () => cerrarParcial(item.producto_codigo, campo);
         } else if (acciones) {
