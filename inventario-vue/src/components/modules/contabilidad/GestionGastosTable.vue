@@ -355,11 +355,8 @@ function imprimirEntradas() {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-  const rows = entradasDlg.value.map((e, idx) => `
+  const rows = entradasDlg.value.map((e) => `
     <tr>
-      <td class="tc">${idx + 1}</td>
-      <td class="tc">${esc(formatFecha(e.fecha))}</td>
-      <td class="tc strong">${esc(e.entrada_codigo)}</td>
       <td class="tc">${esc(e.producto_codigo)}</td>
       <td>${esc(e.producto_nombre)}</td>
       <td class="tc">${esc(e.und || '-')}</td>
@@ -368,9 +365,9 @@ function imprimirEntradas() {
       <td class="tr strong">${esc(formatMoneda(e.subtotal))}</td>
     </tr>`).join('')
 
-  win.document.write(`<!DOCTYPE html><html><head><title>Reporte contable de entradas</title>
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte contable de entradas</title>
 <style>
-  @page { size: letter landscape; margin: 12mm; }
+  @page { size: letter; margin: 12mm; }
   * { box-sizing: border-box; }
   body { margin: 0; color: #111; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; line-height: 1.35; }
   .report { width: 100%; }
@@ -422,15 +419,15 @@ function imprimirEntradas() {
       <div class="meta-cell"><span class="label">Centro costo</span><span class="value">${esc(gasto.ccosto_nombre || gasto.ccosto || '-')}</span></div>
       <div class="meta-cell"><span class="label">Cuenta contable</span><span class="value">${esc(gasto.cuenta_nombre || gasto.cuenta || '-')}</span></div>
       <div class="meta-cell wide"><span class="label">Concepto</span><span class="value">${esc(gasto.concepto || '-')}</span></div>
-      <div class="meta-cell"><span class="label">Registros almacen</span><span class="value">${entradasDlg.value.length}</span></div>
+      <div class="meta-cell"><span class="label">Entrada almacen</span><span class="value">${esc(entradasDlg.value[0]?.entrada_codigo || '-')} (${entradasDlg.value.length} reg.)</span></div>
       <div class="meta-cell"><span class="label">Fecha impresion</span><span class="value">${esc(fechaImpresion)}</span></div>
     </section>
     <div class="section-title">Detalle de entradas asociadas</div>
     <table>
-      <thead><tr><th class="tc">Item</th><th class="tc">Fecha</th><th class="tc">Entrada</th><th class="tc">Codigo</th><th>Producto</th><th class="tc">Und</th><th class="tr">Cantidad</th><th class="tr">P. unit</th><th class="tr">Subtotal</th></tr></thead>
+      <thead><tr><th class="tc">Codigo</th><th>Producto</th><th class="tc">Und</th><th class="tr">Cantidad</th><th class="tr">P. unit</th><th class="tr">Subtotal</th></tr></thead>
       <tbody>
-        ${rows || '<tr><td colspan="9" class="tc">No hay entradas de almacen registradas.</td></tr>'}
-        <tr class="total-row"><td colspan="8" class="tr">TOTAL ENTRADAS DE ALMACEN</td><td class="tr">${esc(formatMoneda(totalEntradas))}</td></tr>
+        ${rows || '<tr><td colspan="6" class="tc">No hay entradas de almacen registradas.</td></tr>'}
+        <tr class="total-row"><td colspan="5" class="tr">TOTAL ENTRADAS DE ALMACEN</td><td class="tr">${esc(formatMoneda(totalEntradas))}</td></tr>
       </tbody>
     </table>
     <section class="notes">
