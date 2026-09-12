@@ -2439,7 +2439,8 @@ app.get('/api/almacen/entradas-por-gasto/:codigo', async (req, res) => {
                     COALESCE(p.und, a.und, '-') AS und,
                     dea.cantidad,
                     dea.vr_unitario AS precio_unitario,
-                    dea.subtotal
+                    dea.subtotal,
+                    CASE WHEN p.codigo IS NOT NULL THEN 'PRODUCTO' ELSE 'ARTICULO' END AS origen
              FROM entrada_almacen ea
              JOIN detalle_entrada_almacen dea ON dea.codigo = ea.codigo
              LEFT JOIN productos p ON p.codigo::text = dea.articulo::text

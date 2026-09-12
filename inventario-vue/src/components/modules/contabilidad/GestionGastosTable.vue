@@ -222,6 +222,7 @@
               <th># ENTRADA</th>
               <th>CÓDIGO</th>
               <th>PRODUCTO</th>
+              <th>TIPO</th>
               <th>UND</th>
               <th>CANTIDAD</th>
               <th>P. UNIT</th>
@@ -234,12 +235,23 @@
               <td class="tc"><span class="badge-cc-dlg">{{ e.entrada_codigo }}</span></td>
               <td class="tc text-muted-sm">{{ e.producto_codigo }}</td>
               <td>{{ e.producto_nombre }}</td>
+              <td class="tc">
+                <span class="badge-tipo" :class="e.origen === 'PRODUCTO' ? 'badge-tipo-prod' : 'badge-tipo-art'">
+                  {{ e.origen === 'PRODUCTO' ? 'PRODUCTO' : 'ARTÍCULO' }}
+                </span>
+              </td>
               <td class="tc text-muted-sm">{{ e.und || '-' }}</td>
               <td class="tr fw">{{ formatNum(e.cantidad) }}</td>
               <td class="tr text-muted-sm">{{ formatMoneda(e.precio_unitario) }}</td>
               <td class="tr fw" style="color:var(--indigo)">{{ formatMoneda(e.subtotal) }}</td>
             </tr>
           </tbody>
+          <tfoot>
+            <tr class="dlg-total-row">
+              <td colspan="8" class="tr">TOTAL ENTRADAS</td>
+              <td class="tr">{{ formatMoneda(totalEntradasDlg) }}</td>
+            </tr>
+          </tfoot>
         </table>
       </v-card-text>
     </v-card>
@@ -314,9 +326,17 @@ function formatNum(v) {
   return n % 1 === 0 ? n.toLocaleString('es-US') : n.toLocaleString('es-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
 }
 
+const totalEntradasDlg = computed(() =>
+  entradasDlg.value.reduce((sum, e) => sum + (parseFloat(e.subtotal) || 0), 0)
+)
+
 function imprimirEntradas() {
-  const win = window.open('', '_blank', 'width=800,height=600')
-  if (!win) return
+  // Sin "width=…,height=…": esos parámetros abren una ventana emergente chica
+  // en vez de una pestaña normal — es lo que hacía aparecer el diálogo de
+  // impresión metido en un popup. Una pestaña de verdad, sin auto-imprimir,
+  // deja al usuario revisar el documento y usar Ctrl+P cuando quiera.
+  const win = window.open('', '_blank')
+  if (!win) { alert('Activa los pop-ups para ver el reporte imprimible') ; return }
 
   const gasto = gastoDlg.value || {}
   const empresaNombre = (auth.empresaNombre || auth.empresa || 'EMPRESA').toUpperCase()
@@ -427,7 +447,6 @@ function imprimirEntradas() {
 </body></html>`)
   win.document.close()
   win.focus()
-  setTimeout(() => { win.print(); win.close() }, 400)
 }
 
 function imprimirEntradasLegacy() {
@@ -1162,6 +1181,14 @@ async function exportarExcel() {
   color: rgb(var(--v-theme-on-surface));
 }
 
+/* formatMoneda() devuelve "$ 1.234,00" con un espacio literal despues del
+   signo: en una columna angosta ese espacio era un punto de quiebre valido
+   y el $ se iba a su propia linea, separado del numero. */
+.dlg-table td.tr,
+.dlg-table td.tc {
+  white-space: nowrap;
+}
+
 .badge-cc-dlg {
   background: rgba(79, 70, 229, 0.15);
   color: var(--indigo);
@@ -1170,6 +1197,34 @@ async function exportarExcel() {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
+}
+
+.badge-tipo {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.badge-tipo-prod {
+  background: rgba(21, 128, 61, 0.15);
+  color: var(--success);
+}
+
+.badge-tipo-art {
+  background: rgba(180, 83, 9, 0.15);
+  color: var(--warning);
+}
+
+.dlg-total-row td {
+  padding: 12px 10px;
+  border-top: 1.5px solid rgba(var(--v-theme-on-surface), 0.18);
+  font-weight: 800;
+  font-size: 13.5px;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .tc {
