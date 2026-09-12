@@ -312,6 +312,12 @@
         if (confirm('¿Estás seguro de cerrar sesión?')) {
             localStorage.removeItem('usuario');
             localStorage.removeItem('empresaActual');
+            // index.html se auto-loguea sola si encuentra "_rm_creds" (usuario
+            // y clave guardados del login "recordarme"). Sin esta línea, Salir
+            // borraba la sesión pero dejaba esas credenciales puestas: al
+            // llegar a index.html se auto-logueaba de nuevo con el mismo
+            // usuario, como si "Salir" no hubiera hecho nada.
+            localStorage.removeItem('_rm_creds');
             window.location.href = 'index.html';
         }
     };
