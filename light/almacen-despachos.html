@@ -304,6 +304,18 @@
             color: var(--text-secondary);
         }
         .btn-cerrar-parcial:active { background: var(--surface2); }
+        /* Cuando "Ocultar" es la UNICA accion disponible (sobrante, o un
+           producto escaneado que no estaba en la orden), el estilo secundario
+           de siempre se confundia con un boton deshabilitado -- ahi arriba
+           no hay "Completar" al lado que le de contexto de que es la opcion
+           secundaria. Se usa el color warning porque asi ya pinta la fila
+           entera en ese estado (.scan-item.item-sobre). */
+        .btn-cerrar-parcial--solo {
+            border-color: var(--warning);
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+        .btn-cerrar-parcial--solo:active { background: var(--warning); color: var(--warning-ink, white); }
         .btn-tap-completar svg,
         .btn-cerrar-parcial svg { width: 15px; height: 15px; flex-shrink: 0; }
         .scan-grupo-header { font-size: 11px; font-weight: 700; color: var(--text-secondary); padding: 14px 4px 6px; text-transform: uppercase; letter-spacing: 0.09em; margin-top: 8px; display: flex; align-items: center; gap: 6px; }

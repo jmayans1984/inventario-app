@@ -332,12 +332,18 @@ async function confirmarIniciarEscaneo(modoViz) {
     // LOCAL-FIRST: precargar todos los barcodes en memoria (una sola consulta)
     await precargarBarcodes();
 
-    // Cargar productos ya completados en packing desde la BD
+    // Cargar productos ya completados en packing desde la BD.
+    // req > 0 es obligatorio: sin ese guard, un producto fuera del listado
+    // original (requerida = 0, agregado escaneando un codigo que no estaba
+    // en la orden) cumple "pack >= req" con CUALQUIER cantidad escaneada, asi
+    // que quedaba oculto solo con volver a entrar a la pantalla de escaneo
+    // -- sin que nadie tocara el boton "Ocultar". Un producto sin requerida
+    // nunca esta "completo": se oculta unicamente si el usuario lo decide.
     if (ordenActiva && ordenActiva.detalle) {
         ordenActiva.detalle.forEach(item => {
             const req = parseFloat(item.cant_requerida) || 0;
             const pack = parseFloat(item.cant_packing) || 0;
-            if (pack > 0 && pack >= req) {
+            if (req > 0 && pack >= req) {
                 itemsOcultos.add(item.producto_codigo);
             }
         });
@@ -576,7 +582,7 @@ function renderScanItem(item, campo) {
         </div>
         ${mostrarAcciones ? `<div class="scan-item-acciones">
             ${dif < 0 ? `<button class="btn-tap-completar" onclick="tapParaCompletar('${cod}','${campo}')"><i data-icono="rayo"></i>Completar (${req - esc})</button>` : ''}
-            <button class="btn-cerrar-parcial" onclick="cerrarParcial('${cod}','${campo}')"><i data-icono="ojoTachado"></i>Ocultar con ${esc}</button>
+            <button class="btn-cerrar-parcial${dif > 0 ? ' btn-cerrar-parcial--solo' : ''}" onclick="cerrarParcial('${cod}','${campo}')"><i data-icono="ojoTachado"></i>Ocultar con ${esc}</button>
         </div>` : ''}
     </div>`;
 }
@@ -594,7 +600,13 @@ function cerrarParcial(codigo, campo) {
 
     const esc = parseFloat(item[campo]) || 0;
     const req = parseFloat(item.cant_requerida) || 0;
-    showFeedback('warn', `${item.producto_nombre} cerrado con ${esc}/${req} · falta ${req - esc}`);
+    // "falta req-esc" solo tiene sentido si esc < req. Con sobrante ese
+    // numero da negativo ("falta -1"), que no dice nada -- se avisa que
+    // sobra, no que falta.
+    const detalle = esc < req ? `falta ${req - esc}`
+                  : esc > req ? `sobran ${esc - req}`
+                  : 'completo';
+    showFeedback('warn', `${item.producto_nombre} cerrado con ${esc}/${req} · ${detalle}`);
     refocusInput();
 }
 
@@ -1397,6 +1409,10 @@ function actualizarFilaScan(item, campo) {
             }
             cerrarBtn.querySelector('span').textContent = `Ocultar con ${esc}`;
             cerrarBtn.onclick                            = () => cerrarParcial(item.producto_codigo, campo);
+            // Mismo criterio que renderScanItem: si "Ocultar" es la unica
+            // accion (sobrante o fuera de lista), se ve prominente en vez de
+            // con el estilo secundario apagado que comparte con "Completar".
+            cerrarBtn.classList.toggle('btn-cerrar-parcial--solo', dif > 0);
         } else if (acciones) {
             acciones.remove();
         }
