@@ -340,6 +340,71 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           SECCIÓN 1B-5: ALERTA DE NIVEL CRÍTICO DE PEDIDOS (VENTAS EN VIVO)
+      ══════════════════════════════════════════════ -->
+      <div class="cfg-card">
+        <div class="cfg-section-hdr">
+          <div class="cfg-section-icon" style="background:rgba(220,38,38,0.12)">
+            <v-icon size="16" color="#dc2626">mdi-alert-octagon-outline</v-icon>
+          </div>
+          <span class="cfg-section-title">ALERTA DE NIVEL CRÍTICO DE PEDIDOS</span>
+        </div>
+
+        <div v-if="loadingCfgAlerta" class="cfg-loading">
+          <v-progress-circular indeterminate color="#dc2626" size="28" />
+          <span>Cargando configuración...</span>
+        </div>
+
+        <div v-else>
+          <p class="cfg-hint-prov" style="margin-bottom:14px">
+            En <strong>Tesorería → Ventas en Vivo</strong>, si un centro de costo vende más de este
+            monto dentro de la ventana de minutos definida, su panel se marca en rojo con
+            "NIVEL CRÍTICO DE PEDIDOS" — la señal para dejar de tomar pedidos por teléfono en ese
+            punto. Dejar el monto en 0 desactiva la alerta.
+          </p>
+          <div class="cfg-cta-row" style="grid-template-columns: 1fr 150px">
+            <span class="cfg-cta-label">MONTO ($)</span>
+            <input
+              v-model.number="alertaVentasMonto"
+              type="number"
+              step="1"
+              min="0"
+              class="cfg-input"
+              placeholder="0"
+            />
+          </div>
+          <div class="cfg-cta-row" style="grid-template-columns: 1fr 150px; margin-top:10px">
+            <span class="cfg-cta-label">VENTANA DE TIEMPO (MINUTOS)</span>
+            <input
+              v-model.number="alertaVentasMinutos"
+              type="number"
+              step="1"
+              min="1"
+              class="cfg-input"
+              placeholder="60"
+            />
+          </div>
+        </div>
+
+        <div v-if="!loadingCfgAlerta" class="cfg-ctas-actions">
+          <span v-if="cfgAlertaSaveOk" class="cfg-ok-msg">
+            <v-icon size="14" color="#10b981">mdi-check-circle</v-icon> Guardado correctamente
+          </span>
+          <span v-if="cfgAlertaSaveErr" class="cfg-err-msg">{{ cfgAlertaSaveErr }}</span>
+          <v-btn
+            color="#dc2626"
+            variant="flat"
+            size="small"
+            :loading="savingCfgAlerta"
+            @click="guardarConfigAlertaVentas"
+          >
+            <v-icon size="15" class="mr-1">mdi-content-save-outline</v-icon>
+            Guardar Configuración
+          </v-btn>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            SECCIÓN 1C: CONFIGURACIÓN GENERAL DE PROVEEDURÍA
       ══════════════════════════════════════════════ -->
       <div v-if="esProveedor" class="cfg-card">
@@ -755,6 +820,53 @@ async function cargarConfigContable() {
   }
 }
 
+// ── Alerta de Nivel Crítico de Pedidos (Ventas en Vivo) ──
+// Si una sede vende más de este monto en la ventana de minutos configurada,
+// el panel de esa sede se marca en rojo. monto en 0/vacío desactiva la
+// alerta (nunca marca nada).
+const alertaVentasMonto   = ref(null)
+const alertaVentasMinutos = ref(60)
+const loadingCfgAlerta = ref(true)
+const savingCfgAlerta  = ref(false)
+const cfgAlertaSaveOk  = ref(false)
+const cfgAlertaSaveErr = ref('')
+
+async function cargarConfigAlertaVentas() {
+  loadingCfgAlerta.value = true
+  try {
+    if (!empresa.value) return
+    const cfgRes = await api.get('/config-general', { params: { empresa: empresa.value } })
+    const cfg = cfgRes.data?.data || {}
+    alertaVentasMonto.value = cfg.alerta_ventas_monto != null ? parseFloat(cfg.alerta_ventas_monto) : null
+    alertaVentasMinutos.value = cfg.alerta_ventas_minutos != null ? parseInt(cfg.alerta_ventas_minutos) : 60
+  } catch (e) {
+    console.error('[Configuracion] error al cargar alerta de ventas en vivo:', e)
+  } finally {
+    loadingCfgAlerta.value = false
+  }
+}
+
+async function guardarConfigAlertaVentas() {
+  savingCfgAlerta.value = true
+  cfgAlertaSaveOk.value = false
+  cfgAlertaSaveErr.value = ''
+  try {
+    const payload = {
+      empresa: empresa.value,
+      alerta_ventas_monto: alertaVentasMonto.value || 0,
+      alerta_ventas_minutos: alertaVentasMinutos.value || 60,
+    }
+    const res = await api.put('/config-general', payload)
+    if (!res.data?.success) throw new Error(res.data?.error || 'Error al guardar')
+    cfgAlertaSaveOk.value = true
+    setTimeout(() => { cfgAlertaSaveOk.value = false }, 3000)
+  } catch (e) {
+    cfgAlertaSaveErr.value = e?.response?.data?.error || e.message
+  } finally {
+    savingCfgAlerta.value = false
+  }
+}
+
 // Retry si empresa no estaba lista al montar
 watch(empresa, (val) => {
   if (val) {
@@ -763,6 +875,7 @@ watch(empresa, (val) => {
     cargarConfigMp()
     cargarConfigInventarioEstimado()
     cargarConfigToleranciaFaltantes()
+    cargarConfigAlertaVentas()
     cargarConfigProveeduria()
   }
 }, { immediate: false })
@@ -1204,6 +1317,7 @@ onMounted(() => {
   cargarConfigMp()
   cargarConfigInventarioEstimado()
   cargarConfigToleranciaFaltantes()
+  cargarConfigAlertaVentas()
   cargarConfigProveeduria()
   cargarUsuarios()
   cargarLogo()

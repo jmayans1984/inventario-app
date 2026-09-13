@@ -61,7 +61,22 @@
       </div>
 
       <div v-else class="vv-paneles">
-        <div v-for="s in sedes" :key="s.codigo" class="vv-panel">
+        <div v-for="s in sedes" :key="s.codigo" class="vv-panel" :class="{ 'vv-panel-critico': s.alertaCritica }">
+
+          <!-- Nivel crítico de pedidos: vendió más del umbral configurado
+               dentro de la ventana de minutos. Señal para dejar de tomar
+               pedidos por teléfono en ese punto — no es que "vendió mucho
+               hoy" (eso sería bueno), es que está desbordado AHORA. -->
+          <div v-if="s.alertaCritica" class="vv-critico-banner">
+            <v-icon size="16" color="white">mdi-alert-octagon</v-icon>
+            <div>
+              <div class="vv-critico-ttl">NIVEL CRÍTICO DE PEDIDOS</div>
+              <div class="vv-critico-sub">
+                {{ fmt(s.ventaVentanaAlerta) }} en los últimos {{ s.alertaMinutos }} min
+                (umbral {{ fmt(s.alertaMonto) }})
+              </div>
+            </div>
+          </div>
 
           <div class="vv-panel-hdr">
             <div class="vv-panel-nom">{{ s.nombre }}</div>
@@ -521,6 +536,22 @@ onBeforeUnmount(() => { cerrar(); clearTimeout(reintento) })
   border-left: 3px solid var(--success);
   border-radius: 12px; padding: 15px 16px;
 }
+/* Nivel crítico de pedidos: el panel entero se encierra en rojo, no solo el
+   borde izquierdo como el resto — tiene que verse distinto al resto de la
+   grilla de un vistazo, sin tener que leer los números. */
+.vv-panel-critico {
+  border: 2px solid var(--error);
+  background: rgba(220,38,38,.05);
+  box-shadow: 0 0 0 1px rgba(220,38,38,.15);
+}
+.vv-critico-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--error); color: white;
+  border-radius: 9px; padding: 9px 12px;
+  margin: -3px -3px 12px;
+}
+.vv-critico-ttl { font-size: 12.5px; font-weight: 900; letter-spacing: .3px; }
+.vv-critico-sub { font-size: 10.5px; opacity: .9; margin-top: 1px; font-variant-numeric: tabular-nums; }
 .vv-panel-hdr { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .vv-panel-nom { font-size: 15px; font-weight: 800; }
 .vv-panel-total { font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--success); }

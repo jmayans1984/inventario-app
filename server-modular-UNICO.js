@@ -13402,6 +13402,13 @@ pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS valor_estimado_i
 // para determinar nivel de pérdida (EXCELENTE < 50%, BUENO < 100%, MALO >= 100% del valor)
 pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS tolerancia_perdida_faltantes NUMERIC(5,2) DEFAULT 2.00`).catch(() => {});
 
+// Alerta de "Nivel Crítico de Pedidos" en Ventas en Vivo: si una sede vende
+// mas de alerta_ventas_monto en los ultimos alerta_ventas_minutos, el panel
+// se marca en rojo (dejar de tomar pedidos por telefono en ese punto).
+// alerta_ventas_monto en 0/NULL desactiva la alerta.
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS alerta_ventas_monto NUMERIC(10,2) DEFAULT 0`).catch(() => {});
+pool.query(`ALTER TABLE config_general ADD COLUMN IF NOT EXISTS alerta_ventas_minutos INTEGER DEFAULT 60`).catch(() => {});
+
 // Centro de costo en facturas de venta (para P&L por ccosto)
 pool.query(`ALTER TABLE factura_venta ADD COLUMN IF NOT EXISTS ccosto VARCHAR(10)`).catch(() => {});
 
@@ -13576,7 +13583,8 @@ app.put('/api/config-general', async (req, res) => {
         'cta_materia_prima', 'cta_bancaria_otros', 'cta_bancaria_efectivo',
         'ccosto_proveeduria',
         'mp_afecta_inventario_default', 'mp_actualiza_costo_default',
-        'valor_estimado_inventario_final', 'tolerancia_perdida_faltantes'
+        'valor_estimado_inventario_final', 'tolerancia_perdida_faltantes',
+        'alerta_ventas_monto', 'alerta_ventas_minutos'
     ];
 
     const sets = [];
