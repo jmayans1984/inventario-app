@@ -373,6 +373,26 @@
                     <div class="config-hint">Disponible para empresas cliente franquiciadas</div>
                   </div>
                 </v-col>
+
+                <!-- Múltiplo de Despacho -->
+                <v-col cols="12" md="6">
+                  <div class="config-box">
+                    <div class="config-label">
+                      <v-icon size="18" color="info">mdi-package-variant-closed</v-icon>
+                      Múltiplo de Despacho
+                    </div>
+                    <v-text-field
+                      v-model="form.multiplo_despacho"
+                      type="number"
+                      min="1"
+                      step="1"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                    />
+                    <div class="config-hint">"Llenar faltantes" en Órdenes de Despacho redondea hacia arriba a este múltiplo (ej. 15, 30). Usa 1 si se despacha por unidad</div>
+                  </div>
+                </v-col>
               </v-row>
             </v-sheet>
 
@@ -629,7 +649,8 @@ async function abrirCrear() {
     para_venta: 'NO',
     visible_operacional: 'SI',
     precio_costo: 0,
-    descripcion: ''
+    descripcion: '',
+    multiplo_despacho: 1
   }
   // Obtener próximo código internamente (no se muestra, solo para el POST)
   try {
@@ -652,7 +673,8 @@ function abrirEditar(p) {
     para_venta: p.para_venta || 'NO',
     visible_operacional: p.visible_operacional || 'SI',
     precio_costo: p.precio_costo || 0,
-    descripcion: p.descripcion || ''
+    descripcion: p.descripcion || '',
+    multiplo_despacho: parseFloat(p.multiplo_despacho) || 1
   }
   dlgForm.value = true
 }
@@ -685,6 +707,7 @@ async function guardar() {
       visible_operacional: form.value.visible_operacional || 'SI',
       precio_costo: parseFloat(form.value.precio_costo) || 0,
       descripcion: form.value.descripcion || null,
+      multiplo_despacho: parseFloat(form.value.multiplo_despacho) > 0 ? parseFloat(form.value.multiplo_despacho) : 1,
     }
     if (editando.value) {
       const res = await productosAlmacenService.actualizarProducto(payload.codigo, payload)

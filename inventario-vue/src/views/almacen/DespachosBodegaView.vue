@@ -323,7 +323,10 @@
                         <div style="font-size:11px;color:rgba(var(--v-theme-on-surface),.5);margin-bottom:2px">Actual: <strong :class="stockPorCodigo[p.codigo] > 0 ? 'stock-pos' : 'stock-zero'">{{ parseFloat(stockPorCodigo[p.codigo] || 0).toFixed(0) }}</strong></div>
                         <div style="font-size:10px;color:rgba(var(--v-theme-on-surface),.4)">Disponible: <strong :class="stockDisponiblePorCodigo[p.codigo] > 0 ? 'stock-pos' : 'stock-zero'">{{ parseFloat(stockDisponiblePorCodigo[p.codigo] || 0).toFixed(0) }}</strong></div>
                       </td>
-                      <td><span class="badge-und">{{ p.und }}</span></td>
+                      <td>
+                        <span class="badge-und">{{ p.und }}</span>
+                        <div v-if="p.multiplo > 1" class="multiplo-hint" :title="`Se despacha en múltiplos de ${p.multiplo}`">x{{ p.multiplo }}</div>
+                      </td>
                       <td class="pg-td-stock">
                         <span :class="(stockDestinoPorCodigo[p.codigo] || 0) > 0 ? 'stock-pos' : 'stock-zero'">
                           {{ parseFloat(stockDestinoPorCodigo[p.codigo] || 0).toFixed(0) }}
@@ -923,16 +926,19 @@ const faltantesSinCantidad = computed(() =>
   ).length
 )
 
-// Llena la cantidad de los productos visibles con faltante. No se limita al
-// stock disponible en bodega: la fila queda marcada en rojo cuando la cantidad
-// supera lo disponible, para que se vea qué hay que reponer aunque no alcance.
+// Llena la cantidad de los productos visibles con faltante, redondeando hacia
+// arriba al múltiplo de despacho del producto (carne x15, huevos x30…). No se
+// limita al stock disponible en bodega: la fila queda marcada en rojo cuando la
+// cantidad supera lo disponible, para que se vea qué hay que reponer aunque no alcance.
 function llenarFaltantes() {
   const next = { ...cantidades.value }
   for (const p of productosFiltrados.value) {
     const falta = faltante(p.codigo)
     if (!(falta > 0)) continue
     if (parseFloat(next[p.codigo]) > 0) continue
-    next[p.codigo] = Math.ceil(falta)
+    const m = p.multiplo || 1
+    // Redondeo a 7 decimales antes del ceil para que 30/15 no dé 2.0000001
+    next[p.codigo] = Math.round(Math.ceil(Math.round((falta / m) * 1e7) / 1e7) * m * 100) / 100
   }
   cantidades.value = next
 }
@@ -1242,6 +1248,7 @@ async function cargarGrid(ccDestino) {
         und:         p.und,
         grupo_codigo: p.grupo || '__sin_grupo__',
         grupo_nombre: p.grupo_nombre || 'Sin Grupo',
+        multiplo:    parseFloat(p.multiplo_despacho) > 0 ? parseFloat(p.multiplo_despacho) : 1,
       }))
 
     // Stock de bodega_maestra (cc_origen)
@@ -1793,6 +1800,7 @@ onMounted(async () => {
 .badge-id  { background: rgba(4,120,87,.12); color: var(--success); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; font-family: monospace; }
 .badge-cod { background: rgba(6,182,212,.12); color: var(--indigo); padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 11px; font-family: monospace; }
 .badge-und { background: rgba(139,92,246,.12); color: var(--indigo); padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+.multiplo-hint { font-size: 10px; font-weight: 700; color: var(--indigo); margin-top: 2px; text-align: center; }
 .td-fecha   { font-size: 12px; color: rgba(var(--v-theme-on-surface),.7); }
 .td-destino { display: flex; align-items: center; gap: 6px; font-weight: 500; flex-wrap: wrap; }
 .tipo-venta-badge { display: inline-flex; align-items: center; gap: 3px; background: rgba(217,119,6,.14); color: #b45309; font-size: 10px; font-weight: 800; letter-spacing: .5px; padding: 2px 7px; border-radius: 10px; }

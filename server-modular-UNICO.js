@@ -437,6 +437,7 @@ app.get('/api/almacen/productos', async (req, res) => {
                    COALESCE(p.precio_venta2, 0) AS precio_venta2,
                    COALESCE(p.precio_venta3, 0) AS precio_venta3,
                    COALESCE(p.stock_minimo, 0) AS stock_minimo,
+                   COALESCE(p.multiplo_despacho, 1) AS multiplo_despacho,
                    p.descripcion, p.ubicacion
             FROM productos p
             LEFT JOIN grupo_productos g ON g.codigo = p.grupo
@@ -725,7 +726,7 @@ app.get('/api/almacen/control-stock', async (req, res) => {
 
 // POST /api/almacen/productos — crear producto
 app.post('/api/almacen/productos', async (req, res) => {
-    const { codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, descripcion } = req.body;
+    const { codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, descripcion, multiplo_despacho } = req.body;
     if (!codigo || !nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: codigo, nombre, und' });
     }
@@ -736,6 +737,7 @@ app.post('/api/almacen/productos', async (req, res) => {
         }
 
         const pc = parseFloat(precio_costo) || 0;
+        const md = parseFloat(multiplo_despacho) > 0 ? Math.round(parseFloat(multiplo_despacho) * 100) / 100 : 1;
 
         // Obtener márgenes de config_listas_precios para calcular precios automáticamente
         const cfgRes = await pool.query(
@@ -753,8 +755,8 @@ app.post('/api/almacen/productos', async (req, res) => {
         }
 
         await pool.query(
-            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, precio_venta1, precio_venta2, precio_venta3, stock_minimo, descripcion)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            `INSERT INTO productos (codigo, nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, precio_venta1, precio_venta2, precio_venta3, stock_minimo, descripcion, multiplo_despacho)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
             [
                 codigo,
                 nombre.trim(),
@@ -768,7 +770,8 @@ app.post('/api/almacen/productos', async (req, res) => {
                 pv2,
                 pv3,
                 0,
-                descripcion || null
+                descripcion || null,
+                md
             ]
         );
         const nuevo = await pool.query(
@@ -778,6 +781,7 @@ app.post('/api/almacen/productos', async (req, res) => {
                     COALESCE(p.precio_venta2, 0) AS precio_venta2,
                     COALESCE(p.precio_venta3, 0) AS precio_venta3,
                     COALESCE(p.stock_minimo, 0) AS stock_minimo,
+                    COALESCE(p.multiplo_despacho, 1) AS multiplo_despacho,
                     p.descripcion
              FROM productos p LEFT JOIN grupo_productos g ON g.codigo = p.grupo
              WHERE p.codigo = $1`, [codigo]
@@ -792,13 +796,16 @@ app.post('/api/almacen/productos', async (req, res) => {
 // PUT /api/almacen/productos/:codigo — actualizar producto
 app.put('/api/almacen/productos/:codigo', async (req, res) => {
     const { codigo } = req.params;
-    const { nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, stock_minimo, descripcion } = req.body;
+    const { nombre, und, grupo, control, para_venta, visible_operacional, precio_costo, stock_minimo, descripcion, multiplo_despacho } = req.body;
     if (!nombre || !und) {
         return res.status(400).json({ success: false, error: 'Campos obligatorios: nombre, und' });
     }
     try {
         const pc = Math.round((parseFloat(precio_costo) || 0) * 100) / 100;
-        const sm = Math.round((parseFloat(stock_minimo) || 0) * 100) / 100;
+        // stock_minimo / multiplo_despacho ausentes → NULL → se conserva el valor actual
+        const sm = stock_minimo === undefined ? null : Math.round((parseFloat(stock_minimo) || 0) * 100) / 100;
+        const md = multiplo_despacho === undefined ? null
+                 : (parseFloat(multiplo_despacho) > 0 ? Math.round(parseFloat(multiplo_despacho) * 100) / 100 : 1);
 
         // Obtener márgenes para calcular precios automáticamente
         const cfgRes = await pool.query(
@@ -821,7 +828,10 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
                  control             = COALESCE($4, control),
                  para_venta          = COALESCE($5, para_venta),
                  visible_operacional = COALESCE($6, visible_operacional),
-                 precio_costo=$7, precio_venta1=$8, precio_venta2=$9, precio_venta3=$10, stock_minimo=$11, descripcion=$12
+                 precio_costo=$7, precio_venta1=$8, precio_venta2=$9, precio_venta3=$10,
+                 stock_minimo        = COALESCE($11, stock_minimo),
+                 descripcion=$12,
+                 multiplo_despacho   = COALESCE($14, multiplo_despacho)
              WHERE codigo=$13`,
             [
                 nombre.trim(),
@@ -836,7 +846,8 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
                 pv3,
                 sm,
                 descripcion || null,
-                codigo
+                codigo,
+                md
             ]
         );
         if (result.rowCount === 0) {
@@ -849,6 +860,7 @@ app.put('/api/almacen/productos/:codigo', async (req, res) => {
                     COALESCE(p.precio_venta2, 0) AS precio_venta2,
                     COALESCE(p.precio_venta3, 0) AS precio_venta3,
                     COALESCE(p.stock_minimo, 0) AS stock_minimo,
+                    COALESCE(p.multiplo_despacho, 1) AS multiplo_despacho,
                     p.descripcion
              FROM productos p LEFT JOIN grupo_productos g ON g.codigo = p.grupo
              WHERE p.codigo = $1`, [codigo]
@@ -14118,6 +14130,8 @@ pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta2 NUMERIC
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS precio_venta3 NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(10,2) DEFAULT 0`).catch(() => {});
 pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS receta_vinculada VARCHAR(50) DEFAULT NULL`).catch(() => {});
+// Múltiplo de despacho: "Llenar faltantes" en Órdenes de Despacho redondea hacia arriba a este múltiplo (carne x15, huevos x30…)
+pool.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS multiplo_despacho NUMERIC(10,2) DEFAULT 1`).catch(() => {});
 pool.query(`ALTER TABLE etiquetas_producto ADD COLUMN IF NOT EXISTS barcode VARCHAR(100) DEFAULT NULL`).catch(() => {});
 
 // Migración: asegurar precisión de 2 decimales en campos de precios (por si la columna existe con otro tipo)
