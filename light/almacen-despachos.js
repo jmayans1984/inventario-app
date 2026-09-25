@@ -36,6 +36,7 @@ let syncTimer           = null;   // debounce del flush
 let syncEnVuelo         = false;  // evita flushes concurrentes
 const SYNC_DEBOUNCE      = 500;   // ms de espera antes de enviar el lote
 const POPUP_BLOCK_MS     = 1600;  // ms que se ignoran re-escaneos del mismo producto al completar
+let stockDestino        = null;   // codigo -> stock actual en el CC destino (solo productos activos en ese CC)
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -329,6 +330,10 @@ async function confirmarIniciarEscaneo(modoViz) {
     recentlyCompleted  = new Set();
     syncEnVuelo        = false;
 
+    // Stock del destino: no bloquea el inicio del escaneo; al llegar repinta la lista
+    stockDestino = null;
+    cargarStockDestino();
+
     // LOCAL-FIRST: precargar todos los barcodes en memoria (una sola consulta)
     await precargarBarcodes();
 
@@ -567,6 +572,7 @@ function renderScanItem(item, campo) {
             <div class="scan-item-body" onclick="mostrarEntradaManual('${cod}','${campo}')">
                 <div class="scan-item-name">${item.producto_nombre}</div>
                 <div class="scan-item-estado">${etiqueta}</div>
+                ${stockDestino && cod in stockDestino ? `<div class="scan-item-stock${stockDestino[cod] <= 0 ? ' stock-cero' : ''}">Stock en destino: ${fmtStock(stockDestino[cod])}</div>` : ''}
             </div>
             <div class="scan-counter">
                 <button class="scan-adj-btn" onclick="ajustarCantidad('${cod}','${campo}',-1)">−</button>
@@ -700,6 +706,31 @@ async function precargarBarcodes() {
             }
         });
     }
+}
+
+// Stock actual de cada producto en el CC destino de la orden, para mostrarlo
+// en pequeño en cada fila del escaneo. El endpoint ya devuelve solo los
+// productos activos para ese CC (bodega maestra → control, punto de venta →
+// visible_operacional), así que los demás simplemente no muestran stock.
+// Las órdenes de VENTA no tienen CC destino: no se muestra nada.
+async function cargarStockDestino() {
+    const orden = ordenActiva;
+    if (!orden || !orden.cc_destino) return;
+    try {
+        const res  = await fetchConTimeout(`${API_BASE}/almacen/ajuste-inventario/stock?empresa=${getEmpresa()}&ccosto=${encodeURIComponent(orden.cc_destino)}`);
+        const data = await res.json();
+        if (!data.success || ordenActiva !== orden) return;
+        const mapa = {};
+        (data.data || []).forEach(r => { mapa[r.codigo] = parseFloat(r.stock_actual) || 0; });
+        stockDestino = mapa;
+        if (document.getElementById('scanList')) renderScanList();
+    } catch (e) {
+        console.error('[STOCK DESTINO] Error:', e);
+    }
+}
+
+function fmtStock(n) {
+    return (Math.round(n * 100) / 100).toLocaleString('es-CO', { maximumFractionDigits: 2 });
 }
 
 function onScanInput(e) {

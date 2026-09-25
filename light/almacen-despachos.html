@@ -743,6 +743,8 @@
             margin-top: 2px;
             font-variant-numeric: tabular-nums;
         }
+        .scan-item-stock { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+        .scan-item-stock.stock-cero { color: var(--danger, #ef4444); }
         .scan-item.item-ok    .scan-item-estado { color: var(--success); font-weight: 600; }
         .scan-item.item-sobre .scan-item-estado { color: var(--warning); font-weight: 600; }
 
@@ -985,7 +987,7 @@
     <script src="campo-fecha.js"></script>
     <script src="header.js"></script>
     <script src="permisos.js"></script>
-    <script src="almacen-despachos.js?v=20260825-ocultar2"></script>
+    <script src="almacen-despachos.js?v=20260925-stockdestino"></script>
     <script>
         // Mostrar versión en el badge
         document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
