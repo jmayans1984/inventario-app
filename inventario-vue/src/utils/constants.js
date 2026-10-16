@@ -20,6 +20,14 @@ export const MODULES = [
     children: [],
   },
   {
+    id: 'oficina',
+    name: 'OFICINA VIRTUAL',
+    icon: 'mdi-office-building-outline',
+    color: '#c4552b',
+    path: '/oficina',
+    children: [],
+  },
+  {
     id: 'contabilidad',
     name: 'CONTABILIDAD',
     icon: 'mdi-calculator-variant-outline',
@@ -233,18 +241,6 @@ export const MODULES = [
         { name: 'Análisis de Proveedores', icon: 'mdi-truck-outline',      path: '/gerencia/reportes/proveedores' },
         { name: 'Sobrantes/Faltantes',  icon: 'mdi-scale-balance',          path: '/gerencia/reportes/sobrantes-faltantes' },
         { name: 'Puntuación/Reviews',   icon: 'mdi-star-outline',           path: '/gerencia/reportes/reviews' },
-      ]},
-    ],
-  },
-  {
-    id: 'oficina',
-    name: 'OFICINA IA',
-    icon: 'mdi-office-building-outline',
-    color: '#c4552b',
-    path: '/oficina',
-    children: [
-      { name: 'Oficina', icon: 'mdi-robot-outline', items: [
-        { name: 'Oficina Virtual (Gerente IA)', icon: 'mdi-robot-outline', path: '/oficina/virtual' },
       ]},
     ],
   },

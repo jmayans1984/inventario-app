@@ -139,8 +139,7 @@ const routes = [
   { path: '/gerencia/:section?/:item?', component: () => import('../views/GerenciaView.vue'), meta: { requiresAuth: true } },
 
   // OFICINA VIRTUAL (iframe al servicio de agentes de MAYDO). El permiso por usuario se maneja como cualquier módulo: Configuración > Permisos de Usuarios.
-  { path: '/oficina', redirect: '/oficina/virtual' },
-  { path: '/oficina/virtual', component: () => import('../views/OficinaView.vue'), meta: { requiresAuth: true } },
+  { path: '/oficina', component: () => import('../views/OficinaView.vue'), meta: { requiresAuth: true } },
 
   // FORMATOS / DOCUMENTOS
   { path: '/formatos/planilla-toma-fisica', component: () => import('../views/formatos/PlanillaTomaFisicaView.vue'), meta: { requiresAuth: true } },
