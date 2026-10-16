@@ -7,6 +7,9 @@ export const API_BASE = import.meta.env.PROD
 
 export const APP_VERSION = __APP_VERSION__
 
+// Oficina virtual de MAYDO (agentes de IA): servicio aparte en Railway, se muestra dentro de la app en un iframe.
+export const OFICINA_URL = 'https://oficina-production-7183.up.railway.app/'
+
 export const MODULES = [
   {
     id: 'inicio',
@@ -230,6 +233,18 @@ export const MODULES = [
         { name: 'Análisis de Proveedores', icon: 'mdi-truck-outline',      path: '/gerencia/reportes/proveedores' },
         { name: 'Sobrantes/Faltantes',  icon: 'mdi-scale-balance',          path: '/gerencia/reportes/sobrantes-faltantes' },
         { name: 'Puntuación/Reviews',   icon: 'mdi-star-outline',           path: '/gerencia/reportes/reviews' },
+      ]},
+    ],
+  },
+  {
+    id: 'oficina',
+    name: 'OFICINA IA',
+    icon: 'mdi-office-building-outline',
+    color: '#c4552b',
+    path: '/oficina',
+    children: [
+      { name: 'Oficina', icon: 'mdi-robot-outline', items: [
+        { name: 'Oficina Virtual (Gerente IA)', icon: 'mdi-robot-outline', path: '/oficina/virtual' },
       ]},
     ],
   },
