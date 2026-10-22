@@ -177,6 +177,7 @@
                   <th class="tr">VENTAS BRUTAS</th>
                   <th class="tr">DEVOLUCIONES</th>
                   <th class="tr">VENTAS NETAS</th>
+                  <th class="tr">VS MES ANT.</th>
                   <th class="tr">DÍAS</th>
                   <th class="tr">PROM DIARIO</th>
                   <th class="tr">VS MES ANT.</th>
@@ -188,20 +189,27 @@
                   <td class="tr">{{ fmt(m.ventas_brutas) }}</td>
                   <td class="tr text-dim">{{ fmt(m.devoluciones) }}</td>
                   <td class="tr">{{ fmt(m.ventas_netas) }}</td>
-                  <td class="tr">{{ m.dias_con_venta }}</td>
                   <td class="tr">
-                    {{ m.dias_con_venta > 0 ? fmt(parseFloat(m.ventas_brutas) / m.dias_con_venta) : '—' }}
-                  </td>
-                  <td class="tr">
-                    <template v-if="m.mes === mesActualYM">
-                      <span class="text-dim">—</span>
-                    </template>
-                    <template v-else-if="data.ventasPorMes[vIndex - 1]">
-                      <span :class="parseFloat(m.ventas_netas) >= parseFloat(data.ventasPorMes[vIndex-1].ventas_netas) ? 'badge-pos' : 'badge-neg'">
-                        {{ parseFloat(m.ventas_netas) >= parseFloat(data.ventasPorMes[vIndex-1].ventas_netas) ? '+' : '' }}{{ diffPct(m.ventas_netas, parseFloat(data.ventasPorMes[vIndex-1].ventas_netas)) }}%
+                    <!-- Variación de ventas netas vs mes anterior (el mes en curso está incompleto) -->
+                    <template v-if="m.mes !== mesActualYM && varPct(m.ventas_netas, data.ventasPorMes[vIndex - 1]?.ventas_netas) !== null">
+                      <span :class="badgeVar(varPct(m.ventas_netas, data.ventasPorMes[vIndex - 1].ventas_netas))">
+                        {{ fmtVar(varPct(m.ventas_netas, data.ventasPorMes[vIndex - 1].ventas_netas)) }}
                       </span>
                     </template>
-                    <template v-else><span class="text-dim">—</span></template>
+                    <span v-else class="text-dim">—</span>
+                  </td>
+                  <td class="tr">{{ m.dias_con_venta }}</td>
+                  <td class="tr">
+                    {{ promDiario(m) !== null ? fmt(promDiario(m)) : '—' }}
+                  </td>
+                  <td class="tr">
+                    <!-- Variación del promedio diario vs mes anterior (válida aunque el mes esté en curso) -->
+                    <template v-if="varPct(promDiario(m), promDiario(data.ventasPorMes[vIndex - 1])) !== null">
+                      <span :class="badgeVar(varPct(promDiario(m), promDiario(data.ventasPorMes[vIndex - 1])))">
+                        {{ fmtVar(varPct(promDiario(m), promDiario(data.ventasPorMes[vIndex - 1]))) }}
+                      </span>
+                    </template>
+                    <span v-else class="text-dim">—</span>
                   </td>
                 </tr>
               </tbody>
@@ -211,6 +219,7 @@
                   <td class="tr">{{ fmt(totalesMensuales.ventas_brutas) }}</td>
                   <td class="tr text-dim">{{ fmt(totalesMensuales.devoluciones) }}</td>
                   <td class="tr">{{ fmt(totalesMensuales.ventas_netas) }}</td>
+                  <td class="tr">—</td>
                   <td class="tr">—</td>
                   <td class="tr">—</td>
                   <td class="tr">—</td>
@@ -285,9 +294,23 @@ function fmt(v) {
 function fmtNum(v) {
   return new Intl.NumberFormat('es-CO').format(Math.round(parseFloat(v) || 0))
 }
-function diffPct(val, base) {
-  if (!base) return '0.0'
-  return (((parseFloat(val) - base) / base) * 100).toFixed(1)
+
+// Variación porcentual de val contra base; null si no hay base (sin mes anterior o base 0)
+function varPct(val, base) {
+  const b = parseFloat(base)
+  if (val === null || val === undefined || !b) return null
+  return ((parseFloat(val) - b) / b) * 100
+}
+function fmtVar(p) {
+  return (p >= 0 ? '+' : '') + p.toFixed(1) + '%'
+}
+function badgeVar(p) {
+  return p >= 0 ? 'badge-pos' : 'badge-neg'
+}
+// Promedio diario del mes (misma base que la columna PROM DIARIO); null si no hay días con venta
+function promDiario(m) {
+  if (!m || !(m.dias_con_venta > 0)) return null
+  return parseFloat(m.ventas_brutas) / m.dias_con_venta
 }
 
 // ── Mes actual en formato YYYY-MM ──────────────────────────────────────────
