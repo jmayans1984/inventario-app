@@ -28,6 +28,9 @@
             <span class="pv-date-sep">→</span>
             <CampoFecha v-model="hasta" class="pv-date" />
           </div>
+          <v-btn color="#b45309" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf" :disabled="!data || loading" @click="exportarPDF">
+            Informe PDF
+          </v-btn>
           <v-btn color="#b45309" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
             Actualizar
           </v-btn>
@@ -245,6 +248,7 @@ import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
+import { pdfProveedores } from '../../utils/pdfModulosGerencia'
 
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
@@ -288,6 +292,26 @@ function colorConc(v) {
 }
 function colorNivel(n) {
   return n === 'ALTA' ? '#ef4444' : n === 'MEDIA' ? '#f59e0b' : '#22c55e'
+}
+
+
+// ── Informe PDF ───────────────────────────────────────────────────
+const generandoPdf = ref(false)
+function exportarPDF() {
+  if (!data.value) return
+  generandoPdf.value = true
+  try {
+    const doc = pdfProveedores(data.value, {
+      empresaNombre: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+      periodo: { desde: desde.value, hasta: hasta.value },
+    })
+    window.open(URL.createObjectURL(doc.output('blob')), '_blank')
+  } catch (e) {
+    console.error('proveedores pdf:', e)
+  } finally {
+    generandoPdf.value = false
+  }
 }
 
 async function cargar() {

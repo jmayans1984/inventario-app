@@ -28,6 +28,9 @@
             <span class="im-date-sep">→</span>
             <CampoFecha v-model="hasta" class="im-date" />
           </div>
+          <v-btn color="#d97706" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf" :disabled="!data || loading" @click="exportarPDF">
+            Informe PDF
+          </v-btn>
           <v-btn color="#d97706" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
             Actualizar
           </v-btn>
@@ -248,6 +251,7 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 import ApexCharts from 'apexcharts'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
+import { pdfIngenieriaMenu } from '../../utils/pdfModulosGerencia'
 
 const authStore = useAuthStore()
 const empresa = computed(() => authStore.empresa || authStore.user?.empresa || localStorage.getItem('empresaActual') || '')
@@ -365,6 +369,25 @@ function pintarScatter() {
     grid: { borderColor: 'rgba(148,163,184,0.18)' },
   })
   scatter.render()
+}
+
+
+// ── Informe PDF ───────────────────────────────────────────────────
+const generandoPdf = ref(false)
+function exportarPDF() {
+  if (!data.value) return
+  generandoPdf.value = true
+  try {
+    const doc = pdfIngenieriaMenu(data.value, {
+      empresaNombre: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+    })
+    window.open(URL.createObjectURL(doc.output('blob')), '_blank')
+  } catch (e) {
+    console.error('ingenieria-menu pdf:', e)
+  } finally {
+    generandoPdf.value = false
+  }
 }
 
 async function cargar() {

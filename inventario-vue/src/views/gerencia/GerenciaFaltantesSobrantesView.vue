@@ -44,6 +44,9 @@
               <CampoFecha v-model="hasta" class="ac-date-input" />
             </div>
           </div>
+          <v-btn color="#0891b2" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf" :disabled="!data || loading" @click="exportarPDF">
+            Informe PDF
+          </v-btn>
           <v-btn color="#0891b2" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
             Actualizar
           </v-btn>
@@ -360,6 +363,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
+import { pdfFaltantesSobrantes } from '../../utils/pdfModulosGerencia'
 import ApexCharts from 'apexcharts'
 
 const authStore = useAuthStore()
@@ -526,6 +530,26 @@ async function cargarCcostos() {
     if (j.success) ccostos.value = j.data || []
   } catch (e) {
     console.error('ccostos:', e)
+  }
+}
+
+
+// ── Informe PDF ───────────────────────────────────────────────────
+const generandoPdf = ref(false)
+function exportarPDF() {
+  if (!data.value) return
+  generandoPdf.value = true
+  try {
+    const doc = pdfFaltantesSobrantes(data.value, {
+      empresaNombre: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+      locales: ccostoSel.value ? (ccostos.value.find(c => c.codigo === ccostoSel.value)?.nombre || ccostoSel.value) : 'Todos los locales',
+    })
+    window.open(URL.createObjectURL(doc.output('blob')), '_blank')
+  } catch (e) {
+    console.error('sobrantes-faltantes pdf:', e)
+  } finally {
+    generandoPdf.value = false
   }
 }
 

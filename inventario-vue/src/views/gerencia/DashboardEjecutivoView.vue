@@ -22,9 +22,14 @@
             <p class="page-sub">Resumen financiero y operativo del negocio</p>
           </div>
         </div>
-        <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
-          Actualizar
-        </v-btn>
+        <div class="pdf-acciones">
+          <v-btn color="#0f172a" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf" :disabled="!data || loading" @click="exportarPDF">
+            Informe PDF
+          </v-btn>
+          <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-refresh" :loading="loading" @click="cargar">
+            Actualizar
+          </v-btn>
+        </div>
       </div>
 
       <!-- FILTRO PERÍODO -->
@@ -259,6 +264,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { fechaInputLocal } from '../../utils/formatters'
+import { pdfDashboardEjecutivo } from '../../utils/pdfModulosGerencia'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
@@ -285,6 +291,25 @@ function aplicarQuick(q) {
   fechaFin.value    = q.ff()
   quickActivo.value = q.label
   cargar()
+}
+
+// ── Informe PDF ───────────────────────────────────────────────────
+const generandoPdf = ref(false)
+function exportarPDF() {
+  if (!data.value) return
+  generandoPdf.value = true
+  try {
+    const doc = pdfDashboardEjecutivo(data.value, {
+      periodo: { desde: fechaInicio.value, hasta: fechaFin.value },
+      empresaNombre: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+    })
+    window.open(URL.createObjectURL(doc.output('blob')), '_blank')
+  } catch (e) {
+    console.error('dashboard pdf:', e)
+  } finally {
+    generandoPdf.value = false
+  }
 }
 
 // ── Datos ─────────────────────────────────────────────────────────
@@ -419,6 +444,7 @@ onMounted(() => {
 .loading-full { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 80px; color: rgba(var(--v-theme-on-surface),.4); font-size: 13px; }
 
 /* KPI Row */
+.pdf-acciones { display: flex; gap: 8px; flex-wrap: wrap; }
 .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
 .kpi-card { border-radius: 14px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; color: white; }
 .kpi-cyan   { background: linear-gradient(135deg,#06b6d4,#0891b2); }

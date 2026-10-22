@@ -35,6 +35,9 @@
               {{ a.label }}
             </button>
           </div>
+          <v-btn color="#f97316" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf" :disabled="!data || loading" @click="exportarPDF">
+            Informe PDF
+          </v-btn>
           <v-btn color="#f97316" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
             Actualizar
           </v-btn>
@@ -223,6 +226,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
+import { pdfLaborCost } from '../../utils/pdfModulosGerencia'
 import ApexCharts from 'apexcharts'
 
 const authStore = useAuthStore()
@@ -282,6 +286,26 @@ function cambiarAgrupacion(a) {
   if (agrupacion.value === a) return
   agrupacion.value = a
   cargar()
+}
+
+
+// ── Informe PDF ───────────────────────────────────────────────────
+const generandoPdf = ref(false)
+function exportarPDF() {
+  if (!data.value) return
+  generandoPdf.value = true
+  try {
+    const doc = pdfLaborCost(data.value, {
+      empresaNombre: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+      umbral: umbral.value,
+    })
+    window.open(URL.createObjectURL(doc.output('blob')), '_blank')
+  } catch (e) {
+    console.error('labor-cost pdf:', e)
+  } finally {
+    generandoPdf.value = false
+  }
 }
 
 async function cargar() {
