@@ -526,7 +526,7 @@ function renderDonut() {
   chartDonut.render()
 }
 
-// 4 — Top 10 productos (barras horizontales, mayor a menor de arriba abajo)
+// 4 — Top 10 productos (barras horizontales hacia la derecha, nombres a la izquierda, mayor a menor de arriba abajo)
 function renderTop() {
   if (!chartTopRef.value || !data.value) return
   const { fg, grid } = themeColors()
@@ -541,7 +541,7 @@ function renderTop() {
     colors: ['#22c55e'],
     plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '55%' } },
     xaxis: { categories: labels, labels: { style: { colors: fg, fontSize: '11px' }, formatter: v => fmt(v) } },
-    yaxis: { reversed: true, opposite: true, labels: { style: { colors: fg, fontSize: '11px', fontWeight: 500 }, maxWidth: 380 } },
+    yaxis: { labels: { style: { colors: fg, fontSize: '11px', fontWeight: 500 }, maxWidth: 380 } },
     grid:  { borderColor: grid, strokeDashArray: 4, padding: { right: 20 } },
     legend: { show: false },
     tooltip: {
