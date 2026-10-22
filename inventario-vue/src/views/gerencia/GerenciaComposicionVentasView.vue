@@ -19,6 +19,10 @@
                 {{ p.label }}
               </button>
             </div>
+            <v-btn color="primary" variant="outlined" size="small" prepend-icon="mdi-file-pdf-box"
+                   :loading="generandoPdf" :disabled="loading || !sedes.length" @click="exportarPDF">
+              Informe PDF
+            </v-btn>
             <v-btn color="primary" variant="flat" size="small" prepend-icon="mdi-refresh"
                    :loading="loading" @click="cargar">
               Actualizar
@@ -248,6 +252,7 @@ import PageHeader from '../../components/common/PageHeader.vue'
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
 import ApexCharts from 'apexcharts'
+import { generarPdfComposicionVentas } from '../../utils/pdfComposicionVentas'
 
 const authStore = useAuthStore()
 const empresa = computed(() =>
@@ -654,6 +659,24 @@ async function pintarTodo() {
 function destruirTodo() {
   for (const ch of [chConceptos, chRadar, chMix, chHeat, chEvolucion]) ch?.destroy()
   chConceptos = chRadar = chMix = chHeat = chEvolucion = null
+}
+
+// ── Informe PDF gerencial ─────────────────────────────────────────
+const generandoPdf = ref(false)
+function exportarPDF() {
+  if (!sedes.value.length) return
+  generandoPdf.value = true
+  try {
+    const doc = generarPdfComposicionVentas(data.value, {
+      empresaNombre: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+    })
+    window.open(URL.createObjectURL(doc.output('blob')), '_blank')
+  } catch (e) {
+    console.error('composicion-ventas pdf:', e)
+  } finally {
+    generandoPdf.value = false
+  }
 }
 
 // ── Carga ─────────────────────────────────────────────────────────
