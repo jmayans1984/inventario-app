@@ -374,6 +374,7 @@ function exportarPDF() {
       empresaNombre: authStore.empresaNombre || empresa.value,
       usuario: authStore.userName || authStore.userNombre,
       locales: labelCcostos.value,
+      ccostoFiltrado: selCcostos.value.length > 0 && selCcostos.value.length < ccostosDisponibles.value.length,
     })
     window.open(URL.createObjectURL(doc.output('blob')), '_blank')
   } catch (e) {

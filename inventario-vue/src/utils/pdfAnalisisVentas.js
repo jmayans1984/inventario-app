@@ -364,7 +364,7 @@ function tablaDetalleMensual(doc, y, meses, mesActualYM, o) {
 }
 
 // ── Generador ───────────────────────────────────────────────────────────────
-export function generarPdfAnalisisVentas(data, { empresaNombre = '', usuario = '', locales = 'Todos los locales' } = {}) {
+export function generarPdfAnalisisVentas(data, { empresaNombre = '', usuario = '', locales = 'Todos los locales', ccostoFiltrado = false } = {}) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const H = doc.internal.pageSize.getHeight()
   const W = doc.internal.pageSize.getWidth()
@@ -439,7 +439,7 @@ export function generarPdfAnalisisVentas(data, { empresaNombre = '', usuario = '
   }
   const dist = data.distribucionCcosto || []
   const totDist = dist.reduce((s, r) => s + num(r.total_ventas), 0)
-  if (dist.length > 1 && totDist) {
+  if (!ccostoFiltrado && dist.length > 1 && totDist) {
     puntos.push(`Por local, ${dist[0].ccosto_nombre || dist[0].ccosto} concentra el ${pctTxt(num(dist[0].total_ventas), totDist)} de las ventas de los últimos 12 meses.`)
   }
   if (puntos.length) {
@@ -489,8 +489,10 @@ export function generarPdfAnalisisVentas(data, { empresaNombre = '', usuario = '
   }
 
   // Distribución por local y por categoría
+  // La distribución por local siempre suma toda la empresa (el backend no aplica el filtro
+  // de centro de costo a esa consulta), así que solo se imprime cuando no hay filtro.
   const bloques = [
-    { titulo: 'Distribución por local', filas: dist.map(r => ({ etiqueta: String(r.ccosto_nombre || r.ccosto), valor: num(r.total_ventas) })), total: totDist },
+    ...(ccostoFiltrado ? [] : [{ titulo: 'Distribución por local', filas: dist.map(r => ({ etiqueta: String(r.ccosto_nombre || r.ccosto), valor: num(r.total_ventas) })), total: totDist }]),
     { titulo: 'Distribución por categoría', filas: (data.ventasPorCategoria || []).map(r => ({ etiqueta: String(r.categoria), valor: num(r.total_ventas) })), total: (data.ventasPorCategoria || []).reduce((s, r) => s + num(r.total_ventas), 0) },
   ]
   bloques.forEach(b => {
