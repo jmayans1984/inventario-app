@@ -22,9 +22,14 @@
             <p class="av-sub">Histórico mensual · Patrones semanales · Top productos · Distribución por local</p>
           </div>
         </div>
-        <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
-          Actualizar
-        </v-btn>
+        <div class="av-header-actions">
+          <v-btn color="#0f172a" variant="flat" prepend-icon="mdi-file-pdf-box" :loading="generandoPdf" :disabled="!data || loading" rounded="lg" @click="exportarPDF">
+            Informe PDF
+          </v-btn>
+          <v-btn color="#06b6d4" variant="flat" prepend-icon="mdi-refresh" :loading="loading" rounded="lg" @click="cargar">
+            Actualizar
+          </v-btn>
+        </div>
       </div>
 
       <!-- FILTROS -->
@@ -246,6 +251,7 @@ import MainLayout from '../../components/layouts/MainLayout.vue'
 import { API_BASE } from '../../utils/constants.js'
 import { useAuthStore } from '../../stores/auth'
 import ApexCharts from 'apexcharts'
+import { generarPdfAnalisisVentas } from '../../utils/pdfAnalisisVentas'
 
 const authStore = useAuthStore()
 const empresa = computed(() =>
@@ -356,6 +362,25 @@ function toggleTodos() {
 function onDocClick(e) {
   if (filterRef.value && !filterRef.value.contains(e.target))
     menuCcosto.value = false
+}
+
+// ── Informe PDF gerencial ───────────────────────────────────────────────────
+const generandoPdf = ref(false)
+function exportarPDF() {
+  if (!data.value) return
+  generandoPdf.value = true
+  try {
+    const doc = generarPdfAnalisisVentas(data.value, {
+      empresaNombre: authStore.empresaNombre || empresa.value,
+      usuario: authStore.userName || authStore.userNombre,
+      locales: labelCcostos.value,
+    })
+    window.open(URL.createObjectURL(doc.output('blob')), '_blank')
+  } catch (e) {
+    console.error('analisis-ventas pdf:', e)
+  } finally {
+    generandoPdf.value = false
+  }
 }
 
 // ── Carga ───────────────────────────────────────────────────────────────────
@@ -629,6 +654,7 @@ onBeforeUnmount(() => {
 
 /* Header */
 .av-header      { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.av-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .av-header-left { display: flex; align-items: center; gap: 16px; }
 .av-icon-wrap   { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg,#06b6d4,#0e7490); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(6,182,212,.35); flex-shrink: 0; }
 .av-title { font-size: 22px; font-weight: 800; margin: 0; }
