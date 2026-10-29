@@ -13688,16 +13688,24 @@ app.get('/api/oficina/trabajan-hoy', async (req, res) => {
     if (!empresa || !ccosto || !fecha) return res.status(400).json({ success: false, error: 'empresa, ccosto y fecha son requeridas' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ success: false, error: 'fecha debe venir como YYYY-MM-DD' });
     try {
+        // El código del centro se compara con y sin ceros a la izquierda (002 / 2) por si el horario lo guardó distinto.
         const r = await pool.query(
             `SELECT DISTINCT e.nombre, e.apellido
              FROM nom_semana_detalle sd
              JOIN nom_semana s ON s.id = sd.semana_id
              JOIN nom_empleados e ON e.id = sd.empleado_id
-             WHERE s.empresa::text = $1::text AND TRIM(sd.ccosto) = $2
+             WHERE s.empresa::text = $1::text AND LPAD(TRIM(sd.ccosto), 3, '0') = LPAD($2, 3, '0')
                AND sd.fecha = $3::date AND sd.es_dia_libre = FALSE AND sd.ausencia_tipo IS NULL
              ORDER BY e.apellido, e.nombre`, [empresa, ccosto, fecha]);
         const trabajan = r.rows.map(x => [x.nombre, x.apellido].filter(Boolean).join(' ').trim()).filter(Boolean);
-        res.json({ success: true, data: { fecha, ccosto, trabajan } });
+        // Diagnóstico: cuántos turnos tiene ESE día el horario, por centro (para ver por qué una lista sale vacía)
+        const d = await pool.query(
+            `SELECT COALESCE(NULLIF(TRIM(sd.ccosto), ''), '(sin centro)') AS ccosto, COUNT(*) AS turnos
+             FROM nom_semana_detalle sd JOIN nom_semana s ON s.id = sd.semana_id
+             WHERE s.empresa::text = $1::text AND sd.fecha = $2::date AND sd.es_dia_libre = FALSE
+             GROUP BY 1 ORDER BY 1`, [empresa, fecha]);
+        const turnos_por_ccosto = Object.fromEntries(d.rows.map(x => [x.ccosto, parseInt(x.turnos)]));
+        res.json({ success: true, data: { fecha, ccosto, trabajan, turnos_por_ccosto } });
     } catch (error) {
         console.error('Error GET /api/oficina/trabajan-hoy:', error.message);
         res.status(500).json({ success: false, error: error.message });
