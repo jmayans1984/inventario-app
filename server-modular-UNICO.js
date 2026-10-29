@@ -13661,13 +13661,24 @@ app.get('/api/oficina/ventas-centro', async (req, res) => {
             venta(`SELECT COALESCE(SUM(v.ventas_brutas),0) AS total ${base} AND v.fecha::date >= $3::date AND v.fecha::date <= $4::date`, [empresa, ccosto, rf.ini_mes, fecha]),
             venta(`SELECT COALESCE(SUM(v.ventas_brutas),0) AS total ${base} AND v.fecha::date >= $3::date AND v.fecha::date <= $4::date`, [empresa, ccosto, rf.ini_mes_ant, rf.mismo_dia_mes_ant]),
         ]);
+        // Quiénes deben trabajar hoy en este centro según el horario semanal (no timbran, así que no hay marcajes): días no libres y sin ausencia.
+        const trabajanRes = await pool.query(
+            `SELECT DISTINCT e.nombre, e.apellido
+             FROM nom_semana_detalle sd
+             JOIN nom_semana s ON s.id = sd.semana_id
+             JOIN nom_empleados e ON e.id = sd.empleado_id
+             WHERE s.empresa::text = $1::text AND TRIM(sd.ccosto) = $2
+               AND sd.fecha = $3::date AND sd.es_dia_libre = FALSE AND sd.ausencia_tipo IS NULL
+             ORDER BY e.apellido, e.nombre`, [empresa, ccosto, fecha]);
+        const trabajan = trabajanRes.rows.map(r => [r.nombre, r.apellido].filter(Boolean).join(' ').trim()).filter(Boolean);
+
         const dias = ultimos.rows.map(r => ({ fecha: r.fecha, total: parseFloat(r.total) || 0 }));
         const promedio = dias.length ? dias.reduce((a, d) => a + d.total, 0) / dias.length : null;
         const diff = mesActual - mesAnterior;
         const nombreDia = new Date(fecha + 'T12:00:00Z').toLocaleDateString('es', { weekday: 'long', timeZone: 'UTC' });
 
         res.json({ success: true, data: {
-            fecha, dia_semana: nombreDia,
+            fecha, dia_semana: nombreDia, trabajan,
             semana_anterior: { fecha: rf.semana_ant, total: semanaAnt },
             promedio_ultimos_5: { promedio, dias },
             mes: { total: mesActual, mes_anterior_mismo_periodo: mesAnterior, diferencia: diff,
