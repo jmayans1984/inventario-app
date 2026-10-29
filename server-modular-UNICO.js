@@ -13637,6 +13637,48 @@ app.put('/api/config-general', async (req, res) => {
 //
 // El monto es lo RECIBIDO (tarjetas + efectivo + otros), que es el mismo total
 // que muestra el resumen de la importación.
+// GET /api/oficina/ventas-centro?empresa=&ccosto=&fecha=YYYY-MM-DD — resumen de UN centro para la oficina virtual (solo lectura).
+// Venta del mismo día de la semana anterior, promedio de los últimos 5 mismos días con venta y el mes contra el mismo periodo del mes anterior.
+app.get('/api/oficina/ventas-centro', async (req, res) => {
+    const empresa = String(req.query.empresa || '').trim();
+    const ccosto  = String(req.query.ccosto || '').trim();
+    const fecha   = req.query.fecha;
+    if (!empresa || !ccosto || !fecha) return res.status(400).json({ success: false, error: 'empresa, ccosto y fecha son requeridas' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ success: false, error: 'fecha debe venir como YYYY-MM-DD' });
+    try {
+        const venta = (sql, params) => pool.query(sql, params).then(r => parseFloat(r.rows[0]?.total) || 0);
+        const [rf] = (await pool.query(`SELECT ($1::date - INTERVAL '7 days')::date::text AS semana_ant,
+                                               date_trunc('month', $1::date)::date::text AS ini_mes,
+                                               (date_trunc('month', $1::date) - INTERVAL '1 month')::date::text AS ini_mes_ant,
+                                               ($1::date - INTERVAL '1 month')::date::text AS mismo_dia_mes_ant`, [fecha])).rows;
+
+        const base = `FROM ventas v WHERE v.empresa::text = $1::text AND TRIM(v.ccosto) = $2`;
+        const [semanaAnt, ultimos, mesActual, mesAnterior] = await Promise.all([
+            venta(`SELECT COALESCE(SUM(v.ventas_brutas),0) AS total ${base} AND v.fecha::date = $3::date`, [empresa, ccosto, rf.semana_ant]),
+            pool.query(`SELECT v.fecha::date::text AS fecha, SUM(v.ventas_brutas) AS total ${base}
+                        AND v.fecha::date < $3::date AND EXTRACT(DOW FROM v.fecha::date) = EXTRACT(DOW FROM $3::date)
+                        GROUP BY v.fecha::date ORDER BY v.fecha::date DESC LIMIT 5`, [empresa, ccosto, fecha]),
+            venta(`SELECT COALESCE(SUM(v.ventas_brutas),0) AS total ${base} AND v.fecha::date >= $3::date AND v.fecha::date <= $4::date`, [empresa, ccosto, rf.ini_mes, fecha]),
+            venta(`SELECT COALESCE(SUM(v.ventas_brutas),0) AS total ${base} AND v.fecha::date >= $3::date AND v.fecha::date <= $4::date`, [empresa, ccosto, rf.ini_mes_ant, rf.mismo_dia_mes_ant]),
+        ]);
+        const dias = ultimos.rows.map(r => ({ fecha: r.fecha, total: parseFloat(r.total) || 0 }));
+        const promedio = dias.length ? dias.reduce((a, d) => a + d.total, 0) / dias.length : null;
+        const diff = mesActual - mesAnterior;
+        const nombreDia = new Date(fecha + 'T12:00:00Z').toLocaleDateString('es', { weekday: 'long', timeZone: 'UTC' });
+
+        res.json({ success: true, data: {
+            fecha, dia_semana: nombreDia,
+            semana_anterior: { fecha: rf.semana_ant, total: semanaAnt },
+            promedio_ultimos_5: { promedio, dias },
+            mes: { total: mesActual, mes_anterior_mismo_periodo: mesAnterior, diferencia: diff,
+                   pct: mesAnterior > 0 ? (diff / mesAnterior) * 100 : null, desde_mes_anterior: rf.ini_mes_ant, hasta_mes_anterior: rf.mismo_dia_mes_ant },
+        } });
+    } catch (error) {
+        console.error('Error GET /api/oficina/ventas-centro:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 app.get('/api/square/comparativo-dia', async (req, res) => {
     try {
         const empresa = req.query.empresa || req.headers['x-empresa'];
