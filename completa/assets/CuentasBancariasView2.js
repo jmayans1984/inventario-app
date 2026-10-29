@@ -1,1 +1,1 @@
-import{Bt as e,Dr as t,gr as n,kr as r}from"./index.js";var i={__name:`CuentasBancariasView`,setup(i){let a=e();return t(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(e,t)=>(r(),n(`div`))}};export{i as default};
+import{Ar as e,Or as t,Vt as n,_r as r}from"./index.js";var i={__name:`CuentasBancariasView`,setup(i){let a=n();return t(()=>{a.push(`/contabilidad/configuracion/cuentas-bancarias`)}),(t,n)=>(e(),r(`div`))}};export{i as default};
