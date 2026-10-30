@@ -13657,7 +13657,7 @@ app.get('/api/almacen/pedidos-web', async (req, res) => {
 // POST /api/almacen/pedidos-web/:id/aprobar — marca el pedido como aprobado tras crear la orden.
 app.post('/api/almacen/pedidos-web/:id/aprobar', async (req, res) => {
   try {
-    const r = await fetch(`${OFICINA_PEDIDOS_URL}/api/pedidos/${encodeURIComponent(req.params.id)}/aprobar`, { method: 'POST', headers: { 'X-Pedidos-Token': process.env.PEDIDOS_API_TOKEN || '' } });
+    const r = await fetch(`${OFICINA_PEDIDOS_URL}/api/pedidos/${encodeURIComponent(req.params.id)}/aprobar`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Pedidos-Token': process.env.PEDIDOS_API_TOKEN || '' }, body: '{}' });
     res.status(r.ok ? 200 : r.status).json({ success: r.ok });
   } catch (error) {
     console.error('Error POST /api/almacen/pedidos-web/aprobar:', error.message);
