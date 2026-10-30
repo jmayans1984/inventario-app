@@ -675,7 +675,7 @@
                   <tr v-for="d in ped.detalle" :key="d.codigo">
                     <td>{{ d.nombre }}</td>
                     <td>{{ d.und }}</td>
-                    <td class="text-right"><input v-model.number="d.cantidad" type="number" min="0" step="any" class="imp-cant" /></td>
+                    <td class="text-right"><input v-model.number="d.cantidad" type="number" min="0" step="any" class="imp-cant" @focus="$event.target.select()" @keydown.enter.prevent="siguienteCantidad($event)" /></td>
                   </tr>
                 </tbody>
               </table>
@@ -893,6 +893,12 @@ async function abrirImportarPedidos() {
   } finally {
     cargandoPedidos.value = false
   }
+}
+
+// Enter en el popup: pasa a la cantidad de la fila siguiente (y de un pedido al siguiente).
+function siguienteCantidad(e) {
+  const campos = [...e.target.closest('.v-card').querySelectorAll('input.imp-cant')]
+  campos[campos.indexOf(e.target) + 1]?.focus()
 }
 
 // Pasa lo editado en el popup al formulario que ya está abierto: cantidades y observaciones del pedido.
