@@ -8,9 +8,6 @@
         :crumbs="['Almacén', 'Procesos', 'Despachos de Bodega']"
       >
         <template #actions>
-          <v-btn variant="tonal" @click="abrirImportarPedidos">
-            <v-icon start>mdi-import</v-icon>Importar pedidos
-          </v-btn>
           <v-btn variant="tonal" @click="abrirAnalisisFaltantes">
             <v-icon start>mdi-chart-line</v-icon>Análisis de Faltantes
           </v-btn>
@@ -256,6 +253,11 @@
                   class="gf-link" @click="limpiarFiltros">
                   <v-icon size="14">mdi-filter-remove-outline</v-icon> Quitar filtros
                 </button>
+                <v-btn size="small" variant="tonal" color="primary" prepend-icon="mdi-import"
+                  :disabled="!puedeImportar" @click="abrirImportarPedidos"
+                  title="Trae los pedidos que este centro mandó por su enlace. Se habilita cuando ya cargó la lista de productos.">
+                  Importar pedido
+                </v-btn>
                 <v-btn v-if="faltantesSinCantidad > 0" size="small" variant="tonal" color="success"
                   prepend-icon="mdi-auto-fix" @click="llenarFaltantes"
                   title="Llena la cantidad sugerida (el faltante) en los productos visibles. Si supera el stock disponible en bodega, la fila queda marcada en rojo.">
@@ -659,7 +661,7 @@
       <!-- Importar pedidos de food trucks (enlace de pedido) -->
       <v-dialog v-model="dlgImportar" max-width="720" scrollable>
         <v-card rounded="lg">
-          <v-card-title class="pt-5 px-6">Pedidos de food trucks pendientes</v-card-title>
+          <v-card-title class="pt-5 px-6">Pedidos pendientes · {{ form.cc_destino ? (ccostos.find((c) => c.codigo === form.cc_destino)?.nombre || form.cc_destino) : "" }}</v-card-title>
           <v-card-text class="px-6">
             <div v-if="cargandoPedidos" class="text-medium-emphasis">Cargando pedidos…</div>
             <v-alert v-else-if="errorPedidos" type="error" variant="tonal" density="compact">{{ errorPedidos }}</v-alert>
@@ -779,7 +781,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useTheme } from 'vuetify'
 import { useAuthStore } from '../../stores/auth'
 import MainLayout from '../../components/layouts/MainLayout.vue'
@@ -876,13 +878,15 @@ const pedidosPendientes = ref([])
 const errorPedidos    = ref('')
 const pedidoImportado = ref(null)   // id del pedido cuya orden se está creando (se marca aprobado al guardar)
 
+const puedeImportar = computed(() => !!form.value.cc_destino && !loadingGrid.value && todosProductos.value.length > 0)
+
 async function abrirImportarPedidos() {
   dlgImportar.value = true
   cargandoPedidos.value = true
   errorPedidos.value = ''
   try {
     const res = await api.get('/almacen/pedidos-web')
-    pedidosPendientes.value = res.data?.data || []
+    pedidosPendientes.value = (res.data?.data || []).filter((p) => p.cc === form.value.cc_destino)
   } catch (e) {
     pedidosPendientes.value = []
     errorPedidos.value = e?.response?.data?.error || 'No se pudieron cargar los pedidos'
@@ -891,27 +895,15 @@ async function abrirImportarPedidos() {
   }
 }
 
-// Pasa lo editado en el popup a la orden: el mismo formulario de Nueva Orden, con las cantidades ya puestas.
-async function aceptarPedido(ped) {
+// Pasa lo editado en el popup al formulario que ya está abierto: cantidades y observaciones del pedido.
+function aceptarPedido(ped) {
   dlgImportar.value = false
   pedidoImportado.value = ped.id
-  formError.value = ''
-  errFecha.value = ''
-  errDestino.value = ''
-  busquedaProducto.value = ''
-  filtroGrupo.value = 'TODOS'
-  filtroRapido.value = 'todos'
-  form.value = {
-    fecha: ped.fecha,
-    cc_origen: ccostos.value[0]?.codigo || '',
-    cc_destino: ped.cc,
-    observaciones: ped.observaciones || '',
-  }
-  dlgForm.value = true
-  await nextTick()     // el watcher de cc_destino limpia las cantidades: se aplican después
-  cantidades.value = Object.fromEntries(
+  const importadas = Object.fromEntries(
     ped.detalle.filter((d) => parseFloat(d.cantidad) > 0).map((d) => [d.codigo, parseFloat(d.cantidad)])
   )
+  cantidades.value = { ...cantidades.value, ...importadas }
+  if (ped.observaciones) form.value.observaciones = ped.observaciones
 }
 const analisisFaltantes = ref([])
 const cargandoAnalisis = ref(false)
