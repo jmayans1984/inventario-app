@@ -13637,6 +13637,34 @@ app.put('/api/config-general', async (req, res) => {
 //
 // El monto es lo RECIBIDO (tarjetas + efectivo + otros), que es el mismo total
 // que muestra el resumen de la importación.
+// Pedidos de food trucks que mandaron por su enlace (los guarda la oficina virtual). Se importan desde Despachos de bodega.
+// La oficina valida el token compartido PEDIDOS_API_TOKEN (mismo valor en los dos servicios); OFICINA_URL apunta a la oficina.
+const OFICINA_PEDIDOS_URL = (process.env.OFICINA_URL || 'https://oficina-production-7183.up.railway.app').replace(/\/$/, '');
+
+// GET /api/almacen/pedidos-web — pedidos pendientes para importar.
+app.get('/api/almacen/pedidos-web', async (req, res) => {
+  try {
+    const r = await fetch(`${OFICINA_PEDIDOS_URL}/api/pedidos/pendientes`, { headers: { 'X-Pedidos-Token': process.env.PEDIDOS_API_TOKEN || '' } });
+    if (!r.ok) return res.status(r.status).json({ success: false, error: 'La oficina no entregó los pedidos' });
+    const datos = await r.json();
+    res.json({ success: true, data: datos.data || [] });
+  } catch (error) {
+    console.error('Error GET /api/almacen/pedidos-web:', error.message);
+    res.status(502).json({ success: false, error: 'No se pudo conectar con la oficina virtual' });
+  }
+});
+
+// POST /api/almacen/pedidos-web/:id/aprobar — marca el pedido como aprobado tras crear la orden.
+app.post('/api/almacen/pedidos-web/:id/aprobar', async (req, res) => {
+  try {
+    const r = await fetch(`${OFICINA_PEDIDOS_URL}/api/pedidos/${encodeURIComponent(req.params.id)}/aprobar`, { method: 'POST', headers: { 'X-Pedidos-Token': process.env.PEDIDOS_API_TOKEN || '' } });
+    res.status(r.ok ? 200 : r.status).json({ success: r.ok });
+  } catch (error) {
+    console.error('Error POST /api/almacen/pedidos-web/aprobar:', error.message);
+    res.status(502).json({ success: false, error: 'No se pudo conectar con la oficina virtual' });
+  }
+});
+
 // GET /api/oficina/ventas-centro?empresa=&ccosto=&fecha=YYYY-MM-DD — resumen de UN centro para la oficina virtual (solo lectura).
 // Venta del mismo día de la semana anterior, promedio de los últimos 5 mismos días con venta y el mes contra el mismo periodo del mes anterior.
 app.get('/api/oficina/ventas-centro', async (req, res) => {

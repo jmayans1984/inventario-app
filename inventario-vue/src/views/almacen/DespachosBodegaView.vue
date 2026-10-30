@@ -8,6 +8,9 @@
         :crumbs="['Almacén', 'Procesos', 'Despachos de Bodega']"
       >
         <template #actions>
+          <v-btn variant="tonal" @click="abrirImportarPedidos">
+            <v-icon start>mdi-import</v-icon>Importar pedidos
+          </v-btn>
           <v-btn variant="tonal" @click="abrirAnalisisFaltantes">
             <v-icon start>mdi-chart-line</v-icon>Análisis de Faltantes
           </v-btn>
@@ -653,6 +656,39 @@
       </v-dialog>
 
       <!-- ═══════════════ DIALOG ANÁLISIS DE FALTANTES ═══════════════ -->
+      <!-- Importar pedidos de food trucks (enlace de pedido) -->
+      <v-dialog v-model="dlgImportar" max-width="720" scrollable>
+        <v-card rounded="lg">
+          <v-card-title class="pt-5 px-6">Pedidos de food trucks pendientes</v-card-title>
+          <v-card-text class="px-6">
+            <div v-if="cargandoPedidos" class="text-medium-emphasis">Cargando pedidos…</div>
+            <v-alert v-else-if="errorPedidos" type="error" variant="tonal" density="compact">{{ errorPedidos }}</v-alert>
+            <div v-else-if="!pedidosPendientes.length" class="text-medium-emphasis">No hay pedidos pendientes.</div>
+            <div v-for="ped in pedidosPendientes" :key="ped.id" class="mb-6">
+              <div class="font-weight-bold">{{ ped.centro }} · {{ fmtFecha(ped.fecha) }} <span class="text-caption text-medium-emphasis">(pedido #{{ ped.id }})</span></div>
+              <div v-if="ped.observaciones" class="text-caption mb-2">Observaciones: {{ ped.observaciones }}</div>
+              <table class="imp-tabla">
+                <thead><tr><th>Producto</th><th>Und</th><th class="text-right">Cantidad</th></tr></thead>
+                <tbody>
+                  <tr v-for="d in ped.detalle" :key="d.codigo">
+                    <td>{{ d.nombre }}</td>
+                    <td>{{ d.und }}</td>
+                    <td class="text-right"><input v-model.number="d.cantidad" type="number" min="0" step="any" class="imp-cant" /></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="text-right mt-2">
+                <v-btn color="success" variant="flat" @click="aceptarPedido(ped)">Aceptar</v-btn>
+              </div>
+            </div>
+          </v-card-text>
+          <v-card-actions class="px-6 pb-4">
+            <v-spacer />
+            <v-btn variant="text" @click="dlgImportar = false">Cerrar</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
       <v-dialog v-model="dlgAnalisis" max-width="900" scrollable>
         <v-card rounded="lg" class="dlg-card">
           <div class="dlg-header" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
@@ -743,7 +779,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useTheme } from 'vuetify'
 import { useAuthStore } from '../../stores/auth'
 import MainLayout from '../../components/layouts/MainLayout.vue'
@@ -832,6 +868,51 @@ const confirmandoDespacho = ref(false)
 
 // Dialog análisis de faltantes
 const dlgAnalisis = ref(false)
+
+// ── Importar pedidos de food trucks ────────────────────────────
+const dlgImportar     = ref(false)
+const cargandoPedidos = ref(false)
+const pedidosPendientes = ref([])
+const errorPedidos    = ref('')
+const pedidoImportado = ref(null)   // id del pedido cuya orden se está creando (se marca aprobado al guardar)
+
+async function abrirImportarPedidos() {
+  dlgImportar.value = true
+  cargandoPedidos.value = true
+  errorPedidos.value = ''
+  try {
+    const res = await api.get('/almacen/pedidos-web')
+    pedidosPendientes.value = res.data?.data || []
+  } catch (e) {
+    pedidosPendientes.value = []
+    errorPedidos.value = e?.response?.data?.error || 'No se pudieron cargar los pedidos'
+  } finally {
+    cargandoPedidos.value = false
+  }
+}
+
+// Pasa lo editado en el popup a la orden: el mismo formulario de Nueva Orden, con las cantidades ya puestas.
+async function aceptarPedido(ped) {
+  dlgImportar.value = false
+  pedidoImportado.value = ped.id
+  formError.value = ''
+  errFecha.value = ''
+  errDestino.value = ''
+  busquedaProducto.value = ''
+  filtroGrupo.value = 'TODOS'
+  filtroRapido.value = 'todos'
+  form.value = {
+    fecha: ped.fecha,
+    cc_origen: ccostos.value[0]?.codigo || '',
+    cc_destino: ped.cc,
+    observaciones: ped.observaciones || '',
+  }
+  dlgForm.value = true
+  await nextTick()     // el watcher de cc_destino limpia las cantidades: se aplican después
+  cantidades.value = Object.fromEntries(
+    ped.detalle.filter((d) => parseFloat(d.cantidad) > 0).map((d) => [d.codigo, parseFloat(d.cantidad)])
+  )
+}
 const analisisFaltantes = ref([])
 const cargandoAnalisis = ref(false)
 
@@ -1344,6 +1425,7 @@ watch(() => form.value.fecha, (val) => {
 
 // ── CRUD ──────────────────────────────────────────────────────
 function abrirNuevo() {
+  pedidoImportado.value = null
   editandoId.value = null
   formError.value  = ''
   errFecha.value   = ''
@@ -1441,6 +1523,10 @@ async function guardar() {
       await api.put(`/almacen/despachos/${editandoId.value}`, payload)
     } else {
       await api.post('/almacen/despachos', payload)
+      if (pedidoImportado.value) {
+        await api.post(`/almacen/pedidos-web/${pedidoImportado.value}/aprobar`).catch(() => {})
+        pedidoImportado.value = null
+      }
     }
     dlgForm.value = false
     await cargar()
@@ -1762,6 +1848,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.imp-tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+.imp-tabla th, .imp-tabla td { padding: 6px 4px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+.imp-tabla th.text-right, .imp-tabla td.text-right { text-align: right; }
+.imp-cant { width: 90px; text-align: right; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 6px; font: inherit; }
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 
 .db-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
