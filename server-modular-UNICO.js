@@ -13723,7 +13723,7 @@ app.get('/api/oficina/trabajan-hoy', async (req, res) => {
              JOIN nom_semana s ON s.id = sd.semana_id
              JOIN nom_empleados e ON e.id = sd.empleado_id
              WHERE s.empresa::text = $1::text AND LPAD(TRIM(sd.ccosto), 3, '0') = LPAD($2, 3, '0')
-               AND sd.fecha = $3::date AND sd.es_dia_libre = FALSE AND sd.ausencia_tipo IS NULL
+               AND sd.fecha = $3::date AND sd.es_dia_libre = FALSE AND COALESCE(TRIM(sd.ausencia_tipo), '') = ''
              ORDER BY e.apellido, e.nombre`, [empresa, ccosto, fecha]);
         const trabajan = r.rows.map(x => [x.nombre, x.apellido].filter(Boolean).join(' ').trim()).filter(Boolean);
         // Diagnóstico: cuántos turnos tiene ESE día el horario, por centro (para ver por qué una lista sale vacía)
