@@ -13575,7 +13575,10 @@ app.get('/api/config-general', async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'No existe configuración general para esta empresa' });
         }
-        res.json({ success: true, data: result.rows[0] });
+        // La bodega maestra vive en `empresas`; se incluye aquí para que la oficina virtual sepa
+        // a qué centro de costo imputar la materia prima sin tener que consultar otra tabla.
+        const bm = await pool.query('SELECT bodega_maestra FROM empresas WHERE codigo::text = $1', [String(empresa)]);
+        res.json({ success: true, data: { ...result.rows[0], bodega_maestra: bm.rows[0]?.bodega_maestra || null } });
     } catch (error) {
         console.error('Error en /api/config-general:', error);
         res.status(500).json({ success: false, error: error.message });
