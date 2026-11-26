@@ -11836,7 +11836,8 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
 
                 for (const item of itemsValidos) {
                     const cod = String(item.codigo).trim();
-                    if (!esProducto.has(cod)) { omitidosInventario.add(cod); continue; }
+                    // Un artículo nunca mueve stock, aunque su código coincida con el de un producto.
+                    if (item.origen === 'ARTICULO' || !esProducto.has(cod)) { omitidosInventario.add(cod); continue; }
                     await client.query(
                         `INSERT INTO detalle_inventario (fecha, ccosto, codigo, entrada, salida, tipo, empresa, observaciones)
                          VALUES ($1, $2, $3, $4, 0, 'ENTRADA DE ALMACEN', $5, $6)`,
