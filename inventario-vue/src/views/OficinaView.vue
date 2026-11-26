@@ -5,7 +5,7 @@
         :src="OFICINA_URL + '?escena=imagen'"
         class="ofi-frame"
         title="Oficina virtual MAYDO"
-        allow="fullscreen; clipboard-write; clipboard-read"
+        allow="fullscreen; clipboard-write; clipboard-read; microphone; local-network-access; loopback-network"
         referrerpolicy="no-referrer"
       />
     </div>
