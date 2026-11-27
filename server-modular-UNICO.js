@@ -11773,6 +11773,7 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
             [parseInt(empresa)]
         );
         let eaSeq = (parseInt(eaMaxRes.rows[0].max_cod) || 0) + 1;
+        const entradasCreadas = [];   // códigos de las entradas de almacén creadas (se devuelven al cliente)
 
         // ¿La empresa que registra el gasto es el principal (PROVEEDOR)?
         // Principal → actualiza el costo BASE. Cliente → actualiza SU capa de costo.
@@ -11788,6 +11789,7 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
 
             // 4a. SIEMPRE: crear registro en entrada_almacen
             const eaCodigo = String(eaSeq++).padStart(10, '0');
+            entradasCreadas.push(eaCodigo);
             const totalEa = itemsValidos.reduce(
                 (s, it) => s + (parseFloat(it.cantidad) || 0) * (parseFloat(it.costoUnit) || 0), 0
             );
@@ -11913,7 +11915,7 @@ app.post('/api/contabilidad/gastos/multiple', async (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: { codigos, grupo, por_pagar: esPorPagar, moviban: proximoNumMoviban,
+            data: { codigos, entradas: entradasCreadas, grupo, por_pagar: esPorPagar, moviban: proximoNumMoviban,
                     total: totalFactura, omitidos_inventario: omitidos,
                     cuentas_por_pagar_saldadas: gruposCxp.length,
                     total_cxp_saldadas: gruposCxp.reduce((s, g) => s + valorPorGrupoCxp[g], 0) }
